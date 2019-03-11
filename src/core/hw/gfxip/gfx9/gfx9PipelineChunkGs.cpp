@@ -139,7 +139,7 @@ void PipelineChunkGs::LateInit(
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::GsShdrIntrlTblPtr, &symbol))
     {
         const gpusize srdTableGpuVa = (pUploader->DataGpuVirtAddr() + symbol.value);
-        m_commands.sh.spiShaderUserDataLoGs.bits.DATA = LowPart(srdTableGpuVa);
+        m_commands.sh.spiShaderUserDataLoGs = LowPart(srdTableGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::GsDisassembly, &symbol))
@@ -161,7 +161,24 @@ void PipelineChunkGs::LateInit(
     if (loadInfo.enableNgg)
     {
         lateAllocWaves = settings.nggLateAllocGs;
+    }
 
+    // If late-alloc for NGG is enabled, or if we're using on-chip legacy GS path, we need to avoid using CU1
+    // for GS waves to avoid a deadlock with the PS. It is impossible to fully disable LateAlloc on Gfx9+, even
+    // with LateAlloc = 0.
+    // There are two issues:
+    //    1. NGG:
+    //       The HW-GS can perform exports which require parameter cache space. There are pending PS waves who have
+    //       claims on parameter cache space (before the interpolants are moved to LDS). This can cause a deadlock
+    //       where the HW-GS waves are waiting for space in the cache, but that space is claimed by pending PS waves
+    //       that can't launch on the CU due to lack of space (already existing waves).
+    //    2. On-chip legacy GS:
+    //       When on-chip is enabled, the HW-VS must run on the same CU as the HW-GS, since all communication between
+    //       the waves are done via LDS. This means that wherever the HW-GS launches is where the HW-VS (copy shader)
+    //       will launch. Due to the same issues as above (HW-VS waiting for parameter cache space, pending PS waves),
+    //       this could also cause a deadlock.
+    if (loadInfo.enableNgg || loadInfo.usesOnChipGs)
+    {
         // It is possible, with an NGG shader, that late-alloc GS waves can deadlock the PS.  To prevent this hang
         // situation, we need to mask off one CU when NGG is enabled.
         {

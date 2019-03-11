@@ -131,7 +131,7 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
                                      mmGRBM_SE3_PERFCOUNTER_SELECT        }, },  // grbm=se
     { Gfx9NumRlcCounters, 0, 0,    { mmRLC_PERFCOUNTER0_SELECT,
                                      mmRLC_PERFCOUNTER1_SELECT,           }, },  // rlc
-    { Gfx9NumSdmaCounters, 0, 0,   { mmSDMA0_PERFMON_CNTL,                       // sdma, fixed for Raven
+    { Gfx9NumSdmaCounters, 0, 0,   { Gfx09::mmSDMA0_PERFMON_CNTL,                // sdma, fixed for Raven
                                      Vega::mmSDMA1_PERFMON_CNTL,          }, },  //   in GetPrimaryBlockCounterInfo
     { 0, 0, 0,                     { 0,                                   }, },  // mc
     { Gfx9NumCpgCounters, 1, 2,    { mmCPG_PERFCOUNTER0_SELECT,
@@ -250,7 +250,7 @@ void GetPrimaryBlockCounterInfo(
         {
             // The *only* difference between the Raven and Vega family is that Raven has one of these
             // and Vega has two.
-            constexpr BlockPerfCounterInfo  SdmaPerfCounterInfo = { 1, 0, 0, { mmSDMA0_PERFMON_CNTL, }, };
+            constexpr BlockPerfCounterInfo  SdmaPerfCounterInfo = { 1, 0, 0, { Gfx09::mmSDMA0_PERFMON_CNTL, }, };
 
             memcpy(pBlockCounterInfo, &SdmaPerfCounterInfo, sizeof(BlockPerfCounterInfo));
         }
@@ -837,10 +837,10 @@ void SetupGfx9Counters(
                    GpuBlock::Dma,
                    PerfCounterDistribution::GlobalBlock,
                    SdmaInstances,
-                   mmSDMA0_PERFCOUNTER0_RESULT,
-                   mmSDMA0_PERFCOUNTER1_RESULT,
+                   Gfx09::mmSDMA0_PERFCOUNTER0_RESULT,
+                   Gfx09::mmSDMA0_PERFCOUNTER1_RESULT,
                    ((pProps->familyId == FAMILY_AI)
-                    ? (Vega::mmSDMA1_PERFCOUNTER0_RESULT - mmSDMA0_PERFCOUNTER1_RESULT)
+                    ? (Vega::mmSDMA1_PERFCOUNTER0_RESULT - Gfx09::mmSDMA0_PERFCOUNTER1_RESULT)
                     : 0));
 
     // SQ block

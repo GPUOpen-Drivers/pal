@@ -41,7 +41,6 @@ namespace DevDriver
     {
     }
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
     // =====================================================================================================================
     Result ClientURIService::HandleRequest(IURIRequestContext* pContext)
     {
@@ -206,5 +205,4 @@ namespace DevDriver
 
         return result;
     }
-#endif
 } // DevDriver

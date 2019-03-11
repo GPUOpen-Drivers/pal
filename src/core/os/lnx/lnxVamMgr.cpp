@@ -538,8 +538,7 @@ bool VamMgrSingleton::IsVamPartition(
     VaPartition vaPartition)
 {
     return ((vaPartition == VaPartition::DescriptorTable)       ||
-            (vaPartition == VaPartition::ShadowDescriptorTable) ||
-            (vaPartition == VaPartition::Svm));
+            (vaPartition == VaPartition::ShadowDescriptorTable));
 }
 
 // =====================================================================================================================

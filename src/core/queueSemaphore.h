@@ -26,6 +26,7 @@
 #pragma once
 
 #include "palQueueSemaphore.h"
+#include "palMutex.h"
 #include "core/os/lnx/lnxHeaders.h"
 
 namespace Pal
@@ -69,10 +70,10 @@ public:
         uint64         value,
         volatile bool* pIsStalled) = 0;
 
-    bool IsShareable() const { return m_flags.shareable; }
-    bool IsShared() const { return m_flags.shared; }
+    bool IsShareable()      const { return m_flags.shareable;      }
+    bool IsShared()         const { return m_flags.shared;         }
     bool IsExternalOpened() const { return m_flags.externalOpened; }
-    bool IsTimeline() const { return m_flags.timeline; }
+    bool IsTimeline()       const { return m_flags.timeline;       }
 
 protected:
     explicit QueueSemaphore(Device* pDevice);
@@ -85,6 +86,8 @@ protected:
     virtual Result OsSignal(Queue* pQueue, uint64 value);
     virtual Result OsWait(Queue* pQueue, uint64 value);
     Device*const  m_pDevice;
+
+    uint64  m_maxWaitsPerSignal;  // Upper limit to number of simultaneous unconsumed signals on this semaphore.
 
     amdgpu_semaphore_handle m_hSemaphore;
     bool                    m_skipNextWait; // For SemaphoreType::SyncObj Semaphore, we can create

@@ -277,7 +277,24 @@ void Device::TransitionDepthStencil(
             pSyncReqs->cpMeCoherCntl.bits.DB_DEST_BASE_ENA = 1;
             pSyncReqs->cpMeCoherCntl.bits.DEST_BASE_0_ENA  = 1;
             pSyncReqs->cacheFlags                         |= CacheSyncFlushAndInvDb;
+        }
 
+        // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function
+        // hardware.
+        constexpr uint32 MaybeFixedFunction = (CoherCopy               |
+                                               CoherDepthStencilTarget |
+                                               CoherResolve            |
+                                               CoherClear);
+
+        // If applications use Vulkan's global memory barriers feature, PAL can end up with image transitions that
+        // have no cache flags because the cache actions for the image were performed in a different transition.
+        // In this case, we need to conservatively handle the L2 cache logic since we lack the information to make
+        // an optimal decision.
+        if (TestAnyFlagSet(srcCacheMask, MaybeFixedFunction)            ||
+            TestAnyFlagSet(transition.dstCacheMask, MaybeFixedFunction) ||
+            issuedBlt                                                   ||
+            noCacheFlags)
+        {
             //  We will need flush & inv L2 on MSAA Z, MSAA color, mips in the metadata tail, or any stencil.
             //
             // The driver assumes that all meta-data surfaces are pipe-aligned, but there are cases where the
@@ -326,6 +343,8 @@ void Device::ExpandColor(
     auto&                       gfx9Image   = static_cast<Gfx9::Image&>(*image.GetGfxImage());
     const auto&                 subresRange = transition.imageInfo.subresRange;
     const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(subresRange.startSubres);
+
+    const bool noCacheFlags = ((transition.srcCacheMask == 0) && (transition.dstCacheMask == 0));
 
     PAL_ASSERT(image.IsDepthStencil() == false);
 
@@ -610,7 +629,6 @@ void Device::ExpandColor(
         // texture L1 caches and TCC's meta caches to be flushed.
         //
         // Note that we must always invalidate these caches if the client didn't give us any cache information.
-        const bool noCacheFlags = ((transition.srcCacheMask == 0) && (transition.dstCacheMask == 0));
 
         if (TestAnyFlagSet(transition.dstCacheMask, CoherShader | CoherCopy | CoherResolve) || noCacheFlags)
         {
@@ -626,8 +644,22 @@ void Device::ExpandColor(
         }
     }
 
+    // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function
+    // hardware.
+    constexpr uint32 MaybeFixedFunction = (CoherCopy        |
+                                           CoherColorTarget |
+                                           CoherResolve     |
+                                           CoherClear);
+
+    // If applications use Vulkan's global memory barriers feature, PAL can end up with image transitions that
+    // have no cache flags because the cache actions for the image were performed in a different transition.
+    // In this case, we need to conservatively handle the L2 cache logic since we lack the information to make
+    // an optimal decision.
     if ((earlyPhase == false) &&
-        (TestAnyFlagSet(transition.srcCacheMask, CoherColorTarget | CoherClear) || didGfxBlt))
+        (TestAnyFlagSet(transition.srcCacheMask, MaybeFixedFunction) ||
+         TestAnyFlagSet(transition.dstCacheMask, MaybeFixedFunction) ||
+         didGfxBlt                                                   ||
+         noCacheFlags))
     {
         //  We will need flush & inv L2 on MSAA Z, MSAA color, mips in the metadata tail, or any stencil.
         //
@@ -1073,17 +1105,6 @@ void Device::Barrier(
             TestAnyFlagSet(transition.dstCacheMask, MaybeTccMdShaderMask))
         {
             globalSyncReqs.cacheFlags |= CacheSyncInvTccMd;
-        }
-
-        // Check if the currently bound depth/stencil target requires TCC flush. This may be needed before a shader
-        // reads D/S metadata.
-        if ((transition.imageInfo.pImage == nullptr) &&
-            (TestAnyFlagSet(globalSyncReqs.cacheFlags, CacheSyncInvTcc | CacheSyncFlushTcc) == false))
-        {
-            if (cmdBufState.depthMdNeedsTccFlush)
-            {
-                globalSyncReqs.cacheFlags |= CacheSyncInvTcc | CacheSyncFlushTcc;
-            }
         }
     }
 

@@ -234,11 +234,7 @@ private:
         const Image&           image,
         const SubResourceInfo* pSubResInfo);
 
-    template <typename RegType>
-    void SetupHtilePreload(
-        const Image&          image,
-        uint32                mipLevel,
-        RegType*              pRegType);
+    void SetupHtilePreload(const Image& image, uint32 mipLevel);
 
     virtual void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
     virtual void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;

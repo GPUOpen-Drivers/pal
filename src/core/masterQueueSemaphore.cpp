@@ -58,10 +58,10 @@ Result MasterQueueSemaphore::Init(
 {
     m_signalCount = createInfo.initialCount;
 
-    Result result = (m_pDevice->IsNull() ? Result::Success : OsInit(createInfo));
+    Result result = m_queuesLock.Init();
     if (result == Result::Success)
     {
-        result = m_queuesLock.Init();
+        result = (m_pDevice->IsNull() ? Result::Success : OsInit(createInfo));
     }
 
     return result;

@@ -72,6 +72,17 @@ Result IndirectCmdGenerator::ValidateCreateInfo(
                     result = Result::ErrorInvalidValue;
                 }
                 break;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+            case IndirectParamType::BindVertexData:
+#else
+            case IndirectParamType::BindUntypedSrd:
+#endif
+                if (drawType == IndirectParamType::Dispatch)
+                {
+                    // BindVertexData is only allowed for commands which issue a draw!
+                    result = Result::ErrorInvalidValue;
+                }
+                break;
             default:
                 break;
             }

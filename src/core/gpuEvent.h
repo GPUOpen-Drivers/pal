@@ -42,10 +42,20 @@ public:
     GpuEvent(const GpuEventCreateInfo& createInfo, Device* pDevice);
     virtual ~GpuEvent();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
     Result Init();
+#endif
 
     // NOTE: Part of the public IDestroyable interface.
     virtual void Destroy() override;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    // NOTE: Part of the public IGpuMemoryBindable interface.
+    virtual void GetGpuMemoryRequirements(GpuMemoryRequirements* pGpuMemReqs) const override;
+
+    // NOTE: Part of the public IGpuMemoryBindable interface.
+    virtual Result BindGpuMemory(IGpuMemory* pGpuMemory, gpusize offset) override;
+#endif
 
     // Note: Part of the public IGpuEvent interface.
     virtual Result GetStatus() override;
@@ -56,6 +66,8 @@ public:
     static constexpr uint32  ResetValue = 0xCAFEBABE;
 
     const BoundGpuMemory& GetBoundGpuMemory() const { return m_gpuMemory; }
+
+    bool IsGpuAccessOnly() const { return (m_createInfo.flags.gpuAccessOnly == 1); }
 
 private:
     Result CpuWrite(uint32 slotId, uint32 data);

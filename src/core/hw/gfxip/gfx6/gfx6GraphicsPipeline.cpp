@@ -309,6 +309,15 @@ void GraphicsPipeline::EarlyInit(
         pInfo->loadedCtxRegCount = BaseLoadedCntxRegCount;
     }
 
+    registers.HasEntry(mmVGT_TF_PARAM, &m_commands.set.context.vgtTfParam.u32All);
+    if (IsTessEnabled()                                                 &&
+        ((m_commands.set.context.vgtShaderStagesEn.bits.DYNAMIC_HS == 0) ||
+         (m_commands.set.context.vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD > 0)))
+    {
+        pInfo->usesOnchipTess = true;
+    }
+
+    pInfo->usesGs       = IsGsEnabled();
     pInfo->usesOnChipGs = IsGsOnChip();
 
     if (IsTessEnabled())
@@ -360,7 +369,7 @@ Result GraphicsPipeline::HwlInit(
 
             if (IsTessEnabled())
             {
-                m_chunkLsHs.LateInit(abiProcessor, registers, &uploader, &hasher);
+                m_chunkLsHs.LateInit(abiProcessor, registers, &uploader, loadInfo, &hasher);
             }
             if (IsGsEnabled())
             {
@@ -1614,6 +1623,20 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 #if !PAL_COMPUTE_GDS_OPT
                 PAL_ASSERT(offset == (BaseRegAddr[stageId] + GdsRangeReg));
 #endif
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::VertexBufferTable))
+            {
+                // There can be only one vertex buffer table per pipeline.
+                PAL_ASSERT((m_signature.vertexBufTableRegAddr == offset) ||
+                           (m_signature.vertexBufTableRegAddr == UserDataNotMapped));
+                m_signature.vertexBufTableRegAddr = offset;
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::StreamOutTable))
+            {
+                // There can be only one stream output table per pipeline.
+                PAL_ASSERT((m_signature.streamOutTableRegAddr == offset) ||
+                           (m_signature.streamOutTableRegAddr == UserDataNotMapped));
+                m_signature.streamOutTableRegAddr = offset;
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::BaseVertex))
             {

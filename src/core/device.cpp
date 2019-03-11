@@ -405,9 +405,12 @@ Result Device::Cleanup()
         (MemoryProperties().flags.iommuv2Support == 0))
     {
         auto*const pVaRange = &m_memoryProperties.vaRange[0];
-        result = VirtualRelease(reinterpret_cast<void*>(pVaRange[static_cast<uint32>(VaPartition::Svm)].baseVirtAddr),
-                                static_cast<size_t>(pVaRange[static_cast<uint32>(VaPartition::Svm)].size));
-        m_pPlatform->SetSvmRangeStart(0);
+        if (pVaRange[static_cast<uint32>(VaPartition::Svm)].baseVirtAddr != 0)
+        {
+            result = VirtualRelease(reinterpret_cast<void*>(pVaRange[static_cast<uint32>(VaPartition::Svm)].baseVirtAddr),
+                                    static_cast<size_t>(pVaRange[static_cast<uint32>(VaPartition::Svm)].size));
+            m_pPlatform->SetSvmRangeStart(0);
+        }
     }
 
     return result;
@@ -1002,43 +1005,6 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         }
 
         baseVirtAddr += _4GB;
-
-        // Don't need to reserve cpu va if it is fine grain svm system
-        // The allocation of svm will be in system memory in the case of fine grain svm system
-        if (m_pPlatform->SvmModeEnabled() && (MemoryProperties().flags.iommuv2Support == 0))
-        {
-            gpusize startVirtAddr = baseVirtAddr;
-
-            if (m_pPlatform->GetSvmRangeStart() == 0)
-            {
-                result = FindGpuVaRange(&startVirtAddr, usableVaEnd, m_pPlatform->GetMaxSizeOfSvm(), _4GB, true);
-
-                if (result == Result::Success)
-                {
-                    m_pPlatform->SetSvmRangeStart(startVirtAddr);
-                }
-            }
-            else
-            {
-                startVirtAddr = m_pPlatform->GetSvmRangeStart();
-            }
-
-            if (result == Result::Success)
-            {
-                pVaRange[static_cast<uint32>(VaPartition::Svm)].baseVirtAddr = startVirtAddr;
-                pVaRange[static_cast<uint32>(VaPartition::Svm)].size         = m_pPlatform->GetMaxSizeOfSvm();
-            }
-
-            // Find larger partition of (ShadowDescriptorTable to Svm) and (Svm to vaEnd) as default partition
-            if ((startVirtAddr - baseVirtAddr) < (usableVaEnd - (startVirtAddr + m_pPlatform->GetMaxSizeOfSvm())))
-            {
-                baseVirtAddr = startVirtAddr + m_pPlatform->GetMaxSizeOfSvm();
-            }
-            else
-            {
-                usableVaEnd = startVirtAddr - 1;
-            }
-        }
 
         if (result == Result::Success)
         {
@@ -2812,17 +2778,24 @@ Result Device::CreateGpuEvent(
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppGpuEvent != nullptr));
 
     GpuEvent* pGpuEvent = PAL_PLACEMENT_NEW(pPlacementAddr) GpuEvent(createInfo, this);
-    Result    result    = pGpuEvent->Init();
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
+    Result result = pGpuEvent->Init();
 
     if (result != Result::Success)
     {
         pGpuEvent->Destroy();
         pGpuEvent = nullptr;
     }
+#endif
 
     (*ppGpuEvent) = pGpuEvent;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    return Result::Success;
+#else
     return result;
+#endif
 }
 
 // =====================================================================================================================

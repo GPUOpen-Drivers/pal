@@ -1103,10 +1103,11 @@ struct DeviceProperties
         {
             struct
             {
-                uint32 supportTurboSync  :  1;    ///< Whether TurboSync is supported by KMD
-                uint32 enableUmdFpsCap   :  1;    ///< Whether UMD FPS CAP enabled
-                uint32 isCwgSupported    :  1;    ///< KMD supports Creator Who Game (CWG) feature
-                uint32 isGamingDriver    :  1;    ///< KMD works in gaming mode
+                uint32 supportTurboSync           :  1;    ///< Whether TurboSync is supported by KMD
+                uint32 enableUmdFpsCap            :  1;    ///< Whether UMD FPS CAP enabled
+                uint32 isCwgSupported             :  1;    ///< KMD supports Creator Who Game (CWG) feature
+                uint32 isGamingDriver             :  1;    ///< KMD works in gaming mode
+                uint32 placeholder0               :  1;
 
                 uint32 reserved          : 28;    ///< Reserved for future use.
             };

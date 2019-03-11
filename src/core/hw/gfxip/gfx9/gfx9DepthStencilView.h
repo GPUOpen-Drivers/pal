@@ -72,7 +72,6 @@ public:
     bool WaitOnMetadataMipTail() const { return m_flags.waitOnMetadataMipTail; }
     bool ReadOnlyDepth() const { return m_flags.readOnlyDepth; }
     bool ReadOnlyStencil() const { return m_flags.readOnlyStencil; }
-    bool ShaderMetadataReadRequiresTccFlush() const { return m_flags.shaderRequiresTccFlush; }
 
     static uint32* WriteUpdateFastClearDepthStencilValue(
         uint32     metaDataClearFlags,
@@ -134,8 +133,7 @@ protected:
                                                  // compression state.
             uint32 dbRenderControlLocked   :  1; // Set if DB_RENDER_CONTROL cannot change due to bind-time
                                                  // compression state.
-            uint32 shaderRequiresTccFlush  :  1; // Image requires a TCC flush/inv before a shader can read metadata.
-            uint32 reserved                : 20;
+            uint32 reserved                : 21;
         };
 
         uint32 u32All;

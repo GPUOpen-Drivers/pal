@@ -228,17 +228,24 @@ public:
     virtual void CmdSetStencilRefMasks(const StencilRefMaskParams& params) override
         { PAL_NEVER_CALLED(); }
 
+    virtual void CmdSetVertexBuffers(
+        uint32                firstBuffer,
+        uint32                bufferCount,
+        const BufferViewInfo* pBuffers) override
+        { PAL_NEVER_CALLED(); }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
     virtual void CmdSetIndirectUserData(
         uint16      tableId,
         uint32      dwordOffset,
         uint32      dwordSize,
         const void* pSrcData) override
         { PAL_NEVER_CALLED(); }
-
     virtual void CmdSetIndirectUserDataWatermark(
         uint16 tableId,
         uint32 dwordLimit) override
         { PAL_NEVER_CALLED(); }
+#endif
 
     virtual void CmdBindIndexData(
         gpusize   gpuAddr,
@@ -670,6 +677,11 @@ public:
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    virtual Result AllocateAndBindGpuMemToEvent(
+        IGpuEvent* pGpuEvent) override;
+#endif
 
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,

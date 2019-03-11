@@ -24,7 +24,6 @@
  **********************************************************************************************************************/
 
 #include "gpuopen.h"
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
 #include "util/ddJsonWriter.h"
 
 using namespace DevDriver;
@@ -237,5 +236,3 @@ void JsonWriter::ValueNull()
         m_lastResult = Bool2Result(m_rjWriter.Null());
     }
 }
-
-#endif

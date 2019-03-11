@@ -136,12 +136,6 @@ namespace DevDriver
             }
 
             // ========================================================================================================
-#if !DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
-            void Update()
-            {
-                DD_ASSERT(Result::VersionMismatch != Result::VersionMismatch && "You have a version mismatch");
-            }
-#else
             void Update()
             {
                 // Attempt to send the session's queued payload if it has one.
@@ -344,7 +338,7 @@ namespace DevDriver
                     }
                 }
             }
-#endif
+
         private:
             URIDataFormat TransferFmtToURIDataFmt(TransferDataFormat transferFormat)
             {
@@ -521,7 +515,6 @@ namespace DevDriver
         {
             Result result = Result::Unavailable;
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
             // We handle internal service requests directly here
             if (strcmp(pServiceName, kInternalServiceName) == 0)
             {
@@ -559,7 +552,6 @@ namespace DevDriver
                 }
             }
             else
-#endif
             {
                 // Otherwise forward the request to the specified service
 

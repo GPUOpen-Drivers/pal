@@ -207,7 +207,11 @@ void TimeGraph<Allocator>::DrawGraphLine(
     pCmdBuffer->CmdSetUserData(Pal::PipelineBindPoint::Compute, 5, 3, &constantInfo[0]);
 
     // Bind the pipeline and issue one thread group.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({ Pal::PipelineBindPoint::Compute, m_pPipeline, Pal::InternalApiPsoHash, });
+#else
     pCmdBuffer->CmdBindPipeline({ Pal::PipelineBindPoint::Compute, m_pPipeline, });
+#endif
     pCmdBuffer->CmdDispatch(32, 1, 1);
 }
 

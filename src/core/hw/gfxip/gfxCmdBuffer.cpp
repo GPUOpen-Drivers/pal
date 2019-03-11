@@ -61,7 +61,7 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_device(device),
     m_pTimestampMem(nullptr),
     m_timestampOffset(0),
-    m_internalEvent(GpuEventCreateInfo{}, device.Parent()),
+    m_pInternalEvent(nullptr),
     m_computeStateFlags(0),
     m_spmTraceEnabled(false),
     m_fceRefCountVec(device.GetPlatform())
@@ -86,11 +86,19 @@ GfxCmdBuffer::~GfxCmdBuffer()
 {
     ReturnGeneratedCommandChunks(true);
 
+    Device* device = m_device.Parent();
+
     if (m_pTimestampMem != nullptr)
     {
-        m_device.Parent()->MemMgr()->FreeGpuMem(m_pTimestampMem, m_timestampOffset);
+        device->MemMgr()->FreeGpuMem(m_pTimestampMem, m_timestampOffset);
         m_pTimestampMem   = nullptr;
         m_timestampOffset = 0;
+    }
+
+    if (m_pInternalEvent != nullptr)
+    {
+        m_pInternalEvent->Destroy();
+        PAL_SAFE_FREE(m_pInternalEvent, device->GetPlatform());
     }
 }
 
@@ -99,6 +107,8 @@ Result GfxCmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
     Result result = CmdBuffer::Init(internalInfo);
+
+    Device* pDevice = m_device.Parent();
 
     if (result == Result::Success)
     {
@@ -114,16 +124,46 @@ Result GfxCmdBuffer::Init(
         GpuMemoryInternalCreateInfo internalMemInfo = {};
         internalMemInfo.flags.alwaysResident = 1;
 
-        result = m_device.Parent()->MemMgr()->AllocateGpuMem(createInfo,
-                                                             internalMemInfo,
-                                                             false,
-                                                             &m_pTimestampMem,
-                                                             &m_timestampOffset);
+        result = pDevice->MemMgr()->AllocateGpuMem(createInfo,
+                                                   internalMemInfo,
+                                                   false,
+                                                   &m_pTimestampMem,
+                                                   &m_timestampOffset);
     }
 
     if (result == Result::Success)
     {
-        result = m_internalEvent.Init();
+        // Create gpuEvent for this CmdBuffer.
+        GpuEventCreateInfo createInfo  = {};
+        createInfo.flags.gpuAccessOnly = 1;
+
+        const size_t eventSize = pDevice->GetGpuEventSize(createInfo, &result);
+
+        if (result == Result::Success)
+        {
+            result = Result::ErrorOutOfMemory;
+            void* pMemory = PAL_MALLOC(eventSize,
+                                       pDevice->GetPlatform(),
+                                       Util::SystemAllocType::AllocObject);
+
+            if (pMemory != nullptr)
+            {
+                IGpuEvent** ppEvent = reinterpret_cast<IGpuEvent**>(&m_pInternalEvent);
+                result = pDevice->CreateGpuEvent(createInfo, pMemory, ppEvent);
+
+                if (result != Result::Success)
+                {
+                    PAL_SAFE_FREE(pMemory, pDevice->GetPlatform());
+                }
+            }
+        }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
+        if (result == Result::Success)
+        {
+            result = m_pInternalEvent->Init();
+        }
+#endif
     }
 
     return result;
@@ -252,7 +292,17 @@ Result GfxCmdBuffer::BeginCommandStreams(
         ReturnGeneratedCommandChunks(true);
     }
 
-    return CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
+    Result result = CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    // Allocate from current CmdAllocator and bind the GPU memory to internal event.
+    if (result == Result::Success)
+    {
+        result = AllocateAndBindGpuMemToEvent(m_pInternalEvent);
+    }
+#endif
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -882,6 +932,37 @@ void GfxCmdBuffer::ReactivateQueries()
             ActivateQueryType(queryPoolType);
         }
     }
+}
+
+// =====================================================================================================================
+// Updates a user-data table managed by embedded data & CPU updates.
+void GfxCmdBuffer::UpdateUserDataTableCpu(
+    UserDataTableState* pTable,
+    uint32              dwordsNeeded,
+    uint32              offsetInDwords,
+    const uint32*       pSrcData)       // In: Data representing the *full* contents of the table, not just the part
+                                        // between offsetInDwords and dwordsNeeded.
+{
+    // The dwordsNeeded and offsetInDwords parameters together specify a "window" of the table which is relevant to
+    // the active pipeline.  To save memory as well as cycles spent copying data, this will only allocate and populate
+    // the portion of the user-data table inside that window.
+    PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
+
+    gpusize gpuVirtAddr  = 0uLL;
+    pTable->pCpuVirtAddr = (CmdAllocateEmbeddedData(dwordsNeeded, 1, &gpuVirtAddr) - offsetInDwords);
+    pTable->gpuVirtAddr  = (gpuVirtAddr - (sizeof(uint32) * offsetInDwords));
+
+    uint32* pDstData = (pTable->pCpuVirtAddr + offsetInDwords);
+    pSrcData += offsetInDwords;
+    for (uint32 i = 0; i < dwordsNeeded; ++i)
+    {
+        *pDstData = *pSrcData;
+        ++pDstData;
+        ++pSrcData;
+    }
+
+    // Mark that the latest contents of the user-data table have been uploaded to the current embedded data chunk.
+    pTable->dirty = 0;
 }
 
 // =====================================================================================================================

@@ -119,11 +119,13 @@ void ComputePipeline::SetupSignatureFromElf(
                 PAL_ASSERT(offset == (mmCOMPUTE_USER_DATA_0 + GdsRangeReg));
 #endif
             }
-            else if ((value == static_cast<uint32>(Abi::UserDataMapping::BaseVertex))    ||
-                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseInstance))  ||
-                     (value == static_cast<uint32>(Abi::UserDataMapping::DrawIndex))     ||
-                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseIndex))     ||
-                     (value == static_cast<uint32>(Abi::UserDataMapping::Log2IndexSize)) ||
+            else if ((value == static_cast<uint32>(Abi::UserDataMapping::VertexBufferTable)) ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::StreamOutTable))    ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseVertex))        ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseInstance))      ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::DrawIndex))         ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseIndex))         ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::Log2IndexSize))     ||
                      (value == static_cast<uint32>(Abi::UserDataMapping::EsGsLdsSize)))
             {
                 PAL_ALERT_ALWAYS(); // These are for graphics pipelines only!
@@ -258,9 +260,9 @@ Result ComputePipeline::HwlInit(
             m_commands.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST__CI__VI = 1;
         }
 
-        if (m_pDevice->Parent()->HwsTrapHandlerPresent())
+        if (m_pDevice->Parent()->LegacyHwsTrapHandlerPresent())
         {
-            // If the hardware scheduler's trap handler is present, compute shaders must always set the TRAP_PRESENT
+            // If the legacy HWS's trap handler is present, compute shaders must always set the TRAP_PRESENT
             // flag.
 
             // TODO: Handle the case where the client enabled a trap handler and the hardware scheduler's trap handler

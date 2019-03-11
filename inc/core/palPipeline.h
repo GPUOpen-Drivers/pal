@@ -269,6 +269,13 @@ struct GraphicsPipelineCreateInfo
                                                ///  with this pipeline.  All of this info must be consistent with the
                                                ///  full topology specified by ICmdBuffer::SetPrimitiveTopology() when
                                                ///  drawing with this pipeline bound.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+        /// Number of vertex buffer slots which are accessed by this pipeline.  Behavior is undefined if the pipeline
+        /// tries to access a vertex buffer slot outside the range [0, vertexBufferCount).  It is generally advisable
+        /// to make this the minimum value possible because that reduces the number of vertex buffer slots PAL has to
+        /// maintain for this pipeline when recording command buffers.
+        uint32            vertexBufferCount;
+#endif
     } iaState;                                 ///< Input assembler state.
 
     struct

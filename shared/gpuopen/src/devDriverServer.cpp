@@ -299,27 +299,6 @@ namespace DevDriver
         return static_cast<ProtocolServerType<protocol>*>(m_pMsgChannel->GetProtocolServer(protocol));
     }
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
-    Result QueryDevDriverStatus(const TransportType type, StatusFlags* pFlags, HostInfo *pHostInfo)
-    {
-        Result result = Result::Unavailable;
-
-        // pHostInfo is optional, so we default to local host
-        const HostInfo& hostInfo = (pHostInfo != nullptr) ? *pHostInfo : kDefaultLocalHost;
-
-        switch (type)
-        {
-            case TransportType::Local:
-                result = SocketMsgTransport::QueryStatus(hostInfo, kQueryStatusTimeoutInMs, pFlags);
-                break;
-            default:
-                DD_ALERT_REASON("Invalid transport type specified");
-                break;
-        }
-        return result;
-    }
-#endif
-
     bool DevDriverServer::IsConnectionAvailable(const HostInfo& hostInfo,
                                                 uint32          timeout)
     {
@@ -386,48 +365,4 @@ namespace DevDriver
         return ((traceInProgress == false) && (isAppWhitelisted == false));
     }
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
-    DevDriverServer::DevDriverServer(const DevDriverServerCreateInfo& createInfo)
-        : m_pMsgChannel(nullptr)
-        , m_allocCb(createInfo.transportCreateInfo.allocCb)
-        , m_createInfo()
-    {
-        m_createInfo.initialFlags = createInfo.transportCreateInfo.initialFlags;
-        m_createInfo.componentType = createInfo.transportCreateInfo.componentType;
-        m_createInfo.createUpdateThread = createInfo.transportCreateInfo.createUpdateThread;
-        Platform::Strncpy(&m_createInfo.clientDescription[0],
-                          &createInfo.transportCreateInfo.clientDescription[0],
-                          sizeof(m_createInfo.clientDescription));
-        switch (createInfo.transportCreateInfo.type)
-        {
-            case TransportType::Local:
-            {
-                m_createInfo.connectionInfo = kDefaultNamedPipe;
-                break;
-            }
-            default:
-                DD_ALERT_REASON("Invalid transport type specified");
-                break;
-        }
-        m_createInfo.servers = createInfo.enabledProtocols;
-    }
-
-    bool DevDriverServer::IsConnectionAvailable(const TransportType type,
-                                                uint32              timeout)
-    {
-        bool result = false;
-        switch (type)
-        {
-        case TransportType::Local:
-            // On non windows platforms we try to use an AF_UNIX socket for communication
-            result = IsConnectionAvailable(kDefaultNamedPipe, timeout);
-            break;
-        default:
-            // Invalid value passed to the function
-            DD_ALERT_REASON("Invalid transport type specified");
-            break;
-        }
-        return result;
-    }
-#endif
 } // DevDriver

@@ -48,12 +48,6 @@ namespace DevDriver
         Result ReadMessage(MessageBuffer &messageBuffer, uint32 timeoutInMs) override;
         Result WriteMessage(const MessageBuffer &messageBuffer) override;
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_CLIENT_REGISTRATION_VERSION
-        Result RegisterExternalClient(Component componentType, ClientId* pExternalClientId) override
-        {
-            return RegisterExternalClient(componentType, 0, pExternalClientId);
-        };
-#endif
         Result RegisterExternalClient(Component componentType, ClientFlags flags, ClientId* pExternalClientId) override;
         Result UnregisterExternalClient(ClientId externalClientId) override;
         Result UpdateClientStatus(ClientId clientId, ClientFlags flags) override;

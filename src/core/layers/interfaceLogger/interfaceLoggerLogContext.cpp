@@ -108,8 +108,11 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdBindDepthStencilState,                         InterfaceObject::CmdBuffer,            "CmdBindDepthStencilState"                },
     { InterfaceFunc::CmdBufferCmdSetDepthBounds,                                InterfaceObject::CmdBuffer,            "CmdSetDepthBounds"                       },
     { InterfaceFunc::CmdBufferCmdSetUserData,                                   InterfaceObject::CmdBuffer,            "CmdSetUserData"                          },
+    { InterfaceFunc::CmdBufferCmdSetVertexBuffers,                              InterfaceObject::CmdBuffer,            "CmdSetVertexBuffers"                     },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
     { InterfaceFunc::CmdBufferCmdSetIndirectUserData,                           InterfaceObject::CmdBuffer,            "CmdSetIndirectUserData"                  },
     { InterfaceFunc::CmdBufferCmdSetIndirectUserDataWatermark,                  InterfaceObject::CmdBuffer,            "CmdSetIndirectUserDataWatermark"         },
+#endif
     { InterfaceFunc::CmdBufferCmdBindIndexData,                                 InterfaceObject::CmdBuffer,            "CmdBindIndexData"                        },
     { InterfaceFunc::CmdBufferCmdBindTargets,                                   InterfaceObject::CmdBuffer,            "CmdBindTargets"                          },
     { InterfaceFunc::CmdBufferCmdBindStreamOutTargets,                          InterfaceObject::CmdBuffer,            "CmdBindStreamOutTargets"                 },
@@ -277,6 +280,9 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::FenceDestroy,                                              InterfaceObject::Fence,                "Destroy"                                 },
     { InterfaceFunc::GpuEventSet,                                               InterfaceObject::GpuEvent,             "Set"                                     },
     { InterfaceFunc::GpuEventReset,                                             InterfaceObject::GpuEvent,             "Reset"                                   },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    { InterfaceFunc::GpuEventBindGpuMemory,                                     InterfaceObject::GpuEvent,             "BindGpuMemory"                           },
+#endif
     { InterfaceFunc::GpuEventDestroy,                                           InterfaceObject::GpuEvent,             "Destroy"                                 },
     { InterfaceFunc::GpuMemorySetPriority,                                      InterfaceObject::GpuMemory,            "SetPriority"                             },
     { InterfaceFunc::GpuMemoryMap,                                              InterfaceObject::GpuMemory,            "Map"                                     },

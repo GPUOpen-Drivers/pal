@@ -44,6 +44,9 @@ GraphicsPipeline::GraphicsPipeline(
     :
     Pal::Pipeline(pDevice, isInternal),
     m_binningOverride(BinningOverride::Default),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+    m_vertexBufferCount(0),
+#endif
     m_vertsPerPrim(0)
 {
     m_flags.u32All = 0;
@@ -107,6 +110,9 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
     m_flags.lateAllocVsLimit = createInfo.useLateAllocVsLimit;
     m_lateAllocVsLimit       = createInfo.lateAllocVsLimit;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+    m_vertexBufferCount      = createInfo.iaState.vertexBufferCount;
+#endif
 
     // Determine the number of vertices per primitive.
     switch (createInfo.iaState.topologyInfo.primitiveType)

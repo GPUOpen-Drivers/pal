@@ -46,8 +46,11 @@ enum class CmdBufCallId : uint32
     CmdBindStreamOutTargets,
     CmdBindBorderColorPalette,
     CmdSetUserData,
+    CmdSetVertexBuffers,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
     CmdSetIndirectUserData,
     CmdSetIndirectUserDataWatermark,
+#endif
     CmdSetBlendConst,
     CmdSetInputAssemblyState,
     CmdSetTriangleRasterState,
@@ -161,8 +164,11 @@ static const char* CmdBufCallIdStrings[] =
     "CmdBindStreamOutTargets()",
     "CmdBindBorderColorPalette()",
     "CmdSetUserData()",
+    "CmdSetVertexBuffers()",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
     "CmdSetIndirectUserData()",
     "CmdSetIndirectUserDataWatermark()",
+#endif
     "CmdSetBlendConst()",
     "CmdSetInputAssemblyState()",
     "CmdSetTriangleRasterState()",

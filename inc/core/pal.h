@@ -80,6 +80,8 @@ constexpr uint32 MaxDescriptorSets        = 2;   ///< Maximum number of descript
 constexpr uint32 MaxMsaaRasterizerSamples = 16;  ///< Maximum number of MSAA samples supported by the rasterizer.
 constexpr uint32 MaxAvailableEngines      = 8;   ///< Maximum number of engines for a particular engine type.
 
+constexpr uint64 InternalApiPsoHash       = UINT64_MAX;  ///< Default Hash for PAL internal pipelines.
+
 /// Specifies a category of GPU engine.  Each category corresponds directly to a hardware engine. There may be multiple
 /// engines available for a given type; the available engines on a particular GPU can be queried via
 /// Device::GetProperties, returned in DeviceProperties.engineProperties[].

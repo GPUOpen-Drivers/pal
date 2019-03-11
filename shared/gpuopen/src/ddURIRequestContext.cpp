@@ -24,7 +24,6 @@
  **********************************************************************************************************************/
 
 #include "gpuopen.h"
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
 #include "ddURIRequestContext.h"
 #include "ddTransferManager.h"
 
@@ -182,4 +181,3 @@ Result URIRequestContext::BeginJsonResponse(IStructuredWriter** ppWriter)
     }
     return result;
 }
-#endif

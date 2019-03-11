@@ -294,6 +294,8 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
 void IndirectCmdGenerator::InitParamBuffer(
     const IndirectCmdGeneratorCreateInfo& createInfo)
 {
+    constexpr uint32 BufferSrdDwords = ((sizeof(BufferSrd) / sizeof(uint32)));
+
     memset(m_pParamData, 0, (sizeof(IndirectParamData) * PaddedParamCount(ParameterCount())));
 
     uint32 argBufOffset = 0;
@@ -348,14 +350,19 @@ void IndirectCmdGenerator::InitParamBuffer(
                     WideBitfieldSetBit(m_touchedUserData, (e + param.userData.firstEntry));
                 }
                 break;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+            case IndirectParamType::BindVertexData:
+                m_pParamData[p].type    = IndirectOpType::VertexBufTableSrd;
+                m_pParamData[p].data[0] = (param.vertexData.bufferId * BufferSrdDwords);
+#else
             case IndirectParamType::BindUntypedSrd:
                 PAL_ASSERT(param.untypedSrd.tableId == 0);
                 m_pParamData[p].type    = IndirectOpType::VertexBufTableSrd;
                 m_pParamData[p].data[0] = param.untypedSrd.dwordOffset;
-
+#endif
                 // Update the vertex buffer table size to indicate to the command-generation shader that the vertex
                 // buffer is being updated by this generator.
-                m_properties.vertexBufTableSize = ((sizeof(BufferSrd) * MaxVertexBuffers) / sizeof(uint32));
+                m_properties.vertexBufTableSize = (BufferSrdDwords * MaxVertexBuffers);
                 break;
             default:
                 PAL_NOT_IMPLEMENTED();

@@ -89,13 +89,13 @@ Result SubmissionContext::Create(
     Pal::QueuePriority       priority,
     Pal::SubmissionContext** ppContext)
 {
-    Result     result  = Result::ErrorOutOfMemory;
-    void*const pMemory = PAL_MALLOC(sizeof(SubmissionContext), device.GetPlatform(), AllocInternal);
+    Result     result   = Result::ErrorOutOfMemory;
+    auto*const pContext =
+        PAL_NEW(SubmissionContext, device.GetPlatform(), AllocInternal)(device, engineType, engineId, priority);
 
-    if (pMemory != nullptr)
+    if (pContext != nullptr)
     {
-        auto*const pContext = PAL_PLACEMENT_NEW(pMemory) SubmissionContext(device, engineType, engineId, priority);
-        result              = pContext->Init();
+        result = pContext->Init();
 
         if (result == Result::Success)
         {

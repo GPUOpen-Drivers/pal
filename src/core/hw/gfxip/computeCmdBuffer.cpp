@@ -36,17 +36,6 @@ namespace Pal
 {
 
 // =====================================================================================================================
-// Helper function for resetting a user-data table which is managed using embdedded data at the beginning of a command
-// buffer.
-static void PAL_INLINE ResetUserDataTable(
-    EmbeddedUserDataTableState* pTable)
-{
-    pTable->pCpuVirtAddr = nullptr;
-    pTable->gpuVirtAddr  = 0;
-    pTable->dirty        = 0;
-}
-
-// =====================================================================================================================
 // Dummy function for catching illegal attempts to set graphics user-data entries on a Compute command buffer.
 static void PAL_STDCALL DummyCmdSetUserDataGfx(
     ICmdBuffer*   pCmdBuffer,
@@ -228,6 +217,10 @@ void ComputeCmdBuffer::CmdBindPipeline(
     m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
 
     m_computeState.dynamicCsInfo = params.cs;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    m_device.DescribeBindPipeline(this, params.apiPsoHash, params.pipelineBindPoint);
+#endif
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -247,36 +240,6 @@ CmdStream* ComputeCmdBuffer::GetCmdStreamByEngine(
     uint32 engineType)
 {
     return TestAnyFlagSet(m_engineSupport, engineType) ? m_pCmdStream : nullptr;
-}
-
-// =====================================================================================================================
-// Updates a user-data table managed by embedded data.  This is done during dispatch-time validation of user-data.
-void ComputeCmdBuffer::UpdateUserDataTable(
-    EmbeddedUserDataTableState* pTable,
-    uint32                      dwordsNeeded,
-    uint32                      offsetInDwords,
-    const uint32*               pSrcData)
-{
-    // The dwordsNeeded and offsetInDwords parameters together specify a "window" of the table which is relevant to
-    // the active pipeline.  To save memory as well as cycles spent copying data, this will only allocate and populate
-    // the portion of the user-data table inside that window.
-    PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
-
-    gpusize gpuVirtAddr  = 0uLL;
-    pTable->pCpuVirtAddr = (CmdAllocateEmbeddedData(dwordsNeeded, 1, &gpuVirtAddr) - offsetInDwords);
-    pTable->gpuVirtAddr  = (gpuVirtAddr - (sizeof(uint32) * offsetInDwords));
-
-    uint32* pDstData = (pTable->pCpuVirtAddr + offsetInDwords);
-    pSrcData += offsetInDwords;
-    for (uint32 i = 0; i < dwordsNeeded; ++i)
-    {
-        *pDstData = *pSrcData;
-        ++pDstData;
-        ++pSrcData;
-    }
-
-    // Mark that the latest contents of the user-data table have been uploaded to the current embedded data chunk.
-    pTable->dirty = 0;
 }
 
 // =====================================================================================================================

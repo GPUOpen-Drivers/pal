@@ -192,15 +192,24 @@ void OcclusionQueryPool::NormalReset(
 // =====================================================================================================================
 // Reset this query with CPU.
 Result OcclusionQueryPool::Reset(
-    uint32 startQuery,
-    uint32 queryCount)
+    uint32      startQuery,
+    uint32      queryCount,
+    const void* pMappedCpuAddr)
 {
     Result result = ValidateSlot(startQuery + queryCount - 1);
 
     if (result == Result::Success)
     {
         void* pGpuData = nullptr;
-        result = m_gpuMemory.Map(&pGpuData);
+
+        if (pMappedCpuAddr == nullptr)
+        {
+            result = m_gpuMemory.Map(&pGpuData);
+        }
+        else
+        {
+            pGpuData = const_cast<void*>(pMappedCpuAddr);
+        }
 
         if (result == Result::Success)
         {
@@ -214,7 +223,10 @@ Result OcclusionQueryPool::Reset(
                 pSlotData = VoidPtrInc(pSlotData, slotSize);
             }
 
-            result = m_gpuMemory.Unmap();
+            if (pMappedCpuAddr == nullptr)
+            {
+                result = m_gpuMemory.Unmap();
+            }
         }
     }
 

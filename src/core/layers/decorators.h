@@ -193,6 +193,20 @@ static bool TranslateDrawDispatchData(
 }
 
 // =====================================================================================================================
+// Returns true if the PreviousObject was non-null, and thus the pData->pCmdBuffer data is valid for this layer.
+static bool TranslateBindPipelineData(
+    void* pCbData)
+{
+    Developer::BindPipelineData* pData = static_cast<Developer::BindPipelineData*>(pCbData);
+
+    ICmdBuffer* pPrevCmdBuffer = PreviousObject(pData->pCmdBuffer);
+    const bool  hasValidData = (pPrevCmdBuffer != nullptr);
+    pData->pCmdBuffer = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;
+
+    return hasValidData;
+}
+
+// =====================================================================================================================
 class PlatformDecorator : public IPlatform
 {
 public:
@@ -1228,17 +1242,25 @@ public:
     virtual void CmdBindDepthStencilState(
         const IDepthStencilState* pDepthStencilState) override
         { m_pNextLayer->CmdBindDepthStencilState(NextDepthStencilState(pDepthStencilState)); }
+
+    virtual void CmdSetVertexBuffers(
+        uint32                firstBuffer,
+        uint32                bufferCount,
+        const BufferViewInfo* pBuffers) override
+    { m_pNextLayer->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers); }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
     virtual void CmdSetIndirectUserData(
         uint16      tableId,
         uint32      dwordOffset,
         uint32      dwordSize,
         const void* pSrcData) override
         { m_pNextLayer->CmdSetIndirectUserData(tableId, dwordOffset, dwordSize, pSrcData); }
-
     virtual void CmdSetIndirectUserDataWatermark(
         uint16 tableId,
         uint32 dwordLimit) override
         { m_pNextLayer->CmdSetIndirectUserDataWatermark(tableId, dwordLimit); }
+#endif
 
     virtual void CmdBindIndexData(
         gpusize   gpuAddr,
@@ -1890,6 +1912,12 @@ public:
         gpusize* pGpuAddress) override
         { return m_pNextLayer->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    virtual Result AllocateAndBindGpuMemToEvent(
+        IGpuEvent* pGpuEvent) override
+    { return m_pNextLayer->AllocateAndBindGpuMemToEvent(pGpuEvent); }
+#endif
+
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,
         ICmdBuffer*const* ppCmdBuffers) override;
@@ -2259,6 +2287,17 @@ public:
     virtual Result Reset() override
         { return m_pNextLayer->Reset(); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    virtual void GetGpuMemoryRequirements(
+        GpuMemoryRequirements* pGpuMemReqs) const override
+        { m_pNextLayer->GetGpuMemoryRequirements(pGpuMemReqs); }
+
+    virtual Result BindGpuMemory(
+        IGpuMemory* pGpuMemory,
+        gpusize     offset) override
+        { return m_pNextLayer->BindGpuMemory(NextGpuMemory(pGpuMemory), offset); }
+#endif
+
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
     {
@@ -2600,9 +2639,10 @@ public:
         }
 
     virtual Result Reset(
-        uint32 startQuery,
-        uint32 queryCount) override
-        { return m_pNextLayer->Reset(startQuery, queryCount); }
+        uint32      startQuery,
+        uint32      queryCount,
+        const void* pMappedCpuAddr) override
+        { return m_pNextLayer->Reset(startQuery, queryCount, pMappedCpuAddr); }
 
     virtual void GetGpuMemoryRequirements(
         GpuMemoryRequirements* pGpuMemReqs) const override

@@ -91,6 +91,38 @@ Result GpuEvent::Reset()
     return result;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+// =====================================================================================================================
+Result GpuEvent::BindGpuMemory(
+    IGpuMemory* pGpuMemory,
+    gpusize     offset)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::GpuEventBindGpuMemory;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const Result result   = GpuEventDecorator::BindGpuMemory(pGpuMemory, offset);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndObject("gpuMemory", pGpuMemory);
+        pLogContext->KeyAndValue("offset", offset);
+        pLogContext->EndInput();
+
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndEnum("result", result);
+        pLogContext->EndOutput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+
+    return result;
+}
+#endif
+
 // =====================================================================================================================
 void GpuEvent::Destroy()
 {

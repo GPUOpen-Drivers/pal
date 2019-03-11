@@ -48,7 +48,12 @@ enum class IndirectParamType : uint32
                     ///  @ref DispatchIndirectArgs structure.  This must be the last command parameter.
     BindIndexData,  ///< Binds a range of GPU memory for use as an index buffer.  This parameter is only allowed if
                     ///  a DrawIndex parameter is also present, and can only appear once per command generator.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+    BindVertexData, ///< Binds a range of GPU memory for use as a vertex buffer.  This parameter is not allowed if
+                    ///  Dispatch parameter is also present.
+#else
     BindUntypedSrd, ///< Builds an untyped buffer SRD and stores it in an indirect user-data table.
+#endif
     SetUserData,    ///< Sets one or more user-data entries.
 };
 
@@ -61,8 +66,8 @@ struct BindIndexDataIndirectArgs
     uint32   format;        ///< Format token indicating which type of index buffer is being bound.
 };
 
-/// Specifies the layout in GPU memory used to represent a 'BindUntypedSrd' indirect command parameter.
-struct BindUntypedSrdIndirectArgs
+/// Specifies the layout in GPU memory used to represent a 'BindVertexData' indirect command parameter.
+struct BindVertexDataIndirectArgs
 {
     gpusize  gpuVirtAddr;    ///< Starting GPU virtual address of the buffer, in bytes.  Must be aligned to a multiple
                              ///  of strideInBytes.
@@ -71,6 +76,10 @@ struct BindUntypedSrdIndirectArgs
     uint32   strideInBytes;  ///< Per-record stride of the buffer.  See @ref BufferViewInfo for more information about
                              ///  setting-up untyped buffer SRD's.
 };
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
+typedef BindVertexDataIndirectArgs BindUntypedSrdIndirectArgs;
+#endif
 
 /// Contains all information about a single indirect command parameter.
 struct IndirectParam
@@ -84,12 +93,14 @@ struct IndirectParam
     /// DrawIndexed    |  Must equal sizeof(DrawIndexedIndirectArgs).
     /// Dispatch       |  Must equal sizeof(DispatchIndirectArgs).
     /// BindIndexData  |  Must equal sizeof(BindIndexDataIndirectArgs).
-    /// BindUntypedSrd |  Must equal sizeof(BindUntypedSrdIndirectArgs).
+    /// BindVertexData |  Must equal sizeof(BindVertexDataIndirectArgs).
     /// SetUserData    |  Must equal (sizeof(uint32) * userData.entryCount).
     uint32  sizeInBytes;
-    uint32 userDataShaderUsage; ///< Shader usage mask defining API shader stage access for
-                                ///  IndirectParamType::SetUserData (@see ShaderStageFlagBits).
-                                ///  Must be ApiShaderStageCompute for IndirectParamType::Dispatch.
+
+    /// Shader usage mask defining which API shader stages access a IndirectParamType::SetUserData (@see
+    /// ShaderStageFlagBits). indirect parameter.  Must be ApiShaderStageCompute for IndirectParamType::Dispatch.
+    uint32  userDataShaderUsage;
+
     union
     {
         struct
@@ -98,12 +109,19 @@ struct IndirectParam
             uint32  entryCount;     ///< Number of user-data entries to set.
         } userData;                 ///< Additional information about a 'SetUserData' indirect command parameter.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+        struct
+        {
+            uint32  bufferId;       ///< Vertex bufer slot ID to set.
+        } vertexData;               ///< Additional information about a 'BindVertexData' indirect command parameter.
+#else
         struct
         {
             uint16  tableId;        ///< Indirect user data table where the SRD will be written.
             uint32  dwordOffset;    ///< Offset, in DWORD's, from the beginning of the table where the SRD will be
                                     ///  written.
         } untypedSrd;               ///< Additional information about a 'BindUntypedSrd' indirect command parameter.
+#endif
     };
 };
 

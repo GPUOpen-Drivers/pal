@@ -283,15 +283,13 @@ uint32 PerfCounter::SetupSdmaSelectReg(
 
     if (m_info.instance == 0)
     {
-        SetSdmaSelectReg(&pSdma0PerfmonCntl->bits);
+        SetSdmaSelectReg(&pSdma0PerfmonCntl->most);
 
         regValue = pSdma0PerfmonCntl->u32All;
     }
     else if (m_info.instance == 1)
     {
-        {
-            SetSdmaSelectReg(&pSdma1PerfmonCntl->vega);
-        }
+        SetSdmaSelectReg(&pSdma1PerfmonCntl->most);
 
         regValue = pSdma1PerfmonCntl->u32All;
     }

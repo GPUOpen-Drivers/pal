@@ -71,18 +71,8 @@ public:
     const char* GetName() const override final { return kSettingsServiceName; }
     Version GetVersion() const override final { return kSettingsServiceVersion; }
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
     // Handles a request from a developer driver client.
     Result HandleRequest(IURIRequestContext* pContext) override final;
-#else
-    // Handles a request from a developer driver client.
-    // Depcreated
-    Result HandleRequest(URIRequestContext* pContext) override final
-    {
-        DD_UNUSED(pContext);
-        return Result::VersionMismatch;
-    }
-#endif
 
     // Registers a component that has settings to be exposed through the settings service.
     // NOTE: The data provided in the RegisteredComponent struct will be retained for the lifefime of the

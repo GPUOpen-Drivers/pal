@@ -32,7 +32,11 @@
 #pragma once
 
 #include "pal.h"
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+#include "palGpuMemoryBindable.h"
+#else
 #include "palDestroyable.h"
+#endif
 
 namespace Pal
 {
@@ -69,7 +73,12 @@ struct GpuEventCreateInfo
  * @see IDevice::CreateEvent()
  ***********************************************************************************************************************
  */
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+class IGpuEvent: public IGpuMemoryBindable
+#else
 class IGpuEvent : public IDestroyable
+#endif
 {
 public:
     /// Gets the status (set or reset) of the event.

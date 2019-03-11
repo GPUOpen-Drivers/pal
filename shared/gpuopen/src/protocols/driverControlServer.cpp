@@ -29,7 +29,6 @@
 #include "protocols/systemProtocols.h"
 
 #define DRIVERCONTROL_SERVER_MIN_MAJOR_VERSION 1
-#define DRIVERCONTROL_SERVER_MAX_MAJOR_VERSION 3
 
 namespace DevDriver
 {
@@ -71,7 +70,7 @@ namespace DevDriver
         };
 
         DriverControlServer::DriverControlServer(IMsgChannel* pMsgChannel)
-            : BaseProtocolServer(pMsgChannel, Protocol::DriverControl, DRIVERCONTROL_SERVER_MIN_MAJOR_VERSION, DRIVERCONTROL_SERVER_MAX_MAJOR_VERSION)
+            : BaseProtocolServer(pMsgChannel, Protocol::DriverControl, DRIVERCONTROL_SERVER_MIN_MAJOR_VERSION, DRIVERCONTROL_PROTOCOL_MAJOR_VERSION)
             , m_driverStatus(DriverStatus::PlatformInit)
             , m_driverResumedEvent(true)
             , m_numGpus(0)
@@ -368,6 +367,12 @@ namespace DevDriver
                             {
                                 status = DriverStatus::Running;
                             }
+                            else if ((pSession->GetVersion() < DRIVERCONTROL_HALTEDPOSTDEVICEINIT_VERSION) &&
+                                     (driverStatus == DriverStatus::HaltedPostDeviceInit))
+                            {
+                                // Override HaltedPostDeviceInit to Paused to support older clients
+                                status = DriverStatus::Paused;
+                            }
                             else
                             {
                                 status = driverStatus;
@@ -382,19 +387,25 @@ namespace DevDriver
                         {
                             const auto& payload = container.GetPayload<StepDriverRequestPayload>();
 
-                            if (((m_driverStatus == DriverStatus::Paused)                ||
-                                 (m_driverStatus == DriverStatus::HaltedPostDeviceInit)) &&
-                                 m_stepCounter == 0)
+                            // If we're in either Paused or HaltedPostDeviceInit states and the step counter is zero
+                            if (((m_driverStatus == DriverStatus::Paused) ||
+                                     (m_driverStatus == DriverStatus::HaltedPostDeviceInit)) &&
+                                  m_stepCounter == 0)
                             {
                                 int32 count = Platform::Max((int32)payload.count, 1);
                                 Platform::AtomicAdd(&m_stepCounter, count);
                                 DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Stepping driver %i frames", m_stepCounter);
+                                // The StepDriverResponse will be sent in the handler for the StepDriver session state below once
+                                // we reach the Paused state after stepping the requested number of frames.
                                 pSessionData->state = SessionState::StepDriver;
                                 ResumeDriver();
                             }
                             else if ((m_driverStatus == DriverStatus::HaltedOnPlatformInit) || (m_driverStatus == DriverStatus::HaltedOnDeviceInit))
                             {
                                 m_initStepRequested = true;
+                                // We send the StepDriverResponse will be sent in the handler for the StepDriver session state below once
+                                // we reach the next Halted state.
+                                pSessionData->state = SessionState::StepDriver;
                                 ResumeDriver();
                             }
                             else
@@ -517,20 +528,18 @@ namespace DevDriver
 
         void DriverControlServer::FinishDriverInitialization()
         {
-            if (m_driverStatus == DriverStatus::LateDeviceInit)
-            {
-                DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Driver initialization finished\n");
+            DD_ASSERT(m_driverStatus == DriverStatus::LateDeviceInit);
+            DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Driver initialization finished\n");
 
-                if (m_initStepRequested)
-                {
-                    m_initStepRequested = false;
-                    PauseDriver();
-                    WaitForDriverResume();
-                }
-                else
-                {
-                    m_driverStatus = DriverStatus::Running;
-                }
+            if (m_initStepRequested)
+            {
+                m_initStepRequested = false;
+                PauseDriver();
+                WaitForDriverResume();
+            }
+            else
+            {
+                m_driverStatus = DriverStatus::Running;
             }
         }
 

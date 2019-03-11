@@ -534,6 +534,13 @@ public:
         uint32                      instanceOffsetUserDataIdx,
         uint32                      drawIndexUserDataIdx) const;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    void DescribeBindPipeline(
+        GfxCmdBuffer*               pCmdBuf,
+        uint64                      apiPsoHash,
+        PipelineBindPoint           bindPoint) const;
+#endif
+
 #if DEBUG
     virtual uint32* TemporarilyHangTheGpu(
         uint32 number,

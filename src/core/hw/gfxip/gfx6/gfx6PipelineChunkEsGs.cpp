@@ -210,8 +210,23 @@ void PipelineChunkEsGs::LateInit(
 
     if (chipProps.gfxLevel >= GfxIpLevel::GfxIp7)
     {
-        m_commands.dynamic.spiShaderPgmRsrc3Es.bits.CU_EN = m_device.GetCuEnableMask(0, settings.esCuEnLimitMask);
-        m_commands.dynamic.spiShaderPgmRsrc3Gs.bits.CU_EN = m_device.GetCuEnableMask(0, settings.gsCuEnLimitMask);
+        // If we're using on-chip GS path, we need to avoid using CU1 for ES/GS waves to avoid a deadlock with the PS.
+        // When on-chip GS is enabled, the HW-VS and HW-GS must run on the same CU as the HW-ES, since all communication
+        // between the waves are done via LDS. This means that wherever the HW-ES launches is where the HW-VS
+        // (copy shader) and HW-GS will launch.
+        // This is a cause for deadlocks because when the HW-VS waves are trying to export, they are waiting for space
+        // in the parameter cache, but that space is claimed by pending PS waves that can't launch on the CU due to
+        // lack of space (already existing waves).
+        uint16 disableCuMask = 0;
+        if ((m_device.LateAllocVsLimit() > 0) && loadInfo.usesOnChipGs)
+        {
+            disableCuMask = 0x2;
+        }
+
+        m_commands.dynamic.spiShaderPgmRsrc3Es.bits.CU_EN =
+            m_device.GetCuEnableMask(disableCuMask, settings.esCuEnLimitMask);
+        m_commands.dynamic.spiShaderPgmRsrc3Gs.bits.CU_EN =
+            m_device.GetCuEnableMask(disableCuMask, settings.gsCuEnLimitMask);
     }
 
     if (useLoadIndexPath)

@@ -60,12 +60,6 @@ namespace DevDriver
                               const void*     pPostData = nullptr,
                               size_t          postDataSize = 0);
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_URI_RESPONSE_FORMATS_VERSION)
-            // Sends a URI request to the connected server.
-            // Deprecated
-            Result RequestURI(const char* pRequestString, size_t* pResponseSizeInBytes);
-#endif
-
             // Reads response data that was returned by a prior request.
             Result ReadResponse(uint8* pDstBuffer, size_t bufferSize, size_t* pBytesRead);
 

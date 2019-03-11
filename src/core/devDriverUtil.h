@@ -86,11 +86,7 @@ public:
     Result Init();
 
     // Handles a request from a developer driver client.
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
     DevDriver::Result HandleRequest(DevDriver::IURIRequestContext* pContext) override;
-#else
-    DevDriver::Result HandleRequest(DevDriver::URIRequestContext* pContext) override;
-#endif
 
     // Registers a pipeline hash / binary pair with the dump service.
     void RegisterPipeline(void* pPipelineBinary, uint32 pipelineBinaryLength, uint64 pipelineHash);
@@ -100,7 +96,6 @@ public:
     DevDriver::Version GetVersion() const override final { return PipelineDumpServiceVersion; }
 
 private:
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
     // Writes a header into a pipeline dump file
     void WritePipelineDumpHeader(DevDriver::IByteWriter* pWriter,
                                  uint64 numRecords);
@@ -110,17 +105,6 @@ private:
                                  uint64 pipelineHash,
                                  uint64 pipelineOffset,
                                  uint64 pipelineSize);
-#else
-    // Writes a header into a pipeline dump file
-    void WritePipelineDumpHeader(DevDriver::URIRequestContext* pContext,
-                                 uint64 numRecords);
-
-    // Writes a pipeline record into a pipeline dump file
-    void WritePipelineDumpRecord(DevDriver::URIRequestContext* pContext,
-                                 uint64 pipelineHash,
-                                 uint64 pipelineOffset,
-                                 uint64 pipelineSize);
-#endif
 
     // Struct for keeping track of pipeline binary data.
     struct PipelineRecord

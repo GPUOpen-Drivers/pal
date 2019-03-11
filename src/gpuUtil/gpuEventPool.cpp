@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "palCmdBuffer.h"
 #include "palDequeImpl.h"
 #include "palGpuEvent.h"
 #include "palGpuEventPool.h"
@@ -39,6 +40,7 @@ GpuEventPool::GpuEventPool(
     :
     m_pPlatform(pPlatform),
     m_pDevice(pDevice),
+    m_pCmdBuffer(nullptr),
     m_availableEvents(m_pPlatform),
     m_busyEvents(m_pPlatform)
 {
@@ -65,37 +67,27 @@ GpuEventPool::~GpuEventPool()
 
 // =====================================================================================================================
 Result GpuEventPool::Init(
-    uint32 defaultCapacity)
+    ICmdBuffer* pCmdBuffer,
+    uint32      defaultCapacity)
 {
-    // Pre-allocate some gpuEvents for this pool.
-    GpuEventCreateInfo createInfo  = {};
+    // Initialize GPU memory allocator.
+    m_pCmdBuffer = pCmdBuffer;
 
     Result result = Result::Success;
-    const size_t eventSize = m_pDevice->GetGpuEventSize(createInfo, &result);
 
-    if (result == Result::Success)
+    // Pre-allocate some gpuEvents for this pool.
+    for (uint32 i = 0; i < defaultCapacity; i++)
     {
-        for (uint32 i = 0; i < defaultCapacity; i++)
+        IGpuEvent* pEvent = nullptr;
+        result = CreateNewEvent(&pEvent);
+
+        if (result == Result::Success)
         {
-            result = Result::ErrorOutOfMemory;
-            void* pMemory = PAL_MALLOC(eventSize,
-                                       m_pPlatform,
-                                       Util::SystemAllocType::AllocObject);
-
-            IGpuEvent* pEvent = nullptr;
-            if (pMemory != nullptr)
-            {
-                result = m_pDevice->CreateGpuEvent(createInfo, pMemory, &pEvent);
-
-                if (result == Result::Success)
-                {
-                    result = m_availableEvents.PushBack(pEvent);
-                }
-                else
-                {
-                    PAL_SAFE_FREE(pMemory, m_pPlatform);
-                }
-            }
+            result = m_availableEvents.PushBack(pEvent);
+        }
+        else
+        {
+            break;
         }
     }
 
@@ -105,9 +97,13 @@ Result GpuEventPool::Init(
 }
 
 // =====================================================================================================================
-Result GpuEventPool::Reset()
+Result GpuEventPool::Reset(
+    ICmdBuffer* pCmdBuffer) // We need it in case gpuEventPool's container updates to a new palCmdBuffer at Reset.
 {
     Result result = Result::Success;
+
+    // Update to new CmdBuffer.
+    m_pCmdBuffer = pCmdBuffer;
 
     while (m_busyEvents.NumElements() > 0)
     {
@@ -121,7 +117,7 @@ Result GpuEventPool::Reset()
 }
 
 // =====================================================================================================================
-Result GpuEventPool::AcquireEvent(
+Result GpuEventPool::GetFreeEvent(
     IGpuEvent**const ppEvent)
 {
     Result result = Result::Success;
@@ -132,33 +128,53 @@ Result GpuEventPool::AcquireEvent(
     }
     else
     {
-        // Create gpuEvent for this pool.
-        GpuEventCreateInfo createInfo  = {};
-
-        const size_t eventSize = m_pDevice->GetGpuEventSize(createInfo, &result);
-
-        if (result == Result::Success)
-        {
-            result = Result::ErrorOutOfMemory;
-            void* pMemory = PAL_MALLOC(eventSize,
-                                       m_pPlatform,
-                                       Util::SystemAllocType::AllocObject);
-
-            if (pMemory != nullptr)
-            {
-                result = m_pDevice->CreateGpuEvent(createInfo, pMemory, ppEvent);
-
-                if (result != Result::Success)
-                {
-                    PAL_SAFE_FREE(pMemory, m_pPlatform);
-                }
-            }
-        }
+        result = CreateNewEvent(ppEvent);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    // Bind GPU memory to the event.
+    if (result == Result::Success)
+    {
+        m_pCmdBuffer->AllocateAndBindGpuMemToEvent(*ppEvent);
+    }
+#endif
 
     if (result == Result::Success)
     {
         result = m_busyEvents.PushBack(*ppEvent);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result GpuEventPool::CreateNewEvent(
+    IGpuEvent**const ppEvent)
+{
+    Result result = Result::Success;
+
+    // Create gpuEvent for this pool.
+    GpuEventCreateInfo createInfo  = {};
+    createInfo.flags.gpuAccessOnly = 1;
+
+    const size_t eventSize = m_pDevice->GetGpuEventSize(createInfo, &result);
+
+    if (result == Result::Success)
+    {
+        result = Result::ErrorOutOfMemory;
+        void* pMemory = PAL_MALLOC(eventSize,
+                                    m_pPlatform,
+                                    Util::SystemAllocType::AllocObject);
+
+        if (pMemory != nullptr)
+        {
+            result = m_pDevice->CreateGpuEvent(createInfo, pMemory, ppEvent);
+
+            if (result != Result::Success)
+            {
+                PAL_SAFE_FREE(pMemory, m_pPlatform);
+            }
+        }
     }
 
     return result;

@@ -31,7 +31,6 @@
 #pragma once
 #include <ddUriInterface.h>
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
 #include "util/ddByteWriter.h"
 #include "util/ddTextWriter.h"
 #include "util/ddJsonWriter.h"
@@ -101,5 +100,3 @@ private:
     JsonWriter m_jsonWriter;
 };
 } // DevDriver
-
-#endif

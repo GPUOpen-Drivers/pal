@@ -35,6 +35,7 @@ QueueSemaphore::QueueSemaphore(
     Device* pDevice)
     :
     m_pDevice(pDevice),
+    m_maxWaitsPerSignal(pDevice->MaxQueueSemaphoreCount()),
     m_hSemaphore(0),
     m_skipNextWait(false)
 {

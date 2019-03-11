@@ -172,6 +172,12 @@ void PAL_STDCALL Platform::ShaderDbgCb(
         PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchData(pCbData);
         break;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    case Developer::CallbackType::BindPipeline:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateBindPipelineData(pCbData);
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS();
         break;

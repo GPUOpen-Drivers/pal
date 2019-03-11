@@ -51,7 +51,7 @@ constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 constexpr uint32 MetadataNoteType = 13; ///< NT_AMD_AMDGPU_HSA_METADATA
 
 constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
-constexpr uint32 PipelineMetadataMinorVersion = 0;  ///< Pipeline Metadata Minor Version
+constexpr uint32 PipelineMetadataMinorVersion = 1;  ///< Pipeline Metadata Minor Version
 #else
 constexpr uint32 MetadataNoteType = 12; ///< NT_AMD_AMDGPU_HSA_METADATA
 
@@ -137,6 +137,9 @@ static constexpr char AmdGpuDisassemblyName[] = ".AMDGPU.disasm";
 /// Name prefix of the section where our pipeline binaries store extra information e.g. LLVM IR.
 static constexpr char AmdGpuCommentName[] = ".AMDGPU.comment.";
 
+/// Name of the section where our pipeline binaries store AMDIL binaries.
+static constexpr char AmdGpuCommentAmdIlName[] = ".AMDGPU.comment.amdil";
+
 /// String table of the Pipeline ABI symbols.
 static const char* PipelineAbiSymbolNameStrings[] =
 {
@@ -170,6 +173,12 @@ static const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_ps_shdr_intrl_data",
     "_amdgpu_cs_shdr_intrl_data",
     "_amdgpu_pipeline_intrl_data",
+    "_amdgpu_cs_amdil",
+    "_amdgpu_vs_amdil",
+    "_amdgpu_hs_amdil",
+    "_amdgpu_ds_amdil",
+    "_amdgpu_gs_amdil",
+    "_amdgpu_ps_amdil",
 };
 
 /// Deprecated - String table of the Pipeline Metadata key names.
@@ -269,10 +278,10 @@ static const char* PipelineMetadataNameStrings[] =
     "PS_SCRATCH_BYTE_SIZE",
     "CS_SCRATCH_BYTE_SIZE",
 
-    "STREAM_OUT_TABLE_ENTRY",
-    "INDIRECT_TABLE_0_ENTRY",
-    "INDIRECT_TABLE_1_ENTRY",
-    "INDIRECT_TABLE_2_ENTRY",
+    "STREAM_OUT_TABLE_ENTRY__DEPRECATED",
+    "INDIRECT_TABLE_0_ENTRY__DEPRECATED",
+    "INDIRECT_TABLE_1_ENTRY__DEPRECATED",
+    "INDIRECT_TABLE_2_ENTRY__DEPRECATED",
 
     "ESGS_LDS_SIZE",
     "USES_VIEWPORT_ARRAY_INDEX",
@@ -400,12 +409,19 @@ enum class PipelineSymbolType : uint32
     PsShdrIntrlData,   ///< PS shader internal data pointer.  Optional.
     CsShdrIntrlData,   ///< CS shader internal data pointer.  Optional.
     PipelineIntrlData, ///< Cross-shader internal data pointer.  Optional.
+    CsAmdIl,           ///< API CS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    VsAmdIl,           ///< API VS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    HsAmdIl,           ///< API HS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    DsAmdIl,           ///< API DS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    GsAmdIl,           ///< API GS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    PsAmdIl,           ///< API PS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
     Count,
 
     ShaderMainEntry   = LsMainEntry,        ///< Shorthand for the first shader's entry point
     ShaderIntrlTblPtr = LsShdrIntrlTblPtr,  ///< Shorthand for the first shader's internal table pointer
     ShaderDisassembly = LsDisassembly,      ///< Shorthand for the first shader's disassembly string
     ShaderIntrlData   = LsShdrIntrlData,    ///< Shorthand for the first shader's internal data pointer
+    ShaderAmdIl       = CsAmdIl,            ///< Shorthand for the first shader's AMDIL binary
 };
 
 static_assert(static_cast<uint32>(PipelineSymbolType::Count) == sizeof(PipelineAbiSymbolNameStrings)/sizeof(char*),
@@ -440,6 +456,19 @@ static_assert((sizeof(ApiHwShaderMapping) == sizeof(uint64)),
 PAL_INLINE PipelineSymbolType GetSymbolForStage(
     PipelineSymbolType symbolType,
     HardwareStage      stage)
+{
+    return static_cast<PipelineSymbolType>(static_cast<uint32>(symbolType) + static_cast<uint32>(stage));
+}
+
+/// Helper function to get a pipeline symbol type for a specific API shader stage.
+///
+/// @param [in] symbolType Type of Pipeline Symbol to retrieve
+/// @param [in] stage      API shader stage of interest
+///
+/// @returns PipelineSymbolType enum associated with the base symbol type and API stage.
+PAL_INLINE PipelineSymbolType GetSymbolForStage(
+    PipelineSymbolType symbolType,
+    ApiShaderType      stage)
 {
     return static_cast<PipelineSymbolType>(static_cast<uint32>(symbolType) + static_cast<uint32>(stage));
 }
@@ -684,11 +713,14 @@ enum class UserDataMapping : uint32
                                     ///  stages.
     ViewId            = 0x1000000B, ///< View id (32-bit unsigned integer) identifies a view of graphic
                                     ///  pipeline instancing.
+    StreamOutTable    = 0x1000000C, ///< 32-bit pointer to GPU memory containing the stream out target SRD table.  This can
+                                    ///  only appear for one shader stage per pipeline.
     PerShaderPerfData = 0x1000000D, ///< 32-bit pointer to GPU memory containing the per-shader performance data buffer.
+    VertexBufferTable = 0x1000000F, ///< 32-bit pointer to GPU memory containing the vertex buffer SRD table.  This can only
+                                    ///  appear for one shader stage per pipeline.
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
 
-    StreamOutTable    = 0x1000000C, ///< 32-bit pointer to GPU memory containing the stream out target SRD table.
     IndirectTableLow  = 0x20000000, ///< Low range of 32-bit pointer to GPU memory containing the
                                     ///  address of the indirect user data table.
                                     ///  Subtract 0x20000000.
@@ -704,7 +736,8 @@ enum class AbiSectionType : uint32
     Undefined = 0, ///< An unassociated section
     Code,          ///< The code (.text) section containing executable machine code for all shader stages.
     Data,          ///< Data section
-    Disassembly    ///< Disassembly section
+    Disassembly,   ///< Disassembly section
+    AmdIl          ///< AMDIL section
 };
 
 /// These Relocation types are specific to the AMDGPU target machine architecture.

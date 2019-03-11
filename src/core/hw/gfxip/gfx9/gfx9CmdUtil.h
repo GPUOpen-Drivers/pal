@@ -274,28 +274,28 @@ public:
     size_t ExplicitBuildAcquireMem(
         const ExplicitAcquireMemInfo& acquireMemInfo,
         void*                         pBuffer) const;
-    size_t BuildAtomicMem(
+    static size_t BuildAtomicMem(
         AtomicOp atomicOp,
         gpusize  dstMemAddr,
         uint64   srcData,
-        void*    pBuffer) const;
-    size_t BuildClearState(
+        void*    pBuffer);
+    static size_t BuildClearState(
         PFP_CLEAR_STATE_cmd_enum command,
-        void*                    pBuffer) const;
-    size_t BuildCondExec(
+        void*                    pBuffer);
+    static size_t BuildCondExec(
         gpusize gpuVirtAddr,
         uint32  sizeInDwords,
-        void*   pBuffer) const;
-    size_t BuildCondIndirectBuffer(
+        void*   pBuffer);
+    static size_t BuildCondIndirectBuffer(
         CompareFunc compareFunc,
         gpusize     compareGpuAddr,
         uint64      data,
         uint64      mask,
         bool        constantEngine,
-        void*       pBuffer) const;
-    size_t BuildContextControl(
+        void*       pBuffer);
+    static size_t BuildContextControl(
         const PM4PFP_CONTEXT_CONTROL& contextControl,
-        void*                         pBuffer) const;
+        void*                         pBuffer);
     size_t BuildContextRegRmw(
         uint32 regAddr,
         uint32 regMask,
@@ -306,7 +306,7 @@ public:
         uint32 orMask,
         uint32 andMask,
         void*  pBuffer) const;
-    size_t BuildCopyDataGraphics(
+    static size_t BuildCopyDataGraphics(
         uint32                        engineSel,
         ME_COPY_DATA_dst_sel_enum     dstSel,
         gpusize                       dstAddr,
@@ -314,15 +314,15 @@ public:
         gpusize                       srcAddr,
         ME_COPY_DATA_count_sel_enum   countSel,
         ME_COPY_DATA_wr_confirm_enum  wrConfirm,
-        void*                         pBuffer) const;
-    size_t BuildCopyDataCompute(
+        void*                         pBuffer);
+    static size_t BuildCopyDataCompute(
         MEC_COPY_DATA_dst_sel_enum     dstSel,
         gpusize                        dstAddr,
         MEC_COPY_DATA_src_sel_enum     srcSel,
         gpusize                        srcAddr,
         MEC_COPY_DATA_count_sel_enum   countSel,
         MEC_COPY_DATA_wr_confirm_enum  wrConfirm,
-        void*                          pBuffer) const;
+        void*                          pBuffer);
     template <bool dimInThreads, bool forceStartAt000>
     size_t BuildDispatchDirect(
         uint32          xDim,
@@ -330,33 +330,33 @@ public:
         uint32          zDim,
         Pm4Predicate    predicate,
         void*           pBuffer) const;
-    size_t BuildDispatchIndirectGfx(
+    static size_t BuildDispatchIndirectGfx(
         gpusize      byteOffset,
         Pm4Predicate predicate,
-        void*        pBuffer) const;
+        void*        pBuffer);
     size_t BuildDispatchIndirectMec(
         gpusize         address,
         void*           pBuffer) const;
-    size_t BuildDrawIndex2(
+    static size_t BuildDrawIndex2(
         uint32       indexCount,
         uint32       indexBufSize,
         gpusize      indexBufAddr,
         Pm4Predicate predicate,
-        void*        pBuffer) const;
-    size_t BuildDrawIndexOffset2(
+        void*        pBuffer);
+    static size_t BuildDrawIndexOffset2(
         uint32       indexCount,
         uint32       indexBufSize,
         uint32       indexOffset,
         Pm4Predicate predicate,
-        void*        pBuffer) const;
-    size_t BuildDrawIndexIndirect(
+        void*        pBuffer);
+    static size_t BuildDrawIndexIndirect(
         gpusize      offset,
         uint32       baseVtxLoc,
         uint32       startInstLoc,
         uint32       startIndexLoc,
         Pm4Predicate predicate,
-        void*        pBuffer) const;
-    size_t BuildDrawIndexIndirectMulti(
+        void*        pBuffer);
+    static size_t BuildDrawIndexIndirectMulti(
         gpusize      offset,
         uint32       baseVtxLoc,
         uint32       startInstLoc,
@@ -366,8 +366,8 @@ public:
         uint32       count,
         gpusize      countGpuAddr,
         Pm4Predicate predicate,
-        void*        pBuffer) const;
-    size_t BuildDrawIndirectMulti(
+        void*        pBuffer);
+    static size_t BuildDrawIndirectMulti(
         gpusize      offset,
         uint32       baseVtxLoc,
         uint32       startInstLoc,
@@ -376,94 +376,94 @@ public:
         uint32       count,
         gpusize      countGpuAddr,
         Pm4Predicate predicate,
-        void*        pBuffer) const;
-    size_t BuildDrawIndexAuto(
+        void*        pBuffer);
+    static size_t BuildDrawIndexAuto(
         uint32       indexCount,
         bool         useOpaque,
         Pm4Predicate predicate,
-        void*        pBuffer) const;
-    size_t BuildDmaData(
+        void*        pBuffer);
+    static size_t BuildDmaData(
         DmaDataInfo&  dmaDataInfo,
-        void*         pBuffer) const;
-    size_t BuildDumpConstRam(
+        void*         pBuffer);
+    static size_t BuildDumpConstRam(
         gpusize dstGpuAddr,
         uint32  ramByteOffset,
         uint32  dwordSize,
-        void*   pBuffer) const;
-    size_t BuildDumpConstRamOffset(
+        void*   pBuffer);
+    static size_t BuildDumpConstRamOffset(
         uint32  dstAddrOffset,
         uint32  ramByteOffset,
         uint32  dwordSize,
-        void*   pBuffer) const;
-    size_t BuildNonSampleEventWrite(
+        void*   pBuffer);
+    static size_t BuildNonSampleEventWrite(
         VGT_EVENT_TYPE  vgtEvent,
         EngineType      engineType,
-        void*           pBuffer) const;
-    size_t BuildSampleEventWrite(
+        void*           pBuffer);
+    static size_t BuildSampleEventWrite(
         VGT_EVENT_TYPE  vgtEvent,
         EngineType      engineType,
         gpusize         gpuAddr,
-        void*           pBuffer) const;
-    size_t BuildIncrementCeCounter(void* pBuffer) const;
-    size_t BuildIncrementDeCounter(void* pBuffer) const;
-    size_t BuildIndexAttributesIndirect(gpusize baseAddr, uint16 index, void* pBuffer) const;
-    size_t BuildIndexBase(gpusize baseAddr, void* pBuffer) const;
-    size_t BuildIndexBufferSize(uint32 indexCount, void* pBuffer) const;
+        void*           pBuffer);
+    static size_t BuildIncrementCeCounter(void* pBuffer);
+    static size_t BuildIncrementDeCounter(void* pBuffer);
+    static size_t BuildIndexAttributesIndirect(gpusize baseAddr, uint16 index, void* pBuffer);
+    static size_t BuildIndexBase(gpusize baseAddr, void* pBuffer);
+    static size_t BuildIndexBufferSize(uint32 indexCount, void* pBuffer);
     size_t BuildIndexType(uint32 vgtDmaIndexType, void* pBuffer) const;
-    size_t BuildIndirectBuffer(
+    static size_t BuildIndirectBuffer(
         EngineType engineType,
         gpusize    ibAddr,
         uint32     ibSize,
         bool       chain,
         bool       constantEngine,
         bool       enablePreemption,
-        void*      pBuffer) const;
+        void*      pBuffer);
 
-    size_t BuildLoadConfigRegs(
+    static size_t BuildLoadConfigRegs(
         gpusize              gpuVirtAddr,
         const RegisterRange* pRanges,
         uint32               rangeCount,
-        void*                pBuffer) const;
+        void*                pBuffer);
 
-    size_t BuildLoadContextRegs(
+    static size_t BuildLoadContextRegs(
         gpusize              gpuVirtAddr,
         const RegisterRange* pRanges,
         uint32               rangeCount,
-        void*                pBuffer) const;
-    size_t BuildLoadContextRegs(
+        void*                pBuffer);
+    static size_t BuildLoadContextRegs(
         gpusize gpuVirtAddr,
         uint32  startRegAddr,
         uint32  count,
-        void*   pBuffer) const;
+        void*   pBuffer);
     template <bool directAddress>
     size_t BuildLoadContextRegsIndex(
         gpusize gpuVirtAddrOrAddrOffset,
         uint32  startRegAddr,
         uint32  count,
         void*   pBuffer) const;
-    size_t BuildLoadContextRegsIndex(
+    static size_t BuildLoadContextRegsIndex(
         gpusize gpuVirtAddr,
         uint32  count,
-        void*   pBuffer) const;
+        void*   pBuffer);
 
-    size_t BuildLoadConstRam(
+    static size_t BuildLoadConstRam(
         gpusize srcGpuAddr,
         uint32  ramByteOffset,
         uint32  dwordSize,
-        void*   pBuffer) const;
+        void*   pBuffer);
 
-    size_t BuildLoadShRegs(
+    static size_t BuildLoadShRegs(
         gpusize              gpuVirtAddr,
         const RegisterRange* pRanges,
         uint32               rangeCount,
         Pm4ShaderType        shaderType,
-        void*                pBuffer) const;
-    size_t BuildLoadShRegs(
+        void*                pBuffer);
+    static size_t BuildLoadShRegs(
         gpusize       gpuVirtAddr,
         uint32        startRegAddr,
         uint32        count,
         Pm4ShaderType shaderType,
-        void*         pBuffer) const;
+        void*         pBuffer);
     template <bool directAddress>
     size_t BuildLoadShRegsIndex(
         gpusize       gpuVirtAddrOrAddrOffset,
@@ -471,35 +471,35 @@ public:
         uint32        count,
         Pm4ShaderType shaderType,
         void*         pBuffer) const;
-    size_t BuildLoadShRegsIndex(
+    static size_t BuildLoadShRegsIndex(
         gpusize       gpuVirtAddr,
         uint32        count,
         Pm4ShaderType shaderType,
-        void*         pBuffer) const;
+        void*         pBuffer);
 
-    size_t BuildLoadUserConfigRegs(
+    static size_t BuildLoadUserConfigRegs(
         gpusize              gpuVirtAddr,
         const RegisterRange* pRanges,
         uint32               rangeCount,
-        void*                pBuffer) const;
+        void*                pBuffer);
 
-    size_t BuildNop(size_t numDwords, void* pBuffer) const;
+    static size_t BuildNop(size_t numDwords, void* pBuffer);
 
-    size_t BuildNumInstances(uint32 instanceCount, void* pBuffer) const;
+    static size_t BuildNumInstances(uint32 instanceCount, void* pBuffer);
 
-    size_t BuildOcclusionQuery(gpusize queryMemAddr, gpusize dstMemAddr, void* pBuffer) const;
+    static size_t BuildOcclusionQuery(gpusize queryMemAddr, gpusize dstMemAddr, void* pBuffer);
 
-    size_t BuildPfpSyncMe(void* pBuffer) const;
+    static size_t BuildPfpSyncMe(void* pBuffer);
 
-    size_t BuildPreambleCntl(ME_PREAMBLE_CNTL_command_enum command, void* pBuffer) const;
+    static size_t BuildPreambleCntl(ME_PREAMBLE_CNTL_command_enum command, void* pBuffer);
 
-    size_t BuildPrimeUtcL2(
+    static size_t BuildPrimeUtcL2(
         gpusize gpuAddr,
         uint32  cachePerm,
         uint32  primeMode,
         uint32  engineSel,
         size_t  requestedPages,
-        void*   pBuffer) const;
+        void*   pBuffer);
     size_t BuildReleaseMem(
         const ReleaseMemInfo& releaseMemInfo,
         void*                 pBuffer,
@@ -510,20 +510,20 @@ public:
         void*                         pBuffer,
         uint32                        gdsAddr = 0,
         uint32                        gdsSize = 0) const;
-    size_t BuildRewind(
+    static size_t BuildRewind(
         bool  offloadEnable,
         bool  valid,
-        void* pBuffer) const;
-    size_t BuildSetBase(
+        void* pBuffer);
+    static size_t BuildSetBase(
         gpusize                      address,
         PFP_SET_BASE_base_index_enum baseIndex,
         Pm4ShaderType                shaderType,
-        void*                        pBuffer) const;
-    size_t BuildSetBaseCe(
+        void*                        pBuffer);
+    static size_t BuildSetBaseCe(
         gpusize                      address,
         CE_SET_BASE_base_index_enum  baseIndex,
         Pm4ShaderType                shaderType,
-        void*                        pBuffer) const;
+        void*                        pBuffer);
     template <bool resetFilterCam = false>
     size_t BuildSetOneConfigReg(
         uint32                               regAddr,
@@ -570,51 +570,51 @@ public:
         Pm4ShaderType                   shaderType,
         PFP_SET_SH_REG_INDEX_index_enum index,
         void*                           pBuffer) const;
-    size_t BuildSetPredication(
+    static size_t BuildSetPredication(
         gpusize       gpuVirtAddr,
         bool          predicationBool,
         bool          occlusionHint,
         PredicateType predType,
         bool          continuePredicate,
-        void*         pBuffer) const;
-    size_t BuildStrmoutBufferUpdate(
+        void*         pBuffer);
+    static size_t BuildStrmoutBufferUpdate(
         uint32  bufferId,
         uint32  sourceSelect,
         uint32  explicitOffset,
         gpusize dstGpuVirtAddr,
         gpusize srcGpuVirtAddr,
-        void*   pBuffer) const;
-    size_t BuildWaitDmaData(void* pBuffer) const;
-    size_t BuildWaitOnCeCounter(bool invalidateKcache, void* pBuffer) const;
-    size_t BuildWaitOnDeCounterDiff(uint32 counterDiff, void* pBuffer) const;
+        void*   pBuffer);
+    static size_t BuildWaitDmaData(void* pBuffer);
+    static size_t BuildWaitOnCeCounter(bool invalidateKcache, void* pBuffer);
+    static size_t BuildWaitOnDeCounterDiff(uint32 counterDiff, void* pBuffer);
     size_t BuildWaitOnReleaseMemEvent(
         EngineType     engineType,
         VGT_EVENT_TYPE vgtEvent,
         TcCacheOp      tcCacheOp,
         gpusize        gpuAddr,
         void*          pBuffer) const;
-    size_t BuildWaitRegMem(
+    static size_t BuildWaitRegMem(
         uint32  memSpace,
         uint32  function,
         uint32  engine,
         gpusize addr,
         uint32  reference,
         uint32  mask,
-        void*   pBuffer) const;
-    size_t BuildWaitRegMem64(
+        void*   pBuffer);
+    static size_t BuildWaitRegMem64(
         uint32  memSpace,
         uint32  function,
         uint32  engine,
         gpusize addr,
         uint64  reference,
         uint64  mask,
-        void*   pBuffer) const;
-    size_t BuildWriteConstRam(
+        void*   pBuffer);
+    static size_t BuildWriteConstRam(
         const void* pSrcData,
         uint32      ramByteOffset,
         uint32      dwordSize,
-        void*       pBuffer) const;
-    size_t BuildWriteData(
+        void*       pBuffer);
+    static size_t BuildWriteData(
         EngineType      engineType,
         gpusize         dstAddr,
         size_t          dwordsToWrite,
@@ -623,8 +623,8 @@ public:
         uint32          wrConfirm,
         const uint32*   pData,
         Pm4Predicate    predicate,
-        void*           pBuffer) const;
-    size_t BuildWriteDataPeriodic(
+        void*           pBuffer);
+    static size_t BuildWriteDataPeriodic(
         EngineType    engineType,
         gpusize       dstAddr,
         size_t        dwordsPerPeriod,
@@ -634,9 +634,9 @@ public:
         bool          wrConfirm,
         const uint32* pPeriodData,
         Pm4Predicate  predicate,
-        void*         pBuffer) const;
+        void*         pBuffer);
 
-    size_t BuildCommentString(const char* pComment, void* pBuffer) const;
+    static size_t BuildCommentString(const char* pComment, void* pBuffer);
 
     void BuildPipelinePrefetchPm4(const PipelineUploader& uploader, PipelinePrefetchPm4* pOutput) const;
 
@@ -644,7 +644,7 @@ public:
     const RegisterInfo& GetRegInfo() const { return m_registerInfo; }
 
 private:
-    size_t BuildWriteDataInternal(
+    static size_t BuildWriteDataInternal(
         EngineType     engineType,
         gpusize        dstAddr,
         size_t         dwordsToWrite,
@@ -652,8 +652,8 @@ private:
         uint32         dstSel,
         uint32         wrConfirm,
         Pm4Predicate   predicate,
-        void*          pBuffer) const;
-    size_t BuildCopyDataInternal(
+        void*          pBuffer);
+    static size_t BuildCopyDataInternal(
         EngineType engineType,
         uint32     engineSel,
         uint32     dstSel,
@@ -662,7 +662,7 @@ private:
         gpusize    srcAddr,
         uint32     countSel,
         uint32     wrConfirm,
-        void*      pBuffer) const;
+        void*      pBuffer);
 
     template <typename AcquireMemPacketType>
     uint32 BuildAcquireMemInternal(

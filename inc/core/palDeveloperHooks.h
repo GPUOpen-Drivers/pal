@@ -57,6 +57,9 @@ enum class CallbackType : uint32
     BarrierBegin,           ///< This callback is to inform that a barrier is about to be executed.
     BarrierEnd,             ///< This callback is to inform that a barrier is done being executed.
     DrawDispatch,           ///< This callback is to inform that a draw or dispatch command is being recorded.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    BindPipeline,           ///< This callback is to inform that a pipeline (client or internal) has been bound.
+#endif
     Count,                  ///< The number of info types.
 };
 
@@ -206,6 +209,7 @@ enum BarrierReason : uint32
     BarrierReasonPostSqttTrace,                             ///< Barrier issued to wait for work from an sqtt trace
     BarrierReasonPrePerfDataCopy,                           ///< Barrier issued to wait for perf data to become
                                                             ///  available for copy
+    BarrierReasonPostGpuEvent,                              ///< Barrier issued to flush GPU event write data to memory
 
     BarrierReasonUnknown = 0xFFFFFFFF,                      ///< Unknown barrier reason
 
@@ -371,6 +375,14 @@ struct DrawDispatchData
         /// Dispatch-specific parameters.  Valid when cmdType is CmdDispatch*
         DrawDispatchDispatchArgs dispatch;
     };
+};
+
+/// Information for BindPipeline callbacks
+struct BindPipelineData
+{
+    ICmdBuffer*       pCmdBuffer; ///< The command buffer that is recording this command
+    uint64            apiPsoHash; ///< The hash to correlate APIs and corresponding PSOs.
+    PipelineBindPoint bindPoint;  ///< The bind point of the pipeline within a queue.
 };
 
 } // Developer

@@ -2607,23 +2607,6 @@
       "Type": "bool",
       "VariableName": "waCmaskImageSyncs",
       "Name": "WaCmaskImageSyncs"
-    },
-    {
-      "Description": "Controls whether to F/I TCC when working with depth/stencil targets that use HTile. This is required on Gfx9 by shader reads if the target is MSAA, has stencil, or has metadata in the mip tail region.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "HashName": 3167089535,
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waDepthStencilTargetMetadataNeedsTccFlush",
-      "Name": "WaDepthStencilTargetMetadataNeedsTccFlush"
     }
   ]
 }

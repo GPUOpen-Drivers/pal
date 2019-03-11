@@ -66,7 +66,7 @@ macro(apply_gpuopen_warnings _target)
         OFF)
 
     if(DEVDRIVER_USE_CPP17)
-        message(STATUS "Using C++17 for ${GPUOPEN_LIB_NAME}")
+        message(STATUS "Using C++17 for ${_target}")
         set_property(TARGET ${_target} PROPERTY CXX_STANDARD 17)
     else()
         set_property(TARGET ${_target} PROPERTY CXX_STANDARD 11)
@@ -78,19 +78,29 @@ macro(apply_gpuopen_warnings _target)
 
     # Apply GNU/Clang compatible warnings
     if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        target_compile_options(${_target} PRIVATE -Wall -Wextra -Werror -Wno-missing-field-initializers)
+        target_compile_options(${_target} PRIVATE -Wall -Wextra -Werror)
     endif()
 
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        target_compile_options(${_target} PRIVATE
-            # This warning triggers when you memcpy into or out of a "non trivial" type.
-            # The requirements for "trivial type" are hard - e.g. some user supplied constructors are enough to make
-            #   it not count.
-            #   Properly fixing this would require embracing more C++14 than we currently do. (e.g. `= default` ctors)
-            #   Read more here: https://msdn.microsoft.com/en-us/library/mt767760.aspx
-            #   This warning is new in gcc 8.x
-            -Wno-class-memaccess
-        )
+        # Apply special options for GCC 8.x+
+        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
+            target_compile_options(${_target} PRIVATE
+                # This warning triggers when you memcpy into or out of a "non trivial" type.
+                # The requirements for "trivial type" are hard - e.g. some user supplied constructors are enough to make
+                #   it not count.
+                #   Properly fixing this would require embracing more C++14 than we currently do. (e.g. `= default` ctors)
+                #   Read more here: https://msdn.microsoft.com/en-us/library/mt767760.aspx
+                #   This warning is new in gcc 8.x
+                -Wno-class-memaccess
+            )
+        # Apply special options for versions earlier than GCC 5.x
+        elseif (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+            target_compile_options(${_target} PRIVATE
+                # This warning triggers when we default initialize structures with the "StructType x = {};" syntax.
+                # It only triggers on GCC 4.8
+                -Wno-missing-field-initializers
+            )
+        endif()
         if (DEVDRIVER_FORCE_COLOR_OUPUT)
             # For details on customizing this, see the docs:
             #   https://gcc.gnu.org/onlinedocs/gcc-5.2.0/gcc/Language-Independent-Options.html

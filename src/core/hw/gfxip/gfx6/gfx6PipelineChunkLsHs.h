@@ -61,10 +61,11 @@ public:
         GraphicsPipelineLoadInfo* pInfo);
 
     void LateInit(
-        const AbiProcessor&       abiProcessor,
-        const RegisterVector&     registers,
-        GraphicsPipelineUploader* pUploader,
-        Util::MetroHash64*        pHasher);
+        const AbiProcessor&             abiProcessor,
+        const RegisterVector&           registers,
+        GraphicsPipelineUploader*       pUploader,
+        const GraphicsPipelineLoadInfo& loadInfo,
+        Util::MetroHash64*              pHasher);
 
     template <bool UseLoadIndexPath>
     uint32* WriteShCommands(

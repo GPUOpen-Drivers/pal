@@ -31,22 +31,6 @@
 namespace Pal
 {
 
-// Tracks the state of a user-data table stored in GPU memory.  The table's contents are managed using embedded data
-// and the CPU.
-struct EmbeddedUserDataTableState
-{
-    gpusize  gpuVirtAddr;   // GPU virtual address where the current copy of the table data is stored.
-    // CPU address of the embedded-data allocation storing the current copy of the table data.  This can be null if
-    // the table has not yet been uploaded to embedded data.
-    uint32*  pCpuVirtAddr;
-    struct
-    {
-        uint32  sizeInDwords : 31; // Size of one full instance of the user-data table, in DWORD's.
-        uint32  dirty        :  1; // Indicates that the CPU copy of the user-data table is more up to date than the
-                                   // copy currently in GPU memory and should be updated before the next dispatch.
-    };
-};
-
 // =====================================================================================================================
 // Class for executing basic hardware-specific functionality common to all compute command buffers.
 class ComputeCmdBuffer : public GfxCmdBuffer
@@ -113,12 +97,6 @@ protected:
 
     virtual void ResetState() override;
 
-    void UpdateUserDataTable(
-        EmbeddedUserDataTableState* pTable,
-        uint32                      dwordsNeeded,
-        uint32                      offsetInDwords,
-        const uint32*               pSrcData);
-
     void LeakNestedCmdBufferState(
         const ComputeCmdBuffer& cmdBuffer);
 
@@ -127,7 +105,7 @@ protected:
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pCmdStream->BuildNop(numDwords, pCmdSpace); }
 
-    EmbeddedUserDataTableState  m_spillTableCs; // Tracks the state of the compute user-data spill table.
+    UserDataTableState  m_spillTableCs; // Tracks the state of the compute user-data spill table.
 
 private:
     const GfxDevice&    m_device;

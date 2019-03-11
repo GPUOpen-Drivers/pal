@@ -54,8 +54,9 @@ public:
 
     // Public IQueryPool interface methods:
     virtual Result Reset(
-        uint32 startQuery,
-        uint32 queryCount) override;
+        uint32      startQuery,
+        uint32      queryCount,
+        const void* pMappedCpuAddr) override;
 
 private:
     virtual ~QueryPool() { }

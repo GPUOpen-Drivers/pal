@@ -1323,6 +1323,42 @@
         "IsEnum": true,
         "Values": [
           {
+            "Name": "CmdBufForceCpuUpdatePathDefault",
+            "Value": 0,
+            "Description": "No override, use client's preference."
+          },
+          {
+            "Name": "CmdBufForceCpuUpdatePathOn",
+            "Value": 1,
+            "Description": "Force PAL to use the CPU update path for vertex buffer, stream-out and spill tables."
+          },
+          {
+            "Name": "CmdBufForceCpuUpdatePathOff",
+            "Value": 2,
+            "Description": "Force PAL to use the CE RAM path for vertex buffer, stream-out and spill tables."
+          }
+        ],
+        "Name": "CmdBufForceCpuUpdatePath",
+        "IsExclusive": true
+      },
+      "Name": "CmdBufForceCpuUpdatePath",
+      "Tags": [
+        "Command Buffer"
+      ],
+      "HashName": 382911281,
+      "Defaults": {
+        "Default": "CmdBufForceCpuUpdatePathDefault"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "enum",
+      "VariableName": "cmdBufForceCpuUpdatePath",
+      "Description": "Globally overrides the value of CmdBufferBuildFlags::useCpuPathForTableUpdates passed in by the client."
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
             "Name": "CmdBufForceOneTimeSubmitDefault",
             "Value": 0,
             "Description": "No override, use app's preference."
@@ -1554,6 +1590,25 @@
       "Type": "bool",
       "VariableName": "enableVidMmGpuVaMappingValidation",
       "Description": "On WDDM2 platforms, PAL is able to send a set of flags through to the kernel which can control how the KMD handles each GPU VA mapping when reserving VA space, mapping VA space or updating the GPU page mappings. If this setting is true then PAL will request that extra validation is performed to ensure that every GPU virtual address mapping to a specific physical allocation specifies a matching set of these KMD flags."
+    },
+    {
+      "Name": "EnableUswcHeapAllAllocations",
+      "Tags": [
+        "Resource Settings"
+      ],
+      "HashName": 3408333164,
+      "Defaults": {
+        "Default": false
+      },
+      "DependsOn": {
+        "OS": [
+          "Win10"
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "enableUswcHeapAllAllocations",
+      "Description": "If true, then this change causes PAL to automatically consider GART to be a valid heap for many allocations."
     },
     {
       "ValidValues": {

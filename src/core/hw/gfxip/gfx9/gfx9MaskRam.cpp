@@ -1216,19 +1216,17 @@ uint32 Gfx9Htile::GetNumSamplesLog2(
 
 // =====================================================================================================================
 // Builds the PM4 packet headers for an image of PM4 commands used to write this View object to hardware.
-template <typename RegType>
 void Gfx9Htile::SetupHtilePreload(
-    const Image&  image,
-    uint32        mipLevel,
-    RegType*      pHtileSurface)
+    const Image& image,
+    uint32       mipLevel)
 {
     const  Pal::Image*       pParent         = image.Parent();
     const  Pal::Device*      pDevice         = pParent->GetDevice();
     const  Gfx9PalSettings&  settings        = GetGfx9Settings(*pDevice);
     const  SubresId          baseSubResource = pParent->GetBaseSubResource();
 
-    pHtileSurface->PREFETCH_WIDTH  = 0;
-    pHtileSurface->PREFETCH_HEIGHT = 0;
+    m_dbHtileSurface[mipLevel].most.PREFETCH_WIDTH  = 0;
+    m_dbHtileSurface[mipLevel].most.PREFETCH_HEIGHT = 0;
 
     if (settings.dbPreloadEnable && (settings.waDisableHtilePrefetch == 0))
     {
@@ -1251,8 +1249,8 @@ void Gfx9Htile::SetupHtilePreload(
 
         regDB_PRELOAD_CONTROL*  pPreloadControl = &m_dbPreloadControl[mipLevel];
 
-        pHtileSurface->HTILE_USES_PRELOAD_WIN = settings.dbPreloadWinEnable;
-        pHtileSurface->PRELOAD                = 1;
+        m_dbHtileSurface[mipLevel].most.HTILE_USES_PRELOAD_WIN = settings.dbPreloadWinEnable;
+        m_dbHtileSurface[mipLevel].most.PRELOAD                = 1;
 
         if (imageSizeInPixels <= cacheSizeInPixels)
         {
@@ -1333,8 +1331,6 @@ Result Gfx9Htile::Init(
     // Htile control registers vary per mip-level.  Compute those here.
     for (uint32  mipLevel = 0; mipLevel < imageCreateInfo.mipLevels; mipLevel++)
     {
-        regDB_HTILE_SURFACE*    pHtileSurface   = &m_dbHtileSurface[mipLevel];
-
         const SubresId              subResId          = { baseSubResource.aspect, mipLevel, 0 };
         const SubResourceInfo*const pSubResInfo       = pParent->SubresourceInfo(subResId);
         const uint32                imageSizeInPixels = (pSubResInfo->actualExtentTexels.width *
@@ -1343,18 +1339,20 @@ Result Gfx9Htile::Init(
 
         if (pixelsPerRb <= (256 * 1024)) // <= 256K pixels
         {
-            pHtileSurface->bits.FULL_CACHE = 0;
+            m_dbHtileSurface[mipLevel].bits.FULL_CACHE = 0;
         }
         else
         {
-            pHtileSurface->bits.FULL_CACHE = 1;
+            m_dbHtileSurface[mipLevel].bits.FULL_CACHE = 1;
         }
 
-        pHtileSurface->bits.DST_OUTSIDE_ZERO_TO_ONE = 0;
+        m_dbHtileSurface[mipLevel].bits.DST_OUTSIDE_ZERO_TO_ONE = 0;
 
-        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+        // Setup HTile preload if it's supported.
+        if ((chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+            )
         {
-            SetupHtilePreload(image, mipLevel, &pHtileSurface->gfx09);
+            SetupHtilePreload(image, mipLevel);
         }
     }
 
@@ -1938,6 +1936,10 @@ bool Gfx9Dcc::UseDccForImage(
 
     allMipsShaderWritable = (allMipsShaderWritable && (pParent->FirstShaderWritableMip() == 0));
 
+    const bool isNotARenderTarget = (pParent->IsRenderTarget() == false);
+    const bool isDepthStencil     = pParent->IsDepthStencil();
+    const bool isGfx9             = (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9);
+
     if (pParent->IsMetadataDisabled())
     {
         // Don't use DCC if the caller asked that we allocate no metadata.
@@ -1948,14 +1950,10 @@ bool Gfx9Dcc::UseDccForImage(
         // Don't use DCC if the caller can switch between view formats that are not DCC compatible with each other.
         useDcc = false;
     }
-    else if (allMipsShaderWritable && (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9))
+    else if (isDepthStencil || ((isNotARenderTarget || allMipsShaderWritable) && isGfx9))
     {
-        useDcc = false;
-    }
-    else if (pParent->IsDepthStencil() || (pParent->IsRenderTarget() == false))
-    {
-        // DCC only makes sense for renderable color buffers, or those color buffers such that some mips are
-        // not shader writable
+        // DCC does not make sense for non-render targets or for UAVs (all mips are shader writeable) in
+        // gfx9. It also does not make sense for any depth/stencil image because they have Htile data.
         useDcc = false;
     }
     // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
@@ -1989,8 +1987,8 @@ bool Gfx9Dcc::UseDccForImage(
     }
     else
     {
-        // We now safely know that this is a color image, so determine the swizzle mode here.  GFX9 images have the
-        // same swizzle mode for all mip-levels and slices, so just look at the base level.
+        // Here we are either a color image or a UAV resource, so determine the swizzle mode. GFX9+ resources have
+        // the same swizzle mode for all mip-levels and slices, so just look at the base level.
         const SubresId              subResId     = image.Parent()->GetBaseSubResource();
         const SubResourceInfo*const pSubResInfo  = image.Parent()->SubresourceInfo(subResId);
         const auto&                 surfSettings = image.GetAddrSettings(pSubResInfo);
@@ -2024,26 +2022,26 @@ bool Gfx9Dcc::UseDccForImage(
                 // Make sure the settings allow use of DCC surfaces for MSAA.
                 if (createInfo.samples == 2)
                 {
-                    useDcc = useDcc && TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample2x);
+                    useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample2x);
                 }
                 else if (createInfo.samples == 4)
                 {
-                    useDcc = useDcc && TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample4x);
+                    useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample4x);
                 }
                 else if (createInfo.samples == 8)
                 {
-                    useDcc = useDcc && TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample8x);
+                    useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample8x);
                 }
 
                 if (createInfo.samples != createInfo.fragments)
                 {
-                    useDcc = useDcc && TestAnyFlagSet(settings.useDcc, Gfx9UseDccEqaa);
+                    useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccEqaa);
                 }
             }
             else
             {
                 // Make sure the settings allow use of DCC surfaces for single-sampled surfaces
-                useDcc = useDcc && TestAnyFlagSet(settings.useDcc, Gfx9UseDccSingleSample);
+                useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccSingleSample);
             }
 
             if (useDcc && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccForNonReadableFormats) == false))

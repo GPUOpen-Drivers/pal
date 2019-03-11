@@ -27,7 +27,7 @@
 
 #include "gpuopen.h"
 
-#define DRIVERCONTROL_PROTOCOL_MAJOR_VERSION 3
+#define DRIVERCONTROL_PROTOCOL_MAJOR_VERSION 4
 #define DRIVERCONTROL_PROTOCOL_MINOR_VERSION 0
 
 #define DRIVERCONTROL_INTERFACE_VERSION ((DRIVERCONTROL_INTERFACE_MAJOR_VERSION << 16) | DRIVERCONTROL_INTERFACE_MINOR_VERSION)
@@ -38,6 +38,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  4.0    | Added HaltedOnPostDeviceInit state.                                                                    |
 *|  3.0    | Added QueryClientInfoRequest support.                                                                    |
 *|  2.1    | Added initialization time step functionality.                                                            |
 *|  2.0    | Added initialization time driver status values and a terminate driver command.                           |
@@ -45,6 +46,7 @@
 ***********************************************************************************************************************
 */
 
+#define DRIVERCONTROL_HALTEDPOSTDEVICEINIT_VERSION 4
 #define DRIVERCONTROL_QUERYCLIENTINFO_VERSION 3
 #define DRIVERCONTROL_INITIALIZATION_STATUS_VERSION 2
 #define DRIVERCONTROL_INITIAL_VERSION 1

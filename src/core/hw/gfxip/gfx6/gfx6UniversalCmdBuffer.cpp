@@ -276,6 +276,37 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 Result UniversalCmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
+    uint32 ceRamOffset = 0;
+    m_spillTable.stateCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
+    m_spillTable.stateCs.ceRamOffset  = ceRamOffset;
+    ceRamOffset += (sizeof(uint32) * m_spillTable.stateCs.sizeInDwords);
+
+    m_spillTable.stateGfx.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
+    m_spillTable.stateGfx.ceRamOffset  = ceRamOffset;
+    ceRamOffset += (sizeof(uint32) * m_spillTable.stateGfx.sizeInDwords);
+
+    m_streamOut.state.sizeInDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
+    m_streamOut.state.ceRamOffset  = ceRamOffset;
+    ceRamOffset += sizeof(m_streamOut.srd);
+
+    m_vbTable.pSrds              = static_cast<BufferSrd*>(VoidPtrAlign((this + 1), alignof(BufferSrd)));
+    m_vbTable.state.sizeInDwords = ((sizeof(BufferSrd) / sizeof(uint32)) * MaxVertexBuffers);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 469
+    m_vbTable.state.ceRamOffset  = ceRamOffset;
+    ceRamOffset += (sizeof(uint32) * m_vbTable.state.sizeInDwords);
+#endif
+
+    PAL_ASSERT(ceRamOffset <= ReservedCeRamBytes);
+    ceRamOffset = ReservedCeRamBytes;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
+    m_vbTable.state.ceRamOffset  =
+        (static_cast<uint32>(m_device.Parent()->IndirectUserDataTableCeRamOffset()) + ceRamOffset);
+    ceRamOffset += (sizeof(uint32) * m_vbTable.state.sizeInDwords);
+#endif
+
     Result result = Pal::UniversalCmdBuffer::Init(internalInfo);
 
     if (result == Result::Success)
@@ -288,40 +319,6 @@ Result UniversalCmdBuffer::Init(
         result = m_ceCmdStream.Init();
     }
 
-    if (result == Result::Success)
-    {
-        const auto& chipProps = m_device.Parent()->ChipProperties();
-
-        uint32 ceRamOffset = 0;
-        m_spillTable.stateCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
-        m_spillTable.stateCs.ceRamOffset  = ceRamOffset;
-        ceRamOffset += (sizeof(uint32) * m_spillTable.stateCs.sizeInDwords);
-
-        m_spillTable.stateGfx.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
-        m_spillTable.stateGfx.ceRamOffset  = ceRamOffset;
-        ceRamOffset += (sizeof(uint32) * m_spillTable.stateGfx.sizeInDwords);
-
-        m_streamOut.state.sizeInDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
-        m_streamOut.state.ceRamOffset  = ceRamOffset;
-        ceRamOffset += sizeof(m_streamOut.srd);
-
-        m_vbTable.pSrds              = static_cast<BufferSrd*>(VoidPtrAlign((this + 1), alignof(BufferSrd)));
-        m_vbTable.state.sizeInDwords = ((sizeof(BufferSrd) / sizeof(uint32)) * MaxVertexBuffers);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 469
-        m_vbTable.state.ceRamOffset  = ceRamOffset;
-        ceRamOffset += (sizeof(uint32) * m_vbTable.state.sizeInDwords);
-#endif
-
-        PAL_ASSERT(ceRamOffset <= ReservedCeRamBytes);
-        ceRamOffset = ReservedCeRamBytes;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
-        m_vbTable.state.ceRamOffset  =
-            (static_cast<uint32>(m_device.Parent()->IndirectUserDataTableCeRamOffset()) + ceRamOffset);
-        ceRamOffset += (sizeof(uint32) * m_vbTable.state.sizeInDwords);
-#endif
-    }
-
     return result;
 }
 
@@ -330,9 +327,39 @@ Result UniversalCmdBuffer::Init(
 template <bool IssueSqttMarkerEvent>
 void UniversalCmdBuffer::SetDispatchFunctions()
 {
-    m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent>;
-    m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent>;
-    m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent>;
+    if (UseCpuPathInsteadOfCeRam())
+    {
+        m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, true>;
+        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, true>;
+        m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, true>;
+    }
+    else
+    {
+        m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, false>;
+        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, false>;
+        m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, false>;
+    }
+}
+
+// =====================================================================================================================
+// Sets up function pointers for Draw-time validation of graphics user-data entries.
+template <bool TessEnabled, bool GsEnabled>
+void UniversalCmdBuffer::SetUserDataValidationFunctions()
+{
+    if (UseCpuPathInsteadOfCeRam())
+    {
+        m_pfnValidateUserDataGfx =
+            &UniversalCmdBuffer::ValidateGraphicsUserDataCpu<false, TessEnabled, GsEnabled>;
+        m_pfnValidateUserDataGfxPipelineSwitch =
+            &UniversalCmdBuffer::ValidateGraphicsUserDataCpu<true, TessEnabled, GsEnabled>;
+    }
+    else
+    {
+        m_pfnValidateUserDataGfx =
+            &UniversalCmdBuffer::ValidateGraphicsUserDataCeRam<false, TessEnabled, GsEnabled>;
+        m_pfnValidateUserDataGfxPipelineSwitch =
+            &UniversalCmdBuffer::ValidateGraphicsUserDataCeRam<true, TessEnabled, GsEnabled>;
+    }
 }
 
 // =====================================================================================================================
@@ -345,34 +372,22 @@ void UniversalCmdBuffer::SetUserDataValidationFunctions(
     {
         if (gsEnabled)
         {
-            m_pfnValidateUserDataGfx =
-                &UniversalCmdBuffer::ValidateGraphicsUserData<false, true, true>;
-            m_pfnValidateUserDataGfxPipelineSwitch =
-                &UniversalCmdBuffer::ValidateGraphicsUserData<true, true, true>;
+            SetUserDataValidationFunctions<true, true>();
         }
         else
         {
-            m_pfnValidateUserDataGfx =
-                &UniversalCmdBuffer::ValidateGraphicsUserData<false, true, false>;
-            m_pfnValidateUserDataGfxPipelineSwitch =
-                &UniversalCmdBuffer::ValidateGraphicsUserData<true, true, false>;
+            SetUserDataValidationFunctions<true, false>();
         }
     }
     else
     {
         if (gsEnabled)
         {
-            m_pfnValidateUserDataGfx =
-                &UniversalCmdBuffer::ValidateGraphicsUserData<false, false, true>;
-            m_pfnValidateUserDataGfxPipelineSwitch =
-                &UniversalCmdBuffer::ValidateGraphicsUserData<true, false, true>;
+            SetUserDataValidationFunctions<false, true>();
         }
         else
         {
-            m_pfnValidateUserDataGfx =
-                &UniversalCmdBuffer::ValidateGraphicsUserData<false, false, false>;
-            m_pfnValidateUserDataGfxPipelineSwitch =
-                &UniversalCmdBuffer::ValidateGraphicsUserData<true, false, false>;
+            SetUserDataValidationFunctions<false, false>();
         }
     }
 }
@@ -399,7 +414,7 @@ void UniversalCmdBuffer::ResetState()
     m_vgtDmaIndexType.u32All = 0;
     m_vgtDmaIndexType.bits.SWAP_MODE = VGT_DMA_SWAP_NONE;
 
-    if (m_device.Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp8)
+    if (chipProps.gfxLevel >= GfxIpLevel::GfxIp8)
     {
         // NOTE: On Gfx8 and newer hardware, the VGT_DMA_INDEX_TYPE register has an extra field for specifying the
         // MTYPE of memory accesses to the index buffer. Other than the new field, the register is identical to the
@@ -504,6 +519,22 @@ void UniversalCmdBuffer::CmdBindPipeline(
             m_rbPlusPm4Img.sxBlendOptEpsilon = pNewPipeline->SxBlendOptEpsilon();
             m_rbPlusPm4Img.sxBlendOptControl = pNewPipeline->SxBlendOptControl();
         }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+        constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
+        const uint32 vbTableDwords =
+            ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
+        PAL_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
+
+        if (vbTableDwords > m_vbTable.watermark)
+        {
+            // If the current high watermark is increasing, we need to mark the contents as dirty because data which
+            // was previously uploaded to CE RAM wouldn't have been dumped to GPU memory before the previous Draw.
+            m_vbTable.state.dirty = 1;
+        }
+
+        m_vbTable.watermark = vbTableDwords;
+#endif
     }
 
     Pal::UniversalCmdBuffer::CmdBindPipeline(params);
@@ -1023,6 +1054,45 @@ void UniversalCmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+void UniversalCmdBuffer::CmdSetVertexBuffers(
+    uint32                firstBuffer,
+    uint32                bufferCount,
+    const BufferViewInfo* pBuffers)
+{
+    PAL_ASSERT(bufferCount > 0);
+    PAL_ASSERT((firstBuffer + bufferCount) <= MaxVertexBuffers);
+    PAL_ASSERT(pBuffers != nullptr);
+
+    // The vertex buffer table will be validated at Draw time, so all that is necessary is to update the CPU-side copy
+    // of the SRD table and upload the new SRD data into CE RAM.
+
+    BufferSrd*const pSrds = (m_vbTable.pSrds + bufferCount);
+    m_device.Parent()->CreateUntypedBufferViewSrds(bufferCount, pBuffers, pSrds);
+
+    constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
+    if (UseCpuPathInsteadOfCeRam() == false)
+    {
+        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
+        pCeCmdSpace = UploadToUserDataTable(&m_vbTable.state,
+                                            (DwordsPerSrd * firstBuffer),
+                                            (DwordsPerSrd * bufferCount),
+                                            reinterpret_cast<const uint32*>(pSrds),
+                                            m_vbTable.watermark,
+                                            pCeCmdSpace);
+        m_ceCmdStream.CommitCommands(pCeCmdSpace);
+    }
+    else if ((DwordsPerSrd * firstBuffer) < m_vbTable.watermark)
+    {
+        // Only mark the contents as dirty if the updated VB table entries fall within the current high watermark.
+        // This will help avoid redundant validation for data which the current pipeline doesn't care about.
+        m_vbTable.state.dirty = 1;
+    }
+
+    m_vbTable.modified = 1;
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
+// =====================================================================================================================
 void UniversalCmdBuffer::CmdSetIndirectUserData(
     uint16      tableId,        // Deprecated, must be zero!
     uint32      dwordOffset,
@@ -1039,17 +1109,25 @@ void UniversalCmdBuffer::CmdSetIndirectUserData(
     uint32*const pDst = (reinterpret_cast<uint32*>(m_vbTable.pSrds) + dwordOffset);
     memcpy(pDst, pSrcData, dwordSize * sizeof(uint32));
 
-    uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
+    if (UseCpuPathInsteadOfCeRam() == false)
+    {
+        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
+        pCeCmdSpace = UploadToUserDataTable(&m_vbTable.state,
+                                            dwordOffset,
+                                            dwordSize,
+                                            static_cast<const uint32*>(pSrcData),
+                                            m_vbTable.watermark,
+                                            pCeCmdSpace);
+        m_ceCmdStream.CommitCommands(pCeCmdSpace);
+    }
+    else if (dwordOffset < m_vbTable.watermark)
+    {
+        // Only mark the contents as dirty if the updated VB table entries fall within the current high watermark.
+        // This will help avoid redundant validation for data which the current pipeline doesn't care about.
+        m_vbTable.state.dirty = 1;
+    }
 
-    pCeCmdSpace = UploadToUserDataTable(&m_vbTable.state,
-                                        dwordOffset,
-                                        dwordSize,
-                                        static_cast<const uint32*>(pSrcData),
-                                        m_vbTable.watermark,
-                                        pCeCmdSpace);
     m_vbTable.modified = 1;
-
-    m_ceCmdStream.CommitCommands(pCeCmdSpace);
 }
 
 // =====================================================================================================================
@@ -1069,6 +1147,7 @@ void UniversalCmdBuffer::CmdSetIndirectUserDataWatermark(
 
     m_vbTable.watermark = dwordLimit;
 }
+#endif
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdBindTargets(
@@ -1215,16 +1294,23 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
-    uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
-
-    pCeCmdSpace = UploadToUserDataTable(&m_streamOut.state,
-                                        0,
-                                        (sizeof(m_streamOut.srd) / sizeof(uint32)),
-                                        reinterpret_cast<const uint32*>(&m_streamOut.srd[0]),
-                                        UINT_MAX,
-                                        pCeCmdSpace);
-
-    m_ceCmdStream.CommitCommands(pCeCmdSpace);
+    if (UseCpuPathInsteadOfCeRam())
+    {
+        // If the stream-out table is being managed by the CPU through embedded-data, just mark it dirty since we
+        // need to update the whole table at Draw-time anyway.
+        m_streamOut.state.dirty = 1;
+    }
+    else
+    {
+        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
+        pCeCmdSpace = UploadToUserDataTable(&m_streamOut.state,
+                                            0,
+                                            (sizeof(m_streamOut.srd) / sizeof(uint32)),
+                                            reinterpret_cast<const uint32*>(&m_streamOut.srd[0]),
+                                            UINT_MAX,
+                                            pCeCmdSpace);
+        m_ceCmdStream.CommitCommands(pCeCmdSpace);
+    }
 
     m_graphicsState.bindStreamOutTargets                          = params;
     m_graphicsState.dirtyFlags.nonValidationBits.streamOutTargets = 1;
@@ -2057,7 +2143,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 // =====================================================================================================================
 // Issues a direct dispatch command. We must discard the dispatch if x, y, or z are zero. To avoid branching, we will
 // rely on the HW to discard the dispatch for us.
-template <bool IssueSqttMarkerEvent>
+template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
     ICmdBuffer* pCmdBuffer,
     uint32      x,
@@ -2073,7 +2159,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace  = pThis->ValidateDispatch(0uLL, x, y, z, pDeCmdSpace);
+    pDeCmdSpace  = pThis->ValidateDispatch<UseCpuPathForUserDataTables>(0uLL, x, y, z, pDeCmdSpace);
     pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(x, y, z, false, true, pThis->PacketPredicate(), pDeCmdSpace);
 
@@ -2090,7 +2176,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 // =====================================================================================================================
 // Issues an indirect dispatch command. We must discard the dispatch if x, y, or z are zero. We will rely on the HW to
 // discard the dispatch for us.
-template <bool IssueSqttMarkerEvent>
+template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
     ICmdBuffer*       pCmdBuffer,
     const IGpuMemory& gpuMemory,
@@ -2110,7 +2196,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace  = pThis->ValidateDispatch((gpuMemBaseAddr + offset), 0, 0, 0, pDeCmdSpace);
+    pDeCmdSpace  = pThis->ValidateDispatch<UseCpuPathForUserDataTables>((gpuMemBaseAddr + offset), 0, 0, 0, pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildSetBase(
         ShaderCompute, BASE_INDEX_DISPATCH_INDIRECT, gpuMemBaseAddr, pDeCmdSpace);
     pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
@@ -2131,7 +2217,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 // =====================================================================================================================
 // Issues a direct dispatch command with immediate threadgroup offsets. We must discard the dispatch if x, y, or z are
 // zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
-template <bool IssueSqttMarkerEvent>
+template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
     ICmdBuffer* pCmdBuffer,
     uint32      xOffset,
@@ -2151,7 +2237,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace = pThis->ValidateDispatch(0uLL, xDim, yDim, zDim, pDeCmdSpace);
+    pDeCmdSpace = pThis->ValidateDispatch<UseCpuPathForUserDataTables>(0uLL, xDim, yDim, zDim, pDeCmdSpace);
 
     const uint32 starts[3] = {xOffset, yOffset, zOffset};
     pDeCmdSpace = pThis->m_deCmdStream.WriteSetSeqShRegs(mmCOMPUTE_START_X,
@@ -2828,9 +2914,9 @@ uint32* UniversalCmdBuffer::IncrementDeCounter(
 // =====================================================================================================================
 // Helper function for relocating a user-data table
 void UniversalCmdBuffer::RelocateUserDataTable(
-    CeRamUserDataTableState* pTable,
-    uint32                   offsetInDwords, // Offset into the table where the GPU will actually read from
-    uint32                   dwordsNeeded)
+    UserDataTableState* pTable,
+    uint32              offsetInDwords, // Offset into the table where the GPU will actually read from
+    uint32              dwordsNeeded)
 {
     PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
 
@@ -2846,12 +2932,12 @@ void UniversalCmdBuffer::RelocateUserDataTable(
 // Helper function to upload the contents of a user-data table which is being managed by CE RAM. It is an error to call
 // this before the table has been relocated to its new embedded data location!
 uint32* UniversalCmdBuffer::UploadToUserDataTable(
-    CeRamUserDataTableState* pTable,
-    uint32                   offsetInDwords,
-    uint32                   dwordsNeeded,
-    const uint32*            pSrcData,
-    uint32                   highWatermark,
-    uint32*                  pCeCmdSpace)
+    UserDataTableState* pTable,
+    uint32              offsetInDwords,
+    uint32              dwordsNeeded,
+    const uint32*       pSrcData,
+    uint32              highWatermark,
+    uint32*             pCeCmdSpace)
 {
     PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
 
@@ -2876,10 +2962,10 @@ uint32* UniversalCmdBuffer::UploadToUserDataTable(
 // be used to dump the table contents into GPU memory. It is an error to call this before the table has been relocated
 // to its new GPU memory location!
 uint32* UniversalCmdBuffer::DumpUserDataTable(
-    CeRamUserDataTableState* pTable,
-    uint32                   offsetInDwords,
-    uint32                   dwordsNeeded,
-    uint32*                  pCeCmdSpace)
+    UserDataTableState* pTable,
+    uint32              offsetInDwords,
+    uint32              dwordsNeeded,
+    uint32*             pCeCmdSpace)
 {
     PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
 
@@ -3057,7 +3143,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToCeRam(
     const UserDataEntries& entries = (is_same<PipelineSignature, ComputePipelineSignature>::value)
         ? m_computeState.csUserDataEntries : m_graphicsState.gfxUserDataEntries;
 
-    CeRamUserDataTableState*const pSpillTable = (is_same<PipelineSignature, ComputePipelineSignature>::value)
+    UserDataTableState*const pSpillTable = (is_same<PipelineSignature, ComputePipelineSignature>::value)
         ? &m_spillTable.stateCs : &m_spillTable.stateGfx;
 
     const uint16 spillThreshold = pCurrSignature->spillThreshold;
@@ -3094,7 +3180,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToCeRam(
     // NOTE: Both spill tables share the same ring buffer, so when one gets updated, the other must also. This is
     // because there may be a large series of Dispatches between Draws (or vice-versa), so if the buffer wraps, it
     // is necessary to make sure that both compute and graphics waves don't clobber each other's spill tables.
-    CeRamUserDataTableState*const pOtherSpillTable = (is_same<PipelineSignature, ComputePipelineSignature>::value)
+    UserDataTableState*const pOtherSpillTable = (is_same<PipelineSignature, ComputePipelineSignature>::value)
         ? &m_spillTable.stateGfx : &m_spillTable.stateCs;
     pOtherSpillTable->dirty |= pSpillTable->dirty;
 
@@ -3211,9 +3297,9 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToUserSgprsCs(
 // =====================================================================================================================
 // Helper function which is responsible for making sure all user-data entries are written to either the spill table or
 // to user-SGPR's, as well as making sure that all indirect user-data tables are up-to-date in GPU memory.  Part of
-// Dispatch-time validation.
+// Dispatch-time validation.  This version uses CE RAM for spill table management.
 template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled>
-uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
+uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCeRam(
     const GraphicsPipelineSignature* pPrevSignature,
     uint32*                          pDeCmdSpace)
 {
@@ -3380,9 +3466,182 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
 // =====================================================================================================================
 // Helper function which is responsible for making sure all user-data entries are written to either the spill table or
 // to user-SGPR's, as well as making sure that all indirect user-data tables are up-to-date in GPU memory.  Part of
-// Dispatch-time validation.
+// Draw-time validation.  This version uses the CPU & embedded data for user-data table management.
+template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled>
+uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCpu(
+    const GraphicsPipelineSignature* pPrevSignature,
+    uint32*                          pDeCmdSpace)
+{
+    PAL_ASSERT((HasPipelineChanged  && (pPrevSignature != nullptr)) ||
+               (!HasPipelineChanged && (pPrevSignature == nullptr)));
+
+    constexpr uint32 StreamOutTableDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
+
+    // Step #1:
+    // If the stream-out table or vertex buffer table were updated since the previous Draw, and are referenced by the
+    // current pipeline, they must be relocated to a new location in GPU memory and re-uploaded by the CPU.
+    const uint16 vertexBufTblRegAddr = m_pSignatureGfx->vertexBufTableRegAddr;
+    if ((vertexBufTblRegAddr != 0) && (m_vbTable.watermark > 0))
+    {
+        // NOTE: If the pipeline is changing and the previous pipeline's mapping for the VB table doesn't match the
+        // current pipeline's, we need to re-write the GPU virtual address even if we don't re-upload the table.
+        bool gpuAddrDirty = (HasPipelineChanged && (pPrevSignature->vertexBufTableRegAddr != vertexBufTblRegAddr));
+
+        if (m_vbTable.state.dirty)
+        {
+            UpdateUserDataTableCpu(&m_vbTable.state,
+                                   m_vbTable.watermark,
+                                   0,
+                                   reinterpret_cast<const uint32*>(m_vbTable.pSrds));
+            gpuAddrDirty = true;
+        }
+
+        if (gpuAddrDirty)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(vertexBufTblRegAddr,
+                                                                         LowPart(m_vbTable.state.gpuVirtAddr),
+                                                                         pDeCmdSpace);
+        }
+    } // if vertex buffer table is mapped by current pipeline
+
+    const uint16 streamOutTblRegAddr = m_pSignatureGfx->streamOutTableRegAddr;
+    if (streamOutTblRegAddr != 0)
+    {
+        // When switching to a pipeline which uses stream output, we need to update the SRD table for any
+        // bound stream-output buffers because the SRD's depend on the pipeline's per-buffer vertex strides.
+        if (HasPipelineChanged)
+        {
+            CheckStreamOutBufferStridesOnPipelineSwitch();
+        }
+
+        // NOTE: If the pipeline is changing and the previous pipeline's mapping for the stream-out table doesn't match
+        // the current pipeline's, we need to re-write the GPU virtual address even if we don't re-upload the table.
+        bool gpuAddrDirty = (HasPipelineChanged && (pPrevSignature->streamOutTableRegAddr != streamOutTblRegAddr));
+
+        if (m_streamOut.state.dirty)
+        {
+            UpdateUserDataTableCpu(&m_streamOut.state,
+                                   StreamOutTableDwords,
+                                   0,
+                                   reinterpret_cast<const uint32*>(&m_streamOut.srd[0]));
+            gpuAddrDirty = true;
+        }
+
+        if (gpuAddrDirty)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(streamOutTblRegAddr,
+                                                                         LowPart(m_streamOut.state.gpuVirtAddr),
+                                                                         pDeCmdSpace);
+        }
+    } // if stream-out table is mapped by current pipeline
+
+    // Step #2:
+    // Write all dirty user-data entries to their mapped user SGPR's.
+    uint8 alreadyWrittenStageMask = 0;
+    if (HasPipelineChanged)
+    {
+        alreadyWrittenStageMask = FixupUserSgprsOnPipelineSwitch<TessEnabled, GsEnabled>(pPrevSignature, &pDeCmdSpace);
+    }
+    pDeCmdSpace = WriteDirtyUserDataEntriesToSgprsGfx<TessEnabled, GsEnabled>(pPrevSignature,
+                                                                              alreadyWrittenStageMask,
+                                                                              pDeCmdSpace);
+
+    const uint16 spillThreshold = m_pSignatureGfx->spillThreshold;
+    if (spillThreshold != NoUserDataSpilling)
+    {
+        const uint16 userDataLimit = m_pSignatureGfx->userDataLimit;
+        PAL_ASSERT(userDataLimit > 0);
+        const uint16 lastUserData  = (userDataLimit - 1);
+
+        // Step #3:
+        // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for any
+        // Dispatch whenever *any* contents have changed.
+        bool reUpload = (m_spillTable.stateCs.dirty != 0);
+        if (HasPipelineChanged &&
+            ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
+        {
+            // If the pipeline is changing and the spilled region is expanding, we need to re-upload the table because
+            // we normally only update the portions useable by the bound pipeline to minimize memory usage.
+            reUpload = true;
+        }
+        else
+        {
+            // Otherwise, use the following loop to check if any of the spilled user-data entries are dirty.
+            const uint32 firstMaskId = (spillThreshold / UserDataEntriesPerMask);
+            const uint32 lastMaskId  = (lastUserData   / UserDataEntriesPerMask);
+            for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
+            {
+                uint16 dirtyMask = m_graphicsState.gfxUserDataEntries.dirty[maskId];
+                if (maskId == firstMaskId)
+                {
+                    // Ignore the dirty bits for any entries below the spill threshold.
+                    const uint16 firstEntryInMask = (spillThreshold & (UserDataEntriesPerMask - 1));
+                    dirtyMask &= ~((1 << firstEntryInMask) - 1);
+                }
+                if (maskId == lastMaskId)
+                {
+                    // Ignore the dirty bits for any entries beyond the user-data limit.
+                    const uint16 lastEntryInMask = (lastUserData & (UserDataEntriesPerMask - 1));
+                    dirtyMask &= ((1 << (lastEntryInMask + 1)) - 1);
+                }
+
+                if (dirtyMask != 0)
+                {
+                    reUpload = true;
+                    break; // We only care if *any* spill table contents change!
+                }
+            } // for each wide-bitfield sub-mask
+        }
+
+        // Step #4:
+        // Re-upload spill table contents if necessary, and write the new GPU virtual address to the user-SGPR(s).
+        if (reUpload)
+        {
+            UpdateUserDataTableCpu(&m_spillTable.stateGfx,
+                                   (userDataLimit - spillThreshold),
+                                   spillThreshold,
+                                   &m_graphicsState.gfxUserDataEntries.entries[0]);
+        }
+
+        // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage, even
+        // if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have changed.
+        if (HasPipelineChanged || reUpload)
+        {
+            const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
+            for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
+            {
+                const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
+                if (userSgpr != UserDataNotMapped)
+                {
+                    pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(userSgpr, gpuVirtAddrLo, pDeCmdSpace);
+                }
+            }
+        }
+    } // if current pipeline spills user-data
+
+    // Step #5:
+    // Even though the spill table is not being managed using CE RAM, it is possible for the client to use CE RAM for
+    // its own purposes.  In this case, we still need to increment the CE RAM counter.
+    if (m_state.flags.ceStreamDirty)
+    {
+        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
+        pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
+        m_ceCmdStream.CommitCommands(pCeCmdSpace);
+    }
+
+    // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this method,
+    // so it is safe to clear these bits.
+    memset(&m_graphicsState.gfxUserDataEntries.dirty[0], 0, sizeof(m_graphicsState.gfxUserDataEntries.dirty));
+
+    return pDeCmdSpace;
+}
+
+// =====================================================================================================================
+// Helper function which is responsible for making sure all user-data entries are written to either the spill table or
+// to user-SGPR's, as well as making sure that all indirect user-data tables are up-to-date in GPU memory.  Part of
+// Dispatch-time validation.  This version uses CE RAM for spill table management.
 template <bool HasPipelineChanged>
-uint32* UniversalCmdBuffer::ValidateComputeUserData(
+uint32* UniversalCmdBuffer::ValidateComputeUserDataCeRam(
     const ComputePipelineSignature* pPrevSignature,
     uint32*                         pDeCmdSpace)
 {
@@ -3450,6 +3709,101 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
 
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
     } // needs CE workload
+
+    // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this method,
+    // so it is safe to clear these bits.
+    memset(&m_computeState.csUserDataEntries.dirty[0], 0, sizeof(m_computeState.csUserDataEntries.dirty));
+
+    return pDeCmdSpace;
+}
+
+// =====================================================================================================================
+// Helper function which is responsible for making sure all user-data entries are written to either the spill table or
+// to user-SGPR's, as well as making sure that all indirect user-data tables are up-to-date in GPU memory.  Part of
+// Dispatch-time validation.  This version uses the CPU & embedded data for user-data table management.
+template <bool HasPipelineChanged>
+uint32* UniversalCmdBuffer::ValidateComputeUserDataCpu(
+    const ComputePipelineSignature* pPrevSignature,
+    uint32*                         pDeCmdSpace)
+{
+    PAL_ASSERT((HasPipelineChanged  && (pPrevSignature != nullptr)) ||
+               (!HasPipelineChanged && (pPrevSignature == nullptr)));
+
+    // Step #1:
+    // Write all dirty user-data entries to their mapped user SGPR's.
+    pDeCmdSpace = WriteDirtyUserDataEntriesToUserSgprsCs(pDeCmdSpace);
+
+    const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
+    if (spillThreshold != NoUserDataSpilling)
+    {
+        const uint16 userDataLimit = m_pSignatureCs->userDataLimit;
+        PAL_ASSERT(userDataLimit != 0);
+        const uint16 lastUserData  = (userDataLimit - 1);
+
+        // Step #2:
+        // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for any
+        // Dispatch whenever *any* contents have changed.
+        bool reUpload = (m_spillTable.stateCs.dirty != 0);
+        if (HasPipelineChanged &&
+            ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
+        {
+            // If the pipeline is changing and the spilled region is expanding, we need to re-upload the table because
+            // we normally only update the portions useable by the bound pipeline to minimize memory usage.
+            reUpload = true;
+        }
+        else
+        {
+            // Otherwise, use the following loop to check if any of the spilled user-data entries are dirty.
+            const uint32 firstMaskId = (spillThreshold / UserDataEntriesPerMask);
+            const uint32 lastMaskId  = (lastUserData   / UserDataEntriesPerMask);
+            for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
+            {
+                uint16 dirtyMask = m_computeState.csUserDataEntries.dirty[maskId];
+                if (maskId == firstMaskId)
+                {
+                    // Ignore the dirty bits for any entries below the spill threshold.
+                    const uint16 firstEntryInMask = (spillThreshold & (UserDataEntriesPerMask - 1));
+                    dirtyMask &= ~((1 << firstEntryInMask) - 1);
+                }
+                if (maskId == lastMaskId)
+                {
+                    // Ignore the dirty bits for any entries beyond the user-data limit.
+                    const uint16 lastEntryInMask = (lastUserData & (UserDataEntriesPerMask - 1));
+                    dirtyMask &= ((1 << (lastEntryInMask + 1)) - 1);
+                }
+
+                if (dirtyMask != 0)
+                {
+                    reUpload = true;
+                    break; // We only care if *any* spill table contents change!
+                }
+            } // for each wide-bitfield sub-mask
+        }
+
+        // Step #3:
+        // Re-upload spill table contents if necessary, and write the new GPU virtual address to the user-SGPR.
+        if (reUpload)
+        {
+            UpdateUserDataTableCpu(&m_spillTable.stateCs,
+                                   (userDataLimit - spillThreshold),
+                                   spillThreshold,
+                                   &m_computeState.csUserDataEntries.entries[0]);
+
+            pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
+                                                                        LowPart(m_spillTable.stateCs.gpuVirtAddr),
+                                                                        pDeCmdSpace);
+        }
+    } // if current pipeline spills user-data
+
+    // Step #4
+    // Even though the spill table is not being managed using CE RAM, it is possible for the client to use CE RAM for
+    // its own purposes.  In this case, we still need to increment the CE RAM counter.
+    if (m_state.flags.ceStreamDirty)
+    {
+        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
+        pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
+        m_ceCmdStream.CommitCommands(pCeCmdSpace);
+    }
 
     // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this method,
     // so it is safe to clear these bits.
@@ -4065,6 +4419,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
 
 // =====================================================================================================================
 // Performs dispatch-time dirty state validation.
+template <bool UseCpuPathForUserDataTables>
 uint32* UniversalCmdBuffer::ValidateDispatch(
     gpusize indirectGpuVirtAddr,
     uint32  xDim,
@@ -4084,11 +4439,25 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
         const auto*const pPrevSignature = m_pSignatureCs;
         m_pSignatureCs                  = &pNewPipeline->Signature();
 
-        pDeCmdSpace = ValidateComputeUserData<true>(pPrevSignature, pDeCmdSpace);
+        if (UseCpuPathForUserDataTables)
+        {
+            pDeCmdSpace = ValidateComputeUserDataCpu<true>(pPrevSignature, pDeCmdSpace);
+        }
+        else
+        {
+            pDeCmdSpace = ValidateComputeUserDataCeRam<true>(pPrevSignature, pDeCmdSpace);
+        }
     }
     else
     {
-        pDeCmdSpace = ValidateComputeUserData<false>(nullptr, pDeCmdSpace);
+        if (UseCpuPathForUserDataTables)
+        {
+            pDeCmdSpace = ValidateComputeUserDataCpu<false>(nullptr, pDeCmdSpace);
+        }
+        else
+        {
+            pDeCmdSpace = ValidateComputeUserDataCeRam<false>(nullptr, pDeCmdSpace);
+        }
     }
 
     m_computeState.pipelineState.dirtyFlags.u32All = 0;
@@ -4786,11 +5155,20 @@ void UniversalCmdBuffer::InheritStateFromCmdBuf(
     SetGraphicsState(pUniversalCmdBuffer->GetGraphicsState());
     SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
 
-    const uint32  numEntries = pUniversalCmdBuffer->m_vbTable.watermark;
-    const uint32* pData      = reinterpret_cast<uint32*>(pUniversalCmdBuffer->m_vbTable.pSrds);
-    if (numEntries > 0)
+    if (pUniversalCmdBuffer->m_vbTable.modified != 0)
     {
-        CmdSetIndirectUserData(0, 0, numEntries, pData);
+        m_vbTable.modified  = 1;
+        m_vbTable.watermark = pUniversalCmdBuffer->m_vbTable.watermark;
+        memcpy(m_vbTable.pSrds, pUniversalCmdBuffer->m_vbTable.pSrds, (sizeof(BufferSrd) * MaxVertexBuffers));
+
+        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
+        pCeCmdSpace = UploadToUserDataTable(&m_vbTable.state,
+                                            0,
+                                            m_vbTable.state.sizeInDwords,
+                                            reinterpret_cast<uint32*>(m_vbTable.pSrds),
+                                            m_vbTable.watermark,
+                                            pCeCmdSpace);
+        m_ceCmdStream.CommitCommands(pCeCmdSpace);
     }
 }
 
@@ -5308,7 +5686,14 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         else
         {
             pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace = ValidateDispatch(0uLL, 0, 0, 0, pDeCmdSpace);
+            if (UseCpuPathInsteadOfCeRam())
+            {
+                pDeCmdSpace = ValidateDispatch<true>(0uLL, 0, 0, 0, pDeCmdSpace);
+            }
+            else
+            {
+                pDeCmdSpace = ValidateDispatch<false>(0uLL, 0, 0, 0, pDeCmdSpace);
+            }
             m_deCmdStream.CommitCommands(pDeCmdSpace);
 
             CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx6Generator, *m_pSignatureCs);
@@ -5567,6 +5952,8 @@ uint32* UniversalCmdBuffer::UploadStreamOutBufferStridesToCeRam(
     uint8   dirtyStrideMask,    // Mask of which stream-out target slots to upload into CE RAM.
     uint32* pCeCmdSpace)
 {
+    PAL_ASSERT(UseCpuPathInsteadOfCeRam() == false); // This shouldn't be called unless we're using the CE RAM path!
+
     // Start at word1 of the 0th SRD...
     uint32 ceRamOffset = (m_streamOut.state.ceRamOffset + sizeof(uint32));
 

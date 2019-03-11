@@ -83,8 +83,11 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdBindDepthStencilState,
     CmdBufferCmdSetDepthBounds,
     CmdBufferCmdSetUserData,
+    CmdBufferCmdSetVertexBuffers,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
     CmdBufferCmdSetIndirectUserData,
     CmdBufferCmdSetIndirectUserDataWatermark,
+#endif
     CmdBufferCmdBindIndexData,
     CmdBufferCmdBindTargets,
     CmdBufferCmdBindStreamOutTargets,
@@ -252,6 +255,9 @@ enum class InterfaceFunc : uint32
     FenceDestroy,
     GpuEventSet,
     GpuEventReset,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    GpuEventBindGpuMemory,
+#endif
     GpuEventDestroy,
     GpuMemorySetPriority,
     GpuMemoryMap,

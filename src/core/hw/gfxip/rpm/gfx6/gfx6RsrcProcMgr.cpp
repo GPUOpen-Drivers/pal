@@ -794,7 +794,11 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
 
     // Create an embedded user-data table and bind it to user data 0. We need buffer views for the source and dest.
     uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -861,8 +865,11 @@ void RsrcProcMgr::ExpandDepthStencil(
         auto*        pComputeCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
 
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-
+#endif
         // Compute the number of thread groups needed to launch one thread per texel.
         uint32 threadsPerGroup[3] = {};
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
@@ -1268,7 +1275,11 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
         const ComputePipeline*const pPipeline = GetPipeline(RpmComputePipeline::HtileCopyAndFixUp);
 
         // Bind the pipeline.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
 
         SubresId dstSubresId = {};
 
@@ -1825,8 +1836,10 @@ bool RsrcProcMgr::HwlCanDoFixedFuncResolve(
         const AddrMgr1::TileInfo*const pDstTileInfo    = AddrMgr1::GetTileInfo(&dstImage, dstSubResId);
 
         ret = ((memcmp(&pSrcSubRsrcInfo->format, &pDstSubRsrcInfo->format, sizeof(SwizzledFormat)) == 0) &&
+               (memcmp(&imageRegion.srcOffset, &imageRegion.dstOffset, sizeof(Offset3d)) == 0)           &&
                (pSrcTileInfo->tileMode == pDstTileInfo->tileMode)                                        &&
                (pSrcTileInfo->tileType == pDstTileInfo->tileType));
+
         if (ret == false)
         {
             PAL_ALERT_ALWAYS();
@@ -2041,8 +2054,11 @@ void RsrcProcMgr::HwlExpandHtileHiZRange(
         const ComputePipeline*const pPipeline = GetPipeline(RpmComputePipeline::FastDepthClear);
 
         // Bind the pipeline.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-
+#endif
         // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
         const uint32 htileUserData[2] = { htileValue & htileMask, ~htileMask };
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4, 2, htileUserData);
@@ -2139,7 +2155,11 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
     if (pPipeline != nullptr)
     {
         // Bind the pipeline.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
 
         // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
         const uint32 htileUserData[2] = { htileValue & htileMask, ~htileMask };
@@ -2304,7 +2324,11 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 
     // Bind the depth expand state because it's just a full image quad and a zero PS (with no internal flags) which
     // is also what we need for the clear.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, });
+#else
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), });
+#endif
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.Parent()->GetImageCreateInfo().samples,
                                               dstImage.Parent()->GetImageCreateInfo().fragments));
     pCmdBuffer->CmdSetDepthBiasState(depthBias);
@@ -2802,7 +2826,11 @@ void RsrcProcMgr::ClearHtileAspect(
     const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::FastDepthClear);
 
     // Bind the pipeline.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
 
     // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
     const uint32 htileUserData[2] = { htileValue & htileMask, ~htileMask };
@@ -2961,7 +2989,11 @@ void RsrcProcMgr::DccDecompressOnCompute(
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
 
     const uint32 lastMip    = range.startSubres.mipLevel + range.numMips - 1;
     bool         earlyExit  = false;
@@ -3182,7 +3214,11 @@ void RsrcProcMgr::FmaskColorExpand(
 
         // Save current command buffer state and bind the pipeline.
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
 
         // Select the appropriate value to indicate that FMask is fully expanded and place it in user data 8-9.
         // Put the low part is user data 8 and the high part in user data 9.

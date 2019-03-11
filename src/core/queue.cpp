@@ -58,8 +58,7 @@ void SubmissionContext::ReleaseReference()
     if (AtomicDecrement(&m_refCount) == 0)
     {
         Platform*const pPlatform = m_pPlatform;
-        this->~SubmissionContext();
-        PAL_FREE(this, pPlatform);
+        PAL_DELETE_THIS(SubmissionContext, pPlatform);
     }
 }
 

@@ -191,6 +191,18 @@ public:
         const void* pData,
         size_t      dataSize);
 
+    /// Set the pipelines' AMDIL data.  This should contain binaries for all shader stages in the
+    /// pipeline.  Each shader stage has an associated symbol type which defines the size and offset to the
+    /// binary data for that stage.
+    ///
+    /// @param [in] pData     Pointer to the pipeline's AMDIL binary data.
+    /// @param [in] dataSize  Size of the binary data, in bytes.
+    ///
+    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
+    Result SetAmdIl(
+        const void* pData,
+        size_t      dataSize);
+
     /// Set the comment which contains compiler version info.
     ///
     /// @param [in] pComment The comment string.
@@ -545,6 +557,7 @@ private:
     Elf::Section<Allocator>* m_pNoteSection;         // Notes: HsaIsa / AbiMinorVersion / PalMetadata
     Elf::Section<Allocator>* m_pCommentSection;      // Comment with compiler info
     Elf::Section<Allocator>* m_pDisasmSection;       // Disassembly section (.AMDGPU.disasm)
+    Elf::Section<Allocator>* m_pAmdIlSection;        // AMDIL section (.AMDGPU.comment.amdil)
 
     AmdGpuElfFlags         m_flags;                  // ELF flags. Contains GPU info, such as GFXIP version.
 

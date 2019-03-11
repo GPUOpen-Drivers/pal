@@ -548,7 +548,7 @@ Result Device::Finalize(
         m_pSvmMgr = PAL_NEW(SvmMgr, GetPlatform(), AllocInternal)(this);
         if (m_pSvmMgr != nullptr)
         {
-            result = GetSvmMgr()->Init();
+            result = GetSvmMgr()->Init(&m_memoryProperties.vaRange[static_cast<uint32>(VaPartition::Svm)]);
         }
         else
         {

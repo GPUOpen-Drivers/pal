@@ -236,23 +236,11 @@ void PipelineChunkVsPs::LateInit(
         {
             registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS, &m_commands.sh.vs.spiShaderPgmChksumVs.u32All);
         }
-        bool disableCus = false;
-        if (settings.lateAllocVs == LateAllocVsBehaviorLegacy)
-        {
-            disableCus = (m_device.LateAllocVsLimit() != 0);
-        }
-        else if (settings.lateAllocVs == LateAllocVsBehaviorDynamicEnableAllCus)
-        {
-            disableCus = m_device.UseFixedLateAllocVsLimit();
-        }
 
         uint16 vsCuDisableMask = 0;
-        if (disableCus)
         {
-            {
-                // Disable virtualized CU #1 instead of #0 because thread traces use CU #0 by default.
-                vsCuDisableMask = 0x2;
-            }
+            // Disable virtualized CU #1 instead of #0 because thread traces use CU #0 by default.
+            vsCuDisableMask = 0x2;
         }
 
         // NOTE: The Pipeline ABI doesn't specify CU enable masks for each shader stage, so it should be safe to

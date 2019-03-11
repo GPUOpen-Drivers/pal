@@ -87,7 +87,7 @@ struct GpuMemoryInternalCreateInfo
     // The UMDKMDIF_SCHEDULERIDENTIFIER will be recorded if the GpuMemory is for user queue.
     uint32 schedulerId;
 
-    // The reserved CUs value, used in KMD for a real-time user queue.
+    // Number of CUs to reserve. Used by KMD for a real-time user queue in the legacy HWS model.
     uint32 numReservedCu;
 
     // Pointer to where the OS-returned paging fence value should be stored. This is ignored if flags.alwaysResident is
@@ -316,6 +316,8 @@ protected:
     virtual Result OsUnmap() = 0;
 
     virtual void DescribeGpuMemory(Developer::GpuMemoryAllocationMethod allocMethod) const;
+
+    gpusize GetPhysicalAddressAlignment() const;
 
     Device*const   m_pDevice;
     VaPartition    m_vaPartition;

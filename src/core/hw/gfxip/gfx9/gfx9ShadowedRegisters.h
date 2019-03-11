@@ -201,8 +201,8 @@ const RegisterRange Gfx9ShShadowRange[] =
         (mmSPI_SHADER_PGM_RSRC2_GS - mmSPI_SHADER_PGM_LO_GS + 1),
     },
     {
-        (mmSPI_SHADER_USER_DATA_ES_0 - PERSISTENT_SPACE_START),                 // 0x2CCC - 0x2CEB
-        (Gfx09::mmSPI_SHADER_USER_DATA_ES_31 - mmSPI_SHADER_USER_DATA_ES_0 + 1),
+        (Gfx09::mmSPI_SHADER_USER_DATA_ES_0 - PERSISTENT_SPACE_START),          // 0x2CCC - 0x2CEB
+        (Gfx09::mmSPI_SHADER_USER_DATA_ES_31 - Gfx09::mmSPI_SHADER_USER_DATA_ES_0 + 1),
     },
     {
         (mmSPI_SHADER_PGM_RSRC4_HS - PERSISTENT_SPACE_START),                   // 0x2D01 - 0x2D05
@@ -273,8 +273,8 @@ const RegisterRange Gfx9ShShadowRangeRaven2[] =
         (mmSPI_SHADER_PGM_RSRC2_GS - mmSPI_SHADER_PGM_LO_GS + 1),
     },
     {
-        (mmSPI_SHADER_USER_DATA_ES_0 - PERSISTENT_SPACE_START),                 // 0x2CCC - 0x2CEB
-        (Gfx09::mmSPI_SHADER_USER_DATA_ES_31 - mmSPI_SHADER_USER_DATA_ES_0 + 1),
+        (Gfx09::mmSPI_SHADER_USER_DATA_ES_0 - PERSISTENT_SPACE_START),          // 0x2CCC - 0x2CEB
+        (Gfx09::mmSPI_SHADER_USER_DATA_ES_31 - Gfx09::mmSPI_SHADER_USER_DATA_ES_0 + 1),
     },
     {
         (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS - PERSISTENT_SPACE_START),    // 0x2D00 - 0x2D05

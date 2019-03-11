@@ -94,10 +94,11 @@ void PipelineChunkLsHs::EarlyInit(
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
 // determining the values of other registers.  Also uploads register state into GPU memory.
 void PipelineChunkLsHs::LateInit(
-    const AbiProcessor&       abiProcessor,
-    const RegisterVector&     registers,
-    GraphicsPipelineUploader* pUploader,
-    Util::MetroHash64*        pHasher)
+    const AbiProcessor&             abiProcessor,
+    const RegisterVector&           registers,
+    GraphicsPipelineUploader*       pUploader,
+    const GraphicsPipelineLoadInfo& loadInfo,
+    Util::MetroHash64*              pHasher)
 {
     const bool useLoadIndexPath = pUploader->EnableLoadIndexPath();
 
@@ -163,8 +164,16 @@ void PipelineChunkLsHs::LateInit(
     if (chipProps.gfxLevel >= GfxIpLevel::GfxIp7)
     {
         uint16 lsCuDisableMask = 0;
-        if (m_device.LateAllocVsLimit() > 0)
+        if (loadInfo.usesOnchipTess                               &&
+            ((loadInfo.usesGs == false) || loadInfo.usesOnChipGs) &&
+            (m_device.LateAllocVsLimit() > 0))
         {
+            // If we're using on-chip tessellation, we need to avoid using CU1 for LS/HS waves to avoid a deadlock with
+            // the PS. When on-chip tessellation is enabled, all of the tessellation stages (LS, HS, VS) are run on the
+            // same CU because communication between the stages are done via LDS.
+            // This is a cause for deadlocks because when the HW-VS waves are trying to export, they are waiting for space
+            // in the parameter cache, but that space is claimed by pending PS waves that can't launch on the CU due to
+            // lack of space (already existing waves).
 
             // Disable virtualized CU #1 instead of #0 because thread traces use CU #0 by default.
             lsCuDisableMask = 0x2;

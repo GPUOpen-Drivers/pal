@@ -437,13 +437,20 @@ void GpaSession::DestroyGpuMemoryInfo(
 // =====================================================================================================================
 GpaSession::~GpaSession()
 {
+    // Destroy the event before freeing the GPU memory because we unmap the memory here.
+    if (m_pGpuEvent != nullptr)
+    {
+        m_pGpuEvent->Destroy();
+        PAL_SAFE_FREE(m_pGpuEvent, m_pPlatform);
+    }
+
     // Destroy active Gart GPU memory chunk
     if (m_curGartGpuMem.pGpuMemory != nullptr)
     {
         DestroyGpuMemoryInfo(&m_curGartGpuMem);
     }
 
-    // Destroy busy Gart Gpu memory chunks
+    // Destroy busy Gart GPU memory chunks
     while (m_busyGartGpuMem.NumElements() > 0)
     {
         GpuMemoryInfo info = {};
@@ -452,7 +459,7 @@ GpaSession::~GpaSession()
         DestroyGpuMemoryInfo(&info);
     }
 
-    // Destroy other available Gart gpu memory chunks
+    // Destroy other available Gart GPU memory chunks
     while (m_availableGartGpuMem.NumElements() > 0)
     {
         GpuMemoryInfo info = {};
@@ -476,7 +483,7 @@ GpaSession::~GpaSession()
         DestroyGpuMemoryInfo(&info);
     }
 
-    // Destroy other available invisible gpu memory chunks
+    // Destroy other available invisible GPU memory chunks
     while (m_availableLocalInvisGpuMem.NumElements() > 0)
     {
         GpuMemoryInfo info = {};
@@ -500,12 +507,6 @@ GpaSession::~GpaSession()
     {
         m_pCmdAllocator->Destroy();
         PAL_SAFE_FREE(m_pCmdAllocator, m_pPlatform);
-    }
-
-    if (m_pGpuEvent != nullptr)
-    {
-        m_pGpuEvent->Destroy();
-        PAL_SAFE_FREE(m_pGpuEvent, m_pPlatform);
     }
 
     // Clear the code object records cache.
@@ -686,8 +687,6 @@ Result GpaSession::Init()
 
         if (result == Result::Success)
         {
-            result = m_pGpuEvent->Reset();
-
             // Update session state
             m_sessionState = GpaSessionState::Complete;
 
@@ -1382,7 +1381,31 @@ Result GpaSession::Begin(
     {
         result = Result::ErrorUnavailable;
     }
-    else
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    if (result == Result::Success)
+    {
+        // Allocate GPU memory to the event at Begin() because we recycle all memory at Reset().
+        GpuMemoryRequirements gpuMemReqs = {};
+        GpuMemoryInfo         gpuMemInfo = {};
+        gpusize               offset     = 0;
+
+        m_pGpuEvent->GetGpuMemoryRequirements(&gpuMemReqs);
+
+        result = AcquireGpuMem(gpuMemReqs.size,
+                               gpuMemReqs.alignment,
+                               gpuMemReqs.heaps[0],
+                               &gpuMemInfo,
+                               &offset);
+
+        if (result == Result::Success)
+        {
+            result = m_pGpuEvent->BindGpuMemory(gpuMemInfo.pGpuMemory, offset);
+        }
+    }
+#endif
+
+    if (result == Result::Success)
     {
         result = m_pGpuEvent->Reset();
     }
@@ -1394,7 +1417,7 @@ Result GpaSession::Begin(
 
     if (result == Result::Success)
     {
-        // Update session state if successfully bind gpu memory to gpuEvent
+        // Update GpaSession state.
         m_sessionState = GpaSessionState::Building;
     }
 
@@ -1457,6 +1480,26 @@ Result GpaSession::End(
 
         // Mark completion after heap copy cmd finishes
         pCmdBuf->CmdSetEvent(*m_pGpuEvent, HwPipeBottom);
+
+        // Issue a barrier to make sure GPU event data is flushed to memory.
+        BarrierTransition barrierTransition;
+        constexpr HwPipePoint HwPipeBottomConst = HwPipeBottom;
+
+        barrierTransition.srcCacheMask = CoherTimestamp;
+        barrierTransition.dstCacheMask = CoherMemory;
+        barrierTransition.imageInfo.pImage = nullptr;
+
+        BarrierInfo barrierInfo = {};
+        barrierInfo.waitPoint          = HwPipeTop;
+        barrierInfo.pipePointWaitCount = 1;
+        barrierInfo.pPipePoints        = &HwPipeBottomConst;
+        barrierInfo.transitionCount    = 1;
+        barrierInfo.pTransitions       = &barrierTransition;
+
+        barrierInfo.reason             = Developer::BarrierReasonPostGpuEvent;
+
+        pCmdBuf->CmdBarrier(barrierInfo);
+
         m_sessionState = GpaSessionState::Complete;
 
         // Push currently active GPU memory chunk into busy list.
@@ -2048,6 +2091,25 @@ void GpaSession::CopyResults(
 
         // Mark completion after heap copy cmd finishes
         pCmdBuf->CmdSetEvent(*m_pGpuEvent, HwPipeBottom);
+
+        // Issue a barrier to make sure GPU event data is flushed to memory.
+        constexpr HwPipePoint HwPipeBottomConst = HwPipeBottom;
+
+        barrierTransition.srcCacheMask = CoherTimestamp;
+        barrierTransition.dstCacheMask = CoherMemory;
+        barrierTransition.imageInfo.pImage = nullptr;
+
+        barrierInfo = {};
+        barrierInfo.waitPoint          = HwPipeTop;
+        barrierInfo.pipePointWaitCount = 1;
+        barrierInfo.pPipePoints        = &HwPipeBottomConst;
+        barrierInfo.transitionCount    = 1;
+        barrierInfo.pTransitions       = &barrierTransition;
+
+        barrierInfo.reason             = Developer::BarrierReasonPostGpuEvent;
+
+        pCmdBuf->CmdBarrier(barrierInfo);
+
         m_sessionState = GpaSessionState::Complete;
     }
 

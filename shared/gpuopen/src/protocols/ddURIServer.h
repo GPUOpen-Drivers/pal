@@ -80,16 +80,9 @@ namespace DevDriver
             // Returns nullptr if there is no service registered with a matching name.
             IService* FindService(const char* pServiceName);
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
             // Looks up and services the request provided.
             Result ServiceRequest(const char*         pServiceName,
                                   IURIRequestContext* pRequestContext);
-#else
-            // Looks up and services the request provided.
-            // Deprecated
-            Result ServiceRequest(const char*        pServiceName,
-                                  URIRequestContext* pRequestContext);
-#endif
 
             // Mutex used for synchronizing the registered services list.
             Platform::Mutex m_mutex;

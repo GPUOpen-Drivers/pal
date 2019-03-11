@@ -104,16 +104,6 @@ namespace DevDriver
         return result;
     }
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
-    Result SocketMsgTransport::UpdateClientStatus(ClientId clientId, StatusFlags flags)
-    {
-        // not implemented
-        DD_UNUSED(clientId);
-        DD_UNUSED(flags);
-        return Result::Unavailable;
-    }
-#endif
-
     Result SocketMsgTransport::ReadMessage(MessageBuffer &messageBuffer, uint32 timeoutInMs)
     {
         bool canRead = m_connected;
@@ -151,72 +141,6 @@ namespace DevDriver
         size_t bytesSent = 0;
         return m_clientSocket.Send(reinterpret_cast<const uint8*>(&messageBuffer), totalMsgSize, &bytesSent);
     }
-
-#if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
-    Result SocketMsgTransport::QueryStatus(const HostInfo& hostInfo,
-                                           uint32          timeoutInMs,
-                                           StatusFlags*    pFlags)
-    {
-        Result result = Result::Error;
-        Socket clientSocket;
-        const SocketType sType = TransportToSocketType(hostInfo.type);
-
-        if (sType != SocketType::Unknown)
-        {
-            result = clientSocket.Init(true, sType);
-
-            if (result == Result::Success)
-            {
-                result = clientSocket.Bind(nullptr, 0);
-
-                if (result == Result::Success)
-                {
-                    result = clientSocket.Connect(hostInfo.hostname, hostInfo.port);
-                }
-
-                if (result == Result::Success)
-                {
-                    MessageBuffer message = kOutOfBandMessage;
-                    message.header.messageId = static_cast<MessageCode>(ManagementMessage::QueryStatus);
-
-                    size_t bytesWritten = 0;
-                    result = clientSocket.Send(
-                        reinterpret_cast<const uint8 *>(&message),
-                        sizeof(message.header),
-                        &bytesWritten);
-
-                    if (result == Result::Success)
-                    {
-                        bool canRead = false;
-                        bool exceptState = false;
-                        result = clientSocket.Select(&canRead, nullptr, &exceptState, timeoutInMs);
-                        if ((result == Result::Success) & (canRead) & (!exceptState))
-                        {
-                            MessageBuffer responseMessage = {};
-                            size_t bytesReceived;
-                            result = clientSocket.Receive(reinterpret_cast<uint8 *>(&responseMessage), sizeof(MessageBuffer), &bytesReceived);
-                            if (result == Result::Success)
-                            {
-                                result = Result::VersionMismatch;
-                                if (IsOutOfBandMessage(responseMessage) &
-                                    IsValidOutOfBandMessage(responseMessage) &
-                                    (responseMessage.header.messageId == static_cast<MessageCode>(ManagementMessage::QueryStatusResponse)))
-                                {
-                                    const QueryStatusResponsePayload *pResponse =
-                                        reinterpret_cast<QueryStatusResponsePayload *>(&responseMessage.payload[0]);
-                                    result = pResponse->result;
-                                    *pFlags = pResponse->flags;
-                                }
-                            }
-                        }
-                    }
-                }
-                clientSocket.Close();
-            }
-        }
-        return result;
-    }
-#endif
 
     // ================================================================================================================
     // Tests to see if the client can connect to RDS through this transport

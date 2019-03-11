@@ -146,18 +146,6 @@ namespace DevDriver
         void   Shutdown(Result reason) override final;
         void   Close(Result reason) override final;
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION)
-        void OrphanSession() override final
-        {
-            Orphan();
-        };
-
-        void CloseSession(Result reason = Result::Error) override final
-        {
-            Shutdown(reason);
-        };
-#endif
-
         void* SetUserData(void* pUserData) override final
         {
             return Platform::Exchange(m_pSessionUserdata, pUserData);

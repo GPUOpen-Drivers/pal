@@ -53,7 +53,6 @@ namespace DevDriver
         Count
     };
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
     // An interface to write bytes.
     class IByteWriter
     {
@@ -224,33 +223,6 @@ namespace DevDriver
         //    - Result::Error if `ppWriter` is `nullptr`
         virtual Result BeginJsonResponse(IStructuredWriter** ppWriter) = 0;
     };
-#else
-    // A struct that represents a unique URI request
-    // Deprecated
-    struct URIRequestContext
-    {
-        // Mutable arguments passed to the request
-        char* pRequestArguments;
-
-        // Data provided by the client along with the request
-        const void* pPostData;
-
-        // Size of the post data pointed to by pPostData
-        uint32 postDataSize;
-
-        // The format of the data sent along with the request
-        URIDataFormat postDataFormat;
-
-        // A server block to write the response data into.
-        SharedPointer<TransferProtocol::ServerBlock> pResponseBlock;
-
-        // The format of the data written into the response block.
-        URIDataFormat responseDataFormat;
-    };
-    // Compatibility typedef
-    using IURIRequestContext = URIRequestContext;
-
-#endif
 
     struct URIResponseHeader
     {
@@ -270,50 +242,11 @@ namespace DevDriver
         // Returns the name of the service
         virtual const char* GetName() const = 0;
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
         // Returns the service version
         virtual Version GetVersion() const = 0;
-#else
-        // For clients that don't yet support the new URI interface define a default implementation
-        // that returns an invalid version.
-        DD_STATIC_CONST Version kInvalidVersionNumber = 0xFFFE;
-        virtual Version GetVersion() const { return kInvalidVersionNumber; };
-#endif
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
         // Attempts to handle a request from a client
         virtual Result HandleRequest(IURIRequestContext* pContext) = 0;
-#elif DD_VERSION_SUPPORTS(GPUOPEN_URI_RESPONSE_FORMATS_VERSION)
-        // Attempts to handle a request from a client
-        // Deprecated
-        virtual Result HandleRequest(URIRequestContext* pContext) = 0;
-#else
-        // Attempts to handle a request from a client
-        // Deprecated
-        virtual Result HandleRequest(char*                                        pArguments,
-                                     SharedPointer<TransferProtocol::ServerBlock> pBlock)
-        {
-            DD_UNUSED(pArguments);
-            DD_UNUSED(pBlock);
-            DD_NOT_IMPLEMENTED();
-            return Result::Error;
-        }
-
-        // Attempts to handle a request from a client
-        virtual Result HandleRequest(URIRequestContext* pContext)
-        {
-            DD_ASSERT(pContext != nullptr);
-
-            const Result result = HandleRequest(pContext->pRequestArguments,
-                                                pContext->pResponseBlock);
-            if (result == Result::Success)
-            {
-                pContext->responseDataFormat = URIDataFormat::Text;
-            }
-
-            return result;
-        }
-#endif
 
         // Determines the size limit for post data requests for the client request.  By default services
         // will not accept any post data.  The pArguments paramter must remain non-const because the

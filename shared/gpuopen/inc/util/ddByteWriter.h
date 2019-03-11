@@ -35,7 +35,6 @@
 namespace DevDriver
 {
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
     class ByteWriter final : public IByteWriter
     {
     public:
@@ -99,6 +98,5 @@ namespace DevDriver
         // The last result generated.
         Result m_lastResult;
     };
-#endif
 
 } // DevDriver

@@ -108,7 +108,7 @@ private:
             regSPI_SHADER_PGM_RSRC2_GS  spiShaderPgmRsrc2Gs;
 
             PM4_ME_SET_SH_REG             hdrSpiShaderUserDataGs;
-            regSPI_SHADER_USER_DATA_ES_1  spiShaderUserDataLoGs;
+            uint32                        spiShaderUserDataLoGs;
 
             // Checksum register is optional, as not all GFX9+ hardware uses it. If we don't use it, NOP will be added.
             PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;

@@ -51,10 +51,6 @@ namespace DevDriver
         // Get a human-readable string describing the connection type.
         virtual const char* GetTransportName() const = 0;
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
-        virtual Result UpdateClientStatus(ClientId clientId, StatusFlags flags) = 0;
-#endif
-
         // Static method to be implemented by individual transports
         // true indicates that the transport is incapable of detecting
         //   dropped connections and some form of keep-alive is required

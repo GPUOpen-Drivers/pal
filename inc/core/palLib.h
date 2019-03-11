@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 470
+#define PAL_INTERFACE_MAJOR_VERSION 475
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -65,7 +65,7 @@
 /// library that PAL is backwards compatible to.
 ///
 /// @ingroup LibInit
-#define PAL_MINIMUM_GPUOPEN_INTERFACE_MAJOR_VERSION 26
+#define PAL_MINIMUM_GPUOPEN_INTERFACE_MAJOR_VERSION 38
 
 /**
  ***********************************************************************************************************************

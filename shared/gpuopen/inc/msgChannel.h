@@ -158,11 +158,6 @@ namespace DevDriver
         virtual TransferProtocol::TransferManager& GetTransferManager() = 0;
         virtual void Update(uint32 timeoutInMs = kDefaultUpdateTimeoutInMs) = 0;
 
-        // Backwards compatibility
-        Result EstablishSession(ClientId dstClientId, IProtocolClient* pProtocolClient)
-        {
-            return ConnectProtocolClient(pProtocolClient, dstClientId);
-        }
     protected:
         IMsgChannel() {};
     };

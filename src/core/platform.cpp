@@ -389,7 +389,6 @@ Result Platform::EarlyInitDevDriver()
 {
     bool isConnectionAvailable = false;
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
     DevDriver::HostInfo hostInfo = DevDriver::kDefaultNamedPipe;
     isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
 
@@ -402,26 +401,12 @@ Result Platform::EarlyInitDevDriver()
         isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
     }
 #endif
-#else
-    DevDriver::TransportType transportType = DevDriver::TransportType::Local;
-    isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(transportType);
 
-#if (PAL_CLIENT_DX12 || PAL_CLIENT_DX11)
-    // Attempt to fall back to a message bus transport (kernel mode) if a local transport is not available.
-    // This allows us to support developer driver connections from inside DX12 UWP apps.
-    if (isConnectionAvailable == false)
-    {
-        transportType = DevDriver::TransportType::MessageBus;
-        isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(transportType);
-    }
-#endif
-#endif
     DevDriver::Result devDriverResult = DevDriver::Result::Success;
     if (isConnectionAvailable)
     {
         static const char* pClientStr = "AMD Vulkan Driver";
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
         // Configure the developer driver server for driver usage
         DevDriver::ServerCreateInfo  createInfo = {};
         createInfo.connectionInfo = hostInfo;
@@ -446,31 +431,6 @@ Result Platform::EarlyInitDevDriver()
         createInfo.servers.rgp = true;
 
         m_pDevDriverServer = PAL_NEW(DevDriver::DevDriverServer, this, AllocInternal) (allocCb, createInfo);
-#else
-        // Configure the developer driver server for driver usage
-        DevDriver::DevDriverServerCreateInfo  createInfo = {};
-        createInfo.transportCreateInfo.type = transportType;
-        createInfo.transportCreateInfo.componentType = DevDriver::Component::Driver;
-        createInfo.transportCreateInfo.createUpdateThread = true;
-
-        // Set up developer driver memory allocation callbacks
-        createInfo.transportCreateInfo.allocCb.pUserdata = this;
-        createInfo.transportCreateInfo.allocCb.pfnAlloc = &DevDriverAlloc;
-        createInfo.transportCreateInfo.allocCb.pfnFree = &DevDriverFree;
-
-        // Copy the client string into the description field
-        Util::Strncpy(createInfo.transportCreateInfo.clientDescription,
-            pClientStr,
-            sizeof(createInfo.transportCreateInfo.clientDescription));
-
-        // Enable all supported protocols
-        createInfo.enabledProtocols.logging = true;
-        createInfo.enabledProtocols.settings = true;
-        createInfo.enabledProtocols.driverControl = true;
-        createInfo.enabledProtocols.rgp = true;
-
-        m_pDevDriverServer = PAL_NEW(DevDriver::DevDriverServer, this, AllocInternal) (createInfo);
-#endif
         if (m_pDevDriverServer != nullptr)
         {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438

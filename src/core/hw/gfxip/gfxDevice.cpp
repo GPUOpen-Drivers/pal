@@ -531,6 +531,25 @@ void GfxDevice::DescribeDraw(
 }
 
 // =====================================================================================================================
+// Call back to above layers to describe a bind pipeline command
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+void GfxDevice::DescribeBindPipeline(
+    GfxCmdBuffer*     pCmdBuf,
+    uint64            apiPsoHash,
+    PipelineBindPoint bindPoint
+    ) const
+{
+    Developer::BindPipelineData data = {};
+
+    data.pCmdBuffer = pCmdBuf;
+    data.apiPsoHash = apiPsoHash;
+    data.bindPoint  = bindPoint;
+
+    m_pParent->DeveloperCb(Developer::CallbackType::BindPipeline, &data);
+}
+#endif
+
+// =====================================================================================================================
 // Returns a pointer to an unused index in the fast clear ref count array for use of the image. Returns nullptr if
 // allocation was unsuccessful.
 uint32* GfxDevice::AllocateFceRefCount()

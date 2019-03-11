@@ -66,6 +66,7 @@ PipelineAbiProcessor<Allocator>::PipelineAbiProcessor(
     m_pNoteSection(nullptr),
     m_pCommentSection(nullptr),
     m_pDisasmSection(nullptr),
+    m_pAmdIlSection(nullptr),
     m_flags(),
     m_metadataMajorVer(0),
     m_metadataMinorVer(1),
@@ -305,6 +306,30 @@ Result PipelineAbiProcessor<Allocator>::SetDisassembly(
 
     Result result = Result::Success;
     if ((m_pDisasmSection == nullptr) || (nullptr == m_pDisasmSection->SetData(pData, dataSize)))
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+template <typename Allocator>
+Result PipelineAbiProcessor<Allocator>::SetAmdIl(
+    const void* pData,
+    size_t      dataSize)
+{
+    if (m_pAmdIlSection == nullptr)
+    {
+        m_pAmdIlSection = m_elfProcessor.GetSections()->Add(&AmdGpuCommentAmdIlName[0]);
+        if (m_pAmdIlSection != nullptr)
+        {
+            m_pAmdIlSection->SetType(Elf::SectionHeaderType::ProgBits);
+        }
+    }
+
+    Result result = Result::Success;
+    if ((m_pAmdIlSection == nullptr) || (nullptr == m_pAmdIlSection->SetData(pData, dataSize)))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -878,6 +903,9 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
             case AbiSectionType::Disassembly:
                 sectionIndex = m_pDisasmSection->GetIndex();
                 break;
+            case AbiSectionType::AmdIl:
+                sectionIndex = m_pAmdIlSection->GetIndex();
+                break;
             default:
                 PAL_NEVER_CALLED();
                 break;
@@ -912,6 +940,9 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
                 break;
             case AbiSectionType::Disassembly:
                 sectionIndex = m_pDisasmSection->GetIndex();
+                break;
+            case AbiSectionType::AmdIl:
+                sectionIndex = m_pAmdIlSection->GetIndex();
                 break;
             default:
                 PAL_NEVER_CALLED();
@@ -1147,6 +1178,7 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
         m_pCommentSection      = m_elfProcessor.GetSections()->Get(".comment");
 
         m_pDisasmSection       = m_elfProcessor.GetSections()->Get(AmdGpuDisassemblyName);
+        m_pAmdIlSection        = m_elfProcessor.GetSections()->Get(AmdGpuCommentAmdIlName);
 
         m_flags.u32All         = m_elfProcessor.GetFileHeader()->e_flags;
 
@@ -1367,6 +1399,10 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
             else if ((m_pDisasmSection != nullptr) && (sectionIndex == m_pDisasmSection->GetIndex()))
             {
                 sectionType = AbiSectionType::Disassembly;
+            }
+            else if ((m_pAmdIlSection != nullptr) && (sectionIndex == m_pAmdIlSection->GetIndex()))
+            {
+                sectionType = AbiSectionType::AmdIl;
             }
             else if (sectionIndex != 0)
             {

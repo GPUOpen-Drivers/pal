@@ -39,12 +39,12 @@ Result SubmissionContext::Create(
     Pal::Platform*           pPlatform,
     Pal::SubmissionContext** ppContext)
 {
-    Result     result  = Result::ErrorOutOfMemory;
-    void*const pMemory = PAL_MALLOC(sizeof(SubmissionContext), pPlatform, AllocInternal);
+    Result     result   = Result::ErrorOutOfMemory;
+    auto*const pContext = PAL_NEW(SubmissionContext, pPlatform, AllocInternal)(pPlatform);
 
-    if (pMemory != nullptr)
+    if (pContext != nullptr)
     {
-        *ppContext = PAL_PLACEMENT_NEW(pMemory) SubmissionContext(pPlatform);
+        *ppContext = pContext;
     }
 
     return result;

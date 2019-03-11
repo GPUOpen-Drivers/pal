@@ -186,7 +186,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.waForce256bCbFetch = false;
     m_settings.waCmaskImageSyncs = false;
 
-    m_settings.waDepthStencilTargetMetadataNeedsTccFlush = false;
     m_settings.numSettings = g_gfx9PalNumSettings;
 }
 
@@ -805,11 +804,6 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waCmaskImageSyncs,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDepthStencilTargetMetadataNeedsTccFlushStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.waDepthStencilTargetMetadataNeedsTccFlush,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
 }
 
 // =====================================================================================================================
@@ -891,11 +885,6 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaCmaskImageSyncsStr,
                            Util::ValueType::Boolean,
                            &m_settings.waCmaskImageSyncs,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDepthStencilTargetMetadataNeedsTccFlushStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.waDepthStencilTargetMetadataNeedsTccFlush,
                            InternalSettingScope::PrivatePalGfx9Key);
 
 }
@@ -1516,11 +1505,6 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.waCmaskImageSyncs);
     m_settingsInfoMap.Insert(3002384369, info);
 
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.waDepthStencilTargetMetadataNeedsTccFlush;
-    info.valueSize = sizeof(m_settings.waDepthStencilTargetMetadataNeedsTccFlush);
-    m_settingsInfoMap.Insert(3167089535, info);
-
 }
 
 // =====================================================================================================================
@@ -1542,7 +1526,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 4057902459;
+            component.settingsDataHash = 3871158006;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

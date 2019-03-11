@@ -37,6 +37,8 @@
 // Forward declarations.
 namespace Pal
 {
+
+class ICmdBuffer;
 class IGpuEvent;
 }
 
@@ -75,21 +77,28 @@ public:
 
     /// Initialize the newly constructed pool by pre-allocating client-specified number of GpuEvent objects.
     ///
+    /// @param [in] pCmdBuffer       The PAL command buffer that this event pool will operate on.
     /// @param [in] defaultCapacity  The default number of gpu events pre-allocated in the pool for efficiency.
-    Pal::Result Init(Pal::uint32 defaultCapacity);
+    Pal::Result Init(Pal::ICmdBuffer* pCmdBuffer, Pal::uint32 defaultCapacity);
 
     /// Reset the pool by reseting and moving all allocated GpuEvent objects back to available list.
     /// This should only be called after all work referring to those events have finished
-    Pal::Result Reset();
+    /// @param [in] pCmdBuffer       The PAL command buffer that this event pool will operate on.
+    Pal::Result Reset(Pal::ICmdBuffer* pCmdBuffer);
 
-    /// Provide an unused GpuEvent from available list, or allocate a new one if available list is empty.
+    /// Provide an available GpuEvent from available list, or allocate a new one if available list is empty.
+    /// The GPU event always binds a new GPU memory. The backing memory is scratch memory on invisible heap.
     ///
-    /// @param [in] ppEvent  The provided available event.
-    Pal::Result AcquireEvent(Pal::IGpuEvent**const ppEvent);
+    /// @param [out] ppEvent  The provided available event.
+    Pal::Result GetFreeEvent(Pal::IGpuEvent**const ppEvent);
 
 private:
+    // Create a new GpuEvent object without binding GPU memory.
+    Pal::Result CreateNewEvent(Pal::IGpuEvent**const ppEvent);
+
     Pal::IPlatform*const m_pPlatform;
     Pal::IDevice*const   m_pDevice;
+    Pal::ICmdBuffer*     m_pCmdBuffer;
 
     GpuEventDeque m_availableEvents;
     GpuEventDeque m_busyEvents;

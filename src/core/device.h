@@ -122,15 +122,44 @@ enum class VaPartition : uint32
     Count,
 };
 
-// Tracks device-wide information for the compute hardware scheduler (HWS) feature. When running in HWS mode,
-// compute queue submissions made via a WDDM interface are executed under-the-covers by KMD/KFD with an HSA-style
-// user mode queues. This feature automatically enables pre-emption of compute work by context save restore. See
-// Windows::Device::InitHwScheduler() for more info.
+// Tracks device-wide information for the hardware scheduler (HWS).
+struct HwsContextInfo
+{
+    uint32 userQueueSize; // User queue size in bytes
+
+    union
+    {
+        struct
+        {
+            uint32 numQueuesRealtime : 4;  // Realtime
+            uint32 numQueuesHigh     : 4;  // High
+            uint32 numQueuesMedium   : 4;  // Medium
+            uint32 numQueuesNormal   : 4;  // Normal
+            uint32 numQueuesLow      : 4;  // Idle
+            uint32 maxTotalQueues    : 8;  // Max number of queues in a context
+            uint32 reserved          : 4;
+        };
+        uint32 u32All;
+    } bits;
+};
+
+// Supported scheduler modes.  Note that software scheduling is generally still available when
+// hardware scheduling (HWS) is supported, but using a mix of both software and hardware scheduling
+// simultaneously on the same engine may not work.
+enum class SchedulerMode : uint32
+{
+    Software  = 0,  // Software scheduling only
+    LegacyHws = 1,  // Legacy compute-only hardware scheduling (GFX8+)
+};
+
 struct HwsInfo
 {
-    uint32 userQueueSize;   //User queue size in byte
-    uint32 gdsSaveAreaSize; //GDS save area size in byte
-    uint32 engineMask;      //Indicates which compute engine supports HWS
+    SchedulerMode  mode;             // Indicates which scheduler mode is active
+    HwsContextInfo gfx;              // Graphics HWS context info
+    HwsContextInfo compute;          // Compute HWS context info
+    HwsContextInfo sdma;             // SDMA HWS context info
+    uint32         gdsSaveAreaSize;  // GDS save area size in bytes
+    uint32         engineMask;       // Indicates which engines support HWS
 };
 
 // Bundles the IP levels for all kinds of HW IP.
@@ -1533,7 +1562,7 @@ public:
     void DeveloperCb(Developer::CallbackType type, void* pCbData) const
         { m_pPlatform->DeveloperCb(m_deviceIndex, type, pCbData); }
 
-    virtual bool HwsTrapHandlerPresent() const { return false; }
+    virtual bool LegacyHwsTrapHandlerPresent() const { return false; }
 
     // Determines the start (inclusive) and end (exclusive) virtual addresses for the specified virtual address range.
     void VirtualAddressRange(VaPartition vaPartition, gpusize* pStartVirtAddr, gpusize* pEndVirtAddr) const;

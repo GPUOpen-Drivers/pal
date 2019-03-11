@@ -394,6 +394,10 @@ namespace DevDriver
         return ~crc;
     }
 
+    // Use this macro to mark Result values that have not been handled correctly.
+    // !! New code should NOT use this. Instead, handle the result and/or use DD_ASSERT. !!
+    #define DD_UNHANDLED_RESULT(x) DevDriver::MarkUnhandledResultImpl((x), DD_STRINGIFY(x), __FILE__, __LINE__, __func__)
+
     // Implementation for DD_UNHANDLED_RESULT.
     // This is a specialized assert that should be used through the macro, and not called directly.
     // This is implemented in ddPlatform.h, so that it has access to DD_ASSERT.

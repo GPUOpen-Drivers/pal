@@ -24,7 +24,6 @@
  **********************************************************************************************************************/
 
 #include "gpuopen.h"
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
 #include "util/ddTextWriter.h"
 
 #include <stdarg.h>
@@ -191,4 +190,3 @@ void TextWriter::Write(char value)
         Write("%c", value);
     }
 }
-#endif

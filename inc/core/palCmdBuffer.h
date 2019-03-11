@@ -305,7 +305,10 @@ enum CacheCoherencyUsageFlags : uint32
     CoherIndirectArgs       = 0x00000080,  ///< Source argument data read by CmdDrawIndirect() and similar functions.
     CoherIndexData          = 0x00000100,  ///< Index buffer data.
     CoherQueueAtomic        = 0x00000200,  ///< Destination of a CmdMemoryAtomic() call.
-    CoherTimestamp          = 0x00000400,  ///< Destination of a CmdWriteTimestamp() call.
+    CoherTimestamp          = 0x00000400,  ///< Destination of a CmdWriteTimestamp() call. It can be extended to
+                                           ///  represent general or other types of L2 access. For example, in
+                                           ///  gl2UncachedCpuCoherency it also indicates IGpuEvent write to
+                                           ///  GL2 will be uncached, because we don't have a CoherEvent flag.
     CoherCeLoad             = 0x00000800,  ///< Source of a CmdLoadCeRam() call.
     CoherCeDump             = 0x00001000,  ///< Destination of CmdDumpCeRam() call.
     CoherStreamOut          = 0x00002000,  ///< Data written as stream output.
@@ -442,6 +445,18 @@ union CmdBufferBuildFlags
         /// or CmdWriteCeRam()
         uint32 usesCeRamCmds                :  1;
 
+        /// Indicates that the client prefers that this command buffer use a CPU update path for updating the contents
+        /// of the vertex buffer, stream-out and user-data-spill tables instead of using CE RAM.  Ignored for command
+        /// buffers on queues or engines which don't support CE RAM.
+        ///
+        /// It is expected that the CPU update path will be slightly more efficient for scenarios where these tables'
+        /// contents are fully updated often, while the CE RAM path is expected to be more efficient at handling sparse
+        /// updates.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 475
+        /// This flag has no effect prior to interface version 475.0.
+#endif
+        uint32 useCpuPathForTableUpdates    :  1;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
         /// Indicates that the command buffer should not use the per-Device ring buffer for internal CE RAM dump
@@ -463,7 +478,7 @@ union CmdBufferBuildFlags
         uint32 disallowNestedLaunchViaIb2   :  1;
 
         /// Reserved for future use.
-        uint32 reserved                     : 24;
+        uint32 reserved                     : 23;
     };
 
     /// Flags packed as 32-bit uint.
@@ -547,7 +562,11 @@ struct PipelineBindParams
     PipelineBindPoint pipelineBindPoint; ///< Specifies which type of pipeline is to be bound (compute or graphics).
     const IPipeline*  pPipeline;         ///< New pipeline to be bound.  Can be null in order to unbind a previously
                                          ///  bound pipeline without binding a new one.
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    uint64 apiPsoHash;                   ///< 64-bit identifier provided by client driver based on the Pipeline State
+                                         ///  Object. There exists a many-to-one correlation for ApiPsoHash to
+                                         ///  internalPipelineHash to map the two.
+#endif
     union
     {
         DynamicComputeShaderInfo   cs;        ///< Dynamic Compute shader information.
@@ -1656,6 +1675,24 @@ public:
         const uint32*     pEntryValues)
     { (m_funcTable.pfnCmdSetUserData[static_cast<uint32>(bindPoint)])(this, firstEntry, entryCount, pEntryValues); }
 
+    /// Changes one or more of the command buffer's active vertex buffers.
+    ///
+    /// @note  PAL constructs SRDs for each bound vertex buffer which are equivalent to the client calling @ref
+    ///        IDevice::CreateUntypedBufferViewSrd on each element of the pBuffers parameter.
+    ///
+    /// @param [in] firstBuffer  First vertex buffer slot to change.  Must be less than @ref MaxVertexBuffers.
+    /// @param [in] bufferCount  Number of vertex buffer slots to change.  Must be greater than zero.  It is invalid if
+    ///                          (firstBuffer + bufferCount) exceeds @ref MaxVertexBuffers.
+    /// @param [in] pBuffers     Array of @ref BufferViewInfo structures which define the vertex buffers being set.
+    ///                          Must not be nullptr.  The number of entries in this array must be at least bufferCount.
+    ///                          If any of entry has a zero value for their gpuAddr field, the vertex buffer will be
+    ///                          treated as unbound.
+    virtual void CmdSetVertexBuffers(
+        uint32                firstBuffer,
+        uint32                bufferCount,
+        const BufferViewInfo* pBuffers) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
     /// Updates the contents of one of the command buffer's indirect user-data tables.
     ///
     /// The contents of the table will be interpreted based on the resource mapping specified for each shader in the
@@ -1698,6 +1735,7 @@ public:
     virtual void CmdSetIndirectUserDataWatermark(
         uint16 tableId,
         uint32 dwordLimit) = 0;
+#endif
 
     /// Binds a range of memory for use as index data (i.e., binds an index buffer).
     ///
@@ -3113,6 +3151,20 @@ public:
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    /// Get memory from scratch memory and bind to GPU event. For now only GpuEventPool and CmdBuffer's internal
+    /// GpuEvent use this path to allocate and bind GPU memory. These usecases assume the bound GPU memory is GPU access
+    /// only, so client is responsible for resetting the event from GPU, and cannot call Set(), Reset(), GetStatus().
+    ///
+    /// @param [in]  pGpuEvent  The GPU event that needs to bind a memory. Must not be nullptr.
+    ///
+    /// @returns Success if the GPU event successfully binds a GPU memory.  Otherwise, one of the following errors may
+    ///          be returned:
+    ///          + ErrorUnknown if an internal PAL error occurs.
+    virtual Result AllocateAndBindGpuMemToEvent(
+        IGpuEvent* pGpuEvent) = 0;
+#endif
 
     /// Issues commands which execute the specified group of nested command buffers.  The observable behavior of this
     /// operation should be indiscernible from directly recording the nested command buffers' commands directly into

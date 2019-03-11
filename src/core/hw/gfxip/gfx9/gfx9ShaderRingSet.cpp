@@ -337,7 +337,7 @@ Result UniversalRingSet::Init()
         // Update our PM4 image with the GPU virtual address for the SRD table.
         const uint32 srdTblVirtAddrLo = LowPart(m_srdTableMem.GpuVirtAddr());
 
-        m_pm4Commands.lsUserDataLo.bits.DATA      = srdTblVirtAddrLo;
+        m_pm4Commands.lsUserDataLo                = srdTblVirtAddrLo;
         m_pm4Commands.esUserDataLo                = srdTblVirtAddrLo;
         m_pm4Commands.vsUserDataLo.bits.DATA      = srdTblVirtAddrLo;
         m_pm4Commands.psUserDataLo.bits.DATA      = srdTblVirtAddrLo;

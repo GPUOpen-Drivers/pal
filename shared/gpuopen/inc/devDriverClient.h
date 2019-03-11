@@ -54,24 +54,9 @@ namespace DevDriver
                                                     // to the message bus.
     };
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
-    struct DevDriverClientCreateInfo
-    {
-        struct TransportCreateInfo : public MessageChannelCreateInfo
-        {
-            AllocCb       allocCb;
-            HostInfo      hostInfo;
-            TransportType type;
-        } transportCreateInfo;
-    };
-#endif
-
     class DevDriverClient
     {
     public:
-#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
-        explicit DevDriverClient(const DevDriverClientCreateInfo& createInfo);
-#endif
         explicit DevDriverClient(const AllocCb& allocCb,
                                  const ClientCreateInfo& createInfo);
         ~DevDriverClient();

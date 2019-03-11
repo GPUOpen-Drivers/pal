@@ -27,14 +27,13 @@
 #include "msgChannel.h"
 
 #define DRIVERCONTROL_CLIENT_MIN_MAJOR_VERSION 1
-#define DRIVERCONTROL_CLIENT_MAX_MAJOR_VERSION 3
 
 namespace DevDriver
 {
     namespace DriverControlProtocol
     {
         DriverControlClient::DriverControlClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::DriverControl, DRIVERCONTROL_CLIENT_MIN_MAJOR_VERSION, DRIVERCONTROL_CLIENT_MAX_MAJOR_VERSION)
+            : BaseProtocolClient(pMsgChannel, Protocol::DriverControl, DRIVERCONTROL_CLIENT_MIN_MAJOR_VERSION, DRIVERCONTROL_PROTOCOL_MAJOR_VERSION)
         {
         }
 

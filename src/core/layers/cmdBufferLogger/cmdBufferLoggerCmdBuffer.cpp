@@ -1458,6 +1458,42 @@ void PAL_STDCALL CmdBuffer::CmdSetUserDataGfx(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetVertexBuffers(
+    uint32                firstBuffer,
+    uint32                bufferCount,
+    const BufferViewInfo* pBuffers)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetVertexBuffers));
+
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        Snprintf(pString, StringLength, "First Buffer = %u", firstBuffer);
+        GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "Buffer Count = %u", bufferCount);
+        GetNextLayer()->CmdCommentString(pString);
+
+        for (uint32 i = 0; i < bufferCount; ++i)
+        {
+            Snprintf(pString, StringLength, "VB[%u] = { gpuAddr = %llx, range = %llu, stride = %llu }",
+                     (i + firstBuffer),
+                     pBuffers[i].gpuAddr,
+                     pBuffers[i].range,
+                     pBuffers[i].stride);
+        }
+        GetNextLayer()->CmdCommentString(pString);
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+    }
+
+    GetNextLayer()->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers);
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
+// =====================================================================================================================
 static void CmdSetIndirectUserDataToString(
     CmdBuffer*  pCmdBuffer,
     uint16      tableId,
@@ -1531,6 +1567,7 @@ void CmdBuffer::CmdSetIndirectUserDataWatermark(
 
     GetNextLayer()->CmdSetIndirectUserDataWatermark(tableId, dwordLimit);
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetBlendConst(
@@ -4305,6 +4342,15 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 {
     return GetNextLayer()->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+// =====================================================================================================================
+Result CmdBuffer::AllocateAndBindGpuMemToEvent(
+    IGpuEvent* pGpuEvent)
+{
+    return GetNextLayer()->AllocateAndBindGpuMemToEvent(pGpuEvent);
+}
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdExecuteNestedCmdBuffers(

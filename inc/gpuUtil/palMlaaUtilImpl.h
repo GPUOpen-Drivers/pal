@@ -378,8 +378,13 @@ void MlaaUtil<Allocator>::FindSepEdge(
 
     memcpy(pUserData, constantData, sizeof(constantData));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute,
+        m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaFindSepEdge)], Pal::InternalApiPsoHash});
+#else
     pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute,
         m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaFindSepEdge)]});
+#endif
 
     const Pal::uint32 threadGroupsX = (m_width  + Mlaa::ThreadsPerGroupX - 1) / Mlaa::ThreadsPerGroupX;
     const Pal::uint32 threadGroupsY = (m_height + Mlaa::ThreadsPerGroupY - 1) / Mlaa::ThreadsPerGroupY;
@@ -446,7 +451,11 @@ void MlaaUtil<Allocator>::CalcSepEdgeLength(
         m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaCalcSepEdgeLengthInitial)] :
         m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaCalcSepEdgeLength)];
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute, pPipeline, Pal::InternalApiPsoHash});
+#else
     pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute, pPipeline});
+#endif
 
     const Pal::uint32 threadGroupsX = (m_width  + Mlaa::ThreadsPerGroupX - 1) / Mlaa::ThreadsPerGroupX;
     const Pal::uint32 threadGroupsY = (m_height + Mlaa::ThreadsPerGroupY - 1) / Mlaa::ThreadsPerGroupY;
@@ -486,8 +495,14 @@ void MlaaUtil<Allocator>::CalcSepEdgeLengthFast(
 
     memcpy(pUserData, constantData, sizeof(constantData));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute,
+        m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaCalcSepEdgeLengthFast)],
+        Pal::InternalApiPsoHash});
+#else
     pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute,
         m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaCalcSepEdgeLengthFast)]});
+#endif
 
     const Pal::uint32 threadGroupsX = (m_width  + Mlaa::ThreadsPerGroupX - 1) / Mlaa::ThreadsPerGroupX;
     const Pal::uint32 threadGroupsY = (m_height + Mlaa::ThreadsPerGroupY - 1) / Mlaa::ThreadsPerGroupY;
@@ -538,8 +553,14 @@ void MlaaUtil<Allocator>::FinalBlend(
 
     memcpy(pUserData, constantData, sizeof(constantData));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute,
+        m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaFinalBlend)],
+        Pal::InternalApiPsoHash});
+#else
     pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute,
         m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaFinalBlend)]});
+#endif
 
     const Pal::uint32 threadGroupsX = (m_width  + Mlaa::ThreadsPerGroupX - 1) / Mlaa::ThreadsPerGroupX;
     const Pal::uint32 threadGroupsY = (m_height + Mlaa::ThreadsPerGroupY - 1) / Mlaa::ThreadsPerGroupY;
@@ -583,9 +604,14 @@ void MlaaUtil<Allocator>::FinalBlendFast(
 
     memcpy(pUserData, constantData, sizeof(constantData));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute,
+        m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaFinalBlendFast)],
+        Pal::InternalApiPsoHash});
+#else
     pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute,
         m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaFinalBlendFast)]});
-
+#endif
     const Pal::uint32 threadGroupsX = (m_width  + Mlaa::ThreadsPerGroupX - 1) / Mlaa::ThreadsPerGroupX;
     const Pal::uint32 threadGroupsY = (m_height + Mlaa::ThreadsPerGroupY - 1) / Mlaa::ThreadsPerGroupY;
     pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);

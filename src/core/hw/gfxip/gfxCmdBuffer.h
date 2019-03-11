@@ -123,8 +123,7 @@ union GfxCmdBufferState
         uint32 prevCmdBufActive          :  1;  // Set if it's possible work from a previous command buffer submitted on
                                                 // this queue may still be active.  This flag starts set and will be
                                                 // cleared if/when an EOP wait is inserted in this command buffer.
-        uint32 depthMdNeedsTccFlush      :  1;  // Whether a TCC flush/inv is needed before a shader reads D/S metadata.
-        uint32 reserved                  : 21;
+        uint32 reserved                  : 22;
     };
 
     uint32 u32All;
@@ -139,6 +138,25 @@ union ScaledCopyInternalFlags
         uint32 reserved       : 31;
     };
     uint32 u32All;
+};
+
+// Tracks the state of a user-data table stored in GPU memory.  The table's contents are managed using embedded data
+// and the CPU, or using GPU scratch memory and CE RAM.
+struct UserDataTableState
+{
+    gpusize  gpuVirtAddr;   // GPU virtual address where the current copy of the table data is stored.
+    // CPU address of the embedded-data allocation storing the current copy of the table data.  This can be null if
+    // the table has not yet been uploaded to embedded data.
+    uint32*  pCpuVirtAddr;
+    // Offset into CE RAM (in bytes!) where the staging area is located. This can be zero if the table is being
+    // managed using CPU updates instead of the constant engine.
+    uint32   ceRamOffset;
+    struct
+    {
+        uint32  sizeInDwords : 31; // Size of one full instance of the user-data table, in DWORD's.
+        uint32  dirty        :  1; // Indicates that the CPU copy of the user-data table is more up to date than the
+                                   // copy currently in GPU memory and should be updated before the next dispatch.
+    };
 };
 
 // =====================================================================================================================
@@ -312,7 +330,7 @@ public:
     virtual void RemoveQuery(QueryPoolType queryPoolType) = 0;
 
     gpusize TimestampGpuVirtAddr() const { return m_pTimestampMem->Desc().gpuVirtAddr + m_timestampOffset; }
-    GpuEvent* GetInternalEvent() { return &m_internalEvent; }
+    GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
 
     virtual void PushGraphicsState() = 0;
     virtual void PopGraphicsState()  = 0;
@@ -434,6 +452,12 @@ protected:
         return (NumActiveQueries(queryPoolType) == 0);
     }
 
+    void UpdateUserDataTableCpu(
+        UserDataTableState* pTable,
+        uint32              dwordsNeeded,
+        uint32              offsetInDwords,
+        const uint32*       pSrcData);
+
     static void PAL_STDCALL CmdSetUserDataCs(
         ICmdBuffer*   pCmdBuffer,
         uint32        firstEntry,
@@ -484,7 +508,7 @@ private:
 
     GpuMemory*  m_pTimestampMem;       // Memory and offset used to hold a cache flush invalidate timestamp event.
     gpusize     m_timestampOffset;
-    GpuEvent    m_internalEvent;      // PAL-initiated gpuEvent for Release/Acquire-based barrier.
+    GpuEvent*   m_pInternalEvent;      // PAL-initiated gpuEvent for Release/Acquire-based barrier. CPU-invisible.
 
     uint32  m_computeStateFlags;       // The flags that CmdSaveComputeState was called with.
     bool    m_spmTraceEnabled;         // Used to indicate whether Spm Trace has been enabled through this command
@@ -495,5 +519,16 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(GfxCmdBuffer);
 };
+
+// =====================================================================================================================
+// Helper function for resetting a user-data table which is managed using embdedded data or CE RAM at the beginning of
+// a command buffer.
+void PAL_INLINE ResetUserDataTable(
+    UserDataTableState* pTable)
+{
+    pTable->pCpuVirtAddr = nullptr;
+    pTable->gpuVirtAddr  = 0;
+    pTable->dirty        = 0;
+}
 
 } // Pal

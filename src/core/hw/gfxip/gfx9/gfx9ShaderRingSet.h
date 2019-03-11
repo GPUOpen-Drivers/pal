@@ -139,7 +139,7 @@ struct UniversalRingSetPm4Img
     regVGT_GSVS_RING_SIZE         vgtGsVsRingSize;
 
     PM4_ME_SET_SH_REG             hdrLsUserData;
-    regSPI_SHADER_USER_DATA_LS_0  lsUserDataLo;
+    uint32                        lsUserDataLo;
 
     PM4_ME_SET_SH_REG             hdrEsUserData;
     uint32                        esUserDataLo;

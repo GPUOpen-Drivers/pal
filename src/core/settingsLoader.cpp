@@ -113,6 +113,12 @@ void SettingsLoader::OverrideDefaults()
 {
     m_pDevice->OverrideDefaultSettings(&m_settings);
 
+    if (m_pDevice->PhysicalEnginesAvailable())
+    {
+        // prevent exhausting invisible video memory due to excessive physical alignment for small allocations
+        m_settings.enableUswcHeapAllAllocations = true;
+    }
+
     m_state = SettingsLoaderState::LateInit;
 }
 

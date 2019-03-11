@@ -46,24 +46,6 @@ namespace DevDriver
         return (m_state == ClientState::Connected);
     }
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION)
-    // Orphans the current session associated with the client object and moves to the disconnected state
-    // This function is intended for situations where the external code knows the remote client has disconnected
-    // before the message channel subsystem. In this type of situation, orphaning the client instead of using a regular
-    // disconnect call can avoid the delay/timeout that occurs when the message channel subsystem attempts to disconnect
-    // gracefully.
-    void BaseProtocolClient::Orphan()
-    {
-        if (!m_pSession.IsNull())
-        {
-            m_pSession->Close(Result::Success);
-            m_pSession.Clear();
-        }
-
-        m_state = ClientState::Disconnected;
-    }
-#endif
-
     ClientId BaseProtocolClient::GetRemoteClientId() const
     {
         if (!m_pSession.IsNull())

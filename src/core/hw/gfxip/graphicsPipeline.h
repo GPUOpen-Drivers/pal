@@ -55,6 +55,9 @@ public:
 
     BinningOverride GetBinningOverride() const { return m_binningOverride; }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+    uint32 VertexBufferCount() const { return m_vertexBufferCount; }
+#endif
     uint32 VertsPerPrimitive() const { return m_vertsPerPrim; }
 
     const ViewInstancingDescriptor& GetViewInstancingDesc() const { return m_viewInstancingDesc; };
@@ -116,17 +119,20 @@ private:
         uint32 u32All;
     } m_flags;
 
-    BinningOverride          m_binningOverride; // Override global batched binning. Gfx9 only.
+    BinningOverride  m_binningOverride; // Override global batched binning. Gfx9 only.
 
-    uint32                   m_vertsPerPrim; // Number of vertices per primitive (based on topology).
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+    uint32  m_vertexBufferCount;    // Number of vertex buffer slots used by this pipeline.
+#endif
+    uint32  m_vertsPerPrim;         // Number of vertices per primitive (based on topology).
 
     // Store any info from the pipeline creation info that might be needed later, such as for draw-time blend
     // optimization programming.
-    SwizzledFormat           m_targetSwizzledFormats[MaxColorTargets];
-    uint8                    m_targetWriteMasks[MaxColorTargets];
+    SwizzledFormat  m_targetSwizzledFormats[MaxColorTargets];
+    uint8           m_targetWriteMasks[MaxColorTargets];
 
     // Use this late_alloc_vs limit if lateAllocVsLimit flag is set.
-    uint32                   m_lateAllocVsLimit;
+    uint32  m_lateAllocVsLimit;
 
     ViewInstancingDescriptor m_viewInstancingDesc;  // View instancing descriptor.
 

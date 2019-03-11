@@ -31,7 +31,7 @@
 
 #define GPUOPEN_INTERFACE_VERSION ((GPUOPEN_INTERFACE_MAJOR_VERSION << 16) | GPUOPEN_INTERFACE_MINOR_VERSION)
 
-#define GPUOPEN_MINIMUM_INTERFACE_MAJOR_VERSION 26
+#define GPUOPEN_MINIMUM_INTERFACE_MAJOR_VERSION 38
 
 #ifndef GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION
 static_assert(false, "Client must define GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION.");
@@ -153,44 +153,44 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 */
 
-#define GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION 39
-#define GPUOPEN_SIMPLER_LOGGING_VERSION 39
-#define GPUOPEN_LISTENER_HOSTNAME_VERSION 38
-#define GPUOPEN_SETTINGS_URI_LINUX_BUILD 35
-#define GPUOPEN_VERSIONED_URI_SERVICES_VERSION 34
-#define GPUOPEN_URIINTERFACE_CLEANUP_VERSION 33
-#define GPUOPEN_LONG_RGP_TRACES_VERSION 32
-#define GPUOPEN_CREATE_INFO_CLEANUP_VERSION 31
-#define GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION 30
-#define GPUOPEN_URI_RESPONSE_FORMATS_VERSION 29
-#define GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION 28
-#define GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION 27
-#define GPUOPEN_RGP_TRACE_PARAMETERS_V3_VERSION 26
-#define GPUOPEN_LOGGING_SIMPLIFICATION_VERSION 25
-#define GPUOPEN_DRIVERCONTROL_INITIALIZATION_VERSION 24
-#define GPUOPEN_RGP_UNIFORM_API_VERSION 23
-#define GPUOPEN_RGP_PROGRESS_VERSION 22
-#define GPUOPEN_KEEPALIVE_VERSION 21
-#define GPUOPEN_PROFILING_CLOCK_MODES_VERSION 20
-#define GPUOPEN_THREAD_REFACTOR_VERSION 19
-#define GPUOPEN_LOGLEVEL_CLEANUP_VERSION 18
-#define GPUOPEN_RENAME_MACRO_VERSION 17
-#define GPUOPEN_PROTOCOL_CLIENT_REUSE_VERSION 16
-#define GPUOPEN_MEMORY_ALLOCATORS_VERSION 15
-#define GPUOPEN_RGP_TRACE_PARAMETERS_VERSION 14
-#define GPUOPEN_DEPRECATE_CREATEPROTOCOLCLIENT_VERSION 13
-#define GPUOPEN_DEPRECATE_LEGACY_NETAPI_VERSION 12
-#define GPUOPEN_POST_GDC_CLEANUP_VERSION 11
-#define GPUOPEN_DEPRECATE_EXTERNAL_CALLBACK_VERSION 10
-#define GPUOPEN_SELECTIVE_RESPOND_VERSION 9
-#define GPUOPEN_DEFAULT_SETTINGS_VERSION 8
-#define GPUOPEN_SERVER_FINALIZE_VERSION 7
-#define GPUOPEN_DEPRECATE_LEGACY_VERSION 6
-#define GPUOPEN_CLIENT_REGISTRATION_VERSION 5
-#define GPUOPEN_PROTOCOL_CLEANUP_VERSION 4
-#define GPUOPEN_LINUX_BUILD_VERSION 3
-#define GPUOPEN_EXPLICIT_ENABLE_RGP_VERSION 2
-#define GPUOPEN_INITIAL_VERSION 1
+#define GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION                              39
+#define GPUOPEN_SIMPLER_LOGGING_VERSION                                       39
+#define GPUOPEN_LISTENER_HOSTNAME_VERSION                                     38
+#define GPUOPEN_SETTINGS_URI_LINUX_BUILD                                      35
+#define GPUOPEN_VERSIONED_URI_SERVICES_VERSION                                34
+#define GPUOPEN_URIINTERFACE_CLEANUP_VERSION                                  33
+#define GPUOPEN_LONG_RGP_TRACES_VERSION                                       32
+#define GPUOPEN_CREATE_INFO_CLEANUP_VERSION                                   31
+#define GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION                             30
+#define GPUOPEN_URI_RESPONSE_FORMATS_VERSION                                  29
+#define GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION                                  28
+#define GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION                              27
+#define GPUOPEN_RGP_TRACE_PARAMETERS_V3_VERSION                               26
+#define GPUOPEN_LOGGING_SIMPLIFICATION_VERSION                                25
+#define GPUOPEN_DRIVERCONTROL_INITIALIZATION_VERSION                          24
+#define GPUOPEN_RGP_UNIFORM_API_VERSION                                       23
+#define GPUOPEN_RGP_PROGRESS_VERSION                                          22
+#define GPUOPEN_KEEPALIVE_VERSION                                             21
+#define GPUOPEN_PROFILING_CLOCK_MODES_VERSION                                 20
+#define GPUOPEN_THREAD_REFACTOR_VERSION                                       19
+#define GPUOPEN_LOGLEVEL_CLEANUP_VERSION                                      18
+#define GPUOPEN_RENAME_MACRO_VERSION                                          17
+#define GPUOPEN_PROTOCOL_CLIENT_REUSE_VERSION                                 16
+#define GPUOPEN_MEMORY_ALLOCATORS_VERSION                                     15
+#define GPUOPEN_RGP_TRACE_PARAMETERS_VERSION                                  14
+#define GPUOPEN_DEPRECATE_CREATEPROTOCOLCLIENT_VERSION                        13
+#define GPUOPEN_DEPRECATE_LEGACY_NETAPI_VERSION                               12
+#define GPUOPEN_POST_GDC_CLEANUP_VERSION                                      11
+#define GPUOPEN_DEPRECATE_EXTERNAL_CALLBACK_VERSION                           10
+#define GPUOPEN_SELECTIVE_RESPOND_VERSION                                      9
+#define GPUOPEN_DEFAULT_SETTINGS_VERSION                                       8
+#define GPUOPEN_SERVER_FINALIZE_VERSION                                        7
+#define GPUOPEN_DEPRECATE_LEGACY_VERSION                                       6
+#define GPUOPEN_CLIENT_REGISTRATION_VERSION                                    5
+#define GPUOPEN_PROTOCOL_CLEANUP_VERSION                                       4
+#define GPUOPEN_LINUX_BUILD_VERSION                                            3
+#define GPUOPEN_EXPLICIT_ENABLE_RGP_VERSION                                    2
+#define GPUOPEN_INITIAL_VERSION                                                1
 
 #include <cstddef>
 #include <stdint.h>
@@ -247,10 +247,6 @@ static_assert(false, "Error: unsupported compiler detected. Support is required 
 #define DD_STRINGIFY(str) #str
 #define DD_STRINGIFY_(x) DD_STRINGIFY(x)
 
-// Use this macro to mark Result values that have not been handled correctly.
-// !! New code should NOT use this. Instead, handle the result and/or use DD_ASSERT. !!
-#define DD_UNHANDLED_RESULT(x) DevDriver::MarkUnhandledResultImpl((x), DD_STRINGIFY(x), __FILE__, __LINE__, __func__)
-
 #if DD_CPLUSPLUS_SUPPORTS(CPP17)
 #define DD_NODISCARD [[nodiscard]]
 #else
@@ -304,10 +300,6 @@ namespace DevDriver
     typedef uint16_t Version;
     typedef uint16_t StatusFlags;
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
-    typedef StatusFlags ClientFlags;
-#endif
-
     DD_STATIC_CONST Handle kNullPtr = DD_PTR_TO_HANDLE(NULL);
 
 #if DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
@@ -338,9 +330,6 @@ namespace DevDriver
         //// URI PROTOCOL  ////
         UriServiceRegistrationError = 1000,
         UriStringParseError = 1001,
-#if !DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
-        UriInvalidParametrs = 1002,
-#endif
         UriInvalidParameters = 1002,
         UriInvalidPostDataBlock = 1003,
         UriInvalidPostDataSize = 1004,
@@ -357,16 +346,6 @@ namespace DevDriver
         SettingsUriInvalidSettingValue = 2002,
         SettingsUriInvalidSettingValueSize = 2003,
     };
-
-    // Implementation for DD_UNHANDLED_RESULT.
-    // This is a specialized assert that should be used through the macro, and not called directly.
-    // This is implemented in ddPlatform.h, so that it has access to DD_ASSERT.
-    static inline void MarkUnhandledResultImpl(
-        Result      result,
-        const char* pExpr,
-        const char* pFile,
-        int         lineNumber,
-        const char* pFunc);
 
     ////////////////////////////
     // Common logging levels
@@ -563,11 +542,6 @@ namespace DevDriver
     // Invalid Session ID
     DD_STATIC_CONST SessionId kInvalidSessionId = 0;
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
-    // Default named pipe name
-    DD_STATIC_CONST char kNamedPipeName[] = "\\\\.\\pipe\\AMD-Developer-Service";
-
-#endif
     // Default network port number
     DD_STATIC_CONST uint32 kDefaultNetworkPort = 27300;
 

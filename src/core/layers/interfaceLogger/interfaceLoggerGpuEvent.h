@@ -48,6 +48,13 @@ public:
     virtual Result Set() override;
     virtual Result Reset() override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    // Public IGpuMemoryBindable interface methods:
+    virtual Result BindGpuMemory(
+        IGpuMemory* pGpuMemory,
+        gpusize     offset) override;
+#endif
+
     // Public IDestroyable interface methods:
     virtual void Destroy() override;
 

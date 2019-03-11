@@ -227,32 +227,6 @@ namespace DevDriver
             return result;
         }
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_URI_RESPONSE_FORMATS_VERSION)
-        // =====================================================================================================================
-        Result URIClient::RequestURI(
-            const char*         pRequestString,
-            size_t*             pResponseSizeInBytes)
-        {
-            Result result = Result::UriInvalidParamters;
-
-            if ((pRequestString != nullptr) &&
-                (pResponseSizeInBytes != nullptr))
-            {
-                // Pass a header into the request function so we can get the response size.
-                ResponseHeader header = {};
-                result = RequestURI(pRequestString, &header);
-
-                // If the request was successful, extract the response size and return it.
-                if (result == Result::Success)
-                {
-                    *pResponseSizeInBytes = header.responseDataSizeInBytes;
-                }
-            }
-
-            return result;
-        }
-#endif
-
         // =====================================================================================================================
         Result URIClient::ReadResponse(uint8* pDstBuffer, size_t bufferSize, size_t* pBytesRead)
         {

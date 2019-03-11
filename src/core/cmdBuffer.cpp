@@ -216,6 +216,18 @@ Result CmdBuffer::Begin(
             // Assemble our building flags for this command building session.
             m_buildFlags = info.flags;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 475
+            m_buildFlags.useCpuPathForTableUpdates = 0;
+#endif
+            if (settings.cmdBufForceCpuUpdatePath == CmdBufForceCpuUpdatePath::CmdBufForceCpuUpdatePathOn)
+            {
+                m_buildFlags.useCpuPathForTableUpdates = 1;
+            }
+            else if (settings.cmdBufForceCpuUpdatePath == CmdBufForceCpuUpdatePath::CmdBufForceCpuUpdatePathOff)
+            {
+                m_buildFlags.useCpuPathForTableUpdates = 0;
+            }
+
             if (settings.cmdBufForceOneTimeSubmit == CmdBufForceOneTimeSubmit::CmdBufForceOneTimeSubmitOn)
             {
                 m_buildFlags.optimizeOneTimeSubmit = 1;
@@ -609,6 +621,35 @@ gpusize CmdBuffer::AllocateGpuScratchMem(
     return ((*ppGpuMem)->Desc().gpuVirtAddr + (*pOffset));
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+// =====================================================================================================================
+// Get memory from scratch memory chunk and bind to GPU event. Scratch memory is in Invisible heap, so the event is GPU
+// access only. Hence client is responsible for resetting the event from GPU, and cannot call Set(), Reset(),
+// GetStatus().
+Result CmdBuffer::AllocateAndBindGpuMemToEvent(
+    IGpuEvent* pGpuEvent)
+{
+    PAL_ASSERT(pGpuEvent != nullptr);
+
+    // For now only GpuEventPool and CmdBuffer's internal GpuEvent use this path to bind GPU memory. These usecases
+    // assume the event is GPU access only. So it's fine to directly allocate scratch memory heap for the event instead
+    // of choosing heap based on the heap requirement.
+    PAL_ASSERT((static_cast<GpuEvent*>(pGpuEvent))->IsGpuAccessOnly());
+
+    GpuMemoryRequirements gpuMemReqs = {};
+
+    pGpuEvent->GetGpuMemoryRequirements(&gpuMemReqs);
+
+    const uint32 sizeInDwords      = static_cast<uint32>(gpuMemReqs.size / sizeof(uint32));
+    const uint32 alignmentInDwords = static_cast<uint32>(gpuMemReqs.alignment / sizeof(uint32));
+    GpuMemory*   pGpuMem           = nullptr;
+    gpusize      offset            = 0;
+
+    gpusize unusedGpuAddr = AllocateGpuScratchMem(sizeInDwords, alignmentInDwords, &pGpuMem, &offset);
+    return pGpuEvent->BindGpuMemory(pGpuMem, offset);
+}
+#endif
+
 // =====================================================================================================================
 // Root level barrier function.  Currently only used for validation of depth / stencil image transitions.
 void CmdBuffer::CmdBarrier(
@@ -737,7 +778,7 @@ void CmdBuffer::WriteEvent(
 }
 
 // =====================================================================================================================
-// Returns marker-data chunks by adding them to the retained chunk list or returning to the parent allocator.
+// Returns specified type of data chunks by adding them to the retained chunk list or returning to the parent allocator.
 void CmdBuffer::ReturnDataChunks(
     ChunkData*   pData,
     CmdAllocType type,

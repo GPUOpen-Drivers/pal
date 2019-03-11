@@ -330,7 +330,11 @@ void TextWriter<Allocator>::DrawDebugText(
         pCmdBuffer->CmdSetUserData(Pal::PipelineBindPoint::Compute, 1, 4, &dynamicViewSrd[0]);
 
         // Bind the pipeline and issue one thread group per letter.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+        pCmdBuffer->CmdBindPipeline({ Pal::PipelineBindPoint::Compute, m_pPipeline, Pal::InternalApiPsoHash, });
+#else
         pCmdBuffer->CmdBindPipeline({ Pal::PipelineBindPoint::Compute, m_pPipeline, });
+#endif
         pCmdBuffer->CmdDispatch(stringLen, 1, 1);
     }
 }

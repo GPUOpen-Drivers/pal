@@ -381,15 +381,21 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+    virtual void CmdSetVertexBuffers(
+        uint32                firstBuffer,
+        uint32                bufferCount,
+        const BufferViewInfo* pBuffers) override;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
     virtual void CmdSetIndirectUserData(
         uint16      tableId,
         uint32      dwordOffset,
         uint32      dwordSize,
         const void* pSrcData) override;
-
     virtual void CmdSetIndirectUserDataWatermark(
         uint16 tableId,
         uint32 dwordLimit) override;
+#endif
 
     virtual void CmdBindTargets(const BindTargetParams& params) override;
     virtual void CmdBindStreamOutTargets(const BindStreamOutTargetParams& params) override;
@@ -719,18 +725,18 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-    template <bool IssueSqttMarkerEvent>
+    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer* pCmdBuffer,
         uint32      x,
         uint32      y,
         uint32      z);
-    template <bool IssueSqttMarkerEvent>
+    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
-    template <bool IssueSqttMarkerEvent>
+    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer* pCmdBuffer,
         uint32      xOffset,
@@ -779,8 +785,12 @@ private:
 
     template <bool IssueSqttMarkerEvent>
     void SetDispatchFunctions();
+
+    template <bool TessEnabled, bool GsEnabled>
+    void SetUserDataValidationFunctions();
     void SetUserDataValidationFunctions(bool tessEnabled, bool gsEnabled);
 
+    template <bool UseCpuPathForUserDataTables>
     uint32* ValidateDispatch(
         gpusize indirectGpuVirtAddr,
         uint32  xDim,
@@ -794,29 +804,37 @@ private:
         uint32*                          pDeCmdSpace);
 
     void RelocateUserDataTable(
-        CeRamUserDataTableState* pTable,
-        uint32                   offsetInDwords,
-        uint32                   dwordsNeeded);
+        UserDataTableState* pTable,
+        uint32              offsetInDwords,
+        uint32              dwordsNeeded);
     uint32* UploadToUserDataTable(
-        CeRamUserDataTableState* pTable,
-        uint32                   offsetInDwords,
-        uint32                   dwordsNeeded,
-        const uint32*            pSrcData,
-        uint32                   highWatermark,
-        uint32*                  pCeCmdSpace);
+        UserDataTableState* pTable,
+        uint32              offsetInDwords,
+        uint32              dwordsNeeded,
+        const uint32*       pSrcData,
+        uint32              highWatermark,
+        uint32*             pCeCmdSpace);
     uint32* DumpUserDataTable(
-        CeRamUserDataTableState* pTable,
-        uint32                   offsetInDwords,
-        uint32                   dwordsNeeded,
-        uint32*                  pCeCmdSpace);
+        UserDataTableState* pTable,
+        uint32              offsetInDwords,
+        uint32              dwordsNeeded,
+        uint32*             pCeCmdSpace);
 
     template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled>
-    uint32* ValidateGraphicsUserData(
+    uint32* ValidateGraphicsUserDataCeRam(
+        const GraphicsPipelineSignature* pPrevSignature,
+        uint32*                          pDeCmdSpace);
+    template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled>
+    uint32* ValidateGraphicsUserDataCpu(
         const GraphicsPipelineSignature* pPrevSignature,
         uint32*                          pDeCmdSpace);
 
     template <bool HasPipelineChanged>
-    uint32* ValidateComputeUserData(
+    uint32* ValidateComputeUserDataCeRam(
+        const ComputePipelineSignature* pPrevSignature,
+        uint32*                         pDeCmdSpace);
+    template <bool HasPipelineChanged>
+    uint32* ValidateComputeUserDataCpu(
         const ComputePipelineSignature* pPrevSignature,
         uint32*                         pDeCmdSpace);
 
@@ -883,23 +901,23 @@ private:
     struct
     {
         // Per-pipeline watermark of the size of the vertex buffer table needed per draw (in DWORDs).
-        uint32              watermark : 31;
+        uint32      watermark : 31;
         // Tracks whether or not the vertex buffer table was modified somewhere in the command buffer.
-        uint32              modified  :  1;
-        BufferSrd*          pSrds;  // Tracks the contents of the vertex buffer table.
+        uint32      modified  :  1;
+        BufferSrd*  pSrds;  // Tracks the contents of the vertex buffer table.
 
-        CeRamUserDataTableState  state;  // Tracks the state for the vertex buffer table.
+        UserDataTableState  state;  // Tracks the state for the vertex buffer table.
     }  m_vbTable;
 
     struct
     {
-        CeRamUserDataTableState  stateCs;  // Tracks the state of the compute spill table
-        CeRamUserDataTableState  stateGfx; // Tracks the state of the graphics spill table
+        UserDataTableState  stateCs;  // Tracks the state of the compute spill table
+        UserDataTableState  stateGfx; // Tracks the state of the graphics spill table
     }  m_spillTable;
 
     struct
     {
-        CeRamUserDataTableState  state;  // Tracks the state of the stream-out SRD table
+        UserDataTableState  state;  // Tracks the state of the stream-out SRD table
 
         BufferSrd  srd[MaxStreamOutTargets];    // Current stream-out target SRD's
     }  m_streamOut;

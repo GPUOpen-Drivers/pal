@@ -69,11 +69,6 @@ namespace DevDriver
             return pName;
         }
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
-        Result UpdateClientStatus(ClientId clientId, StatusFlags flags) override;
-        static Result QueryStatus(const HostInfo& hostInfo, uint32 timeoutInMs, StatusFlags *pFlags);
-#endif
-
         static Result TestConnection(const HostInfo& connectionInfo, uint32 timeoutInMs);
 
         DD_STATIC_CONST bool RequiresKeepAlive()

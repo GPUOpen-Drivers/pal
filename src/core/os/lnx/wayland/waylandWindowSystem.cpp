@@ -555,7 +555,7 @@ Result WaylandWindowSystem::CreatePresentableImage(
                                                    height,
                                                    format,
                                                    0,
-                                                   0,
+                                                   stride,
                                                    0,
                                                    0,
                                                    0,

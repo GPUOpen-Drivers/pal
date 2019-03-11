@@ -48,6 +48,10 @@ Result QueueSemaphore::OsInit(
 {
     bool isCreateSignaledSemaphore = false;
     Linux::Device* pLnxDevice = static_cast<Linux::Device*>(m_pDevice);
+    m_flags.shareable         = createInfo.flags.shareable;
+    m_flags.externalOpened    = createInfo.flags.externalOpened;
+
+    m_maxWaitsPerSignal = createInfo.maxCount;
 
     m_flags.timeline = 0;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 458

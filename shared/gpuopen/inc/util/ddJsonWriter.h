@@ -48,8 +48,6 @@
 
 namespace DevDriver
 {
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
-
     class JsonWriter final : public IStructuredWriter
     {
     public:
@@ -158,6 +156,5 @@ namespace DevDriver
         // keep track of it.
         Result m_lastResult;
     };
-#endif
 
 } // DevDriver

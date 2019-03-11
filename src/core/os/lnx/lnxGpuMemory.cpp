@@ -279,7 +279,7 @@ Result GpuMemory::AllocateOrPinMemory(
                 }
 
                 allocRequest.alloc_size     = m_desc.size;
-                allocRequest.phys_alignment = m_desc.alignment;
+                allocRequest.phys_alignment = GetPhysicalAddressAlignment();
 
                 result = pDevice->AllocBuffer(&allocRequest, &bufferHandle);
             }

@@ -342,7 +342,7 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmVgtGsMaxPrimsPerSubGroup   = Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP;
         m_registerInfo.mmDbDfsmControl              = Gfx09::mmDB_DFSM_CONTROL;
         m_registerInfo.mmUserDataStartHsShaderStage = Gfx09::mmSPI_SHADER_USER_DATA_LS_0;
-        m_registerInfo.mmUserDataStartGsShaderStage = mmSPI_SHADER_USER_DATA_ES_0;
+        m_registerInfo.mmUserDataStartGsShaderStage = Gfx09::mmSPI_SHADER_USER_DATA_ES_0;
         m_registerInfo.mmSpiConfigCntl              = Gfx09::mmSPI_CONFIG_CNTL;
     }
 }
@@ -547,8 +547,7 @@ size_t CmdUtil::BuildAtomicMem(
     AtomicOp atomicOp,
     gpusize  dstMemAddr,
     uint64   srcData,    // Constant operand for the atomic operation.
-    void*    pBuffer     // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*    pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
     static_assert((sizeof(PM4_ME_ATOMIC_MEM) == sizeof(PM4_MEC_ATOMIC_MEM)),
                   "Atomic Mem packets don't match between ME and MEC!");
@@ -591,8 +590,7 @@ size_t CmdUtil::BuildAtomicMem(
 // Builds a PM4 packet which issues a clear state command. Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildClearState(
     PFP_CLEAR_STATE_cmd_enum command,
-    void*                    pBuffer // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                    pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     static_assert((sizeof(PM4_PFP_CLEAR_STATE) == sizeof(PM4_ME_CLEAR_STATE)),
                   "Clear state packets don't match between PFP and ME!");
@@ -612,8 +610,7 @@ size_t CmdUtil::BuildClearState(
 size_t CmdUtil::BuildCondExec(
     gpusize gpuVirtAddr,
     uint32  sizeInDwords,
-    void*   pBuffer
-    ) const
+    void*   pBuffer)
 {
     static_assert((sizeof(PM4PFP_COND_EXEC) == sizeof(PM4MEC_COND_EXEC)),
                   "Conditional execute packets don't match between GFX and compute!");
@@ -640,8 +637,7 @@ size_t CmdUtil::BuildCondIndirectBuffer(
     uint64      data,
     uint64      mask,
     bool        constantEngine,
-    void*       pBuffer
-    ) const
+    void*       pBuffer)
 {
     static_assert((sizeof(PM4PFP_COND_INDIRECT_BUFFER) == sizeof(PM4MEC_COND_INDIRECT_BUFFER)),
                   "Conditional indirect buffer packets don't match between GFX and compute!");
@@ -696,8 +692,7 @@ size_t CmdUtil::BuildCondIndirectBuffer(
 // generated packet.
 size_t CmdUtil::BuildContextControl(
     const PM4PFP_CONTEXT_CONTROL& contextControl,
-    void*                         pBuffer    // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                         pBuffer)   // [out] Build the PM4 packet in this buffer.
 {
     static_assert((sizeof(PM4PFP_CONTEXT_CONTROL) == sizeof(PM4ME_CONTEXT_CONTROL)),
                   "Context control packet doesn't match between PFP and ME!");
@@ -721,8 +716,7 @@ size_t CmdUtil::BuildCopyDataGraphics(
     gpusize                       srcAddr,
     ME_COPY_DATA_count_sel_enum   countSel,
     ME_COPY_DATA_wr_confirm_enum  wrConfirm,
-    void*                         pBuffer
-    ) const
+    void*                         pBuffer)
 {
     return BuildCopyDataInternal(EngineTypeUniversal,
                                  engineSel,
@@ -743,8 +737,7 @@ size_t CmdUtil::BuildCopyDataCompute(
     gpusize                        srcAddr,
     MEC_COPY_DATA_count_sel_enum   countSel,
     MEC_COPY_DATA_wr_confirm_enum  wrConfirm,
-    void*                          pBuffer
-    ) const
+    void*                          pBuffer)
 {
     return BuildCopyDataInternal(EngineTypeCompute, 0, dstSel, dstAddr, srcSel, srcAddr, countSel, wrConfirm, pBuffer);
 }
@@ -759,8 +752,7 @@ size_t CmdUtil::BuildCopyDataInternal(
     gpusize    srcAddr,   // Source address (or value) of the copy, see srcSel for exact meaning
     uint32     countSel,
     uint32     wrConfirm,
-    void*      pBuffer    // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*      pBuffer)   // [out] Build the PM4 packet in this buffer.
 {
     static_assert((sizeof(PM4ME_COPY_DATA) == sizeof(PM4MEC_COPY_DATA)),
                   "CopyData packet size is different between ME and MEC!");
@@ -1012,8 +1004,7 @@ size_t CmdUtil::BuildDispatchDirect<false, true>(
 size_t CmdUtil::BuildDispatchIndirectGfx(
     gpusize      byteOffset, // Offset from the address specified by the set-base packet where the compute params are
     Pm4Predicate predicate,  // Predication enable control
-    void*        pBuffer     // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*        pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
     // We accept a 64-bit offset but the packet can only handle a 32-bit offset.
     PAL_ASSERT(HighPart(byteOffset) == 0);
@@ -1068,8 +1059,7 @@ size_t CmdUtil::BuildDrawIndex2(
     uint32       indexBufSize,
     gpusize      indexBufAddr,
     Pm4Predicate predicate,
-    void*        pBuffer
-    ) const
+    void*        pBuffer)
 {
     constexpr uint32 PacketSize = (sizeof(PM4_PFP_DRAW_INDEX_2) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_PFP_DRAW_INDEX_2*>(pBuffer);
@@ -1080,7 +1070,7 @@ size_t CmdUtil::BuildDrawIndex2(
     pPacket->index_base_hi = HighPart(indexBufAddr);
     pPacket->index_count   = indexCount;
 
-    regVGT_DRAW_INITIATOR drawInitiator = {};
+    regVGT_DRAW_INITIATOR drawInitiator;
     drawInitiator.u32All                = 0;
     drawInitiator.bits.SOURCE_SELECT    = DI_SRC_SEL_DMA;
     drawInitiator.bits.MAJOR_MODE       = DI_MAJOR_MODE_0;
@@ -1097,8 +1087,7 @@ size_t CmdUtil::BuildDrawIndexOffset2(
     uint32       indexBufSize,
     uint32       indexOffset,
     Pm4Predicate predicate,
-    void*        pBuffer
-    ) const
+    void*        pBuffer)
 {
     constexpr uint32 PacketSize = (sizeof(PM4_PFP_DRAW_INDEX_OFFSET_2) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_PFP_DRAW_INDEX_OFFSET_2*>(pBuffer);
@@ -1108,7 +1097,7 @@ size_t CmdUtil::BuildDrawIndexOffset2(
     pPacket->index_offset  = indexOffset;
     pPacket->index_count   = indexCount;
 
-    regVGT_DRAW_INITIATOR drawInitiator = {};
+    regVGT_DRAW_INITIATOR drawInitiator;
     drawInitiator.u32All                = 0;
     drawInitiator.bits.SOURCE_SELECT    = DI_SRC_SEL_DMA;
     drawInitiator.bits.MAJOR_MODE       = DI_MAJOR_MODE_0;
@@ -1123,8 +1112,7 @@ size_t CmdUtil::BuildDrawIndexAuto(
     uint32       indexCount,
     bool         useOpaque,
     Pm4Predicate predicate,
-    void*        pBuffer     // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*        pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT((indexCount == 0) || (useOpaque == false));
 
@@ -1134,7 +1122,7 @@ size_t CmdUtil::BuildDrawIndexAuto(
     pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_AUTO, PacketSize, false, ShaderGraphics, predicate);
     pPacket->index_count   = indexCount;
 
-    regVGT_DRAW_INITIATOR drawInitiator = {};
+    regVGT_DRAW_INITIATOR drawInitiator;
     drawInitiator.u32All                = 0;
     drawInitiator.bits.SOURCE_SELECT    = DI_SRC_SEL_AUTO_INDEX;
     drawInitiator.bits.MAJOR_MODE       = DI_MAJOR_MODE_0;
@@ -1153,8 +1141,7 @@ size_t CmdUtil::BuildDrawIndexIndirect(
     uint32       startInstLoc,  // Register VS expects to read startInstLoc from.
     uint32       startIndexLoc, // Register VS expects to read startIndexLoc from.
     Pm4Predicate predicate,
-    void*        pBuffer        // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*        pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT(startIndexLoc == 0);
 
@@ -1177,7 +1164,7 @@ size_t CmdUtil::BuildDrawIndexIndirect(
         pPacket->bitfields3.start_indx_loc    = startIndexLoc - PERSISTENT_SPACE_START;
     }
 
-    regVGT_DRAW_INITIATOR drawInitiator = {};
+    regVGT_DRAW_INITIATOR drawInitiator;
     drawInitiator.u32All             = 0;
     drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
     drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
@@ -1199,8 +1186,7 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     uint32       count,         // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
     gpusize      countGpuAddr,  // GPU address containing the count.
     Pm4Predicate predicate,
-    void*        pBuffer        // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*        pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT(startIndexLoc == 0);
 
@@ -1244,7 +1230,7 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     pPacket->count  = count;
     pPacket->stride = stride;
 
-    regVGT_DRAW_INITIATOR drawInitiator = {};
+    regVGT_DRAW_INITIATOR drawInitiator;
     drawInitiator.u32All             = 0;
     drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
     drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
@@ -1265,8 +1251,7 @@ size_t CmdUtil::BuildDrawIndirectMulti(
     uint32       count,        // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
     gpusize      countGpuAddr, // GPU address containing the count.
     Pm4Predicate predicate,
-    void*        pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*        pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     // Draw argument offset in the buffer has to be 4-byte aligned.
     PAL_ASSERT(IsPow2Aligned(offset, 4));
@@ -1303,7 +1288,7 @@ size_t CmdUtil::BuildDrawIndirectMulti(
     pPacket->count  = count;
     pPacket->stride = stride;
 
-    regVGT_DRAW_INITIATOR drawInitiator = {};
+    regVGT_DRAW_INITIATOR drawInitiator;
     drawInitiator.u32All             = 0;
     drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
     drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
@@ -1317,8 +1302,7 @@ size_t CmdUtil::BuildDrawIndirectMulti(
 // data or a memory location) to a destination (either memory or a register).
 size_t CmdUtil::BuildDmaData(
     DmaDataInfo&  dmaDataInfo,
-    void*         pBuffer  // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*         pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     static_assert((static_cast<uint32>(sas__mec_dma_data__memory) == static_cast<uint32>(sas__pfp_dma_data__memory)),
                   "MEC and PFP sas dma_data enumerations don't match!");
@@ -1401,8 +1385,7 @@ size_t CmdUtil::BuildDumpConstRam(
     gpusize dstGpuAddr,
     uint32  ramByteOffset,
     uint32  dwordSize,     // Amount of data to dump, in DWORDs.
-    void*   pBuffer        // [out] Build the PM4 packet in this buffer.
-   ) const
+    void*   pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT(IsPow2Aligned(dstGpuAddr, 4));
     PAL_ASSERT(IsPow2Aligned(ramByteOffset, 4));
@@ -1430,8 +1413,7 @@ size_t CmdUtil::BuildDumpConstRamOffset(
     uint32  dstAddrOffset,
     uint32  ramByteOffset,
     uint32  dwordSize,     // Amount of data to dump, in DWORDs.
-    void*   pBuffer        // [out] Build the PM4 packet in this buffer.
-   ) const
+    void*   pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT(IsPow2Aligned(dstAddrOffset, 4));
     PAL_ASSERT(IsPow2Aligned(ramByteOffset, 4));
@@ -1456,8 +1438,7 @@ size_t CmdUtil::BuildDumpConstRamOffset(
 size_t CmdUtil::BuildNonSampleEventWrite(
     VGT_EVENT_TYPE  vgtEvent,
     EngineType      engineType,
-    void*           pBuffer     // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*           pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
     // Verify the event index enumerations match between the ME and MEC engines.  Note that ME (gfx) has more
     // events than MEC does.  We assert below if this packet is meant for compute and a gfx-only index is selected.
@@ -1518,8 +1499,7 @@ size_t CmdUtil::BuildSampleEventWrite(
     VGT_EVENT_TYPE  vgtEvent,
     EngineType      engineType,
     gpusize         gpuAddr,
-    void*           pBuffer     // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*           pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
     // Verify the event index enumerations match between the ME and MEC engines.  Note that ME (gfx) has more
     // events than MEC does.  We assert below if this packet is meant for compute and a gfx-only index is selected.
@@ -1572,8 +1552,7 @@ size_t CmdUtil::BuildSampleEventWrite(
 // Builds a PM4 constant engine command to increment the CE counter. Returns the size of the PM4 command built, in
 // DWORDs.
 size_t CmdUtil::BuildIncrementCeCounter(
-    void* pBuffer // [out] Build the PM4 packet in this buffer.
-    ) const
+    void* pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4_CE_INCREMENT_CE_COUNTER) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_CE_INCREMENT_CE_COUNTER*>(pBuffer);
@@ -1588,8 +1567,7 @@ size_t CmdUtil::BuildIncrementCeCounter(
 // =====================================================================================================================
 // Builds a PM4 command to increment the DE counter. Returns the size of the PM4 command built, in DWORDs.
 size_t CmdUtil::BuildIncrementDeCounter(
-    void* pBuffer // [out] Build the PM4 packet in this buffer.
-    ) const
+    void* pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4_ME_INCREMENT_DE_COUNTER) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_ME_INCREMENT_DE_COUNTER*>(pBuffer);
@@ -1606,8 +1584,7 @@ size_t CmdUtil::BuildIncrementDeCounter(
 size_t CmdUtil::BuildIndexAttributesIndirect(
     gpusize baseAddr,   // Base address of an array of index attributes
     uint16  index,      // Index into the array of index attributes to load
-    void*   pBuffer     // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*   pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
     constexpr size_t PacketSize = sizeof(PM4_PFP_INDEX_ATTRIBUTES_INDIRECT) / sizeof(uint32);
     auto*const       pPacket    = static_cast<PM4_PFP_INDEX_ATTRIBUTES_INDIRECT*>(pBuffer);
@@ -1627,8 +1604,7 @@ size_t CmdUtil::BuildIndexAttributesIndirect(
 // command assembled, in DWORDs.
 size_t CmdUtil::BuildIndexBase(
     gpusize baseAddr, // Base address of index buffer (w/ offset).
-    void*   pBuffer   // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*   pBuffer)  // [out] Build the PM4 packet in this buffer.
 {
     // Address must be 2 byte aligned
     PAL_ASSERT(IsPow2Aligned(baseAddr, 2));
@@ -1649,8 +1625,7 @@ size_t CmdUtil::BuildIndexBase(
 // the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildIndexBufferSize(
     uint32 indexCount,
-    void*  pBuffer     // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*  pBuffer)     // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4_PFP_INDEX_BUFFER_SIZE) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_PFP_INDEX_BUFFER_SIZE*>(pBuffer);
@@ -1690,8 +1665,7 @@ size_t CmdUtil::BuildIndirectBuffer(
     bool       chain,
     bool       constantEngine,
     bool       enablePreemption,
-    void*      pBuffer     // space to place the newly-generated PM4 packet into
-    ) const
+    void*      pBuffer)    // space to place the newly-generated PM4 packet into
 {
     static_assert((sizeof(PM4PFP_INDIRECT_BUFFER) == sizeof(PM4MEC_INDIRECT_BUFFER)),
                   "Indirect buffer packets are not the same size between GFX and compute!");
@@ -1733,8 +1707,7 @@ size_t CmdUtil::BuildLoadConstRam(
     gpusize srcGpuAddr,
     uint32  ramByteOffset,
     uint32  dwordSize,     // Amount of data to load, in DWORDs. Must be a multiple of 8
-    void*   pBuffer        // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*   pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT(IsPow2Aligned(srcGpuAddr, 32));
     PAL_ASSERT(IsPow2Aligned(ramByteOffset, 32));
@@ -1758,8 +1731,7 @@ size_t CmdUtil::BuildLoadConstRam(
 // Builds a NOP command as long as the specified number of DWORDs. Returns the size of the PM4 command built, in DWORDs
 size_t CmdUtil::BuildNop(
     size_t numDwords,
-    void*  pBuffer    // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*  pBuffer)   // [out] Build the PM4 packet in this buffer.
 {
     static_assert(((sizeof(PM4PFP_NOP) == sizeof(PM4MEC_NOP)) &&
                    (sizeof(PM4PFP_NOP) == sizeof(PM4CE_NOP))),
@@ -1790,8 +1762,7 @@ size_t CmdUtil::BuildNop(
 // PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildNumInstances(
     uint32 instanceCount,
-    void*  pBuffer        // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*  pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4_PFP_NUM_INSTANCES) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_PFP_NUM_INSTANCES*>(pBuffer);
@@ -1808,8 +1779,7 @@ size_t CmdUtil::BuildNumInstances(
 size_t CmdUtil::BuildOcclusionQuery(
     gpusize queryMemAddr, // DB0 start address, 16-byte aligned
     gpusize dstMemAddr,   // Accumulated ZPASS count destination, 4-byte aligned
-    void*   pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*   pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     // Note that queryAddr means "zpass query sum address" and not "query pool counters address". Instead startAddr is
     // the "query pool counters addess".
@@ -1840,8 +1810,7 @@ size_t CmdUtil::BuildPrimeUtcL2(
     uint32  primeMode,      // XXX_PRIME_UTCL2_prime_mode_enum
     uint32  engineSel,      // XXX_PRIME_UTCL2_engine_sel_enum
     size_t  requestedPages, // Number of 4KB pages to prefetch.
-    void*   pBuffer
-    ) const
+    void*   pBuffer)
 {
     static_assert(((sizeof(PM4_PFP_PRIME_UTCL2) == sizeof(PM4_ME_PRIME_UTCL2))  &&
                    (sizeof(PM4_PFP_PRIME_UTCL2) == sizeof(PM4_MEC_PRIME_UTCL2)) &&
@@ -1921,7 +1890,7 @@ size_t CmdUtil::BuildContextRegRmw(
     constexpr uint32 PacketSize = ContextRegRmwSizeDwords;
     auto*const       pPacket    = static_cast<PM4_ME_CONTEXT_REG_RMW*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_CONTEXT_REG_RMW, PacketSize);
+    pPacket->header.u32All         = Type3Header(IT_CONTEXT_REG_RMW, PacketSize);
     pPacket->ordinal2              = 0;
     pPacket->bitfields2.reg_offset = regAddr - CONTEXT_SPACE_START;
     pPacket->reg_mask              = regMask;
@@ -1966,8 +1935,7 @@ size_t CmdUtil::BuildLoadConfigRegs(
     gpusize              gpuVirtAddr,
     const RegisterRange* pRanges,
     uint32               rangeCount,
-    void*                pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT((pRanges != nullptr) && (rangeCount >= 1));
 
@@ -1997,8 +1965,7 @@ size_t CmdUtil::BuildLoadContextRegs(
     gpusize gpuVirtAddr,
     uint32  startRegAddr,
     uint32  count,
-    void*   pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*   pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT(IsContextReg(startRegAddr));
 
@@ -2028,8 +1995,7 @@ size_t CmdUtil::BuildLoadContextRegs(
     gpusize              gpuVirtAddr,
     const RegisterRange* pRanges,
     uint32               rangeCount,
-    void*                pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT((pRanges != nullptr) && (rangeCount >= 1));
 
@@ -2123,8 +2089,7 @@ size_t CmdUtil::BuildLoadContextRegsIndex<false>(
 size_t CmdUtil::BuildLoadContextRegsIndex(
     gpusize gpuVirtAddr,
     uint32  count,
-    void*   pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*   pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4PFP_LOAD_CONTEXT_REG_INDEX) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4PFP_LOAD_CONTEXT_REG_INDEX*>(pBuffer);
@@ -2155,8 +2120,7 @@ size_t CmdUtil::BuildLoadShRegs(
     uint32        startRegAddr,
     uint32        count,
     Pm4ShaderType shaderType,
-    void*         pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*         pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT(IsShReg(startRegAddr));
 
@@ -2187,8 +2151,7 @@ size_t CmdUtil::BuildLoadShRegs(
     const RegisterRange* pRanges,
     uint32               rangeCount,
     Pm4ShaderType        shaderType,
-    void*                pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT((pRanges != nullptr) && (rangeCount >= 1));
 
@@ -2279,8 +2242,7 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     gpusize       gpuVirtAddr,
     uint32        count,
     Pm4ShaderType shaderType,
-    void*         pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*         pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4PFP_LOAD_SH_REG_INDEX) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4PFP_LOAD_SH_REG_INDEX*>(pBuffer);
@@ -2310,8 +2272,7 @@ size_t CmdUtil::BuildLoadUserConfigRegs(
     gpusize              gpuVirtAddr,
     const RegisterRange* pRanges,
     uint32               rangeCount,
-    void*                pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT((pRanges != nullptr) && (rangeCount >= 1));
 
@@ -2339,8 +2300,7 @@ size_t CmdUtil::BuildLoadUserConfigRegs(
 // packet will hang on the compute queue; it is the caller's responsibility to ensure that this function is called
 // safely. Returns the size of the PM4 command built, in DWORDs.
 size_t CmdUtil::BuildPfpSyncMe(
-    void* pBuffer // [out] Build the PM4 packet in this buffer.
-    ) const
+    void* pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4PFP_PFP_SYNC_ME) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4PFP_PFP_SYNC_ME*>(pBuffer);
@@ -2356,8 +2316,7 @@ size_t CmdUtil::BuildPfpSyncMe(
 // clear-state memory. Returns the size of the PM4 command build, in DWORDs.
 size_t CmdUtil::BuildPreambleCntl(
     ME_PREAMBLE_CNTL_command_enum command,
-    void*                         pBuffer      // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                         pBuffer)     // [out] Build the PM4 packet in this buffer.
 {
     PAL_ASSERT((command == command__me_preamble_cntl__preamble_begin)                      ||
                (command == command__me_preamble_cntl__preamble_end)                        ||
@@ -2611,15 +2570,14 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
 size_t CmdUtil::BuildRewind(
     bool  offloadEnable,
     bool  valid,
-    void* pBuffer
-    ) const
+    void* pBuffer)
 {
     // This packet in PAL is only supported on compute queues.
     // The packet is supported on the PFP engine (PM4_PFP_REWIND) but offload_enable is not defined for PFP.
     constexpr size_t PacketSize = sizeof(PM4_MEC_REWIND) / sizeof(uint32);
     auto*const       pPacket    = static_cast<PM4_MEC_REWIND*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_REWIND, PacketSize, false, ShaderCompute);
+    pPacket->header.u32All             = Type3Header(IT_REWIND, PacketSize, false, ShaderCompute);
     pPacket->ordinal2                  = 0;
     pPacket->bitfields2.offload_enable = offloadEnable;
     pPacket->bitfields2.valid          = valid;
@@ -2633,8 +2591,7 @@ size_t CmdUtil::BuildSetBase(
     gpusize                      address,
     PFP_SET_BASE_base_index_enum baseIndex,
     Pm4ShaderType                shaderType,
-    void*                        pBuffer     // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                        pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4PFP_SET_BASE) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4PFP_SET_BASE*>(pBuffer);
@@ -2657,8 +2614,7 @@ size_t CmdUtil::BuildSetBaseCe(
     gpusize                     address,
     CE_SET_BASE_base_index_enum baseIndex,
     Pm4ShaderType               shaderType,
-    void*                       pBuffer     // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                       pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4CE_SET_BASE) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4CE_SET_BASE*>(pBuffer);
@@ -2942,8 +2898,7 @@ size_t CmdUtil::BuildSetPredication(
     bool          continuePredicate,  // Contols how data is accumulated across cmd buffer boundaries. True indicates
                                       // that this predicate is a continuation of the previous one, accumulating data
                                       // between them.
-    void*         pBuffer
-    ) const
+    void*         pBuffer)
 {
     static_assert(
         (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::Zpass)     ==
@@ -2994,8 +2949,7 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
                             // will be written-to.
     gpusize srcGpuVirtAddr, // When sourceSelect = READ_SRC_ADDRESS, this is the GPU virtual address where the buffer
                             // filled size will be read from.
-    void*   pBuffer// [out] Build the PM4 packet in this buffer.
-    ) const
+    void*   pBuffer)        // [out] Build the PM4 packet in this buffer.
 {
     static_assert((sizeof(PM4_PFP_STRMOUT_BUFFER_UPDATE) == sizeof(PM4_ME_STRMOUT_BUFFER_UPDATE)),
                   "STRMOUT_BUFFER_UPDATE packet differs between PFP and ME!");
@@ -3069,8 +3023,7 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
 // Builds a PM4 command to stall the CP ME until the CP's DMA engine has finished all previous DMA_DATA commands.
 // Returns the size of the PM4 command written, in DWORDs.
 size_t CmdUtil::BuildWaitDmaData(
-    void* pBuffer // [out] Build the PM4 packet in this buffer.
-    ) const
+    void* pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     // The most efficient way to do this is to issue a dummy DMA that copies zero bytes.
     // The DMA engine will see that there's no work to do and skip this DMA request, however, the ME microcode will
@@ -3092,8 +3045,7 @@ size_t CmdUtil::BuildWaitDmaData(
 // size of the PM4 command written, in DWORDs.
 size_t CmdUtil::BuildWaitOnCeCounter(
     bool  invalidateKcache,
-    void* pBuffer // [out] Build the PM4 packet in this buffer.
-    ) const
+    void* pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4_ME_WAIT_ON_CE_COUNTER) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_ME_WAIT_ON_CE_COUNTER*>(pBuffer);
@@ -3110,8 +3062,7 @@ size_t CmdUtil::BuildWaitOnCeCounter(
 // the size of the PM4 command written, in DWORDs.
 size_t CmdUtil::BuildWaitOnDeCounterDiff(
     uint32 counterDiff,
-    void*  pBuffer      // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*  pBuffer)     // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = (sizeof(PM4_CE_WAIT_ON_DE_COUNTER_DIFF) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_CE_WAIT_ON_DE_COUNTER_DIFF*>(pBuffer);
@@ -3183,8 +3134,7 @@ size_t CmdUtil::BuildWaitRegMem(
     gpusize       addr,
     uint32        reference,
     uint32        mask,
-    void*         pBuffer    // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*         pBuffer)   // [out] Build the PM4 packet in this buffer.
 {
     static_assert((sizeof(PM4_ME_WAIT_REG_MEM) == sizeof(PM4_MEC_WAIT_REG_MEM)),
                   "WAIT_REG_MEM has different sizes between compute and gfx!");
@@ -3255,8 +3205,7 @@ size_t CmdUtil::BuildWaitRegMem64(
     gpusize       addr,
     uint64        reference,
     uint64        mask,
-    void*         pBuffer    // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*         pBuffer)   // [out] Build the PM4 packet in this buffer.
 {
     static_assert((sizeof(PM4_ME_WAIT_REG_MEM64) == sizeof(PM4_MEC_WAIT_REG_MEM64)),
                   "WAIT_REG_MEM64 has different sizes between compute and gfx!");
@@ -3319,8 +3268,7 @@ size_t CmdUtil::BuildWriteConstRam(
     const void* pSrcData,       // [in] Pointer to source data in CPU memory
     uint32      ramByteOffset,  // Offset into CE RAM. Must be 4-byte aligned.
     uint32      dwordSize,      // Amount of data to write, in DWORDs
-    void*       pBuffer         // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*       pBuffer)        // [out] Build the PM4 packet in this buffer.
 {
     const uint32 packetSize = (sizeof(PM4_CE_WRITE_CONST_RAM) / sizeof(uint32)) + dwordSize;
     auto*const   pPacket    = static_cast<PM4_CE_WRITE_CONST_RAM*>(pBuffer);
@@ -3346,8 +3294,7 @@ size_t CmdUtil::BuildWriteData(
     uint32         wrConfirm,     // one of the XXX_WRITE_DATA_wr_confirm_enum enumerations
     const uint32*  pData,
     Pm4Predicate   predicate,
-    void*          pBuffer        // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*          pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     const size_t packetSizeWithWrittenDwords = BuildWriteDataInternal(engineType,
                                                                       dstAddr,
@@ -3379,8 +3326,7 @@ size_t CmdUtil::BuildWriteDataInternal(
     uint32         dstSel,        // one of the XXX_WRITE_DATA_dst_sel_enum enumerations
     uint32         wrConfirm,     // one of the XXX_WRITE_DATA_wr_confirm_enum enumerations
     Pm4Predicate   predicate,
-    void*          pBuffer        // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*          pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     static_assert(sizeof(PM4MEC_WRITE_DATA) == sizeof(PM4ME_WRITE_DATA),
         "write_data packet has different sizes between compute and gfx!");
@@ -3461,8 +3407,7 @@ size_t CmdUtil::BuildWriteDataPeriodic(
     bool          wrConfirm,
     const uint32* pPeriodData,
     Pm4Predicate  predicate,
-    void*         pBuffer          // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*         pBuffer)         // [out] Build the PM4 packet in this buffer.
 {
     const size_t dwordsToWrite = dwordsPerPeriod * periodsToWrite;
 
@@ -3497,7 +3442,7 @@ size_t CmdUtil::BuildWriteDataPeriodic(
 // that analysis tools can use to tell that this is a comment.
 size_t CmdUtil::BuildCommentString(
     const char* pComment,
-    void*       pBuffer) const
+    void*       pBuffer)
 {
     const size_t stringLength         = strlen(pComment) + 1;
     const size_t packetSize           =

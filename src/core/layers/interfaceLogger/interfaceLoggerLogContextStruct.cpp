@@ -621,6 +621,13 @@ void LogContext::Struct(
         Value("usesCeRamCmds");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 475
+    if (value.flags.useCpuPathForTableUpdates)
+    {
+        Value("useCpuPathForTableUpdates");
+    }
+#endif
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
     if (value.flags.useLinearBufferForCeRamDumps)
@@ -1711,6 +1718,14 @@ void LogContext::Struct(
             KeyAndValue("entryCount", value.pParams[idx].userData.entryCount);
             EndMap();
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
+        else if (value.pParams[idx].type == IndirectParamType::BindVertexData)
+        {
+            KeyAndBeginMap("vertexData", false);
+            KeyAndValue("bufferId", value.pParams[idx].vertexData.bufferId);
+            EndMap();
+        }
+#else
         else if (value.pParams[idx].type == IndirectParamType::BindUntypedSrd)
         {
             KeyAndBeginMap("untypedSrd", false);
@@ -1718,6 +1733,7 @@ void LogContext::Struct(
             KeyAndValue("dwordOffset", value.pParams[idx].untypedSrd.dwordOffset);
             EndMap();
         }
+#endif
 
         EndMap();
     }

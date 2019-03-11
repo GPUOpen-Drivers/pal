@@ -60,11 +60,6 @@ namespace DevDriver
         void Disconnect() override final;
         bool IsConnected() const override final;
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION)
-        // Orphans the current session associated with the client object and moves to the disconnected state
-        void Orphan() override final;
-#endif
-
         // properties that are only valid in a connected session
         ClientId GetRemoteClientId() const override final;
         Version GetSessionVersion() const override final;

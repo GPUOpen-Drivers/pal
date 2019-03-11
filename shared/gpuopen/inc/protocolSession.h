@@ -140,11 +140,6 @@ namespace DevDriver
         virtual void Shutdown(Result reason) = 0;
         virtual void Close(Result reason) = 0;
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION)
-        virtual void CloseSession(Result reason = Result::Error) = 0;
-        virtual void OrphanSession() = 0;
-#endif
-
         virtual void* SetUserData(void *) = 0;
         virtual void* GetUserData() const = 0;
         virtual SessionId GetSessionId() const = 0;

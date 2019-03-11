@@ -53,23 +53,6 @@ namespace DevDriver
                                                     // during initialization.
     };
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
-    struct DevDriverServerCreateInfo
-    {
-        struct TransportCreateInfo : public MessageChannelCreateInfo
-        {
-            AllocCb       allocCb;
-            HostInfo      hostInfo;
-            TransportType type;
-        } transportCreateInfo;
-        ProtocolFlags     enabledProtocols;
-    };
-#endif
-
-#if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
-    Result QueryDevDriverStatus(const TransportType type, StatusFlags* pFlags, HostInfo *pHostInfo = nullptr);
-#endif
-
     DD_STATIC_CONST uint32 kQueryStatusTimeoutInMs = 50;
 
     class DevDriverServer
@@ -98,10 +81,6 @@ namespace DevDriver
 
         bool ShouldShowOverlay();
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
-        static bool IsConnectionAvailable(const TransportType type, uint32 timeout = kQueryStatusTimeoutInMs);
-        explicit DevDriverServer(const DevDriverServerCreateInfo& createInfo);
-#endif
     private:
         Result InitializeProtocols();
         void DestroyProtocols();

@@ -67,8 +67,11 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdBindDepthStencilState,             (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetDepthBounds,                    (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetUserData,                       (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdSetVertexBuffers,                  (CmdBuild)            },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
     { InterfaceFunc::CmdBufferCmdSetIndirectUserData,               (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetIndirectUserDataWatermark,      (CmdBuild)            },
+#endif
     { InterfaceFunc::CmdBufferCmdBindIndexData,                     (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindTargets,                       (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindStreamOutTargets,              (CmdBuild)            },
@@ -236,6 +239,9 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::FenceDestroy,                                  (CrtDstry)            },
     { InterfaceFunc::GpuEventSet,                                   (GenCalls)            },
     { InterfaceFunc::GpuEventReset,                                 (GenCalls)            },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    { InterfaceFunc::GpuEventBindGpuMemory,                         (BindMem)             },
+#endif
     { InterfaceFunc::GpuEventDestroy,                               (CrtDstry | BindMem)  },
     { InterfaceFunc::GpuMemorySetPriority,                          (GenCalls)            },
     { InterfaceFunc::GpuMemoryMap,                                  (GenCalls)            },
@@ -837,6 +843,12 @@ void PAL_STDCALL Platform::InterfaceLoggerCb(
         PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchData(pCbData);
         break;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    case Developer::CallbackType::BindPipeline:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateBindPipelineData(pCbData);
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS();
         break;

@@ -66,8 +66,9 @@ public:
         ) override;
 
     virtual Result Reset(
-        uint32 startQuery,
-        uint32 queryCount) override
+        uint32      startQuery,
+        uint32      queryCount,
+        const void* pMappedCpuAddr) override
         { PAL_NEVER_CALLED(); return Result::Unsupported; }
 
     virtual void Begin(

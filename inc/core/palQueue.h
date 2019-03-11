@@ -88,10 +88,11 @@ enum class SubmitOptMode : uint32
 ///  so should be translated to QueuePriority::Low).
 enum class QueuePriority : uint32
 {
-    Low     =  0,    ///< The low priority - Default one.
-    Medium  =  1,    ///< The medium priority
-    High    =  2,    ///< The High priority
-    VeryLow =  3,    ///< The lowest priority.
+    Low      =  0,    ///< The low priority - Default one.
+    Medium   =  1,    ///< The medium priority
+    High     =  2,    ///< The High priority
+    VeryLow  =  3,    ///< The lowest priority.
+    Realtime =  4,    ///< Real time priority.
 };
 
 /// Specifies properties for @ref IQueue creation.  Input structure to IDevice::CreateQueue().

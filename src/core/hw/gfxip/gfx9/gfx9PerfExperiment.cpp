@@ -848,7 +848,8 @@ uint32* PerfExperiment::WriteSetupPerfCounters(
         const PerfCounter*const pPerfCounter = static_cast<PerfCounter*>(*it.Get());
         PAL_ASSERT(pPerfCounter != nullptr);
 
-        if (pPerfCounter->BlockType() == GpuBlock::Dma)
+        if ((pPerfCounter->BlockType() == GpuBlock::Dma)
+           )
         {
             // Accumulate the value of the SDMA perfmon control register(s).
             const uint32 regValue = pPerfCounter->SetupSdmaSelectReg(&sdma0PerfmonCntl, &sdma1PerfmonCntl);
@@ -1004,16 +1005,10 @@ uint32* PerfExperiment::WriteStartPerfCounters(
         rmiPerfCounterCntl.bits.PERF_COUNTER_CID                    = RmiChannelIdAll;
         rmiPerfCounterCntl.bits.PERF_COUNTER_BURST_LENGTH_THRESHOLD = RmiBurstlengthThresholdDefault;
 
-        if (m_gfxLevel == GfxIpLevel::GfxIp9)
+        // This field is in every ASIC except Raven 2.
+        if (IsRaven2(device) == false)
         {
-            if (device.ChipProperties().familyId == FAMILY_AI)
-            {
-                rmiPerfCounterCntl.vega.PERF_EVENT_WINDOW_MASK1 = RmiEventWindowMask1Default;
-            }
-            else if (IsRaven(device))
-            {
-                rmiPerfCounterCntl.rv1x.PERF_EVENT_WINDOW_MASK1 = RmiEventWindowMask1Default;
-            }
+            rmiPerfCounterCntl.most.PERF_EVENT_WINDOW_MASK1 = RmiEventWindowMask1Default;
         }
 
         if (restart == false)

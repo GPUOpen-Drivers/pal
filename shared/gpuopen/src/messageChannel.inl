@@ -665,76 +665,8 @@ namespace DevDriver
         Result status = Result::Error;
         if (m_clientId != kBroadcastClientId)
         {
-#if DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
             m_clientInfoResponse.metadata.status = flags;
             status = Result::Success;
-#else
-            status = m_msgTransport.UpdateClientStatus(m_clientId, flags);
-
-            if (status == Result::Unavailable)
-            {
-                status = m_updateSemaphore.Wait(kInfiniteTimeout);
-                if (status == Result::Success)
-                {
-                    using namespace DevDriver::ClientManagementProtocol;
-                    // @todo: Implement support for updating client status in SocketMsgTransport
-                    MessageBuffer updateMsgBuffer = {};
-                    MessageBuffer recvBuffer = {};
-
-                    updateMsgBuffer.header.protocolId = Protocol::ClientManagement;
-                    updateMsgBuffer.header.messageId = static_cast<MessageCode>(ManagementMessage::SetClientFlags);
-                    updateMsgBuffer.header.srcClientId = m_clientId;
-                    updateMsgBuffer.header.dstClientId = kBroadcastClientId;
-                    updateMsgBuffer.header.payloadSize = sizeof(SetClientFlagsPayload);
-
-                    {
-                        SetClientFlagsPayload* DD_RESTRICT pRequest = reinterpret_cast<SetClientFlagsPayload*>(updateMsgBuffer.payload);
-                        pRequest->flags = flags;
-                    }
-
-                    do
-                    {
-                        status = Forward(updateMsgBuffer);
-                        if (status == Result::Success)
-                        {
-                            status = ReadTransportMessage(recvBuffer, kDefaultUpdateTimeoutInMs);
-                            while (status == Result::Success)
-                            {
-                                if (!HandleMessageReceived(recvBuffer))
-                                {
-                                    if ((recvBuffer.header.protocolId == Protocol::ClientManagement) &
-                                        (static_cast<ManagementMessage>(recvBuffer.header.messageId) == ManagementMessage::SetClientFlagsResponse))
-                                    {
-                                        SetClientFlagsResponsePayload* DD_RESTRICT pResponse =
-                                            reinterpret_cast<SetClientFlagsResponsePayload*>(recvBuffer.payload);
-                                        DD_ASSERT(pResponse->result != Result::NotReady);
-                                        status = pResponse->result;
-                                        break; // break out of inner while loop
-                                    }
-                                    else
-                                    {
-                                        Platform::LockGuard<Platform::AtomicLock> lock(m_receiveQueue.lock);
-                                        if (m_receiveQueue.queue.PushBack(recvBuffer))
-                                        {
-                                            m_receiveQueue.semaphore.Signal();
-                                        }
-                                    }
-                                    status = ReadTransportMessage(recvBuffer, 0);
-                                }
-
-                                // Give the session manager a chance to update its sessions.
-                                m_sessionManager.UpdateSessions();
-                            }
-                        }
-                    } while (status == Result::NotReady);
-                    m_updateSemaphore.Signal();
-                }
-            }
-            if (status == Result::Success)
-            {
-                m_clientInfoResponse.metadata.status = flags;
-            }
-#endif
         }
         return status;
     }

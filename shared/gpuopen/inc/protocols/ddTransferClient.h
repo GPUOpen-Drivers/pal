@@ -73,12 +73,6 @@ namespace DevDriver
                 return IsConnected() && (m_transferContext.state == TransferState::TransferInProgress);
             }
 
-            // Backwards compatibility
-            Result RequestTransfer(BlockId blockId, size_t* pTransferSizeInBytes)
-            {
-                return RequestPullTransfer(blockId, pTransferSizeInBytes);
-            }
-
             Result ReadTransferData(uint8* pDstBuffer, size_t bufferSize, size_t* pBytesRead)
             {
                 return ReadPullTransferData(pDstBuffer, bufferSize, pBytesRead);

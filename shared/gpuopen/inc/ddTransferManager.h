@@ -228,18 +228,6 @@ namespace DevDriver
             // This will null out the push block pointer that is passed in as ppBlock.
             void ClosePushBlock(PushBlock** ppBlock);
 
-            // Backwards compatibility - replaced by OpenServerBlock()
-            SharedPointer<ServerBlock> AcquireLocalBlock()
-            {
-                return OpenServerBlock();
-            }
-
-            // Backwards compatibility - replaced by CloseServerBlock()
-            void ReleaseLocalBlock(SharedPointer<ServerBlock>& pBlock)
-            {
-                CloseServerBlock(pBlock);
-            }
-
         private:
             IMsgChannel*     m_pMessageChannel;
             SessionManager*  m_pSessionManager;

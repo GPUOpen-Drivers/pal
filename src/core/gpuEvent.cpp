@@ -57,11 +57,14 @@ GpuEvent::~GpuEvent()
             PAL_ASSERT(unmapResult == Result::Success);
         }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
         const Result freeResult = m_pDevice->MemMgr()->FreeGpuMem(m_gpuMemory.Memory(), m_gpuMemory.Offset());
         PAL_ASSERT(freeResult == Result::Success);
+#endif
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
 // =====================================================================================================================
 Result GpuEvent::Init()
 {
@@ -111,6 +114,7 @@ Result GpuEvent::Init()
 
     return result;
 }
+#endif
 
 // =====================================================================================================================
 // Destroys this GpuEvent object. Clients are responsible for freeing the system memory the object occupies.
@@ -125,6 +129,8 @@ void GpuEvent::Destroy()
 // NOTE: Part of the public IGpuEvent interface.
 Result GpuEvent::Set()
 {
+    PAL_ASSERT(m_createInfo.flags.gpuAccessOnly == 0);
+
     Result result = Result::Success;
     for (uint32 slotIdx = 0; (result == Result::Success) && (slotIdx < m_numSlotsPerEvent); slotIdx++)
     {
@@ -138,6 +144,8 @@ Result GpuEvent::Set()
 // NOTE: Part of the public IGpuEvent interface.
 Result GpuEvent::Reset()
 {
+    PAL_ASSERT(m_createInfo.flags.gpuAccessOnly == 0);
+
     Result result = Result::Success;
     for (uint32 slotIdx = 0; (result == Result::Success) && (slotIdx < m_numSlotsPerEvent); slotIdx++)
     {
@@ -151,6 +159,7 @@ Result GpuEvent::Reset()
 // NOTE: Part of the public IGpuEvent interface.
 Result GpuEvent::GetStatus()
 {
+    PAL_ASSERT(m_createInfo.flags.gpuAccessOnly == 0);
     PAL_ALERT(m_pDevice->Settings().ifh != IfhModeDisabled);
 
     Result result = Result::ErrorInvalidPointer;
@@ -202,5 +211,82 @@ Result GpuEvent::CpuWrite(
 
     return result;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+// =====================================================================================================================
+// Specifies requirements for GPU memory a client must bind to the object before using it: size, alignment, and heaps.
+// NOTE: Part of the public IGpuMemoryBindable interface.
+void GpuEvent::GetGpuMemoryRequirements(
+    GpuMemoryRequirements* pGpuMemReqs
+    ) const
+{
+    pGpuMemReqs->size      = GpuRequiredMemSizePerSlotInBytes * m_numSlotsPerEvent;
+    pGpuMemReqs->alignment = GpuRequiredMemAlignment;
+
+    if (m_createInfo.flags.gpuAccessOnly == 1)
+    {
+        pGpuMemReqs->heapCount = 4;
+        pGpuMemReqs->heaps[0]  = GpuHeapInvisible;
+        pGpuMemReqs->heaps[1]  = GpuHeapLocal;
+        pGpuMemReqs->heaps[2]  = GpuHeapGartUswc;
+        pGpuMemReqs->heaps[3]  = GpuHeapGartCacheable;
+    }
+    else
+    {
+        pGpuMemReqs->heapCount = 3;
+        pGpuMemReqs->heaps[1]  = GpuHeapLocal;
+        pGpuMemReqs->heaps[2]  = GpuHeapGartUswc;
+        pGpuMemReqs->heaps[3]  = GpuHeapGartCacheable;
+    }
+}
+
+// =====================================================================================================================
+// Binds a block of GPU memory to this object.
+// NOTE: Part of the public IGpuMemoryBindable interface.
+Result GpuEvent::BindGpuMemory(
+    IGpuMemory* pGpuMemory,
+    gpusize     offset)
+{
+    const gpusize gpuRequiredMemSizeInBytes = GpuRequiredMemSizePerSlotInBytes * m_numSlotsPerEvent;
+
+    Result result = m_pDevice->ValidateBindObjectMemoryInput(pGpuMemory,
+                                                             offset,
+                                                             gpuRequiredMemSizeInBytes,
+                                                             GpuRequiredMemAlignment,
+                                                             false);
+
+    // First try to unmap currently bound GPU memory if it is CPU-accessable memory.
+    if (result == Result::Success)
+    {
+        if (m_gpuMemory.IsBound() && (m_createInfo.flags.gpuAccessOnly == 0))
+        {
+            result = m_gpuMemory.Unmap();
+        }
+    }
+
+    // Then bind the new GPU memory.
+    if (result == Result::Success)
+    {
+        m_gpuMemory.Update(pGpuMemory, offset);
+
+        if (m_gpuMemory.IsBound() && (m_createInfo.flags.gpuAccessOnly == 0))
+        {
+            // The backwards compatibility code assumes the GPU memory is mappable which must be the case because:
+            // 1. GetGpuMemoryRequirements requires GART cacheable.
+            // 2. The old code unconditionally called Reset which maps the memory.
+            void* pCpuAddr = nullptr;
+            result = m_gpuMemory.Map(&pCpuAddr);
+
+            if (result == Result::Success)
+            {
+                m_pEventData = static_cast<uint32*>(pCpuAddr);
+                result       = Reset();
+            }
+        }
+    }
+
+    return result;
+}
+#endif
 
 } // Pal

@@ -49,6 +49,8 @@ class GraphicsPipelineUploader;
 // phases.
 struct GraphicsPipelineLoadInfo
 {
+    bool    usesOnchipTess;     // Set if the pipeline has a HS and uses on-chip HS.
+    bool    usesGs;             // Set if the pipeline has a GS.
     bool    usesOnChipGs;       // Set if the pipeline has a GS and uses on-chip GS.
     uint16  esGsLdsSizeRegGs;   // User-SGPR where the ES/GS ring size in LDS is passed to the GS stage
     uint16  esGsLdsSizeRegVs;   // User-SGPR where the ES/GS ring size in LDS is passed to the VS stage

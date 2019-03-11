@@ -261,6 +261,40 @@ void CmdBuffer::CmdSetDepthBounds(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetVertexBuffers(
+    uint32                firstBuffer,
+    uint32                bufferCount,
+    const BufferViewInfo* pBuffers)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetVertexBuffers;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("firstBuffer", firstBuffer);
+        pLogContext->KeyAndValue("bufferCount", bufferCount);
+        pLogContext->KeyAndBeginList("buffers", false);
+
+        for (uint32 idx = 0; idx < bufferCount; ++idx)
+        {
+            pLogContext->Struct(pBuffers[idx]);
+        }
+
+        pLogContext->EndList();
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 473
+// =====================================================================================================================
 void CmdBuffer::CmdSetIndirectUserData(
     uint16      tableId,
     uint32      dwordOffset,
@@ -318,6 +352,7 @@ void CmdBuffer::CmdSetIndirectUserDataWatermark(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdBindIndexData(
@@ -2759,6 +2794,16 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 
     return pCpuAddr;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+// =====================================================================================================================
+Result CmdBuffer::AllocateAndBindGpuMemToEvent(
+    IGpuEvent* pGpuEvent)
+{
+    // This function is not logged because it doesn't modify the command buffer.
+    return GetNextLayer()->AllocateAndBindGpuMemToEvent(pGpuEvent);
+}
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdExecuteNestedCmdBuffers(

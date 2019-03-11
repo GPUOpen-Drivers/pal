@@ -278,11 +278,6 @@ void SettingsLoader::OverrideDefaults(
 
         m_settings.waDummyZpassDoneBeforeTs = true;
 
-        // The driver assumes that all meta-data surfaces are pipe-aligned, but there are cases where the
-        // HW does not actually pipe-align the data.  In these cases, the L2 cache needs to be flushed prior
-        // to the metadata being read by a shader.
-        m_settings.waDepthStencilTargetMetadataNeedsTccFlush = true;
-
         // Metadata is not pipe aligned once we get down to the mip chain within the tail
         m_settings.waitOnMetadataMipTail = true;
 

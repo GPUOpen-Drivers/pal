@@ -1635,6 +1635,20 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             {
                 PAL_ALERT_ALWAYS(); // This is only expected for compute pipelines on Gfx9+!
             }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::VertexBufferTable))
+            {
+                // There can be only one vertex buffer table per pipeline.
+                PAL_ASSERT((m_signature.vertexBufTableRegAddr == offset) ||
+                           (m_signature.vertexBufTableRegAddr == UserDataNotMapped));
+                m_signature.vertexBufTableRegAddr = offset;
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::StreamOutTable))
+            {
+                // There can be only one stream output table per pipeline.
+                PAL_ASSERT((m_signature.streamOutTableRegAddr == offset) ||
+                           (m_signature.streamOutTableRegAddr == UserDataNotMapped));
+                m_signature.streamOutTableRegAddr = offset;
+            }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::BaseVertex))
             {
                 // There can be only base-vertex user-SGPR per pipeline.
@@ -2116,7 +2130,7 @@ void GraphicsPipeline::SetupStereoRegisters()
                 {
                     SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_commands.set.context.paStereoCntl.vg12);
                 }
-		else if (IsVega20(device))
+                else if (IsVega20(device))
                 {
                     SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_commands.set.context.paStereoCntl.vg20);
                 }

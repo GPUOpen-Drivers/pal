@@ -258,6 +258,9 @@ void UniversalCmdBuffer::CmdBindPipeline(
         m_graphicsState.pipelineState.pPipeline = static_cast<const Pipeline*>(params.pPipeline);
         m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    m_device.DescribeBindPipeline(this, params.apiPsoHash, params.pipelineBindPoint);
+#endif
 }
 
 // =====================================================================================================================

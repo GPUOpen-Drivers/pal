@@ -174,13 +174,26 @@ public:
     ///
     /// Supported for occlusion and video decode statistics query pools.
     ///
-    /// @param [in]     startQuery First query pool slot to reset.
-    /// @param [in]     queryCount Number of query pool slots to reset.
+    /// @param [in]     startQuery     First query pool slot to reset.
+    /// @param [in]     queryCount     Number of query pool slots to reset.
+    /// @param [in]     pMappedCpuAddr Specify the query buffer mapped address. If the parameter equals nullptr,
+    //                                 this method will use Map/UnMap to access the data.
     ///
     /// @returns Success if the reset was successfully performed.
     virtual Result Reset(
+        uint32      startQuery,
+        uint32      queryCount,
+        const void* pMappedCpuAddr) = 0;
+
+/// To handle backwards compatibility.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 472
+    PAL_INLINE Result Reset(
         uint32 startQuery,
-        uint32 queryCount) = 0;
+        uint32 queryCount)
+    {
+        return Reset(startQuery, queryCount, nullptr);
+    }
+#endif
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

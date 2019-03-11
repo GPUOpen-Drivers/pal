@@ -222,9 +222,14 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
 
             pCmdBuffer->HandleDrawDispatch(pData->cmdType <= Developer::DrawDispatchType::FirstDispatch);
         }
-
         break;
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    case Developer::CallbackType::BindPipeline:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateBindPipelineData(pCbData);
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS();
         break;

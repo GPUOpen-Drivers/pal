@@ -56,18 +56,8 @@ namespace DevDriver
         // All requests will be handled using the currently bound message channel
         void BindMessageChannel(IMsgChannel* pMsgChannel) { m_pMsgChannel = pMsgChannel; }
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
         // Handles an incoming URI request
         Result HandleRequest(IURIRequestContext* pContext) override final;
-#else
-        // Handles an incoming URI request
-        // Deprecated
-        Result HandleRequest(URIRequestContext* pContext) override final
-        {
-            DD_UNUSED(pContext);
-            return Result::VersionMismatch;
-        }
-#endif
 
     private:
         // Currently bound message channel

@@ -122,11 +122,13 @@ void ComputePipeline::SetupSignatureFromElf(
                 m_signature.perfDataAddr = offset;
                 m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)].regOffset = offset;
             }
-            else if ((value == static_cast<uint32>(Abi::UserDataMapping::BaseVertex))    ||
-                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseInstance))  ||
-                     (value == static_cast<uint32>(Abi::UserDataMapping::DrawIndex))     ||
-                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseIndex))     ||
-                     (value == static_cast<uint32>(Abi::UserDataMapping::Log2IndexSize)) ||
+            else if ((value == static_cast<uint32>(Abi::UserDataMapping::VertexBufferTable)) ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::StreamOutTable))    ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseVertex))        ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseInstance))      ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::DrawIndex))         ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseIndex))         ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::Log2IndexSize))     ||
                      (value == static_cast<uint32>(Abi::UserDataMapping::EsGsLdsSize)))
             {
                 PAL_ALERT_ALWAYS(); // These are for graphics pipelines only!
@@ -280,10 +282,10 @@ Result ComputePipeline::HwlInit(
             m_commands.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST = 1;
         }
 
-        if (m_pDevice->Parent()->HwsTrapHandlerPresent() && (chipProps.gfxLevel == GfxIpLevel::GfxIp9))
+        if (m_pDevice->Parent()->LegacyHwsTrapHandlerPresent() && (chipProps.gfxLevel == GfxIpLevel::GfxIp9))
         {
 
-            // If the hardware scheduler's trap handler is present, compute shaders must always set the TRAP_PRESENT
+            // If the legacy HWS's trap handler is present, compute shaders must always set the TRAP_PRESENT
             // flag.
 
             // TODO: Handle the case where the client enabled a trap handler and the hardware scheduler's trap handler

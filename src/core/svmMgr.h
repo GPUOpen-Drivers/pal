@@ -48,7 +48,7 @@ public:
     explicit SvmMgr(Device* pDevice);
     virtual ~SvmMgr();
 
-    Result Init();
+    Result Init(VaRangeInfo* pSvmVaInfo);
     Result Cleanup();
 
     Result AllocVa(gpusize size, uint32 align, gpusize* pVirtualAddress);

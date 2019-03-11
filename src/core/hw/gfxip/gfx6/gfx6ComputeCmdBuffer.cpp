@@ -531,10 +531,10 @@ uint32* ComputeCmdBuffer::ValidateUserData(
         {
             const uint32 sizeInDwords = (userDataLimit - spillThreshold);
 
-            UpdateUserDataTable(&m_spillTableCs,
-                                sizeInDwords,
-                                spillThreshold,
-                                &m_computeState.csUserDataEntries.entries[0]);
+            UpdateUserDataTableCpu(&m_spillTableCs,
+                                   sizeInDwords,
+                                   spillThreshold,
+                                   &m_computeState.csUserDataEntries.entries[0]);
             relocated = true;
         }
 

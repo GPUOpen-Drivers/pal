@@ -116,6 +116,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.cmdAllocatorFreeOnReset = false;
     m_settings.cmdBufOptimizePm4 = Pm4OptDefaultEnable;
     m_settings.cmdBufOptimizePm4Mode = Pm4OptModeImmediate;
+    m_settings.cmdBufForceCpuUpdatePath = CmdBufForceCpuUpdatePathDefault;
     m_settings.cmdBufForceOneTimeSubmit = CmdBufForceOneTimeSubmitDefault;
     m_settings.cmdBufPreemptionMode = CmdBufPreemptModeEnable;
     m_settings.commandBufferForceCeRamDumpInPostamble = false;
@@ -124,6 +125,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.submitOptModeOverride = 0;
     m_settings.tileSwizzleMode = 0x7;
     m_settings.enableVidMmGpuVaMappingValidation = false;
+    m_settings.enableUswcHeapAllAllocations = false;
     m_settings.addr2PreferredSwizzleTypeSet = Addr2PreferredDefault;
     m_settings.pipelinePrefetchEnable = true;
     m_settings.shaderPrefetchClampSize = 0;
@@ -387,6 +389,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.cmdBufOptimizePm4Mode,
                            InternalSettingScope::PrivatePalKey);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufForceCpuUpdatePathStr,
+                           Util::ValueType::Uint,
+                           &m_settings.cmdBufForceCpuUpdatePath,
+                           InternalSettingScope::PrivatePalKey);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufForceOneTimeSubmitStr,
                            Util::ValueType::Uint,
                            &m_settings.cmdBufForceOneTimeSubmit,
@@ -425,6 +432,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableVidMmGpuVaMappingValidationStr,
                            Util::ValueType::Boolean,
                            &m_settings.enableVidMmGpuVaMappingValidation,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableUswcHeapAllAllocationsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.enableUswcHeapAllAllocations,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2PreferredSwizzleTypeSetStr,
@@ -811,6 +823,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2490816619, info);
 
     info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.cmdBufForceCpuUpdatePath;
+    info.valueSize = sizeof(m_settings.cmdBufForceCpuUpdatePath);
+    m_settingsInfoMap.Insert(382911281, info);
+
+    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdBufForceOneTimeSubmit;
     info.valueSize = sizeof(m_settings.cmdBufForceOneTimeSubmit);
     m_settingsInfoMap.Insert(909934676, info);
@@ -849,6 +866,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.enableVidMmGpuVaMappingValidation;
     info.valueSize = sizeof(m_settings.enableVidMmGpuVaMappingValidation);
     m_settingsInfoMap.Insert(2751785051, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.enableUswcHeapAllAllocations;
+    info.valueSize = sizeof(m_settings.enableUswcHeapAllAllocations);
+    m_settingsInfoMap.Insert(3408333164, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.addr2PreferredSwizzleTypeSet;
@@ -936,7 +958,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 2767873392;
+            component.settingsDataHash = 4083275577;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

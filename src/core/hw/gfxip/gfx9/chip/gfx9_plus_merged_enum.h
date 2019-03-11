@@ -30,11 +30,6 @@ typedef enum ABM_SOFT_RESET {
     ABM_SOFT_RESET_1                                   = 0x00000001,
 } ABM_SOFT_RESET;
 
-typedef enum ALLOW_SR_ON_TRANS_REQ {
-    ALLOW_SR_ON_TRANS_REQ_ENABLE__VG12                 = 0x00000000,
-    ALLOW_SR_ON_TRANS_REQ_DISABLE__VG12                = 0x00000001,
-} ALLOW_SR_ON_TRANS_REQ;
-
 typedef enum ALPHA_DCP_GRPH_ALPHA_CHANGE_MODE {
     DCP_GRPH_ALPHA_CHANGE_MODE_0                       = 0x00000000,
     DCP_GRPH_ALPHA_CHANGE_MODE_1                       = 0x00000001,
@@ -959,11 +954,6 @@ constexpr unsigned int MaxCBPerfSelVega                = CB_PERF_SEL_CC_BB_BLEND
 constexpr unsigned int MaxCBPerfSelRv2x                = CB_PERF_SEL_CC_BB_BLEND_PIXEL_VLD;
 constexpr unsigned int MaxCBPerfSelRv1x                = CB_PERF_SEL_CC_BB_BLEND_PIXEL_VLD;
 
-typedef enum CLEAR_SMU_INTR {
-    SMU_INTR_STATUS_NOOP__VG12                         = 0x00000000,
-    SMU_INTR_STATUS_CLEAR__VG12                        = 0x00000001,
-} CLEAR_SMU_INTR;
-
 typedef enum CLKGATE_BASE_MODE {
     MULT_8                                             = 0x00000000,
     MULT_16                                            = 0x00000001,
@@ -976,11 +966,6 @@ typedef enum CLKGATE_SM_MODE {
     READ_SEQ                                           = 0x00000003,
     SM_MODE_RESERVED                                   = 0x00000004,
 } CLKGATE_SM_MODE;
-
-typedef enum CLOCK_BRANCH_SOFT_RESET {
-    CLOCK_BRANCH_SOFT_RESET_NOOP__VG12                 = 0x00000000,
-    CLOCK_BRANCH_SOFT_RESET_FORCE__VG12                = 0x00000001,
-} CLOCK_BRANCH_SOFT_RESET;
 
 typedef enum CmaskAddr {
     CMASK_ADDR_TILED                                   = 0x00000000,
@@ -1193,11 +1178,6 @@ typedef enum ConservativeZExport {
     EXPORT_GREATER_THAN_Z                              = 0x00000002,
     EXPORT_RESERVED                                    = 0x00000003,
 } ConservativeZExport;
-
-typedef enum CORB_READ_POINTER_RESET {
-    CORB_READ_POINTER_RESET_CORB_DMA_IS_NOT_RESET__VG12 = 0x00000000,
-    CORB_READ_POINTER_RESET_CORB_DMA_IS_RESET__VG12    = 0x00000001,
-} CORB_READ_POINTER_RESET;
 
 typedef enum CovToShaderSel {
     INPUT_COVERAGE                                     = 0x00000000,
@@ -2323,11 +2303,6 @@ typedef enum DACA_SOFT_RESET {
     DACA_SOFT_RESET_1                                  = 0x00000001,
 } DACA_SOFT_RESET;
 
-typedef enum DAC_MUX_SELECT {
-    DAC_MUX_SELECT_DACA__VG12                          = 0x00000000,
-    DAC_MUX_SELECT_DACB__VG12                          = 0x00000001,
-} DAC_MUX_SELECT;
-
 typedef enum DbMemArbWatermarks {
     TRANSFERRED_64_BYTES                               = 0x00000000,
     TRANSFERRED_128_BYTES                              = 0x00000001,
@@ -2464,21 +2439,6 @@ typedef enum DIGLPB_FE_SOFT_RESET {
     DIGLPB_FE_SOFT_RESET_1                             = 0x00000001,
 } DIGLPB_FE_SOFT_RESET;
 
-typedef enum DISABLE_CLOCK_GATING {
-    CLOCK_GATING_ENABLED__VG12                         = 0x00000000,
-    CLOCK_GATING_DISABLED__VG12                        = 0x00000001,
-} DISABLE_CLOCK_GATING;
-
-typedef enum DISABLE_CLOCK_GATING_IN_DCO {
-    CLOCK_GATING_ENABLED_IN_DCO__VG12                  = 0x00000000,
-    CLOCK_GATING_DISABLED_IN_DCO__VG12                 = 0x00000001,
-} DISABLE_CLOCK_GATING_IN_DCO;
-
-typedef enum DMA_POSITION_LOWER_BASE_ADDRESS_BUFFER_ENABLE {
-    DMA_POSITION_LOWER_BASE_ADDRESS_BUFFER_ENABLE_DMA_DISABLE__VG12 = 0x00000000,
-    DMA_POSITION_LOWER_BASE_ADDRESS_BUFFER_ENABLE_DMA_ENABLE__VG12 = 0x00000001,
-} DMA_POSITION_LOWER_BASE_ADDRESS_BUFFER_ENABLE;
-
 typedef enum DSM_DATA_SEL {
     DSM_DATA_SEL_DISABLE                               = 0x00000000,
     DSM_DATA_SEL_0                                     = 0x00000001,
@@ -2502,27 +2462,6 @@ typedef enum DSM_SINGLE_WRITE {
     DSM_SINGLE_WRITE_DIS                               = 0x00000000,
     DSM_SINGLE_WRITE_EN                                = 0x00000001,
 } DSM_SINGLE_WRITE;
-
-typedef enum DS_REF_SRC {
-    DS_REF_IS_XTALIN__VG12                             = 0x00000000,
-    DS_REF_IS_EXT_GENLOCK__VG12                        = 0x00000001,
-    DS_REF_IS_PCIE__VG12                               = 0x00000002,
-} DS_REF_SRC;
-
-typedef enum DX_PROTECTION_DX_PIPE_ENC_REQUIRED_TYPE {
-    DX_PROTECTION_DX_PIPE_ENC_REQUIRED_TYPE_0__VG12    = 0x00000000,
-    DX_PROTECTION_DX_PIPE_ENC_REQUIRED_TYPE_1__VG12    = 0x00000001,
-} DX_PROTECTION_DX_PIPE_ENC_REQUIRED_TYPE;
-
-typedef enum ENABLE {
-    DISABLE_THE_FEATURE__VG12                          = 0x00000000,
-    ENABLE_THE_FEATURE__VG12                           = 0x00000001,
-} ENABLE;
-
-typedef enum ENABLE_CLOCK {
-    DISABLE_THE_CLOCK__VG12                            = 0x00000000,
-    ENABLE_THE_CLOCK__VG12                             = 0x00000001,
-} ENABLE_CLOCK;
 
 typedef enum ENUM_NUM_SIMD_PER_CU {
     NUM_SIMD_PER_CU                                    = 0x00000004,
@@ -2764,46 +2703,6 @@ typedef enum GENERICB_STEREOSYNC_SEL {
     GENERICB_STEREOSYNC_SEL_D6                         = 0x00000005,
     GENERICB_STEREOSYNC_SEL_RESERVED                   = 0x00000006,
 } GENERICB_STEREOSYNC_SEL;
-
-typedef enum GENERIC_AZ_CONTROLLER_REGISTER_ENABLE_CONTROL {
-    GENERIC_AZ_CONTROLLER_REGISTER_DISABLE__VG12       = 0x00000000,
-    GENERIC_AZ_CONTROLLER_REGISTER_ENABLE__VG12        = 0x00000001,
-} GENERIC_AZ_CONTROLLER_REGISTER_ENABLE_CONTROL;
-
-typedef enum GENERIC_AZ_CONTROLLER_REGISTER_ENABLE_CONTROL_RESERVED {
-    GENERIC_AZ_CONTROLLER_REGISTER_DISABLE_RESERVED__VG12 = 0x00000000,
-    GENERIC_AZ_CONTROLLER_REGISTER_ENABLE_RESERVED__VG12 = 0x00000001,
-} GENERIC_AZ_CONTROLLER_REGISTER_ENABLE_CONTROL_RESERVED;
-
-typedef enum GENERIC_AZ_CONTROLLER_REGISTER_STATUS {
-    GENERIC_AZ_CONTROLLER_REGISTER_STATUS_NOT_SET__VG12 = 0x00000000,
-    GENERIC_AZ_CONTROLLER_REGISTER_STATUS_SET__VG12    = 0x00000001,
-} GENERIC_AZ_CONTROLLER_REGISTER_STATUS;
-
-typedef enum GENERIC_AZ_CONTROLLER_REGISTER_STATUS_RESERVED {
-    GENERIC_AZ_CONTROLLER_REGISTER_STATUS_NOT_SET_RESERVED__VG12 = 0x00000000,
-    GENERIC_AZ_CONTROLLER_REGISTER_STATUS_SET_RESERVED__VG12 = 0x00000001,
-} GENERIC_AZ_CONTROLLER_REGISTER_STATUS_RESERVED;
-
-typedef enum GLOBAL_CONTROL_ACCEPT_UNSOLICITED_RESPONSE {
-    ACCEPT_UNSOLICITED_RESPONSE_NOT_ENABLE__VG12       = 0x00000000,
-    ACCEPT_UNSOLICITED_RESPONSE_ENABLE__VG12           = 0x00000001,
-} GLOBAL_CONTROL_ACCEPT_UNSOLICITED_RESPONSE;
-
-typedef enum GLOBAL_CONTROL_CONTROLLER_RESET {
-    CONTROLLER_RESET_AZ_CONTROLLER_IN_RESET__VG12      = 0x00000000,
-    CONTROLLER_RESET_AZ_CONTROLLER_NOT_IN_RESET__VG12  = 0x00000001,
-} GLOBAL_CONTROL_CONTROLLER_RESET;
-
-typedef enum GLOBAL_CONTROL_FLUSH_CONTROL {
-    FLUSH_CONTROL_FLUSH_NOT_STARTED__VG12              = 0x00000000,
-    FLUSH_CONTROL_FLUSH_STARTED__VG12                  = 0x00000001,
-} GLOBAL_CONTROL_FLUSH_CONTROL;
-
-typedef enum GLOBAL_STATUS_FLUSH_STATUS {
-    GLOBAL_STATUS_FLUSH_STATUS_FLUSH_NOT_ENDED__VG12   = 0x00000000,
-    GLOBAL_STATUS_FLUSH_STATUS_FLUSH_ENDED__VG12       = 0x00000001,
-} GLOBAL_STATUS_FLUSH_STATUS;
 
 typedef enum GRBM_PERF_SEL {
     GRBM_PERF_SEL_COUNT                                = 0x00000000,
@@ -3174,30 +3073,6 @@ typedef enum IMG_NUM_FORMAT_N_IN_16 {
     IMG_NUM_FORMAT_N_IN_16_RESERVED_15                 = 0x0000000f,
 } IMG_NUM_FORMAT_N_IN_16;
 
-typedef enum IMMEDIATE_COMMAND_STATUS_IMMEDIATE_COMMAND_BUSY {
-    IMMEDIATE_COMMAND_STATUS_IMMEDIATE_COMMAND_NOT_BUSY__VG12 = 0x00000000,
-    IMMEDIATE_COMMAND_STATUS_IMMEDIATE_COMMAND_IS_BUSY__VG12 = 0x00000001,
-} IMMEDIATE_COMMAND_STATUS_IMMEDIATE_COMMAND_BUSY;
-
-typedef enum IMMEDIATE_COMMAND_STATUS_IMMEDIATE_RESULT_VALID {
-    IMMEDIATE_COMMAND_STATUS_IMMEDIATE_RESULT_VALID_NO_IMMEDIATE_RESPONSE_VALID__VG12 = 0x00000000,
-    IMMEDIATE_COMMAND_STATUS_IMMEDIATE_RESULT_VALID_IMMEDIATE_RESPONSE_VALID__VG12 = 0x00000001,
-} IMMEDIATE_COMMAND_STATUS_IMMEDIATE_RESULT_VALID;
-
-typedef enum INVALID_REG_ACCESS_TYPE {
-    REG_UNALLOCATED_ADDR_WRITE__VG12                   = 0x00000000,
-    REG_UNALLOCATED_ADDR_READ__VG12                    = 0x00000001,
-    REG_VIRTUAL_WRITE__VG12                            = 0x00000002,
-    REG_VIRTUAL_READ__VG12                             = 0x00000003,
-    REG_SECURE_VIOLATE_WRITE__VG12                     = 0x00000004,
-    REG_SECURE_VIOLATE_READ__VG12                      = 0x00000005,
-} INVALID_REG_ACCESS_TYPE;
-
-typedef enum JITTER_REMOVE_DISABLE {
-    ENABLE_JITTER_REMOVAL__VG12                        = 0x00000000,
-    DISABLE_JITTER_REMOVAL__VG12                       = 0x00000001,
-} JITTER_REMOVE_DISABLE;
-
 typedef enum LptNumBanks {
     LPT_NUM_BANKS_2BANK                                = 0x00000000,
     LPT_NUM_BANKS_4BANK                                = 0x00000001,
@@ -3213,11 +3088,6 @@ typedef enum LptNumPipes {
     LPT_NUM_PIPES_8CH                                  = 0x00000003,
 } LptNumPipes;
 
-typedef enum LVTMA_RANDOM_PATTERN_SEED_RAN_PAT {
-    LVTMA_RANDOM_PATTERN_SEED_ALL_PIXELS__VG12         = 0x00000000,
-    LVTMA_RANDOM_PATTERN_SEED_ONLY_DE_HIGH__VG12       = 0x00000001,
-} LVTMA_RANDOM_PATTERN_SEED_RAN_PAT;
-
 typedef enum MacroTileAspect {
     ADDR_SURF_MACRO_ASPECT_1                           = 0x00000000,
     ADDR_SURF_MACRO_ASPECT_2                           = 0x00000001,
@@ -3229,23 +3099,6 @@ typedef enum MASTER_UPDATE_LOCK_GSL_CONTROL_MASTER_UPDATE_LOCK {
     MASTER_UPDATE_LOCK_GSL_CONTROL_MASTER_UPDATE_LOCK_FALSE = 0x00000000,
     MASTER_UPDATE_LOCK_GSL_CONTROL_MASTER_UPDATE_LOCK_TRUE = 0x00000001,
 } MASTER_UPDATE_LOCK_GSL_CONTROL_MASTER_UPDATE_LOCK;
-
-typedef enum MASTER_UPDATE_LOCK_MASTER_UPDATE_LOCK {
-    MASTER_UPDATE_LOCK_MASTER_UPDATE_LOCK_FALSE__VG12  = 0x00000000,
-    MASTER_UPDATE_LOCK_MASTER_UPDATE_LOCK_TRUE__VG12   = 0x00000001,
-} MASTER_UPDATE_LOCK_MASTER_UPDATE_LOCK;
-
-typedef enum MASTER_UPDATE_LOCK_UNDERFLOW_UPDATE_LOCK {
-    MASTER_UPDATE_LOCK_UNDERFLOW_UPDATE_LOCK_FALSE__VG12 = 0x00000000,
-    MASTER_UPDATE_LOCK_UNDERFLOW_UPDATE_LOCK_TRUE__VG12 = 0x00000001,
-} MASTER_UPDATE_LOCK_UNDERFLOW_UPDATE_LOCK;
-
-typedef enum MASTER_UPDATE_MODE_MASTER_UPDATE_INTERLACED_MODE {
-    MASTER_UPDATE_MODE_MASTER_UPDATE_INTERLACED_MODE_BOTH__VG12 = 0x00000000,
-    MASTER_UPDATE_MODE_MASTER_UPDATE_INTERLACED_MODE_EVEN__VG12 = 0x00000001,
-    MASTER_UPDATE_MODE_MASTER_UPDATE_INTERLACED_MODE_ODD__VG12 = 0x00000002,
-    MASTER_UPDATE_MODE_MASTER_UPDATE_INTERLACED_MODE_RESERVED__VG12 = 0x00000003,
-} MASTER_UPDATE_MODE_MASTER_UPDATE_INTERLACED_MODE;
 
 typedef enum MASTER_UPDATE_MODE_MASTER_UPDATE_MODE {
     MASTER_UPDATE_MODE_MASTER_UPDATE_MODE_BETWEEN      = 0x00000000,
@@ -3261,39 +3114,6 @@ typedef enum MemArbMode {
     MEM_ARB_MODE_BOTH                                  = 0x00000003,
 } MemArbMode;
 
-typedef enum MEM_PWR_DIS_CTRL {
-    ENABLE_MEM_PWR_CTRL__VG12                          = 0x00000000,
-    DISABLE_MEM_PWR_CTRL__VG12                         = 0x00000001,
-} MEM_PWR_DIS_CTRL;
-
-typedef enum MEM_PWR_FORCE_CTRL {
-    NO_FORCE_REQUEST__VG12                             = 0x00000000,
-    FORCE_LIGHT_SLEEP_REQUEST__VG12                    = 0x00000001,
-    FORCE_DEEP_SLEEP_REQUEST__VG12                     = 0x00000002,
-    FORCE_SHUT_DOWN_REQUEST__VG12                      = 0x00000003,
-} MEM_PWR_FORCE_CTRL;
-
-typedef enum MEM_PWR_FORCE_CTRL2 {
-    NO_FORCE_REQ__VG12                                 = 0x00000000,
-    FORCE_LIGHT_SLEEP_REQ__VG12                        = 0x00000001,
-} MEM_PWR_FORCE_CTRL2;
-
-typedef enum MEM_PWR_SEL_CTRL {
-    DYNAMIC_SHUT_DOWN_ENABLE__VG12                     = 0x00000000,
-    DYNAMIC_DEEP_SLEEP_ENABLE__VG12                    = 0x00000001,
-    DYNAMIC_LIGHT_SLEEP_ENABLE__VG12                   = 0x00000002,
-} MEM_PWR_SEL_CTRL;
-
-typedef enum MEM_PWR_SEL_CTRL2 {
-    DYNAMIC_DEEP_SLEEP_EN__VG12                        = 0x00000000,
-    DYNAMIC_LIGHT_SLEEP_EN__VG12                       = 0x00000001,
-} MEM_PWR_SEL_CTRL2;
-
-typedef enum MICROSECOND_TIME_BASE_CLOCK_SOURCE_SEL {
-    MICROSECOND_TIME_BASE_CLOCK_IS_XTALIN__VG12        = 0x00000000,
-    MICROSECOND_TIME_BASE_CLOCK_IS_PPLL_REFCLK__VG12   = 0x00000001,
-} MICROSECOND_TIME_BASE_CLOCK_SOURCE_SEL;
-
 typedef enum MicroTileMode {
     ADDR_SURF_DISPLAY_MICRO_TILING                     = 0x00000000,
     ADDR_SURF_THIN_MICRO_TILING                        = 0x00000001,
@@ -3301,11 +3121,6 @@ typedef enum MicroTileMode {
     ADDR_SURF_ROTATED_MICRO_TILING                     = 0x00000003,
     ADDR_SURF_THICK_MICRO_TILING                       = 0x00000004,
 } MicroTileMode;
-
-typedef enum MILLISECOND_TIME_BASE_CLOCK_SOURCE_SEL {
-    MILLISECOND_TIME_BASE_CLOCK_IS_XTALIN__VG12        = 0x00000000,
-    MILLISECOND_TIME_BASE_CLOCK_IS_PPLL_REFCLK__VG12   = 0x00000001,
-} MILLISECOND_TIME_BASE_CLOCK_SOURCE_SEL;
 
 typedef enum MTYPE {
     MTYPE_UC                                           = 0x00000003,
@@ -3403,234 +3218,6 @@ typedef enum OVERRIDE_CGTT_SCLK {
     OVERRIDE_CGTT_SCLK_NOOP                            = 0x00000000,
     SET_OVERRIDE_CGTT_SCLK                             = 0x00000001,
 } OVERRIDE_CGTT_SCLK;
-
-typedef enum PERFCOUNTER_ACTIVE {
-    PERFCOUNTER_IS_IDLE__VG12                          = 0x00000000,
-    PERFCOUNTER_IS_ACTIVE__VG12                        = 0x00000001,
-} PERFCOUNTER_ACTIVE;
-
-constexpr unsigned int MaxPerfcounterActiveVg12        = PERFCOUNTER_IS_ACTIVE__VG12;
-
-typedef enum PERFCOUNTER_CNT0_STATE {
-    PERFCOUNTER_CNT0_STATE_RESET__VG12                 = 0x00000000,
-    PERFCOUNTER_CNT0_STATE_START__VG12                 = 0x00000001,
-    PERFCOUNTER_CNT0_STATE_FREEZE__VG12                = 0x00000002,
-    PERFCOUNTER_CNT0_STATE_HW__VG12                    = 0x00000003,
-} PERFCOUNTER_CNT0_STATE;
-
-constexpr unsigned int MaxPerfcounterCnt0StateVg12     = PERFCOUNTER_CNT0_STATE_HW__VG12;
-
-typedef enum PERFCOUNTER_CNT1_STATE {
-    PERFCOUNTER_CNT1_STATE_RESET__VG12                 = 0x00000000,
-    PERFCOUNTER_CNT1_STATE_START__VG12                 = 0x00000001,
-    PERFCOUNTER_CNT1_STATE_FREEZE__VG12                = 0x00000002,
-    PERFCOUNTER_CNT1_STATE_HW__VG12                    = 0x00000003,
-} PERFCOUNTER_CNT1_STATE;
-
-constexpr unsigned int MaxPerfcounterCnt1StateVg12     = PERFCOUNTER_CNT1_STATE_HW__VG12;
-
-typedef enum PERFCOUNTER_CNT2_STATE {
-    PERFCOUNTER_CNT2_STATE_RESET__VG12                 = 0x00000000,
-    PERFCOUNTER_CNT2_STATE_START__VG12                 = 0x00000001,
-    PERFCOUNTER_CNT2_STATE_FREEZE__VG12                = 0x00000002,
-    PERFCOUNTER_CNT2_STATE_HW__VG12                    = 0x00000003,
-} PERFCOUNTER_CNT2_STATE;
-
-constexpr unsigned int MaxPerfcounterCnt2StateVg12     = PERFCOUNTER_CNT2_STATE_HW__VG12;
-
-typedef enum PERFCOUNTER_CNT3_STATE {
-    PERFCOUNTER_CNT3_STATE_RESET__VG12                 = 0x00000000,
-    PERFCOUNTER_CNT3_STATE_START__VG12                 = 0x00000001,
-    PERFCOUNTER_CNT3_STATE_FREEZE__VG12                = 0x00000002,
-    PERFCOUNTER_CNT3_STATE_HW__VG12                    = 0x00000003,
-} PERFCOUNTER_CNT3_STATE;
-
-constexpr unsigned int MaxPerfcounterCnt3StateVg12     = PERFCOUNTER_CNT3_STATE_HW__VG12;
-
-typedef enum PERFCOUNTER_CNT4_STATE {
-    PERFCOUNTER_CNT4_STATE_RESET__VG12                 = 0x00000000,
-    PERFCOUNTER_CNT4_STATE_START__VG12                 = 0x00000001,
-    PERFCOUNTER_CNT4_STATE_FREEZE__VG12                = 0x00000002,
-    PERFCOUNTER_CNT4_STATE_HW__VG12                    = 0x00000003,
-} PERFCOUNTER_CNT4_STATE;
-
-constexpr unsigned int MaxPerfcounterCnt4StateVg12     = PERFCOUNTER_CNT4_STATE_HW__VG12;
-
-typedef enum PERFCOUNTER_CNT5_STATE {
-    PERFCOUNTER_CNT5_STATE_RESET__VG12                 = 0x00000000,
-    PERFCOUNTER_CNT5_STATE_START__VG12                 = 0x00000001,
-    PERFCOUNTER_CNT5_STATE_FREEZE__VG12                = 0x00000002,
-    PERFCOUNTER_CNT5_STATE_HW__VG12                    = 0x00000003,
-} PERFCOUNTER_CNT5_STATE;
-
-constexpr unsigned int MaxPerfcounterCnt5StateVg12     = PERFCOUNTER_CNT5_STATE_HW__VG12;
-
-typedef enum PERFCOUNTER_CNT6_STATE {
-    PERFCOUNTER_CNT6_STATE_RESET__VG12                 = 0x00000000,
-    PERFCOUNTER_CNT6_STATE_START__VG12                 = 0x00000001,
-    PERFCOUNTER_CNT6_STATE_FREEZE__VG12                = 0x00000002,
-    PERFCOUNTER_CNT6_STATE_HW__VG12                    = 0x00000003,
-} PERFCOUNTER_CNT6_STATE;
-
-constexpr unsigned int MaxPerfcounterCnt6StateVg12     = PERFCOUNTER_CNT6_STATE_HW__VG12;
-
-typedef enum PERFCOUNTER_CNT7_STATE {
-    PERFCOUNTER_CNT7_STATE_RESET__VG12                 = 0x00000000,
-    PERFCOUNTER_CNT7_STATE_START__VG12                 = 0x00000001,
-    PERFCOUNTER_CNT7_STATE_FREEZE__VG12                = 0x00000002,
-    PERFCOUNTER_CNT7_STATE_HW__VG12                    = 0x00000003,
-} PERFCOUNTER_CNT7_STATE;
-
-constexpr unsigned int MaxPerfcounterCnt7StateVg12     = PERFCOUNTER_CNT7_STATE_HW__VG12;
-
-typedef enum PERFCOUNTER_CNTL_SEL {
-    PERFCOUNTER_CNTL_SEL_0__VG12                       = 0x00000000,
-    PERFCOUNTER_CNTL_SEL_1__VG12                       = 0x00000001,
-    PERFCOUNTER_CNTL_SEL_2__VG12                       = 0x00000002,
-    PERFCOUNTER_CNTL_SEL_3__VG12                       = 0x00000003,
-    PERFCOUNTER_CNTL_SEL_4__VG12                       = 0x00000004,
-    PERFCOUNTER_CNTL_SEL_5__VG12                       = 0x00000005,
-    PERFCOUNTER_CNTL_SEL_6__VG12                       = 0x00000006,
-    PERFCOUNTER_CNTL_SEL_7__VG12                       = 0x00000007,
-} PERFCOUNTER_CNTL_SEL;
-
-constexpr unsigned int MaxPerfcounterCntlSelVg12       = PERFCOUNTER_CNTL_SEL_7__VG12;
-
-typedef enum PERFCOUNTER_CNTOFF_START_DIS {
-    PERFCOUNTER_CNTOFF_START_ENABLE__VG12              = 0x00000000,
-    PERFCOUNTER_CNTOFF_START_DISABLE__VG12             = 0x00000001,
-} PERFCOUNTER_CNTOFF_START_DIS;
-
-constexpr unsigned int MaxPerfcounterCntoffStartDisVg12 = PERFCOUNTER_CNTOFF_START_DISABLE__VG12;
-
-typedef enum PERFCOUNTER_COUNTED_VALUE_TYPE {
-    PERFCOUNTER_COUNTED_VALUE_TYPE_ACC__VG12           = 0x00000000,
-    PERFCOUNTER_COUNTED_VALUE_TYPE_MAX__VG12           = 0x00000001,
-    PERFCOUNTER_COUNTED_VALUE_TYPE_MIN__VG12           = 0x00000002,
-} PERFCOUNTER_COUNTED_VALUE_TYPE;
-
-constexpr unsigned int MaxPerfcounterCountedValueTypeVg12 = PERFCOUNTER_COUNTED_VALUE_TYPE_MIN__VG12;
-
-typedef enum PERFCOUNTER_CVALUE_SEL {
-    PERFCOUNTER_CVALUE_SEL_47_0__VG12                  = 0x00000000,
-    PERFCOUNTER_CVALUE_SEL_15_0__VG12                  = 0x00000001,
-    PERFCOUNTER_CVALUE_SEL_31_16__VG12                 = 0x00000002,
-    PERFCOUNTER_CVALUE_SEL_47_32__VG12                 = 0x00000003,
-    PERFCOUNTER_CVALUE_SEL_11_0__VG12                  = 0x00000004,
-    PERFCOUNTER_CVALUE_SEL_23_12__VG12                 = 0x00000005,
-    PERFCOUNTER_CVALUE_SEL_35_24__VG12                 = 0x00000006,
-    PERFCOUNTER_CVALUE_SEL_47_36__VG12                 = 0x00000007,
-} PERFCOUNTER_CVALUE_SEL;
-
-constexpr unsigned int MaxPerfcounterCvalueSelVg12     = PERFCOUNTER_CVALUE_SEL_47_36__VG12;
-
-typedef enum PERFCOUNTER_HW_CNTL_SEL {
-    PERFCOUNTER_HW_CNTL_SEL_RUNEN__VG12                = 0x00000000,
-    PERFCOUNTER_HW_CNTL_SEL_CNTOFF__VG12               = 0x00000001,
-} PERFCOUNTER_HW_CNTL_SEL;
-
-constexpr unsigned int MaxPerfcounterHwCntlSelVg12     = PERFCOUNTER_HW_CNTL_SEL_CNTOFF__VG12;
-
-typedef enum PERFCOUNTER_INC_MODE {
-    PERFCOUNTER_INC_MODE_MULTI_BIT__VG12               = 0x00000000,
-    PERFCOUNTER_INC_MODE_BOTH_EDGE__VG12               = 0x00000001,
-    PERFCOUNTER_INC_MODE_LSB__VG12                     = 0x00000002,
-    PERFCOUNTER_INC_MODE_POS_EDGE__VG12                = 0x00000003,
-    PERFCOUNTER_INC_MODE_NEG_EDGE__VG12                = 0x00000004,
-} PERFCOUNTER_INC_MODE;
-
-constexpr unsigned int MaxPerfcounterIncModeVg12       = PERFCOUNTER_INC_MODE_NEG_EDGE__VG12;
-
-typedef enum PERFCOUNTER_INT_EN {
-    PERFCOUNTER_INT_DISABLE__VG12                      = 0x00000000,
-    PERFCOUNTER_INT_ENABLE__VG12                       = 0x00000001,
-} PERFCOUNTER_INT_EN;
-
-constexpr unsigned int MaxPerfcounterIntEnVg12         = PERFCOUNTER_INT_ENABLE__VG12;
-
-typedef enum PERFCOUNTER_INT_TYPE {
-    PERFCOUNTER_INT_TYPE_LEVEL__VG12                   = 0x00000000,
-    PERFCOUNTER_INT_TYPE_PULSE__VG12                   = 0x00000001,
-} PERFCOUNTER_INT_TYPE;
-
-constexpr unsigned int MaxPerfcounterIntTypeVg12       = PERFCOUNTER_INT_TYPE_PULSE__VG12;
-
-typedef enum PERFCOUNTER_OFF_MASK {
-    PERFCOUNTER_OFF_MASK_DISABLE__VG12                 = 0x00000000,
-    PERFCOUNTER_OFF_MASK_ENABLE__VG12                  = 0x00000001,
-} PERFCOUNTER_OFF_MASK;
-
-constexpr unsigned int MaxPerfcounterOffMaskVg12       = PERFCOUNTER_OFF_MASK_ENABLE__VG12;
-
-typedef enum PERFCOUNTER_RESTART_EN {
-    PERFCOUNTER_RESTART_DISABLE__VG12                  = 0x00000000,
-    PERFCOUNTER_RESTART_ENABLE__VG12                   = 0x00000001,
-} PERFCOUNTER_RESTART_EN;
-
-constexpr unsigned int MaxPerfcounterRestartEnVg12     = PERFCOUNTER_RESTART_ENABLE__VG12;
-
-typedef enum PERFCOUNTER_RUNEN_MODE {
-    PERFCOUNTER_RUNEN_MODE_LEVEL__VG12                 = 0x00000000,
-    PERFCOUNTER_RUNEN_MODE_EDGE__VG12                  = 0x00000001,
-} PERFCOUNTER_RUNEN_MODE;
-
-constexpr unsigned int MaxPerfcounterRunenModeVg12     = PERFCOUNTER_RUNEN_MODE_EDGE__VG12;
-
-typedef enum PERFCOUNTER_STATE_SEL0 {
-    PERFCOUNTER_STATE_SEL0_GLOBAL__VG12                = 0x00000000,
-    PERFCOUNTER_STATE_SEL0_LOCAL__VG12                 = 0x00000001,
-} PERFCOUNTER_STATE_SEL0;
-
-constexpr unsigned int MaxPerfcounterStateSel0Vg12     = PERFCOUNTER_STATE_SEL0_LOCAL__VG12;
-
-typedef enum PERFCOUNTER_STATE_SEL1 {
-    PERFCOUNTER_STATE_SEL1_GLOBAL__VG12                = 0x00000000,
-    PERFCOUNTER_STATE_SEL1_LOCAL__VG12                 = 0x00000001,
-} PERFCOUNTER_STATE_SEL1;
-
-constexpr unsigned int MaxPerfcounterStateSel1Vg12     = PERFCOUNTER_STATE_SEL1_LOCAL__VG12;
-
-typedef enum PERFCOUNTER_STATE_SEL2 {
-    PERFCOUNTER_STATE_SEL2_GLOBAL__VG12                = 0x00000000,
-    PERFCOUNTER_STATE_SEL2_LOCAL__VG12                 = 0x00000001,
-} PERFCOUNTER_STATE_SEL2;
-
-constexpr unsigned int MaxPerfcounterStateSel2Vg12     = PERFCOUNTER_STATE_SEL2_LOCAL__VG12;
-
-typedef enum PERFCOUNTER_STATE_SEL3 {
-    PERFCOUNTER_STATE_SEL3_GLOBAL__VG12                = 0x00000000,
-    PERFCOUNTER_STATE_SEL3_LOCAL__VG12                 = 0x00000001,
-} PERFCOUNTER_STATE_SEL3;
-
-constexpr unsigned int MaxPerfcounterStateSel3Vg12     = PERFCOUNTER_STATE_SEL3_LOCAL__VG12;
-
-typedef enum PERFCOUNTER_STATE_SEL4 {
-    PERFCOUNTER_STATE_SEL4_GLOBAL__VG12                = 0x00000000,
-    PERFCOUNTER_STATE_SEL4_LOCAL__VG12                 = 0x00000001,
-} PERFCOUNTER_STATE_SEL4;
-
-constexpr unsigned int MaxPerfcounterStateSel4Vg12     = PERFCOUNTER_STATE_SEL4_LOCAL__VG12;
-
-typedef enum PERFCOUNTER_STATE_SEL5 {
-    PERFCOUNTER_STATE_SEL5_GLOBAL__VG12                = 0x00000000,
-    PERFCOUNTER_STATE_SEL5_LOCAL__VG12                 = 0x00000001,
-} PERFCOUNTER_STATE_SEL5;
-
-constexpr unsigned int MaxPerfcounterStateSel5Vg12     = PERFCOUNTER_STATE_SEL5_LOCAL__VG12;
-
-typedef enum PERFCOUNTER_STATE_SEL6 {
-    PERFCOUNTER_STATE_SEL6_GLOBAL__VG12                = 0x00000000,
-    PERFCOUNTER_STATE_SEL6_LOCAL__VG12                 = 0x00000001,
-} PERFCOUNTER_STATE_SEL6;
-
-constexpr unsigned int MaxPerfcounterStateSel6Vg12     = PERFCOUNTER_STATE_SEL6_LOCAL__VG12;
-
-typedef enum PERFCOUNTER_STATE_SEL7 {
-    PERFCOUNTER_STATE_SEL7_GLOBAL__VG12                = 0x00000000,
-    PERFCOUNTER_STATE_SEL7_LOCAL__VG12                 = 0x00000001,
-} PERFCOUNTER_STATE_SEL7;
-
-constexpr unsigned int MaxPerfcounterStateSel7Vg12     = PERFCOUNTER_STATE_SEL7_LOCAL__VG12;
 
 typedef enum PerfCounter_Vals {
     DB_PERF_SEL_SC_DB_tile_sends                       = 0x00000000,
@@ -3965,27 +3552,6 @@ typedef enum PerfCounter_Vals {
 
 constexpr unsigned int MaxPerfcounterValsGfx09         = DB_PERF_SEL_DB_SC_quad_quads_with_4_pixels;
 
-typedef enum PERFMON_CNTOFF_AND_OR {
-    PERFMON_CNTOFF_OR__VG12                            = 0x00000000,
-    PERFMON_CNTOFF_AND__VG12                           = 0x00000001,
-} PERFMON_CNTOFF_AND_OR;
-
-constexpr unsigned int MaxPerfmonCntoffAndOrVg12       = PERFMON_CNTOFF_AND__VG12;
-
-typedef enum PERFMON_CNTOFF_INT_EN {
-    PERFMON_CNTOFF_INT_DISABLE__VG12                   = 0x00000000,
-    PERFMON_CNTOFF_INT_ENABLE__VG12                    = 0x00000001,
-} PERFMON_CNTOFF_INT_EN;
-
-constexpr unsigned int MaxPerfmonCntoffIntEnVg12       = PERFMON_CNTOFF_INT_ENABLE__VG12;
-
-typedef enum PERFMON_CNTOFF_INT_TYPE {
-    PERFMON_CNTOFF_INT_TYPE_LEVEL__VG12                = 0x00000000,
-    PERFMON_CNTOFF_INT_TYPE_PULSE__VG12                = 0x00000001,
-} PERFMON_CNTOFF_INT_TYPE;
-
-constexpr unsigned int MaxPerfmonCntoffIntTypeVg12     = PERFMON_CNTOFF_INT_TYPE_PULSE__VG12;
-
 typedef enum PERFMON_COUNTER_MODE {
     PERFMON_COUNTER_MODE_ACCUM                         = 0x00000000,
     PERFMON_COUNTER_MODE_ACTIVE_CYCLES                 = 0x00000001,
@@ -4017,15 +3583,6 @@ typedef enum PERFMON_SPM_MODE {
 } PERFMON_SPM_MODE;
 
 constexpr unsigned int MaxPerfmonSpmMode               = PERFMON_SPM_MODE_TEST_MODE_2;
-
-typedef enum PERFMON_STATE {
-    PERFMON_STATE_RESET__VG12                          = 0x00000000,
-    PERFMON_STATE_START__VG12                          = 0x00000001,
-    PERFMON_STATE_FREEZE__VG12                         = 0x00000002,
-    PERFMON_STATE_HW__VG12                             = 0x00000003,
-} PERFMON_STATE;
-
-constexpr unsigned int MaxPerfmonStateVg12             = PERFMON_STATE_HW__VG12;
 
 typedef enum PipeConfig {
     ADDR_SURF_P2                                       = 0x00000000,
@@ -4061,27 +3618,6 @@ typedef enum PipeTiling {
     CONFIG_4_PIPE                                      = 0x00000002,
     CONFIG_8_PIPE                                      = 0x00000003,
 } PipeTiling;
-
-typedef enum PIPE_PHYPLL_PIXEL_RATE_SOURCE {
-    PIPE_PHYPLL_PIXEL_RATE_SOURCE_UNIPHYA__VG12        = 0x00000000,
-    PIPE_PHYPLL_PIXEL_RATE_SOURCE_UNIPHYB__VG12        = 0x00000001,
-    PIPE_PHYPLL_PIXEL_RATE_SOURCE_UNIPHYC__VG12        = 0x00000002,
-    PIPE_PHYPLL_PIXEL_RATE_SOURCE_UNIPHYD__VG12        = 0x00000003,
-    PIPE_PHYPLL_PIXEL_RATE_SOURCE_UNIPHYE__VG12        = 0x00000004,
-    PIPE_PHYPLL_PIXEL_RATE_SOURCE_UNIPHYF__VG12        = 0x00000005,
-    PIPE_PHYPLL_PIXEL_RATE_SOURCE_UNIPHYG__VG12        = 0x00000006,
-} PIPE_PHYPLL_PIXEL_RATE_SOURCE;
-
-typedef enum PIPE_PIXEL_RATE_PLL_SOURCE {
-    PIPE_PIXEL_RATE_PLL_SOURCE_PHYPLL__VG12            = 0x00000000,
-    PIPE_PIXEL_RATE_PLL_SOURCE_DISPPLL__VG12           = 0x00000001,
-} PIPE_PIXEL_RATE_PLL_SOURCE;
-
-typedef enum PIPE_PIXEL_RATE_SOURCE {
-    PIPE_PIXEL_RATE_SOURCE_P0PLL__VG12                 = 0x00000000,
-    PIPE_PIXEL_RATE_SOURCE_P1PLL__VG12                 = 0x00000001,
-    PIPE_PIXEL_RATE_SOURCE_P2PLL__VG12                 = 0x00000002,
-} PIPE_PIXEL_RATE_SOURCE;
 
 typedef enum PixelPipeCounterId {
     PIXEL_PIPE_OCCLUSION_COUNT_0                       = 0x00000000,
@@ -4128,16 +3664,6 @@ typedef enum PkrYsel {
     RASTER_CONFIG_PKR_YSEL_2                           = 0x00000002,
     RASTER_CONFIG_PKR_YSEL_3                           = 0x00000003,
 } PkrYsel;
-
-typedef enum PLL_CFG_IF_SOFT_RESET {
-    PLL_CFG_IF_SOFT_RESET_NOOP__VG12                   = 0x00000000,
-    PLL_CFG_IF_SOFT_RESET_FORCE__VG12                  = 0x00000001,
-} PLL_CFG_IF_SOFT_RESET;
-
-typedef enum PM_ASSERT_RESET {
-    PM_ASSERT_RESET_0__VG12                            = 0x00000000,
-    PM_ASSERT_RESET_1__VG12                            = 0x00000001,
-} PM_ASSERT_RESET;
 
 typedef enum QuadExportFormat {
     EXPORT_UNUSED                                      = 0x00000000,
@@ -4191,16 +3717,6 @@ typedef enum ReadSize {
     READ_256_BITS                                      = 0x00000000,
     READ_512_BITS                                      = 0x00000001,
 } ReadSize;
-
-typedef enum REFCLK_CLOCK_EN {
-    REFCLK_CLOCK_EN_XTALIN_CLK__VG12                   = 0x00000000,
-    REFCLK_CLOCK_EN_ALLOW_SRC_SEL__VG12                = 0x00000001,
-} REFCLK_CLOCK_EN;
-
-typedef enum REFCLK_SRC_SEL {
-    REFCLK_SRC_SEL_PCIE_REFCLK__VG12                   = 0x00000000,
-    REFCLK_SRC_SEL_CPL_REFCLK__VG12                    = 0x00000001,
-} REFCLK_SRC_SEL;
 
 typedef enum RingCounterControl {
     COUNTER_RING_SPLIT                                 = 0x00000000,
@@ -6133,11 +5649,6 @@ typedef enum SQ_WAVE_TYPE {
     SQ_WAVE_TYPE_PS1                                   = 0x00000007,
 } SQ_WAVE_TYPE;
 
-typedef enum STATIC_SCREEN_SMU_INTR {
-    STATIC_SCREEN_SMU_INTR_NOOP__VG12                  = 0x00000000,
-    SET_STATIC_SCREEN_SMU_INTR__VG12                   = 0x00000001,
-} STATIC_SCREEN_SMU_INTR;
-
 typedef enum StencilFormat {
     STENCIL_INVALID                                    = 0x00000000,
     STENCIL_8                                          = 0x00000001,
@@ -6979,21 +6490,6 @@ typedef enum SX_PERFCOUNTER_VALS {
 } SX_PERFCOUNTER_VALS;
 
 constexpr unsigned int MaxSxPerfcounterValsGfx09       = SX_PERF_SEL_DB3_SIZE;
-
-typedef enum SYMCLK_FE_FORCE_EN {
-    SYMCLK_FE_FORCE_EN_DISABLE__VG12                   = 0x00000000,
-    SYMCLK_FE_FORCE_EN_ENABLE__VG12                    = 0x00000001,
-} SYMCLK_FE_FORCE_EN;
-
-typedef enum SYMCLK_FE_FORCE_SRC {
-    SYMCLK_FE_FORCE_SRC_UNIPHYA__VG12                  = 0x00000000,
-    SYMCLK_FE_FORCE_SRC_UNIPHYB__VG12                  = 0x00000001,
-    SYMCLK_FE_FORCE_SRC_UNIPHYC__VG12                  = 0x00000002,
-    SYMCLK_FE_FORCE_SRC_UNIPHYD__VG12                  = 0x00000003,
-    SYMCLK_FE_FORCE_SRC_UNIPHYE__VG12                  = 0x00000004,
-    SYMCLK_FE_FORCE_SRC_UNIPHYF__VG12                  = 0x00000005,
-    SYMCLK_FE_FORCE_SRC_UNIPHYG__VG12                  = 0x00000006,
-} SYMCLK_FE_FORCE_SRC;
 
 typedef enum TA_PERFCOUNT_SEL {
     TA_PERF_SEL_NULL                                   = 0x00000000,
@@ -9029,16 +8525,6 @@ typedef enum WD_PERFCOUNT_SELECT {
 } WD_PERFCOUNT_SELECT;
 
 constexpr unsigned int MaxWdPerfcountSelect            = wd_perf_utcl1_stall_utcl2_event;
-
-typedef enum XTAL_REF_CLOCK_SOURCE_SEL {
-    XTAL_REF_CLOCK_SOURCE_SEL_XTALIN__VG12             = 0x00000000,
-    XTAL_REF_CLOCK_SOURCE_SEL_PPLL__VG12               = 0x00000001,
-} XTAL_REF_CLOCK_SOURCE_SEL;
-
-typedef enum XTAL_REF_SEL {
-    XTAL_REF_SEL_1X__VG12                              = 0x00000000,
-    XTAL_REF_SEL_2X__VG12                              = 0x00000001,
-} XTAL_REF_SEL;
 
 typedef enum ZFormat {
     Z_INVALID                                          = 0x00000000,

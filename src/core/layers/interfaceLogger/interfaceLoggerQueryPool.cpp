@@ -96,14 +96,15 @@ void QueryPool::Destroy()
 
 // =====================================================================================================================
 Result QueryPool::Reset(
-    uint32 startQuery,
-    uint32 queryCount)
+    uint32      startQuery,
+    uint32      queryCount,
+    const void* pMappedCpuAddr)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::QueryPoolReset;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueryPoolDecorator::Reset(startQuery, queryCount);
+    const Result result   = QueryPoolDecorator::Reset(startQuery, queryCount, pMappedCpuAddr);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -112,6 +113,7 @@ Result QueryPool::Reset(
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("startQuery", startQuery);
         pLogContext->KeyAndValue("queryCount", queryCount);
+        pLogContext->KeyAndValue("pMappedCpuAddr", pMappedCpuAddr);
         pLogContext->EndInput();
 
         pLogContext->BeginOutput();

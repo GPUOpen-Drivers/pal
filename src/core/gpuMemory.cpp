@@ -971,4 +971,40 @@ bool GpuMemory::IsBigPage() const
     return false;
 }
 
+// =====================================================================================================================
+// Returns an acceptable physical memory address base alignment for the given gpu memory object. To avoid fragmentation
+// this should be a small value unless there are hardware or OS reasons to increase it.
+gpusize GpuMemory::GetPhysicalAddressAlignment() const
+{
+    // By default copy the virtual address alignment. This is the safest thing we can do and will meet all HW
+    // requirements, assuming the caller gave us a properly aligned alignment as required by the PAL interface.
+    gpusize alignment = m_desc.alignment;
+
+    // Now if this GPU memory object doesn't place special requirements on the physical address alignment we want to
+    // pick a much smaller alignment to avoid heap fragmentation. Clearly this means we can't change the alignment if
+    // we're going to use physical engines like some of the video engines or the display controller. Conceptually any
+    // hardware that uses virtual addresses will never care about the physical address so we can make its alignment as
+    // low as we want. Note that the PhysicalEnginesAvailable check is total overkill and effectively forces large
+    // alignments for all allocations if someone creates a physical queue, however we have no other choice because
+    // we don't know if this allocation will be used on a physical engine until we see the patch list at submit time.
+    //
+    // However when non-PAL code opens a shared resource it may use the physical alignment as the virtual alignment
+    // which means that we need to tie the two alignments together to avoid corruption. In theory we can fix this issue
+    // by modifying the KMD and UMDs but that's a big can of worms so let's just keep the larger alignment for now.
+    if ((IsSvmAlloc() == false)         &&
+        (IsShareable() == false)        &&
+        (IsFlippable() == false)        &&
+        (IsXdmaBuffer() == false)       &&
+        (IsInterprocess() == false)     &&
+        (IsBusAddressable() == false)   &&
+        (IsTurboSyncSurface() == false) &&
+        (m_pDevice->PhysicalEnginesAvailable() == false))
+    {
+        // Clamp down to the real memory allocation granularity (typically 4KB).
+        alignment = Min(alignment, m_pDevice->MemoryProperties().realMemAllocGranularity);
+    }
+
+    return alignment;
+}
+
 } // Pal

@@ -247,60 +247,6 @@ namespace DevDriver
             return result;
         }
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_LONG_RGP_TRACES_VERSION)
-        Result RGPClient::EndTrace(uint32* pNumChunks, uint64* pTraceSizeInBytes)
-        {
-            Result result = Result::Error;
-
-            if ((m_traceContext.state == TraceState::TraceRequested) &&
-                (pNumChunks != nullptr)                              &&
-                (pTraceSizeInBytes != nullptr))
-            {
-                if (GetSessionVersion() >= RGP_TRACE_PROGRESS_VERSION)
-                {
-                    RGPPayload payload = {};
-
-                    const uint32 headerTimeout = kRGPChunkTimeoutInMs * (m_traceContext.traceInfo.parameters.numPreparationFrames + 1);
-
-                    // Attempt to receive the trace data header.
-                    result = ReceivePayload(&payload, headerTimeout);
-                    if ((result == Result::Success) && (payload.command == RGPMessage::TraceDataHeader))
-                    {
-                        // We've successfully received the trace data header. Check if the trace was successful.
-                        result = payload.traceDataHeader.result;
-                        if (result == Result::Success)
-                        {
-                            m_traceContext.state = TraceState::TraceCompleted;
-                            m_traceContext.numChunks = payload.traceDataHeader.numChunks;
-                            m_traceContext.numChunksReceived = 0;
-
-                            *pNumChunks = payload.traceDataHeader.numChunks;
-                            *pTraceSizeInBytes = payload.traceDataHeader.sizeInBytes;
-                        }
-                        else
-                        {
-                            // Reset the trace state.
-                            m_traceContext.state = TraceState::Error;
-
-                            // Don't overwrite the result from the trace header here. We want to return that to the caller.
-                        }
-                    }
-                    else
-                    {
-                        m_traceContext.state = TraceState::Error;
-                        result = Result::Error;
-                    }
-                }
-                else
-                {
-                    m_traceContext.state = TraceState::TraceCompleted;
-                    result = Result::Unavailable;
-                }
-            }
-
-            return result;
-        }
-#else
         Result RGPClient::EndTrace(uint32* pNumChunks, uint64* pTraceSizeInBytes, uint32 timeoutInMs)
         {
             Result result = Result::Error;
@@ -356,7 +302,6 @@ namespace DevDriver
 
             return result;
         }
-#endif
 
         Result RGPClient::ReadTraceDataChunk()
         {

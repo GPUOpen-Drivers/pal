@@ -86,7 +86,6 @@ void SettingsService::UnregisterComponent(
     }
 }
 
-#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
 // =====================================================================================================================
 // Handles settings requests from the developer driver bus
 Result SettingsService::HandleRequest(
@@ -462,7 +461,6 @@ Result SettingsService::HandleSetValue(
 
     return result;
 }
-#endif
 
 } // SettingsURIService
 } // DevDriver

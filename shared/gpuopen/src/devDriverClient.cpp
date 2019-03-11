@@ -52,41 +52,6 @@ namespace DevDriver
         , m_createInfo(createInfo)
     {}
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
-    DevDriverClient::DevDriverClient(const DevDriverClientCreateInfo& createInfo)
-        : m_pMsgChannel(nullptr)
-        , m_pClients(createInfo.transportCreateInfo.allocCb)
-        , m_pUnusedClients(createInfo.transportCreateInfo.allocCb)
-        , m_allocCb(createInfo.transportCreateInfo.allocCb)
-        , m_createInfo()
-    {
-        m_createInfo.initialFlags = createInfo.transportCreateInfo.initialFlags;
-        m_createInfo.componentType = createInfo.transportCreateInfo.componentType;
-        m_createInfo.createUpdateThread = createInfo.transportCreateInfo.createUpdateThread;
-        Platform::Strncpy(&m_createInfo.clientDescription[0],
-                          &createInfo.transportCreateInfo.clientDescription[0],
-                          sizeof(m_createInfo.clientDescription));
-        switch (createInfo.transportCreateInfo.type)
-        {
-        case TransportType::Local:
-        {
-            m_createInfo.connectionInfo = kDefaultNamedPipe;
-            break;
-        }
-        case TransportType::Remote:
-        {
-            m_createInfo.connectionInfo = createInfo.transportCreateInfo.hostInfo;
-            // Explicitly overwrite connectionInfo.type since it didn't exist originally.
-            m_createInfo.connectionInfo.type = createInfo.transportCreateInfo.type;
-            break;
-        }
-        default:
-            DD_UNREACHABLE();
-            break;
-        }
-    }
-#endif
-
     DevDriverClient::~DevDriverClient()
     {
         Destroy();

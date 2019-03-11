@@ -156,21 +156,6 @@ struct ValidateDrawInfo
     bool   useOpaque;     // if draw opaque
 };
 
-// Tracks the state of a user-data table stored in GPU memory.  The tables contents are managed using CE RAM.
-struct CeRamUserDataTableState
-{
-    gpusize  gpuVirtAddr;   // GPU virtual address where the current copy of the table data is stored.
-    // Offset into CE RAM (in bytes!) where the staging area is located. This can be zero if the table is being
-    // managed using CPU updates instead of the constant engine.
-    uint32   ceRamOffset;
-    struct
-    {
-        uint32  sizeInDwords : 31; // Size of one full instance of the user-data table, in DWORD's.
-        uint32  dirty        :  1; // Indicates that the CPU copy of the user-data table is more up to date than the
-                                   // copy currently in GPU memory and should be updated before the next dispatch.
-    };
-};
-
 // =====================================================================================================================
 // Class for executing basic hardware-specific functionality common to all universal command buffers.
 class UniversalCmdBuffer : public GfxCmdBuffer
@@ -231,6 +216,9 @@ public:
     // bound to NULL. Set all 1s so NULL color targets will be bound when BuildNullColorTargets() is called first time.
     static constexpr uint32 NoNullColorTargetMask = ((1 << MaxColorTargets) - 1);
 
+    bool UseCpuPathInsteadOfCeRam() const
+        { return (m_buildFlags.useCpuPathForTableUpdates != 0); }
+
 protected:
     UniversalCmdBuffer(
         const GfxDevice&           device,
@@ -284,14 +272,5 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
 };
-
-// =====================================================================================================================
-// Helper function for resetting a user-data table which is managed using CE RAM at the beginning of a command buffer.
-void PAL_INLINE ResetUserDataTable(
-    CeRamUserDataTableState* pTable)
-{
-    pTable->gpuVirtAddr  = 0;
-    pTable->dirty        = 0;
-}
 
 } // Pal
