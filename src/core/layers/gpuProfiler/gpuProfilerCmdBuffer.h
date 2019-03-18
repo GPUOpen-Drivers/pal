@@ -755,9 +755,19 @@ private:
         uint8 u8All;
     } m_sampleFlags;
 
-    // Track current bound pipeline/shader state during replay.
-    PipelineInfo m_computePipelineInfo;
-    PipelineInfo m_graphicsPipelineInfo;
+    // Track current bound compute pipeline/shader state during replay.
+    struct
+    {
+        PipelineInfo pipelineInfo;
+        uint64       apiPsoHash;
+    } m_cpState;
+
+    // Track current bound graphics pipeline/shader state during replay.
+    struct
+    {
+        PipelineInfo pipelineInfo;
+        uint64       apiPsoHash;
+    } m_gfxpState;
 
     // State for disabling data gathering (e.g., timings, counters, etc.) for calls made in a larger timed scope.  For
     // example, commands in a while loop may play back multiple times, so we gather data for the entire while loop, and

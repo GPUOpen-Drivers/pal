@@ -519,75 +519,6 @@ uint32* CmdStream::WriteSetSeqShRegs(
 }
 
 // =====================================================================================================================
-// Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
-// Returns a pointer to the next unused DWORD in pCmdSpace.
-template <Pm4ShaderType shaderType, bool pm4OptImmediate>
-uint32* CmdStream::WriteSetShRegDataOffset(
-    uint32                           regAddr,
-    uint32                           dataOffset,
-    uint32*                          pCmdSpace,
-    PFP_SET_SH_REG_OFFSET_index_enum index)
-{
-    PAL_ASSERT(m_flags.optModeImmediate == pm4OptImmediate);
-
-    if (pm4OptImmediate)
-    {
-        PM4PFP_SET_SH_REG_OFFSET setShRegOffset;
-
-        const size_t totalDwords = m_cmdUtil.BuildSetShRegDataOffset(regAddr,
-                                                                     dataOffset,
-                                                                     shaderType,
-                                                                     &setShRegOffset);
-        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetShShRegOffset(setShRegOffset, totalDwords, pCmdSpace);
-    }
-    else
-    {
-        pCmdSpace += m_cmdUtil.BuildSetShRegDataOffset(regAddr,
-                                                       dataOffset,
-                                                       shaderType,
-                                                       pCmdSpace);
-    }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Wrapper for the real WriteSetShRegDataOffset() for when the caller doesn't know if the immediate pm4 optimizer is
-// enabled.
-template <Pm4ShaderType shaderType>
-uint32* CmdStream::WriteSetShRegDataOffset(
-    uint32                           regAddr,
-    uint32                           regData,
-    uint32*                          pCmdSpace,
-    PFP_SET_SH_REG_OFFSET_index_enum index)
-{
-    if (m_flags.optModeImmediate)
-    {
-        pCmdSpace = WriteSetShRegDataOffset<shaderType, true>(regAddr, regData, pCmdSpace, index);
-    }
-    else
-    {
-        pCmdSpace = WriteSetShRegDataOffset<shaderType, false>(regAddr, regData, pCmdSpace, index);
-    }
-
-    return pCmdSpace;
-}
-
-// Instantiate the template for the linker.
-template
-uint32* CmdStream::WriteSetShRegDataOffset<ShaderGraphics>(
-    uint32                           regAddr,
-    uint32                           regData,
-    uint32*                          pCmdSpace,
-    PFP_SET_SH_REG_OFFSET_index_enum index);
-template
-uint32* CmdStream::WriteSetShRegDataOffset<ShaderCompute>(
-    uint32                           regAddr,
-    uint32                           regData,
-    uint32*                          pCmdSpace,
-    PFP_SET_SH_REG_OFFSET_index_enum index);
-
-// =====================================================================================================================
 // Helper function for writing the user-SGPR's mapped to user-data entries for a graphics shader stage.
 template <bool IgnoreDirtyFlags>
 uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
@@ -944,7 +875,7 @@ uint32* CmdStream::WriteSetOnePerfCtrReg(
 {
     uint32* pReturnVal = nullptr;
 
-    if (m_cmdUtil.IsPrivilegedConfigReg(regAddr))
+    if (m_cmdUtil.IsUserConfigReg(regAddr) == false)
     {
         // Protected register: use our COPY_DATA backdoor to write the register.
         pReturnVal = WriteSetOnePrivilegedConfigReg(regAddr, value, pCmdSpace);
@@ -968,11 +899,10 @@ uint32* CmdStream::WriteSetOnePrivilegedConfigReg(
     uint32     value,
     uint32*    pCmdSpace) // [out] Build the PM4 packet in this buffer.
 {
-    // Note: On Gfx7+, all privileged registers need to be written with the DST_SYS_PERF_COUNTER dest-select. On Gfx6,
-    // only certain MC registers require this.
-    const ME_COPY_DATA_dst_sel_enum dstSelect = (m_cmdUtil.IsPrivilegedConfigReg(regAddr)
-                                                 ? dst_sel__me_copy_data__perfcounters
-                                                 : dst_sel__me_copy_data__mem_mapped_register);
+    // We must use the perfcounters select if the target isn't a user config register.
+    const ME_COPY_DATA_dst_sel_enum dstSelect = (m_cmdUtil.IsUserConfigReg(regAddr)
+                                                 ? dst_sel__me_copy_data__mem_mapped_register
+                                                 : dst_sel__me_copy_data__perfcounters);
 
     return pCmdSpace + m_cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
                                                        dstSelect,

@@ -795,14 +795,14 @@ void PerfExperiment::IssueResume(
 // Optionally pause the recording of performance data if this Experiment does not record during internal operations
 // (e.g., blts, resource preparation, etc.).
 void PerfExperiment::BeginInternalOps(
-    CmdStream* pCmdStream
+    Pal::CmdStream* pCmdStream
     ) const
 {
     if (SampleInternalOperations() == false)
     {
         // If this Experiment doesn't sample internal operations, delegate to the hardware layer to pause the
         // collection of data.
-        IssuePause(pCmdStream);
+        IssuePause(static_cast<CmdStream*>(pCmdStream));
     }
 }
 
@@ -810,14 +810,14 @@ void PerfExperiment::BeginInternalOps(
 // Optionally resumethe recording of performance data if this Experiment does not record during internal operations
 // (e.g., blts, resource preparation, etc.).
 void PerfExperiment::EndInternalOps(
-    CmdStream* pCmdStream
+    Pal::CmdStream* pCmdStream
     ) const
 {
     if (SampleInternalOperations() == false)
     {
         // If this Experiment doesn't sample internal operations, delegate to the hardware layer to pause the
         // collection of data.
-        IssueResume(pCmdStream);
+        IssueResume(static_cast<CmdStream*>(pCmdStream));
     }
 }
 

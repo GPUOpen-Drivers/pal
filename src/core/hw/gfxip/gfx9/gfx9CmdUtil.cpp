@@ -385,17 +385,8 @@ bool CmdUtil::IsContextReg(
 }
 
 // =====================================================================================================================
-// True if the specified register is in a privileged register space.
-bool CmdUtil::IsPrivilegedConfigReg(
-    uint32 regAddr)
-{
-    // On Gfx7+, any config register which is not in the user-config space is considered privileged.
-    return ((regAddr >= CONFIG_SPACE_START) && (regAddr <= CONFIG_SPACE_END));
-}
-
-// =====================================================================================================================
 // True if the specified register is in user-config reg space, false otherwise.
-static PAL_INLINE bool IsUserConfigReg(
+bool CmdUtil::IsUserConfigReg(
     uint32 regAddr)
 {
     return ((regAddr >= UCONFIG_SPACE_START) && (regAddr <= UCONFIG_SPACE_END));
@@ -1911,7 +1902,7 @@ size_t CmdUtil::BuildRegRmw(
     void*  pBuffer  // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    PAL_ASSERT((IsPrivilegedConfigReg(regAddr) == false) && (IsContextReg(regAddr) == false));
+    PAL_ASSERT(IsUserConfigReg(regAddr));
 
     constexpr size_t PacketSize = RegRmwSizeDwords;
     auto*const       pPacket    = static_cast<PM4_ME_REG_RMW*>(pBuffer);
@@ -2813,35 +2804,6 @@ size_t CmdUtil::BuildSetSeqShRegsIndex(
         pPacket->bitfields2.index      = index;
         pPacket->bitfields2.reg_offset = startRegAddr - PERSISTENT_SPACE_START;
     }
-
-    return packetSize;
-}
-
-// =====================================================================================================================
-// Builds a PM4 packet which sets indirect data for a single Graphics SH register starting at regAddr. The CP adds this
-// data to the indirect base address set via SET_BASE packet and writes it to regAddr
-// Returns the size of the PM4 command assembled, in DWORDs.
-size_t CmdUtil::BuildSetShRegDataOffset(
-    uint32                           regAddr,
-    uint32                           dataOffset,
-    Pm4ShaderType                    shaderType,
-    void*                            pBuffer,      // [out] Build the PM4 packet in this buffer.
-    PFP_SET_SH_REG_OFFSET_index_enum index
-    ) const
-{
-#if PAL_ENABLE_PRINTS_ASSERTS
-    CheckShadowedShReg(shaderType, regAddr);
-#endif
-
-    const uint32 packetSize = (sizeof(PM4PFP_SET_SH_REG_OFFSET) / sizeof(uint32));
-    auto*const   pPacket    = static_cast<PM4PFP_SET_SH_REG_OFFSET*>(pBuffer);
-
-    pPacket->header.u32All         = Type3Header(IT_SET_SH_REG_OFFSET, packetSize, false, shaderType);
-    pPacket->ordinal2              = 0;
-    pPacket->bitfields2.reg_offset = regAddr - PERSISTENT_SPACE_START;
-    pPacket->bitfields2.index      = index;
-    pPacket->data_offset           = dataOffset;
-    pPacket->dummy                 = 0;
 
     return packetSize;
 }

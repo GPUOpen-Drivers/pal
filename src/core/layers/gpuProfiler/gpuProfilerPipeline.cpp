@@ -155,7 +155,6 @@ bool Pipeline::OpenUniqueDumpFile(
                       sizeof(header.apiShaderType));
         header.shaderHash.lower      = dumpInfo.hash.lower;
         header.shaderHash.upper      = dumpInfo.hash.upper;
-        header.pipelineHash          = dumpInfo.pipelineHash;
         header.compilerHash          = dumpInfo.compilerHash;
         header.payloadSize           = 0;
         header.numShaderChunks       = 0;
@@ -202,11 +201,10 @@ void Pipeline::Destroy()
             Util::File file;
 
             ShaderDumpInfo dumpInfo = {};
-            dumpInfo.pipelineHash   = info.palRuntimeHash;
-            dumpInfo.compilerHash   = info.internalPipelineHash.stable;
-            dumpInfo.type           = type;
-            dumpInfo.hash           = info.shader[i].hash;
-            dumpInfo.pFile          = &file;
+            dumpInfo.compilerHash = info.internalPipelineHash.stable;
+            dumpInfo.type         = type;
+            dumpInfo.hash         = info.shader[i].hash;
+            dumpInfo.pFile        = &file;
 
             uint32     numShaders  = 0;
             size_t     payloadSize = 0;
@@ -256,7 +254,6 @@ void Pipeline::Destroy()
                           sizeof(header.apiShaderType));
             header.shaderHash.lower      = dumpInfo.hash.lower;
             header.shaderHash.upper      = dumpInfo.hash.upper;
-            header.pipelineHash          = dumpInfo.pipelineHash;
             header.compilerHash          = dumpInfo.compilerHash;
             header.payloadSize           = payloadSize;
             header.numShaderChunks       = numShaders;

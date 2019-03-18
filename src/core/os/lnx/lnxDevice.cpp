@@ -1763,9 +1763,6 @@ Result Device::CreateInternalImage(
     void*                          pPlacementAddr,
     Pal::Image**                   ppImage)
 {
-    // NOTE: MGPU is not yet supported on Linux.
-    PAL_ASSERT(internalCreateInfo.pOriginalImage == nullptr);
-
     (*ppImage) = PAL_PLACEMENT_NEW(pPlacementAddr) Image(this, createInfo, internalCreateInfo);
 
     Result result = (*ppImage)->Init();
@@ -3008,14 +3005,14 @@ Result Device::UpdateExternalImageInfo(
 }
 
 // =====================================================================================================================
-// Create Presentable Memory Object. Parameter sharedHandle is only useful for Android, discard it for Linux case.
+// Create Presentable Memory Object.
 Result Device::CreatePresentableMemoryObject(
-    Image*           pImage,
-    void*            pMemObjMem,
-    OsDisplayHandle  sharedHandle,
-    Pal::GpuMemory** ppMemObjOut)
+    const PresentableImageCreateInfo&   createInfo,
+    Image*                              pImage,
+    void*                               pMemObjMem,
+    Pal::GpuMemory**                    ppMemObjOut)
 {
-    return Image::CreatePresentableMemoryObject(this, pImage, pMemObjMem, ppMemObjOut);
+    return Image::CreatePresentableMemoryObject(this, createInfo, pImage, pMemObjMem, ppMemObjOut);
 }
 
 // =====================================================================================================================

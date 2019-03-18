@@ -82,6 +82,7 @@ struct UserDataEntries
 struct PipelineState
 {
     const Pipeline*           pPipeline;
+    uint64                    apiPsoHash;
     const BorderColorPalette* pBorderColorPalette;
 
     union
@@ -329,7 +330,7 @@ public:
     virtual void AddQuery(QueryPoolType queryPoolType, QueryControlFlags flags) = 0;
     virtual void RemoveQuery(QueryPoolType queryPoolType) = 0;
 
-    gpusize TimestampGpuVirtAddr() const { return m_pTimestampMem->Desc().gpuVirtAddr + m_timestampOffset; }
+    gpusize TimestampGpuVirtAddr() const { return m_timestampGpuVa; }
     GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
 
     virtual void PushGraphicsState() = 0;
@@ -506,9 +507,8 @@ private:
     // Number of active queries in this command buffer.
     uint32  m_numActiveQueries[static_cast<size_t>(QueryPoolType::Count)];
 
-    GpuMemory*  m_pTimestampMem;       // Memory and offset used to hold a cache flush invalidate timestamp event.
-    gpusize     m_timestampOffset;
-    GpuEvent*   m_pInternalEvent;      // PAL-initiated gpuEvent for Release/Acquire-based barrier. CPU-invisible.
+    GpuEvent*  m_pInternalEvent;    // Internal Event for Release/Acquire based barrier.  CPU invisible.
+    gpusize    m_timestampGpuVa;    // GPU virtual address of memory used for cache flush & inv timestamp events.
 
     uint32  m_computeStateFlags;       // The flags that CmdSaveComputeState was called with.
     bool    m_spmTraceEnabled;         // Used to indicate whether Spm Trace has been enabled through this command

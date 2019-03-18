@@ -1092,8 +1092,13 @@ static void CmdBindPipelineToString(
         Snprintf(pString, StringLength, "PipelineUniqueHash      = 0x%016llX", info.internalPipelineHash.unique);
         pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
         Snprintf(pString, StringLength, "PipelinePalRuntimeHash  = 0x%016llX", info.palRuntimeHash);
         pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+#else
+        Snprintf(pString, StringLength, "PipelineApiPsoHash      = 0x%016llX", params.apiPsoHash);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+#endif
     }
     else
     {

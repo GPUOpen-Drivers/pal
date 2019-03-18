@@ -569,7 +569,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
         //
         // Is it legal for the shader to view 3D images as 2D?
         ImageViewInfo imageView = {};
-        RpmUtil::BuildImageViewInfo(&imageView, srcImage, viewRange, srcFormat, false, device.TexOptLevel());
+        RpmUtil::BuildImageViewInfo(&imageView, srcImage, viewRange, srcFormat, srcImageLayout, device.TexOptLevel());
 
         // Create an embedded SRD table and bind it to user data 1 for pixel work.
         uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -914,12 +914,22 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                     ImageViewInfo imageView[2] = {};
                     SubresRange viewRange      = { pRegions[idx].srcSubres, 1, 1 };
 
-                    RpmUtil::BuildImageViewInfo(&imageView[0], srcImage, viewRange, srcFormat, false, texOptLevel);
+                    RpmUtil::BuildImageViewInfo(&imageView[0],
+                                                srcImage,
+                                                viewRange,
+                                                srcFormat,
+                                                srcImageLayout,
+                                                texOptLevel);
 
                     srcFormat.format = ChNumFormat::X8_Uint;
                     viewRange        = { pRegions[secondSurface].srcSubres, 1, 1 };
 
-                    RpmUtil::BuildImageViewInfo(&imageView[1], srcImage, viewRange, srcFormat, false, texOptLevel);
+                    RpmUtil::BuildImageViewInfo(&imageView[1],
+                                                srcImage,
+                                                viewRange,
+                                                srcFormat,
+                                                srcImageLayout,
+                                                texOptLevel);
                     device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
                 }
                 else
@@ -928,7 +938,12 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                     ImageViewInfo     imageView = {};
                     const SubresRange viewRange = { pRegions[idx].srcSubres, 1, 1 };
 
-                    RpmUtil::BuildImageViewInfo(&imageView, srcImage, viewRange, srcFormat, false, texOptLevel);
+                    RpmUtil::BuildImageViewInfo(&imageView,
+                                                srcImage,
+                                                viewRange,
+                                                srcFormat,
+                                                srcImageLayout,
+                                                texOptLevel);
                     device.CreateImageViewSrds(1, &imageView, pSrdTable);
                 }
 
@@ -1196,10 +1211,21 @@ void RsrcProcMgr::CopyImageCompute(
         ImageViewInfo imageView[2] = {};
         SubresRange   viewRange    = { copyRegion.dstSubres, 1, numSlices };
 
-        RpmUtil::BuildImageViewInfo(&imageView[0], dstImage, viewRange, dstFormat, true, device.TexOptLevel());
+        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
+        RpmUtil::BuildImageViewInfo(&imageView[0],
+                                    dstImage,
+                                    viewRange,
+                                    dstFormat,
+                                    dstImageLayout,
+                                    device.TexOptLevel());
 
         viewRange.startSubres = copyRegion.srcSubres;
-        RpmUtil::BuildImageViewInfo(&imageView[1], srcImage, viewRange, srcFormat, false, device.TexOptLevel());
+        RpmUtil::BuildImageViewInfo(&imageView[1],
+                                    srcImage,
+                                    viewRange,
+                                    srcFormat,
+                                    srcImageLayout,
+                                    device.TexOptLevel());
 
         // The shader treats all images as 2D arrays which means we need to override the view type to 2D. We also used
         // to do this for 3D images but that caused test failures when the images used mipmaps because the HW expected
@@ -1761,7 +1787,11 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
 
         ImageViewInfo     imageView = {};
         const SubresRange viewRange = { copyRegion.imageSubres, 1, copyRegion.numSlices };
-        RpmUtil::BuildImageViewInfo(&imageView, image, viewRange, viewFormat, isImageDst, device.TexOptLevel());
+        if (isImageDst)
+        {
+            PAL_ASSERT(TestAnyFlagSet(imageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
+        }
+        RpmUtil::BuildImageViewInfo(&imageView, image, viewRange, viewFormat, imageLayout, device.TexOptLevel());
         imageView.flags.includePadding = includePadding;
 
         device.CreateImageViewSrds(1, &imageView, pUserData);
@@ -2274,10 +2304,11 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         SubresRange   viewRange    = { copyRegion.srcSubres, 1, copyRegion.numSlices };
 
         RpmUtil::BuildImageViewInfo(
-            &imageView[0], *pSrcImage, viewRange, srcFormat, false, device.TexOptLevel());
+            &imageView[0], *pSrcImage, viewRange, srcFormat, srcImageLayout, device.TexOptLevel());
         viewRange.startSubres = copyRegion.dstSubres;
+        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
         RpmUtil::BuildImageViewInfo(
-            &imageView[1], *pDstImage, viewRange, dstFormat, true, device.TexOptLevel());
+            &imageView[1], *pDstImage, viewRange, dstFormat, dstImageLayout, device.TexOptLevel());
 
         if (isTex3d == false)
         {
@@ -2683,11 +2714,20 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             ImageViewInfo imageView[2] = {};
             SubresRange   viewRange    = { copyRegion.dstSubres, 1, copyRegion.numSlices };
 
-            RpmUtil::BuildImageViewInfo(
-                &imageView[0], *pDstImage, viewRange, dstFormat, true, device.TexOptLevel());
+            PAL_ASSERT(TestAnyFlagSet(copyInfo.dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
+            RpmUtil::BuildImageViewInfo(&imageView[0],
+                                        *pDstImage,
+                                        viewRange,
+                                        dstFormat,
+                                        copyInfo.dstImageLayout,
+                                        device.TexOptLevel());
             viewRange.startSubres = copyRegion.srcSubres;
-            RpmUtil::BuildImageViewInfo(
-                &imageView[1], *pSrcImage, viewRange, srcFormat, false, device.TexOptLevel());
+            RpmUtil::BuildImageViewInfo(&imageView[1],
+                                        *pSrcImage,
+                                        viewRange,
+                                        srcFormat,
+                                        copyInfo.srcImageLayout,
+                                        device.TexOptLevel());
 
             if (is3d == false)
             {
@@ -2853,15 +2893,24 @@ void RsrcProcMgr::ConvertYuvToRgb(
         }
 
         const SubresRange dstRange = { region.rgbSubres, 1, region.sliceCount };
-        RpmUtil::BuildImageViewInfo(&viewInfo[0], dstImage, dstRange, dstFormat, true, device.TexOptLevel());
+        RpmUtil::BuildImageViewInfo(&viewInfo[0],
+                                    dstImage,
+                                    dstRange,
+                                    dstFormat,
+                                    RpmUtil::DefaultRpmLayoutShaderWrite,
+                                    device.TexOptLevel());
 
         for (uint32 view = 1; view < viewCount; ++view)
         {
             const auto& cscViewInfo = cscInfo.viewInfoYuvToRgb[view - 1];
 
             const SubresRange srcRange = { { cscViewInfo.aspect, 0, region.yuvStartSlice }, 1, region.sliceCount };
-            RpmUtil::BuildImageViewInfo(
-                &viewInfo[view], srcImage, srcRange, cscViewInfo.swizzledFormat, false, device.TexOptLevel());
+            RpmUtil::BuildImageViewInfo(&viewInfo[view],
+                                        srcImage,
+                                        srcRange,
+                                        cscViewInfo.swizzledFormat,
+                                        RpmUtil::DefaultRpmLayoutRead,
+                                        device.TexOptLevel());
         }
 
         // Calculate the absolute value of dstExtent, which will get fed to the shader.
@@ -3002,7 +3051,7 @@ void RsrcProcMgr::ConvertRgbToYuv(
 
         const SubresRange srcRange = { region.rgbSubres, 1, region.sliceCount };
         RpmUtil::BuildImageViewInfo(
-            &viewInfo[0], srcImage, srcRange, srcFormat, false, device.TexOptLevel());
+            &viewInfo[0], srcImage, srcRange, srcFormat, RpmUtil::DefaultRpmLayoutRead, device.TexOptLevel());
 
         RpmUtil::RgbYuvConversionInfo copyInfo = { };
 
@@ -3058,8 +3107,12 @@ void RsrcProcMgr::ConvertRgbToYuv(
             const auto& cscViewInfo = cscInfo.viewInfoRgbToYuv[pass];
 
             const SubresRange dstRange = { { cscViewInfo.aspect, 0, region.yuvStartSlice }, 1, region.sliceCount };
-            RpmUtil::BuildImageViewInfo(
-                &viewInfo[1], dstImage, dstRange, cscViewInfo.swizzledFormat, true, device.TexOptLevel());
+            RpmUtil::BuildImageViewInfo(&viewInfo[1],
+                                        dstImage,
+                                        dstRange,
+                                        cscViewInfo.swizzledFormat,
+                                        RpmUtil::DefaultRpmLayoutShaderWrite,
+                                        device.TexOptLevel());
 
             // Build RGB to YUV color-space-conversion table constant buffer.
             RpmUtil::SetupRgbToYuvCscTable(dstImageInfo.swizzledFormat.format, pass, cscTable, &copyInfo);
@@ -4102,7 +4155,13 @@ void RsrcProcMgr::SlowClearCompute(
         // mip's clear range and use a raw format.
         const uint32 DataDwords = NumBytesToNumDwords(sizeof(userData));
         ImageViewInfo imageView = {};
-        RpmUtil::BuildImageViewInfo(&imageView, dstImage, singleMipRange, rawFormat, true, device.TexOptLevel());
+        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
+        RpmUtil::BuildImageViewInfo(&imageView,
+                                    dstImage,
+                                    singleMipRange,
+                                    rawFormat,
+                                    dstImageLayout,
+                                    device.TexOptLevel());
 
         // The default clear box is the entire subresource. This will be changed per-dispatch if boxes are enabled.
         Extent3d clearExtent = subResInfo.extentTexels;
@@ -4879,7 +4938,12 @@ void RsrcProcMgr::ResolveImageGraphics(
             // Populate the table with an image view of the source image.
             ImageViewInfo     imageView = { };
             const SubresRange viewRange = { srcSubres, 1, 1 };
-            RpmUtil::BuildImageViewInfo(&imageView, srcImage, viewRange, srcFormat, false, device.TexOptLevel());
+            RpmUtil::BuildImageViewInfo(&imageView,
+                                        srcImage,
+                                        viewRange,
+                                        srcFormat,
+                                        srcImageLayout,
+                                        device.TexOptLevel());
             device.CreateImageViewSrds(1, &imageView, pSrdTable);
 
             // Create and bind a depth stencil view of the destination region.
@@ -5036,23 +5100,43 @@ void RsrcProcMgr::ResolveImageCompute(
                                                                          PipelineBindPoint::Compute,
                                                                          0);
 
-        ImageViewInfo imageView = {};
+        ImageViewInfo imageView[2] = {};
         SubresRange   viewRange = { dstSubres, 1, pRegions[idx].numSlices };
 
-        RpmUtil::BuildImageViewInfo(&imageView, dstImage, viewRange, dstFormat, true, device.TexOptLevel());
-        HwlCreateDecompressResolveSafeImageViewSrds(1, &imageView, pUserData);
+        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutResolveDst) == true);
+
+        // ResolveDst doesn't imply ShaderWrite, but it's safe because it's always uncompressed
+        ImageLayout dstLayoutCompute  = dstImageLayout;
+        dstLayoutCompute.usages      |= LayoutShaderWrite;
 
         // Destination image is at the beginning of pUserData.
+        RpmUtil::BuildImageViewInfo(&imageView[0],
+                                    dstImage,
+                                    viewRange,
+                                    dstFormat,
+                                    dstLayoutCompute,
+                                    device.TexOptLevel());
+
+        viewRange.startSubres = srcSubres;
+        RpmUtil::BuildImageViewInfo(&imageView[1],
+                                    srcImage,
+                                    viewRange,
+                                    srcFormat,
+                                    srcImageLayout,
+                                    device.TexOptLevel());
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
+        // CreateImageViewSrds on old interfaces needs a helper to avoid recompressing
+        HwlCreateDecompressResolveSafeImageViewSrds(1, &imageView[0], pUserData);
+        device.CreateImageViewSrds(1, &imageView[1], pUserData + SrdDwordAlignment());
+#else
+        device.CreateImageViewSrds(2, &imageView[0], pUserData);
+#endif
+
         // It is expected that if the destination image contains any metadata, that metadata should be decompressed.
         // We want to make sure the image SRD does not support compressed writes to the destination image.
         PAL_ASSERT(HwlImageUsesCompressedWrites(pUserData) == false);
-
-        pUserData += SrdDwordAlignment();
-
-        viewRange.startSubres = srcSubres;
-        RpmUtil::BuildImageViewInfo(&imageView, srcImage, viewRange, srcFormat, false, device.TexOptLevel());
-        device.CreateImageViewSrds(1, &imageView, pUserData);
-        pUserData += SrdDwordAlignment();
+        pUserData += SrdDwordAlignment() * 2;
 
         if (isCsFmask)
         {
@@ -7194,7 +7278,7 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
                                     dstImage,
                                     viewRange,
                                     dstFormat,
-                                    true,
+                                    RpmUtil::DefaultRpmLayoutShaderWrite,
                                     Pal::ImageTexOptLevel::Default);
 
         viewRange.startSubres = region.srcSubres;
@@ -7202,7 +7286,7 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
                                     srcImage,
                                     viewRange,
                                     srcFormat,
-                                    false,
+                                    RpmUtil::DefaultRpmLayoutRead,
                                     Pal::ImageTexOptLevel::Default);
 
         if (useMipInSrd == false)

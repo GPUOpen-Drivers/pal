@@ -1212,6 +1212,9 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
             switch (static_cast<PipelineAbiNoteType>(type))
             {
             case PipelineAbiNoteType::PalMetadata:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 477
+            case PipelineAbiNoteType::PalMetadataOld:
+#endif
             {
                 m_pMetadata    = pDesc;
                 m_metadataSize = descSize;

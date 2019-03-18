@@ -2853,37 +2853,6 @@ size_t CmdUtil::BuildSetOneShRegIndex(
 }
 
 // =====================================================================================================================
-// Builds a PM4 packet which sets indirect data for a single Graphics SH register starting at regAddr. The CP adds this
-// data to the indirect base address set via SET_BASE packet and writes it to regAddr.
-// Returns size of the PM4 command assembled, in DWORDs.
-size_t CmdUtil::BuildSetShRegDataOffset(
-    uint32        regAddr,
-    PM4ShaderType shaderType,
-    uint32        dataOffset,
-    void*         pBuffer     // [out] Build the PM4 packet in this buffer.
-    ) const
-{
-    // This packet is only supported on GFXIP 8.0+
-    PAL_ASSERT(m_chipFamily >= GfxIpLevel::GfxIp8);
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    CheckShadowedShReg(shaderType, regAddr);
-#endif
-
-    constexpr size_t PacketSize = PM4_CMD_SET_SH_REG_OFFSET_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDSETSHREGOFFSET*>(pBuffer);
-
-    pPacket->header.u32All  = Type3Header(IT_SET_SH_REG_OFFSET, PacketSize, shaderType);
-    pPacket->ordinal2       = 0;
-    pPacket->regOffset      = (regAddr - PERSISTENT_SPACE_START);
-    pPacket->index__VI      = SET_SH_REG_OFFSET_INDEX_DATA_INDIRECT;
-    pPacket->dataOffset__VI = dataOffset;
-    pPacket->ordinal4       = 0; // Unused dummy data DWORD
-
-    return PacketSize;
-}
-
-// =====================================================================================================================
 // Builds a PM4 packet which sets a sequence of config registers starting with startRegAddr and ending with endRegAddr
 // (inclusive). Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildSetSeqConfigRegs(

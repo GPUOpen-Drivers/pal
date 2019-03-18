@@ -348,9 +348,12 @@ struct PipelineInfo
     PipelineHash internalPipelineHash;  ///< 128-bit identifier extracted from this pipeline's ELF binary, composed of
                                         ///  the state the compiler decided was appropriate to identify the compiled
                                         ///  shaders.  The lower 64 bits are "stable"; the upper 64 bits are "unique".
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
     uint64       palRuntimeHash;        ///< Unique 64-bit identifier for the PAL pipeline, composed of compiler
                                         ///  information and PAL-specific runtime-adjacent information. Mapping of
                                         ///  PAL runtime hash to internal pipeline hash is many-to-one.
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
     uint64 pipelineHash;      ///< Unique 64-bit identifier for the PAL pipeline, composed of compiler information and

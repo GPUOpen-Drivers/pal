@@ -245,8 +245,8 @@ PerfCounter::PerfCounter(
         }
 
         // NOTE: Need to use a different source select for privileged registers
-        if ((cmdUtil.IsPrivilegedConfigReg(m_perfCountLoAddr)) ||
-            (cmdUtil.IsPrivilegedConfigReg(m_perfCountHiAddr)))
+        if ((cmdUtil.IsUserConfigReg(m_perfCountLoAddr) == false) ||
+            (cmdUtil.IsUserConfigReg(m_perfCountHiAddr) == false))
         {
             m_mePerfCntSrcSel  = src_sel__me_copy_data__perfcounters;
             m_mecPerfCntSrcSel = src_sel__mec_copy_data__perfcounters;
@@ -765,9 +765,14 @@ uint16 Gfx9StreamingPerfCounter::GetMuxselEncoding(
     auto const& gfx9ChipProps = m_device.Parent()->ChipProperties().gfx9;
     const uint32 numInstances = gfx9ChipProps.perfCounterInfo.block[static_cast<uint32>(m_block)].numInstances;
 
-    muxselEncoding.counter  = subSlot;
+    muxselEncoding.counter  = (m_slot * MaxNumStreamingCtrPerSummaryCtr) + subSlot;
     muxselEncoding.instance = PerfCounter::InstanceIdToInstance(numInstances, m_instance);
     muxselEncoding.block    = gfx9ChipProps.perfCounterInfo.block[static_cast<uint32>(m_block)].spmBlockSelectCode;
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_DPINFO("[SPM] Mux encoding: \t Block: %d,\tInstance: %d\t, Counter: %d", muxselEncoding.block,
+        muxselEncoding.instance, muxselEncoding.counter);
+#endif
 
     return muxselEncoding.u16All;
 }

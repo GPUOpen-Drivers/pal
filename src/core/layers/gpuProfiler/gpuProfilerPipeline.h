@@ -59,7 +59,6 @@ private:
         Util::Abi::ApiShaderType type;
         Util::Abi::HardwareStage hwStage;
         ShaderHash               hash;
-        uint64                   pipelineHash;
         uint64                   compilerHash;
         Util::File*              pFile;
     };

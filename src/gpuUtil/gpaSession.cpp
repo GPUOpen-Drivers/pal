@@ -1614,7 +1614,16 @@ uint32 GpaSession::BeginSample(
                                            &heapSize,
                                            &pPerfExperiment);
 
-            if (result == Result::Success)
+            if (result != Result::Success)
+            {
+                // Destroy the perf experiment to prevent a memory leak.
+                if (pPerfExperiment != nullptr)
+                {
+                    pPerfExperiment->Destroy();
+                    pPerfExperiment = nullptr;
+                }
+            }
+            else
             {
                 PAL_ASSERT(pPerfExperiment != nullptr);
 
@@ -1759,6 +1768,9 @@ uint32 GpaSession::BeginSample(
     }
     else
     {
+        // Prevent a memory leak.
+        FreeSampleItem(pSampleItem);
+
         sampleId = InvalidSampleId;
     }
 
@@ -2482,8 +2494,13 @@ Result GpaSession::RegisterPipeline(
 
     if (result == Result::Success)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
         result = m_registeredPipelines.Contains(pipeInfo.palRuntimeHash) ? Result::AlreadyExists :
                  m_registeredPipelines.Insert(pipeInfo.palRuntimeHash);
+#else
+        result = m_registeredPipelines.Contains(pipeInfo.internalPipelineHash.unique) ? Result::AlreadyExists :
+                 m_registeredPipelines.Insert(pipeInfo.internalPipelineHash.unique);
+#endif
     }
 
     m_registerPipelineLock.UnlockForWrite();
@@ -4115,39 +4132,46 @@ void GpaSession::RecycleLocalInvisGpuMem()
 }
 
 // =====================================================================================================================
+// Destroy and free one sample item and its sub-items.
+void GpaSession::FreeSampleItem(
+    GpaSession::SampleItem* pSampleItem)
+{
+    PAL_ASSERT(pSampleItem != nullptr);
+
+    if (pSampleItem->pPerfExperiment != nullptr)
+    {
+        pSampleItem->pPerfExperiment->Destroy();
+        pSampleItem->pPerfExperiment = nullptr;
+    }
+
+    if (pSampleItem->pPerfSample != nullptr)
+    {
+        PAL_SAFE_DELETE(pSampleItem->pPerfSample, m_pPlatform);
+    }
+
+    if (pSampleItem->perfMemInfo.pMemory != nullptr)
+    {
+        if (m_pAvailablePerfExpMem != nullptr)
+        {
+            m_pAvailablePerfExpMem->PushBack(pSampleItem->perfMemInfo);
+        }
+        else
+        {
+            PAL_SAFE_FREE(pSampleItem->perfMemInfo.pMemory, m_pPlatform);
+        }
+    }
+
+    PAL_SAFE_FREE(pSampleItem, m_pPlatform);
+}
+
+// =====================================================================================================================
 // Destroy and free the m_sampleItemArray and associated memory allocation
 void GpaSession::FreeSampleItemArray()
 {
     const uint32 numEntries = m_sampleItemArray.NumElements();
     for (uint32 i = 0; i < numEntries; i++)
     {
-        SampleItem* pSampleItem = m_sampleItemArray.At(i);
-        PAL_ASSERT(pSampleItem != nullptr);
-
-        if (pSampleItem->pPerfExperiment != nullptr)
-        {
-            pSampleItem->pPerfExperiment->Destroy();
-            pSampleItem->pPerfExperiment = nullptr;
-        }
-
-        if (pSampleItem->pPerfSample != nullptr)
-        {
-            PAL_SAFE_DELETE(pSampleItem->pPerfSample, m_pPlatform);
-        }
-
-        if (pSampleItem->perfMemInfo.pMemory != nullptr)
-        {
-            if (m_pAvailablePerfExpMem != nullptr)
-            {
-                m_pAvailablePerfExpMem->PushBack(pSampleItem->perfMemInfo);
-            }
-            else
-            {
-                PAL_SAFE_FREE(pSampleItem->perfMemInfo.pMemory, m_pPlatform);
-            }
-        }
-
-        PAL_SAFE_FREE(pSampleItem, m_pPlatform);
+        FreeSampleItem(m_sampleItemArray.At(i));
     }
     m_sampleItemArray.Clear();
 }

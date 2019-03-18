@@ -80,8 +80,8 @@ CmdBuffer::CmdBuffer(
 
     memset(&m_flags,                0, sizeof(m_flags));
     memset(&m_sampleFlags,          0, sizeof(m_sampleFlags));
-    memset(&m_computePipelineInfo,  0, sizeof(m_computePipelineInfo));
-    memset(&m_graphicsPipelineInfo, 0, sizeof(m_graphicsPipelineInfo));
+    memset(&m_cpState,              0, sizeof(m_cpState));
+    memset(&m_gfxpState,            0, sizeof(m_gfxpState));
     memset(&m_cmdBufLogItem,        0, sizeof(m_cmdBufLogItem));
     memset(&m_loopLogItem,          0, sizeof(m_loopLogItem));
 
@@ -160,8 +160,8 @@ void CmdBuffer::ReplayBegin(
     pTgtCmdBuffer->Begin(NextCmdBufferBuildInfo(info));
 
     // Reset any per command buffer state we're tracking.
-    memset(&m_computePipelineInfo,  0, sizeof(m_computePipelineInfo));
-    memset(&m_graphicsPipelineInfo, 0, sizeof(m_graphicsPipelineInfo));
+    memset(&m_cpState,  0, sizeof(m_cpState));
+    memset(&m_gfxpState, 0, sizeof(m_gfxpState));
 
     if (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) ||
         m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
@@ -268,11 +268,16 @@ void CmdBuffer::ReplayCmdBindPipeline(
     {
         if (pPipeline != nullptr)
         {
-            m_computePipelineInfo = pPipeline->GetInfo();
+            m_cpState.pipelineInfo = pPipeline->GetInfo();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 476
+            m_cpState.apiPsoHash   = params.apiPsoHash;
+#else
+            m_cpState.apiPsoHash   = m_cpState.pipelineInfo.palRuntimeHash;
+#endif
         }
         else
         {
-            memset(&m_computePipelineInfo, 0, sizeof(m_computePipelineInfo));
+            memset(&m_cpState, 0, sizeof(m_cpState));
         }
     }
     else
@@ -281,11 +286,16 @@ void CmdBuffer::ReplayCmdBindPipeline(
 
         if (pPipeline != nullptr)
         {
-            m_graphicsPipelineInfo = pPipeline->GetInfo();
+            m_gfxpState.pipelineInfo = pPipeline->GetInfo();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 476
+            m_gfxpState.apiPsoHash   = params.apiPsoHash;
+#else
+            m_gfxpState.apiPsoHash   = m_gfxpState.pipelineInfo.palRuntimeHash;
+#endif
         }
         else
         {
-            memset(&m_graphicsPipelineInfo, 0, sizeof(m_graphicsPipelineInfo));
+            memset(&m_gfxpState, 0, sizeof(m_gfxpState));
         }
     }
 
@@ -3562,10 +3572,11 @@ void CmdBuffer::LogPreTimedCall(
         // Log currently bound pipeline/shader state.
         if (pLogItem->cmdBufCall.flags.draw)
         {
-            pLogItem->cmdBufCall.draw.pipelineInfo = m_graphicsPipelineInfo;
+            pLogItem->cmdBufCall.draw.pipelineInfo = m_gfxpState.pipelineInfo;
+            pLogItem->cmdBufCall.draw.apiPsoHash   = m_gfxpState.apiPsoHash;
 
             if (m_flags.enableSqThreadTrace &&
-                m_pDevice->SqttEnabledForPipeline(m_graphicsPipelineInfo, PipelineBindPoint::Graphics))
+                m_pDevice->SqttEnabledForPipeline(m_gfxpState.pipelineInfo, PipelineBindPoint::Graphics))
             {
                 if ((m_pDevice->GetSqttMaxDraws() == 0) ||
                     (m_pDevice->GetSqttCurDraws() < m_pDevice->GetSqttMaxDraws()))
@@ -3577,10 +3588,11 @@ void CmdBuffer::LogPreTimedCall(
         }
         else if (pLogItem->cmdBufCall.flags.dispatch)
         {
-            pLogItem->cmdBufCall.dispatch.pipelineInfo = m_computePipelineInfo;
+            pLogItem->cmdBufCall.dispatch.pipelineInfo = m_cpState.pipelineInfo;
+            pLogItem->cmdBufCall.dispatch.apiPsoHash   = m_cpState.apiPsoHash;
 
             if (m_flags.enableSqThreadTrace &&
-                m_pDevice->SqttEnabledForPipeline(m_computePipelineInfo, PipelineBindPoint::Compute))
+                m_pDevice->SqttEnabledForPipeline(m_cpState.pipelineInfo, PipelineBindPoint::Compute))
             {
                 if ((m_pDevice->GetSqttMaxDraws() == 0) ||
                     (m_pDevice->GetSqttCurDraws() < m_pDevice->GetSqttMaxDraws()))

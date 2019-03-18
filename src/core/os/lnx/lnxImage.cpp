@@ -156,9 +156,9 @@ Result Image::CreatePresentableImage(
             Pal::GpuMemory* pGpuMemory = nullptr;
             auto*const pLnxImage = static_cast<Image*>(pImage);
 
-            result = pDevice->CreatePresentableMemoryObject(pLnxImage,
+            result = pDevice->CreatePresentableMemoryObject(createInfo,
+                                                            pLnxImage,
                                                             pGpuMemoryPlacementAddr,
-                                                            createInfo.hDisplay,
                                                             &pGpuMemory);
 
             if (result == Result::Success)
@@ -242,10 +242,11 @@ Result Image::UpdateExternalImageInfo(
 // =====================================================================================================================
 // Creates an internal GPU memory object and binds it to the presentable Image associated with this object.
 Result Image::CreatePresentableMemoryObject(
-    Device*          pDevice,
-    Image*           pImage,        // [in] Image the memory object should be based on
-    void*            pMemObjMem,    // [in,out] Preallocated memory for the GpuMemory object
-    Pal::GpuMemory** ppMemObjOut)   // [out] Newly created GPU memory object
+    Device*                             pDevice,
+    const PresentableImageCreateInfo&   presentableImageCreateInfo,
+    Image*                              pImage,        // [in] Image the memory object should be based on
+    void*                               pMemObjMem,    // [in,out] Preallocated memory for the GpuMemory object
+    Pal::GpuMemory**                    ppMemObjOut)   // [out] Newly created GPU memory object
 {
     GpuMemoryRequirements memReqs = {};
     pImage->GetGpuMemoryRequirements(&memReqs);
@@ -253,14 +254,15 @@ Result Image::CreatePresentableMemoryObject(
     const gpusize allocGranularity = pDevice->MemoryProperties().realMemAllocGranularity;
 
     GpuMemoryCreateInfo createInfo = {};
-    createInfo.flags.flippable = pImage->IsFlippable();
-    createInfo.flags.stereo    = pImage->GetInternalCreateInfo().flags.stereo;
-    createInfo.size            = Pow2Align(memReqs.size, allocGranularity);
-    createInfo.alignment       = Pow2Align(memReqs.alignment, allocGranularity);
-    createInfo.vaRange         = VaRange::Default;
-    createInfo.priority        = GpuMemPriority::VeryHigh;
-    createInfo.heapCount       = 0;
-    createInfo.pImage          = pImage;
+    createInfo.flags.flippable    = pImage->IsFlippable();
+    createInfo.flags.stereo       = pImage->GetInternalCreateInfo().flags.stereo;
+    createInfo.flags.peerWritable = presentableImageCreateInfo.flags.peerWritable;
+    createInfo.size               = Pow2Align(memReqs.size, allocGranularity);
+    createInfo.alignment          = Pow2Align(memReqs.alignment, allocGranularity);
+    createInfo.vaRange            = VaRange::Default;
+    createInfo.priority           = GpuMemPriority::VeryHigh;
+    createInfo.heapCount          = 0;
+    createInfo.pImage             = pImage;
 
     for (uint32 i = 0; i < memReqs.heapCount; i++)
     {

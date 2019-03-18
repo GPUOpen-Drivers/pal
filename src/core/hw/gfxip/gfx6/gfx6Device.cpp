@@ -1924,6 +1924,9 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
         const bool             imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+        PAL_ASSERT((viewInfo.possibleLayouts.engines != 0) && (viewInfo.possibleLayouts.usages != 0 ));
+#endif
 
         ImageSrd srd = {};
 
@@ -2231,7 +2234,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                 srd.word3.bits.ATC__CI__VI = ((HighPart(gpuVirtAddress) >> 0x10) != 0)
                     ? 0 : ((LowPart(gpuVirtAddress) != 0) || ((HighPart(gpuVirtAddress) & 0xFFFF) != 0));
             }
-            if ((subresInfo.flags.supportMetaDataTexFetch) && (viewInfo.flags.shaderWritable == 0))
+            if (subresInfo.flags.supportMetaDataTexFetch)
             {
                 // We decide whether meta data fetch should be enabled based on start mip in view range rather than
                 // zero-th mip in imageViewSrd creation. If mip level in view range starts from non-zero-th mip,
@@ -2241,32 +2244,42 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                 // on start mip, since start mip must be in valid shader read state thus meta data already intialized,
                 // no matter startMip=0 or startMip>0. On the other hand, whether zero-th mip supports meta data fetch
                 // is pre-condition of whether start mip supports meta data fetch.
-                const uint32 settingsCheckFromStartMip =
-                    pGfxDevice->Settings().gfx8CheckMetaDataFetchFromStartMip;
-                const bool checkFromStartMip = pParent->IsDepthStencil() ?
-                    (TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipDepthStencil)) :
-                    (TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipColorTarget));
+                const uint32 settingsCheckFromStartMip = pGfxDevice->Settings().gfx8CheckMetaDataFetchFromStartMip;
 
-                if ((checkFromStartMip == false) || (startSubresInfo.flags.supportMetaDataTexFetch == true))
+                if (pParent->IsDepthStencil())
                 {
-                    srd.word6.bits.COMPRESSION_EN__VI = 1;
-
-                    if (pParent->IsDepthStencil())
+                    if ((TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipDepthStencil) ||
+                         (startSubresInfo.flags.supportMetaDataTexFetch == true)) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+                        (ImageLayoutToDepthCompressionState(image.LayoutToDepthCompressionState(subresource),
+                                                            viewInfo.possibleLayouts) == DepthStencilCompressed))
+#else
+                        (viewInfo.flags.shaderWritable == false))
+#endif
                     {
                         // Theoretically, the htile address here should have the tile-swizzle OR'd in, but in
                         // SetTileSwizzle, the tile swizzle for texture-fetchable depth images is always set to zero,
                         // so we should be all set with the base address.
                         PAL_ASSERT(swizzle == 0);
                         srd.word7.bits.META_DATA_ADDRESS__VI = image.GetHtile256BAddr(subresource);
+                        srd.word6.bits.COMPRESSION_EN__VI    = 1;
                     }
-                    else
-                    {
-                        PAL_ASSERT(pParent->IsRenderTarget());
-                        // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
-                        // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
-                        // requires enabling an extension and use of an fMask image view.
-                        srd.word7.bits.META_DATA_ADDRESS__VI = image.GetDcc256BAddr(subresource);
-                    }
+                }
+                else if ((TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipColorTarget) ||
+                          (startSubresInfo.flags.supportMetaDataTexFetch == true)) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+                         (ImageLayoutToColorCompressionState(image.LayoutToColorCompressionState(subresource),
+                                                            viewInfo.possibleLayouts) != ColorDecompressed))
+#else
+                         (viewInfo.flags.shaderWritable == false))
+#endif
+                {
+                    PAL_ASSERT(pParent->IsRenderTarget());
+                    // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
+                    // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
+                    // requires enabling an extension and use of an fMask image view.
+                    srd.word7.bits.META_DATA_ADDRESS__VI = image.GetDcc256BAddr(subresource);
+                    srd.word6.bits.COMPRESSION_EN__VI    = 1;
                 }
             } // end check for image supporting meta-data tex fetches
         }

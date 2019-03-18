@@ -427,7 +427,6 @@ public:
     size_t BuildSetOneContextReg(uint32 regAddr, void* pBuffer, uint32 index = 0) const;
     size_t BuildSetOneShReg(uint32 regAddr, PM4ShaderType shaderType, void* pBuffer) const;
     size_t BuildSetOneShRegIndex(uint32 regAddr, PM4ShaderType shaderType, uint32 index, void* pBuffer) const;
-    size_t BuildSetShRegDataOffset(uint32 regAddr, PM4ShaderType shaderType, uint32 dataOffset, void* pBuffer) const;
 
     size_t BuildSetSeqConfigRegs(uint32 startRegAddr, uint32 endRegAddr, void* pBuffer) const;
     size_t BuildSetSeqContextRegs(uint32 startRegAddr, uint32 endRegAddr, void* pBuffer) const;

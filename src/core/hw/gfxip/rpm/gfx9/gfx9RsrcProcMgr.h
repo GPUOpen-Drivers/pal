@@ -156,10 +156,12 @@ protected:
     explicit RsrcProcMgr(Device* pDevice);
     virtual ~RsrcProcMgr() {}
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
     virtual void HwlCreateDecompressResolveSafeImageViewSrds(
         uint32                numSrds,
         const ImageViewInfo*  pImageView,
         void*                 pSrdTable) const override;
+#endif
 
     virtual const Pal::GraphicsPipeline* GetGfxPipelineByTargetIndexAndFormat(
         RpmGfxPipeline basePipeline,

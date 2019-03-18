@@ -728,7 +728,7 @@ uint16 StreamingPerfCounter::GetMuxselEncoding(
     auto const& gfx6ChipProps = m_device.Parent()->ChipProperties().gfx6;
     const uint32 numInstances = gfx6ChipProps.perfCounterInfo.block[static_cast<uint32>(m_block)].numInstances;
 
-    muxselEncoding.counter  = subSlot;
+    muxselEncoding.counter  = (m_slot * MaxNumStreamingCtrPerSummaryCtr) + subSlot;
     muxselEncoding.instance = PerfCounter::InstanceIdToInstance(numInstances, m_instance);
     muxselEncoding.block    = gfx6ChipProps.perfCounterInfo.block[static_cast<uint32>(m_block)].spmBlockSelectCode;
 

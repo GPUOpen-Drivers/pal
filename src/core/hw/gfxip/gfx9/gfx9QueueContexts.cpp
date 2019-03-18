@@ -957,20 +957,6 @@ void UniversalQueueContext::RebuildCommandStreams()
             m_cePostambleCmdStream.End();
         }
     }
-    // Otherwise, we just need the CE preamble to issue a dummy LOAD_CONST_RAM packet because the KMD requires each
-    // UMD to have at least one load packet for high-priority 3D Queues (HP3D) to work. The Mantle client does not
-    // need this because they do not use CE RAM for anything.
-    else if (m_pDevice->SupportsCePreamblePerSubmit())
-    {
-        m_cePreambleCmdStream.Reset(nullptr, true);
-        m_cePreambleCmdStream.Begin(beginFlags, nullptr);
-
-        pCmdSpace  = m_cePreambleCmdStream.ReserveCommands();
-        pCmdSpace += cmdUtil.BuildLoadConstRam(0, 0, 0, pCmdSpace);
-        m_cePreambleCmdStream.CommitCommands(pCmdSpace);
-
-        m_cePreambleCmdStream.End();
-    }
 
     // The per-submit DE postamble.
     //==================================================================================================================

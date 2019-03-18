@@ -153,10 +153,12 @@ private:
     virtual bool HwlImageUsesCompressedWrites(
         const uint32* pImageSrd) const override { return false; }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
     virtual void HwlCreateDecompressResolveSafeImageViewSrds(
         uint32                numSrds,
         const ImageViewInfo*  pImageView,
         void*                 pSrdTable) const override;
+#endif
 
     virtual void HwlUpdateDstImageStateMetaData(
         GfxCmdBuffer*          pCmdBuffer,

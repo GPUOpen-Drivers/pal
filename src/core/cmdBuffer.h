@@ -681,6 +681,9 @@ public:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override;
+#else
+    Result AllocateAndBindGpuMemToEvent(
+        GpuEvent* pGpuEvent);
 #endif
 
     virtual void CmdExecuteNestedCmdBuffers(

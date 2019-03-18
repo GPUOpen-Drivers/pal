@@ -93,10 +93,6 @@ public:
     uint32* WriteSetOneShReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
     template <PM4ShaderType shaderType>
     uint32* WriteSetOneShReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
-    template <PM4ShaderType shaderType, bool pm4OptImmediate>
-    uint32* WriteSetShRegDataOffset(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
-    template <PM4ShaderType shaderType>
-    uint32* WriteSetShRegDataOffset(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
 
     template <bool pm4OptImmediate>
     uint32* WriteSetSeqContextRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);

@@ -90,6 +90,7 @@ struct LogItem
                 struct
                 {
                     PipelineInfo pipelineInfo;  // Bound pipeline info.
+                    uint64       apiPsoHash;    // ApiPsoHash of the bound pipeline provided by client.
                     uint32       vertexCount;   // Num vertices drawn, if known (i.e., non-indirect calls).
                     uint32       instanceCount; // Num instances drawn, if known (i.e., non-indirect calls).
                 } draw;
@@ -98,6 +99,7 @@ struct LogItem
                 struct
                 {
                     PipelineInfo pipelineInfo;     // Bound pipeline info.
+                    uint64       apiPsoHash;       // ApiPsoHash of the bound pipeline provided by client.
                     uint32       threadGroupCount; // Threadgroups launched, if known (i.e., non-indirect calls).
                 } dispatch;
 

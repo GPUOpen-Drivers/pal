@@ -180,7 +180,7 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect1[] =
 {
     { 1, 1, 2,               { mmCPF_PERFCOUNTER0_SELECT1,          }, },  // cpf
     { 1, 1, 2,               { Gfx09::mmIA_PERFCOUNTER0_SELECT1,    }, },  // ia
-    { 2, 1, 2,               { Gfx09::mmVGT_PERFCOUNTER0_SELECT1,
+    { 2, 1, 3,               { Gfx09::mmVGT_PERFCOUNTER0_SELECT1,
                                Gfx09::mmVGT_PERFCOUNTER1_SELECT1,   }, },  // vgt
     { 2, 2, 3,               { mmPA_SU_PERFCOUNTER0_SELECT1,
                                mmPA_SU_PERFCOUNTER1_SELECT1,        }, },  // pa

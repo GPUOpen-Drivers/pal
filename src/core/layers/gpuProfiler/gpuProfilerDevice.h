@@ -159,6 +159,7 @@ private:
     Result ExtractPerfCounterInfo(
         const PerfExperimentProperties& perfExpProps,
         Util::File*                     pConfigFile,
+        bool                            isSpmConfig,
         uint32                          numPerfCounter,
         PerfCounter*                    pPerfCounters);
 

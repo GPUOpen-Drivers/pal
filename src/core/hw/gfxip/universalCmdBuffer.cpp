@@ -476,6 +476,11 @@ void UniversalCmdBuffer::PushGraphicsState()
     m_graphicsRestoreState = m_graphicsState;
     memset(&m_graphicsState.gfxUserDataEntries.touched[0], 0, sizeof(m_graphicsState.gfxUserDataEntries.touched));
 
+    if (m_pCurrentExperiment != nullptr)
+    {
+        // Inform the performance experiment that we're starting some internal operations.
+        m_pCurrentExperiment->BeginInternalOps(m_pDeCmdStream);
+    }
 }
 
 // =====================================================================================================================
@@ -498,6 +503,12 @@ void UniversalCmdBuffer::PopGraphicsState()
     // so this is a safe opprotunity to mark that a GFX Blt is active
     SetGfxCmdBufGfxBltState(true);
     SetGfxCmdBufGfxBltWriteCacheState(true);
+
+    if (m_pCurrentExperiment != nullptr)
+    {
+        // Inform the performance experiment that we've finished some internal operations.
+        m_pCurrentExperiment->EndInternalOps(m_pDeCmdStream);
+    }
 }
 
 // =====================================================================================================================
@@ -513,6 +524,9 @@ void UniversalCmdBuffer::SetGraphicsState(
         bindParams.pipelineBindPoint  = PipelineBindPoint::Graphics;
         bindParams.pPipeline          = pipelineState.pPipeline;
         bindParams.graphics           = newGraphicsState.dynamicGraphicsInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 476
+        bindParams.apiPsoHash         = pipelineState.apiPsoHash;
+#endif
 
         CmdBindPipeline(bindParams);
     }

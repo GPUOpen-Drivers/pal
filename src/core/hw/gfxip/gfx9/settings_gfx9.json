@@ -1200,21 +1200,6 @@
       "Name": "PrimgroupSize"
     },
     {
-      "Description": "If true, the HW-PS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-PS prefers to send only one wave to each CU before moving to the next enabled CU.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "HashName": 1924559864,
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "psCuGroupEnabled",
-      "Name": "PsCuGroupEnabled"
-    },
-    {
       "Description": "If true, RbPlus will be enabled for ASIC of RbPlus capability.",
       "Tags": [
         "Graphics Pipelines",
@@ -1228,6 +1213,21 @@
       "Type": "bool",
       "VariableName": "gfx9RbPlusEnable",
       "Name": "RbPlusEnable"
+    },
+    {
+      "Description": "When value is greater than zero, then it specifies the number of PS waves to be soft grouped.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx9"
+      ],
+      "HashName": 3707789309,
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "numPSWavesSoftGroupedPerCu",
+      "Name": "NumPSWavesSoftGroupedPerCu"
     },
     {
       "Description": "If true, the HW will alternate VGT's between draws rather than between sets of primitives within a draw. True is safer, but less performant.",

@@ -1677,12 +1677,18 @@ void LogContext::Struct(
     KeyAndValue("samplePatternIdx", value.samplePatternIdx);
     KeyAndStruct("zRange", value.zRange);
     KeyAndEnum("texOptLevel", value.texOptLevel);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+    KeyAndStruct("possibleLayouts", value.possibleLayouts);
+#endif
+
     KeyAndBeginList("flags", true);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
     if (value.flags.shaderWritable)
     {
         Value("shaderWritable");
     }
+#endif
 
     if (value.flags.zRangeValid)
     {

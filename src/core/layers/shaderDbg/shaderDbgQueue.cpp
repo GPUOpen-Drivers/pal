@@ -239,7 +239,7 @@ Result Queue::DumpShaderDbgData(
         ShaderDumpInfo dumpInfo = {};
         dumpInfo.pCmdBuffer     = pCmdBuffer;
         dumpInfo.hwStage        = pTraceData->hwStage;
-        dumpInfo.pipelineHash   = pipelineInfo.palRuntimeHash;
+        dumpInfo.pipelineHash   = pTraceData->apiPsoHash;
         dumpInfo.compilerHash   = pipelineInfo.internalPipelineHash.stable;
         dumpInfo.isDraw         = pTraceData->isDraw;
         dumpInfo.uniqueId       = pTraceData->uniqueId;

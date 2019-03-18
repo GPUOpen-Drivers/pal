@@ -54,12 +54,34 @@ extern void BuildRawBufferViewInfo(BufferViewInfo* pInfo,
                                    gpusize byteOffset,
                                    gpusize range);
 
+// Layout implying a given image can only be read.
+constexpr ImageLayout DefaultRpmLayoutRead =
+{
+    Pal::LayoutShaderRead    | Pal::LayoutCopySrc     | Pal::LayoutShaderFmaskBasedRead,
+    Pal::EngineTypeUniversal | Pal::EngineTypeCompute
+};
+
+// Layout implying a given image can be written to and compression is OK.
+constexpr ImageLayout DefaultRpmLayoutShaderWrite =
+{
+    Pal::LayoutShaderRead    | Pal::LayoutShaderWrite | Pal::LayoutCopyDst,
+    Pal::EngineTypeUniversal | Pal::EngineTypeCompute
+};
+
+// Layout implying a given image can be written to but should remain uncompressed.
+// Typically used when some other operation like a resolve requires the image is uncompressed.
+constexpr ImageLayout DefaultRpmLayoutShaderWriteRaw =
+{
+    Pal::LayoutShaderRead    | Pal::LayoutShaderWrite | Pal::LayoutResolveDst | Pal::LayoutUncompressed,
+    Pal::EngineTypeUniversal | Pal::EngineTypeCompute
+};
+
 extern void BuildImageViewInfo(
     ImageViewInfo*     pInfo,
     const Image&       image,
     const SubresRange& subresRange,
     SwizzledFormat     swizzledFormat,
-    bool               isShaderWriteable,
+    ImageLayout        imageLayout,
     ImageTexOptLevel   texOptLevel);
 
 extern SwizzledFormat GetRawFormat(ChNumFormat format, uint32* pTexelScale);

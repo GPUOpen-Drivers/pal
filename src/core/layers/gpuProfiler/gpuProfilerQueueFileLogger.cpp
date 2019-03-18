@@ -395,7 +395,7 @@ void Queue::OutputCmdBufCallToFile(
     {
         m_logFile.Printf("0x%016llx,0x%016llx,0x%016llx%016llx,0x%016llx%016llx,0x%016llx%016llx,"
                          "0x%016llx%016llx,0x%016llx%016llx,%u,%u,,",
-                         cmdBufItem.draw.pipelineInfo.palRuntimeHash,
+                         cmdBufItem.draw.apiPsoHash,
                          cmdBufItem.draw.pipelineInfo.internalPipelineHash.stable,
                          cmdBufItem.draw.pipelineInfo.shader[VsIdx].hash.upper,
                          cmdBufItem.draw.pipelineInfo.shader[VsIdx].hash.lower,
@@ -413,7 +413,7 @@ void Queue::OutputCmdBufCallToFile(
     else if (cmdBufItem.flags.dispatch)
     {
         m_logFile.Printf("0x%016llx,0x%016llx,0x%016llx%016llx,,,,,%u,,,",
-                         cmdBufItem.dispatch.pipelineInfo.palRuntimeHash,
+                         cmdBufItem.dispatch.apiPsoHash,
                          cmdBufItem.dispatch.pipelineInfo.internalPipelineHash.stable,
                          cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.upper,
                          cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.lower,

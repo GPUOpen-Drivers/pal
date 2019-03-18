@@ -883,6 +883,9 @@ private:
     // recycle used Local Invisible rafts and put back to available pool
     void RecycleLocalInvisGpuMem();
 
+    // Destroy and free one sample item and its sub-items.
+    void FreeSampleItem(GpaSession::SampleItem* pSampleItem);
+
     // Destroy and free the m_sampleItemArray and associated memory allocation
     void FreeSampleItemArray();
 

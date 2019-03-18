@@ -691,10 +691,10 @@ public:
         Pal::Image*                        pImage);
 
     virtual Result CreatePresentableMemoryObject(
-        Image*           pImage,
-        void*            pMemObjMem,
-        OsDisplayHandle  sharedHandle,
-        Pal::GpuMemory** ppMemObjOut);
+        const PresentableImageCreateInfo&  createInfo,
+        Image*                             pImage,
+        void*                              pMemObjMem,
+        Pal::GpuMemory**                   ppMemObjOut);
 
     virtual void OverrideDefaultSettings(PalSettings* pSettings) const override {};
 

@@ -391,7 +391,6 @@ Result CmdBuffer::Reset(
 {
     m_recordState = CmdBufferRecordState::Reset;
     m_lastPagingFence = 0;
-    m_status = Result::Success;
 
     // We must attempt to return our linear allocator in the case that the client reset this command buffer while it was
     // in the building state. In normal operation this call will do nothing and take no locks.
@@ -400,13 +399,13 @@ Result CmdBuffer::Reset(
     ReturnDataChunks(&m_embeddedData, EmbeddedDataAlloc, returnGpuMemory);
     ReturnDataChunks(&m_gpuScratchMem, GpuScratchMemAlloc, returnGpuMemory);
 
-    Result ret = Result::Success;
+    m_status = Result::Success;
     if ((pCmdAllocator != nullptr) && (pCmdAllocator != m_pCmdAllocator))
     {
         // It is illegal to retain data chunks when changing allocators
         if (returnGpuMemory == false)
         {
-            ret = Result::ErrorInvalidValue;
+            m_status = Result::ErrorInvalidValue;
             PAL_ASSERT_ALWAYS();
         }
         else
@@ -417,7 +416,7 @@ Result CmdBuffer::Reset(
         }
     }
 
-    return Result::Success;
+    return m_status;
 }
 
 // =====================================================================================================================
@@ -621,13 +620,16 @@ gpusize CmdBuffer::AllocateGpuScratchMem(
     return ((*ppGpuMem)->Desc().gpuVirtAddr + (*pOffset));
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
 // =====================================================================================================================
 // Get memory from scratch memory chunk and bind to GPU event. Scratch memory is in Invisible heap, so the event is GPU
 // access only. Hence client is responsible for resetting the event from GPU, and cannot call Set(), Reset(),
 // GetStatus().
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     IGpuEvent* pGpuEvent)
+#else
+    GpuEvent* pGpuEvent)
+#endif
 {
     PAL_ASSERT(pGpuEvent != nullptr);
 
@@ -636,8 +638,7 @@ Result CmdBuffer::AllocateAndBindGpuMemToEvent(
     // of choosing heap based on the heap requirement.
     PAL_ASSERT((static_cast<GpuEvent*>(pGpuEvent))->IsGpuAccessOnly());
 
-    GpuMemoryRequirements gpuMemReqs = {};
-
+    GpuMemoryRequirements gpuMemReqs = { };
     pGpuEvent->GetGpuMemoryRequirements(&gpuMemReqs);
 
     const uint32 sizeInDwords      = static_cast<uint32>(gpuMemReqs.size / sizeof(uint32));
@@ -645,10 +646,13 @@ Result CmdBuffer::AllocateAndBindGpuMemToEvent(
     GpuMemory*   pGpuMem           = nullptr;
     gpusize      offset            = 0;
 
-    gpusize unusedGpuAddr = AllocateGpuScratchMem(sizeInDwords, alignmentInDwords, &pGpuMem, &offset);
-    return pGpuEvent->BindGpuMemory(pGpuMem, offset);
+    const gpusize unusedGpuAddr = AllocateGpuScratchMem(sizeInDwords, alignmentInDwords, &pGpuMem, &offset);
+
+    // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the allocator.
+    // In that scenario, the allocator returns a dummy chunk so we can always have a valid object to access, and sets
+    // m_status to a failure code.
+    return (m_status == Result::Success) ? pGpuEvent->BindGpuMemory(pGpuMem, offset) : m_status;
 }
-#endif
 
 // =====================================================================================================================
 // Root level barrier function.  Currently only used for validation of depth / stencil image transitions.
@@ -784,6 +788,19 @@ void CmdBuffer::ReturnDataChunks(
     CmdAllocType type,
     bool         returnGpuMemory)
 {
+    if ((m_status != Result::Success) && (pData->chunkList.IsEmpty() == false))
+    {
+        // If something went wrong in the previous recording, then our chunk list may have the allocator's dummy chunk
+        // at the back of the list.  Since no chunk list truly owns the dummy chunk, we must pop it off the list before
+        // proceeding.
+        if (pData->chunkList.Back() == m_pCmdAllocator->GetDummyChunk())
+        {
+            CmdStreamChunk* pChunk = nullptr;
+            pData->chunkList.PopBack(&pChunk);
+            pChunk->Reset(true);
+        }
+    }
+
     if (returnGpuMemory)
     {
         // The client requested that we return all chunks, add any remaining retained chunks to the chunk list so they

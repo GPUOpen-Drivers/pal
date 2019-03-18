@@ -263,9 +263,10 @@ public:
     // The INDIRECT_BUFFER and COND_INDIRECT_BUFFER packet have a hard-coded IB size of 20 bits.
     static constexpr uint32 MaxIndirectBufferSizeDwords = (1 << 20) - 1;
 
-    static bool                          IsContextReg(uint32 regAddr);
-    static bool                          IsPrivilegedConfigReg(uint32 regAddr);
-    static bool                          IsShReg(uint32 regAddr);
+    static bool IsContextReg(uint32 regAddr);
+    static bool IsUserConfigReg(uint32 regAddr);
+    static bool IsShReg(uint32 regAddr);
+
     static ME_WAIT_REG_MEM_function_enum WaitRegMemFunc(CompareFunc compareFunc);
 
     size_t BuildAcquireMem(
@@ -542,12 +543,6 @@ public:
         Pm4ShaderType                   shaderType,
         PFP_SET_SH_REG_INDEX_index_enum index,
         void*                           pBuffer) const;
-    size_t BuildSetShRegDataOffset(
-        uint32                           regAddr,
-        uint32                           dataOffset,
-        Pm4ShaderType                    shaderType,
-        void*                            pBuffer,
-        PFP_SET_SH_REG_OFFSET_index_enum index = index__pfp_set_sh_reg_offset__data_indirect_1dw) const;
     template <bool resetFilterCam = false>
     size_t BuildSetSeqConfigRegs(
         uint32                         startRegAddr,

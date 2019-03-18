@@ -913,10 +913,18 @@ void RsrcProcMgr::ExpandDepthStencil(
                                         0);
 
                 ImageViewInfo imageView[2] = {};
-                RpmUtil::BuildImageViewInfo(
-                    &imageView[0], image, viewRange, createInfo.swizzledFormat, false, device.TexOptLevel()); // src
-                RpmUtil::BuildImageViewInfo(
-                    &imageView[1], image, viewRange, createInfo.swizzledFormat, true, device.TexOptLevel());  // dst
+                RpmUtil::BuildImageViewInfo(&imageView[0],
+                                            image,
+                                            viewRange,
+                                            createInfo.swizzledFormat,
+                                            RpmUtil::DefaultRpmLayoutRead,
+                                            device.TexOptLevel()); // src
+                RpmUtil::BuildImageViewInfo(&imageView[1],
+                                            image,
+                                            viewRange,
+                                            createInfo.swizzledFormat,
+                                            RpmUtil::DefaultRpmLayoutShaderWriteRaw,
+                                            device.TexOptLevel());  // dst
                 device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
 
                 pSrdTable += 2 * SrdDwordAlignment();
@@ -1098,6 +1106,7 @@ void RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
 // =====================================================================================================================
 void RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
     uint32                numSrds,
@@ -1108,6 +1117,7 @@ void RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
     const auto&  device = *m_pDevice->Parent();
     device.CreateImageViewSrds(numSrds, pImageView, pSrdTable);
 }
+#endif
 
 // =====================================================================================================================
 // Before fixfunction or compute shader resolve, we do an optimization that we skip expanding DCC if dst image will be
@@ -3034,10 +3044,18 @@ void RsrcProcMgr::DccDecompressOnCompute(
                                                                         0);
 
             ImageViewInfo imageView[2] = {};
-            RpmUtil::BuildImageViewInfo(
-                &imageView[0], parentImg, viewRange, createInfo.swizzledFormat, false, device.TexOptLevel()); // src
-            RpmUtil::BuildImageViewInfo(
-                &imageView[1], parentImg, viewRange, createInfo.swizzledFormat, true, device.TexOptLevel());  // dst
+            RpmUtil::BuildImageViewInfo(&imageView[0],
+                                        parentImg,
+                                        viewRange,
+                                        createInfo.swizzledFormat,
+                                        RpmUtil::DefaultRpmLayoutRead,
+                                        device.TexOptLevel()); // src
+            RpmUtil::BuildImageViewInfo(&imageView[1],
+                                        parentImg,
+                                        viewRange,
+                                        createInfo.swizzledFormat,
+                                        RpmUtil::DefaultRpmLayoutShaderWriteRaw,
+                                        device.TexOptLevel());  // dst
             device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
 
             pSrdTable += 2 * SrdDwordAlignment();
@@ -3254,7 +3272,12 @@ void RsrcProcMgr::FmaskColorExpand(
 
             // Populate the table with and image view and an FMask view for the current slice.
             ImageViewInfo imageView = {};
-            RpmUtil::BuildImageViewInfo(&imageView, *image.Parent(), viewRange, format, true, device.TexOptLevel());
+            RpmUtil::BuildImageViewInfo(&imageView,
+                                        *image.Parent(),
+                                        viewRange,
+                                        format,
+                                        RpmUtil::DefaultRpmLayoutShaderWriteRaw,
+                                        device.TexOptLevel());
             imageView.viewType = ImageViewType::Tex2d;
 
             device.CreateImageViewSrds(1, &imageView, pSrdTable);

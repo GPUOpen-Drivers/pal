@@ -57,7 +57,7 @@ GraphicsPipeline::GraphicsPipeline(
 }
 
 // =====================================================================================================================
-// Initialize this compute pipeline based on the provided creation info.
+// Initialize this graphics pipeline based on the provided creation info.
 Result GraphicsPipeline::Init(
     const GraphicsPipelineCreateInfo&         createInfo,
     const GraphicsPipelineInternalCreateInfo& internalInfo)
@@ -137,6 +137,7 @@ Result GraphicsPipeline::InitFromPipelineBinary(
         break;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
     // Initialize a MetroHash64 hasher for computing a hash of the creation info.
     MetroHash64 hasher;
 
@@ -145,6 +146,7 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     hasher.Update(createInfo.rsState);
     hasher.Update(createInfo.cbState);
     hasher.Update(internalInfo.flags);
+#endif
 
     for (uint32 i = 0; i < MaxColorTargets; ++i)
     {
@@ -154,7 +156,11 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
     m_viewInstancingDesc                   = createInfo.viewInstancingDesc;
     m_viewInstancingDesc.viewInstanceCount = Max(m_viewInstancingDesc.viewInstanceCount, 1u);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
     hasher.Update(m_viewInstancingDesc);
+
+#endif
 
     AbiProcessor abiProcessor(m_pDevice->GetPlatform());
     Result result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
@@ -179,10 +185,12 @@ Result GraphicsPipeline::InitFromPipelineBinary(
         DumpPipelineElf(abiProcessor, "PipelineGfx", abiProcessor.GetPipelineName());
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
         // The pipeline ABI reports a unique pipeline hash of all of the components of its pipeline.  However, PAL
         // includes more state in the graphics pipeline than just the shaders.  We need to incorporate the reported
         // hash into our own checksum.
         hasher.Update(m_info.palRuntimeHash);
+#endif
 
         if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Geometry)].hash))
         {
@@ -214,9 +222,12 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     }
 
     // Finalize the hash.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
     hasher.Finalize(reinterpret_cast<uint8* const>(&m_info.palRuntimeHash));
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
     m_info.pipelineHash = m_info.palRuntimeHash;
+#endif
 #endif
 
     return result;

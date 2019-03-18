@@ -109,9 +109,9 @@ void SettingsLoader::SetupDefaults()
     m_settings.donutDistributionFactor = 24;
     m_settings.trapezoidDistributionFactor = 6;
     m_settings.primGroupSize = 128;
-    m_settings.psCuGroupEnabled = true;
     m_settings.gfx9RbPlusEnable = true;
 
+    m_settings.numPSWavesSoftGroupedPerCu = 0;
     m_settings.switchVgtOnDraw = false;
     m_settings.tessFactorBufferSizePerSe = 8192;
     m_settings.disableTessDonutWalkPattern = 0;
@@ -444,14 +444,14 @@ void SettingsLoader::ReadSettings()
                            &m_settings.primGroupSize,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPsCuGroupEnabledStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.psCuGroupEnabled,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pRbPlusEnableStr,
                            Util::ValueType::Boolean,
                            &m_settings.gfx9RbPlusEnable,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNumPSWavesSoftGroupedPerCuStr,
+                           Util::ValueType::Uint,
+                           &m_settings.numPSWavesSoftGroupedPerCu,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pSwitchVgtOnDrawStr,
@@ -1146,14 +1146,14 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(3402504325, info);
 
     info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.psCuGroupEnabled;
-    info.valueSize = sizeof(m_settings.psCuGroupEnabled);
-    m_settingsInfoMap.Insert(1924559864, info);
-
-    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gfx9RbPlusEnable;
     info.valueSize = sizeof(m_settings.gfx9RbPlusEnable);
     m_settingsInfoMap.Insert(2122164302, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.numPSWavesSoftGroupedPerCu;
+    info.valueSize = sizeof(m_settings.numPSWavesSoftGroupedPerCu);
+    m_settingsInfoMap.Insert(3707789309, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.switchVgtOnDraw;
@@ -1526,7 +1526,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3871158006;
+            component.settingsDataHash = 519651953;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

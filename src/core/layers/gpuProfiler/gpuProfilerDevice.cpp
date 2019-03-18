@@ -432,6 +432,7 @@ Result Device::CreateComputePipeline(
 Result Device::ExtractPerfCounterInfo(
     const PerfExperimentProperties& perfExpProps,
     File*                           pConfigFile,
+    bool                            isSpmConfig,
     uint32                          numPerfCounter,
     PerfCounter*                    pPerfCounters)
 {
@@ -593,7 +594,9 @@ Result Device::ExtractPerfCounterInfo(
                 continue;
             }
 
-            const uint32 maxCounters = perfExpProps.blocks[blockIdx].maxGlobalSharedCounters;
+            // The maximum number of counters depends on whether this is an SPM file or a global counters file.
+            const uint32 maxCounters = isSpmConfig ? perfExpProps.blocks[blockIdx].maxSpmCounters
+                                                   : perfExpProps.blocks[blockIdx].maxGlobalSharedCounters;
 
             for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
             {
@@ -643,6 +646,7 @@ Result Device::InitGlobalPerfCounterState()
         {
             result = ExtractPerfCounterInfo(perfExpProps,
                                             &configFile,
+                                            false,
                                             m_numGlobalPerfCounters,
                                             m_pGlobalPerfCounters);
         }
@@ -761,6 +765,7 @@ Result Device::InitSpmTraceCounterState()
         {
             result = ExtractPerfCounterInfo(perfExpProps,
                                             &configFile,
+                                            true,
                                             m_numStreamingPerfCounters,
                                             m_pStreamingPerfCounters);
         }

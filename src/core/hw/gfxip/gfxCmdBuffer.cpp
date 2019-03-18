@@ -59,9 +59,8 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_pCurrentExperiment(nullptr),
     m_gfxIpLevel(device.Parent()->ChipProperties().gfxLevel),
     m_device(device),
-    m_pTimestampMem(nullptr),
-    m_timestampOffset(0),
     m_pInternalEvent(nullptr),
+    m_timestampGpuVa(0),
     m_computeStateFlags(0),
     m_spmTraceEnabled(false),
     m_fceRefCountVec(device.GetPlatform())
@@ -88,13 +87,6 @@ GfxCmdBuffer::~GfxCmdBuffer()
 
     Device* device = m_device.Parent();
 
-    if (m_pTimestampMem != nullptr)
-    {
-        device->MemMgr()->FreeGpuMem(m_pTimestampMem, m_timestampOffset);
-        m_pTimestampMem   = nullptr;
-        m_timestampOffset = 0;
-    }
-
     if (m_pInternalEvent != nullptr)
     {
         m_pInternalEvent->Destroy();
@@ -112,27 +104,6 @@ Result GfxCmdBuffer::Init(
 
     if (result == Result::Success)
     {
-        // Create the timestamp memory used for CacheFulshInvTS events.
-        GpuMemoryCreateInfo createInfo = {};
-        createInfo.size      = sizeof(uint32);
-        createInfo.alignment = sizeof(uint32);
-        createInfo.priority  = GpuMemPriority::Normal;
-        createInfo.heapCount = 2;
-        createInfo.heaps[0]  = GpuHeapInvisible;
-        createInfo.heaps[1]  = GpuHeapLocal;
-
-        GpuMemoryInternalCreateInfo internalMemInfo = {};
-        internalMemInfo.flags.alwaysResident = 1;
-
-        result = pDevice->MemMgr()->AllocateGpuMem(createInfo,
-                                                   internalMemInfo,
-                                                   false,
-                                                   &m_pTimestampMem,
-                                                   &m_timestampOffset);
-    }
-
-    if (result == Result::Success)
-    {
         // Create gpuEvent for this CmdBuffer.
         GpuEventCreateInfo createInfo  = {};
         createInfo.flags.gpuAccessOnly = 1;
@@ -142,28 +113,23 @@ Result GfxCmdBuffer::Init(
         if (result == Result::Success)
         {
             result = Result::ErrorOutOfMemory;
-            void* pMemory = PAL_MALLOC(eventSize,
-                                       pDevice->GetPlatform(),
-                                       Util::SystemAllocType::AllocObject);
+            void* pMemory = PAL_MALLOC(eventSize, pDevice->GetPlatform(), Util::SystemAllocType::AllocObject);
 
             if (pMemory != nullptr)
             {
-                IGpuEvent** ppEvent = reinterpret_cast<IGpuEvent**>(&m_pInternalEvent);
-                result = pDevice->CreateGpuEvent(createInfo, pMemory, ppEvent);
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
+                result = GpuEvent::CreateInternal(pDevice, createInfo, pMemory, &m_pInternalEvent);
+#else
+                result = pDevice->CreateGpuEvent(createInfo,
+                                                 pMemory,
+                                                 reinterpret_cast<IGpuEvent**>(&m_pInternalEvent));
+#endif
                 if (result != Result::Success)
                 {
                     PAL_SAFE_FREE(pMemory, pDevice->GetPlatform());
                 }
             }
         }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
-        if (result == Result::Success)
-        {
-            result = m_pInternalEvent->Init();
-        }
-#endif
     }
 
     return result;
@@ -294,13 +260,21 @@ Result GfxCmdBuffer::BeginCommandStreams(
 
     Result result = CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
-    // Allocate from current CmdAllocator and bind the GPU memory to internal event.
     if (result == Result::Success)
     {
+        // Allocate GPU memory for the internal event from the command allocator.
         result = AllocateAndBindGpuMemToEvent(m_pInternalEvent);
     }
-#endif
+
+    if (result == Result::Success)
+    {
+        // Allocate timestamp GPU memory from the command allocator.
+        // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
+        // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
+        // to access, and sets m_status to a failure code.
+        m_timestampGpuVa = AllocateGpuScratchMem(sizeof(uint32), sizeof(uint32));
+        result = m_status;
+    }
 
     return result;
 }
@@ -850,6 +824,12 @@ void GfxCmdBuffer::CmdSaveComputeState(
         m_computeRestoreState.pipelineState.pBorderColorPalette = m_computeState.pipelineState.pBorderColorPalette;
     }
 
+    if (m_pCurrentExperiment != nullptr)
+    {
+        // Inform the performance experiment that we're starting some internal operations.
+        m_pCurrentExperiment->BeginInternalOps(GetCmdStreamByEngine(GetPerfExperimentEngine()));
+    }
+
 }
 
 // =====================================================================================================================
@@ -867,6 +847,12 @@ void GfxCmdBuffer::CmdRestoreComputeState(
     // to revisit this!)
 
     SetComputeState(m_computeRestoreState, stateFlags);
+
+    if (m_pCurrentExperiment != nullptr)
+    {
+        // Inform the performance experiment that we've finished some internal operations.
+        m_pCurrentExperiment->EndInternalOps(GetCmdStreamByEngine(GetPerfExperimentEngine()));
+    }
 
     // The caller has just executed one or more CS blts.
     SetGfxCmdBufCsBltState(true);
@@ -887,6 +873,9 @@ void GfxCmdBuffer::SetComputeState(
             bindParams.pipelineBindPoint  = PipelineBindPoint::Compute;
             bindParams.pPipeline          = newComputeState.pipelineState.pPipeline;
             bindParams.cs                 = newComputeState.dynamicCsInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 476
+            bindParams.apiPsoHash         = newComputeState.pipelineState.apiPsoHash;
+#endif
 
             CmdBindPipeline(bindParams);
         }

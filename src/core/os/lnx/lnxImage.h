@@ -90,10 +90,11 @@ public:
         Pal::Image*                         pImage);
 
     static Result CreatePresentableMemoryObject(
-        Device*          pDevice,
-        Image*           pImage,
-        void*            pMemObjMem,
-        Pal::GpuMemory** ppMemObjOut);
+        Device*                             pDevice,
+        const PresentableImageCreateInfo&   createInfo,
+        Image*                              pImage,
+        void*                               pMemObjMem,
+        Pal::GpuMemory**                    ppMemObjOut);
 
     SubResourceInfo* GetSubresourceInfo(uint32 subresId) const
     {

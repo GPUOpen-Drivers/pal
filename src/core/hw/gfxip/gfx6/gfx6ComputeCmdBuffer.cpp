@@ -28,6 +28,7 @@
 #include "core/hw/gfxip/gfx6/gfx6ComputePipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6IndirectCmdGenerator.h"
+#include "core/hw/gfxip/gfx6/gfx6PerfTrace.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
 #include "core/g_palPlatformSettings.h"
@@ -1459,6 +1460,22 @@ void ComputeCmdBuffer::CmdInsertRgpTraceMarker(
 
         m_cmdStream.CommitCommands(pCmdSpace);
     }
+}
+
+// =====================================================================================================================
+// Updates the SQTT token mask for all SEs outside of a specific PerfExperiment.  Used by GPA Session when targeting
+// a single event for instruction level trace during command buffer building.
+void ComputeCmdBuffer::CmdUpdateSqttTokenMask(
+    const ThreadTraceTokenConfig& sqttTokenConfig)
+{
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+
+    pCmdSpace = Gfx6::ThreadTrace::WriteUpdateSqttTokenMask(&m_cmdStream,
+                                                            pCmdSpace,
+                                                            sqttTokenConfig,
+                                                            m_device);
+
+    m_cmdStream.CommitCommands(pCmdSpace);
 }
 
 // =====================================================================================================================

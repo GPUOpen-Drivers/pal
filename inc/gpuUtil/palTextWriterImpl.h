@@ -355,7 +355,14 @@ void TextWriter<Allocator>::CreateImageView(
 
     imgViewInfo.swizzledFormat = GetRawFormat(createInfo.swizzledFormat.format);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+    // This is only used in a compute shader write, but will probably be immediately followed by a present
+    imgViewInfo.possibleLayouts.engines = Pal::EngineTypeUniversal   | Pal::EngineTypeCompute;
+    imgViewInfo.possibleLayouts.usages  = Pal::LayoutShaderWrite     | Pal::LayoutShaderRead |
+                                          Pal::LayoutPresentWindowed | Pal::LayoutPresentFullscreen;
+#else
     imgViewInfo.flags.shaderWritable = 1;
+#endif
 
     imgViewInfo.subresRange.startSubres.aspect     = Pal::ImageAspect::Color;
     imgViewInfo.subresRange.startSubres.arraySlice = 0;

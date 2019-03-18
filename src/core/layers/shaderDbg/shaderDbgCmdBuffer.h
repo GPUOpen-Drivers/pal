@@ -50,6 +50,7 @@ struct TraceData
     Sdl_HwShaderStage hwStage;
     bool              isDraw;
     uint32            uniqueId;
+    uint64            apiPsoHash;
 };
 
 // =====================================================================================================================
@@ -150,15 +151,21 @@ private:
     void AllocateHwShaderDbg(
         bool   isDraw,
         uint32 uniqueId);
-    void PostDrawDispatch();
+    void PostDrawDispatch(
+        bool isDraw);
 
     Device*                             m_pDevice;
     Platform*                           m_pPlatform;
     const size_t                        m_maxNumTracedDraws;
-    const Pipeline*                     m_pCurrentPipeline;
+    struct
+    {
+        const Pipeline*                 pCurrentPipeline;
+        uint64                          apiPsoHash;
+    } m_pipeInfo[static_cast<uint32>(PipelineBindPoint::Count)];
     uint32                              m_currentDraw;
     uint32                              m_currentDispatch;
     uint32                              m_numTracedDraws;
+    uint32                              m_numTracedDispatches;
     Util::Deque<TraceData, Platform>    m_traceData;
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);

@@ -96,8 +96,8 @@ public:
                                      const ThreadTraceTokenConfig& sqttTokenConfig) const override;
     virtual void IssueEnd(Pal::CmdStream* pPalCmdStream) const override;
 
-    void BeginInternalOps(CmdStream* pCmdStream) const;
-    void EndInternalOps(CmdStream* pCmdStream) const;
+    virtual void BeginInternalOps(Pal::CmdStream* pCmdStream) const override;
+    virtual void EndInternalOps(Pal::CmdStream* pCmdStream) const override;
 
 protected:
     virtual ~PerfExperiment() {}

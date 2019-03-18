@@ -50,7 +50,6 @@ struct PerformanceDataHeader
     Version     version;          // Current version of this header structure.
     char        apiShaderType[3]; // Two character string representing the API shader type, plus null terminator.
     ShaderHash  shaderHash;       // 128-bit hash for this shader.
-    uint64_t    pipelineHash;     // 64-bit PAL hash for the pipeline this shader is part of.
     uint64_t    compilerHash;     // 64-bit Compiler hash for the pipeline this shader is part of.
     size_t      payloadSize;      // Size of the total payload following this header, in bytes.
     uint32_t    numShaderChunks;  // Number of shader chunks in the payload, each with its own header.

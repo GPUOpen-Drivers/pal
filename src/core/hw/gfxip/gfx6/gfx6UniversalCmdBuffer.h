@@ -508,9 +508,6 @@ public:
         uint32            startQuery,
         uint32            queryCount) override;
 
-    virtual void PushGraphicsState() override;
-    virtual void PopGraphicsState() override;
-
     virtual CmdStream* GetCmdStreamByEngine(uint32 engineType) override;
 
     virtual void CmdUpdateSqttTokenMask(const ThreadTraceTokenConfig& sqttTokenConfig) override;
@@ -586,9 +583,6 @@ public:
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,
         ICmdBuffer*const* ppCmdBuffers) override;
-
-    virtual void CmdSaveComputeState(uint32 stateFlags) override;
-    virtual void CmdRestoreComputeState(uint32 stateFlags) override;
 
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,

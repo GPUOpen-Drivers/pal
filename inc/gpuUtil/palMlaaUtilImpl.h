@@ -276,9 +276,18 @@ void MlaaUtil<Allocator>::BuildImageViewInfo(
     pInfo->subresRange.startSubres = subresId;
     pInfo->subresRange.numMips     = 1;
     pInfo->subresRange.numSlices   = 1;
+    pInfo->swizzledFormat          = pImage->GetImageCreateInfo().swizzledFormat;
 
-    pInfo->swizzledFormat = pImage->GetImageCreateInfo().swizzledFormat;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+    // MLAA only uses compute shaders
+    pInfo->possibleLayouts = { Pal::LayoutShaderRead, Pal::EngineTypeUniversal | Pal::EngineTypeCompute };
+    if (isShaderWriteable)
+    {
+        pInfo->possibleLayouts.usages |= Pal::LayoutShaderWrite;
+    }
+#else
     pInfo->flags.shaderWritable = isShaderWriteable;
+#endif
 }
 
 // =====================================================================================================================

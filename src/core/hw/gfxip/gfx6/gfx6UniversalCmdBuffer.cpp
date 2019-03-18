@@ -419,7 +419,12 @@ void UniversalCmdBuffer::ResetState()
         // NOTE: On Gfx8 and newer hardware, the VGT_DMA_INDEX_TYPE register has an extra field for specifying the
         // MTYPE of memory accesses to the index buffer. Other than the new field, the register is identical to the
         // SI/CI version.
-        m_vgtDmaIndexType.bits.MTYPE = MTYPE_UC;
+        m_vgtDmaIndexType.bits.MTYPE        = MTYPE_UC;
+        m_vgtDmaIndexType.bits.RDREQ_POLICY = VGT_POLICY_STREAM;
+    }
+    else if (chipProps.gfxLevel == GfxIpLevel::GfxIp7)
+    {
+        m_vgtDmaIndexType.bits.RDREQ_POLICY = VGT_POLICY_STREAM;
     }
 
     m_spiVsOutConfig.u32All = 0;
@@ -1066,7 +1071,7 @@ void UniversalCmdBuffer::CmdSetVertexBuffers(
     // The vertex buffer table will be validated at Draw time, so all that is necessary is to update the CPU-side copy
     // of the SRD table and upload the new SRD data into CE RAM.
 
-    BufferSrd*const pSrds = (m_vbTable.pSrds + bufferCount);
+    BufferSrd*const pSrds = (m_vbTable.pSrds + firstBuffer);
     m_device.Parent()->CreateUntypedBufferViewSrds(bufferCount, pBuffers, pSrds);
 
     constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
@@ -2711,17 +2716,6 @@ Result UniversalCmdBuffer::AddPreamble()
         rasterState.pointSize = 1.0f;
 
         CmdSetPointLineRasterState(rasterState);
-    }
-
-    if (m_device.SupportsCePreamblePerSubmit() == false)
-    {
-        // This dummy LOAD_CONST_RAM packet is because the KMD expects every submission from a UMD to contain at
-        // least one LOAD_CONST_RAM packet (even if it loads nothing) in order to support High-Priority 3D Queues.
-        // Not having this causes a CP hang when switching between GPU contexts. Mantle does not need this because
-        // it never uses CE RAM for anything.
-        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
-        pCeCmdSpace += m_cmdUtil.BuildLoadConstRam(0, 0, 0, pCeCmdSpace);
-        m_ceCmdStream.CommitCommands(pCeCmdSpace);
     }
 
     return Result::Success;
@@ -4983,31 +4977,6 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
 }
 
 // =====================================================================================================================
-// Perform Gfx6-specific functionality regarding pushing of graphics state.
-void UniversalCmdBuffer::PushGraphicsState()
-{
-    Pal::UniversalCmdBuffer::PushGraphicsState();
-
-    if (m_pCurrentExperiment != nullptr)
-    {
-        // Inform the performance experiment that we're starting some internal operations.
-        static_cast<const PerfExperiment*>(m_pCurrentExperiment)->BeginInternalOps(&m_deCmdStream);
-    }
-}
-
-// =====================================================================================================================
-// Perform Gfx6-specific functionality regarding popping of graphics state.
-void UniversalCmdBuffer::PopGraphicsState()
-{
-    Pal::UniversalCmdBuffer::PopGraphicsState();
-
-    if (m_pCurrentExperiment != nullptr)
-    {
-        // Inform the performance experiment that we've finished some internal operations.
-        static_cast<const PerfExperiment*>(m_pCurrentExperiment)->EndInternalOps(&m_deCmdStream);
-    }
-}
-// =====================================================================================================================
 // Set all specified state on this command buffer.
 void UniversalCmdBuffer::SetGraphicsState(
     const GraphicsState& newGraphicsState)
@@ -5169,34 +5138,6 @@ void UniversalCmdBuffer::InheritStateFromCmdBuf(
                                             m_vbTable.watermark,
                                             pCeCmdSpace);
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
-    }
-}
-
-// =====================================================================================================================
-// Perform Gfx6-specific functionality regarding saving of compute state.
-void UniversalCmdBuffer::CmdSaveComputeState(
-    uint32 stateFlags)
-{
-    GfxCmdBuffer::CmdSaveComputeState(stateFlags);
-
-    if (m_pCurrentExperiment != nullptr)
-    {
-        // Inform the performance experiment that we're starting some internal operations.
-        static_cast<const PerfExperiment*>(m_pCurrentExperiment)->BeginInternalOps(&m_deCmdStream);
-    }
-}
-
-// =====================================================================================================================
-// Perform Gfx6-specific functionality regarding restoration of compute state.
-void UniversalCmdBuffer::CmdRestoreComputeState(
-    uint32 stateFlags)
-{
-    GfxCmdBuffer::CmdRestoreComputeState(stateFlags);
-
-    if (m_pCurrentExperiment != nullptr)
-    {
-        // Inform the performance experiment that we've finished some internal operations.
-        static_cast<const PerfExperiment*>(m_pCurrentExperiment)->EndInternalOps(&m_deCmdStream);
     }
 }
 

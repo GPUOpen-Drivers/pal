@@ -204,6 +204,8 @@ public:
         uint32      numDwords,
         const void* pData) override;
 
+    virtual void CmdUpdateSqttTokenMask(const ThreadTraceTokenConfig& sqttTokenConfig) override;
+
     virtual void AddPerPresentCommands(
         gpusize frameCountGpuAddr,
         uint32  frameCntReg) override;

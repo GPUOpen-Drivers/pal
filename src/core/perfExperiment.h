@@ -104,6 +104,9 @@ public:
         const ThreadTraceTokenConfig& sqttTokenConfig) const = 0;
     virtual void IssueEnd(CmdStream* pCmdStream) const = 0;
 
+    virtual void BeginInternalOps(CmdStream* pCmdStream) const = 0;
+    virtual void EndInternalOps(CmdStream* pCmdStream) const = 0;
+
     virtual void Destroy() override;
 
 protected:

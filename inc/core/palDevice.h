@@ -1648,12 +1648,29 @@ struct ImageViewInfo
 
     ImageTexOptLevel texOptLevel;     ///< Specific the texture optimization level.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+    ImageLayout possibleLayouts; ///< Union of all possible layouts this view can be in while accessed by this view.
+                                 ///  (ie. what can be done with this SRD without having a layout transition?)
+                                 ///  In DX, for example, it's possible that a texture SRV could be accessed in a state
+                                 ///  with all other read-only usages allowed, but a UAV must exclusively be accessed
+                                 ///  in the UNORDERED_ACCESS state.
+                                 ///  The primary purpose of this flag is to avoid compressed shader writes if a
+                                 ///  different usage does not support compression and PAL won't get an opportunity to
+                                 ///  decompress it (ie. a transition in a barrier)
+#endif
+
     union
     {
         struct
         {
-            uint32 shaderWritable : 1;  ///< True if used with an image that has been transitioned to a shader-
-                                        ///  writable image state (e.g. [Graphics|Compute][WriteOnly|ReadWrite])
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
+            uint32 shaderWritable : 1; ///< True if used with an image that has been transitioned to a shader-
+                                       ///  writable image state (e.g. [Graphics|Compute][WriteOnly|ReadWrite]).
+                                       ///  Replaced by the relevant enums in 'possibleLayouts'
+#else
+            uint32 placeholder0   : 1;
+#endif
+
             uint32 zRangeValid    : 1;  ///< whether z offset/ range value is valid.
             uint32 includePadding : 1;  ///< Whether internal padding should be included in the view range.
             uint32 reserved       : 29; ///< Reserved for future use

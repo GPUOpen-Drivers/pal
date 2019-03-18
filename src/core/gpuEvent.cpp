@@ -34,11 +34,31 @@ namespace Pal
 static constexpr gpusize GpuRequiredMemSizePerSlotInBytes = 4;
 static constexpr gpusize GpuRequiredMemAlignment          = 8;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
+// =====================================================================================================================
+Result GpuEvent::CreateInternal(
+    Device*                   pDevice,
+    const GpuEventCreateInfo& createInfo,
+    void*                     pMemory,
+    GpuEvent**                ppEvent)
+{
+    (*ppEvent) = PAL_PLACEMENT_NEW(pMemory) GpuEvent(createInfo, pDevice);
+
+    // Intentionally do not call Init() here, since we don't want the init method to allocate GPU memory!  It will be
+    // managed by the caller using BindGpuMemory().
+
+    return Result::Success;
+}
+#endif
+
 // =====================================================================================================================
 GpuEvent::GpuEvent(
     const GpuEventCreateInfo& createInfo,
     Device*                   pDevice)
     :
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
+    m_ownsGpuMemory(false),
+#endif
     m_createInfo(createInfo),
     m_pDevice(pDevice),
     m_pEventData(nullptr),
@@ -58,8 +78,11 @@ GpuEvent::~GpuEvent()
         }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 474
-        const Result freeResult = m_pDevice->MemMgr()->FreeGpuMem(m_gpuMemory.Memory(), m_gpuMemory.Offset());
-        PAL_ASSERT(freeResult == Result::Success);
+        if (m_ownsGpuMemory)
+        {
+            const Result freeResult = m_pDevice->MemMgr()->FreeGpuMem(m_gpuMemory.Memory(), m_gpuMemory.Offset());
+            PAL_ASSERT(freeResult == Result::Success);
+        }
 #endif
     }
 }
@@ -96,6 +119,7 @@ Result GpuEvent::Init()
 
     if (result == Result::Success)
     {
+        m_ownsGpuMemory = true;
         m_gpuMemory.Update(pMemory, offset);
 
         // If the event is CPU-visible we keep it mapped and initialize it to the reset state.
@@ -212,7 +236,6 @@ Result GpuEvent::CpuWrite(
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
 // =====================================================================================================================
 // Specifies requirements for GPU memory a client must bind to the object before using it: size, alignment, and heaps.
 // NOTE: Part of the public IGpuMemoryBindable interface.
@@ -287,6 +310,5 @@ Result GpuEvent::BindGpuMemory(
 
     return result;
 }
-#endif
 
 } // Pal

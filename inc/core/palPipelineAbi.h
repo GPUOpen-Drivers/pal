@@ -48,7 +48,7 @@ constexpr uint8  ElfOsAbiVersion = 65; ///< ELFOSABI_AMDGPU_PAL
 constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
-constexpr uint32 MetadataNoteType = 13; ///< NT_AMD_AMDGPU_HSA_METADATA
+constexpr uint32 MetadataNoteType = 32; ///< NT_AMDGPU_METADATA
 
 constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
 constexpr uint32 PipelineMetadataMinorVersion = 1;  ///< Pipeline Metadata Minor Version
@@ -314,7 +314,14 @@ static const char* PipelineMetadataNameStrings[] =
 /// The pipeline ABI note types.
 enum class PipelineAbiNoteType : uint32
 {
-    PalMetadata     = 13, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
+    PalMetadata    = MetadataNoteType, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
+#else
+    PalMetadata    = 32,               ///< Contains metadata needed by the PAL runtime to execute the pipeline.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 477
+    PalMetadataOld = 13,               ///< Deprecated note ID superceded by PalMetadata; refers to the same structure.
+#endif
 
     /// The following legacy note types are deprecated.
 

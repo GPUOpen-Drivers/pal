@@ -442,7 +442,7 @@ void BuildImageViewInfo(
     const Image&       image,
     const SubresRange& subresRange,
     SwizzledFormat     swizzledFormat,
-    bool               isShaderWriteable,
+    ImageLayout        imgLayout,
     ImageTexOptLevel   texOptLevel)
 {
     // We will static cast ImageType to ImageViewType so verify that it will work as expected.
@@ -459,9 +459,13 @@ void BuildImageViewInfo(
     pInfo->viewType             = static_cast<ImageViewType>(imageType);
     pInfo->minLod               = 0;
     pInfo->subresRange          = subresRange;
-
     pInfo->swizzledFormat       = swizzledFormat;
-    pInfo->flags.shaderWritable = isShaderWriteable;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+    pInfo->possibleLayouts      = imgLayout;
+#else
+    pInfo->flags.shaderWritable = TestAnyFlagSet(imgLayout.usages, LayoutShaderWrite | LayoutCopyDst);
+#endif
 
     pInfo->texOptLevel          = texOptLevel;
 }

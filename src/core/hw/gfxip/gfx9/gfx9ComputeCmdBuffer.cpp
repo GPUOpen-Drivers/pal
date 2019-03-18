@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.h"
+#include "core/hw/gfxip/gfx9/gfx9PerfTrace.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
 #include "core/g_palPlatformSettings.h"
@@ -1353,7 +1354,7 @@ void ComputeCmdBuffer::CmdInsertTraceMarker(
     const uint32 userDataAddr = (markerType == PerfTraceMarkerType::A) ?
                                 m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData2 :
                                 m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData3;
-    PAL_ASSERT(m_device.CmdUtil().IsPrivilegedConfigReg(userDataAddr) == false);
+    PAL_ASSERT(m_device.CmdUtil().IsUserConfigReg(userDataAddr));
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
     pCmdSpace = m_cmdStream.WriteSetOneConfigReg(userDataAddr, markerData, pCmdSpace);
@@ -1370,7 +1371,7 @@ void ComputeCmdBuffer::CmdInsertRgpTraceMarker(
     // user data 2 and 3.
 
     const uint32 userDataAddr = m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData2;
-    PAL_ASSERT(m_device.CmdUtil().IsPrivilegedConfigReg(userDataAddr) == false);
+    PAL_ASSERT(m_device.CmdUtil().IsUserConfigReg(userDataAddr));
     PAL_ASSERT(m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData3 == (userDataAddr + 1));
 
     const uint32* pDwordData = static_cast<const uint32*>(pData);
@@ -1391,6 +1392,21 @@ void ComputeCmdBuffer::CmdInsertRgpTraceMarker(
 
         m_cmdStream.CommitCommands(pCmdSpace);
     }
+}
+
+// =====================================================================================================================
+// Updates the SQTT token mask for all SEs outside of a specific PerfExperiment.  Used by GPA Session when targeting
+// a single event for instruction level trace during command buffer building.
+void ComputeCmdBuffer::CmdUpdateSqttTokenMask(
+    const ThreadTraceTokenConfig& sqttTokenConfig)
+{
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+
+    {
+        pCmdSpace = Gfx9ThreadTrace::WriteUpdateSqttTokenMask(&m_cmdStream, pCmdSpace, sqttTokenConfig);
+    }
+
+    m_cmdStream.CommitCommands(pCmdSpace);
 }
 
 // =====================================================================================================================

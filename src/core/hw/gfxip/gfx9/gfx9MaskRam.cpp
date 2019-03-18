@@ -1956,6 +1956,11 @@ bool Gfx9Dcc::UseDccForImage(
         // gfx9. It also does not make sense for any depth/stencil image because they have Htile data.
         useDcc = false;
     }
+    else if (isNotARenderTarget && (allMipsShaderWritable == false))
+    {
+        // DCC should always be off for a resource that is not a UAV and is not a render target.
+        useDcc = false;
+    }
     // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
     // preferred, the image will be readable by a shader.
     else if ((pParent->IsShaderReadable() ||

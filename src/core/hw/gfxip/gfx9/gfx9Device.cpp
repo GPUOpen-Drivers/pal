@@ -1959,6 +1959,9 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             baseSubResId.arraySlice = baseArraySlice;
             baseArraySlice = 0;
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+        PAL_ASSERT((viewInfo.possibleLayouts.engines != 0) && (viewInfo.possibleLayouts.usages != 0 ));
+#endif
 
         bool                        overrideBaseResource       = false;
         uint32                      widthScaleFactor           = 1;
@@ -2335,16 +2338,29 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 
             if (pBaseSubResInfo->flags.supportMetaDataTexFetch)
             {
-                srd.word6.bits.COMPRESSION_EN = (viewInfo.flags.shaderWritable == 0);
-
-                if (viewInfo.flags.shaderWritable == 0)
+                if (image.Parent()->IsDepthStencil())
                 {
-                    if (image.Parent()->IsDepthStencil())
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+                    if (ImageLayoutToDepthCompressionState(image.LayoutToDepthCompressionState(baseSubResId),
+                                                           viewInfo.possibleLayouts) == DepthStencilCompressed)
+#else
+                    if (viewInfo.flags.shaderWritable == false)
+#endif
                     {
+                        srd.word6.bits.COMPRESSION_EN = 1;
                         srd.word7.bits.META_DATA_ADDRESS = image.GetHtile256BAddr();
                     }
-                    else
+                }
+                else
+                {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+                    if (ImageLayoutToColorCompressionState(image.LayoutToColorCompressionState(),
+                                                           viewInfo.possibleLayouts) != ColorDecompressed)
+#else
+                    if (viewInfo.flags.shaderWritable == false)
+#endif
                     {
+                        srd.word6.bits.COMPRESSION_EN = 1;
                         // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
                         // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
                         // requires enabling an extension and use of an fMask image view.

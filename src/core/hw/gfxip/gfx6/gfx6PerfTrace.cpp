@@ -193,31 +193,14 @@ uint32* SpmTrace::WriteSetupCommands(
 {
     CmdStream* pHwlCmdStream = static_cast<CmdStream*>(pCmdStream);
 
-    // (1) Write setup commands for each streaming perf counter.
-    StreamingPerfCounter* pStreamingCounter = nullptr;
-    for (auto iter = m_spmCounters.Begin(); iter.Get(); iter.Next())
-    {
-        pCmdStream->CommitCommands(pCmdSpace);
-        pCmdSpace = pCmdStream->ReserveCommands();
+    // (1) Disable and reset all counters.
+    regCP_PERFMON_CNTL cpPerfmonCntl             = {};
+    cpPerfmonCntl.bits.PERFMON_STATE             = CP_PERFMON_STATE_DISABLE_AND_RESET;
+    cpPerfmonCntl.bits.SPM_PERFMON_STATE__CI__VI = STRM_PERFMON_STATE_DISABLE_AND_RESET;
 
-        pStreamingCounter = static_cast<StreamingPerfCounter*>(*iter.Get());
-
-        // We might have to reset the GRBM_GFX_INDEX for programming more counters as it would've been changed for
-        // programming indexed counters previously.
-        if (m_flags.hasIndexedCounters)
-        {
-            regGRBM_GFX_INDEX grbmGfxIndex = {};
-            grbmGfxIndex.bits.SE_BROADCAST_WRITES       = 1;
-            grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
-            grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
-
-            pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
-                                                grbmGfxIndex.u32All,
-                                                pCmdSpace);
-        }
-
-        pCmdSpace = pStreamingCounter->WriteSetupCommands(pCmdStream, pCmdSpace);
-    }
+    pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL__CI__VI,
+                                                    cpPerfmonCntl.u32All,
+                                                    pCmdSpace);
 
     // (2) Write muxsel ram.
     for (uint32 seIndex = 0; seIndex < static_cast<uint32>(SpmDataSegmentType::Count); ++seIndex)
@@ -239,12 +222,12 @@ uint32* SpmTrace::WriteSetupCommands(
                                                                 grbmGfxIndex.u32All,
                                                                 pCmdSpace);
 
-                pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_SE_MUXSEL_ADDR__CI__VI,
-                                                                 0,
-                                                                 pCmdSpace);
-
                 for (uint32 i = 0; i < muxselRamDwords; ++i)
                 {
+                    pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_SE_MUXSEL_ADDR__CI__VI,
+                                                                     i,
+                                                                     pCmdSpace);
+
                     // Depending on the number of counters requested and the SE configuration a large number of
                     // write_data packets can be generated.
                     pCmdStream->CommitCommands(pCmdSpace);
@@ -272,12 +255,12 @@ uint32* SpmTrace::WriteSetupCommands(
                                                                 grbmGfxIndex.u32All,
                                                                 pCmdSpace);
 
-                pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_GLOBAL_MUXSEL_ADDR__CI__VI,
-                                                                 0,
-                                                                 pCmdSpace);
-
                 for (uint32 i = 0; i < muxselRamDwords; ++i)
                 {
+                    pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_GLOBAL_MUXSEL_ADDR__CI__VI,
+                                                                     i,
+                                                                     pCmdSpace);
+
                     pCmdStream->CommitCommands(pCmdSpace);
                     pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -329,14 +312,31 @@ uint32* SpmTrace::WriteSetupCommands(
     // We do not use the ringing functionality of the output buffers, so always write 0 as the RDPTR.
     pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_RING_RDPTR__CI__VI, 0, pCmdSpace);
 
-    // Finally, disable and reset all counters.
-    regCP_PERFMON_CNTL cpPerfmonCntl             = {};
-    cpPerfmonCntl.bits.PERFMON_STATE             = CP_PERFMON_STATE_DISABLE_AND_RESET;
-    cpPerfmonCntl.bits.SPM_PERFMON_STATE__CI__VI = CP_PERFMON_STATE_DISABLE_AND_RESET;
+    // (4) Write setup commands for each streaming perf counter.
+    StreamingPerfCounter* pStreamingCounter = nullptr;
+    for (auto iter = m_spmCounters.Begin(); iter.Get(); iter.Next())
+    {
+        pCmdStream->CommitCommands(pCmdSpace);
+        pCmdSpace = pCmdStream->ReserveCommands();
 
-    pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL__CI__VI,
-                                                    cpPerfmonCntl.u32All,
-                                                    pCmdSpace);
+        pStreamingCounter = static_cast<StreamingPerfCounter*>(*iter.Get());
+
+        // We might have to reset the GRBM_GFX_INDEX for programming more counters as it would've been changed for
+        // programming indexed counters previously.
+        if (m_flags.hasIndexedCounters)
+        {
+            regGRBM_GFX_INDEX grbmGfxIndex              = { };
+            grbmGfxIndex.bits.SE_BROADCAST_WRITES       = 1;
+            grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
+            grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
+
+            pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
+                                                grbmGfxIndex.u32All,
+                                                pCmdSpace);
+        }
+
+        pCmdSpace = pStreamingCounter->WriteSetupCommands(pCmdStream, pCmdSpace);
+    }
 
     // NOTE: It is the caller's responsibility to reset GRBM_GFX_INDEX.
 
