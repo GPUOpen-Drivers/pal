@@ -36,7 +36,6 @@
 #include "core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.h"
 #include "core/hw/gfxip/gfx9/gfx9MsaaState.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
-#include "core/hw/gfxip/gfx9/gfx9PerfTrace.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/g_palPlatformSettings.h"
@@ -324,6 +323,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_savedPaScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = settings.binningPersistentStatesPerBin - 1;
     m_savedPaScBinnerCntl0.bits.FPOVS_PER_BATCH           = settings.binningFpovsPerBatch;
     m_savedPaScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION     = settings.binningOptimalBinSelection;
+
+    // Initialize to the common value for most pipelines (no conservative rast).
+    m_paScConsRastCntl.u32All                         = 0;
+    m_paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE = 1;
 
     memset(&m_rbPlusPm4Img, 0, sizeof(m_rbPlusPm4Img));
     if (m_device.Parent()->ChipProperties().gfx9.rbPlus != 0)
@@ -794,7 +797,9 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
                                                    pDeCmdSpace);
 
     // Write MSAA quad sample pattern registers
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(samplePosPm4Image.spaceNeeded, &samplePosPm4Image, pDeCmdSpace);
+    pDeCmdSpace = m_deCmdStream.WritePm4Image(SizeOfMsaaSamplePositionsPm4ImageInDwords,
+                                              &samplePosPm4Image,
+                                              pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
@@ -1360,6 +1365,7 @@ void UniversalCmdBuffer::CmdBindTargets(
 
             // Set the bit means this color target slot is not bound to a NULL target.
             newColorTargetMask |= (1 << slot);
+
         }
 
         if ((pCurrentView != nullptr) && (pCurrentView != pNewView))  // view1->view2 or view->null
@@ -1434,6 +1440,7 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                             TimestampGpuVirtAddr(),
                                                             pDeCmdSpace);
     }
+
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
     // Save updated bindTargets state
@@ -2539,17 +2546,15 @@ void UniversalCmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     uint32            value)
 {
     const GpuMemory* pGpuMemory = static_cast<const GpuMemory*>(&dstGpuMemory);
+    WriteDataInfo    writeData  = {};
+
+    writeData.engineType = GetEngineType();
+    writeData.dstAddr    = pGpuMemory->GetBusAddrMarkerVa() + offset;
+    writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+    writeData.dstSel     = dst_sel__me_write_data__memory;
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildWriteData(GetEngineType(),
-                                            pGpuMemory->GetBusAddrMarkerVa() + offset,
-                                            1,
-                                            engine_sel__me_write_data__micro_engine,
-                                            dst_sel__me_write_data__memory,
-                                            wr_confirm__me_write_data__wait_for_write_confirmation,
-                                            &value,
-                                            PredDisable,
-                                            pDeCmdSpace);
+    pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, value, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
@@ -2687,10 +2692,8 @@ void UniversalCmdBuffer::CmdInsertTraceMarker(
     PerfTraceMarkerType markerType,
     uint32              markerData)
 {
-    const uint32 userDataAddr = (markerType == PerfTraceMarkerType::A) ?
-                                m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData2 :
-                                m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData3;
-    PAL_ASSERT(m_device.CmdUtil().IsUserConfigReg(userDataAddr));
+    const uint32 userDataAddr =
+        (markerType == PerfTraceMarkerType::A) ? mmSQ_THREAD_TRACE_USERDATA_2 : mmSQ_THREAD_TRACE_USERDATA_3;
 
     uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
     {
@@ -2707,10 +2710,7 @@ void UniversalCmdBuffer::CmdInsertRgpTraceMarker(
     // The first dword of every RGP trace marker packet is written to SQ_THREAD_TRACE_USERDATA_2.  The second dword
     // is written to SQ_THREAD_TRACE_USERDATA_3.  For packets longer than 64-bits, continue alternating between
     // user data 2 and 3.
-
-    const uint32 userDataAddr = m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData2;
-    PAL_ASSERT(m_device.CmdUtil().IsUserConfigReg(userDataAddr));
-    PAL_ASSERT(m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData3 == (userDataAddr + 1));
+    static_assert(mmSQ_THREAD_TRACE_USERDATA_3 == mmSQ_THREAD_TRACE_USERDATA_2 + 1, "Registers not sequential!");
 
     const uint32* pDwordData = static_cast<const uint32*>(pData);
     while (numDwords > 0)
@@ -2721,8 +2721,8 @@ void UniversalCmdBuffer::CmdInsertRgpTraceMarker(
         // comment string, so it's not safe to assume the whole packet will fit under our reserve limit.
         uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
         {
-            pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<false>(userDataAddr,
-                                                                   userDataAddr + dwordsToWrite - 1,
+            pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<false>(mmSQ_THREAD_TRACE_USERDATA_2,
+                                                                   mmSQ_THREAD_TRACE_USERDATA_2 + dwordsToWrite - 1,
                                                                    pDwordData,
                                                                    pCmdSpace);
         }
@@ -2745,13 +2745,22 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     size_t cmdDwords = (m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
                                                          mmPA_SC_SCREEN_SCISSOR_BR,
                                                          &pm4Commands.hdrPaScScreenScissor) +
-                        m_cmdUtil.BuildSetOneContextReg(mmDB_HTILE_DATA_BASE, &pm4Commands.hdrDbHtileDataBase));
+                        m_cmdUtil.BuildSetOneContextReg(mmDB_HTILE_DATA_BASE, &pm4Commands.hdrDbHtileDataBase) +
+                        m_cmdUtil.BuildSetOneContextReg(mmDB_RENDER_CONTROL, &pm4Commands.hdrDbRenderControl));
 
     pm4Commands.paScScreenScissorTl.bits.TL_X = PaScScreenScissorMin;
     pm4Commands.paScScreenScissorTl.bits.TL_Y = PaScScreenScissorMin;
     pm4Commands.paScScreenScissorBr.bits.BR_X = PaScScreenScissorMax;
     pm4Commands.paScScreenScissorBr.bits.BR_Y = PaScScreenScissorMax;
     pm4Commands.dbHtileDataBase.u32All        = 0;
+
+    // If the dbRenderControl.DEPTH_CLEAR_ENABLE bit is not reset to 0 after performing a graphics fast depth clear
+    // then any following draw call with pixel shader z-imports will have their z components clamped to the clear
+    // plane equation which was set in the fast clear.
+    //
+    //     [dbRenderControl.]DEPTH_CLEAR_ENABLE will modify the zplane of the incoming geometry to the clear plane.
+    //     So if the shader uses this z plane (that is, z-imports are enabled), this can affect the color output.
+    pm4Commands.dbRenderControl.u32All = 0;
 
     // The rest of the PM4 commands depend on which GFXIP version we are.
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
@@ -2934,16 +2943,17 @@ Result UniversalCmdBuffer::AddPreamble()
         }
     }
 
+    // PA_SC_CONSERVATIVE_RASTERIZATION_CNTL is the same value for most Pipeline objects. Prime it in the Preamble
+    // to the disabled state. At draw-time, we check if a new value is needed based on (Pipeline || MSAA) being dirty.
+    // It is expected that Pipeline and MSAA is always known even on nested command buffers.
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
+                                                           m_paScConsRastCntl.u32All,
+                                                           pDeCmdSpace);
+
     // With the PM4 optimizer enabled, certain registers are only updated via RMW packets and not having an initial
     // value causes the optimizer to skip optimizing redundant RMW packets.
     if (m_deCmdStream.Pm4OptimizerEnabled())
     {
-        // PA_SC_CONSERVATIVE_RASTERIZATION_CNTL bits are updated based on MSAA state, pipeline state and draw time
-        // validation based on dirty query state via RMW packets. All the states are valid on a nested command buffer
-        // and will be set when this register gets written. Hence, we can safely set to default value for all
-        // command buffers.
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL, 0, pDeCmdSpace);
-
         if (IsNested() == false)
         {
             // Nested command buffers inherit parts of the following registers and hence must not be reset
@@ -3074,7 +3084,6 @@ void UniversalCmdBuffer::WriteEventCmd(
     const EngineType  engineType = GetEngineType();
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    bool    usePfp      = false;
 
     if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.cpBltActive))
     {
@@ -3092,7 +3101,12 @@ void UniversalCmdBuffer::WriteEventCmd(
         pipePoint = OptimizeHwPipePostBlit();
     }
 
-    // Prepare RELEASE_MEM packet build info.
+    // Prepare packet build info structs.
+    WriteDataInfo writeData = {};
+    writeData.engineType = engineType;
+    writeData.dstAddr    = boundMemObj.GpuVirtAddr();
+    writeData.dstSel     = dst_sel__me_write_data__memory;
+
     ReleaseMemInfo releaseInfo = {};
     releaseInfo.engineType     = engineType;
     releaseInfo.tcCacheOp      = TcCacheOp::Nop;
@@ -3104,29 +3118,16 @@ void UniversalCmdBuffer::WriteEventCmd(
     {
     case HwPipeTop:
         // Implement set/reset event with a WRITE_DATA command using PFP engine.
-        pDeCmdSpace += m_cmdUtil.BuildWriteData(engineType,
-                                                boundMemObj.GpuVirtAddr(),
-                                                1,
-                                                engine_sel__pfp_write_data__prefetch_parser,
-                                                dst_sel__pfp_write_data__memory,
-                                                wr_confirm__pfp_write_data__wait_for_write_confirmation,
-                                                &data,
-                                                PredDisable,
-                                                pDeCmdSpace);
-        usePfp = true;
+        writeData.engineSel = engine_sel__pfp_write_data__prefetch_parser;
+
+        pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
         break;
 
     case HwPipePostIndexFetch:
         // Implement set/reset event with a WRITE_DATA command using the ME engine.
-        pDeCmdSpace += m_cmdUtil.BuildWriteData(engineType,
-                                                boundMemObj.GpuVirtAddr(),
-                                                1,
-                                                engine_sel__me_write_data__micro_engine,
-                                                dst_sel__me_write_data__memory,
-                                                wr_confirm__me_write_data__wait_for_write_confirmation,
-                                                &data,
-                                                PredDisable,
-                                                pDeCmdSpace);
+        writeData.engineSel = engine_sel__me_write_data__micro_engine;
+
+        pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
         break;
 
     case HwPipePostCs:
@@ -3158,20 +3159,13 @@ void UniversalCmdBuffer::WriteEventCmd(
     // still treat the GpuEvent as one dword, but PAL needs to handle the unused extra dwords internally by setting it
     // as early in the pipeline as possible.
     const uint32 numEventSlots = m_device.Parent()->ChipProperties().gfxip.numSlotsPerEvent;
-    const uint32 writeEngine   = usePfp ? static_cast<uint32>(engine_sel__pfp_write_data__prefetch_parser) :
-                                          static_cast<uint32>(engine_sel__me_write_data__micro_engine);
+
     for (uint32 i = 1; i < numEventSlots; i++)
     {
         // Implement set/reset event with a WRITE_DATA command using the CP.
-        pDeCmdSpace += m_cmdUtil.BuildWriteData(GetEngineType(),
-                                                boundMemObj.GpuVirtAddr() + (i * sizeof(uint32)),
-                                                1,
-                                                writeEngine,
-                                                dst_sel__me_write_data__memory,
-                                                wr_confirm__me_write_data__wait_for_write_confirmation,
-                                                &data,
-                                                PredDisable,
-                                                pDeCmdSpace);
+        writeData.dstAddr = boundMemObj.GpuVirtAddr() + (i * sizeof(uint32));
+
+        pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -4440,7 +4434,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     // Set the conservative rasterization register state.
     // The final setting depends on whether inner coverage was used in the PS.
-    if (stateDirty && (dirtyFlags.msaaState || pipelineDirty) &&
+    if ((pipelineDirty || (stateDirty && dirtyFlags.msaaState)) &&
         (pMsaaState != nullptr))
     {
         auto paScConsRastCntl = pMsaaState->PaScConsRastCntl();
@@ -4456,9 +4450,14 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                    (paScConsRastCntl.bits.OVER_RAST_ENABLE  == 0));
         }
 
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
-                                                            paScConsRastCntl.u32All,
-                                                            pDeCmdSpace);
+        // Since the vast majority of pipelines do not use ConservativeRast, only update if it changed.
+        if (m_paScConsRastCntl.u32All != paScConsRastCntl.u32All)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
+                                                                   paScConsRastCntl.u32All,
+                                                                   pDeCmdSpace);
+            m_paScConsRastCntl.u32All = paScConsRastCntl.u32All;
+        }
     }
 
     // MSAA num samples are associated with the MSAA state object, but inner coverage affects how many samples are
@@ -6142,16 +6141,15 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
     uint32* pDeCmdSpace)
 {
     constexpr uint32 CpStrmoutCntlData = 0;
-    pDeCmdSpace += m_cmdUtil.BuildWriteData(m_engineType,
-                                            mmCP_STRMOUT_CNTL,
-                                            1,
-                                            engine_sel__me_write_data__micro_engine,
-                                            dst_sel__me_write_data__mem_mapped_register,
-                                            false,
-                                            &CpStrmoutCntlData,
-                                            PredDisable,
-                                            pDeCmdSpace);
+    WriteDataInfo    writeData         = {};
 
+    writeData.engineType       = m_engineType;
+    writeData.dstAddr          = mmCP_STRMOUT_CNTL;
+    writeData.engineSel        = engine_sel__me_write_data__micro_engine;
+    writeData.dstSel           = dst_sel__me_write_data__mem_mapped_register;
+    writeData.dontWriteConfirm = true;
+
+    pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, CpStrmoutCntlData, pDeCmdSpace);
     pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(SO_VGTSTREAMOUT_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     pDeCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__pfp_wait_reg_mem__register_space,
                                              function__pfp_wait_reg_mem__equal_to_the_reference_value,
@@ -6336,13 +6334,7 @@ void UniversalCmdBuffer::InheritStateFromCmdBuf(
 void UniversalCmdBuffer::CmdUpdateSqttTokenMask(
     const ThreadTraceTokenConfig& sqttTokenConfig)
 {
-    uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-
-    {
-        pCmdSpace = Gfx9ThreadTrace::WriteUpdateSqttTokenMask(&m_deCmdStream, pCmdSpace, sqttTokenConfig);
-    }
-
-    m_deCmdStream.CommitCommands(pCmdSpace);
+    PerfExperiment::UpdateSqttTokenMaskStatic(&m_deCmdStream, sqttTokenConfig, m_device);
 }
 
 // =====================================================================================================================
@@ -7019,6 +7011,10 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
             m_rbPlusPm4Img.sxBlendOptEpsilon = cmdBuffer.m_rbPlusPm4Img.sxBlendOptEpsilon;
             m_rbPlusPm4Img.sxBlendOptControl = cmdBuffer.m_rbPlusPm4Img.sxBlendOptControl;
         }
+
+        m_spiPsInControl       = cmdBuffer.m_spiPsInControl;
+        m_paScShaderControl    = cmdBuffer.m_paScShaderControl;
+        m_spiVsOutConfig       = cmdBuffer.m_spiVsOutConfig;
     }
 
     if (cmdBuffer.HasStreamOutBeenSet())
@@ -7037,9 +7033,6 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pipelineCtxPm4Hash   = cmdBuffer.m_pipelineCtxPm4Hash;
     m_pipelinePsHash       = cmdBuffer.m_pipelinePsHash;
     m_pipelineFlags.u32All = cmdBuffer.m_pipelineFlags.u32All;
-    m_spiPsInControl       = cmdBuffer.m_spiPsInControl;
-    m_paScShaderControl    = cmdBuffer.m_paScShaderControl;
-    m_spiVsOutConfig       = cmdBuffer.m_spiVsOutConfig;
 
     m_nggState.flags.state.hasPrimShaderWorkload |= cmdBuffer.m_nggState.flags.state.hasPrimShaderWorkload;
     m_nggState.flags.dirty.u8All                 |= cmdBuffer.m_nggState.flags.dirty.u8All;

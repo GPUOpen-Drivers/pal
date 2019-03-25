@@ -275,11 +275,8 @@ Dri3WindowSystem::Dri3WindowSystem(
 #endif
     m_format(createInfo.format),
     m_swapChainMode(createInfo.swapChainMode),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392
     m_hWindow(static_cast<xcb_window_t>(createInfo.hWindow.win)),
-#else
-    m_hWindow(static_cast<xcb_window_t>(createInfo.hWindow)),
-#endif
+
     m_pConnection(nullptr),
     m_dri2Supported(true),
     m_dri3MajorVersion(0),
@@ -799,11 +796,8 @@ Result Dri3WindowSystem::GetWindowGeometry(
     Extent2d*           pExtents)
 {
     Result                          result      = Result::ErrorUnknown;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392
+
     const xcb_window_t              hXcbWindow  = static_cast<xcb_window_t>(hWindow.win);
-#else
-    const xcb_window_t              hXcbWindow  = static_cast<xcb_window_t>(hWindow);
-#endif
     xcb_connection_t*const          pConnection = static_cast<xcb_connection_t*>(hDisplay);
     const Dri3LoaderFuncs&          dri3Procs   = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
     const xcb_get_geometry_cookie_t cookie      = dri3Procs.pfnXcbGetGeometry(pConnection, hXcbWindow);

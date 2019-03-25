@@ -492,9 +492,6 @@ void LogContext::Enum(
         "EngineTypeTimer",            // 0x4,
 
         "EngineTypeHpUniversal",      // 0x5,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-        "EngineTypeHpGfxOnly",        // 0x6,
-#endif
     };
 
     static_assert(ArrayLen(StringTable) == EngineTypeCount,
@@ -961,6 +958,7 @@ void LogContext::Enum(
         nullptr,
         nullptr,
         nullptr,
+        nullptr,
 
         "Max",
         "All",
@@ -983,10 +981,6 @@ void LogContext::Enum(
     {
         "Compute",     // 0x0,
         "Graphics",    // 0x1,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 413
-        "VideoEncode", // 0x2,
-        "VideoDecode", // 0x3,
-#endif
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(PipelineBindPoint::Count),

@@ -57,7 +57,6 @@ typedef void*   OsDisplayHandle;        ///< The Display Handle for Linux except
 typedef uint32  OsExternalHandle;       ///< OsExternalHandle corresponds to a generic handle on linux
 typedef uint32  OsVideoSessionHandle;   ///< OsVideoSessionHandle corresponds to a video session handle on linux.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392
 /// OsWindowHandle corresponds to a window on X-Windows or surface on Wayland.
 union OsWindowHandle
 {
@@ -65,10 +64,6 @@ union OsWindowHandle
     uint32 win;       ///< Native window handle in X is a 32-bit integer.
 };
 constexpr OsWindowHandle NullWindowHandle = {nullptr}; ///< Value representing a null or invalid window handle.
-#else
-typedef uint32 OsWindowHandle; ///< OsWindowHandle corresponds to a Window on X-Windows
-constexpr OsWindowHandle NullWindowHandle = 0u; ///< Value representing a null or invalid window handle.
-#endif
 
 constexpr uint32 InvalidVidPnSourceId     = ~0u; ///< In cases where PAL cannot abstract a Windows VidPnSourceId, this
                                                  ///  represents an invalid value. (Note: zero is a valid value.)
@@ -104,10 +99,6 @@ enum EngineType : uint32
 
     /// Corresponds to a hw engine that supports all operations (graphics and compute)
     EngineTypeHighPriorityUniversal = 0x5,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-    /// Corresponds to a hw engine that supports only graphics operations
-    EngineTypeHighPriorityGraphics  = 0x6,
-#endif
 
     /// Number of engine types.
     EngineTypeCount,

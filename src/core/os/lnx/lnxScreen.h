@@ -72,11 +72,9 @@ public:
         OsDisplayHandle hDisplay,
         WsiPlatform     wsiPlatform) override;
     virtual Result ReleaseScreenAccess() override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 435
     virtual Result GetRandrOutput(
         OsDisplayHandle hDisplay,
         uint32*         pRandrOutput) override;
-#endif
     virtual Result SetRandrOutput(
         uint32 randrOutput) override;
 

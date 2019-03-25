@@ -562,12 +562,7 @@ void LogContext::Struct(
         {
             "CommandData",        // CommandDataAlloc  = 0,
             "EmbeddedData",       // EmbeddedDataAlloc = 1,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
             "GpuScratchMemAlloc", // GpuScratchMemAlloc
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 395
-            "GpuScratchMemAlloc", // GpuScratchMemAlloc
-#endif
         };
 
         static_assert(ArrayLen(DataAllocNames) == static_cast<uint32>(CmdAllocatorTypeCount),
@@ -626,20 +621,6 @@ void LogContext::Struct(
     {
         Value("useCpuPathForTableUpdates");
     }
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
-    if (value.flags.useLinearBufferForCeRamDumps)
-    {
-        Value("useLinearBufferForCeRamDumps");
-    }
-#else
-    if (value.flags.useEmbeddedDataForCeRamDumps)
-    {
-        Value("useEmbeddedDataForCeRamDumps");
-    }
-#endif
 #endif
 
     if (value.flags.disallowNestedLaunchViaIb2)
@@ -883,10 +864,7 @@ void LogContext::Struct(
         BeginMap(false);
         KeyAndValue("sizeInDwords", value.indirectUserDataTable[idx].sizeInDwords);
         KeyAndValue("offsetInDwords", value.indirectUserDataTable[idx].offsetInDwords);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
-        KeyAndValue("ringSize", value.indirectUserDataTable[idx].ringSize);
-#endif
-        EndMap();
+         EndMap();
     }
     EndList();
 #endif
@@ -935,9 +913,7 @@ void LogContext::Struct(
     BeginMap(false);
     KeyAndValue("maxWavesPerCu", value.maxWavesPerCu);
     KeyAndValue("maxThreadGroupsPerCu", value.maxThreadGroupsPerCu);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 384
     KeyAndValue("ldsBytesPerTg", value.ldsBytesPerTg);
-#endif
     EndMap();
 }
 
@@ -1586,7 +1562,6 @@ void LogContext::Struct(
     KeyAndStruct("extent", value.extent);
     KeyAndValue("numSlices", value.numSlices);
     KeyAndStruct("swizzledFormat", value.swizzledFormat);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
     Key("pQuadSamplePattern");
     if (value.pQuadSamplePattern != nullptr)
     {
@@ -1596,7 +1571,6 @@ void LogContext::Struct(
     {
         NullValue();
     }
-#endif
     EndMap();
 }
 
@@ -2033,7 +2007,6 @@ void LogContext::Struct(
     KeyAndObject("screen", value.pScreen);
     KeyAndObject("swapChain", value.pSwapChain);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 394
     KeyAndValue("viewFormatCount", value.viewFormatCount);
     KeyAndBeginList("viewFormats", false);
     if (value.viewFormatCount != AllCompatibleFormats)
@@ -2044,7 +2017,6 @@ void LogContext::Struct(
         }
     }
     EndList();
-#endif
 
     EndMap();
 }
@@ -2060,7 +2032,6 @@ void LogContext::Struct(
     {
         Value("fullscreenDoNotWait");
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
     if (value.flags.srcIsTypedBuffer)
     {
         Value("srcIsTypedBuffer");
@@ -2069,13 +2040,11 @@ void LogContext::Struct(
     {
         Value("dstIsTypedBuffer");
     }
-#endif
 
     EndList();
     KeyAndEnum("presentMode", value.presentMode);
     KeyAndValue("presentInterval", value.presentInterval);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
     if (value.flags.srcIsTypedBuffer)
     {
         KeyAndObject("srcTypedBuffer", value.pSrcTypedBuffer);
@@ -2092,10 +2061,6 @@ void LogContext::Struct(
     {
         KeyAndObject("dstImage", value.pDstImage);
     }
-#else
-    KeyAndObject("srcImage", value.pSrcImage);
-    KeyAndObject("dstImage", value.pDstImage);
-#endif
 
     KeyAndBeginMap("mgpuSlsInfo", false);
     {
@@ -2131,12 +2096,10 @@ void LogContext::Struct(
     }
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 441
     if (value.flags.notifyOnly)
     {
         Value("notifyOnly");
     }
-#endif
 
     EndList();
     EndMap();

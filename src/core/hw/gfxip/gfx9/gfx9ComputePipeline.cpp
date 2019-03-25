@@ -188,10 +188,8 @@ static PAL_INLINE uint32 LoadedShRegCount(
 Result ComputePipeline::HwlInit(
     const AbiProcessor&              abiProcessor,
     const CodeObjectMetadata&        metadata,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
     ComputePipelineIndirectFuncInfo* pIndirectFuncList,
     uint32                           indirectFuncCount,
-#endif
     MsgPackReader*                   pMetadataReader)
 {
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
@@ -321,9 +319,7 @@ Result ComputePipeline::HwlInit(
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
         SetupSignatureFromElf(metadata, registers);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
         GetFunctionGpuVirtAddrs(abiProcessor, uploader, pIndirectFuncList, indirectFuncCount);
-#endif
     }
 
     return result;
@@ -398,7 +394,6 @@ uint32* ComputePipeline::WriteCommands(
         dynamicCmds.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 384
     if (csInfo.ldsBytesPerTg > 0)
     {
         // Round to nearest multiple of the LDS granularity, then convert to the register value.
@@ -406,7 +401,6 @@ uint32* ComputePipeline::WriteCommands(
         dynamicCmds.computePgmRsrc2.bits.LDS_SIZE =
             Pow2Align((csInfo.ldsBytesPerTg / sizeof(uint32)), Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
     }
-#endif
 
     constexpr uint32 SpaceNeededDynamic = sizeof(dynamicCmds) / sizeof(uint32);
     pCmdSpace = pGfx9CmdStream->WritePm4Image(SpaceNeededDynamic, &dynamicCmds, pCmdSpace);

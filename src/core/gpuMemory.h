@@ -196,6 +196,8 @@ public:
 
     GpuMemPriority Priority() const { return m_priority; }
 
+    GpuMemPriorityOffset PriorityOffset() const { return m_priorityOffset; }
+
     // NOTE: Part of the public IGpuMemory interface.
     virtual Result Map(
         void** ppData) override;
@@ -259,7 +261,7 @@ public:
     void SetRemoteSdiMarkerIndex(gpusize index) { m_remoteSdiMarkerIndex = index; }
     void SetBusAddrMarkerVa(gpusize markerVa) { m_markerVirtualAddr = markerVa; }
 
-    bool IsBigPage() const;
+    gpusize MinPageSize() const { return m_minPageSize; }
 
     bool IsByteRangeValid(gpusize startOffset, gpusize size) const
     {
@@ -364,6 +366,10 @@ protected:
 
     MType                   m_mtype;
 
+    // Minimum guaranteed page size for this allocation.  This will vary based on OS restrictions, heap selection,
+    // etc.  Can be used by HWLs to enable optimizations that require big (e.g., 64KiB) pages.
+    gpusize                 m_minPageSize;
+
     // SDI External Physical Memory PTE index for surface and marker
     gpusize m_remoteSdiSurfaceIndex;
     gpusize m_remoteSdiMarkerIndex;
@@ -371,6 +377,11 @@ protected:
 private:
     // Marker virtual address as returned by KMD
     gpusize m_markerVirtualAddr;
+
+    // Some OSes have special rules about heap preferences.  This method should be overriden by such OSes to examine
+    // the memory object and update/finalize the heap preferences as required.  One example is adding a backup GART
+    // heap for client-requested local-only allocations on some OSes.
+    virtual void OsFinalizeHeaps() { }
 
     PAL_DISALLOW_DEFAULT_CTOR(GpuMemory);
     PAL_DISALLOW_COPY_AND_ASSIGN(GpuMemory);

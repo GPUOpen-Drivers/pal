@@ -44,6 +44,7 @@
 #include "core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.h"
 #include "core/hw/gfxip/gfx9/gfx9MsaaState.h"
 #include "core/hw/gfxip/gfx9/gfx9OcclusionQueryPool.h"
+#include "core/hw/gfxip/gfx9/gfx9PerfCtrInfo.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.h"
 #include "core/hw/gfxip/gfx9/gfx9QueueContexts.h"
@@ -545,9 +546,6 @@ Result Device::CreateEngine(
 
     switch (engineType)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-    case EngineTypeHighPriorityGraphics:
-#endif
         // Assume (for now) that the UniversalEngine will work for the purposes of high-priority gfx engines as well
     case EngineTypeHighPriorityUniversal:
     case EngineTypeUniversal:
@@ -1332,9 +1330,19 @@ Result Device::CreatePerfExperiment(
     IPerfExperiment**               ppPerfExperiment
     ) const
 {
-    (*ppPerfExperiment) = PAL_PLACEMENT_NEW(pPlacementAddr) PerfExperiment(this, createInfo);
+    PerfExperiment* pPerfExperiment = PAL_PLACEMENT_NEW(pPlacementAddr) PerfExperiment(this, createInfo);
+    Result          result          = pPerfExperiment->Init();
 
-    return Result::Success;
+    if (result == Result::Success)
+    {
+        (*ppPerfExperiment) = pPerfExperiment;
+    }
+    else
+    {
+        pPerfExperiment->Destroy();
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -2199,7 +2207,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         srd.word3.bits.DST_SEL_Y = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.g);
         srd.word3.bits.DST_SEL_Z = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.b);
         srd.word3.bits.DST_SEL_W = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.a);
-#if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446))
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446)
         // We need to use D swizzle mode for writing an image with view3dAs2dArray feature enabled.
         // But when reading from it, we need to use S mode.
         // In AddrSwizzleMode, S mode is always right before D mode, so we simply do a "-1" here.
@@ -2973,7 +2981,7 @@ void InitializeGpuChipProperties(
 // Finalizes the GPU chip properties for a Device object, specifically for the GFX9 hardware layer. Intended to be
 // called after InitializeGpuChipProperties().
 void FinalizeGpuChipProperties(
-    const Platform*    pPlatform,
+    const Pal::Device& device,
     GpuChipProperties* pInfo)
 {
     // Setup some GPU properties which can be derived from other properties:
@@ -3026,7 +3034,7 @@ void FinalizeGpuChipProperties(
 
     // Initialize the performance counter info.  Perf counter info is reliant on a finalized GpuChipProperties
     // structure, so wait until the pInfo->gfx9 structure is "good to go".
-    PerfCtrInfo::InitPerfCtrInfo(pPlatform, pInfo);
+    InitPerfCtrInfo(device, pInfo);
 }
 
 // =====================================================================================================================
@@ -3037,53 +3045,29 @@ void InitializePerfExperimentProperties(
 {
     const Gfx9PerfCounterInfo& perfCounterInfo = chipProps.gfx9.perfCounterInfo;
 
-    pProperties->features.u32All = perfCounterInfo.features.u32All;
-
-    pProperties->maxSqttSeBufferSize   = PerfCtrInfo::MaximumBufferSize;
-    pProperties->sqttSeBufferAlignment = PerfCtrInfo::BufferAlignment;
+    pProperties->features.u32All       = perfCounterInfo.features.u32All;
+    pProperties->maxSqttSeBufferSize   = static_cast<size_t>(SqttMaximumBufferSize);
+    pProperties->sqttSeBufferAlignment = static_cast<size_t>(SqttBufferAlignment);
     pProperties->shaderEngineCount     = chipProps.gfx9.numShaderEngines;
 
     for (uint32 blockIdx = 0; blockIdx < static_cast<uint32>(GpuBlock::Count); blockIdx++)
     {
-        const auto&             blockInfo = perfCounterInfo.block[blockIdx];
-        GpuBlockPerfProperties* pBlock    = &pProperties->blocks[blockIdx];
+        const PerfCounterBlockInfo&  blockInfo = perfCounterInfo.block[blockIdx];
+        GpuBlockPerfProperties*const pBlock    = &pProperties->blocks[blockIdx];
 
         pBlock->available = (blockInfo.distribution != PerfCounterDistribution::Unavailable);
 
         if (pBlock->available)
         {
-            const uint32 totalCounters  = blockInfo.numCounters;
-            uint32       totalInstances = blockInfo.numInstances;
+            pBlock->instanceCount             = blockInfo.numGlobalInstances;
+            pBlock->maxEventId                = blockInfo.maxEventId;
+            pBlock->maxGlobalOnlyCounters     = blockInfo.numGlobalOnlyCounters;
+            pBlock->maxSpmCounters            = blockInfo.num16BitSpmCounters;
 
-            switch (blockInfo.distribution)
-            {
-            case PerfCounterDistribution::PerShaderArray:
-                totalInstances *= chipProps.gfx9.numShaderEngines * chipProps.gfx9.numShaderArrays;
-                break;
-            case PerfCounterDistribution::PerShaderEngine:
-                totalInstances *= chipProps.gfx9.numShaderEngines;
-                break;
-
-            case PerfCounterDistribution::GlobalBlock:
-            default:
-                // Nothing to do here.
-                break;
-            }
-
-            pBlock->instanceCount           = totalInstances;
-            pBlock->maxEventId              = blockInfo.maxEventId;
-            pBlock->maxGlobalSharedCounters = totalCounters;
-            pBlock->maxSpmCounters          = blockInfo.numStreamingCounters;
-
-            if ((static_cast<GpuBlock>(blockIdx) == GpuBlock::Sq) && (pBlock->maxSpmCounters > 0))
-            {
-                // NOTE: SQ needs special casing since it does not pack its streaming perf counters.
-                pBlock->maxGlobalOnlyCounters = 0;
-            }
-            else
-            {
-                pBlock->maxGlobalOnlyCounters = totalCounters - blockInfo.numStreamingCounterRegs;
-            }
+            // Note that the current interface says the shared count includes all global counters. This seems
+            // to be contradictory, how can something be shared and global-only? Regardless, we cannot change this
+            // without a major interface change so we must compute the total number of global counters here.
+            pBlock->maxGlobalSharedCounters   = blockInfo.numGlobalSharedCounters + blockInfo.numGlobalOnlyCounters;
         }
     }
 }
@@ -5003,5 +4987,6 @@ TcCacheOp Device::SelectTcCacheOp(
 
     return cacheOp;
 }
+
 } // Gfx9
 } // Pal

@@ -83,6 +83,7 @@ enum %EnumName% : %EnumDataType%\n\
 %EnumData%\n\
 };\n"
 
+SettingStructName = "%UpperCamelComponentName%Settings"
 StructDef = "\n\
 /// Pal auto-generated settings struct\n\
 struct %SettingStructName% : public Pal::DriverSettings\n\

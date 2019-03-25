@@ -77,10 +77,6 @@ enum class PipelineBindPoint : uint32
 {
     Compute     = 0x0,
     Graphics    = 0x1,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 413
-    VideoEncode = 0x2,
-    VideoDecode = 0x3,
-#endif
     Count
 };
 
@@ -457,28 +453,13 @@ union CmdBufferBuildFlags
 #endif
         uint32 useCpuPathForTableUpdates    :  1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
-        /// Indicates that the command buffer should not use the per-Device ring buffer for internal CE RAM dump
-        /// operations (e.g., spill table management, dumping indirect user-data tables, etc.).  Each command buffer
-        /// will allocate GPU memory from its command allocator for use with CE RAM dumps instead.
-        uint32 useLinearBufferForCeRamDumps :  1;
-#else
-        /// Indicates that the command buffer should use embedded data for internal CE RAM dump operations (e.g., spill
-        /// table management, dumping indirect user-data tables, etc.).  If this flag is not set, the tables will be
-        /// dumped to a per-Device GPU ring buffer managed by PAL instead of embedded data.  This flag has no effect on
-        /// Compute or Dma command buffers.
-        uint32 useEmbeddedDataForCeRamDumps :  1;
-#endif
-#endif
-
         /// Indicates that the client would prefer that this nested command buffer not be launched using an IB2 packet.
         /// The calling command buffer will either inline this command buffer into itself or use IB chaining based on if
         /// the optimizeExclusiveSubmit flag is also set. This flag is ignored for root command buffers.
         uint32 disallowNestedLaunchViaIb2   :  1;
 
         /// Reserved for future use.
-        uint32 reserved                     : 23;
+        uint32 reserved                     : 24;
     };
 
     /// Flags packed as 32-bit uint.
@@ -525,10 +506,8 @@ struct DynamicComputeShaderInfo
     uint32 maxThreadGroupsPerCu; ///< Override the maximum number of threadgroups that a particular CS can run on,
                                  ///  throttling it, to enable more graphics work to complete.  0 disables the limit.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 384
     uint32 ldsBytesPerTg; ///< Override the amount of LDS space used per thread-group for this pipeline, in bytes.
                           ///  Zero indicates that the LDS size determined at pipeline-compilation time will be used.
-#endif
 };
 
 /// Specifies info on how a graphics shader should use resources.
@@ -1014,11 +993,9 @@ struct ImageResolveRegion
     SwizzledFormat swizzledFormat;  ///< If not Undefined, reinterpret both subresources using this format and swizzle.
                                     ///  The format must match both subresource's native formats.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
     const MsaaQuadSamplePattern* pQuadSamplePattern; ///< Specifies sample pattern for MSAA depth image. It must be a
                                                      ///  valid pointer if image was created with sampleLocsAlwaysKnown
                                                      ///  flag set.
-#endif
 };
 
 /// Specifies parameters for a resolve of one region in an MSAA source image to a region of the same size in a single
@@ -2445,13 +2422,6 @@ public:
         gpusize           offset,
         uint32            value) = 0;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 397)
-    PAL_INLINE virtual void CmdUpdateBusAddressableMemoryMarker(
-        const IGpuMemory& dstGpuMemory,
-        uint32            value)
-        { CmdUpdateBusAddressableMemoryMarker(dstGpuMemory, 0, value); }
-#endif
-
     /// Fills a range of GPU memory with the provided 32-bit data.
     ///
     /// For cache coherency purposes, CmdFillMemory counts as a @ref CoherCopy operation on the specified destination
@@ -3399,12 +3369,6 @@ protected:
     /// called the proper create method.
     ICmdBuffer() : m_pClientData(nullptr)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 413
-        for (uint32 i = 0; i < static_cast<uint32>(PipelineBindPoint::Count); i++)
-        {
-            m_funcTable.pfnCmdSetUserData[i] = nullptr;
-        }
-#endif
     }
 
     /// @internal Destructor.  Prevent use of delete operator on this interface.  Client must destroy objects by

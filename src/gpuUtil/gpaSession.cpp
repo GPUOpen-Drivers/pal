@@ -136,9 +136,6 @@ static const SqttEngineType PalEngineTypeToSqttEngineType[] =
     SQTT_ENGINE_TYPE_DMA,                     // EngineTypeDma
     SQTT_ENGINE_TYPE_UNKNOWN,                 // EngineTypeTimer
     SQTT_ENGINE_TYPE_HIGH_PRIORITY_UNIVERSAL, // EngineTypeHighPriorityUniversal
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-    SQTT_ENGINE_TYPE_HIGH_PRIORITY_GRAPHICS,  // EngineTypeHighPriorityGraphics
-#endif
 };
 
 static_assert(Util::ArrayLen(PalEngineTypeToSqttEngineType) == Pal::EngineTypeCount,
@@ -635,11 +632,9 @@ Result GpaSession::Init()
         createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
         createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = CmdAllocSize;
         createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = CmdSubAllocSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
         createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapInvisible;
         createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = CmdAllocSize;
         createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = CmdSubAllocSize;
-#endif
 
         const size_t cmdAllocatorSize = m_pDevice->GetCmdAllocatorSize(createInfo, &result);
         if (result == Result::Success)
@@ -2875,12 +2870,24 @@ Result GpaSession::AcquireGpuMem(
         }
         PAL_ASSERT(result == Result::Success);
 
-        if (pAvailableList->NumElements() > 0)
+        bool haveMemFromAvailableList = false;
+        for (uint32 elementsTried = 0; elementsTried < pAvailableList->NumElements(); elementsTried++)
         {
-            // We already have an idle GPU memory allocation in the pool, return that to the caller.
             result = pAvailableList->PopFront(pCurGpuMem);
+            PAL_ASSERT(result == Result::Success);
+            if (pCurGpuMem->pGpuMemory->Desc().size >= size)
+            {
+                haveMemFromAvailableList = true;
+                break;
+            }
+            else
+            {
+                // Not big enough! Try another
+                pAvailableList->PushBack(*pCurGpuMem);
+            }
         }
-        else
+
+        if (haveMemFromAvailableList == false)
         {
             GpuMemoryCreateInfo createInfo = {};
             createInfo.size      = gpuMemoryRaftSize;
@@ -3091,10 +3098,8 @@ Result GpaSession::AcquirePerfExperiment(
                 sqttInfo.traceType                             = PerfTraceType::ThreadTrace;
                 sqttInfo.optionFlags.bufferSize                = 1;
                 sqttInfo.optionValues.bufferSize               = alignedBufferSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
                 sqttInfo.optionFlags.threadTraceStallBehavior  = 1;
                 sqttInfo.optionValues.threadTraceStallBehavior = sampleConfig.sqtt.flags.stallMode;
-#endif
 
                 // Set up the thread trace token mask. Use the minimal mask if queue timing is enabled. The mask will be
                 // updated to a different value at a later time when sample updates are enabled.
@@ -3119,9 +3124,7 @@ Result GpaSession::AcquirePerfExperiment(
 #endif
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 429
                     if (sampleConfig.sqtt.seMask == 0 || Util::TestAnyFlagSet(sampleConfig.sqtt.seMask, 1 << i))
-#endif
                     {
                         sqttInfo.instance = i;
                         result = (*ppExperiment)->AddThreadTrace(sqttInfo);

@@ -2468,7 +2468,6 @@ Result QueueDecorator::PresentDirect(
 {
     PresentDirectInfo nextPresentInfo = presentInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
     if (presentInfo.flags.srcIsTypedBuffer)
     {
         nextPresentInfo.pSrcTypedBuffer = NextGpuMemory(presentInfo.pSrcTypedBuffer);
@@ -2485,12 +2484,8 @@ Result QueueDecorator::PresentDirect(
     {
         nextPresentInfo.pDstImage = NextImage(presentInfo.pDstImage);
     }
-#else
-    nextPresentInfo.pSrcImage = NextImage(presentInfo.pSrcImage);
-    nextPresentInfo.pDstImage = NextImage(presentInfo.pDstImage);
-#endif
 
-    PAL_ASSERT(presentInfo.mgpuSlsInfo.imageCount <= MaxMgpuSlsImageCount);
+	PAL_ASSERT(presentInfo.mgpuSlsInfo.imageCount <= MaxMgpuSlsImageCount);
 
     for (uint32 i = 0; i < presentInfo.mgpuSlsInfo.imageCount; i++)
     {

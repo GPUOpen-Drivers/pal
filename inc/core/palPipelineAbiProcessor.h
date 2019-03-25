@@ -45,31 +45,6 @@ namespace Abi
 template <typename Allocator>
 class PipelineAbiProcessor
 {
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-typedef HashMap<
-    uint32,
-    RegisterEntry,
-    Allocator,
-    JenkinsHashFunc,
-    DefaultEqualFunc,
-    HashAllocator<Allocator>,
-    PAL_CACHE_LINE_BYTES * 2> RegisterMap;
-
-typedef HashMapEntry<uint32, RegisterEntry> RegisterMapEntry;
-typedef HashIterator<
-    uint32,
-    RegisterMapEntry,
-    Allocator,
-    JenkinsHashFunc<uint32>,
-    DefaultEqualFunc<uint32>,
-    HashAllocator<Allocator>,
-    PAL_CACHE_LINE_BYTES * 2> RegisterMapIter;
-
-typedef VectorIterator<PipelineMetadataEntry, 1, Allocator> PipelineMetadataVectorIter;
-typedef Vector<PipelineMetadataEntry, 1, Allocator>         PipelineMetadataVector;
-#endif
-
 typedef VectorIterator<PipelineSymbolEntry, 8, Allocator> PipelineSymbolVectorIter;
 typedef Vector<PipelineSymbolEntry, 8, Allocator>         PipelineSymbolVector;
 
@@ -91,31 +66,6 @@ public:
             PAL_FREE(m_pCompatRegisterBlob, m_pAllocator);
         }
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-    /// Add a RegisterEntry.
-    ///
-    /// @param [in] entry The RegisterEntry to add.
-    ///
-    /// @returns Success if successful, otherwise ErrorOutOfMemory if memory allocation fails.
-    Result AddRegisterEntry(RegisterEntry entry)
-        { return m_registerMap.Insert(entry.key, entry); }
-
-    /// Add a register entry by specifying the register offset and value.
-    ///
-    /// @param [in] offset Offset of the hardware register to add.
-    /// @param [in] value  Value of the hardware register to add.
-    ///
-    /// @returns Success if successful, otherwise ErrorOutOfMemory if memory allocation fails.
-    Result AddRegisterEntry(uint32 offset, uint32 value);
-
-    /// Add a PipelineMetadataEntry.
-    ///
-    /// @param [in] entry The PipelineMetadataEntry to add.
-    ///
-    /// @returns Success if successful, otherwise ErrorOutOfMemory if memory allocation fails.
-    Result AddPipelineMetadataEntry(PipelineMetadataEntry entry);
-#endif
 
     /// Add a PipelineSymbolEntry.
     ///
@@ -217,98 +167,6 @@ public:
 
     bool HasReadOnlyData() const
         { return (m_pRoDataSection != nullptr); }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-    /// Check if a RegisterEntry exists.
-    ///
-    /// @param [in] registerOffset The register to check.
-    ///
-    /// @returns If the RegisterEntry exists.
-    bool HasRegisterEntry(uint32 registerOffset) const
-        { return (m_registerMap.FindKey(registerOffset) != nullptr); }
-
-    /// Check if a RegisterEntry exists and return it through an output parameter.
-    ///
-    /// @param [in]  registerOffset The register to check.
-    /// @param [out] pRegisterValue The register value set if the register exists.
-    ///
-    /// @returns If the RegisterEntry exists.
-    bool HasRegisterEntry(uint32 registerOffset, uint32* pRegisterValue) const;
-
-    /// Get the associated RegisterEntry value.
-    ///
-    /// @param [in] registerOffset The register to get.
-    ///
-    /// @returns A RegisterEntry value.
-    uint32 GetRegisterEntry(uint32 registerOffset) const;
-
-    /// Check if a PipelineMetadataEntry exists.
-    ///
-    /// @param [in] pipelineMetadataType The PipelineMetadataType to check.
-    ///
-    /// @returns If the PipelineMetadataEntry exists.
-    bool HasPipelineMetadataEntry(PipelineMetadataType pipelineMetadataType) const
-        { return m_pipelineMetadataIndices[static_cast<uint32>(pipelineMetadataType)] >= 0; }
-
-    /// Check if a PipelineMetadataEntry exists and return it through an output parameter.
-    ///
-    /// @param [in]  pipelineMetadataType The PipelineMetadataType to check.
-    /// @param [out] pPipelineMetadataValue The value set if the PipelineMetadataType exists.
-    ///
-    /// @returns If the PipelineMetadataType exists.
-    bool HasPipelineMetadataEntry(
-        PipelineMetadataType pipelineMetadataType,
-        uint32*              pPipelineMetadataValue) const;
-
-    /// Check if the two PipelineMetadataEntries exist.
-    ///
-    /// @param [in] pipelineMetadataTypeHigh The PipelineMetadataType to check which will represent
-    ///             the high 32-bits of the returned value.
-    /// @param [in] pipelineMetadataTypeLow The PipelineMetadataType to check which will represent
-    ///             the low 32-bits of the returned value.
-    ///
-    /// @returns If the PipelineMetadataTypes exists.
-    bool HasPipelineMetadataEntries(
-        PipelineMetadataType pipelineMetadataTypeHigh,
-        PipelineMetadataType pipelineMetadataTypeLow) const;
-
-    /// Check if the two PipelineMetadataEntries exist and return them through an output parameter.
-    ///
-    /// @param [in] pipelineMetadataTypeHigh The PipelineMetadataType to check which will represent
-    ///             the high 32-bits of the returned value.
-    /// @param [in] pipelineMetadataTypeLow The PipelineMetadataType to check which will represent
-    ///             the low 32-bits of the returned value.
-    /// @param [out] pPipelineMetadataValue A uint64 composed of two PipelineMetadataEntry values.
-    ///
-    /// @returns If the PipelineMetadataTypes exists.
-    bool HasPipelineMetadataEntries(
-        PipelineMetadataType pipelineMetadataTypeHigh,
-        PipelineMetadataType pipelineMetadataTypeLow,
-        uint64*              pPipelineMetadataValue) const;
-
-    /// Get the associated PipelineMetadataEntry value.
-    ///
-    /// @param [in] pipelineMetadataType The PipelineMetadataType to get.
-    ///
-    /// @returns A PipelineMetadataEntry value.
-    uint32 GetPipelineMetadataEntry(PipelineMetadataType pipelineMetadataType) const
-    {
-        PAL_ASSERT(m_pipelineMetadataIndices[static_cast<uint32>(pipelineMetadataType)] >= 0);
-        return m_pipelineMetadataVector.At(m_pipelineMetadataIndices[static_cast<uint32>(pipelineMetadataType)]).value;
-    }
-
-    /// Get the associated PipelineMetadataEntry.
-    ///
-    /// @param [in] pipelineMetadataTypeHigh The PipelineMetadataType to get which will represent
-    ///             the high 32-bits of the returned value.
-    /// @param [in] pipelineMetadataTypeLow The PipelineMetadataType to get which will represent
-    ///             the low 32-bits of the returned value.
-    ///
-    /// @returns A uint64 composed of two PipelineMetadataEntry values.
-    uint64 GetPipelineMetadataEntries(
-        PipelineMetadataType pipelineMetadataTypeHigh,
-        PipelineMetadataType pipelineMetadataTypeLow) const;
-#endif
 
     /// Check if a PipelineSymbolEntry exists.
     ///
@@ -432,14 +290,6 @@ public:
         uint32* pMajorVer,
         uint32* pMinorVer) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-    /// Get the ABI version.
-    ///
-    /// @param [out] pMajorVer The major version.
-    /// @param [out] pMinorVer The minor version.
-    void GetAbiVersion(uint32* pMajorVer, uint32* pMinorVer) const { return GetMetadataVersion(pMajorVer, pMinorVer); }
-#endif
-
     /// Get the symbol type when given a symbol name.
     ///
     /// @param [in] pName The symbol name.
@@ -452,26 +302,6 @@ public:
     /// @returns An iterator at the beginning of the pipeline symbols vector.
     PipelineSymbolVectorIter PipelineSymbolsBegin() const
         { return m_pipelineSymbolsVector.Begin(); }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-    /// Get the human-readable pipeline name from the ELF binary.  This was either supplied to the compiler during
-    /// compilation, or was not added at all.
-    ///
-    /// @returns The human-readable pipeline name, or nullptr if no name was added to the ELF binary.
-    const char* GetPipelineName() const;
-
-    /// Get an iterator at the beginning of the register map.
-    ///
-    /// @returns An iterator at the beginning of the register map.
-    RegisterMapIter RegistersBegin() const
-        { return m_registerMap.Begin(); }
-
-    /// Get an iterator at the beginning of the pipeline metadata vector.
-    ///
-    /// @returns An iterator at the beginning of the pipeline metadata vector.
-    PipelineMetadataVectorIter PipelineMetadataBegin() const
-        { return m_pipelineMetadataVector.Begin(); }
-#endif
 
     /// Apply relocations to the Code, Data, or ReadOnly Data.
     ///
@@ -491,11 +321,7 @@ public:
     /// @param [in] pipelineMetadataWriter  MsgPack writer containing a blob encoding pipeline metadata.
     ///
     /// @returns Returns Success if successful, otherwise ErrorOutOfMemory if memory allocation failed.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
     Result Finalize(const MsgPackWriter& pipelineMetadataWriter);
-#else
-    Result Finalize(const char* pPipelineName);
-#endif
 
     /// Returns an ElfProcessor to allow direct ELF queries.
     ///
@@ -569,15 +395,6 @@ private:
 
     const void*            m_pMetadata;              // Pointer to metadata blob.
     size_t                 m_metadataSize;           // Size of the metadata blob in bytes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-    AbiAmdGpuVersionNote   m_gpuVersionNote;         // GPU version info.
-    AbiMinorVersionNote    m_abiMinorVersionNote;    // ABI minor version version.
-
-    RegisterMap            m_registerMap;            // Register entries
-
-    PipelineMetadataVector m_pipelineMetadataVector; // Pipeline metadata entries
-    int32 m_pipelineMetadataIndices[static_cast<uint32>(PipelineMetadataType::Count)];
-#endif
 
     GenericSymbolMap       m_genericSymbolsMap;      // Map of generic symbols
     PipelineSymbolVector   m_pipelineSymbolsVector;  // Pipeline symbols

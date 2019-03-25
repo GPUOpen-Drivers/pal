@@ -85,7 +85,6 @@ struct QueryPoolCreateInfo
     uint32        numSlots;         ///< Number of slots in the query pool.
     uint32        enabledStats;     ///< An ORed mask of stats flags specific to the query pool type.
                                     ///  @see QueryPipelineStatsFlags for PipelineStats query pools.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 423
     union
     {
         struct
@@ -99,7 +98,6 @@ struct QueryPoolCreateInfo
         };
         uint32  u32All; ///< Flags packed together as a uint32.
     } flags;            ///< Flags controlling QueryPool behavior.
-#endif
 };
 
 /// Controls operations that compute query results.

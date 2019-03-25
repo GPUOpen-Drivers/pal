@@ -173,10 +173,8 @@ void ComputePipeline::SetupSignatureFromElf(
 Result ComputePipeline::HwlInit(
     const AbiProcessor&              abiProcessor,
     const CodeObjectMetadata&        metadata,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
     ComputePipelineIndirectFuncInfo* pIndirectFuncList,
     uint32                           indirectFuncCount,
-#endif
     MsgPackReader*                   pMetadataReader)
 {
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
@@ -298,9 +296,7 @@ Result ComputePipeline::HwlInit(
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
         SetupSignatureFromElf(metadata, registers);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
         GetFunctionGpuVirtAddrs(abiProcessor, uploader, pIndirectFuncList, indirectFuncCount);
-#endif
     }
 
     return result;
@@ -388,7 +384,6 @@ uint32* ComputePipeline::WriteCommands(
         dynamicCmds.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 384
     if (csInfo.ldsBytesPerTg > 0)
     {
         const uint32 ldsSizeDwords = csInfo.ldsBytesPerTg / sizeof(uint32);
@@ -407,7 +402,6 @@ uint32* ComputePipeline::WriteCommands(
                 Pow2Align(ldsSizeDwords, Gfx7LdsDwGranularity) >> Gfx7LdsDwGranularityShift;
         }
     }
-#endif
 
     constexpr uint32 SpaceNeededDynamic = sizeof(m_commands.dynamic) / sizeof(uint32);
     pCmdSpace = pGfx6CmdStream->WritePm4Image(SpaceNeededDynamic, &dynamicCmds, pCmdSpace);

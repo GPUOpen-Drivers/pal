@@ -106,8 +106,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     m_flags.dccDecompress    = internalInfo.flags.dccDecompress;
     m_flags.resolveFixedFunc = internalInfo.flags.resolveFixedFunc;
 
-    m_binningOverride = createInfo.rsState.binningOverride;
-
     m_flags.lateAllocVsLimit = createInfo.useLateAllocVsLimit;
     m_lateAllocVsLimit       = createInfo.lateAllocVsLimit;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
@@ -177,13 +175,9 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     {
         ExtractPipelineInfo(metadata, ShaderType::Vertex, ShaderType::Pixel);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
         DumpPipelineElf(abiProcessor,
                         "PipelineGfx",
                         ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
-#else
-        DumpPipelineElf(abiProcessor, "PipelineGfx", abiProcessor.GetPipelineName());
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
         // The pipeline ABI reports a unique pipeline hash of all of the components of its pipeline.  However, PAL

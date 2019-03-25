@@ -47,20 +47,10 @@ constexpr uint64 RoDataMinBaseAddrAlignment      = 32;  ///< Minimum base addres
 constexpr uint8  ElfOsAbiVersion = 65; ///< ELFOSABI_AMDGPU_PAL
 constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
 constexpr uint32 MetadataNoteType = 32; ///< NT_AMDGPU_METADATA
 
 constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
 constexpr uint32 PipelineMetadataMinorVersion = 1;  ///< Pipeline Metadata Minor Version
-#else
-constexpr uint32 MetadataNoteType = 12; ///< NT_AMD_AMDGPU_HSA_METADATA
-
-constexpr uint32 PipelineMetadataMajorVersion = 0;  ///< Pipeline Metadata Major Version
-constexpr uint32 PipelineMetadataMinorVersion = 1;  ///< Pipeline Metadata Minor Version
-
-constexpr uint8  ElfAbiMajorVersion = 0;    ///< Initial ABI Major Version
-constexpr uint32 ElfAbiMinorVersion = 1;    ///< Initial ABI Minor Version
-#endif
 
 constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                     ///  PipelineMetadataEntry value when saving to ELF.
@@ -314,11 +304,7 @@ static const char* PipelineMetadataNameStrings[] =
 /// The pipeline ABI note types.
 enum class PipelineAbiNoteType : uint32
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
     PalMetadata    = MetadataNoteType, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
-#else
-    PalMetadata    = 32,               ///< Contains metadata needed by the PAL runtime to execute the pipeline.
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 477
     PalMetadataOld = 13,               ///< Deprecated note ID superceded by PalMetadata; refers to the same structure.
 #endif
@@ -522,23 +508,15 @@ enum class PipelineMetadataType : uint32
 
     UserDataLimit,         ///< Number of user data entries accessed by this pipeline.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 382
-    UsesSampleInfo,        ///< Sample info constant buffer is used.
-#else
     Placeholder0,          ///< This can only be removed when clients have bumped past 382 and offline ELFs
                            ///  are regenerated.  This won't be requred after moving to MessagePack.
-#endif
 
     HsMaxTessFactor,       ///< Maximum tessellation factor declared in the pipeline's HS. 32-bit float.
 
     PsUsesUavs,            ///< 1 if the pipeline's pixel shader reads or writes any UAVs, otherwise 0.
     PsUsesRovs,            ///< 1 if the pipeline's pixel shader reads or writes any ROVs, otherwise 0.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 382
-    PsRunsAtSampleRate,    ///< 1 if the shader runs at sample rate vs. pixel rate.
-#else
     Placeholder1,          ///< Placeholder for offline compiled ELFs.
-#endif
 
     SpillThreshold,        ///< The spill threshold.
 
@@ -660,11 +638,6 @@ enum class PipelineMetadataType : uint32
     ShaderPerformanceDataBufferSize = LsPerformanceDataBufferSize, ///< Shorthand for the first shader's performance
                                                                    ///  data buffer's size.
 };
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-static_assert(static_cast<uint32>(PipelineMetadataType::Count) == sizeof(PipelineMetadataNameStrings)/sizeof(char*),
-              "PipelineMetadataType enum does not match PipelineMetadataNameStrings.");
-#endif
 
 /// Deprecated - Helper function to get a pipeline metadata type for a specific hardware shader stage.
 ///

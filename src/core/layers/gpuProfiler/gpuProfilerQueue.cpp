@@ -403,6 +403,7 @@ Result Queue::Submit(
                 }
 
                 TargetCmdBuffer*const pTargetCmdBuffer = AcquireCmdBuf();
+                pTargetCmdBuffer->SetClientData(pRecordedCmdBuffer->GetClientData());
 
                 // For the submit call, we need to make sure this array entry points to the next level ICmdBuffer.
                 nextCmdBuffers[cmdBufCnt] = NextCmdBuffer(pTargetCmdBuffer);
@@ -840,6 +841,7 @@ void Queue::ProcessIdleSubmits()
         {
             TargetCmdBuffer* pCmdBuffer = nullptr;
             m_busyCmdBufs.PopFront(&pCmdBuffer);
+            pCmdBuffer->SetClientData(nullptr);
             m_availableCmdBufs.PushBack(pCmdBuffer);
         }
 
@@ -1066,9 +1068,7 @@ Result Queue::BuildGpaSessionSampleConfig()
             m_gpaSessionSampleConfig.sqtt.seMask = m_pDevice->GetSeMask();
             m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit =
                 settings.gpuProfilerSqttConfig.bufferSize * perfExpProps.shaderEngineCount;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
             m_gpaSessionSampleConfig.sqtt.flags.stallMode = m_pDevice->GetSqttStallMode();
-#endif
             m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens =
                 (settings.gpuProfilerSqttConfig.tokenMask != 0xFFFF);
         }

@@ -133,20 +133,9 @@ Result SwapChain::Init(
     {
         PAL_ASSERT(m_createInfo.pScreen != nullptr);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 435
-        const Pal::IScreen*   pScreen = m_createInfo.pScreen;
-        Pal::ScreenProperties props   = {};
-
-        pScreen->GetProperties(&props);
-
-        windowSystemInfo.drmMasterFd = props.wsiScreenProp.drmMasterFd;
-        windowSystemInfo.connectorId = props.wsiScreenProp.connectorId;
-#else
         const Screen* pScreen = static_cast<Screen*>(m_createInfo.pScreen);
-
         windowSystemInfo.drmMasterFd = pScreen->GetDrmMasterFd();
         windowSystemInfo.connectorId = pScreen->GetConnectorId();
-#endif
     }
     else
     {

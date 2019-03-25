@@ -588,14 +588,15 @@ void RsrcProcMgr::CmdResolveQuery(
                 {
                     if (doAccumulate == false)
                     {
-                        pCmdSpace += m_cmdUtil.BuildWriteData(pCmdBuffer->GetEngineType(),
-                                                              resolveDstAddr,
+                        WriteDataInfo writeData = {};
+                        writeData.engineType = pCmdBuffer->GetEngineType();
+                        writeData.dstAddr    = resolveDstAddr;
+                        writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+                        writeData.dstSel     = dst_sel__pfp_write_data__memory;
+
+                        pCmdSpace += m_cmdUtil.BuildWriteData(writeData,
                                                               writeDataSize,
-                                                              engine_sel__pfp_write_data__prefetch_parser,
-                                                              dst_sel__pfp_write_data__memory,
-                                                              wr_confirm__pfp_write_data__wait_for_write_confirmation,
                                                               reinterpret_cast<const uint32*>(&zero),
-                                                              PredDisable,
                                                               pCmdSpace);
                     }
 
@@ -2121,7 +2122,7 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
             transition[i].imageInfo.newLayout.usages   = dstImageLayout.usages;
             transition[i].imageInfo.newLayout.engines  = dstImageLayout.engines;
             transition[i].imageInfo.subresRange        = range;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
+
             if (dstImage.Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
             {
                 PAL_ASSERT(pRegions[i].pQuadSamplePattern != nullptr);
@@ -2131,9 +2132,6 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
                 PAL_ASSERT(pRegions[i].pQuadSamplePattern == nullptr);
             }
             transition[i].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
-#else
-            transition[i].imageInfo.pQuadSamplePattern = nullptr;
-#endif
             transition[i].srcCacheMask                 = Pal::CoherResolve;
             transition[i].dstCacheMask                 = Pal::CoherResolve;
         }

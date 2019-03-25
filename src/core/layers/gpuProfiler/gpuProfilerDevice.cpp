@@ -136,10 +136,8 @@ Result Device::CommitSettingsAndInit()
         m_logPipeStats         = settings.gpuProfilerConfig.recordPipelineStats;
         m_sqttCompilerHash     = settings.gpuProfilerSqttConfig.pipelineHash;
         m_seMask               = settings.gpuProfilerSqttConfig.seMask & maxSeMask;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
-        m_stallMode           = settings.gpuProfilerSqttConfig.stallBehavior;
-#endif
 
+        m_stallMode           = settings.gpuProfilerSqttConfig.stallBehavior;
         m_sqttVsHash.upper = settings.gpuProfilerSqttConfig.vsHashHi;
         m_sqttVsHash.lower = settings.gpuProfilerSqttConfig.vsHashLo;
         m_sqttHsHash.upper = settings.gpuProfilerSqttConfig.hsHashHi;
@@ -814,9 +812,7 @@ GpuBlock StringToGpuBlock(
         "EA",      // GpuBlock::Ea
         "RPB",     // GpuBlock::Rpb
         "RMI",     // GpuBlock::Rmi
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
         "UMCCH",    // GpuBlock::Umcch
-#endif
     };
 
     static_assert(ArrayLen(TranslationTbl) == static_cast<uint32>(GpuBlock::Count),

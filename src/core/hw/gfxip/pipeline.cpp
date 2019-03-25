@@ -453,16 +453,6 @@ void Pipeline::DumpPipelineElf(
         file.Write(m_pPipelineBinary, m_pipelineBinaryLen);
     }
 #endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
-    PipelineDumpService* pDumpService = m_pDevice->GetPlatform()->GetPipelineDumpService();
-    if (pDumpService != nullptr)
-    {
-        pDumpService->RegisterPipeline(m_pPipelineBinary,
-                                       static_cast<uint32>(m_pipelineBinaryLen),
-                                       m_info.internalPipelineHash.stable);
-    }
-#endif
 }
 
 // =====================================================================================================================

@@ -122,16 +122,6 @@ public:
     virtual OsExternalHandle ExportExternalHandle(
         const FenceExportInfo& exportInfo) const = 0;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 398)
-    PAL_INLINE virtual OsExternalHandle GetHandle() const
-    {
-        FenceExportInfo exportInfo = {};
-        exportInfo.flags.isReference = 1;
-
-        return ExportExternalHandle(exportInfo);
-    }
-#endif
-
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///

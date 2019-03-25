@@ -72,9 +72,7 @@ enum class GpuBlock : uint32
     Ea,
     Rpb,
     Rmi,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
     Umcch,
-#endif
     Count
 };
 
@@ -294,16 +292,12 @@ struct ThreadTraceInfo
             uint32 threadTraceShaderTypeMask :  1;
             uint32 threadTraceIssueMask      :  1;
             uint32 threadTraceWrapBuffer     :  1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
             uint32 threadTraceStallBehavior  :  1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 451
             uint32 threadTraceTokenConfig    :  1;
             uint32 reserved                  : 19;
 #else
             uint32 reserved                  : 18;
-#endif
-#else
-            uint32 reserved                  : 19;
 #endif
         };
         uint32 u32All;
@@ -331,9 +325,7 @@ struct ThreadTraceInfo
         PerfExperimentShaderFlags threadTraceShaderTypeMask;
         uint32                    threadTraceIssueMask;
         bool                      threadTraceWrapBuffer;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
         uint32                    threadTraceStallBehavior;
-#endif
     } optionValues;
 };
 

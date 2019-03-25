@@ -32,14 +32,6 @@
 #pragma once
 #include "palPipeline.h"
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 408
 /// Starting with interface 408.0, it is an error to include palShader.h because we want to remove it.  This file will
 /// be removed once interfaces older than 408.0 are no longer supported by PAL.
 #error "Fatal error! palShader.h is deprecated and the client is still including it."
-#else
-#if !defined(PAL_SUPPORTED_IL_MAJOR_VERSION)
-/// The major version of AMD IL that PAL can parse correctly. Shaders compiled with a larger major version may not be
-/// parsed appropriately.
-#define PAL_SUPPORTED_IL_MAJOR_VERSION 2
-#endif
-#endif

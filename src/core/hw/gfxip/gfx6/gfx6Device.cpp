@@ -48,6 +48,7 @@
 #include "core/hw/gfxip/gfx6/gfx6IndirectCmdGenerator.h"
 #include "core/hw/gfxip/gfx6/gfx6MsaaState.h"
 #include "core/hw/gfxip/gfx6/gfx6OcclusionQueryPool.h"
+#include "core/hw/gfxip/gfx6/gfx6PerfCtrInfo.h"
 #include "core/hw/gfxip/gfx6/gfx6PerfExperiment.h"
 #include "core/hw/gfxip/gfx6/gfx6PipelineStatsQueryPool.h"
 #include "core/hw/gfxip/gfx6/gfx6QueueContexts.h"
@@ -1420,8 +1421,19 @@ Result Device::CreatePerfExperiment(
     IPerfExperiment**               ppPerfExperiment
     ) const
 {
-    (*ppPerfExperiment) = PAL_PLACEMENT_NEW(pPlacementAddr) PerfExperiment(this, createInfo);
-    return (static_cast<PerfExperiment*>(*ppPerfExperiment))->Init();
+    PerfExperiment* pPerfExperiment = PAL_PLACEMENT_NEW(pPlacementAddr) PerfExperiment(this, createInfo);
+    Result          result          = pPerfExperiment->Init();
+
+    if (result == Result::Success)
+    {
+        (*ppPerfExperiment) = pPerfExperiment;
+    }
+    else
+    {
+        pPerfExperiment->Destroy();
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -3161,6 +3173,7 @@ void InitializeGpuChipProperties(
 // Finalizes the GPU chip properties for a Device object, specifically for the GFX6 hardware layer. Intended to be
 // called after InitializeGpuChipProperties().
 void FinalizeGpuChipProperties(
+    const Pal::Device& device,
     GpuChipProperties* pInfo)
 {
     // Setup some GPU properties which can be derived from other properties:
@@ -3229,52 +3242,41 @@ void FinalizeGpuChipProperties(
     PAL_ASSERT((pInfo->gfx6.numCuAlwaysOnPerSh > 0) && (pInfo->gfx6.numCuAlwaysOnPerSh <= pInfo->gfx6.maxNumCuPerSh));
 
     // Initialize the performance counter info.  Perf counter info is reliant on a finalized GpuChipProperties
-    // structure, so wait until the pInfo->gfx9 structure is "good to go".
-    PerfCtrInfo::InitPerfCtrInfo(pInfo);
+    // structure, so wait until the pInfo->gfx6 structure is "good to go".
+    InitPerfCtrInfo(device, pInfo);
 }
 
 // =====================================================================================================================
 // Initializes the performance experiment properties for this GPU.
 void InitializePerfExperimentProperties(
     const GpuChipProperties&  chipProps,
-    PerfExperimentProperties* pProperties)  // out
+    PerfExperimentProperties* pProperties)
 {
     const Gfx6PerfCounterInfo& perfCounterInfo = chipProps.gfx6.perfCounterInfo;
 
-    pProperties->features.u32All = perfCounterInfo.features.u32All;
-
-    pProperties->maxSqttSeBufferSize   = PerfCtrInfo::MaximumBufferSize;
-    pProperties->sqttSeBufferAlignment = PerfCtrInfo::BufferAlignment;
+    pProperties->features.u32All       = perfCounterInfo.features.u32All;
+    pProperties->maxSqttSeBufferSize   = static_cast<size_t>(SqttMaximumBufferSize);
+    pProperties->sqttSeBufferAlignment = static_cast<size_t>(SqttBufferAlignment);
     pProperties->shaderEngineCount     = chipProps.gfx6.numShaderEngines;
 
     for (uint32 blockIdx = 0; blockIdx < static_cast<uint32>(GpuBlock::Count); blockIdx++)
     {
-        const auto&             blockInfo = perfCounterInfo.block[blockIdx];
-        GpuBlockPerfProperties* pBlock    = &pProperties->blocks[blockIdx];
+        const PerfCounterBlockInfo&  blockInfo = perfCounterInfo.block[blockIdx];
+        GpuBlockPerfProperties*const pBlock    = &pProperties->blocks[blockIdx];
 
-        pBlock->available = blockInfo.available;
+        pBlock->available = (blockInfo.distribution != PerfCounterDistribution::Unavailable);
 
-        if (blockInfo.available)
+        if (pBlock->available)
         {
-            const uint32 totalCounters  = blockInfo.numCounters;
-            const uint32 totalInstances = blockInfo.numShaderEngines *
-                                          blockInfo.numShaderArrays  *
-                                          blockInfo.numInstances;
+            pBlock->instanceCount             = blockInfo.numGlobalInstances;
+            pBlock->maxEventId                = blockInfo.maxEventId;
+            pBlock->maxGlobalOnlyCounters     = blockInfo.numGlobalOnlyCounters;
+            pBlock->maxSpmCounters            = blockInfo.num16BitSpmCounters;
 
-            pBlock->instanceCount           = totalInstances;
-            pBlock->maxEventId              = blockInfo.maxEventId;
-            pBlock->maxGlobalSharedCounters = totalCounters;
-            pBlock->maxSpmCounters          = blockInfo.numStreamingCounters;
-
-            if ((static_cast<GpuBlock>(blockIdx) == GpuBlock::Sq) && (pBlock->maxSpmCounters > 0))
-            {
-                // NOTE: SQ needs special casing since it does not pack its streaming perf counters.
-                pBlock->maxGlobalOnlyCounters = 0;
-            }
-            else
-            {
-                pBlock->maxGlobalOnlyCounters = totalCounters - blockInfo.numStreamingCounterRegs;
-            }
+            // Note that the current interface says the shared count includes all global counters. This seems
+            // to be contradictory, how can something be shared and global-only? Regardless, we cannot change this
+            // without a major interface change so we must compute the total number of global counters here.
+            pBlock->maxGlobalSharedCounters   = blockInfo.numGlobalSharedCounters + blockInfo.numGlobalOnlyCounters;
         }
     }
 }

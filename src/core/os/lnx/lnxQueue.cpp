@@ -54,6 +54,17 @@ namespace Pal
 namespace Linux
 {
 
+// Lookup table for converting GpuMemPriority enums to resource priority value.
+static constexpr uint8 LnxResourcePriorityTable[] =
+{
+    0,  // Unused
+    1,  // VeryLow
+    2,  // Low
+    3,  // Normal
+    4,  // High
+    5,  // VeryHigh
+};
+
 // =====================================================================================================================
 // Helper function to get the IP type from engine type
 static uint32 GetIpType(
@@ -171,6 +182,12 @@ Queue::Queue(
     Pal::Queue(pDevice, createInfo),
     m_device(*pDevice),
     m_pResourceList(reinterpret_cast<amdgpu_bo_handle*>(this + 1)),
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
+    m_pResourcePriorityList(createInfo.enableGpuMemoryPriorities ?
+        reinterpret_cast<uint8*>(m_pResourceList + Pal::Device::CmdBufMemReferenceLimit) : nullptr),
+#else
+    m_pResourcePriorityList(nullptr),
+#endif
     m_resourceListSize(Pal::Device::CmdBufMemReferenceLimit),
     m_numResourcesInList(0),
     m_memListResourcesInList(0),
@@ -1139,7 +1156,7 @@ Result Queue::UpdateResourceList(
             {
                 result = static_cast<Device*>(m_pDevice)->CreateResourceList(m_numResourcesInList,
                                                                              m_pResourceList,
-                                                                             nullptr,
+                                                                             m_pResourcePriorityList,
                                                                              &m_hResourceList);
             }
         }
@@ -1162,6 +1179,21 @@ Result Queue::AppendResourceToList(
         if (pGpuMemory->IsVmAlwaysValid() == false)
         {
             m_pResourceList[m_numResourcesInList] = pGpuMemory->SurfaceHandle();
+
+            if (m_pResourcePriorityList != nullptr)
+            {
+                // Max priority that Os accepts is 32, see AMDGPU_BO_LIST_MAX_PRIORITY.
+                // We reserve 3 bits for priority while 2 bits for offset
+                const uint8 offsetBits = static_cast<uint8>(pGpuMemory->PriorityOffset()) / 2;
+
+                static_assert(
+                    (static_cast<uint32_t>(Pal::GpuMemPriority::Count) == 6) &&
+                     static_cast<uint32_t>(Pal::GpuMemPriorityOffset::Count) == 8,
+                    "Pal GpuMemPriority or GpuMemPriorityOffset values changed. Consider to update strategy to convert"
+                    "Pal GpuMemPriority and GpuMemPriorityOffset to lnx resource priority");
+                m_pResourcePriorityList[m_numResourcesInList] =
+                    (LnxResourcePriorityTable[static_cast<size_t>(pGpuMemory->Priority())] << 2) | offsetBits;
+            }
 
             ++m_numResourcesInList;
         }

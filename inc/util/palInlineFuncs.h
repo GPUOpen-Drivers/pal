@@ -61,7 +61,6 @@ constexpr size_t ArrayLen(
     return N;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 390
 /// Increments a const pointer by nBytes by first casting it to a const uint8*.
 ///
 /// @returns Incremented pointer.
@@ -101,29 +100,6 @@ constexpr void* VoidPtrDec(
 {
     return (static_cast<uint8*>(p) - numBytes);
 }
-#else
-/// Increments a pointer by nBytes by first casting it to a uint8*.
-///
-/// @returns Incremented pointer.
-PAL_INLINE void* VoidPtrInc(
-    const void* p,         ///< [in] Pointer to be incremented.
-    size_t      numBytes)  ///< Number of bytes to increment the pointer by.
-{
-    void* ptr = const_cast<void*>(p);
-    return (static_cast<uint8*>(ptr) + numBytes);
-}
-
-/// Decrements a pointer by nBytes by first casting it to a uint8*.
-///
-/// @returns Decremented pointer.
-PAL_INLINE void* VoidPtrDec(
-    const void* p,         ///< [in] Pointer to be decremented.
-    size_t      numBytes)  ///< Number of bytes to decrement the pointer by.
-{
-    void* ptr = const_cast<void*>(p);
-    return (static_cast<uint8*>(ptr) - numBytes);
-}
-#endif
 
 /// Finds the number of bytes between two pointers by first casting them to uint8*.
 ///
@@ -522,16 +498,6 @@ constexpr T Max(
 {
     return Max(((value1 > value2) ? value1 : value2), values...);
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 390
-template <typename T>
-constexpr PAL_INLINE T ConstexprMax(
-    T value1,  ///< First value to check.
-    T value2)  ///< Second value to check.
-{
-    return ((value1 > value2) ? value1 : value2);
-}
-#endif
 
 /// Determines the minimum of two numbers.
 ///

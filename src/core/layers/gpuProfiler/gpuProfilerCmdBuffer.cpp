@@ -269,7 +269,7 @@ void CmdBuffer::ReplayCmdBindPipeline(
         if (pPipeline != nullptr)
         {
             m_cpState.pipelineInfo = pPipeline->GetInfo();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 476
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             m_cpState.apiPsoHash   = params.apiPsoHash;
 #else
             m_cpState.apiPsoHash   = m_cpState.pipelineInfo.palRuntimeHash;
@@ -287,7 +287,7 @@ void CmdBuffer::ReplayCmdBindPipeline(
         if (pPipeline != nullptr)
         {
             m_gfxpState.pipelineInfo = pPipeline->GetInfo();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 476
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             m_gfxpState.apiPsoHash   = params.apiPsoHash;
 #else
             m_gfxpState.apiPsoHash   = m_gfxpState.pipelineInfo.palRuntimeHash;

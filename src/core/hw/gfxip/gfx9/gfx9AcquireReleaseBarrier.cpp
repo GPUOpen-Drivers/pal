@@ -979,9 +979,6 @@ void Device::BarrierRelease(
 
             if (transition != HwLayoutTransition::None)
             {
-                //- Lookup into a table somewhere that identifies the stageMask and scopeMask for the BLT.  Maybe
-                //   this needs to be a function because we might care about what queue the transition is performed
-                //   on, etc.
                 const auto& image       = static_cast<const Pal::Image&>(*imageBarrier.pImage);
                 const auto& gfx9Image   = static_cast<const Image&>(*image.GetGfxImage());
                 const auto& subresRange = imageBarrier.subresRange;
@@ -1270,10 +1267,9 @@ void Device::BarrierReleaseThenAcquire(
     const AcquireReleaseInfo& barrierInfo
     ) const
 {
-    // Command buffer owns this internal event, which must be reset by the barrier before use.
-    // It's shared by all release/acquire-based barriers in the command buffer.
+    // Internal event per command buffer is used for ReleaseThenAcquire case. All release/acquire-based barriers in the
+    // same command buffer use the same event.
     const IGpuEvent* pEvent = pCmdBuf->GetInternalEvent();
-    pCmdBuf->CmdResetEvent(*pEvent, Pal::HwPipePoint::HwPipePostIndexFetch);
 
     Result result = Result::Success;
 
@@ -1485,20 +1481,19 @@ size_t Device::BuildReleaseSyncPackets(
                                                            0);
     }
 
-    // Set remaining (unused) event slots as early as possible.
+    // Set remaining (unused) event slots as early as possible. Implement set/reset event with a WRITE_DATA command
+    // using the CP.
+    WriteDataInfo writeData = {};
+    writeData.engineType = engineType;
+    writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+    writeData.dstSel     = dst_sel__me_write_data__memory;
+
     for (uint32 slotIdx = vgtEventCount; slotIdx < numEventSlots; slotIdx++)
     {
-        uint32 data = GpuEvent::SetValue;
+        writeData.dstAddr = gpuEventStartVa + (sizeof(uint32) * slotIdx);
 
-        // Implement set/reset event with a WRITE_DATA command using the CP.
-        dwordsWritten += m_cmdUtil.BuildWriteData(engineType,
-                                                  gpuEventStartVa + (sizeof(uint32) * slotIdx),
-                                                  1,
-                                                  engine_sel__me_write_data__micro_engine,
-                                                  dst_sel__me_write_data__memory,
-                                                  wr_confirm__me_write_data__wait_for_write_confirmation,
-                                                  &data,
-                                                  PredDisable,
+        dwordsWritten += m_cmdUtil.BuildWriteData(writeData,
+                                                  GpuEvent::SetValue,
                                                   VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
     }
 

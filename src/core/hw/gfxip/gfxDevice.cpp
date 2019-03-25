@@ -364,14 +364,9 @@ uint32 GfxDevice::GetCuEnableMaskInternal(
         cuMask &= cuMaskSetting;
     }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     // The mask of CU's reserved by the KMD is also virtualized.
-    const uint32 reservedCuMask = Parent()->ChipProperties().gfxip.realTimeCuMask;
-    PAL_ASSERT((reservedCuMask & 0xFFFF0000) == 0);
-
     // If this assert triggers, CUs that are currently reserved by KMD are being disabled by PAL, which is illegal.
-    PAL_ASSERT((reservedCuMask & disabledCuMask) == 0);
-#endif
+    PAL_ASSERT((Parent()->ChipProperties().gfxip.realTimeCuMask & disabledCuMask) == 0);
 
     return cuMask;
 }

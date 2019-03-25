@@ -107,15 +107,19 @@ struct QueueCreateInfo
                                  ///  It is only supported if supportQueuePriority is set in DeviceProperties.
     struct
     {
-        uint32 placeholder1      :  1; ///< Reserved field. Set to 0.
+        uint32 placeholder1              :  1; ///< Reserved field. Set to 0.
         uint32 windowedPriorBlit :  1; ///< All windowed presents on this queue are notifications that the client
                                        ///  has manually done a blit present
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 388
-        uint32 placeholder2      :  1; ///< Reserved field. Set to 0.
-        uint32 reserved          : 29; ///< Reserved for future use.
+        uint32 placeholder2              :  1; ///< Reserved field. Set to 0.
+
+#if defined(__unix__) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
+        uint32 enableGpuMemoryPriorities :  1; ///< Enables support for GPU memory priorities on this Queue. This is
+                                               ///  optional because enabling the feature requires a small amount of
+                                               ///  memory overhead per-Queue for bookkeeping purposes.
 #else
-        uint32 reserved          : 30; ///< Reserved for future use.
+        uint32 placeholder3              :  1; ///< Reserved field. Set to 0.
 #endif
+        uint32 reserved                  : 28; ///< Reserved for future use.
     };
 
     uint32 numReservedCu;           ///< The number of reserved compute units for RT CU queue
@@ -200,13 +204,9 @@ struct PresentDirectInfo
         struct
         {
             uint32 fullscreenDoNotWait :  1; ///< Fail the present immediately if the present queue is full.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
             uint32 srcIsTypedBuffer    :  1; ///< True if the source is a typed buffer instead of an image.
             uint32 dstIsTypedBuffer    :  1; ///< True if the destination is a typed buffer instead of an image.
             uint32 reserved            : 29; ///< Reserved for future use.
-#else
-            uint32 reserved            : 31; ///< Reserved for future use.
-#endif
         };
         uint32 u32All;       ///< Flags packed as 32-bit uint.
     } flags;                 ///< Present flags.
@@ -221,20 +221,16 @@ struct PresentDirectInfo
         IImage*        pSrcImage;       ///< Optional: The image to be presented.  If null, the present will not
                                         ///  occur but PAL may still call into the OS on certain platforms that
                                         ///  expect it.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
         IGpuMemory*    pSrcTypedBuffer; ///< The typed buffer to be presented.  If null, the present will not occur
                                         ///  but PAL may still call into the OS on certain platforms that expect it.
-#endif
     };
     union
     {
         IImage*        pDstImage;       ///< Optional: copy from the source image to this image.  If null, PAL will
                                         ///  automatically copy into the appropriate platform-specific destination.
                                         ///  This is only supported for windowed mode presents.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
         IGpuMemory*    pDstTypedBuffer; ///< The typed buffer to be presented.  If null, the present will not occur
                                         ///  but PAL may still call into the OS on certain platforms that expect it.
-#endif
     };
 
     MgpuSlsInfo    mgpuSlsInfo;     ///< Optional, MGpu Sls Present Info. imageCount = 0 if not a Mgpu Sls present.
@@ -255,10 +251,8 @@ struct PresentSwapChainInfo
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 466
             uint32 turboSyncEnabled     :  1;   ///< Whether TurboSync is enabled.
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 441
             uint32 notifyOnly           :  1;   ///< True if it is a notify-only present
-#endif
-#if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 441) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 466))
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 466)
             uint32 reserved             : 30;   ///< Reserved for future use.
 #else
             uint32 reserved             : 31;   ///< Reserved for future use.

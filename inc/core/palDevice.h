@@ -458,18 +458,6 @@ struct PalPublicSettings
     ///  number of user-data registers in hardware, the rest of the entries will be spilled to GPU memory. The default is the
     ///  maximum number of supported user-data entries based on client type.
     uint32 maxUserDataEntries;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
-    ///  Controls how many instances of the user-data spill table will be contained in the ring buffer managed by
-    ///  Universal Command Buffers. At most, the constant engine will be able to get that many draws or dispatches ahead of the
-    ///  draw engine. This must be either zero, or divisible by four. If zero, any pipeline which requires spilling will fail
-    ///  to compile because no spill table is present.
-    uint32 userDataSpillTableRingSize;
-    ///  Controls how many instances of the user-data stream-output table will be contained in the ring buffer managed
-    ///  by Universal Command Buffers. At most, the constant engine will be able to get that many draws or dispatches ahead
-    ///  of the draw engine. This must be eitehr zero, or divisible by four. If zero, any pipeline which requires stream
-    ///  output will fail to compile because no SRD table is present.
-    uint32 streamOutTableRingSize;
-#endif
     ///  Specifies the threshold below which CmdCopyMemory() is executed via a CpDma BLT, in bytes. CPDMA copies have
     ///  lower overhead than CS/Gfx copies, but less throughput for large copies.
     uint32 cpDmaCmdCopyMemoryMaxBytes;
@@ -512,6 +500,10 @@ struct PalPublicSettings
     bool disableSkipFceOptimization;
     /// Sets the minimum BPP of surfaces which will have DCC enabled
     uint32 dccBitsPerPixelThreshold;
+    /// See largePageSizeInBytes in DeviceProperties.  This limit defines how large an allocation must be to have
+    /// PAL automatically pad allocation sizes and alignments to enable this optimization.  By default, PAL will use
+    /// the KMD-reported limit.
+    gpusize largePageMinSizeForAlignmentInBytes;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -645,17 +637,6 @@ struct DeviceProperties
                                              ///  For example, one indicates that queue semaphores are binary.
     PalPublicSettings settings;              ///< Public settings that the client has the option of overriding
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
-    struct
-    {
-        ///< A mask of SwapChainModeSupport flags for each present mode.
-        ///  This indicates which kinds of swap chains can be
-        ///  created depending on the client's intended present mode.
-        uint32 supportedSwapChainModes[static_cast<uint32>(Pal::PresentMode::Count)];
-
-    } swapChainProperties;
-#endif
-
     struct
     {
         union
@@ -745,10 +726,8 @@ struct DeviceProperties
                                                 ///  engine type.
         uint32   gdsSizePerEngine;              ///< Maximum GDS size in bytes available for a single engine.
         uint32   maxNumDedicatedCu;             ///< The maximum number of dedicated CUs for the real time audio queue
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 430)
         uint32   maxNumDedicatedCuPerQueue;     ///< The maximum number of dedicated CUs per queue
         uint32   dedicatedCuGranularity;        ///< The granularity at which compute units can be dedicated to a queue
-#endif
         /// Specifies the suggested heap preference clients should use when creating an @ref ICmdAllocator that will
         /// allocate command space for this engine type.  These heap preferences should be specified in the allocHeap
         /// parameter of @ref CmdAllocatorCreateInfo.  Clients are free to ignore these defaults and use their own
@@ -835,6 +814,11 @@ struct DeviceProperties
         gpusize fragmentSize;               ///< Size in bytes of a video memory fragment.  If GPU memory object
                                             ///  addresses and sizes are aligned to at least this value, VA translation
                                             ///  will be a bit faster.  It is aligned to the allocation granularities.
+        gpusize largePageSizeInBytes;       ///< The large page optimization will allow compatible allocations to
+                                            ///  potentially be upgraded to a page size larger than 64KiB to reduce TLB
+                                            ///  pressure.  PAL will automatically pad the size and alignment of some
+                                            ///  allocations to enable this optimization;
+                                            ///  see largePageMinSizeForAlignmentInBytes in PalPublicSettings.
         gpusize maxVirtualMemSize;          ///< Total virtual GPU memory available (total VA space size).
         gpusize maxPhysicalMemSize;         ///< Total VRAM available (Local + Invisible + non-Local heap sizes).
         gpusize vaStart;                    ///< Starting address of the GPU's virtual address space.
@@ -1087,10 +1071,8 @@ struct DeviceProperties
             uint32 maxLateAllocVsLimit;     ///< Maximum number of VS waves that can be in flight without
                                             ///  having param cache and position buffer space.
             uint32 shaderPrefetchBytes;     ///< Number of bytes the SQ will prefetch, if any.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 442)
             uint32 numAvailableCus;         ///< Total number of CUs that are actually usable.
             uint32 numPhysicalCus;          ///< Count of physical CUs prior to harvesting.
-#endif
             uint16 activeCuMask[MaxShaderEngines][MaxShaderArraysPerSe];
                                             ///< Mask of present, non-harvested CUs (physical layout)
         } shaderCore;                       ///< Properties of computational power of the shader engine.
@@ -1131,9 +1113,7 @@ struct DeviceProperties
 
         bool   supportOpaqueFdSemaphore; ///< Support export/import semaphore as opaque fd in linux KMD.
         bool   supportSyncFileSemaphore; ///< Support export/import semaphore as sync file in linux KMD.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 398
         bool   supportSyncFileFence;     ///< Support export/import fence as sync file in linux KMD.
-#endif
 
         bool   supportQueuePriority;        ///< Support create queue with priority
         bool   supportDynamicQueuePriority; ///< Support set the queue priority through IQueue::SetExecutionPriority
@@ -1314,12 +1294,6 @@ struct DeviceFinalizeInfo
         size_t  offsetInDwords;     ///< CE RAM offset of this indirect user-data table.  PAL may or may not always use
                                     ///  CE RAM to support these tables, but to be safe, these offsets should be chosen
                                     ///  such that multiple tables won't overlap in CE RAM.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
-        uint32  ringSize;           ///< PAL manages the GPU memory for the indirect user-data tables with a ring
-                                    ///  buffer.  This tells PAL the preferred number of 'instances' of the table which
-                                    ///  the GPU ring buffer will have space for.  Typically, larger numbers will yield
-                                    ///  improved performance at the expense of a larger GPU memory footprint.
-#endif
     } indirectUserDataTable[MaxIndirectUserDataTables];
 #endif
 

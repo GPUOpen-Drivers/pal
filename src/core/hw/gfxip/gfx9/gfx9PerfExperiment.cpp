@@ -23,366 +23,844 @@
  *
  **********************************************************************************************************************/
 
-#include "core/platform.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
-#include "core/hw/gfxip/gfx9/gfx9PerfCounter.h"
-#include "core/hw/gfxip/gfx9/gfx9PerfCtrInfo.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
-#include "core/hw/gfxip/gfx9/gfx9PerfTrace.h"
-#include "palDequeImpl.h"
-#include "palHashMapImpl.h"
-#include "palInlineFuncs.h"
+#include "core/platform.h"
+#include "palVectorImpl.h"
 
-using namespace Pal::Gfx9::PerfCtrInfo;
+using namespace Util;
 
 namespace Pal
 {
 namespace Gfx9
 {
 
-constexpr uint32 SpiConfigCntlSqgEventsMask = ((1 << SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS__SHIFT) |
-                                               (1 << SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS__SHIFT));
+// We assume these enums match their SE indices in a few places.
+static_assert(static_cast<uint32>(SpmDataSegmentType::Se0) == 0, "SpmDataSegmentType::Se0 is not 0.");
+static_assert(static_cast<uint32>(SpmDataSegmentType::Se1) == 1, "SpmDataSegmentType::Se1 is not 1.");
+static_assert(static_cast<uint32>(SpmDataSegmentType::Se2) == 2, "SpmDataSegmentType::Se2 is not 2.");
+static_assert(static_cast<uint32>(SpmDataSegmentType::Se3) == 3, "SpmDataSegmentType::Se3 is not 3.");
+
+// Default SQ select masks for our counter options (by default, select all).
+constexpr uint32 DefaultSqSelectSimdMask   = 0xF;
+constexpr uint32 DefaultSqSelectBankMask   = 0xF;
+constexpr uint32 DefaultSqSelectClientMask = 0xF;
+
+// Stall when at 5/8s of the output buffer because data will still come in from already-issued waves
+constexpr uint32  SqttHiWaterValue = 4;
+// Bitmask limits for some sqtt parameters.
+constexpr uint32  SqttPerfCounterCuMask = 0xFFFF;
+constexpr uint32  SqttDetailedSimdMask  = 0xF;
+// Safe defaults for token exclude mask and register include mask for the gfx9 SQTT_TOKEN_MASK/2 registers.
+constexpr uint32  SqttGfx9RegMaskDefault   = 0xFF;
+constexpr uint32  SqttGfx9TokenMaskDefault = 0xBFFF;
+constexpr uint32  SqttGfx9InstMaskDefault  = 0xFFFFFFFF;
+
+// The SPM ring buffer base address must be 32-byte aligned.
+constexpr uint32 SpmRingBaseAlignment = 32;
+
+// The bound GPU memory must be aligned to the maximum of all alignment requirements.
+constexpr gpusize GpuMemoryAlignment = Max<gpusize>(SqttBufferAlignment, SpmRingBaseAlignment);
+
+// =====================================================================================================================
+// Converts the thread trace token config to the gfx9 format for programming the TOKEN_MASK register.
+static uint32 GetGfx9SqttTokenMask(
+    const ThreadTraceTokenConfig& tokenConfig)
+{
+    union
+    {
+        struct
+        {
+            union
+            {
+                struct
+                {
+                    uint16 misc         : 1;
+                    uint16 timestamp    : 1;
+                    uint16 reg          : 1;
+                    uint16 waveStart    : 1;
+                    uint16 waveAlloc    : 1;
+                    uint16 regCsPriv    : 1;
+                    uint16 waveEnd      : 1;
+                    uint16 event        : 1;
+                    uint16 eventCs      : 1;
+                    uint16 eventGfx1    : 1;
+                    uint16 inst         : 1;
+                    uint16 instPc       : 1;
+                    uint16 instUserData : 1;
+                    uint16 issue        : 1;
+                    uint16 perf         : 1;
+                    uint16 regCs        : 1;
+                };
+                uint16 u16All;
+            } tokenMask;
+
+            union
+            {
+                struct
+                {
+                    uint8 eventInitiator         : 1;
+                    uint8 drawInitiator          : 1;
+                    uint8 dispatchInitiator      : 1;
+                    uint8 userData               : 1;
+                    uint8 ttMarkerEventInitiator : 1;
+                    uint8 gfxdec                 : 1;
+                    uint8 shdec                  : 1;
+                    uint8 other                  : 1;
+                };
+                uint8 u8All;
+            } regMask;
+
+            uint8 reserved;
+        };
+
+        uint32 u32All;
+    } value;
+
+    if (tokenConfig.tokenMask == ThreadTraceTokenTypeFlags::All)
+    {
+        // Enable all token types except Perf.
+        value.tokenMask.u16All = 0xBFFF;
+    }
+    else
+    {
+        // Perf counter gathering in thread trace is not supported currently.
+        PAL_ALERT(TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::Perf));
+
+        value.tokenMask.misc         = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::Misc);
+        value.tokenMask.timestamp    = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::Timestamp);
+        value.tokenMask.reg          = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::Reg);
+        value.tokenMask.waveStart    = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::WaveStart);
+        value.tokenMask.waveAlloc    = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::WaveAlloc);
+        value.tokenMask.regCsPriv    = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::RegCsPriv);
+        value.tokenMask.waveEnd      = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::WaveEnd);
+        value.tokenMask.event        = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::Event);
+        value.tokenMask.eventCs      = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::EventCs);
+        value.tokenMask.eventGfx1    = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::EventGfx1);
+        value.tokenMask.inst         = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::Inst);
+        value.tokenMask.instPc       = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::InstPc);
+        value.tokenMask.instUserData = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::InstUserData);
+        value.tokenMask.issue        = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::Issue);
+        value.tokenMask.regCs        = TestAnyFlagSet(tokenConfig.tokenMask, ThreadTraceTokenTypeFlags::RegCs);
+    }
+
+    // There is no option to choose between register reads and writes in TT2.1, so we enable all register ops.
+    const bool allRegs = TestAllFlagsSet(tokenConfig.tokenMask, ThreadTraceRegTypeFlags::AllRegWrites) ||
+                         TestAllFlagsSet(tokenConfig.tokenMask, ThreadTraceRegTypeFlags::AllRegReads)  ||
+                         TestAllFlagsSet(tokenConfig.tokenMask, ThreadTraceRegTypeFlags::AllReadsAndWrites);
+
+    if (allRegs)
+    {
+        //Note: According to the thread trace programming guide, the "other" bit must always be set to 0.
+        //      However, this should be safe so long as stable 'profiling' clocks are enabled
+        value.regMask.u8All = 0xFF;
+    }
+    else
+    {
+        const uint32 mask = tokenConfig.regMask;
+
+        value.regMask.eventInitiator         = TestAnyFlagSet(mask, ThreadTraceRegTypeFlags::EventRegs);
+        value.regMask.drawInitiator          = TestAnyFlagSet(mask, ThreadTraceRegTypeFlags::DrawRegs);
+        value.regMask.dispatchInitiator      = TestAnyFlagSet(mask, ThreadTraceRegTypeFlags::DispatchRegs);
+        value.regMask.userData               = TestAnyFlagSet(mask, ThreadTraceRegTypeFlags::UserdataRegs);
+        value.regMask.gfxdec                 = TestAnyFlagSet(mask, ThreadTraceRegTypeFlags::GraphicsContextRegs);
+        value.regMask.shdec                  = TestAnyFlagSet(mask, ThreadTraceRegTypeFlags::ShaderLaunchStateRegs);
+        value.regMask.ttMarkerEventInitiator = TestAnyFlagSet(mask, ThreadTraceRegTypeFlags::MarkerRegs);
+        value.regMask.other                  = TestAnyFlagSet(mask, ThreadTraceRegTypeFlags::OtherConfigRegs);
+    }
+
+    return value.u32All;
+}
 
 // =====================================================================================================================
 PerfExperiment::PerfExperiment(
     const Device*                   pDevice,
     const PerfExperimentCreateInfo& createInfo)
     :
-    Pal::PerfExperiment(pDevice->Parent(), createInfo),
-    m_device(*pDevice),
-    m_gfxLevel(pDevice->Parent()->ChipProperties().gfxLevel),
-    m_spiConfigCntlDefault(0)
+    Pal::PerfExperiment(pDevice->Parent(), createInfo, GpuMemoryAlignment),
+    m_chipProps(pDevice->Parent()->ChipProperties()),
+    m_counterInfo(pDevice->Parent()->ChipProperties().gfx9.perfCounterInfo),
+    m_settings(pDevice->Settings()),
+    m_registerInfo(pDevice->CmdUtil().GetRegInfo()),
+    m_cmdUtil(pDevice->CmdUtil()),
+    m_globalCounters(pDevice->GetPlatform()),
+    m_pSpmCounters(nullptr),
+    m_numSpmCounters(0),
+    m_spmRingSize(0),
+    m_spmSampleInterval(0)
 {
-    InitBlockUsage();
-    m_counterFlags.u32All      = 0;
-    m_sqPerfCounterCtrl.u32All = 0;
-
-    if (pDevice->Parent()->ChipProperties().gfx9.overrideDefaultSpiConfigCntl != 0)
-    {
-        m_spiConfigCntlDefault = pDevice->Parent()->ChipProperties().gfx9.spiConfigCntl;
-    }
-    else if (m_gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        m_spiConfigCntlDefault = Gfx09::mmSPI_CONFIG_CNTL_DEFAULT;
-    }
+    memset(m_sqtt,           0, sizeof(m_sqtt));
+    memset(m_pMuxselRams,    0, sizeof(m_pMuxselRams));
+    memset(m_numMuxselLines, 0, sizeof(m_numMuxselLines));
+    memset(&m_select,        0, sizeof(m_select));
 }
 
 // =====================================================================================================================
-// Initializes the usage status for each GPU block's performance counters.
-void PerfExperiment::InitBlockUsage()
+PerfExperiment::~PerfExperiment()
 {
-    const auto& chipProps = m_device.Parent()->ChipProperties().gfx9;
-    const auto& perfInfo  = chipProps.perfCounterInfo;
+    PAL_SAFE_DELETE_ARRAY(m_pSpmCounters, m_device.GetPlatform());
 
-    // TODO: 'PerfCtrEmpty' is zero, should we simply memset the whole array?
-    //       (This method is more explicit, for what its worth.)
-    for (size_t blk = 0; blk < static_cast<size_t>(GpuBlock::Count); ++blk)
+    for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
     {
-        const auto& blockInfo = perfInfo.block[blk];
-        size_t blockInstances = blockInfo.numInstances;
+        PAL_SAFE_DELETE_ARRAY(m_pMuxselRams[idx], m_device.GetPlatform());
+    }
 
-        switch (blockInfo.distribution)
+    for (uint32 block = 0; block < GpuBlockCount; ++block)
+    {
+        if (m_select.pGeneric[block] != nullptr)
         {
-        case PerfCounterDistribution::PerShaderArray:
-            blockInstances *= chipProps.numShaderEngines * chipProps.numShaderArrays;
-            break;
-        case PerfCounterDistribution::PerShaderEngine:
-            blockInstances *= chipProps.numShaderEngines;
-            break;
-        case PerfCounterDistribution::GlobalBlock:
-        default:
-            // Nothing to do here.
-            break;
-        }
-
-        for (size_t inst = 0; inst < blockInstances; ++inst)
-        {
-            for (size_t ctr = 0; ctr < blockInfo.numCounters; ++ctr)
+            for (uint32 instance = 0; instance < m_select.numGeneric[block]; ++instance)
             {
-                // Mark the counter as completely unused.
-                m_blockUsage[blk].instance[inst].counter[ctr] = PerfCtrEmpty;
+                PAL_SAFE_DELETE_ARRAY(m_select.pGeneric[block][instance].pModules, m_device.GetPlatform());
             }
+
+            PAL_SAFE_DELETE_ARRAY(m_select.pGeneric[block], m_device.GetPlatform());
         }
     }
 }
 
 // =====================================================================================================================
-// Checks that a performance counter resource is available for the specified counter create info. Updates the tracker
-// for counter resource usage.
-Result PerfExperiment::ReserveCounterResource(
-    const PerfCounterInfo& info,            ///< [in] Performance counter creation info
-    uint32*                pCounterId,      ///< [out] Available counter slot we found
-    uint32*                pCounterSubId)   ///< [out] Available counter sub-slot we found
+Result PerfExperiment::Init()
 {
-    const Gfx9PerfCounterInfo& perfInfo      = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
-    const size_t               blockNum      = static_cast<size_t>(info.block);
-    const auto&                blockPerfInfo = perfInfo.block[blockNum];
-    auto&                      blockUsage    = m_blockUsage[blockNum];
-    Result                     result        = Result::Success;
+    Result result = Result::Success;
 
-    PAL_ASSERT(info.instance < PerfCtrInfo::MaxNumBlockInstances);
-
-    // Make sure the caller is requesting a valid event ID
-    if (info.eventId < blockPerfInfo.maxEventId)
+    // Validate some of our design assumption about the the hardware. These seem like valid assumptions but we can't
+    // check them at compile time so this has to be an assert and an error instead of a static assert.
+    if ((m_counterInfo.block[static_cast<uint32>(GpuBlock::Sq)].numGlobalInstances     > Gfx9MaxShaderEngines) ||
+        (m_counterInfo.block[static_cast<uint32>(GpuBlock::GrbmSe)].numGlobalInstances > Gfx9MaxShaderEngines) ||
+        (m_counterInfo.block[static_cast<uint32>(GpuBlock::Dma)].numGlobalInstances    > Gfx9MaxSdmaInstances) ||
+        (m_counterInfo.block[static_cast<uint32>(GpuBlock::Umcch)].numGlobalInstances  > Gfx9MaxUmcchInstances))
     {
-        // Start looping over the first counter for the desired GPU block & instance. If a counter slot is free for the
-        // desired instanceId, stop searching and use it.
-        bool   emptySlotFound = false;
-        uint32 counterId      = 0;
-        while ((emptySlotFound == false) && (counterId < blockPerfInfo.numCounters))
-        {
-            const PerfCtrUseStatus ctrStatus = blockUsage.instance[info.instance].counter[counterId];
-
-            // 64-bit summary counter: Only one can exist per slot, so the slot must be
-            // completely empty in order for us to use it. (The SQ has only one streaming
-            // counter per summary counter slot, so use the same logic for all SQ ctr's.)
-            emptySlotFound = (ctrStatus == PerfCtrEmpty);
-
-            if (emptySlotFound == false)
-            {
-                counterId++;
-            }
-        }
-
-        if (emptySlotFound)
-        {
-            uint32 counterSubId = 0;
-
-            // If we get here, we successfully found a slot at 'counterId' for the new counter. Need
-            // to update its usage status to reflect that a counter is being added.
-            PerfCtrUseStatus*const pCtrStatus = &blockUsage.instance[info.instance].counter[counterId];
-
-            // 64-bit summary counter: mark the counter as in-use. The sub-slot ID has no meaning here.
-            (*pCtrStatus)    = PerfCtr64BitSummary;
-            (*pCounterId)    = counterId;
-            (*pCounterSubId) = counterSubId;
-        }
-        else
-        {
-            result = Result::ErrorOutOfGpuMemory;
-        }
-    }
-    else
-    {
-        result = Result::ErrorInvalidValue;
+        PAL_ASSERT_ALWAYS();
+        result = Result::ErrorInitializationFailed;
     }
 
     return result;
 }
 
 // =====================================================================================================================
-void PerfExperiment::SetCntrRate(
-    uint32  rate)
+// Allocates memory for the generic select state. We need to allocate memory for all blocks that exist on our GPU
+// unless we have special handling for them. To reduce the perf experiment overhead we delay allocating this memory
+// until the client tries to add a global counter or SPM counter for a particular block and instance.
+Result PerfExperiment::AllocateGenericStructs(
+    GpuBlock block,
+    uint32   globalInstance)
 {
-    if (m_gfxLevel == GfxIpLevel::GfxIp9)
+    Result       result             = Result::Success;
+    const uint32 blockIdx           = static_cast<uint32>(block);
+    const uint32 numGlobalInstances = m_counterInfo.block[blockIdx].numGlobalInstances;
+    const uint32 numGenericModules  = m_counterInfo.block[blockIdx].numGenericSpmModules +
+                                      m_counterInfo.block[blockIdx].numGenericLegacyModules;
+
+    // Only continue if:
+    // - There are instances of this block on our device.
+    // - This block has generic counter modules.
+    if ((numGlobalInstances > 0) && (numGenericModules > 0))
     {
-        m_sqPerfCounterCtrl.gfx09.CNTR_RATE = rate;
+        // Check that we haven't allocated the per-instance array already.
+        if (m_select.pGeneric[blockIdx] == nullptr)
+        {
+            m_select.numGeneric[blockIdx] = numGlobalInstances;
+            m_select.pGeneric[blockIdx] =
+                PAL_NEW_ARRAY(GenericBlockSelect, numGlobalInstances, m_device.GetPlatform(), AllocObject);
+
+            if (m_select.pGeneric[blockIdx] == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+            else
+            {
+                memset(m_select.pGeneric[blockIdx], 0, sizeof(GenericBlockSelect) * m_select.numGeneric[blockIdx]);
+            }
+        }
+
+        // Check that we haven't allocated the per-module array already.
+        if (m_select.pGeneric[blockIdx][globalInstance].pModules == nullptr)
+        {
+            GenericBlockSelect*const pSelect = &m_select.pGeneric[blockIdx][globalInstance];
+
+            // We need one GenericModule for each SPM module and legacy module.
+            pSelect->numModules = numGenericModules;
+            pSelect->pModules   = PAL_NEW_ARRAY(GenericSelect, numGenericModules, m_device.GetPlatform(), AllocObject);
+
+            if (pSelect->pModules == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+            else
+            {
+                memset(pSelect->pModules, 0, sizeof(GenericSelect) * numGenericModules);
+
+                // Set each module's type field at creation. It only depends on counter info.
+                if (m_counterInfo.block[blockIdx].isCfgStyle)
+                {
+                    // Cfg-style: the legacy modules come first followed by the perfmon modules.
+                    uint32 moduleIdx = 0;
+                    while (moduleIdx < m_counterInfo.block[blockIdx].numGenericLegacyModules)
+                    {
+                        pSelect->pModules[moduleIdx++].type = SelectType::LegacyCfg;
+                    }
+
+                    while (moduleIdx < pSelect->numModules)
+                    {
+                        pSelect->pModules[moduleIdx++].type = SelectType::Perfmon;
+                    }
+                }
+                else
+                {
+                    // Select-style: the perfmon modules always come before the legacy modules.
+                    uint32 moduleIdx = 0;
+                    while (moduleIdx < m_counterInfo.block[blockIdx].numGenericSpmModules)
+                    {
+                        pSelect->pModules[moduleIdx++].type = SelectType::Perfmon;
+                    }
+
+                    while (moduleIdx < pSelect->numModules)
+                    {
+                        pSelect->pModules[moduleIdx++].type = SelectType::LegacySel;
+                    }
+                }
+            }
+        }
     }
+
+    return result;
 }
 
 // =====================================================================================================================
-// Checks that a performance counter resource is available for the specified counter create info. If the resource is
-// available, instantiates a new GcnPerfCounter object for the caller to use.
+// This function adds a single global counter for a specific instance of some hardware block. It must:
+// - If this is the first time this instance has enabled a counter, update hasCounters and get a GRBM_GFX_INDEX.
+// - Locate an unused counter module (perfmon or legacy) and mark it as fully in use.
+// - Configure that counter's primary PERF_SEL and other modes for global counting.
+// - Update the counter mapping's data type and counter ID.
 //
-// This function only should be used for global performance counters!
-Result PerfExperiment::CreateCounter(
-    const PerfCounterInfo& info,
-    Pal::PerfCounter**     ppCounter)
+// Implementation notes:
+// - According to the HW docs, the counters must be enabled in module order.
+// - Most blocks name their SPM control CNTR_MODE and name their counter controls PERF_MODE, this is confusing.
+// - SPM_MODE_OFF and COUNTER_MODE_ACCUM are both equal to zero but we still set them to be explicit.
+//
+Result PerfExperiment::AddCounter(
+    const PerfCounterInfo& info)
 {
-    PAL_ASSERT(info.counterType == PerfCounterType::Global);
+    Result               result  = Result::Success;
+    GlobalCounterMapping mapping = {};
 
-    uint32 counterId    = 0;
-    uint32 counterSubId = 0;
+    if (m_isFinalized)
+    {
+        // The perf experiment cannot be changed once it is finalized.
+        result = Result::ErrorUnavailable;
+    }
+    else
+    {
+        // Set up the general mapping information and validate the counter. We will decide on an output offset later.
+        result = BuildCounterMapping(info, &mapping.general);
+    }
 
-    // Search for an available counter slot to use for the new counter. (The counter sub-ID has no meaning for global
-    // counters.)
-    Result result = ReserveCounterResource(info, &counterId, &counterSubId);
     if (result == Result::Success)
     {
-        PerfCounter*const pCounter = PAL_NEW(PerfCounter,
-                                             m_device.GetPlatform(),
-                                             Util::SystemAllocType::AllocInternal)(m_device, info, counterId);
+        // Make sure we will have the necessary generic select structs for this block and instance.
+        result = AllocateGenericStructs(info.block, info.instance);
+    }
 
-        if (pCounter == nullptr)
-        {
-            // Object instantiation failed due to lack of memory.
-            result = Result::ErrorOutOfMemory;
-        }
-        else
-        {
-            // Update the counter flags
-            m_counterFlags.indexedBlocks  |= pCounter->IsIndexed();
-            m_counterFlags.eaCounters     |= (info.block == GpuBlock::Ea);
-            m_counterFlags.atcCounters    |= (info.block == GpuBlock::Atc);
-            m_counterFlags.atcL2Counters  |= (info.block == GpuBlock::AtcL2);
-            m_counterFlags.mcVmL2Counters |= (info.block == GpuBlock::McVmL2);
-            m_counterFlags.rpbCounters    |= (info.block == GpuBlock::Rpb);
-            m_counterFlags.rmiCounters    |= (info.block == GpuBlock::Rmi);
-            m_counterFlags.rlcCounters    |= (info.block == GpuBlock::Rlc);
-            m_counterFlags.sqCounters     |= (info.block == GpuBlock::Sq);
-            m_counterFlags.taCounters     |= (info.block == GpuBlock::Ta);
-            m_counterFlags.tdCounters     |= (info.block == GpuBlock::Td);
-            m_counterFlags.tcpCounters    |= (info.block == GpuBlock::Tcp);
-            m_counterFlags.tccCounters    |= (info.block == GpuBlock::Tcc);
-            m_counterFlags.tcaCounters    |= (info.block == GpuBlock::Tca);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
-            m_counterFlags.umcchCounters  |= (info.block == GpuBlock::Umcch);
-#endif
+    // Enable a global perf counter select and update the mapping's counterId.
+    if (result == Result::Success)
+    {
+        const uint32 block = static_cast<uint32>(info.block);
 
-            if ((info.block == GpuBlock::Ta)  ||
-                (info.block == GpuBlock::Td)  ||
-                (info.block == GpuBlock::Tcp) ||
-                (info.block == GpuBlock::Tcc) ||
-                (info.block == GpuBlock::Tca))
+        if (info.block == GpuBlock::Sq)
+        {
+            // The SQ counters are 64-bit.
+            mapping.general.dataType = PerfCounterDataType::Uint64;
+
+            // The SQG has special registers so it needs its own implementation.
+            if (m_select.sqg[info.instance].hasCounters == false)
             {
-                static constexpr uint32 SqDefaultCounterRate = 0;
+                // Turn on this instance and populate its GRBM_GFX_INDEX.
+                m_select.sqg[info.instance].hasCounters = true;
 
-                m_sqPerfCounterCtrl.bits.PS_EN |= 1;
-                m_sqPerfCounterCtrl.bits.VS_EN |= 1;
-                m_sqPerfCounterCtrl.bits.GS_EN |= 1;
-                m_sqPerfCounterCtrl.bits.ES_EN |= 1;
-                m_sqPerfCounterCtrl.bits.HS_EN |= 1;
-                m_sqPerfCounterCtrl.bits.LS_EN |= 1;
-                m_sqPerfCounterCtrl.bits.CS_EN |= 1;
-
-                SetCntrRate(SqDefaultCounterRate);
-
-                // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
-                PAL_ALERT(HasSqCounters());
+                result = BuildGrbmGfxIndex(info.block, info.instance, &m_select.sqg[info.instance].grbmGfxIndex);
             }
-            else if (info.block == GpuBlock::Sq)
+
+            if (result == Result::Success)
             {
-                static constexpr uint32 SqDefaultCounterRate = 0;
+                bool searching = true;
 
-                m_sqPerfCounterCtrl.bits.PS_EN |= ((ShaderMask() & PerfShaderMaskPs) ? 1 : 0);
-                m_sqPerfCounterCtrl.bits.VS_EN |= ((ShaderMask() & PerfShaderMaskVs) ? 1 : 0);
-                m_sqPerfCounterCtrl.bits.GS_EN |= ((ShaderMask() & PerfShaderMaskGs) ? 1 : 0);
-                m_sqPerfCounterCtrl.bits.ES_EN |= ((ShaderMask() & PerfShaderMaskEs) ? 1 : 0);
-                m_sqPerfCounterCtrl.bits.HS_EN |= ((ShaderMask() & PerfShaderMaskHs) ? 1 : 0);
-                m_sqPerfCounterCtrl.bits.LS_EN |= ((ShaderMask() & PerfShaderMaskLs) ? 1 : 0);
-                m_sqPerfCounterCtrl.bits.CS_EN |= ((ShaderMask() & PerfShaderMaskCs) ? 1 : 0);
-
-                //  Yes, DISABLE_FLUSH needs to be set for SQ and SQC perf counters only.
-                //  That includes the counters from LDS and SP blocks as well,
-                //  since those values are sent via SQC and SQ respectively.
-                //  But it should not affect the other blocks like TA, TD, GL*, etc.
-
-                SetCntrRate(SqDefaultCounterRate);
-
-                if (m_gfxLevel == GfxIpLevel::GfxIp9)
+                for (uint32 idx = 0; searching && (idx < ArrayLen(m_select.sqg[info.instance].perfmon)); ++idx)
                 {
-                    // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
-                    PAL_ALERT((HasTaCounters()  ||
-                               HasTdCounters()  ||
-                               HasTcpCounters() ||
-                               HasTccCounters() ||
-                               HasTcaCounters()));
+                    if (m_select.sqg[info.instance].perfmonInUse[idx] == false)
+                    {
+                        // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
+                        PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
+
+                        const uint32 bankMask = (info.optionFlags.sqSqcBankMask != 0)
+                                        ? (info.optionValues.sqSqcBankMask & DefaultSqSelectBankMask)
+                                        : DefaultSqSelectBankMask;
+
+                        m_select.sqg[info.instance].perfmonInUse[idx]               = true;
+                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL      = info.eventId;
+                        m_select.sqg[info.instance].perfmon[idx].bits.SQC_BANK_MASK = bankMask;
+                        m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE      = PERFMON_SPM_MODE_OFF;
+                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE     = PERFMON_COUNTER_MODE_ACCUM;
+
+                        if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+                        {
+                            // The SQC client mask and SIMD mask only exist on gfx9.
+                            const uint32 clientMask = (info.optionFlags.sqSqcClientMask != 0)
+                                            ? (info.optionValues.sqSqcClientMask & DefaultSqSelectClientMask)
+                                            : DefaultSqSelectClientMask;
+
+                            const uint32 simdMask = (info.optionFlags.sqSimdMask != 0)
+                                            ? (info.optionValues.sqSimdMask & DefaultSqSelectSimdMask)
+                                            : DefaultSqSelectSimdMask;
+
+                            m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = clientMask;
+                            m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = simdMask;
+                        }
+
+                        mapping.counterId = idx;
+                        searching         = false;
+                    }
+                }
+
+                if (searching)
+                {
+                    // There are no more global counters in this instance.
+                    result = Result::ErrorInvalidValue;
+                }
+            }
+        }
+        else if (info.block == GpuBlock::GrbmSe)
+        {
+            // The GRBM counters are 64-bit.
+            mapping.general.dataType = PerfCounterDataType::Uint64;
+
+            // The GRBM has a single counter per SE instance; enable that counter if it is unused.
+            if (m_select.grbmSe[info.instance].hasCounter == false)
+            {
+                // Our GRBM PERF_SEL fields are 6 bits. Verify that our event ID can fit.
+                PAL_ASSERT(info.eventId <= ((1 << 6) - 1));
+
+                m_select.grbmSe[info.instance].hasCounter           = true;
+                m_select.grbmSe[info.instance].select.bits.PERF_SEL = info.eventId;
+
+                mapping.counterId = 0;
+            }
+            else
+            {
+                // The only counter is in use.
+                result = Result::ErrorInvalidValue;
+            }
+        }
+        else if ((info.block == GpuBlock::Dma) && (m_select.pGeneric[static_cast<uint32>(GpuBlock::Dma)] == nullptr))
+        {
+            // If there are no generic SDMA modules we should use the legacy SDMA global counters.
+            //
+            // The legacy SDMA counters are 32-bit.
+            mapping.general.dataType = PerfCounterDataType::Uint32;
+
+            // SDMA perf_sel fields are 8 bits. Verify that our event ID can fit.
+            PAL_ASSERT(info.eventId <= ((1 << 8) - 1));
+
+            // Each GFX9 SDMA engine defines two special global counters controlled by one register.
+            if (m_select.legacySdma[info.instance].hasCounter[0] == false)
+            {
+                m_select.legacySdma[info.instance].hasCounter[0]                 = true;
+                m_select.legacySdma[info.instance].perfmonCntl.most.PERF_ENABLE0 = 1;
+                m_select.legacySdma[info.instance].perfmonCntl.most.PERF_CLEAR0  = 1; // Might as well clear it.
+                m_select.legacySdma[info.instance].perfmonCntl.most.PERF_SEL0    = info.eventId;
+
+                mapping.counterId = 0;
+            }
+            else if (m_select.legacySdma[info.instance].hasCounter[1] == false)
+            {
+                m_select.legacySdma[info.instance].hasCounter[1]                 = true;
+                m_select.legacySdma[info.instance].perfmonCntl.most.PERF_ENABLE1 = 1;
+                m_select.legacySdma[info.instance].perfmonCntl.most.PERF_CLEAR1  = 1; // Might as well clear it.
+                m_select.legacySdma[info.instance].perfmonCntl.most.PERF_SEL1    = info.eventId;
+
+                mapping.counterId = 1;
+            }
+            else
+            {
+                // The only two counters are in use.
+                result = Result::ErrorInvalidValue;
+            }
+        }
+        else if (info.block == GpuBlock::Umcch)
+        {
+            // The UMCCH counters are 64-bit.
+            mapping.general.dataType = PerfCounterDataType::Uint64;
+
+            // Find the next unused global counter in the special UMCCH state.
+            bool searching = true;
+
+            for (uint32 idx = 0; searching && (idx < ArrayLen(m_select.umcch[info.instance].perfmonInUse)); ++idx)
+            {
+                if (m_select.umcch[info.instance].perfmonInUse[idx] == false)
+                {
+                    // UMCCH EventSelect fields are 8 bits. Verify that our event ID can fit.
+                    PAL_ASSERT(info.eventId <= ((1 << 8) - 1));
+
+                    m_select.umcch[info.instance].hasCounters                       = true;
+                    m_select.umcch[info.instance].perfmonInUse[idx]                 = true;
+                    m_select.umcch[info.instance].perfmonCntl[idx].bits.EventSelect = info.eventId;
+                    m_select.umcch[info.instance].perfmonCntl[idx].bits.Enable      = 1;
+
+                    mapping.counterId = idx;
+                    searching         = false;
                 }
             }
 
-            (*ppCounter) = pCounter;
+            if (searching)
+            {
+                // There are no more global counters in this instance.
+                result = Result::ErrorInvalidValue;
+            }
         }
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Instantiates a new ThreadTrace object for the specified Shader Engine.
-//
-// This function only should be used for thread traces!
-Result PerfExperiment::CreateThreadTrace(
-    const ThreadTraceInfo& info)
-{
-    PAL_ASSERT(info.traceType == PerfTraceType::ThreadTrace);
-
-    // Instantiate a new thread trace object.
-    ThreadTrace* pThreadTrace = nullptr;
-    Result       result       = Result::Success;
-
-    if (m_gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        pThreadTrace = PAL_NEW(Gfx9ThreadTrace,
-                               m_device.GetPlatform(),
-                               Util::SystemAllocType::AllocInternal)(&m_device, info);
-    }
-
-    if (pThreadTrace != nullptr)
-    {
-        result = pThreadTrace->Init();
-
-        if (result == Result::Success)
+        else if (m_select.pGeneric[block] != nullptr)
         {
-            m_pThreadTrace[info.instance] = pThreadTrace;
+            // All generic global counters are 64-bit.
+            mapping.general.dataType = PerfCounterDataType::Uint64;
 
-            ++m_numThreadTrace;
+            // Finally, handle all generic blocks.
+            GenericBlockSelect*const pSelect = &m_select.pGeneric[block][info.instance];
+
+            if (m_select.pGeneric[block][info.instance].hasCounters == false)
+            {
+                // Turn on this instance and populate its GRBM_GFX_INDEX.
+                pSelect->hasCounters = true;
+
+                result = BuildGrbmGfxIndex(info.block, info.instance, &pSelect->grbmGfxIndex);
+            }
+
+            if (result == Result::Success)
+            {
+                // Find and enable a global counter. All of the counter user guides say that the modules need to be
+                // enabled in counter register# order. This ordering is different between cfg and select styles but
+                // we already abstracted that using the module type.
+                bool searching = true;
+
+                for (uint32 moduleIdx = 0; searching && (moduleIdx < pSelect->numModules); ++moduleIdx)
+                {
+                    if (pSelect->pModules[moduleIdx].inUse == 0)
+                    {
+                        switch (pSelect->pModules[moduleIdx].type)
+                        {
+                        case SelectType::Perfmon:
+                            // Our generic select PERF_SEL fields are 9 bits. Verify that our event ID can fit.
+                            PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
+
+                            // A global counter uses the whole perfmon module (0xF).
+                            pSelect->pModules[moduleIdx].inUse                       = 0xF;
+                            pSelect->pModules[moduleIdx].perfmon.sel0.bits.PERF_SEL  = info.eventId;
+                            pSelect->pModules[moduleIdx].perfmon.sel0.bits.CNTR_MODE = PERFMON_SPM_MODE_OFF;
+                            pSelect->pModules[moduleIdx].perfmon.sel0.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
+                            break;
+
+                        case SelectType::LegacySel:
+                            // Our generic select PERF_SEL fields are 9 bits. Verify that our event ID can fit.
+                            PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
+
+                            // A global counter uses the whole legacy module (0xF).
+                            pSelect->pModules[moduleIdx].inUse                    = 0xF;
+                            pSelect->pModules[moduleIdx].legacySel.bits.PERF_SEL  = info.eventId;
+                            pSelect->pModules[moduleIdx].legacySel.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
+                            break;
+
+                        case SelectType::LegacyCfg:
+                            // Our cfg PERF_SEL fields are 8 bits. Verify that our event ID can fit.
+                            PAL_ASSERT(info.eventId <= ((1 << 8) - 1));
+
+                            // A global counter uses the whole legacy module (0xF).
+                            pSelect->pModules[moduleIdx].inUse                    = 0xF;
+                            pSelect->pModules[moduleIdx].legacyCfg.bits.PERF_SEL  = info.eventId;
+                            pSelect->pModules[moduleIdx].legacyCfg.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
+                            pSelect->pModules[moduleIdx].legacyCfg.bits.ENABLE    = 1;
+                            break;
+
+                        default:
+                            // What is this?
+                            PAL_ASSERT_ALWAYS();
+                            break;
+                        }
+
+                        mapping.counterId = moduleIdx;
+                        searching         = false;
+                    }
+                }
+
+                if (searching)
+                {
+                    // There are no more global counters in this instance.
+                    result = Result::ErrorInvalidValue;
+                }
+            }
         }
         else
         {
-            // Ok, we were able to create the thread-trace object, but it failed validation.
-            PAL_SAFE_DELETE(pThreadTrace, m_device.GetPlatform());
+            // We don't support this block on this device.
+            result = Result::ErrorInvalidValue;
         }
     }
-    else
+
+    // Record the counter mapping as our last step so we don't end up with bad mappings when we're out of counters.
+    if (result == Result::Success)
     {
-        result = Result::ErrorOutOfMemory;
+        result = m_globalCounters.PushBack(mapping);
+    }
+
+    if (result == Result::Success)
+    {
+        m_hasGlobalCounters = true;
     }
 
     return result;
 }
 
 // =====================================================================================================================
-// Validates SPM trace create info and constructs a hardware layer specific Spm trace object.
-Result PerfExperiment::ConstructSpmTraceObj(
-    const SpmTraceCreateInfo& info,
-    Pal::SpmTrace**           ppSpmTrace)
+// This function configures a single SPM counter (16-bit or 32-bit) for a specific instance of some block. It must:
+// - If this is the first time this instance has enabled a counter, update hasCounters and get a GRBM_GFX_INDEX.
+// - Locate an unused perfmon counter module and mark part of it in use.
+// - Configure that counter's SPM mode, PERF_SELs, and other state for 16-bit or 32-bit SPM counting.
+// - Identify which SPM wire will be used and finish building the SPM counter mapping.
+//
+// Implementation notes:
+// - According to the HW docs, the counters must be enabled in module order.
+// - Most blocks name their SPM control CNTR_MODE and name their counter controls PERF_MODE, this is confusing.
+// - COUNTER_MODE_ACCUM is equal to zero but we still set it to be explicit.
+Result PerfExperiment::AddSpmCounter(
+    const PerfCounterInfo& info,
+    SpmCounterMapping*     pMapping)
 {
     Result result = Result::Success;
-    PAL_ASSERT(ppSpmTrace != nullptr);
 
-    const auto& perfCounterInfo = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
-
-    PerfExperimentProperties perfExpProperties = { };
-    result = m_device.Parent()->GetPerfExperimentProperties(&perfExpProperties);
-
-    // Validate the SPM trace create info.
-    for (uint32 i = 0; i < info.numPerfCounters && (result == Result::Success); i++)
+    if (m_isFinalized)
     {
-        const uint32 blockIdx     = static_cast<uint32>(info.pPerfCounterInfos[i].block);
-        const auto& block         = perfCounterInfo.block[blockIdx];
-        const uint32 maxInstances = perfExpProperties.blocks[blockIdx].instanceCount;
+        // The perf experiment cannot be changed once it is finalized.
+        result = Result::ErrorUnavailable;
+    }
+    else
+    {
+        // Set up the general mapping information and validate the counter.
+        result = BuildCounterMapping(info, &pMapping->general);
+    }
 
-        // Check if block, eventid and instance number are within bounds.
-        if (((info.pPerfCounterInfos[i].block    < GpuBlock::Count)  && // valid block
-             (info.pPerfCounterInfos[i].eventId  < block.maxEventId) && // valid event
-             (info.pPerfCounterInfos[i].instance < maxInstances)     && // valid instance
-             (block.numStreamingCounters         > 0)) == false)        // supports spm
+    if (result == Result::Success)
+    {
+        // Make sure we will have the necessary generic select structs for this block and instance.
+        result = AllocateGenericStructs(info.block, info.instance);
+    }
+
+    // Enable a select register and finish building our counter mapping within some SPM segment. We need to track which
+    // SPM wire is hooked up to the current module and which 16-bit sub-counter we selected within that wire.
+    const uint32      block           = static_cast<uint32>(info.block);
+    uint32            spmWire         = 0;
+    uint32            subCounter      = 0;
+    regGRBM_GFX_INDEX spmGrbmGfxIndex = {};
+
+    if (result == Result::Success)
+    {
+        if (info.block == GpuBlock::Sq)
         {
+            // The SQG has special registers so it needs its own implementation.
+            if (m_select.sqg[info.instance].hasCounters == false)
+            {
+                // Turn on this instance and populate its GRBM_GFX_INDEX.
+                m_select.sqg[info.instance].hasCounters = true;
+
+                result = BuildGrbmGfxIndex(info.block, info.instance, &m_select.sqg[info.instance].grbmGfxIndex);
+            }
+
+            spmGrbmGfxIndex = m_select.sqg[info.instance].grbmGfxIndex;
+
+            if (result == Result::Success)
+            {
+                bool searching = true;
+
+                for (uint32 idx = 0; searching && (idx < ArrayLen(m_select.sqg[info.instance].perfmon)); ++idx)
+                {
+                    if (m_select.sqg[info.instance].perfmonInUse[idx] == false)
+                    {
+                        // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
+                        PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
+
+                        // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
+                        // As long as the counter doesn't wrap over 16 bits we can enable a 32-bit counter and treat
+                        // it exactly like a 16-bit counter and still get useful data.
+                        const uint32 bankMask = (info.optionFlags.sqSqcBankMask != 0)
+                                        ? (info.optionValues.sqSqcBankMask & DefaultSqSelectBankMask)
+                                        : DefaultSqSelectBankMask;
+
+                        m_select.sqg[info.instance].perfmonInUse[idx]               = true;
+                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL      = info.eventId;
+                        m_select.sqg[info.instance].perfmon[idx].bits.SQC_BANK_MASK = bankMask;
+                        m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE      = PERFMON_SPM_MODE_32BIT_CLAMP;
+                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE     = PERFMON_COUNTER_MODE_ACCUM;
+
+                        if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+                        {
+                            // The SQC client mask and SIMD mask only exist on gfx9.
+                            const uint32 clientMask = (info.optionFlags.sqSqcClientMask != 0)
+                                            ? (info.optionValues.sqSqcClientMask & DefaultSqSelectClientMask)
+                                            : DefaultSqSelectClientMask;
+
+                            const uint32 simdMask = (info.optionFlags.sqSimdMask != 0)
+                                            ? (info.optionValues.sqSimdMask & DefaultSqSelectSimdMask)
+                                            : DefaultSqSelectSimdMask;
+
+                            m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = clientMask;
+                            m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = simdMask;
+                        }
+
+                        // Each SQ module gets a single wire with one sub-counter (use the default value of zero).
+                        spmWire   = idx;
+                        searching = false;
+                    }
+                }
+
+                if (searching)
+                {
+                    // There are no more compatible SPM counters in this instance.
+                    result = Result::ErrorInvalidValue;
+                }
+            }
+        }
+        else if (m_select.pGeneric[block] != nullptr)
+        {
+            // Finally, handle all generic blocks.
+            GenericBlockSelect*const pSelect = &m_select.pGeneric[block][info.instance];
+
+            if (m_select.pGeneric[block][info.instance].hasCounters == false)
+            {
+                // Turn on this instance and populate its GRBM_GFX_INDEX.
+                pSelect->hasCounters = true;
+
+                result = BuildGrbmGfxIndex(info.block, info.instance, &pSelect->grbmGfxIndex);
+            }
+
+            spmGrbmGfxIndex = pSelect->grbmGfxIndex;
+
+            if (result == Result::Success)
+            {
+                // Search for an unused 16-bit sub-counter. This will need to be reworked when we add 32-bit support.
+                bool searching = true;
+
+                for (uint32 idx = 0; idx < pSelect->numModules; idx++)
+                {
+                    if (pSelect->pModules[idx].type == SelectType::Perfmon)
+                    {
+                        // Our generic select PERF_SEL fields are 9 bits. Verify that our event ID can fit.
+                        PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
+
+                        // Each write holds two 16-bit sub-counters. We must check each wire individually because
+                        // some blocks look like they have a whole perfmon module but only use half of it.
+                        if (spmWire < m_counterInfo.block[block].numSpmWires)
+                        {
+                            if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x1) == false)
+                            {
+                                pSelect->pModules[idx].inUse                      |= 0x1;
+                                pSelect->pModules[idx].perfmon.sel0.bits.PERF_SEL  = info.eventId;
+                                pSelect->pModules[idx].perfmon.sel0.bits.CNTR_MODE = PERFMON_SPM_MODE_16BIT_CLAMP;
+                                pSelect->pModules[idx].perfmon.sel0.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
+
+                                subCounter = 0;
+                                searching  = false;
+                                break;
+                            }
+                            else if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x2) == false)
+                            {
+                                pSelect->pModules[idx].inUse                       |= 0x2;
+                                pSelect->pModules[idx].perfmon.sel0.bits.PERF_SEL1  = info.eventId;
+                                pSelect->pModules[idx].perfmon.sel0.bits.PERF_MODE1 = PERFMON_COUNTER_MODE_ACCUM;
+
+                                subCounter = 1;
+                                searching  = false;
+                                break;
+                            }
+
+                            spmWire++;
+                        }
+
+                        if (spmWire < m_counterInfo.block[block].numSpmWires)
+                        {
+                            if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x4) == false)
+                            {
+                                pSelect->pModules[idx].inUse                       |= 0x4;
+                                pSelect->pModules[idx].perfmon.sel1.bits.PERF_SEL2  = info.eventId;
+                                pSelect->pModules[idx].perfmon.sel1.bits.PERF_MODE2 = PERFMON_COUNTER_MODE_ACCUM;
+
+                                subCounter = 0;
+                                searching  = false;
+                                break;
+                            }
+                            else if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x8) == false)
+                            {
+                                pSelect->pModules[idx].inUse                       |= 0x8;
+                                pSelect->pModules[idx].perfmon.sel1.bits.PERF_SEL3  = info.eventId;
+                                pSelect->pModules[idx].perfmon.sel1.bits.PERF_MODE3 = PERFMON_COUNTER_MODE_ACCUM;
+
+                                subCounter = 1;
+                                searching  = false;
+                                break;
+                            }
+
+                            spmWire++;
+                        }
+                    }
+                }
+
+                if (searching)
+                {
+                    // There are no more SPM counters in this instance.
+                    result = Result::ErrorInvalidValue;
+                }
+            }
+        }
+        else
+        {
+            // We don't support this block on this device or it doesn't support SPM.
             result = Result::ErrorInvalidValue;
         }
     }
 
     if (result == Result::Success)
     {
-        SpmTrace* pSpmTrace = nullptr;
+        if (m_counterInfo.block[block].spmBlockSelect == UINT32_MAX)
+        {
+            // This block doesn't support SPM. Assert that that this is the client's mistake.
+            PAL_ASSERT((m_counterInfo.block[block].num16BitSpmCounters == 0) &&
+                       (m_counterInfo.block[block].num32BitSpmCounters == 0));
 
-        if (m_device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            pSpmTrace = static_cast<Pal::SpmTrace*>(PAL_NEW (Gfx9SpmTrace,
-                                                             m_device.GetPlatform(),
-                                                             Util::SystemAllocType::AllocInternal)(&m_device));
-        }
-        if (pSpmTrace != nullptr)
-        {
-            (*ppSpmTrace) = pSpmTrace;
+            result = Result::ErrorInvalidValue;
         }
         else
         {
-            // Allocation of Spm trace object failed.
-            result = Result::ErrorOutOfMemory;
+            PAL_ASSERT(spmWire < m_counterInfo.block[block].numSpmWires);
+            PAL_ASSERT(subCounter < 2); // Each wire is 32 bits and each sub-counter is 16 bits.
+
+            pMapping->segment = (m_counterInfo.block[block].distribution == PerfCounterDistribution::GlobalBlock)
+                                    ? SpmDataSegmentType::Global
+                                    : static_cast<SpmDataSegmentType>(spmGrbmGfxIndex.bits.SE_INDEX);
+
+            // For now we only support 16-bit counters so this counter is either even or odd. 32-bit counters will
+            // be both even and odd so that we get the full 32-bit value from the SPM wire.
+            pMapping->isEven = (subCounter == 0);
+            pMapping->isOdd  = (subCounter != 0);
+
+            if (pMapping->isEven)
+            {
+                // We want the lower 16 bits of this wire.
+                pMapping->evenMuxsel = BuildMuxselEncoding(info.block, 2 * spmWire, spmGrbmGfxIndex);
+            }
+
+            if (pMapping->isOdd)
+            {
+                // We want the upper 16 bits of this wire.
+                pMapping->oddMuxsel = BuildMuxselEncoding(info.block, 2 * spmWire + 1, spmGrbmGfxIndex);
+            }
         }
     }
 
@@ -390,1120 +868,2242 @@ Result PerfExperiment::ConstructSpmTraceObj(
 }
 
 // =====================================================================================================================
-// Creates a StreamingPerfCounter object and returns a pointer.
-Pal::StreamingPerfCounter* PerfExperiment::CreateStreamingPerfCounter(
-    GpuBlock block,
-    uint32   instance,
-    uint32   slot)
+// It looks like the client can only call this function once per PerfExperiment which makes things simple. It must:
+// - Add one SPM counter for each counter in the trace.
+// - Store some global SPM state.
+Result PerfExperiment::AddThreadTrace(
+    const ThreadTraceInfo& traceInfo)
 {
-    Pal::StreamingPerfCounter* pStreamingCounter = nullptr;
+    Result result = Result::Success;
 
-    if (m_device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
+    if (m_isFinalized)
     {
-        pStreamingCounter = static_cast<Pal::StreamingPerfCounter*>(PAL_NEW (Gfx9StreamingPerfCounter,
-                                                                             m_device.GetPlatform(),
-                                                                             Util::SystemAllocType::AllocObject)
-                                                                             (m_device, block, instance, slot));
+        // The perf experiment cannot be changed once it is finalized.
+        result = Result::ErrorUnavailable;
+    }
+    // Validate the trace info.
+    else if (traceInfo.instance >= m_chipProps.gfx9.numShaderEngines)
+    {
+        // There's one thread trace instance per SQG.
+        result = Result::ErrorInvalidValue;
+    }
+    else if (m_sqtt[traceInfo.instance].inUse)
+    {
+        // You can't use the same instance twice!
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((traceInfo.optionFlags.bufferSize != 0) &&
+             ((traceInfo.optionValues.bufferSize == 0) ||
+              (traceInfo.optionValues.bufferSize > SqttMaximumBufferSize) ||
+              (IsPow2Aligned(traceInfo.optionValues.bufferSize, SqttBufferAlignment) == false)))
+    {
+        // The buffer size can't be larger than the maximum size and it must be properly aligned.
+        result = Result::ErrorInvalidValue;
+    }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
+    else if ((traceInfo.optionFlags.threadTraceTokenMask != 0) &&
+             (traceInfo.optionValues.threadTraceTokenMask == 0))
+    {
+        // The thread trace token mask can't be empty.
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((traceInfo.optionFlags.threadTraceRegMask != 0) &&
+             (traceInfo.optionValues.threadTraceRegMask == 0))
+    {
+        // The thread trace reg mask can't be empty.
+        result = Result::ErrorInvalidValue;
+    }
+#else
+    else if ((traceInfo.optionFlags.threadTraceTokenConfig != 0) &&
+             (traceInfo.optionValues.threadTraceTokenConfig.tokenMask == 0) &&
+             (traceInfo.optionValues.threadTraceTokenConfig.regMask == 0))
+    {
+        // The thread trace token config can't be empty.
+        result = Result::ErrorInvalidValue;
+    }
+#endif
+    else if ((traceInfo.optionFlags.threadTraceTargetSh != 0) &&
+             (traceInfo.optionValues.threadTraceTargetSh >= m_chipProps.gfx9.numShaderArrays))
+    {
+        // The detailed shader array is out of bounds.
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((traceInfo.optionFlags.threadTraceTargetCu != 0) &&
+             (traceInfo.optionValues.threadTraceTargetCu >= m_chipProps.gfx9.numCuPerSh))
+    {
+        // The detailed CU is out of bounds.
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((traceInfo.optionFlags.threadTraceSh0CounterMask != 0) &&
+             TestAnyFlagSet(traceInfo.optionValues.threadTraceSh0CounterMask, ~SqttPerfCounterCuMask))
+    {
+        // A CU is selected that doesn't exist.
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((traceInfo.optionFlags.threadTraceSh1CounterMask != 0) &&
+             TestAnyFlagSet(traceInfo.optionValues.threadTraceSh1CounterMask, ~SqttPerfCounterCuMask))
+    {
+        // A CU is selected that doesn't exist.
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((traceInfo.optionFlags.threadTraceSimdMask != 0) &&
+             (TestAnyFlagSet(traceInfo.optionValues.threadTraceSimdMask, ~SqttDetailedSimdMask)))
+    {
+        // A SIMD is selected that doesn't exist.
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((traceInfo.optionFlags.threadTraceVmIdMask != 0) &&
+             (traceInfo.optionValues.threadTraceVmIdMask > SQ_THREAD_TRACE_VM_ID_MASK_SINGLE_DETAIL))
+    {
+        // This hacky HW register option is only supported on gfx9.
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((traceInfo.optionFlags.threadTraceShaderTypeMask != 0) &&
+             ((traceInfo.optionValues.threadTraceShaderTypeMask & ~PerfShaderMaskAll) != 0))
+    {
+        // What is this shader stage?
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((traceInfo.optionFlags.threadTraceIssueMask != 0) &&
+             (traceInfo.optionValues.threadTraceIssueMask > SQ_THREAD_TRACE_ISSUE_MASK_IMMED))
+    {
+        // This hacky HW register option is only supported on gfx9.
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((traceInfo.optionFlags.threadTraceStallBehavior != 1) &&
+             (traceInfo.optionValues.threadTraceStallBehavior > GpuProfilerStallNever))
+    {
+        // The stall mode is invalid.
+        result = Result::ErrorInvalidValue;
     }
 
-    if (pStreamingCounter == nullptr)
+    // Note that threadTraceRandomSeed cannot be implemented on gfx9+ but using it shouldn't cause an error because
+    // doing nothing with the seed should still give us deterministic traces.
+
+    if (result == Result::Success)
     {
-        // Allocation of StreamingPerfCounter object failed.
-        PAL_ASSERT_ALWAYS();
-    }
+        m_hasThreadTrace = true;
 
-    return pStreamingCounter;
-}
+        // Set all sqtt properties for this trace except for the buffer offset which is found during Finalize.
+        m_sqtt[traceInfo.instance].inUse = true;
+        m_sqtt[traceInfo.instance].bufferSize = (traceInfo.optionFlags.bufferSize != 0)
+                ? traceInfo.optionValues.bufferSize : SqttDefaultBufferSize;
 
-// =====================================================================================================================
-// Updates internal flags.
-void PerfExperiment::UpdateCounterFlags(
-    GpuBlock block,
-    bool     isIndexed)
-{
-    m_counterFlags.indexedBlocks |= isIndexed;
-    m_counterFlags.rlcCounters   |= (block == GpuBlock::Rlc);
-    m_counterFlags.sqCounters    |= (block == GpuBlock::Sq);
-    m_counterFlags.taCounters    |= (block == GpuBlock::Ta);
-    m_counterFlags.tdCounters    |= (block == GpuBlock::Td);
-    m_counterFlags.tcpCounters   |= (block == GpuBlock::Tcp);
-    m_counterFlags.tccCounters   |= (block == GpuBlock::Tcc);
-    m_counterFlags.tcaCounters   |= (block == GpuBlock::Tca);
+        // Default to all shader stages enabled.
+        const PerfExperimentShaderFlags shaderMask = (traceInfo.optionFlags.threadTraceShaderTypeMask != 0)
+                ? traceInfo.optionValues.threadTraceShaderTypeMask : PerfShaderMaskAll;
 
-    const auto& chipProps = m_device.Parent()->ChipProperties();
-    if ((chipProps.gfxLevel != GfxIpLevel::GfxIp6) &&
-        ((block == GpuBlock::Ta)  ||
-         (block == GpuBlock::Td)  ||
-         (block == GpuBlock::Tcp) ||
-         (block == GpuBlock::Tcc) ||
-         (block == GpuBlock::Tca)))
-    {
-        constexpr uint32 SqDefaultCounterRate = 0;
+        // Default to getting detailed tokens from shader array 0.
+        const uint32 shIndex = (traceInfo.optionFlags.threadTraceTargetSh != 0)
+                ? traceInfo.optionValues.threadTraceTargetSh : 0;
 
-        m_sqPerfCounterCtrl.bits.PS_EN |= 1;
-        m_sqPerfCounterCtrl.bits.VS_EN |= 1;
-        m_sqPerfCounterCtrl.bits.GS_EN |= 1;
-        m_sqPerfCounterCtrl.bits.ES_EN |= 1;
-        m_sqPerfCounterCtrl.bits.HS_EN |= 1;
-        m_sqPerfCounterCtrl.bits.LS_EN |= 1;
-        m_sqPerfCounterCtrl.bits.CS_EN |= 1;
-        SetCntrRate(SqDefaultCounterRate);
+        // Target this trace's specific SE and SH.
+        m_sqtt[traceInfo.instance].grbmGfxIndex.bits.SE_INDEX  = traceInfo.instance;
+        m_sqtt[traceInfo.instance].grbmGfxIndex.gfx09.SH_INDEX = shIndex;
+        m_sqtt[traceInfo.instance].grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
-        // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
-        PAL_ALERT(HasSqCounters());
-    }
-    else if (block == GpuBlock::Sq)
-    {
-        static constexpr uint32 SqDefaultCounterRate = 0;
-
-        m_sqPerfCounterCtrl.bits.PS_EN |= ((ShaderMask() & PerfShaderMaskPs) ? 1 : 0);
-        m_sqPerfCounterCtrl.bits.VS_EN |= ((ShaderMask() & PerfShaderMaskVs) ? 1 : 0);
-        m_sqPerfCounterCtrl.bits.GS_EN |= ((ShaderMask() & PerfShaderMaskGs) ? 1 : 0);
-        m_sqPerfCounterCtrl.bits.ES_EN |= ((ShaderMask() & PerfShaderMaskEs) ? 1 : 0);
-        m_sqPerfCounterCtrl.bits.HS_EN |= ((ShaderMask() & PerfShaderMaskHs) ? 1 : 0);
-        m_sqPerfCounterCtrl.bits.LS_EN |= ((ShaderMask() & PerfShaderMaskLs) ? 1 : 0);
-        m_sqPerfCounterCtrl.bits.CS_EN |= ((ShaderMask() & PerfShaderMaskCs) ? 1 : 0);
-        SetCntrRate(SqDefaultCounterRate);
-
-        // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
-        PAL_ALERT((HasTaCounters()  ||
-                   HasTdCounters()  ||
-                   HasTcpCounters() ||
-                   HasTccCounters() ||
-                   HasTcaCounters()));
-    }
-}
-
-// =====================================================================================================================
-// Issues commands into the specified command stream which instruct the HW to begin recording performance data.
-void PerfExperiment::IssueBegin(
-    Pal::CmdStream* pPalCmdStream    ///< [in,out] Command stream to write PM4 commands into
-    ) const
-{
-    PAL_ASSERT(IsFinalized());
-
-    CmdStream*       pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
-    const auto&      chipProps  = m_device.Parent()->ChipProperties();
-    const auto&      cmdUtil    = m_device.CmdUtil();
-    const auto&      regInfo    = cmdUtil.GetRegInfo();
-    const EngineType engineType = pCmdStream->GetEngineType();
-    uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
-
-    // Wait for GFX engine to become idle before freezing or sampling counters.
-    pCmdSpace = WriteWaitIdleClean(pCmdStream, CacheFlushOnPerfCounter(), engineType, pCmdSpace);
-
-    if (HasThreadTraces() || HasSqCounters())
-    {
-        // Both SQ performance counters and traces need the SQG events enabled. Force them on
-        // ourselves if KMD doesn't have them active by default.
-        // On some ASICs we have to WaitIdle before writing this register. We do this already, so there isn't a need
-        // to do it again.
-        regSPI_CONFIG_CNTL spiConfigCntl = {};
-        spiConfigCntl.u32All                     = m_spiConfigCntlDefault;
-        spiConfigCntl.bits.ENABLE_SQG_TOP_EVENTS = 1;
-        spiConfigCntl.bits.ENABLE_SQG_BOP_EVENTS = 1;
-
-        // Enable perfmon clocks for all blocks. This register controls medium grain clock gating.
-        if (m_gfxLevel == GfxIpLevel::GfxIp9)
+        // By default stall always so that we get accurate data.
+        const uint32 stallMode = (traceInfo.optionFlags.threadTraceStallBehavior != 1)
+                ? traceInfo.optionValues.threadTraceStallBehavior : GpuProfilerStallAlways;
+        if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
         {
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 1, pCmdSpace);
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSpiConfigCntl, spiConfigCntl.u32All, pCmdSpace);
-        }
-    }
+            m_sqtt[traceInfo.instance].mode.bits.MASK_PS      = ((shaderMask & PerfShaderMaskPs) != 0);
+            m_sqtt[traceInfo.instance].mode.bits.MASK_VS      = ((shaderMask & PerfShaderMaskVs) != 0);
+            m_sqtt[traceInfo.instance].mode.bits.MASK_GS      = ((shaderMask & PerfShaderMaskGs) != 0);
+            m_sqtt[traceInfo.instance].mode.bits.MASK_ES      = ((shaderMask & PerfShaderMaskEs) != 0);
+            m_sqtt[traceInfo.instance].mode.bits.MASK_HS      = ((shaderMask & PerfShaderMaskHs) != 0);
+            m_sqtt[traceInfo.instance].mode.bits.MASK_LS      = ((shaderMask & PerfShaderMaskLs) != 0);
+            m_sqtt[traceInfo.instance].mode.bits.MASK_CS      = ((shaderMask & PerfShaderMaskCs) != 0);
+            m_sqtt[traceInfo.instance].mode.bits.MODE         = SQ_THREAD_TRACE_MODE_ON;
+            m_sqtt[traceInfo.instance].mode.bits.CAPTURE_MODE = SQ_THREAD_TRACE_CAPTURE_MODE_ALL;
+            m_sqtt[traceInfo.instance].mode.bits.AUTOFLUSH_EN = 1; // Periodically flush SQTT data to memory.
+            m_sqtt[traceInfo.instance].mode.bits.TC_PERF_EN   = 1; // Count SQTT traffic in TCC perf counters.
 
-    if (HasThreadTraces())
-    {
-        // Issue commands to setup each thread trace's state. No more than four thread traces can be active at once so
-        // it should be safe to use the same reserve buffer.
-        for (size_t idx = 0; idx < MaxNumThreadTrace; ++idx)
-        {
-            if (m_pThreadTrace[idx] != nullptr)
+            // By default capture all instruction scheduling updates.
+            m_sqtt[traceInfo.instance].mode.bits.ISSUE_MASK = (traceInfo.optionFlags.threadTraceIssueMask != 0)
+                    ? traceInfo.optionValues.threadTraceIssueMask : SQ_THREAD_TRACE_ISSUE_MASK_ALL;
+
+            // By default don't wrap.
+            m_sqtt[traceInfo.instance].mode.bits.WRAP =
+                ((traceInfo.optionFlags.threadTraceWrapBuffer != 0) && traceInfo.optionValues.threadTraceWrapBuffer);
+
+            if (traceInfo.optionFlags.threadTraceTargetCu != 0)
             {
-                auto*const pTrace = static_cast<ThreadTrace*>(m_pThreadTrace[idx]);
-                pCmdSpace = pTrace->WriteSetupCommands(m_vidMem.GpuVirtAddr(), pCmdStream, pCmdSpace);
-            }
-        }
-
-        // Issue commands to setup each thread trace's state. No more than four thread traces can be active at once so
-        // it should be safe to use the same reserve buffer.
-        for (size_t idx = 0; idx < MaxNumThreadTrace; ++idx)
-        {
-            if (m_pThreadTrace[idx] != nullptr)
-            {
-                auto*const pTrace = static_cast<ThreadTrace*>(m_pThreadTrace[idx]);
-                pCmdSpace = pTrace->WriteStartCommands(pCmdStream, pCmdSpace);
-            }
-        }
-
-        pCmdSpace = WriteResetGrbmGfxIndex(pCmdStream, pCmdSpace);
-
-        // Issue a VGT event to start thread traces. This is done out here because we want to reset GRBM_GFX_INDEX
-        // before issuing the event. No more than four thread traces can be active at once so it should be safe to use
-        // the same reserve buffer.
-        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_START, engineType, pCmdSpace);
-
-        // TODO: Issuing a PS_PARTIAL_FLUSH and a wait-idle clean seems to help us more reliably gather thread-trace
-        //       data. Need to investigate why this helps.
-        if (engineType != EngineTypeCompute)
-        {
-            pCmdSpace += cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH,
-                                                          engineType,
-                                                          pCmdSpace);
-        }
-        pCmdSpace  = WriteWaitIdleClean(pCmdStream, true, engineType, pCmdSpace);
-    }
-
-    if (HasSpmTrace())
-    {
-        pCmdSpace = m_pSpmTrace->WriteSetupCommands(m_vidMem.GpuVirtAddr(), pPalCmdStream, pCmdSpace);
-
-        pCmdStream->CommitCommands(pCmdSpace);
-        pCmdSpace = pCmdStream->ReserveCommands();
-
-        pCmdSpace = WriteResetGrbmGfxIndex(pCmdStream, pCmdSpace);
-
-        pCmdSpace = WriteWaitIdleClean(pCmdStream, true, engineType, pCmdSpace);
-
-        if (m_sqPerfCounterCtrl.u32All != 0)
-        {
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmSqPerfCounterCtrl,
-                                                          m_sqPerfCounterCtrl.u32All,
-                                                          pCmdSpace);
-        }
-
-        pCmdSpace = m_pSpmTrace->WriteStartCommands(pPalCmdStream, pCmdSpace);
-        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_START, engineType, pCmdSpace);
-    }
-
-    if (HasGlobalCounters())
-    {
-        pCmdSpace = WriteComputePerfCountEnable(pCmdStream, pCmdSpace, true);
-
-        // Need to freeze and reset performance counters.
-        pCmdSpace = WriteStopPerfCounters(true, pCmdStream, pCmdSpace);
-
-        // TODO: Investigate: DXX clears the counter sample buffer here. Do we need to do the same?? Seems that we
-        //       wouldn't since we record an initial sample of the counters later-on in this function.
-
-        // Issue commands to setup the finalized performance counter select registers.
-        pCmdSpace = WriteSetupPerfCounters(pCmdStream, pCmdSpace);
-
-        // Record an initial sample of the performance counter data at the "begin" offset
-        // in GPU memory.
-        pCmdSpace = WriteSamplePerfCounters(m_vidMem.GpuVirtAddr() + m_ctrBeginOffset,
-                                            pCmdStream,
-                                            pCmdSpace);
-
-        // Issue commands to start recording perf counter data.
-        pCmdSpace = WriteStartPerfCounters(false, pCmdStream, pCmdSpace);
-    }
-
-    pCmdStream->CommitCommands(pCmdSpace);
-}
-
-// =====================================================================================================================
-// Issues update commands into the specified command stream which instruct the HW to modify the sqtt token mask.
-void PerfExperiment::UpdateSqttTokenMask(
-    Pal::CmdStream*               pPalCmdStream,   // [in,out] Command stream to write PM4 commands into
-    const ThreadTraceTokenConfig& sqttTokenConfig  // [in] Updated SQTT token mask
-    ) const
-{
-    PAL_ASSERT(IsFinalized());
-
-    // This should only be called on thread trace performance experiments.
-    PAL_ASSERT(HasThreadTraces());
-
-    if (HasThreadTraces())
-    {
-        CmdStream* pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
-        uint32*    pCmdSpace  = pCmdStream->ReserveCommands();
-
-        // Issue commands to update each thread trace's state. No more than four thread traces can be active at once so
-        // it should be safe to use the same reserve buffer.
-        for (size_t idx = 0; idx < MaxNumThreadTrace; ++idx)
-        {
-            if (m_pThreadTrace[idx] != nullptr)
-            {
-                auto*const pTrace = static_cast<ThreadTrace*>(m_pThreadTrace[idx]);
-                pCmdSpace = pTrace->WriteUpdateSqttTokenMaskCommands(pCmdStream,
-                                                                     pCmdSpace,
-                                                                     sqttTokenConfig);
-            }
-        }
-
-        pCmdSpace = WriteResetGrbmGfxIndex(pCmdStream, pCmdSpace);
-
-        pCmdStream->CommitCommands(pCmdSpace);
-    }
-}
-
-// =====================================================================================================================
-// Issues commands into the specified command stream which instruct the HW to halt recording performance data.
-void PerfExperiment::IssueEnd(
-    Pal::CmdStream* pPalCmdStream    ///< [in,out] Command stream to write PM4 commands into
-    ) const
-{
-    PAL_ASSERT(IsFinalized());
-
-    CmdStream*       pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
-    const auto&      cmdUtil    = m_device.CmdUtil();
-    const auto&      regInfo    = cmdUtil.GetRegInfo();
-    const EngineType engineType = pCmdStream->GetEngineType();
-    uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
-
-    // Wait for GFX engine to become idle before freezing or sampling counters.
-    pCmdSpace = WriteWaitIdleClean(pCmdStream, CacheFlushOnPerfCounter(), engineType, pCmdSpace);
-
-    if (HasGlobalCounters())
-    {
-        // Record a final sample of the performance counter data at the "end" offset in GPU memory.
-        pCmdSpace = WriteSamplePerfCounters(m_vidMem.GpuVirtAddr() + m_ctrEndOffset,
-                                            pCmdStream,
-                                            pCmdSpace);
-
-        // Issue commands to stop recording perf counter data.
-        pCmdSpace = WriteStopPerfCounters(true, pCmdStream, pCmdSpace);
-    }
-
-    if (HasThreadTraces())
-    {
-        // Issue a VGT event to stop thread traces.
-        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_STOP, engineType, pCmdSpace);
-        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_FINISH, engineType, pCmdSpace);
-
-        // Stop recording each active thread trace. No more than four thread traces can be active at once so it should
-        // be safe to use the same reserve buffer.
-        for (size_t idx = 0; idx < MaxNumThreadTrace; ++idx)
-        {
-            if (m_pThreadTrace[idx] != nullptr)
-            {
-                auto*const pTrace = static_cast<ThreadTrace*>(m_pThreadTrace[idx]);
-                pCmdSpace = pTrace->WriteStopCommands(m_vidMem.GpuVirtAddr(), pCmdStream, pCmdSpace);
-            }
-        }
-
-        pCmdSpace = WriteResetGrbmGfxIndex(pCmdStream, pCmdSpace);
-    }
-
-    if (HasSpmTrace())
-    {
-        CmdStream* pHwlCmdStream = static_cast<CmdStream*>(pCmdStream);
-
-        regCP_PERFMON_CNTL cpPerfmonCntl = {};
-
-        // Enable sampling. This writes samples the counter values and writes in *_PERFCOUNTER*_LO/HI registers.
-        cpPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
-        pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmCP_PERFMON_CNTL,
-                                                         cpPerfmonCntl.u32All,
-                                                         pCmdSpace);
-
-        pCmdSpace += m_device.CmdUtil().BuildNonSampleEventWrite(PERFCOUNTER_SAMPLE, engineType, pCmdSpace);
-
-        // Stop all performance counters.
-        cpPerfmonCntl.u32All                 = 0;
-        cpPerfmonCntl.bits.PERFMON_STATE     = PerfmonStopCounting;
-        cpPerfmonCntl.bits.SPM_PERFMON_STATE = PerfmonStopCounting;
-
-        pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmCP_PERFMON_CNTL,
-                                                         cpPerfmonCntl.u32All,
-                                                         pCmdSpace);
-
-        pCmdSpace += m_device.CmdUtil().BuildNonSampleEventWrite(PERFCOUNTER_STOP, engineType, pCmdSpace);
-
-        // Need a WaitIdle here before zeroing the RLC SPM controls, else we get a page fault indicating that the data
-        // is still being written at the moment.
-        pCmdSpace = WriteWaitIdleClean(pCmdStream, false, engineType, pCmdSpace);
-
-        if (m_sqPerfCounterCtrl.u32All != 0)
-        {
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmSqPerfCounterCtrl,
-                                                          0,
-                                                          pCmdSpace);
-        }
-
-        pCmdSpace = m_pSpmTrace->WriteEndCommands(pCmdStream, pCmdSpace);
-    }
-
-    if (HasThreadTraces() || HasSqCounters())
-    {
-        // Reset the default value of SPI_CONFIG_CNTL if we overrode it in HwlIssueBegin().
-        regSPI_CONFIG_CNTL spiConfigCntl = {};
-        spiConfigCntl.u32All             = m_spiConfigCntlDefault;
-
-        if (m_gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSpiConfigCntl, spiConfigCntl.u32All, pCmdSpace);
-        }
-
-        if (HasSqCounters())
-        {
-            // SQ tests require RLC_PERFMON_CLK_CNTL set to work
-            if (m_gfxLevel == GfxIpLevel::GfxIp9)
-            {
-                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 0, pCmdSpace);
-            }
-        }
-    }
-
-    pCmdSpace = WriteComputePerfCountEnable(pCmdStream, pCmdSpace, false);
-
-    pCmdStream->CommitCommands(pCmdSpace);
-}
-
-// =====================================================================================================================
-// Issues commands into the specified command stream which instruct the HW to pause the recording of performance data.
-void PerfExperiment::IssuePause(
-    CmdStream* pCmdStream    ///< [in,out] Command stream to write PM4 commands into
-    ) const
-{
-    // NOTE: This should only be called if this Experiment doesn't sample internal operations.
-    PAL_ASSERT(SampleInternalOperations() == false);
-
-    if (HasGlobalCounters())
-    {
-        // Issue commands to stop recording perf counter data, without resetting the counters.
-        uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace = WriteStopPerfCounters(false, pCmdStream, pCmdSpace);
-        pCmdStream->CommitCommands(pCmdSpace);
-    }
-
-    // NOTE: DXX doesn't seem to stop active thread traces here. Do we need to? How would we do that without resetting
-    //       the trace data which has already been recorded?
-}
-
-// =====================================================================================================================
-// Issues commands into the specified command stream which instruct the HW to resume the recording of performance data.
-void PerfExperiment::IssueResume(
-    CmdStream* pCmdStream    ///< [in,out] Command stream to write PM4 commands into
-    ) const
-{
-    // NOTE: This should only be called if this Experiment doesn't sample internal operations.
-    PAL_ASSERT(SampleInternalOperations() == false);
-
-    if (HasGlobalCounters())
-    {
-        // Issue commands to start recording perf counter data.
-        uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace = WriteStartPerfCounters(true, pCmdStream, pCmdSpace);
-        pCmdStream->CommitCommands(pCmdSpace);
-    }
-
-    // SEE: HwlIssuePause concerning behavior regarding thread traces.
-}
-
-// =====================================================================================================================
-// Optionally pause the recording of performance data if this Experiment does not record during internal operations
-// (e.g., blts, resource preparation, etc.).
-void PerfExperiment::BeginInternalOps(
-    Pal::CmdStream* pCmdStream
-    ) const
-{
-    if (SampleInternalOperations() == false)
-    {
-        // If this Experiment doesn't sample internal operations, delegate to the hardware layer to pause the
-        // collection of data.
-        IssuePause(static_cast<CmdStream*>(pCmdStream));
-    }
-}
-
-// =====================================================================================================================
-// Optionally resumethe recording of performance data if this Experiment does not record during internal operations
-// (e.g., blts, resource preparation, etc.).
-void PerfExperiment::EndInternalOps(
-    Pal::CmdStream* pCmdStream
-    ) const
-{
-    if (SampleInternalOperations() == false)
-    {
-        // If this Experiment doesn't sample internal operations, delegate to the hardware layer to pause the
-        // collection of data.
-        IssueResume(static_cast<CmdStream*>(pCmdStream));
-    }
-}
-
-// =====================================================================================================================
-// Sets-up performance counters by issuing commands into the specified command buffer which will instruct the HW to
-// initialize the data select and filter registers for the counters. Returns the next unused DWORD in pCmdSpace.
-uint32* PerfExperiment::WriteSetupPerfCounters(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const
-{
-    const auto& chipProps = m_device.Parent()->ChipProperties();
-    const auto& perfInfo  = chipProps.gfx9.perfCounterInfo;
-
-    // NOTE: The SDMA block requires special handling for counter setup because multiple counters' state gets
-    //       packed into the same registers.
-    regSDMA0_PERFMON_CNTL  sdma0PerfmonCntl = {};
-    regSDMA1_PERFMON_CNTL  sdma1PerfmonCntl = {};
-
-    if (HasUmcchCounters())
-    {
-        pCmdSpace = WriteSetupUmcchCntlRegs(pCmdStream, pCmdSpace);
-    }
-
-    // Walk the counter list and set select & filter registers.
-    for (auto it = m_globalCtrs.Begin(); it.Get(); it.Next())
-    {
-        const PerfCounter*const pPerfCounter = static_cast<PerfCounter*>(*it.Get());
-        PAL_ASSERT(pPerfCounter != nullptr);
-
-        if ((pPerfCounter->BlockType() == GpuBlock::Dma)
-           )
-        {
-            // Accumulate the value of the SDMA perfmon control register(s).
-            const uint32 regValue = pPerfCounter->SetupSdmaSelectReg(&sdma0PerfmonCntl, &sdma1PerfmonCntl);
-
-            // Special handling for SDMA: the register info is per instance rather than per counter slot.
-            const uint32 blockIdx   = static_cast<uint32>(pPerfCounter->BlockType());
-            const uint32 regAddress = perfInfo.block[blockIdx].regInfo[pPerfCounter->GetInstanceId()].perfSel0RegAddr;
-
-            // Issue a write to the appropriate SDMA perfmon control register.
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddress, regValue, pCmdSpace);
-        }
-        else
-        {
-            // No special handling needed... the counter can issue its own setup commands.
-            pCmdSpace = pPerfCounter->WriteSetupCommands(pCmdStream, pCmdSpace);
-        }
-
-        // This loop doesn't have a trivial upper-limit so we must be careful to not overflow the reserve buffer.
-        // If CPU-performance of perf counters is later deemed to be important we can make this code smarter.
-        pCmdStream->CommitCommands(pCmdSpace);
-        pCmdSpace = pCmdStream->ReserveCommands();
-    }
-
-    if (HasIndexedCounters())
-    {
-        pCmdSpace = WriteResetGrbmGfxIndex(pCmdStream, pCmdSpace);
-    }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Starts performance counters by issuing commands into the specified command buffer which will instruct the HW to start
-// accumulating performance data. Returns the next unused DWORD in pCmdSpace.
-uint32* PerfExperiment::WriteStartPerfCounters(
-    bool       restart,    ///< If true, restart the counters post-sampling
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const
-{
-    const auto&      device     = *(m_device.Parent());
-    const auto&      cmdUtil    = m_device.CmdUtil();
-    const auto&      regInfo    = cmdUtil.GetRegInfo();
-    const EngineType engineType = pCmdStream->GetEngineType();
-
-    if (HasRlcCounters())
-    {
-        // Start RLC counters: this needs to be done with a COPY_DATA command.
-        regRLC_PERFMON_CNTL rlcPerfmonCntl = {};
-        rlcPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_START_COUNTING;
-
-        if (engineType == EngineTypeCompute)
-        {
-            pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__mem_mapped_register,
-                                                      regInfo.mmRlcPerfmonCntl,
-                                                      src_sel__mec_copy_data__immediate_data,
-                                                      rlcPerfmonCntl.u32All,
-                                                      count_sel__mec_copy_data__32_bits_of_data,
-                                                      wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
-                                                      pCmdSpace);
-        }
-        else
-        {
-            pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                       dst_sel__me_copy_data__mem_mapped_register,
-                                                       regInfo.mmRlcPerfmonCntl,
-                                                       src_sel__me_copy_data__immediate_data,
-                                                       rlcPerfmonCntl.u32All,
-                                                       count_sel__me_copy_data__32_bits_of_data,
-                                                       wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                                       pCmdSpace);
-        }
-    }
-
-    // Only configure memory and SQ counters on initial startup.
-    if (restart == false)
-    {
-        if (HasEaCounters())
-        {
-            // This has to be set for any EA perf counters to work.
-            regGCEA_PERFCOUNTER_RSLT_CNTL  gceaPerfCntrResultCntl = {};
-            gceaPerfCntrResultCntl.bits.ENABLE_ANY = 1;
-
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmEaPerfResultCntl,
-                                                          gceaPerfCntrResultCntl.u32All,
-                                                          pCmdSpace);
-        }
-
-        if (HasAtcCounters())
-        {
-            // This has to be set for any ATC perf counters to work.
-            regATC_PERFCOUNTER_RSLT_CNTL  atcPerfCntrResultCntl = {};
-            atcPerfCntrResultCntl.bits.ENABLE_ANY = 1;
-
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmAtcPerfResultCntl,
-                                                          atcPerfCntrResultCntl.u32All,
-                                                          pCmdSpace);
-        }
-
-        if (HasAtcL2Counters())
-        {
-            // This has to be set for any ATC L2 perf counters to work.
-            regATC_L2_PERFCOUNTER_RSLT_CNTL  atcL2PerfCntrResultCntl = {};
-            atcL2PerfCntrResultCntl.bits.ENABLE_ANY = 1;
-
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmAtcL2PerfResultCntl,
-                                                          atcL2PerfCntrResultCntl.u32All,
-                                                          pCmdSpace);
-        }
-
-        if (HasMcVmL2Counters())
-        {
-            // This has to be set for any MC VM L2 perf counters to work.
-            regMC_VM_L2_PERFCOUNTER_RSLT_CNTL  mcVmL2PerfCntrResultCntl = {};
-            mcVmL2PerfCntrResultCntl.bits.ENABLE_ANY = 1;
-
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmMcVmL2PerfResultCntl,
-                                                          mcVmL2PerfCntrResultCntl.u32All,
-                                                          pCmdSpace);
-        }
-
-        if (HasRpbCounters())
-        {
-            // This has to be set for any RPB perf counters to work.
-            regRPB_PERFCOUNTER_RSLT_CNTL  rpbPerfCntrResultCntl = {};
-            rpbPerfCntrResultCntl.bits.ENABLE_ANY = 1;
-
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmRpbPerfResultCntl,
-                                                          rpbPerfCntrResultCntl.u32All,
-                                                          pCmdSpace);
-        }
-        if (m_sqPerfCounterCtrl.u32All != 0)
-        {
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSqPerfCounterCtrl,
-                                                          m_sqPerfCounterCtrl.u32All,
-                                                          pCmdSpace);
-        }
-    }
-
-    if (HasRmiCounters())
-    {
-        static constexpr uint32 RmiEnSelOn                     = 1;
-        static constexpr uint32 RmiEventWindowMask0Default     = 0x1;
-        static constexpr uint32 RmiEventWindowMask1Default     = 0x2;
-        static constexpr uint32 RmiChannelIdAll                = 0x8;
-        static constexpr uint32 RmiBurstlengthThresholdDefault = 1;
-
-        regRMI_PERF_COUNTER_CNTL rmiPerfCounterCntl = {0};
-        rmiPerfCounterCntl.bits.TRANS_BASED_PERF_EN_SEL             = RmiEnSelOn;
-        rmiPerfCounterCntl.bits.EVENT_BASED_PERF_EN_SEL             = RmiEnSelOn;
-        rmiPerfCounterCntl.bits.TC_PERF_EN_SEL                      = RmiEnSelOn;
-        rmiPerfCounterCntl.bits.PERF_EVENT_WINDOW_MASK0             = RmiEventWindowMask0Default;
-        rmiPerfCounterCntl.bits.PERF_COUNTER_CID                    = RmiChannelIdAll;
-        rmiPerfCounterCntl.bits.PERF_COUNTER_BURST_LENGTH_THRESHOLD = RmiBurstlengthThresholdDefault;
-
-        // This field is in every ASIC except Raven 2.
-        if (IsRaven2(device) == false)
-        {
-            rmiPerfCounterCntl.most.PERF_EVENT_WINDOW_MASK1 = RmiEventWindowMask1Default;
-        }
-
-        if (restart == false)
-        {
-            rmiPerfCounterCntl.bits.PERF_SOFT_RESET = 1;
-        }
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRMI_PERF_COUNTER_CNTL,
-                                                      rmiPerfCounterCntl.u32All,
-                                                      pCmdSpace);
-    }
-
-    if (engineType == EngineTypeCompute)
-    {
-        regCOMPUTE_PERFCOUNT_ENABLE computePerfCounterEn = {};
-        computePerfCounterEn.bits.PERFCOUNT_ENABLE = 1;
-
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
-                                                                computePerfCounterEn.u32All,
-                                                                pCmdSpace);
-    }
-    else
-    {
-        // Write the command sequence to start event-based counters.
-        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_START, engineType, pCmdSpace);
-    }
-
-    // Start graphics state based counters.
-    regCP_PERFMON_CNTL cpPerfmonCntl = {};
-    if (HasGlobalCounters())
-    {
-        cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_START_COUNTING;
-    }
-
-    // TODO: Add support for issuing the start for SPM counters.
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmCpPerfmonCntl,
-                                                  cpPerfmonCntl.u32All,
-                                                  pCmdSpace);
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Stops performance counters by issuing commands into the specified command buffer which will instruct the HW to stop
-// accumulating performance data. Returns the next unused DWORD in pCmdSpace.
-uint32* PerfExperiment::WriteStopPerfCounters(
-    bool       reset,      ///< If true, resets the global counters
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const
-{
-    const auto&      cmdUtil    = m_device.CmdUtil();
-    const auto&      regInfo    = cmdUtil.GetRegInfo();
-    const EngineType engineType = pCmdStream->GetEngineType();
-
-    // Set the perfmon state to 'stop counting' if we're freezing global counters, or to 'disable and reset' otherwise.
-    const uint32 perfmonState = (reset ? CP_PERFMON_STATE_DISABLE_AND_RESET : CP_PERFMON_STATE_STOP_COUNTING);
-
-    // Stop graphics state based counters.
-    regCP_PERFMON_CNTL cpPerfmonCntl = {};
-    if (HasGlobalCounters())
-    {
-        cpPerfmonCntl.bits.PERFMON_STATE = perfmonState;
-    }
-
-    // TODO: Add support for issuing the stop for SPM counters.
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmCpPerfmonCntl,
-                                                  cpPerfmonCntl.u32All,
-                                                  pCmdSpace);
-
-    if (HasRlcCounters())
-    {
-        // Stop RLC counters: this needs to be done with a COPY_DATA command.
-        regRLC_PERFMON_CNTL rlcPerfmonCntl = {};
-        rlcPerfmonCntl.bits.PERFMON_STATE = perfmonState;
-
-        if (engineType == EngineTypeCompute)
-        {
-            pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__mem_mapped_register,
-                                                      regInfo.mmRlcPerfmonCntl,
-                                                      src_sel__mec_copy_data__immediate_data,
-                                                      rlcPerfmonCntl.u32All,
-                                                      count_sel__mec_copy_data__32_bits_of_data,
-                                                      wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
-                                                      pCmdSpace);
-        }
-        else
-        {
-            pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                       dst_sel__me_copy_data__mem_mapped_register,
-                                                       regInfo.mmRlcPerfmonCntl,
-                                                       src_sel__me_copy_data__immediate_data,
-                                                       rlcPerfmonCntl.u32All,
-                                                       count_sel__me_copy_data__32_bits_of_data,
-                                                       wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                                       pCmdSpace);
-        }
-    }
-
-    regGCEA_PERFCOUNTER_RSLT_CNTL  gceaPerfCntrResultCntl = {};
-    gceaPerfCntrResultCntl.bits.ENABLE_ANY = 0; // halt all of the EA block perf counters.
-
-    regMC_VM_L2_PERFCOUNTER_RSLT_CNTL  mcVmL2PerfCntrResultCntl = {};
-    mcVmL2PerfCntrResultCntl.bits.ENABLE_ANY = 0; // halt all of the MC VM L2 block perf counters.
-
-    regATC_PERFCOUNTER_RSLT_CNTL  atcPerfCntrResultCntl = {};
-    atcPerfCntrResultCntl.bits.ENABLE_ANY    = 0; // halt all of the ATC block perf counters.
-
-    regATC_L2_PERFCOUNTER_RSLT_CNTL  atcL2PerfCntrResultCntl = {};
-    atcL2PerfCntrResultCntl.bits.ENABLE_ANY  = 0; // halt all of the ATC L2 block perf counters.
-
-    regRPB_PERFCOUNTER_RSLT_CNTL  rpbPerfCntrResultCntl = {};
-    rpbPerfCntrResultCntl.bits.ENABLE_ANY    = 0; // halt all of the RPB block perf counters.
-
-    if (reset)
-    {
-        if (m_sqPerfCounterCtrl.u32All != 0)
-        {
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSqPerfCounterCtrl, 0, pCmdSpace);
-        }
-
-        // Setup the reset for the memory blocks.
-        gceaPerfCntrResultCntl.bits.CLEAR_ALL   = 1;
-        mcVmL2PerfCntrResultCntl.bits.CLEAR_ALL = 1;
-        atcPerfCntrResultCntl.bits.CLEAR_ALL    = 1;
-        atcL2PerfCntrResultCntl.bits.CLEAR_ALL  = 1;
-        rpbPerfCntrResultCntl.bits.CLEAR_ALL    = 1;
-    }
-
-    if (HasEaCounters())
-    {
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmEaPerfResultCntl,
-                                                      gceaPerfCntrResultCntl.u32All,
-                                                      pCmdSpace);
-    }
-
-    if (HasAtcCounters())
-    {
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmAtcPerfResultCntl,
-                                                      atcPerfCntrResultCntl.u32All,
-                                                      pCmdSpace);
-    }
-
-    if (HasAtcL2Counters())
-    {
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmAtcL2PerfResultCntl,
-                                                      atcL2PerfCntrResultCntl.u32All,
-                                                      pCmdSpace);
-    }
-
-    if (HasMcVmL2Counters())
-    {
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmMcVmL2PerfResultCntl,
-                                                      mcVmL2PerfCntrResultCntl.u32All,
-                                                      pCmdSpace);
-    }
-
-    if (HasRpbCounters())
-    {
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmRpbPerfResultCntl,
-                                                      rpbPerfCntrResultCntl.u32All,
-                                                      pCmdSpace);
-    }
-
-    if (HasRmiCounters())
-    {
-        static constexpr uint32 RmiEnSelOff = 2;
-
-        regRMI_PERF_COUNTER_CNTL rmiPerfCounterCntl = {0};
-        rmiPerfCounterCntl.bits.TRANS_BASED_PERF_EN_SEL = RmiEnSelOff;
-        rmiPerfCounterCntl.bits.EVENT_BASED_PERF_EN_SEL = RmiEnSelOff;
-        rmiPerfCounterCntl.bits.TC_PERF_EN_SEL          = RmiEnSelOff;
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRMI_PERF_COUNTER_CNTL,
-                                                      rmiPerfCounterCntl.u32All,
-                                                      pCmdSpace);
-    }
-
-    if (HasUmcchCounters())
-    {
-        // The number of UMC channels in the current device is equal to the number of SDP ports.
-        const auto&  gfx9ChipProps    = m_device.Parent()->ChipProperties().gfx9;
-        const uint32 numUmcChannels   = gfx9ChipProps.numSdpInterfaces;
-        const auto&  umcPerfBlockInfo = gfx9ChipProps.perfCounterInfo.umcChannelBlocks;
-
-        for (uint32 i = 0; i < numUmcChannels; i++)
-        {
-            if (Gfx9::PerfCounter::IsDstRegCopyDataPossible(umcPerfBlockInfo.regInfo[i].ctlClkRegAddr) == false)
-            {
-                // UMC channel perf counter address offsets for channels 3+ are not compatible with the current
-                // COPY_DATA packet. Temporarily skip them. This implies that channels 3+ will not provide valid data.
-                break;
-            }
-
-            if (engineType == EngineTypeCompute)
-            {
-                pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
-                                                          umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
-                                                          src_sel__mec_copy_data__immediate_data,
-                                                          0,
-                                                          count_sel__mec_copy_data__32_bits_of_data,
-                                                          wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
-                                                          pCmdSpace);
+                m_sqtt[traceInfo.instance].mask.gfx09.CU_SEL = traceInfo.optionValues.threadTraceTargetCu;
             }
             else
             {
-                pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                           dst_sel__me_copy_data__perfcounters,
-                                                           umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
-                                                           src_sel__me_copy_data__immediate_data,
-                                                           0,
-                                                           count_sel__me_copy_data__32_bits_of_data,
-                                                           wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                                           pCmdSpace);
+                // Pick a default detailed token CU within our shader array.
+                // Default to only selecting CUs that are active and not reserved for realtime use.
+                const uint32 traceableCuMask =
+                    m_chipProps.gfx9.activeCuMask[traceInfo.instance][shIndex] & ~m_chipProps.gfxip.realTimeCuMask;
+
+                // Select the first available CU from the mask
+                uint32 firstActiveCu = 0;
+                if (BitMaskScanForward(&firstActiveCu, traceableCuMask) == false)
+                {
+                    // We should always have at least one non-realtime CU.
+                    PAL_ASSERT_ALWAYS();
+                }
+
+                m_sqtt[traceInfo.instance].mask.gfx09.CU_SEL = firstActiveCu;
+            }
+
+            m_sqtt[traceInfo.instance].mask.gfx09.SH_SEL = shIndex;
+
+            // Default to getting detailed tokens from all SIMDs.
+            m_sqtt[traceInfo.instance].mask.gfx09.SIMD_EN = (traceInfo.optionFlags.threadTraceSimdMask != 0)
+                    ? traceInfo.optionValues.threadTraceSimdMask : SqttDetailedSimdMask;
+
+            // By default we should only trace our VMID.
+            m_sqtt[traceInfo.instance].mask.gfx09.VM_ID_MASK = (traceInfo.optionFlags.threadTraceVmIdMask != 0)
+                    ? traceInfo.optionValues.threadTraceVmIdMask : SQ_THREAD_TRACE_VM_ID_MASK_SINGLE;
+
+            // By default enable sqtt perf counters for all CUs.
+            m_sqtt[traceInfo.instance].perfMask.bits.SH0_MASK = (traceInfo.optionFlags.threadTraceSh0CounterMask != 0)
+                    ? traceInfo.optionValues.threadTraceSh0CounterMask : SqttPerfCounterCuMask;
+
+            m_sqtt[traceInfo.instance].perfMask.bits.SH1_MASK = (traceInfo.optionFlags.threadTraceSh1CounterMask != 0)
+                    ? traceInfo.optionValues.threadTraceSh1CounterMask : SqttPerfCounterCuMask;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
+            if ((traceInfo.optionFlags.threadTraceTokenMask != 0) ||
+                (traceInfo.optionFlags.threadTraceRegMask != 0))
+            {
+                ThreadTraceTokenConfig tokenConfig = {};
+                tokenConfig.tokenMask = traceInfo.optionValues.threadTraceTokenMask;
+                tokenConfig.regMask   = traceInfo.optionValues.threadTraceRegMask;
+
+                m_sqtt[traceInfo.instance].tokenMask.u32All = GetGfx9SqttTokenMask(tokenConfig);
+            }
+#else
+            if (traceInfo.optionFlags.threadTraceTokenConfig != 0)
+            {
+                m_sqtt[traceInfo.instance].tokenMask.u32All =
+                    GetGfx9SqttTokenMask(traceInfo.optionValues.threadTraceTokenConfig);
+            }
+#endif
+            else
+            {
+                // By default trace all tokens and registers.
+                m_sqtt[traceInfo.instance].tokenMask.gfx09.TOKEN_MASK = SqttGfx9TokenMaskDefault;
+                m_sqtt[traceInfo.instance].tokenMask.gfx09.REG_MASK   = SqttGfx9RegMaskDefault;
+            }
+
+            // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.
+            m_sqtt[traceInfo.instance].mask.gfx09.REG_STALL_EN           = (stallMode == GpuProfilerStallAlways);
+            m_sqtt[traceInfo.instance].mask.gfx09.SPI_STALL_EN           = (stallMode != GpuProfilerStallNever);
+            m_sqtt[traceInfo.instance].mask.gfx09.SQ_STALL_EN            = (stallMode != GpuProfilerStallNever);
+            m_sqtt[traceInfo.instance].tokenMask.gfx09.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// It looks like the client can only call this function once per PerfExperiment which makes things simple. It must:
+// - Add one SPM counter for each counter in the trace.
+// - Store some global SPM state.
+Result PerfExperiment::AddSpmTrace(
+    const SpmTraceCreateInfo& spmCreateInfo)
+{
+    Result result = Result::Success;
+
+    if (m_isFinalized)
+    {
+        // The perf experiment cannot be changed once it is finalized.
+        result = Result::ErrorUnavailable;
+    }
+    else if ((spmCreateInfo.ringSize > UINT32_MAX) ||
+             (IsPow2Aligned(spmCreateInfo.ringSize, SpmRingBaseAlignment) == false))
+    {
+        // The ring size register is only 32 bits and its value must be aligned.
+        result = Result::ErrorInvalidValue;
+    }
+    else if ((spmCreateInfo.spmInterval < 32) || (spmCreateInfo.spmInterval > UINT16_MAX))
+    {
+        // The sample interval must be at least 32 and must fit in 16 bits.
+        result = Result::ErrorInvalidValue;
+    }
+    else
+    {
+        // Create a SpmCounterMapping for every SPM counter.
+        m_numSpmCounters = spmCreateInfo.numPerfCounters;
+        m_pSpmCounters   = PAL_NEW_ARRAY(SpmCounterMapping, m_numSpmCounters, m_device.GetPlatform(), AllocObject);
+
+        if (m_pSpmCounters == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            // The counter mappings are just POD so zero them out.
+            memset(m_pSpmCounters, 0, sizeof(*m_pSpmCounters) * m_numSpmCounters);
+
+            for (uint32 idx = 0; (result == Result::Success) && (idx < m_numSpmCounters); ++idx)
+            {
+                result = AddSpmCounter(spmCreateInfo.pPerfCounterInfos[idx], &m_pSpmCounters[idx]);
             }
         }
     }
 
-    if (engineType == EngineTypeCompute)
-    {
-        regCOMPUTE_PERFCOUNT_ENABLE computePerfCounterEn = {};
-        computePerfCounterEn.bits.PERFCOUNT_ENABLE = 0;
+    // Now the fun part: we must create a muxsel ram for every segment with SPM counters. First we figure out how
+    // big each segment is and create some memory for it. Second we figure out where each SPM counter fits into its
+    // segment, identifying its memory offsets and filling in its muxsel values.
+    //
+    // The global segment always starts with a 64-bit timestamp. Define its size in counters and the magic muxsel value
+    // we use to select it.
+    constexpr uint32 GlobalTimestampCounters = sizeof(uint64) / sizeof(uint16);
+    constexpr uint16 GlobalTimestampSelect   = 0xF0F0;
 
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
-                                                                computePerfCounterEn.u32All,
-                                                                pCmdSpace);
+    // Allocate the segment memory.
+    for (uint32 segment = 0; (result == Result::Success) && (segment < MaxNumSpmSegments); ++segment)
+    {
+        // Start by calculating the total size of the ram.
+        const bool isGlobalSegment = (static_cast<SpmDataSegmentType>(segment) == SpmDataSegmentType::Global);
+        uint32     evenCounters    = isGlobalSegment ? GlobalTimestampCounters : 0;
+        uint32     oddCounters     = 0;
+
+        for (uint32 idx = 0; idx < m_numSpmCounters; ++idx)
+        {
+            if (static_cast<uint32>(m_pSpmCounters[idx].segment) == segment)
+            {
+                // Note that isEven and isOdd are not exclusive (e.g., 32-bit counters).
+                PAL_ASSERT(m_pSpmCounters[idx].isEven || m_pSpmCounters[idx].isOdd);
+
+                if (m_pSpmCounters[idx].isEven)
+                {
+                    evenCounters++;
+                }
+
+                if (m_pSpmCounters[idx].isOdd)
+                {
+                    oddCounters++;
+                }
+            }
+        }
+
+        // Get the total size in lines. Lines always go in "even, odd, even, odd..." order but we can end on any kind
+        // of line. This means there are only two cases to consider: if we have more even lines or not.
+        const uint32 evenLines  = RoundUpQuotient(evenCounters, MuxselLineSizeInCounters);
+        const uint32 oddLines   = RoundUpQuotient(oddCounters,  MuxselLineSizeInCounters);
+        const uint32 totalLines = (evenLines > oddLines) ? (2 * evenLines - 1) : (2 * oddLines);
+
+        if (totalLines > 0)
+        {
+            m_numMuxselLines[segment] = totalLines;
+            m_pMuxselRams[segment]    = PAL_NEW_ARRAY(SpmLineMapping, totalLines, m_device.GetPlatform(), AllocObject);
+
+            if (m_pMuxselRams[segment] == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+            else
+            {
+                // The ram is POD so just zero it out. Note that zero is a muxsel mapping that means "I don't care".
+                memset(m_pMuxselRams[segment], 0, sizeof(*m_pMuxselRams[segment]) * totalLines);
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        // Now we know how big all of the segments are so we can figure out where each counter will fit in the sample
+        // memory layout. It's time to find those offsets and fill out the muxsel values.
+        for (uint32 segment = 0; segment < MaxNumSpmSegments; ++segment)
+        {
+            if (m_pMuxselRams[segment] != nullptr)
+            {
+                // Figure out where this entire segment starts in sample memory. The RLC hardware hard-codes this
+                // order: Global, SE0, SE1, SE2, SE3. Add up the sizes of those segments in order until we find our
+                // segment.
+                //
+                // Note that our layout interface expects offsets in units of 16-bit counters instead of bytes.
+                // To meet that expectation our offsets are also in units of 16-bit counters.
+                constexpr SpmDataSegmentType SegmentOrder[MaxNumSpmSegments] =
+                {
+                    SpmDataSegmentType::Global,
+                    SpmDataSegmentType::Se0,
+                    SpmDataSegmentType::Se1,
+                    SpmDataSegmentType::Se2,
+                    SpmDataSegmentType::Se3,
+                };
+
+                uint32 segmentOffset = 0;
+
+                for (uint32 idx = 0; segment != static_cast<uint32>(SegmentOrder[idx]); ++idx)
+                {
+                    segmentOffset += m_numMuxselLines[static_cast<uint32>(SegmentOrder[idx])] *
+                                     MuxselLineSizeInCounters;
+                }
+
+                // Walk through the even and odd lines in parallel, adding all enabled counters.
+                uint32 evenCounterIdx = 0;
+                uint32 evenLineIdx    = 0;
+                uint32 oddCounterIdx  = 0;
+                uint32 oddLineIdx     = 1;
+
+                if (static_cast<SpmDataSegmentType>(segment) == SpmDataSegmentType::Global)
+                {
+                    // First, add the global timestamp selects.
+                    for (uint32 idx = 0; idx < GlobalTimestampCounters; ++idx)
+                    {
+                        m_pMuxselRams[segment][evenLineIdx].muxsel[evenCounterIdx++].u16All = GlobalTimestampSelect;
+                    }
+                }
+
+                for (uint32 idx = 0; idx < m_numSpmCounters; ++idx)
+                {
+                    if (static_cast<uint32>(m_pSpmCounters[idx].segment) == segment)
+                    {
+                        if (m_pSpmCounters[idx].isEven)
+                        {
+                            // If this counter has an even part it always contains the lower 16 bits.
+                            m_pSpmCounters[idx].offsetLo =
+                                segmentOffset + evenLineIdx * MuxselLineSizeInCounters + evenCounterIdx;
+
+                            // Copy the counter's muxsel into the even line.
+                            m_pMuxselRams[segment][evenLineIdx].muxsel[evenCounterIdx] = m_pSpmCounters[idx].evenMuxsel;
+
+                            // Move on to the next even counter, possibly skipping over an odd line.
+                            if (++evenCounterIdx == MuxselLineSizeInCounters)
+                            {
+                                evenCounterIdx = 0;
+                                evenLineIdx += 2;
+                            }
+                        }
+
+                        if (m_pSpmCounters[idx].isOdd)
+                        {
+                            // If this counter is even and odd it must be 32-bit and this must be the upper half.
+                            // Otherwise this counter is 16-bit and it's the lower half.
+                            const uint32 oddOffset =
+                                segmentOffset + oddLineIdx * MuxselLineSizeInCounters + oddCounterIdx;
+
+                            if (m_pSpmCounters[idx].isEven)
+                            {
+                                m_pSpmCounters[idx].offsetHi = oddOffset;
+                            }
+                            else
+                            {
+                                m_pSpmCounters[idx].offsetLo = oddOffset;
+                            }
+
+                            // Copy the counter's muxsel into the odd line.
+                            m_pMuxselRams[segment][oddLineIdx].muxsel[oddCounterIdx] = m_pSpmCounters[idx].oddMuxsel;
+
+                            // Move on to the next odd counter, possibly skipping over an even line.
+                            if (++oddCounterIdx == MuxselLineSizeInCounters)
+                            {
+                                oddCounterIdx = 0;
+                                oddLineIdx += 2;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // If we made it this far the SPM trace is ready to go.
+        m_hasSpmTrace       = true;
+        m_spmRingSize       = static_cast<uint32>(spmCreateInfo.ringSize);
+        m_spmSampleInterval = static_cast<uint16>(spmCreateInfo.spmInterval);
     }
     else
     {
-        // Write the command sequence to stop event-based counters.
-        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_STOP, engineType, pCmdSpace);
+        // If some error occured do what we can to reset our state. It's too much trouble to revert each select
+        // register so those counter slots are inaccessable for the lifetime of this perf experiment.
+        PAL_SAFE_DELETE_ARRAY(m_pSpmCounters, m_device.GetPlatform());
+
+        for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
+        {
+            PAL_SAFE_DELETE_ARRAY(m_pMuxselRams[idx], m_device.GetPlatform());
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Finalize the perf experiment by figuring out where each data section fits in the bound GPU memory.
+Result PerfExperiment::Finalize()
+{
+    Result result = Result::Success;
+
+    if (m_isFinalized)
+    {
+        // The perf experiment cannot be finalized again.
+        result = Result::ErrorUnavailable;
+    }
+    else
+    {
+        // Build up the total GPU memory size by figuring out where each section needs to go.
+        m_totalMemSize = 0;
+
+        if (m_hasGlobalCounters)
+        {
+            // Finalize the global counters by giving each one an offset within the "begin" and "end" sections. We do
+            // this simply by placing the counters one after each other. In the end we will also have the total size of
+            // the sections.
+            gpusize globalSize = 0;
+
+            for (uint32 idx = 0; idx < m_globalCounters.NumElements(); ++idx)
+            {
+                GlobalCounterMapping*const pMapping = &m_globalCounters.At(idx);
+                const bool                 is64Bit  = (pMapping->general.dataType == PerfCounterDataType::Uint64);
+
+                pMapping->offset = globalSize;
+                globalSize      += is64Bit ? sizeof(uint64) : sizeof(uint32);
+            }
+
+            // Denote where the "begin" and "end" sections live in the bound GPU memory.
+            m_globalBeginOffset = m_totalMemSize;
+            m_globalEndOffset   = m_globalBeginOffset + globalSize;
+            m_totalMemSize      = m_globalEndOffset + globalSize;
+        }
+
+        if (m_hasThreadTrace)
+        {
+            // Add space for each thread trace's info struct and output buffer. The output buffers have high alignment
+            // requirements so we group them together after the info structs.
+            for (uint32 idx = 0; idx < ArrayLen(m_sqtt); ++idx)
+            {
+                if (m_sqtt[idx].inUse)
+                {
+                    m_sqtt[idx].infoOffset = m_totalMemSize;
+                    m_totalMemSize        += sizeof(ThreadTraceInfoData);
+                }
+            }
+
+            // We only need to align the first buffer offset because the sizes should all be aligned.
+            m_totalMemSize = Pow2Align(m_totalMemSize, SqttBufferAlignment);
+
+            for (uint32 idx = 0; idx < ArrayLen(m_sqtt); ++idx)
+            {
+                if (m_sqtt[idx].inUse)
+                {
+                    m_sqtt[idx].bufferOffset = m_totalMemSize;
+                    m_totalMemSize          += m_sqtt[idx].bufferSize;
+
+                    PAL_ASSERT(IsPow2Aligned(m_sqtt[idx].bufferSize, SqttBufferAlignment));
+                }
+            }
+        }
+
+        if (m_hasSpmTrace)
+        {
+            // Finally, add space for the SPM ring buffer.
+            m_spmRingOffset = Pow2Align(m_totalMemSize, SpmRingBaseAlignment);
+            m_totalMemSize  = m_spmRingOffset + m_spmRingSize;
+        }
+
+        m_isFinalized = true;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result PerfExperiment::GetGlobalCounterLayout(
+    GlobalCounterLayout* pLayout
+    ) const
+{
+    Result result = Result::Success;
+
+    if (m_isFinalized == false)
+    {
+        // This data isn't ready until the perf experiment is finalized.
+        result = Result::ErrorUnavailable;
+    }
+    else if (pLayout == nullptr)
+    {
+        result = Result::ErrorInvalidValue;
+    }
+    else if (pLayout->sampleCount == 0)
+    {
+        pLayout->sampleCount = m_globalCounters.NumElements();
+    }
+    else if (pLayout->sampleCount < m_globalCounters.NumElements())
+    {
+        result = Result::ErrorInvalidValue;
+    }
+    else
+    {
+        pLayout->sampleCount = m_globalCounters.NumElements();
+
+        for (uint32 idx = 0; idx < m_globalCounters.NumElements(); ++idx)
+        {
+            const GlobalCounterMapping& mapping = m_globalCounters.At(idx);
+
+            pLayout->samples[idx].block            = mapping.general.block;
+            pLayout->samples[idx].instance         = mapping.general.globalInstance;
+            pLayout->samples[idx].slot             = mapping.counterId;
+            pLayout->samples[idx].eventId          = mapping.general.eventId;
+            pLayout->samples[idx].dataType         = mapping.general.dataType;
+            pLayout->samples[idx].beginValueOffset = m_globalBeginOffset + mapping.offset;
+            pLayout->samples[idx].endValueOffset   = m_globalEndOffset + mapping.offset;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result PerfExperiment::GetThreadTraceLayout(
+    ThreadTraceLayout* pLayout
+    ) const
+{
+    Result result = Result::Success;
+
+    if (m_isFinalized == false)
+    {
+        // This data isn't ready until the perf experiment is finalized.
+        result = Result::ErrorUnavailable;
+    }
+    else if (pLayout == nullptr)
+    {
+        result = Result::ErrorInvalidValue;
+    }
+    else
+    {
+        // We need the total number of actice thread traces which isn't something we store.
+        uint32 numThreadTraces = 0;
+        for (uint32 idx = 0; idx < ArrayLen(m_sqtt); ++idx)
+        {
+            numThreadTraces += m_sqtt[idx].inUse;
+        }
+
+        if (pLayout->traceCount == 0)
+        {
+            pLayout->traceCount = numThreadTraces;
+        }
+        else if (pLayout->traceCount < numThreadTraces)
+        {
+            result = Result::ErrorInvalidValue;
+        }
+        else
+        {
+            pLayout->traceCount = numThreadTraces;
+
+            uint32 traceIdx = 0;
+            for (uint32 idx = 0; idx < ArrayLen(m_sqtt); ++idx)
+            {
+                if (m_sqtt[idx].inUse)
+                {
+                    pLayout->traces[traceIdx].shaderEngine = idx;
+                    pLayout->traces[traceIdx].infoOffset   = m_sqtt[idx].infoOffset;
+                    pLayout->traces[traceIdx].infoSize     = sizeof(ThreadTraceInfoData);
+                    pLayout->traces[traceIdx].dataOffset   = m_sqtt[idx].bufferOffset;
+                    pLayout->traces[traceIdx].dataSize     = m_sqtt[idx].bufferSize;
+
+                    if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+                    {
+                        pLayout->traces[traceIdx].computeUnit = m_sqtt[idx].mask.gfx09.CU_SEL;
+                    }
+                    traceIdx++;
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result PerfExperiment::GetSpmTraceLayout(
+    SpmTraceLayout* pLayout
+    ) const
+{
+    Result result = Result::Success;
+
+    if (m_isFinalized == false)
+    {
+        // This data isn't ready until the perf experiment is finalized.
+        result = Result::ErrorUnavailable;
+    }
+    else if (pLayout == nullptr)
+    {
+        result = Result::ErrorInvalidValue;
+    }
+    else if (pLayout->numCounters == 0)
+    {
+        pLayout->numCounters = m_numSpmCounters;
+    }
+    else if (pLayout->numCounters < m_numSpmCounters)
+    {
+        result = Result::ErrorInvalidValue;
+    }
+    else
+    {
+        constexpr uint32 LineSizeInBytes = MuxselLineSizeInDwords * sizeof(uint32);
+
+        pLayout->offset       = m_spmRingOffset;
+        pLayout->wptrOffset   = m_spmRingOffset; // The write pointer is the first thing written to the ring buffer.
+        pLayout->sampleOffset = LineSizeInBytes; // The samples start one line in.
+
+        pLayout->sampleSizeInBytes = 0;
+
+        for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
+        {
+            pLayout->segmentSizeInBytes[idx] = m_numMuxselLines[idx] * LineSizeInBytes;
+            pLayout->sampleSizeInBytes      += pLayout->segmentSizeInBytes[idx];
+        }
+
+        pLayout->numCounters = m_numSpmCounters;
+
+        for (uint32 idx = 0; idx < m_numSpmCounters; ++idx)
+        {
+            pLayout->counterData[idx].segment  = m_pSpmCounters[idx].segment;
+            pLayout->counterData[idx].offset   = m_pSpmCounters[idx].offsetLo;
+            pLayout->counterData[idx].gpuBlock = m_pSpmCounters[idx].general.block;
+            pLayout->counterData[idx].instance = m_pSpmCounters[idx].general.globalInstance;
+            pLayout->counterData[idx].eventId  = m_pSpmCounters[idx].general.eventId;
+
+            // The interface can't handle 32-bit SPM counters yet...
+            PAL_ASSERT(m_pSpmCounters[idx].offsetHi == 0);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Issues commands into the specified command stream which instruct the HW to start recording performance data.
+void PerfExperiment::IssueBegin(
+    Pal::CmdStream* pPalCmdStream
+    ) const
+{
+    CmdStream*const  pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
+    const EngineType engineType = pCmdStream->GetEngineType();
+
+    if (m_isFinalized == false)
+    {
+        // It's illegal to execute a perf experiment before it's finalized.
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        // Given that we're about to change a large number of config registers we really should wait for prior work
+        // (including prior perf experiments) to be idle before doing anything.
+        //
+        // This isn't in the docs, but we've been told by hardware engineers that we need to do a wait-idle here when
+        // sampling from global counters. We might be able to remove this when global counters are disabled.
+        const bool cacheFlush = ((m_createInfo.optionFlags.cacheFlushOnCounterCollection != 0) &&
+                                 m_createInfo.optionValues.cacheFlushOnCounterCollection);
+
+        pCmdSpace = WriteWaitIdle(cacheFlush, pCmdStream, pCmdSpace);
+
+        // Disable and reset all types of perf counters. We will enable the counters when everything is ready.
+        // Note that PERFMON_ENABLE_MODE controls per-context filtering which we don't support.
+        regCP_PERFMON_CNTL cpPerfmonCntl = {};
+        cpPerfmonCntl.bits.PERFMON_STATE       = CP_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE   = STRM_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.PERFMON_ENABLE_MODE = CP_PERFMON_ENABLE_MODE_ALWAYS_COUNT;
+
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
+
+        // The RLC controls perfmon clock gating. Before doing anything else we should turn on perfmon clocks.
+        regRLC_PERFMON_CLK_CNTL rlcPerfmonClkCntl = {};
+        rlcPerfmonClkCntl.bits.PERFMON_CLOCK_STATE = 1;
+
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_registerInfo.mmRlcPerfmonClkCntl,
+                                                     rlcPerfmonClkCntl.u32All,
+                                                     pCmdSpace);
+
+        // Thread traces and many types of perf counters require SQG events. To keep things simple we should just
+        // enable them unconditionally. This shouldn't have any effect in the cases that don't really need them on.
+        pCmdSpace = WriteUpdateSpiConfigCntl(true, pCmdStream, pCmdSpace);
+
+        if (m_hasGlobalCounters || m_hasSpmTrace)
+        {
+            // SQ_PERFCOUNTER_CTRL controls how the SQGs increments its perf counters. We treat it as global state.
+            regSQ_PERFCOUNTER_CTRL sqPerfCounterCtrl = {};
+
+            if (m_createInfo.optionFlags.sqShaderMask != 0)
+            {
+                sqPerfCounterCtrl.bits.PS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskPs) != 0);
+                sqPerfCounterCtrl.bits.VS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskVs) != 0);
+                sqPerfCounterCtrl.bits.GS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskGs) != 0);
+                sqPerfCounterCtrl.bits.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
+                sqPerfCounterCtrl.bits.HS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskHs) != 0);
+                sqPerfCounterCtrl.bits.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
+                sqPerfCounterCtrl.bits.CS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
+            }
+            else
+            {
+                // By default sample from all shader stages.
+                sqPerfCounterCtrl.bits.PS_EN = 1;
+                sqPerfCounterCtrl.bits.VS_EN = 1;
+                sqPerfCounterCtrl.bits.GS_EN = 1;
+                sqPerfCounterCtrl.bits.ES_EN = 1;
+                sqPerfCounterCtrl.bits.HS_EN = 1;
+                sqPerfCounterCtrl.bits.LS_EN = 1;
+                sqPerfCounterCtrl.bits.CS_EN = 1;
+            }
+
+            // Note that we must write this after CP_PERFMON_CNTRL because the CP ties ownership of this state to it.
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmSQ_PERFCOUNTER_CTRL, sqPerfCounterCtrl.u32All, pCmdSpace);
+        }
+
+        if (m_hasSpmTrace)
+        {
+            // Fully configure the RLC SPM state. There's a lot of code for this so it's in a helper function.
+            pCmdSpace = WriteSpmSetup(pCmdStream, pCmdSpace);
+        }
+
+        if (m_hasGlobalCounters || m_hasSpmTrace)
+        {
+            // Write the necessary PERFCOUNTER#_SELECT registers. This is another huge chunk of code in a helper
+            // function. This state is shared between SPM counters and global counters.
+            pCmdSpace = WriteSelectRegisters(pCmdStream, pCmdSpace);
+        }
+
+        if (m_hasThreadTrace)
+        {
+            // Setup all thread traces and start tracing.
+            pCmdSpace = WriteStartThreadTraces(pCmdStream, pCmdSpace);
+
+            // The old perf experiment code did a PS_PARTIAL_FLUSH and a wait-idle here because it "seems to help us
+            // more reliably gather thread-trace data". That doesn't make any sense and isn't backed-up by any of the
+            // HW programming guides. It has been duplicated here to avoid initial regressions but should be removed.
+            if (m_device.EngineSupportsGraphics(engineType))
+            {
+                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, engineType, pCmdSpace);
+            }
+
+            pCmdSpace = WriteWaitIdle(false, pCmdStream, pCmdSpace);
+        }
+
+        if (m_hasGlobalCounters)
+        {
+            // This will transition the counter state from "reset" to "stop" and take the begin samples. It will
+            // also reset all counters that have convenient reset bits in their config registers.
+            pCmdSpace = WriteStopAndSampleGlobalCounters(true, pCmdStream, pCmdSpace);
+        }
+
+        // Tell the SPM counters and global counters start counting.
+        if (m_hasGlobalCounters || m_hasSpmTrace)
+        {
+            // CP_PERFMON_CNTL only enables non-windowed counters.
+            if (m_hasGlobalCounters)
+            {
+                cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_START_COUNTING;
+            }
+
+            if (m_hasSpmTrace)
+            {
+                cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_START_COUNTING;
+            }
+
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
+
+            // Also enable windowed perf counters. This most likely applies to many block types, rather than try to
+            // find them all just always send the event (it shouldn't hurt). This should be required by legacy counters
+            // and SPM counters.
+            pCmdSpace = WriteUpdateWindowedCounters(true, pCmdStream, pCmdSpace);
+
+            // Enable all of the cfg-style global counters. Each block has an extra enable register. Only clear them
+            // if we didn't call WriteStopAndSampleGlobalCounters which already clears them and assumes we're not
+            // going to reset the counters again after taking the initial sample.
+            pCmdSpace = WriteEnableCfgRegisters(true, (m_hasGlobalCounters == false), pCmdStream, pCmdSpace);
+        }
+
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+// Issues commands into the specified command stream which instruct the HW to stop recording performance data.
+void PerfExperiment::IssueEnd(
+    Pal::CmdStream* pPalCmdStream
+    ) const
+{
+    CmdStream*const  pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
+    const EngineType engineType = pCmdStream->GetEngineType();
+
+    if (m_isFinalized == false)
+    {
+        // It's illegal to execute a perf experiment before it's finalized.
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        // This isn't in the docs, but we've been told by hardware engineers that we need to do a wait-idle here when
+        // sampling from global counters. We might be able to remove this when global counters are disabled.
+        const bool cacheFlush = ((m_createInfo.optionFlags.cacheFlushOnCounterCollection != 0) &&
+                                 m_createInfo.optionValues.cacheFlushOnCounterCollection);
+
+        pCmdSpace = WriteWaitIdle(cacheFlush, pCmdStream, pCmdSpace);
+
+        // This is the CP_PERFMON_CNTL state that should be currently active.
+        if (m_hasGlobalCounters)
+        {
+            // This will transition the counter state from "start" to "stop" and take the end samples.
+            pCmdSpace = WriteStopAndSampleGlobalCounters(false, pCmdStream, pCmdSpace);
+        }
+        else if (m_hasSpmTrace)
+        {
+            // If SPM is enabled but we didn't call WriteSampleGlobalCounters we still need to disable these manually.
+            pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
+            pCmdSpace = WriteEnableCfgRegisters(false, false, pCmdStream, pCmdSpace);
+
+            // The docs don't say we need to stop SPM, transitioning directly from start to disabled seems legal.
+            // We stop the SPM counters anyway for parity with the global counter path and because it looks good.
+            regCP_PERFMON_CNTL cpPerfmonCntl = {};
+            cpPerfmonCntl.bits.PERFMON_STATE     = CP_PERFMON_STATE_DISABLE_AND_RESET;
+            cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_STOP_COUNTING;
+
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
+        }
+
+        if (m_hasThreadTrace)
+        {
+            // Stop all thread traces and copy back some information not contained in the thread trace tokens.
+            pCmdSpace = WriteStopThreadTraces(pCmdStream, pCmdSpace);
+        }
+
+        if (m_hasSpmTrace)
+        {
+            // The old perf experiment code did a wait-idle between stopping SPM and resetting things. It said that
+            // the RLC can page fault on its remaining writes if we reset things too early. This requirement isn't
+            // captured in any HW programming docs but it does seem like a reasonable concern.
+            pCmdSpace = WriteWaitIdle(false, pCmdStream, pCmdSpace);
+        }
+
+        // Start disabling and resetting state that we need to clean up. Note that things like the select registers
+        // can be left alone because the counters won't do anything unless the global enable switches are on.
+
+        // Throw the master disable-and-reset switch.
+        regCP_PERFMON_CNTL cpPerfmonCntl = {};
+        cpPerfmonCntl.bits.PERFMON_STATE     = CP_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_DISABLE_AND_RESET;
+
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
+
+        // Restore SPI_CONFIG_CNTL by turning SQG events back off.
+        pCmdSpace = WriteUpdateSpiConfigCntl(false, pCmdStream, pCmdSpace);
+
+        // The RLC controls perfmon clock gating. Before we're done here, we must turn the perfmon clocks back off.
+        regRLC_PERFMON_CLK_CNTL rlcPerfmonClkCntl = {};
+        rlcPerfmonClkCntl.bits.PERFMON_CLOCK_STATE = 0;
+
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_registerInfo.mmRlcPerfmonClkCntl,
+                                                     rlcPerfmonClkCntl.u32All,
+                                                     pCmdSpace);
+
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+// Issues commands into the specified command stream which instruct the HW to pause recording performance data.
+void PerfExperiment::BeginInternalOps(
+    Pal::CmdStream* pPalCmdStream
+    ) const
+{
+    CmdStream*const  pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
+    const EngineType engineType = pCmdStream->GetEngineType();
+
+    if (m_isFinalized == false)
+    {
+        // It's illegal to execute a perf experiment before it's finalized.
+        PAL_ASSERT_ALWAYS();
+    }
+    // We don't pause by default, the client has to explicitly ask us to not sample internal operations.
+    else if ((m_createInfo.optionFlags.sampleInternalOperations != 0) &&
+             (m_createInfo.optionValues.sampleInternalOperations == false))
+    {
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        // Issue the necessary commands to stop counter collection (SPM and global counters) without resetting
+        // any counter programming.
+
+        // First stop windowed counters, then stop global counters.
+        pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
+
+        // NOTE: We probably should add a wait-idle here. If we don't wait the global counters will stop counting
+        // while the prior draw/dispatch is still active which will under count. There is no wait here currently
+        // because the old perf experiment code didn't wait.
+
+        // Write CP_PERFMON_CNTL such that SPM and global counters stop counting.
+        regCP_PERFMON_CNTL cpPerfmonCntl = {};
+        cpPerfmonCntl.bits.PERFMON_STATE     = m_hasGlobalCounters ? CP_PERFMON_STATE_STOP_COUNTING
+                                                                   : CP_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE = m_hasSpmTrace ? STRM_PERFMON_STATE_STOP_COUNTING
+                                                             : STRM_PERFMON_STATE_DISABLE_AND_RESET;
+
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
+
+        // Stop the cfg-style counters too. It's not clear if these are included in the above guidelines so just stop
+        // them at the end to be safe.
+        pCmdSpace = WriteEnableCfgRegisters(false, false, pCmdStream, pCmdSpace);
+
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+// Issues commands into the specified command stream which instruct the HW to resume recording performance data.
+void PerfExperiment::EndInternalOps(
+    Pal::CmdStream* pPalCmdStream
+    ) const
+{
+    CmdStream*const  pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
+    const EngineType engineType = pCmdStream->GetEngineType();
+
+    if (m_isFinalized == false)
+    {
+        // It's illegal to execute a perf experiment before it's finalized.
+        PAL_ASSERT_ALWAYS();
+    }
+    // Submit the resume commands under the same condition that we issued the pause commands.
+    else if ((m_createInfo.optionFlags.sampleInternalOperations != 0) &&
+             (m_createInfo.optionValues.sampleInternalOperations == false))
+    {
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        // NOTE: We probably should add a wait-idle here. If we don't wait the global counters will start counting
+        // while the internal draw/dispatch is still active and it will be counted. There is no wait here currently
+        // because the old perf experiment code didn't wait.
+
+        // Rewrite the "start" state for all counters.
+        regCP_PERFMON_CNTL cpPerfmonCntl = {};
+        cpPerfmonCntl.bits.PERFMON_STATE       = m_hasGlobalCounters ? CP_PERFMON_STATE_START_COUNTING
+                                                                     : CP_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE   = m_hasSpmTrace ? STRM_PERFMON_STATE_START_COUNTING
+                                                               : STRM_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.PERFMON_ENABLE_MODE = CP_PERFMON_ENABLE_MODE_ALWAYS_COUNT;
+
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
+        pCmdSpace = WriteUpdateWindowedCounters(true, pCmdStream, pCmdSpace);
+        pCmdSpace = WriteEnableCfgRegisters(true, false, pCmdStream, pCmdSpace);
+
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+// Issues update commands into the specified command stream which instruct the HW to modify the sqtt token mask
+// and register mask for each active thread trace.
+void PerfExperiment::UpdateSqttTokenMask(
+    Pal::CmdStream*               pPalCmdStream,
+    const ThreadTraceTokenConfig& sqttTokenConfig
+    ) const
+{
+    CmdStream*const pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
+
+    if (m_isFinalized == false)
+    {
+        // It's illegal to execute a perf experiment before it's finalized.
+        PAL_ASSERT_ALWAYS();
+    }
+    else if (m_hasThreadTrace)
+    {
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        for (uint32 idx = 0; idx < ArrayLen(m_sqtt); ++idx)
+        {
+            if (m_sqtt[idx].inUse)
+            {
+                pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
+                                                             m_sqtt[idx].grbmGfxIndex.u32All,
+                                                             pCmdSpace);
+
+                if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+                {
+                    regSQ_THREAD_TRACE_TOKEN_MASK tokenMask = {};
+                    tokenMask.u32All = GetGfx9SqttTokenMask(sqttTokenConfig);
+
+                    // This field isn't controlled by the token config.
+                    tokenMask.gfx09.REG_DROP_ON_STALL = m_sqtt[idx].tokenMask.gfx09.REG_DROP_ON_STALL;
+
+                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_TOKEN_MASK,
+                                                                  tokenMask.u32All,
+                                                                  pCmdSpace);
+                }
+            }
+        }
+
+        // Switch back to global broadcasting before returning to the rest of PAL.
+        pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+// Issues update commands into the specified command stream which instruct the HW to modify the sqtt token mask
+// and register mask any active thread traces.
+//
+// Updates the SQTT token mask for all SEs outside of a specific PerfExperiment.  Used by GPA Session when targeting
+// a single event for instruction level trace during command buffer building.
+void PerfExperiment::UpdateSqttTokenMaskStatic(
+    Pal::CmdStream*               pPalCmdStream,
+    const ThreadTraceTokenConfig& sqttTokenConfig,
+    const Device&                 device)
+{
+    CmdStream*const pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
+    uint32*         pCmdSpace  = pCmdStream->ReserveCommands();
+
+    if (device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        regSQ_THREAD_TRACE_TOKEN_MASK tokenMask = {};
+        tokenMask.u32All = GetGfx9SqttTokenMask(sqttTokenConfig);
+
+        // Note that we will lose the current value of the REG_DROP_ON_STALL field.
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_TOKEN_MASK,
+                                                      tokenMask.u32All,
+                                                      pCmdSpace);
+    }
+
+    pCmdStream->CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
+// Fills out a CounterMapping based on an interface perf counter. It also validates the counter information.
+Result PerfExperiment::BuildCounterMapping(
+    const PerfCounterInfo& info,
+    CounterMapping*        pMapping
+    ) const
+{
+    Result result = Result::Success;
+
+    if ((info.block != GpuBlock::Sq) &&
+        ((info.optionFlags.sqSimdMask != 0) ||
+         (info.optionFlags.sqSqcBankMask != 0) ||
+         (info.optionFlags.sqSqcClientMask != 0)))
+    {
+        // The SQ options are only supported on the SQ block.
+        result = Result::ErrorInvalidValue;
+    }
+    else if (info.block >= GpuBlock::Count)
+    {
+        // What is this block?
+        result = Result::ErrorInvalidValue;
+    }
+    else if (m_counterInfo.block[static_cast<uint32>(info.block)].distribution == PerfCounterDistribution::Unavailable)
+    {
+        // This block is not available on this GPU.
+        result = Result::ErrorInvalidValue;
+    }
+    else if (info.instance > m_counterInfo.block[static_cast<uint32>(info.block)].numGlobalInstances)
+    {
+        // This instance doesn't exist.
+        result = Result::ErrorInvalidValue;
+    }
+    else if (info.eventId > m_counterInfo.block[static_cast<uint32>(info.block)].maxEventId)
+    {
+        // This event doesn't exist.
+        result = Result::ErrorInvalidValue;
+    }
+    else
+    {
+        // Fill out the mapping struct.
+        pMapping->block          = info.block;
+        pMapping->globalInstance = info.instance;
+        pMapping->eventId        = info.eventId;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Fills out a GRBM_GFX_INDEX for some block based on a global instance value. It will also validate that the global
+// instance has a valid internal instance index.
+Result PerfExperiment::BuildGrbmGfxIndex(
+    GpuBlock           block,
+    uint32             globalInstance,
+    regGRBM_GFX_INDEX* pGrbmGfxIndex
+    ) const
+{
+    Result result        = Result::Success;
+    uint32 seIndex       = 0;
+    uint32 saIndex       = 0;
+    uint32 instanceIndex = 0;
+    bool   broadcastSe   = false;
+    bool   broadcastSa   = false;
+
+    const PerfCounterBlockInfo& blockInfo = m_counterInfo.block[static_cast<uint32>(block)];
+
+    if (blockInfo.distribution == PerfCounterDistribution::GlobalBlock)
+    {
+        // Global blocks have a one-to-one instance mapping.
+        instanceIndex = globalInstance;
+        broadcastSe   = true;
+        broadcastSa   = true;
+    }
+    else if (blockInfo.distribution == PerfCounterDistribution::PerShaderEngine)
+    {
+        // We want the SE index to be the outer index and the local instance to be the inner index.
+        seIndex       = globalInstance / blockInfo.numInstances;
+        instanceIndex = globalInstance % blockInfo.numInstances;
+        broadcastSa   = true;
+    }
+    else if (blockInfo.distribution == PerfCounterDistribution::PerShaderArray)
+    {
+        // From outermost to innermost, the internal indices are in the order: SE, SA, local instance.
+        seIndex       = (globalInstance / blockInfo.numInstances) / m_chipProps.gfx9.numShaderArrays;
+        saIndex       = (globalInstance / blockInfo.numInstances) % m_chipProps.gfx9.numShaderArrays;
+        instanceIndex = globalInstance % blockInfo.numInstances;
+    }
+
+    if (seIndex >= m_chipProps.gfx9.numShaderEngines)
+    {
+        // This shader engine doesn't exist on our device.
+        result = Result::ErrorInvalidValue;
+    }
+    else if (saIndex >= m_chipProps.gfx9.numShaderArrays)
+    {
+        // This shader array doesn't exist on our device.
+        result = Result::ErrorInvalidValue;
+    }
+    else if (instanceIndex >= blockInfo.numInstances)
+    {
+        // This instance doesn't exist on our device.
+        result = Result::ErrorInvalidValue;
+    }
+
+    if (result == Result::Success)
+    {
+        pGrbmGfxIndex->bits.SE_INDEX             = seIndex;
+        pGrbmGfxIndex->gfx09.SH_INDEX            = saIndex;
+        pGrbmGfxIndex->bits.INSTANCE_INDEX       = instanceIndex;
+        pGrbmGfxIndex->bits.SE_BROADCAST_WRITES  = broadcastSe;
+        pGrbmGfxIndex->gfx09.SH_BROADCAST_WRITES = broadcastSa;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// A helper function for AddSpmCounter which builds a muxsel struct given some counter information.
+MuxselEncoding PerfExperiment::BuildMuxselEncoding(
+    GpuBlock          block,
+    uint32            counter,
+    regGRBM_GFX_INDEX grbmGfxIndex
+    ) const
+{
+    MuxselEncoding              muxsel    = {};
+    const PerfCounterBlockInfo& blockInfo = m_counterInfo.block[static_cast<uint32>(block)];
+
+    if ((m_chipProps.gfxLevel == GfxIpLevel::GfxIp9) ||
+        (blockInfo.distribution == PerfCounterDistribution::GlobalBlock))
+    {
+        muxsel.gfx9.counter  = counter;
+        muxsel.gfx9.block    = blockInfo.spmBlockSelect;
+        muxsel.gfx9.instance = grbmGfxIndex.bits.INSTANCE_INDEX;
+    }
+
+    return muxsel;
+}
+
+// =====================================================================================================================
+// A helper function for IssueBegin which writes the necessary commands to setup SPM. This essentially boils down to:
+// - Program the RLC's control registers.
+// - Upload each muxsel ram.
+uint32* PerfExperiment::WriteSpmSetup(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    // Configure the RLC state that controls SPM.
+    struct
+    {
+        regRLC_SPM_PERFMON_CNTL         cntl;
+        regRLC_SPM_PERFMON_RING_BASE_LO ringBaseLo;
+        regRLC_SPM_PERFMON_RING_BASE_HI ringBaseHi;
+        regRLC_SPM_PERFMON_RING_SIZE    ringSize;
+    } rlcInit = {};
+
+    const gpusize ringBaseAddr = m_gpuMemory.GpuVirtAddr() + m_spmRingOffset;
+
+    // The spec requires that the ring address and size be aligned to 32-bytes.
+    PAL_ASSERT(IsPow2Aligned(ringBaseAddr,  SpmRingBaseAlignment));
+    PAL_ASSERT(IsPow2Aligned(m_spmRingSize, SpmRingBaseAlignment));
+
+    rlcInit.cntl.bits.PERFMON_RING_MODE       = 0; // No stall and no interupt on overflow.
+    rlcInit.cntl.bits.PERFMON_SAMPLE_INTERVAL = m_spmSampleInterval;
+    rlcInit.ringBaseLo.bits.RING_BASE_LO      = LowPart(ringBaseAddr);
+    rlcInit.ringBaseHi.bits.RING_BASE_HI      = HighPart(ringBaseAddr);
+    rlcInit.ringSize.bits.RING_BASE_SIZE      = m_spmRingSize;
+
+    pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(mmRLC_SPM_PERFMON_CNTL,
+                                                  mmRLC_SPM_PERFMON_RING_SIZE,
+                                                  &rlcInit,
+                                                  pCmdSpace);
+
+    // Program the muxsel line sizes. Note that PERFMON_SEGMENT_SIZE only has space for 31 lines per segment.
+    regRLC_SPM_PERFMON_SEGMENT_SIZE spmSegmentSize = {};
+
+    bool   over31Lines = false;
+    uint32 totalLines  = 0;
+
+    for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
+    {
+        over31Lines = over31Lines || (m_numMuxselLines[idx] > 31);
+        totalLines += m_numMuxselLines[idx];
+    }
+
+    {
+        // We have no way to handle more than 31 lines. Assert so that the user knows this is broken but continue
+        // anyway and hope to maybe get some partial data.
+        PAL_ASSERT(over31Lines == false);
+
+        spmSegmentSize.bits.PERFMON_SEGMENT_SIZE = totalLines;
+        spmSegmentSize.bits.SE0_NUM_LINE         = m_numMuxselLines[0];
+        spmSegmentSize.bits.SE1_NUM_LINE         = m_numMuxselLines[1];
+        spmSegmentSize.bits.SE2_NUM_LINE         = m_numMuxselLines[2];
+        spmSegmentSize.bits.GLOBAL_NUM_LINE      = m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
+    }
+
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmRLC_SPM_PERFMON_SEGMENT_SIZE, spmSegmentSize.u32All, pCmdSpace);
+
+    // Now upload each muxsel ram to the RLC. If a particular segment is empty we skip it.
+    for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
+    {
+        if (m_numMuxselLines[idx] > 0)
+        {
+            WriteDataInfo writeData  = {};
+            uint32        muxselAddr = 0;
+
+            if (static_cast<SpmDataSegmentType>(idx) == SpmDataSegmentType::Global)
+            {
+                pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
+                writeData.dstAddr = m_registerInfo.mmRlcSpmGlobalMuxselData;
+                muxselAddr        = m_registerInfo.mmRlcSpmGlobalMuxselAddr;
+            }
+            else
+            {
+                pCmdSpace = WriteGrbmGfxIndexBroadcastSe(idx, pCmdStream, pCmdSpace);
+
+                writeData.dstAddr = m_registerInfo.mmRlcSpmSeMuxselData;
+                muxselAddr        = m_registerInfo.mmRlcSpmSeMuxselAddr;
+            }
+
+            writeData.engineType = pCmdStream->GetEngineType();
+            writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+            writeData.dstSel     = dst_sel__me_write_data__mem_mapped_register;
+
+            // Each data value must be written into MUXSEL_DATA, if we let the CP increment the register address
+            // we will overwrite other registers.
+            writeData.dontIncrementAddr = true;
+
+            // The muxsel ram is inlined into the command stream and could be large so we need a loop that carefully
+            // splits it into chunks and repeatedly commits and reserves space. Note that the addr registers are
+            // defintely user-config but we need to use SetOnePerfCtrReg to handle the isPerfCtr header bit. We
+            // assume we get the user-config branch when defining PacketHeaders below.
+            PAL_ASSERT(CmdUtil::IsUserConfigReg(muxselAddr));
+
+            constexpr uint32 PacketHeaders = CmdUtil::ConfigRegSizeDwords + 1 + CmdUtil::WriteDataSizeDwords;
+            const uint32     maxDwords     = pCmdStream->ReserveLimit() - PacketHeaders;
+            const uint32     maxLines      = maxDwords / MuxselLineSizeInDwords;
+
+            for (uint32 line = 0; line < m_numMuxselLines[idx]; line += maxLines)
+            {
+                const uint32 numLines = Min(maxLines, m_numMuxselLines[idx] - line);
+
+                pCmdStream->CommitCommands(pCmdSpace);
+                pCmdSpace = pCmdStream->ReserveCommands();
+
+                // Each time we issue a new write_data we must first update MUXSEL_ADDR to point to the next muxsel.
+                pCmdSpace  = pCmdStream->WriteSetOnePerfCtrReg(muxselAddr,
+                                                               line * MuxselLineSizeInDwords,
+                                                               pCmdSpace);
+
+                pCmdSpace += m_cmdUtil.BuildWriteData(writeData,
+                                                      numLines * MuxselLineSizeInDwords,
+                                                      m_pMuxselRams[idx][line].u32Array,
+                                                      pCmdSpace);
+
+                pCmdStream->CommitCommands(pCmdSpace);
+                pCmdSpace = pCmdStream->ReserveCommands();
+            }
+        }
+    }
+
+    static_assert(static_cast<uint32>(SpmDataSegmentType::Global) == static_cast<uint32>(SpmDataSegmentType::Count) - 1,
+                  "We assume the global SPM segment writes its registers last which restores global broadcasting.");
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// A helper function for IssueBegin which writes the necessary commands to start all thread traces.
+uint32* PerfExperiment::WriteStartThreadTraces(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    for (uint32 idx = 0; idx < ArrayLen(m_sqtt); ++idx)
+    {
+        if (m_sqtt[idx].inUse)
+        {
+            // Get fresh command space once per trace, just in case.
+            pCmdStream->CommitCommands(pCmdSpace);
+            pCmdSpace = pCmdStream->ReserveCommands();
+
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
+                                                         m_sqtt[idx].grbmGfxIndex.u32All,
+                                                         pCmdSpace);
+
+            const gpusize shiftedAddr = (m_gpuMemory.GpuVirtAddr() + m_sqtt[idx].bufferOffset) >> SqttBufferAlignShift;
+            const gpusize shiftedSize = m_sqtt[idx].bufferSize >> SqttBufferAlignShift;
+
+            if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+            {
+                // These four registers must be written first in this specific order.
+                regSQ_THREAD_TRACE_BASE2 sqttBase2 = {};
+                regSQ_THREAD_TRACE_BASE  sqttBase  = {};
+                regSQ_THREAD_TRACE_SIZE  sqttSize  = {};
+                regSQ_THREAD_TRACE_CTRL  sqttCtrl  = {};
+
+                sqttBase2.bits.ADDR_HI      = HighPart(shiftedAddr);
+                sqttBase.bits.ADDR          = LowPart(shiftedAddr);
+                sqttSize.bits.SIZE          = shiftedSize;
+                sqttCtrl.gfx09.RESET_BUFFER = 1;
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_BASE2,
+                                                              sqttBase2.u32All,
+                                                              pCmdSpace);
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_BASE,
+                                                              sqttBase.u32All,
+                                                              pCmdSpace);
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_SIZE,
+                                                              sqttSize.u32All,
+                                                              pCmdSpace);
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_CTRL,
+                                                              sqttCtrl.u32All,
+                                                              pCmdSpace);
+
+                // These registers can be in any order.
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_MASK,
+                                                              m_sqtt[idx].mask.u32All,
+                                                              pCmdSpace);
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_TOKEN_MASK,
+                                                              m_sqtt[idx].tokenMask.u32All,
+                                                              pCmdSpace);
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_PERF_MASK,
+                                                              m_sqtt[idx].perfMask.u32All,
+                                                              pCmdSpace);
+
+                regSQ_THREAD_TRACE_TOKEN_MASK2 sqttTokenMask2 = {};
+                sqttTokenMask2.bits.INST_MASK = SqttGfx9InstMaskDefault;
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_TOKEN_MASK2,
+                                                              sqttTokenMask2.u32All,
+                                                              pCmdSpace);
+
+                regSQ_THREAD_TRACE_HIWATER sqttHiwater = {};
+                sqttHiwater.bits.HIWATER = SqttHiWaterValue;
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_HIWATER,
+                                                              sqttHiwater.u32All,
+                                                              pCmdSpace);
+
+                // Clear translation errors (just in case).
+                regSQ_THREAD_TRACE_STATUS sqttStatus = {};
+                sqttStatus.gfx09.UTC_ERROR = 0;
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_STATUS,
+                                                              sqttStatus.u32All,
+                                                              pCmdSpace);
+
+                // We must write this register last because it turns on thread traces.
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_MODE,
+                                                              m_sqtt[idx].mode.u32All,
+                                                              pCmdSpace);
+            }
+        }
+    }
+
+    // Start the thread traces. The spec says it's best to use an event on graphics but we should write the
+    // THREAD_TRACE_ENABLE register on compute.
+    pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
+    if (m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
+    {
+        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_START, pCmdStream->GetEngineType(), pCmdSpace);
+    }
+    else
+    {
+        regCOMPUTE_THREAD_TRACE_ENABLE computeEnable = {};
+        computeEnable.bits.THREAD_TRACE_ENABLE = 1;
+
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_THREAD_TRACE_ENABLE,
+                                                                computeEnable.u32All,
+                                                                pCmdSpace);
     }
 
     return pCmdSpace;
 }
 
 // =====================================================================================================================
-// Samples performance counters by issuing commands into the specified command buffer which will instruct the HW to
-// write the counter data to the specified virtual address. Returns the next unused DWORD in pCmdSpace.
-uint32* PerfExperiment::WriteSamplePerfCounters(
-    gpusize       baseGpuVirtAddr, ///< Base GPU virtual address to write counter data into
-    CmdStream*    pCmdStream,
-    uint32*       pCmdSpace
+// A helper function for IssueEnd which writes the necessary commands to stop all thread traces.
+//
+uint32* PerfExperiment::WriteStopThreadTraces(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
     ) const
 {
-    const auto&      cmdUtil    = m_device.CmdUtil();
-    const auto&      regInfo    = cmdUtil.GetRegInfo();
     const EngineType engineType = pCmdStream->GetEngineType();
 
-    // Write the command sequence to stop and sample event-based counters.
-    pCmdSpace += cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_SAMPLE, engineType, pCmdSpace);
-    pCmdSpace += cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_STOP,   engineType, pCmdSpace);
-    pCmdSpace  = WriteComputePerfCountEnable(pCmdStream, pCmdSpace, true);
-
-    // Freeze and sample graphics state based counters.
-    regCP_PERFMON_CNTL cpPerfmonCntl = {};
-    cpPerfmonCntl.bits.PERFMON_STATE         = CP_PERFMON_STATE_STOP_COUNTING;
-    cpPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
-
-    // TODO: Add support for issuing the sample for SPM counters.
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmCpPerfmonCntl,
-                                                  cpPerfmonCntl.u32All,
-                                                  pCmdSpace);
-
-    if (HasRlcCounters())
+    // Stop the thread traces. The spec says it's best to use an event on graphics but we should write the
+    // THREAD_TRACE_ENABLE register on compute.
+    if (m_device.EngineSupportsGraphics(engineType))
     {
-        // Freeze and sample RLC counters: this needs to be done with a COPY_DATA command.
+        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_STOP, engineType, pCmdSpace);
+    }
+    else
+    {
+        regCOMPUTE_THREAD_TRACE_ENABLE computeEnable = {};
+        computeEnable.bits.THREAD_TRACE_ENABLE = 0;
+
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_THREAD_TRACE_ENABLE,
+                                                                computeEnable.u32All,
+                                                                pCmdSpace);
+    }
+
+    // Send a TRACE_FINISH event (even on compute).
+    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_FINISH, engineType, pCmdSpace);
+
+    for (uint32 idx = 0; idx < ArrayLen(m_sqtt); ++idx)
+    {
+        if (m_sqtt[idx].inUse)
+        {
+            // Get fresh command space once per trace, just in case.
+            pCmdStream->CommitCommands(pCmdSpace);
+            pCmdSpace = pCmdStream->ReserveCommands();
+
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
+                                                         m_sqtt[idx].grbmGfxIndex.u32All,
+                                                         pCmdSpace);
+
+            if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+            {
+                // The spec says we should wait for SQ_THREAD_TRACE_STATUS__FINISH_DONE_MASK to be non-zero but doing
+                // so causes the GPU to hang because FINISH_PENDING never clears and FINISH_DONE is never set. It's
+                // not clear if we're doing something wrong or if the spec is wrong. Either way, skipping this step
+                // seems to work fine but we might want to revisit this if the ends of our traces are missing.
+
+                // Set the mode to "OFF".
+                regSQ_THREAD_TRACE_MODE sqttMode = m_sqtt[idx].mode;
+                sqttMode.bits.MODE = SQ_THREAD_TRACE_MODE_OFF;
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_MODE,
+                                                              sqttMode.u32All,
+                                                              pCmdSpace);
+
+                // Poll the status register's busy bit to wait for it to totally turn off.
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__register_space,
+                                                       function__me_wait_reg_mem__equal_to_the_reference_value,
+                                                       engine_sel__me_wait_reg_mem__micro_engine,
+                                                       Gfx09::mmSQ_THREAD_TRACE_STATUS,
+                                                       0,
+                                                       Gfx09::SQ_THREAD_TRACE_STATUS__BUSY_MASK,
+                                                       pCmdSpace);
+
+                // Use COPY_DATA to read back the info struct one DWORD at a time.
+                const gpusize infoAddr = m_gpuMemory.GpuVirtAddr() + m_sqtt[idx].infoOffset;
+
+                // If each member doesn't start at a DWORD offset this won't wor.
+                static_assert(offsetof(ThreadTraceInfoData, curOffset)    == 0,                  "");
+                static_assert(offsetof(ThreadTraceInfoData, traceStatus)  == sizeof(uint32),     "");
+                static_assert(offsetof(ThreadTraceInfoData, writeCounter) == sizeof(uint32) * 2, "");
+
+                constexpr uint32 InfoRegisters[] =
+                {
+                    Gfx09::mmSQ_THREAD_TRACE_WPTR,
+                    Gfx09::mmSQ_THREAD_TRACE_STATUS,
+                    Gfx09::mmSQ_THREAD_TRACE_CNTR
+                };
+
+                for (uint32 regIdx = 0; regIdx < ArrayLen(InfoRegisters); regIdx++)
+                {
+                    pCmdSpace += m_cmdUtil.BuildCopyData(engineType,
+                                                         engine_sel__me_copy_data__micro_engine,
+                                                         dst_sel__me_copy_data__tc_l2,
+                                                         infoAddr + regIdx * sizeof(uint32),
+                                                         src_sel__me_copy_data__perfcounters,
+                                                         InfoRegisters[regIdx],
+                                                         count_sel__me_copy_data__32_bits_of_data,
+                                                         wr_confirm__me_copy_data__wait_for_confirmation,
+                                                         pCmdSpace);
+                }
+            }
+        }
+    }
+
+    // Restore global broadcasting.
+    pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// A helper function for IssueBegin which writes the necessary commands to set every enabled PERFCOUNTER#_SELECT.
+uint32* PerfExperiment::WriteSelectRegisters(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    // The SQG has special select programming instructions.
+    for (uint32 instance = 0; instance < ArrayLen(m_select.sqg); ++instance)
+    {
+        if (m_select.sqg[instance].hasCounters)
+        {
+            const PerfCounterRegAddr& regAddr = m_counterInfo.block[static_cast<uint32>(GpuBlock::Sq)].regAddr;
+
+            // The SQ counters must be programmed while broadcasting to all SQs on the target SE. This should be
+            // fine because each "SQ" instance here is really a SQG instance and there's only one in each SE.
+            pCmdSpace = WriteGrbmGfxIndexBroadcastSe(m_select.sqg[instance].grbmGfxIndex.bits.SE_INDEX,
+                                                     pCmdStream,
+                                                     pCmdSpace);
+
+            for (uint32 idx = 0; idx < ArrayLen(m_select.sqg[instance].perfmon); ++idx)
+            {
+                if (m_select.sqg[instance].perfmonInUse[idx])
+                {
+                    PAL_ASSERT(regAddr.perfcounter[idx].selectOrCfg != 0);
+
+                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].selectOrCfg,
+                                                                  m_select.sqg[instance].perfmon[idx].u32All,
+                                                                  pCmdSpace);
+                }
+            }
+
+            // Get fresh command space just in case we're close to running out.
+            pCmdStream->CommitCommands(pCmdSpace);
+            pCmdSpace = pCmdStream->ReserveCommands();
+        }
+    }
+
+    // We program the GRBM's per-SE counters separately from its generic global counters.
+    for (uint32 instance = 0; instance < ArrayLen(m_select.grbmSe); ++instance)
+    {
+        if (m_select.grbmSe[instance].hasCounter)
+        {
+            // By convention we access the counter register address array using the SE index.
+            const PerfCounterRegAddr& regAddr = m_counterInfo.block[static_cast<uint32>(GpuBlock::GrbmSe)].regAddr;
+
+            PAL_ASSERT(regAddr.perfcounter[instance].selectOrCfg != 0);
+
+            // The GRBM is global and has one instance so we can just use global broadcasting.
+            pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[instance].selectOrCfg,
+                                                          m_select.grbmSe[instance].select.u32All,
+                                                          pCmdSpace);
+
+            // Get fresh command space just in case we're close to running out.
+            pCmdStream->CommitCommands(pCmdSpace);
+            pCmdSpace = pCmdStream->ReserveCommands();
+        }
+    }
+
+    // Program the legacy SDMA select registers. These should only be enabled on gfx9.
+    for (uint32 instance = 0; instance < ArrayLen(m_select.legacySdma); ++instance)
+    {
+        if (m_select.legacySdma[instance].hasCounter[0] || m_select.legacySdma[instance].hasCounter[1])
+        {
+            // Each GFX9 SDMA engine is a global block with a unique register that controls both counters.
+            PAL_ASSERT(m_counterInfo.sdmaRegAddr[instance][0].selectOrCfg != 0);
+
+            pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.sdmaRegAddr[instance][0].selectOrCfg,
+                                                          m_select.legacySdma[instance].perfmonCntl.u32All,
+                                                          pCmdSpace);
+
+            // Get fresh command space just in case we're close to running out.
+            pCmdStream->CommitCommands(pCmdSpace);
+            pCmdSpace = pCmdStream->ReserveCommands();
+        }
+    }
+
+    // Program the global UMCCH per-counter control registers.
+    for (uint32 instance = 0; instance < ArrayLen(m_select.umcch); ++instance)
+    {
+        if (m_select.umcch[instance].hasCounters)
+        {
+            pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
+            for (uint32 idx = 0; idx < ArrayLen(m_select.umcch[instance].perfmonInUse); ++idx)
+            {
+                if (m_select.umcch[instance].perfmonInUse[idx])
+                {
+                    PAL_ASSERT(m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtl != 0);
+
+                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(
+                                                m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtl,
+                                                m_select.umcch[instance].perfmonCntl[idx].u32All,
+                                                pCmdSpace);
+                }
+            }
+
+            // Get fresh command space just in case we're close to running out.
+            pCmdStream->CommitCommands(pCmdSpace);
+            pCmdSpace = pCmdStream->ReserveCommands();
+        }
+    }
+
+    // Finally, write the generic blocks' select registers.
+    for (uint32 block = 0; block < GpuBlockCount; ++block)
+    {
+        if (m_select.pGeneric[block] != nullptr)
+        {
+            for (uint32 instance = 0; instance < m_select.numGeneric[block]; ++instance)
+            {
+                const GenericBlockSelect& select = m_select.pGeneric[block][instance];
+
+                if (select.hasCounters)
+                {
+                    // Write GRBM_GFX_INDEX to target this specific block instance and enable its active modules.
+                    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
+                                                                 select.grbmGfxIndex.u32All,
+                                                                 pCmdSpace);
+
+                    for (uint32 idx = 0; idx < select.numModules; ++idx)
+                    {
+                        if (select.pModules[idx].inUse != 0)
+                        {
+                            // All generic blocks store their registers in the "perfcounter" arrays except for
+                            // SDMA which has unique registers for each instance.
+                            const PerfCounterRegAddrPerModule& regAddr = (block == static_cast<uint32>(GpuBlock::Dma))
+                                                                ? m_counterInfo.sdmaRegAddr[instance][idx]
+                                                                : m_counterInfo.block[block].regAddr.perfcounter[idx];
+
+                            if (select.pModules[idx].type == SelectType::Perfmon)
+                            {
+                                // The perfmon registers come in SELECT/SELECT1 pairs.
+                                PAL_ASSERT((regAddr.selectOrCfg != 0) &&
+                                           (regAddr.select1 != 0));
+
+                                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.selectOrCfg,
+                                                                              select.pModules[idx].perfmon.sel0.u32All,
+                                                                              pCmdSpace);
+
+                                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.select1,
+                                                                              select.pModules[idx].perfmon.sel1.u32All,
+                                                                              pCmdSpace);
+                            }
+                            else
+                            {
+                                // Both legacy module types use one register so we can use the same code here.
+                                PAL_ASSERT(regAddr.selectOrCfg != 0);
+
+                                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.selectOrCfg,
+                                                                              select.pModules[idx].legacySel.u32All,
+                                                                              pCmdSpace);
+                            }
+                        }
+                    }
+
+                    // Get fresh command space just in case we're close to running out.
+                    pCmdStream->CommitCommands(pCmdSpace);
+                    pCmdSpace = pCmdStream->ReserveCommands();
+                }
+            }
+        }
+    }
+
+    // Restore global broadcasting.
+    pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// A helper function for IssueBegin which writes the necessary commands to enable all cfg-style blocks.
+uint32* PerfExperiment::WriteEnableCfgRegisters(
+    bool       enable,
+    bool       clear,
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    for (uint32 block = 0; block < GpuBlockCount; ++block)
+    {
+        if (m_counterInfo.block[block].isCfgStyle)
+        {
+            // Check for an active instance before we broadcast this register. We only write it once.
+            for (uint32 instance = 0; instance < m_select.numGeneric[block]; ++instance)
+            {
+                if (m_select.pGeneric[block][instance].hasCounters)
+                {
+                    ResultCntl resultCntl = {};
+                    resultCntl.bits.ENABLE_ANY = enable;
+                    resultCntl.bits.CLEAR_ALL  = clear;
+
+                    PAL_ASSERT(m_counterInfo.block[block].regAddr.perfcounterRsltCntl != 0);
+
+                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(
+                        m_counterInfo.block[block].regAddr.perfcounterRsltCntl, resultCntl.u32All, pCmdSpace);
+
+                    break;
+                }
+            }
+        }
+    }
+
+    // The UMCCH has a per-instance register that acts just like a rslt_cntl register. Let's enable it here.
+    for (uint32 instance = 0; instance < ArrayLen(m_select.umcch); ++instance)
+    {
+        if (m_select.umcch[instance].hasCounters)
+        {
+            PAL_ASSERT(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk != 0);
+
+            if (clear)
+            {
+                regUMCCH0_PerfMonCtlClk perfmonCtlClk = {};
+                perfmonCtlClk.bits.GlblResetMsk = 0x3f;
+                perfmonCtlClk.bits.GlblReset    = 1;
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk,
+                                                              perfmonCtlClk.u32All,
+                                                              pCmdSpace);
+            }
+
+            regUMCCH0_PerfMonCtlClk perfmonCtlClk = {};
+            perfmonCtlClk.bits.GlblMonEn = enable;
+
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk,
+                                                          perfmonCtlClk.u32All,
+                                                          pCmdSpace);
+        }
+    }
+
+    // The RLC has a special global control register. It works just like CP_PERFMON_CNTL.
+    if (HasGenericCounters(GpuBlock::Rlc))
+    {
+        if (clear)
+        {
+            regRLC_PERFMON_CNTL rlcPerfmonCntl = {};
+            rlcPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_DISABLE_AND_RESET;
+
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRLC_PERFMON_CNTL, rlcPerfmonCntl.u32All, pCmdSpace);
+        }
+
+        regRLC_PERFMON_CNTL rlcPerfmonCntl = {};
+        rlcPerfmonCntl.bits.PERFMON_STATE = enable ? CP_PERFMON_STATE_START_COUNTING : CP_PERFMON_STATE_STOP_COUNTING;
+
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRLC_PERFMON_CNTL, rlcPerfmonCntl.u32All, pCmdSpace);
+    }
+
+    // The RMI has a special control register. We normally program the RMI using a per-instance GRBM_GFX_INDEX
+    // but this control is constant for all instances so we only need to write it once using global broadcasting.
+    if (HasGenericCounters(GpuBlock::Rmi))
+    {
+        regRMI_PERF_COUNTER_CNTL rmiPerfCounterCntl = {};
+        rmiPerfCounterCntl.bits.PERF_SOFT_RESET = clear;
+
+        if (enable)
+        {
+            // These hard-coded default values come from the old perf experiment code.
+            rmiPerfCounterCntl.bits.TRANS_BASED_PERF_EN_SEL             = 1;
+            rmiPerfCounterCntl.bits.EVENT_BASED_PERF_EN_SEL             = 1;
+            rmiPerfCounterCntl.bits.TC_PERF_EN_SEL                      = 1;
+            rmiPerfCounterCntl.bits.PERF_EVENT_WINDOW_MASK0             = 0x1;
+            rmiPerfCounterCntl.bits.PERF_COUNTER_CID                    = 0x8;
+            rmiPerfCounterCntl.bits.PERF_COUNTER_BURST_LENGTH_THRESHOLD = 1;
+
+            // This field exists on every ASIC except Raven2.
+            if (IsRaven2(m_device) == false)
+            {
+                rmiPerfCounterCntl.most.PERF_EVENT_WINDOW_MASK1 = 0x2;
+            }
+        }
+
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRMI_PERF_COUNTER_CNTL, rmiPerfCounterCntl.u32All, pCmdSpace);
+    }
+
+    // Get fresh command space just in case we're close to running out.
+    pCmdStream->CommitCommands(pCmdSpace);
+    pCmdSpace = pCmdStream->ReserveCommands();
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// A helper function for IssueBegin which writes the necessary commands to stop the global perf counters and sample
+// them. It will leave them stopped.
+uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
+    bool       isBeginSample,
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    const EngineType engineType = pCmdStream->GetEngineType();
+
+    // The recommended sampling procedure: stop windowed, sample, wait-idle, stop global, read values.
+    //
+    // By experimentation, global blocks don't listen to perfcounter events so we must always set PERFMON_SAMPLE_ENABLE
+    // while also issuing the event. We could probably take a long time to study how each specific block responds to
+    // events or the sample bit to come up with the optimal programming, but for now just always do both to make sure
+    // we definitely get results.
+    pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_SAMPLE, engineType, pCmdSpace);
+
+    pCmdSpace = WriteWaitIdle(false, pCmdStream, pCmdSpace);
+
+    // Stop the global counters. If SPM is enabled we also stop its counters so that they don't sample our sampling.
+    regCP_PERFMON_CNTL cpPerfmonCntl = {};
+    cpPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
+    cpPerfmonCntl.bits.PERFMON_STATE         = CP_PERFMON_STATE_STOP_COUNTING;
+    cpPerfmonCntl.bits.SPM_PERFMON_STATE     = m_hasSpmTrace ? STRM_PERFMON_STATE_STOP_COUNTING
+                                                             : STRM_PERFMON_STATE_DISABLE_AND_RESET;
+
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
+
+    // Stop the cfg-style counters too. It's not clear if these are included in the above guidelines so just stop them
+    // at the end to be safe. If we're getting the begin samples we should also initialize these counters by clearing
+    // them.
+    pCmdSpace = WriteEnableCfgRegisters(false, isBeginSample, pCmdStream, pCmdSpace);
+
+    // The old perf experiment code also sets the RLC's PERFMON_SAMPLE_ENABLE bit each time it samples. I can't find
+    // any documentation that has anything to say at all about this field so let's just do the same thing.
+    if (HasGenericCounters(GpuBlock::Rlc))
+    {
         regRLC_PERFMON_CNTL rlcPerfmonCntl = {};
         rlcPerfmonCntl.bits.PERFMON_STATE         = CP_PERFMON_STATE_STOP_COUNTING;
         rlcPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
 
-        if (engineType == EngineTypeCompute)
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRLC_PERFMON_CNTL, rlcPerfmonCntl.u32All, pCmdSpace);
+    }
+
+    // Copy each counter's value from registers to memory, one at a time.
+    const gpusize destBaseAddr = m_gpuMemory.GpuVirtAddr() + (isBeginSample ? m_globalBeginOffset : m_globalEndOffset);
+
+    for (uint32 idx = 0; idx < m_globalCounters.NumElements(); ++idx)
+    {
+        const GlobalCounterMapping& mapping  = m_globalCounters.At(idx);
+        const uint32                instance = mapping.general.globalInstance;
+        const uint32                block    = static_cast<uint32>(mapping.general.block);
+
+        if (mapping.general.block == GpuBlock::Sq)
         {
-            pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__mem_mapped_register,
-                                                      regInfo.mmRlcPerfmonCntl,
-                                                      src_sel__mec_copy_data__immediate_data,
-                                                      rlcPerfmonCntl.u32All,
-                                                      count_sel__mec_copy_data__32_bits_of_data,
-                                                      wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
-                                                      pCmdSpace);
+            // This is essentially the generic path but we keep our GRBM_GFX_INDEX in a special location.
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
+                                                         m_select.sqg[instance].grbmGfxIndex.u32All,
+                                                         pCmdSpace);
+
+            pCmdSpace = WriteCopy64BitCounter(m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].lo,
+                                              m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].hi,
+                                              destBaseAddr + mapping.offset,
+                                              pCmdStream,
+                                              pCmdSpace);
+        }
+        else if (mapping.general.block == GpuBlock::GrbmSe)
+        {
+            // The per-SE counters are different from the generic case in two ways:
+            // 1. The GRBM is a global block so we need to use global broadcasting.
+            // 2. The register addresses are unique for each instance.
+            pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+            pCmdSpace = WriteCopy64BitCounter(m_counterInfo.block[block].regAddr.perfcounter[instance].lo,
+                                              m_counterInfo.block[block].regAddr.perfcounter[instance].hi,
+                                              destBaseAddr + mapping.offset,
+                                              pCmdStream,
+                                              pCmdSpace);
+        }
+        else if ((mapping.general.block == GpuBlock::Dma) && (mapping.general.dataType == PerfCounterDataType::Uint32))
+        {
+            // Each legacy SDMA engine is a global block which defines unique 32-bit global counter registers.
+            pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
+            PAL_ASSERT(m_counterInfo.sdmaRegAddr[instance][mapping.counterId].lo != 0);
+
+            pCmdSpace += m_cmdUtil.BuildCopyData(pCmdStream->GetEngineType(),
+                                                 engine_sel__me_copy_data__micro_engine,
+                                                 dst_sel__me_copy_data__tc_l2,
+                                                 destBaseAddr + mapping.offset,
+                                                 src_sel__me_copy_data__perfcounters,
+                                                 m_counterInfo.sdmaRegAddr[instance][mapping.counterId].lo,
+                                                 count_sel__me_copy_data__32_bits_of_data,
+                                                 wr_confirm__me_copy_data__wait_for_confirmation,
+                                                 pCmdSpace);
+        }
+        else if (mapping.general.block == GpuBlock::Umcch)
+        {
+            // The UMCCH is global and has registers vary per-instance and per-counter.
+            pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+            pCmdSpace = WriteCopy64BitCounter(
+                            m_counterInfo.umcchRegAddr[instance].perModule[mapping.counterId].perfMonCtrLo,
+                            m_counterInfo.umcchRegAddr[instance].perModule[mapping.counterId].perfMonCtrHi,
+                            destBaseAddr + mapping.offset,
+                            pCmdStream,
+                            pCmdSpace);
+        }
+        else if (m_select.pGeneric[block] != nullptr)
+        {
+            // Set GRBM_GFX_INDEX so that we're talking to the specific block instance which own the given counter.
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
+                                                         m_select.pGeneric[block][instance].grbmGfxIndex.u32All,
+                                                         pCmdSpace);
+
+            if (m_counterInfo.block[block].isCfgStyle)
+            {
+                // Tell the block which perf counter value to move into the shared lo/hi registers.
+                ResultCntl resultCntl = {};
+                resultCntl.bits.PERF_COUNTER_SELECT = mapping.counterId;
+
+                PAL_ASSERT(m_counterInfo.block[block].regAddr.perfcounterRsltCntl != 0);
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.block[block].regAddr.perfcounterRsltCntl,
+                                                              resultCntl.u32All,
+                                                              pCmdSpace);
+            }
+
+            // All generic blocks store their registers in the "perfcounter" arrays except for SDMA which has unique
+            // registers for each instance.
+            const PerfCounterRegAddrPerModule& regAddr = (block == static_cast<uint32>(GpuBlock::Dma))
+                                                ? m_counterInfo.sdmaRegAddr[instance][mapping.counterId]
+                                                : m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId];
+
+            // Copy the counter value out to memory.
+            pCmdSpace = WriteCopy64BitCounter(regAddr.lo,
+                                              regAddr.hi,
+                                              destBaseAddr + mapping.offset,
+                                              pCmdStream,
+                                              pCmdSpace);
         }
         else
         {
-            pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                       dst_sel__me_copy_data__mem_mapped_register,
-                                                       regInfo.mmRlcPerfmonCntl,
-                                                       src_sel__me_copy_data__immediate_data,
-                                                       rlcPerfmonCntl.u32All,
-                                                       count_sel__me_copy_data__32_bits_of_data,
-                                                       wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                                       pCmdSpace);
+            // What block did we forget to implement?
+            PAL_ASSERT_ALWAYS();
         }
-    }
 
-    // Need to perform a wait-idle-clean before copying counter data registers.
-    pCmdSpace = WriteWaitIdleClean(pCmdStream, true, engineType, pCmdSpace);
-
-    // Next, walk the counter list and copy counter data to GPU memory.
-    for (auto it = m_globalCtrs.Begin(); it.Get(); it.Next())
-    {
-        const PerfCounter*const pPerfCounter = static_cast<PerfCounter*>(*it.Get());
-        PAL_ASSERT(pPerfCounter != nullptr);
-
-        // Issue commands for the performance counter to write data to GPU memory.
-        pCmdSpace = pPerfCounter->WriteSampleCommands(baseGpuVirtAddr, pCmdStream, pCmdSpace);
-
-        // This loop doesn't have a trivial upper-limit so we must be careful to not overflow the reserve buffer.
-        // If CPU-performance of perf counters is later deemed to be important we can make this code smarter.
+        // Get fresh command space just in case we're close to running out.
         pCmdStream->CommitCommands(pCmdSpace);
         pCmdSpace = pCmdStream->ReserveCommands();
     }
 
-    if (HasIndexedCounters())
-    {
-        pCmdSpace = WriteResetGrbmGfxIndex(pCmdStream, pCmdSpace);
-    }
+    // Restore global broadcasting.
+    pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
 
     return pCmdSpace;
 }
 
 // =====================================================================================================================
-// Issues commands that either enable or disable (depending on the last parameter) the use of perf-counters with
-// the compute engine.
-uint32* PerfExperiment::WriteComputePerfCountEnable(
-    CmdStream* pCmdStream,    ///< [in,out] Command stream to write PM4 commands into
-    uint32*    pCmdSpace,
-    bool       enable
+// A helper function for WriteSampleGlobalCounters which writes two COPY_DATAs to read out a 64-bit counter for some
+// counter in some block.
+uint32* PerfExperiment::WriteCopy64BitCounter(
+    uint32     regAddrLo,
+    uint32     regAddrHi,
+    gpusize    destAddr,
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
     ) const
 {
-    regCOMPUTE_PERFCOUNT_ENABLE  computePerfCountEnable = {};
-    computePerfCountEnable.bits.PERFCOUNT_ENABLE = (enable ? 1 : 0);
+    // Copy out the 64-bit value in two parts.
+    PAL_ASSERT((regAddrLo != 0) && (regAddrHi != 0));
 
-    return pCmdStream->WriteSetOnePerfCtrReg(mmCOMPUTE_PERFCOUNT_ENABLE,
-                                             computePerfCountEnable.u32All,
-                                             pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildCopyData(pCmdStream->GetEngineType(),
+                                         engine_sel__me_copy_data__micro_engine,
+                                         dst_sel__me_copy_data__tc_l2,
+                                         destAddr,
+                                         src_sel__me_copy_data__perfcounters,
+                                         regAddrLo,
+                                         count_sel__me_copy_data__32_bits_of_data,
+                                         wr_confirm__me_copy_data__wait_for_confirmation,
+                                         pCmdSpace);
+
+    pCmdSpace += m_cmdUtil.BuildCopyData(pCmdStream->GetEngineType(),
+                                         engine_sel__me_copy_data__micro_engine,
+                                         dst_sel__me_copy_data__tc_l2,
+                                         destAddr + sizeof(uint32),
+                                         src_sel__me_copy_data__perfcounters,
+                                         regAddrHi,
+                                         count_sel__me_copy_data__32_bits_of_data,
+                                         wr_confirm__me_copy_data__wait_for_confirmation,
+                                         pCmdSpace);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
-// Counters associated with indexed GPU blocks need to write GRBM_GFX_INDEX to mask-off the SE/SH/Instance the counter
-// is sampling from. Also, thread traces are tied to a specific SE/SH and need to write this as well.
-//
-// This issues the PM4 command which resets GRBM_GFX_INDEX to broadcast to the whole chip if any of our perf counters
-// or thread traces would have modified the value of GRBM_GFX_INDEX.
-//
-// Returns the next unused DWORD in pCmdSpace.
-uint32* PerfExperiment::WriteResetGrbmGfxIndex(
-    CmdStream*  pCmdStream,
-    uint32*     pCmdSpace
+// Writes GRBM_GFX_INDEX in the given command space such that we are broadcasting to all instances on the whole chip.
+uint32* PerfExperiment::WriteGrbmGfxIndexBroadcastGlobal(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
     ) const
 {
-    PAL_ASSERT(HasIndexedCounters() || HasThreadTraces() || HasSpmTrace());
-
     regGRBM_GFX_INDEX grbmGfxIndex = {};
     grbmGfxIndex.bits.SE_BROADCAST_WRITES       = 1;
     grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
     grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
-    return pCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
-                                             grbmGfxIndex.u32All,
-                                             pCmdSpace);
+    return pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX, grbmGfxIndex.u32All, pCmdSpace);
 }
 
 // =====================================================================================================================
-// Helper method which writes commands to do a wait-idle-clean. Returns the next unused DWORD in pCmdSpace.
-uint32* PerfExperiment::WriteWaitIdleClean(
-    CmdStream*    pCmdStream,
-    bool          cacheFlush,       ///< Indicates if we should also flush caches
-    EngineType    engineType,
-    uint32*       pCmdSpace
-    ) const
-{
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
-
-    // NOTE: On gfx9+, we achieve a wait-idle-clean by issuing a CS_PARTIAL_FLUSH followed by an ACQUIRE_MEM with all
-    //       base/action bits enabled to ensure outstanding reads and writes are complete.
-    AcquireMemInfo acquireInfo = {};
-    acquireInfo.engineType  = engineType;
-    acquireInfo.tcCacheOp   = TcCacheOp::Nop;
-    acquireInfo.baseAddress = FullSyncBaseAddr;
-    acquireInfo.sizeBytes   = FullSyncSize;
-
-    if ((engineType != EngineTypeCompute) && (engineType != EngineTypeExclusiveCompute))
-    {
-        acquireInfo.cpMeCoherCntl.u32All = CpMeCoherCntlStallMask;
-    }
-
-    if (cacheFlush)
-    {
-        acquireInfo.flags.invSqI$   = 1;
-        acquireInfo.flags.invSqK$   = 1;
-        acquireInfo.flags.flushSqK$ = 1;
-        acquireInfo.tcCacheOp       = TcCacheOp::WbInvL1L2;
-        if ((engineType != EngineTypeCompute) && (engineType != EngineTypeExclusiveCompute))
-        {
-            acquireInfo.flags.wbInvCbData = 1;
-            acquireInfo.flags.wbInvDb     = 1;
-        }
-    }
-
-    pCmdSpace += cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pCmdSpace);
-
-    pCmdSpace += cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
-
-    // NOTE: ACQUIRE_MEM has an implicit context roll if the current context is busy. Since we won't be aware of a busy
-    //       context, we must assume all ACQUIRE_MEM's come with a context roll.
-    pCmdStream->SetContextRollDetected<false>();
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Writes initialization commands for UMC channel perf counters.
-uint32* PerfExperiment::WriteSetupUmcchCntlRegs(
+// Writes GRBM_GFX_INDEX in the given command space such that we are broadcasting to all instances in a given SE.
+uint32* PerfExperiment::WriteGrbmGfxIndexBroadcastSe(
+    uint32     seIndex,
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const
 {
-    const auto& chipProps = m_device.Parent()->ChipProperties();
-    const auto& umcPerfBlockInfo = chipProps.gfx9.perfCounterInfo.umcChannelBlocks;
+    regGRBM_GFX_INDEX grbmGfxIndex = {};
+    grbmGfxIndex.bits.SE_INDEX                  = seIndex;
+    grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
+    grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
-    // If Umcch counters have been enabled, simply enable all instances available here:
-    const uint32 numUmcChannels = chipProps.gfx9.numSdpInterfaces;
-    const auto& cmdUtil         = m_device.CmdUtil();
+    return pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX, grbmGfxIndex.u32All, pCmdSpace);
+}
 
-    regUMCCH0_PerfMonCtlClk umcCtlClkReg = { };
-    umcCtlClkReg.bits.GlblResetMsk      = 0x3f;
-    umcCtlClkReg.bits.GlblReset         = 1;
+// =====================================================================================================================
+// Writes a packet that updates the SQG event controls in SPI_CONFIG_CNTL.
+uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
+    bool       enableSqgEvents,
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    // We really only want to update the SQG fields. Set the others to their defaults and hope no one changed them.
+    // (For now we don't change this register anywhere else in the driver.)
+    regSPI_CONFIG_CNTL spiConfigCntl = {};
 
-    for (uint32 i = 0; i < numUmcChannels; i++)
+    // Use KMD's default value if we have it, otherwise fall back to the hard-coded default.
+    if (m_chipProps.gfx9.overrideDefaultSpiConfigCntl != 0)
     {
-        if (Gfx9::PerfCounter::IsDstRegCopyDataPossible(umcPerfBlockInfo.regInfo[i].ctlClkRegAddr) == false)
-        {
-            // UMC channel perf counter address offsets for channels 3+ are not compatible with the current
-            // COPY_DATA packet. Temporarily skip them. This implies that channels 3+ will not provide valid data.
-            break;
-        }
-
-        if (pCmdStream->GetEngineType() == EngineTypeCompute)
-        {
-            pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
-                                                      umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
-                                                      src_sel__mec_copy_data__immediate_data,
-                                                      umcCtlClkReg.u32All,
-                                                      count_sel__mec_copy_data__32_bits_of_data,
-                                                      wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
-                                                      pCmdSpace);
-        }
-        else
-        {
-            pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                       dst_sel__me_copy_data__perfcounters,
-                                                       umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
-                                                       src_sel__me_copy_data__immediate_data,
-                                                       umcCtlClkReg.u32All,
-                                                       count_sel__me_copy_data__32_bits_of_data,
-                                                       wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                                       pCmdSpace);
-        }
+        spiConfigCntl.u32All = m_chipProps.gfx9.overrideDefaultSpiConfigCntl;
+    }
+    else if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        spiConfigCntl.u32All = Gfx09::mmSPI_CONFIG_CNTL_DEFAULT;
     }
 
-    umcCtlClkReg.bits.GlblReset = 0;
-    umcCtlClkReg.bits.GlblMonEn = 1;
-    umcCtlClkReg.bits.CtrClkEn  = 1;
+    spiConfigCntl.bits.ENABLE_SQG_TOP_EVENTS = enableSqgEvents;
+    spiConfigCntl.bits.ENABLE_SQG_BOP_EVENTS = enableSqgEvents;
 
-    for (uint32 i = 0; i < numUmcChannels; i++)
+    if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
-        if (Gfx9::PerfCounter::IsDstRegCopyDataPossible(umcPerfBlockInfo.regInfo[i].ctlClkRegAddr) == false)
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmSPI_CONFIG_CNTL, spiConfigCntl.u32All, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Writes a packet that starts or stops windowed perf counters.
+uint32* PerfExperiment::WriteUpdateWindowedCounters(
+    bool       enable,
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    // As with thread traces, we must use an event on universal queues but set a register on compute queues.
+    if (m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
+    {
+        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(enable ? PERFCOUNTER_START : PERFCOUNTER_STOP,
+                                                        pCmdStream->GetEngineType(),
+                                                        pCmdSpace);
+    }
+    else
+    {
+        regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
+        computeEnable.bits.PERFCOUNT_ENABLE = enable;
+
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
+                                                                computeEnable.u32All,
+                                                                pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Writes the necessary packets to wait for GPU idle and optionally flush and invalidate all caches.
+uint32* PerfExperiment::WriteWaitIdle(
+    bool       flushCaches,
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    if (m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
+    {
+        // Use a CS_PARTIAL_FLUSH and ACQUIRE_MEM to wait for CS and graphics work to complete. Use the acquire mem
+        // to flush caches if requested.
+        //
+        // Note that this isn't a true wait-idle for the graphics engine. In order to wait for the very bottom of
+        // the pipeline we would have to wait for a EOP TS event. Doing that inflates the perf experiment overhead
+        // by a not-insignificant margin (~150ns or ~4K clocks on Vega10). Thus we go with this much faster waiting
+        // method which covers almost all of the same cases as the wait for EOP TS. If we run into issues with counters
+        // at the end of the graphics pipeline or counters that monitor the event pipeline we might need to change this.
+        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, pCmdStream->GetEngineType(), pCmdSpace);
+
+        AcquireMemInfo acquireInfo = {};
+        acquireInfo.engineType           = pCmdStream->GetEngineType();
+        acquireInfo.cpMeCoherCntl.u32All = CpMeCoherCntlStallMask;
+        acquireInfo.baseAddress          = FullSyncBaseAddr;
+        acquireInfo.sizeBytes            = FullSyncSize;
+        acquireInfo.tcCacheOp            = TcCacheOp::Nop;
+
+        if (flushCaches)
         {
-            // UMC channel perf counter address offsets for channels 3+ are not compatible with the current
-            // COPY_DATA packet. Temporarily skip them. This implies that channels 3+ will not provide valid data.
-            break;
+            acquireInfo.tcCacheOp         = TcCacheOp::WbInvL1L2;
+            acquireInfo.flags.invSqI$     = 1;
+            acquireInfo.flags.invSqK$     = 1;
+            acquireInfo.flags.flushSqK$   = 1;
+            acquireInfo.flags.wbInvCbData = 1;
+            acquireInfo.flags.wbInvDb     = 1;
         }
 
-        if (pCmdStream->GetEngineType() == EngineTypeCompute)
+        pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+
+        // NOTE: ACQUIRE_MEM has an implicit context roll if the current context is busy. Since we won't be aware
+        //       of a busy context, we must assume all ACQUIRE_MEM's come with a context roll.
+        pCmdStream->SetContextRollDetected<false>();
+    }
+    else
+    {
+        // Wait for all work using a CS_PARTIAL_FLUSH. Use an ACQUIRE_MEM to flush any caches.
+        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, pCmdStream->GetEngineType(), pCmdSpace);
+
+        if (flushCaches)
         {
-            pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
-                                                      umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
-                                                      src_sel__mec_copy_data__immediate_data,
-                                                      umcCtlClkReg.u32All,
-                                                      count_sel__mec_copy_data__32_bits_of_data,
-                                                      wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
-                                                      pCmdSpace);
-        }
-        else
-        {
-            pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                       dst_sel__me_copy_data__perfcounters,
-                                                       umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
-                                                       src_sel__me_copy_data__immediate_data,
-                                                       umcCtlClkReg.u32All,
-                                                       count_sel__me_copy_data__32_bits_of_data,
-                                                       wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                                       pCmdSpace);
+            AcquireMemInfo acquireInfo = {};
+            acquireInfo.engineType        = pCmdStream->GetEngineType();
+            acquireInfo.baseAddress       = FullSyncBaseAddr;
+            acquireInfo.sizeBytes         = FullSyncSize;
+            acquireInfo.tcCacheOp         = TcCacheOp::WbInvL1L2;
+            acquireInfo.flags.invSqI$     = 1;
+            acquireInfo.flags.invSqK$     = 1;
+            acquireInfo.flags.flushSqK$   = 1;
+
+            pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
         }
     }
 
     return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Returns true if we've enabled any global or SPM counters for the given generic block.
+bool PerfExperiment::HasGenericCounters(
+    GpuBlock block
+    ) const
+{
+    bool hasCounters = false;
+
+    for (uint32 idx = 0; idx < m_select.numGeneric[static_cast<uint32>(block)]; ++idx)
+    {
+        if (m_select.pGeneric[static_cast<uint32>(block)][idx].hasCounters)
+        {
+            hasCounters = true;
+            break;
+        }
+    }
+
+    return hasCounters;
 }
 
 } // gfx9

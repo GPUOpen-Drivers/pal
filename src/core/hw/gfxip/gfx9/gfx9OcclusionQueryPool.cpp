@@ -355,30 +355,27 @@ void OcclusionQueryPool::OptimizedReset(
             uint32 remainingDwords = pCmdStream->ReserveLimit() - static_cast<uint32>(pCmdSpace - pCmdSpaceBase);
 
             // Get some information about the source data.
-            const uint32* pSrcData           = m_device.OcclusionSlotResetValue();
-            const uint32  periodBytes        = static_cast<uint32>(GetGpuResultSizeInBytes(1));
-            const uint32  periodDwords       = periodBytes / sizeof(uint32);
+            const uint32* pSrcData     = m_device.OcclusionSlotResetValue();
+            const uint32  periodBytes  = static_cast<uint32>(GetGpuResultSizeInBytes(1));
+            const uint32  periodDwords = periodBytes / sizeof(uint32);
+
+            WriteDataInfo writeData = {};
+            writeData.engineType = pCmdBuffer->GetEngineType();
+            writeData.dstAddr    = gpuAddr;
+            writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+            writeData.dstSel     = dst_sel__me_write_data__memory;
 
             while (queryCount > 0)
             {
                 // We'll need to know how many DWORDs we can write without exceeding the size of the reserve buffer.
-                // If we're writing more DWORDs than will fit, we will adjust gpuAddr and queryCount and loop again.
+                // If we're writing more DWORDs than will fit, we will adjust dstAddr and queryCount and loop again.
                 const uint32 maxSlots  = (remainingDwords - CmdUtil::WriteDataSizeDwords * 2) / periodDwords;
                 const uint32 slotCount = Min(queryCount, maxSlots);
 
-                pCmdSpace += cmdUtil.BuildWriteDataPeriodic(pCmdBuffer->GetEngineType(),
-                                                            gpuAddr,
-                                                            periodDwords,
-                                                            slotCount,
-                                                            engine_sel__me_write_data__micro_engine,
-                                                            dst_sel__me_write_data__memory,
-                                                            true,
-                                                            pSrcData,
-                                                            PredDisable,
-                                                            pCmdSpace);
+                pCmdSpace += cmdUtil.BuildWriteDataPeriodic(writeData, periodDwords, slotCount, pSrcData, pCmdSpace);
 
-                gpuAddr          += slotCount * periodBytes;
-                queryCount       -= slotCount;
+                writeData.dstAddr += slotCount * periodBytes;
+                queryCount        -= slotCount;
 
                 // Get a fresh reserve buffer if we're going to loop again.
                 if (queryCount > 0)

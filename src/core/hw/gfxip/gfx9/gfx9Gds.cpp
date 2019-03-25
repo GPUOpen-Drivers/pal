@@ -190,32 +190,29 @@ void BuildUpdateGds(
 {
     PAL_ASSERT(((gdsOffset % 4) == 0) && ((dataSize % 4) == 0) && (pData != nullptr));
 
-    // We'll need to know how many DWORDs we can write in a single WRITE_DATA packet without exceeding the size
-    // of the reserve buffer.
+    // Use WRITE_DATA to update the contents of the GDS. We'll need to know how many DWORDs we can write in a single
+    // WRITE_DATA packet without exceeding the size of the reserve buffer.
     const uint32 maxDwordsPerBatch = pCmdStream->ReserveLimit() - CmdUtil::WriteDataSizeDwords;
     uint32       dataDwords        = static_cast<uint32>(dataSize / sizeof(uint32));
+
+    WriteDataInfo writeData = {};
+    writeData.engineType = forComputeEngine ? EngineTypeCompute : EngineTypeUniversal;
+    writeData.dstAddr    = gdsOffset;
+    writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+    writeData.dstSel     = dst_sel__me_write_data__gds;
 
     while (dataDwords > 0)
     {
         const uint32 batchDwords = Min(dataDwords, maxDwordsPerBatch);
         uint32*      pCmdSpace   = pCmdStream->ReserveCommands();
 
-        // Use WRITE_DATA to update the contents of the GDS.
-        pCmdSpace += pCmdUtil->BuildWriteData(forComputeEngine ? EngineTypeCompute : EngineTypeUniversal,
-                                              gdsOffset,
-                                              batchDwords,
-                                              engine_sel__me_write_data__micro_engine,
-                                              dst_sel__me_write_data__gds,
-                                              wr_confirm__me_write_data__wait_for_write_confirmation,
-                                              pData,
-                                              PredDisable,
-                                              pCmdSpace);
+        pCmdSpace += pCmdUtil->BuildWriteData(writeData, batchDwords, pData, pCmdSpace);
 
         pCmdStream->CommitCommands(pCmdSpace);
 
-        dataDwords  -= batchDwords;
-        gdsOffset   += batchDwords * sizeof(uint32);
-        pData       += batchDwords;
+        dataDwords        -= batchDwords;
+        writeData.dstAddr += batchDwords * sizeof(uint32);
+        pData             += batchDwords;
     }
 }
 

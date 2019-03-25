@@ -94,6 +94,9 @@ struct NullDepthStencilPm4Img
     PM4PFP_SET_CONTEXT_REG       hdrDbHtileDataBase;
     regDB_HTILE_DATA_BASE        dbHtileDataBase;
 
+    PM4PFP_SET_CONTEXT_REG       hdrDbRenderControl;
+    regDB_RENDER_CONTROL         dbRenderControl;
+
     // Note:  this must be last, because the size of this union is a constant, but the number of registers
     //        written to the GPU is of a variable length.  This struct is copied into the PM4 stream "as is",
     //        so any blank / unused spaces need to be at the end.
@@ -1072,16 +1075,17 @@ private:
     WorkaroundState              m_workaroundState;
     UniversalCmdBufferState      m_state; // State tracking for internal cmd buffer operations
 
-    regVGT_DMA_INDEX_TYPE        m_vgtDmaIndexType;     // Register setting for VGT_DMA_INDEX_TYPE
-    regSPI_VS_OUT_CONFIG         m_spiVsOutConfig;      // Register setting for VS_OUT_CONFIG
-    regSPI_PS_IN_CONTROL         m_spiPsInControl;      // Register setting for PS_IN_CONTROL
-    regPA_SC_SHADER_CONTROL      m_paScShaderControl;   // Register setting for PA_SC_SHADER_CONTROL
-    uint16                       m_vertexOffsetReg;     // Register where the vertex start offset is written
-    uint16                       m_drawIndexReg;        // Register where the draw index is written
-    RbPlusPm4Img                 m_rbPlusPm4Img;        // PM4 image for RB Plus register state
+    regVGT_DMA_INDEX_TYPE                    m_vgtDmaIndexType;   // Register setting for VGT_DMA_INDEX_TYPE
+    regSPI_VS_OUT_CONFIG                     m_spiVsOutConfig;    // Register setting for VS_OUT_CONFIG
+    regSPI_PS_IN_CONTROL                     m_spiPsInControl;    // Register setting for PS_IN_CONTROL
+    regPA_SC_SHADER_CONTROL                  m_paScShaderControl; // Register setting for PA_SC_SHADER_CONTROL
+    regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL m_paScConsRastCntl;  // Register setting for PA_SC_CONSERV_RAST_CNTL
+    uint16                                   m_vertexOffsetReg;   // Register where the vertex start offset is written
+    uint16                                   m_drawIndexReg;      // Register where the draw index is written
+    RbPlusPm4Img                             m_rbPlusPm4Img;      // PM4 image for RB Plus register state
 
-    const uint32                 m_log2NumSes;
-    const uint32                 m_log2NumRbPerSe;
+    const uint32                             m_log2NumSes;
+    const uint32                             m_log2NumRbPerSe;
 
     regPA_SC_BINNER_CNTL_0       m_paScBinnerCntl0;
     regPA_SC_BINNER_CNTL_0       m_savedPaScBinnerCntl0; // Value of PA_SC_BINNER_CNTL0 selected by settings

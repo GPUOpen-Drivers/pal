@@ -299,9 +299,11 @@ void DepthStencilView::UpdateImageVa(
     Pm4ImgType* pPm4Img
     ) const
 {
+    const BoundGpuMemory& boundMem = m_pImage->Parent()->GetBoundGpuMemory();
+
     // The "GetSubresource256BAddrSwizzled" function will crash if no memory has been bound to
     // the associated image yet, so don't do anything if it's not safe
-    if (m_pImage->Parent()->GetBoundGpuMemory().IsBound())
+    if (boundMem.IsBound())
     {
 
         if (m_flags.hTile)

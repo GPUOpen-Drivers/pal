@@ -385,15 +385,11 @@ void ComputeQueueContext::RebuildCommandStream()
                                          pCmdSpace);
 
     // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-    constexpr uint32 BusyTimestamp = 1;
-    pCmdSpace += cmdUtil.BuildWriteData(m_timestampMem.GpuVirtAddr(),
-                                        1,
-                                        WRITE_DATA_ENGINE_PFP,
-                                        WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                        true,
-                                        &BusyTimestamp,
-                                        PredDisable,
-                                        pCmdSpace);
+    WriteDataInfo writeData = {};
+    writeData.dstAddr = m_timestampMem.GpuVirtAddr();
+    writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+    pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
 
     // Issue a surface_sync or acquire mem packet to invalidate all L1 caches (TCP, SQ I-cache, SQ K-cache).
     //
@@ -725,15 +721,12 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
                                          pCmdSpace);
 
     // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-    constexpr uint32 BusyTimestamp = 1;
-    pCmdSpace += cmdUtil.BuildWriteData(m_timestampMem.GpuVirtAddr(),
-                                        1,
-                                        WRITE_DATA_ENGINE_PFP,
-                                        WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                        true,
-                                        &BusyTimestamp,
-                                        PredDisable,
-                                        pCmdSpace);
+    WriteDataInfo writeData = {};
+    writeData.dstAddr   = m_timestampMem.GpuVirtAddr();
+    writeData.engineSel = WRITE_DATA_ENGINE_PFP;
+    writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+    pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
 
     // Issue a surface_sync or acquire mem packet to invalidate all L1 caches (TCP, SQ I-cache, SQ K-cache).
     //

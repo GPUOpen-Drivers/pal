@@ -101,15 +101,9 @@ Result QueueSemaphore::OpenExternal(
     m_flags.shared         = 1;
     m_flags.externalOpened = 1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 398
     Result result = static_cast<Linux::Device*>(m_pDevice)->ImportSemaphore(openInfo.externalSemaphore,
                                                                             &m_hSemaphore,
                                                                             openInfo.flags.isReference);
-#else
-    Result result = static_cast<Linux::Device*>(m_pDevice)->ImportSemaphore(openInfo.externalSemaphore,
-                                                                            &m_hSemaphore,
-                                                                            true);
-#endif
 
     return result;
 }

@@ -140,9 +140,6 @@ public:
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;
     bool ShowDevDriverOverlay() const;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
-    PipelineDumpService* GetPipelineDumpService() { return m_pPipelineDumpService; }
-#endif
     bool Force32BitVaSpace() const { return m_flags.force32BitVaSpace; }
 
     bool SvmModeEnabled()                const { return m_flags.enableSvmMode; }
@@ -247,11 +244,6 @@ private:
     // Locally cached pointers to protocol servers.
     DevDriver::RGPProtocol::RGPServer*         m_pRgpServer;
     DevDriver::LoggingProtocol::LoggingServer* m_pLoggingServer;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
-    // Pipeline dump service exposed via the developer driver.
-    PipelineDumpService* m_pPipelineDumpService;
-#endif
 
     Developer::Callback    m_pfnDeveloperCb;
     void*                  m_pClientPrivateData;

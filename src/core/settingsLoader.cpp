@@ -171,16 +171,6 @@ void SettingsLoader::ValidateSettings()
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
-    const auto pPalSettings = m_pDevice->GetPublicSettings();
-    if (pPalSettings->userDataSpillTableRingSize != 0)
-    {
-        // The number of instances of the user-data spill table in each universal command buffer's ring must be
-        // either zero, or a multiple of four.
-        pPalSettings->userDataSpillTableRingSize = RoundUpToMultiple(pPalSettings->userDataSpillTableRingSize, 4u);
-    }
-#endif
-
     // If developer driver profiling is enabled, we should always request the debug vm id and disable mid command
     // buffer preemption support.
     if (m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled())

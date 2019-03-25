@@ -186,12 +186,8 @@ Result MsaaState::Init(
     m_pm4Image.paScModeCntl0.u32All = 0;
     m_pm4Image.paScModeCntl0.bits.VPORT_SCISSOR_ENABLE   = 1;
     m_pm4Image.paScModeCntl0.bits.ALTERNATE_RBS_PER_TILE = 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 417
     m_pm4Image.paScModeCntl0.bits.MSAA_ENABLE            = (((NumSamples() > 1) ||
                                                              (msaaState.flags.enable1xMsaaSampleLocations)) ? 1 : 0);
-#else
-    m_pm4Image.paScModeCntl0.bits.MSAA_ENABLE            = ((NumSamples() > 1) ? 1 : 0);
-#endif
 
     // Setup the PA_SC_AA_CONFIG and DB_EQAA registers.
     m_pm4Image.dbEqaa.bits.STATIC_ANCHOR_ASSOCIATIONS = 1;
@@ -199,11 +195,7 @@ Result MsaaState::Init(
     m_pm4Image.dbEqaa.bits.INCOHERENT_EQAA_READS      = 1;
     m_pm4Image.dbEqaa.bits.INTERPOLATE_COMP_Z         = 1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 417
     if ((msaaState.coverageSamples > 1) || (msaaState.flags.enable1xMsaaSampleLocations))
-#else
-    if (msaaState.coverageSamples > 1)
-#endif
     {
         const uint32 log2ShaderExportSamples   = Log2(msaaState.shaderExportMaskSamples);
 
@@ -258,18 +250,15 @@ Result MsaaState::Init(
         m_pm4Image.dbEqaa.bits.ENABLE_POSTZ_OVERRASTERIZATION = 0;
         m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT       = 4;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 425
         switch (msaaState.conservativeRasterizationMode)
         {
         case ConservativeRasterizationMode::Overestimate:
-#endif
             m_paScConsRastCntl.bits.OVER_RAST_ENABLE              = 1;
             m_paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT       = 0;
             m_paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
             m_paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT      = 1;
             m_paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 1;
             m_paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE       = (settings.disableCoverageAaMask ? 0 : 1);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 425
             break;
 
         case ConservativeRasterizationMode::Underestimate:
@@ -285,7 +274,6 @@ Result MsaaState::Init(
             PAL_ASSERT_ALWAYS();
             break;
         }
-#endif
     }
     else
     {
@@ -322,37 +310,19 @@ void MsaaState::BuildSamplePosPm4Image(
     const CmdUtil&               cmdUtil,
     MsaaSamplePositionsPm4Img*   pSamplePosPm4Image,
     uint32                       numSamples,
-    const MsaaQuadSamplePattern& quadSamplePattern,
-    size_t*                      pCentroidPrioritiesHdrSize,
-    size_t*                      pQuadSamplePatternHdrSize)
+    const MsaaQuadSamplePattern& quadSamplePattern)
 {
     // Setup the Centroid Priority registers
-    size_t hdrSize = 0;
-
-    hdrSize = cmdUtil.BuildSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,
-                                             mmPA_SC_CENTROID_PRIORITY_1,
-                                             &pSamplePosPm4Image->hdrPaScCentroidPrio);
-
-    pSamplePosPm4Image->spaceNeeded = hdrSize;
-
-    if (pCentroidPrioritiesHdrSize != nullptr)
-    {
-        *pCentroidPrioritiesHdrSize = hdrSize;
-    }
+    cmdUtil.BuildSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,
+                                   mmPA_SC_CENTROID_PRIORITY_1,
+                                   &pSamplePosPm4Image->hdrPaScCentroidPrio);
 
     SetCentroidPriorities(&pSamplePosPm4Image->paScCentroid, &quadSamplePattern.topLeft[0], numSamples);
 
     // Setup the sample locations registers
-    hdrSize = cmdUtil.BuildSetSeqContextRegs(mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0,
-                                             mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3,
-                                             &pSamplePosPm4Image->hdrPaScSampleQuad);
-
-    pSamplePosPm4Image->spaceNeeded += hdrSize;
-
-    if (pQuadSamplePatternHdrSize != nullptr)
-    {
-        *pQuadSamplePatternHdrSize = hdrSize;
-    }
+    cmdUtil.BuildSetSeqContextRegs(mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0,
+                                   mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3,
+                                   &pSamplePosPm4Image->hdrPaScSampleQuad);
 
     SetQuadSamplePattern(&pSamplePosPm4Image->paScSampleQuad, quadSamplePattern, numSamples);
 }

@@ -70,21 +70,6 @@ class Event
 public:
     Event();
     ~Event();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
-    /// Initializes the event object.  Clients must call this before using the Event object.
-    ///
-    /// @param manualReset          If true, the event is created as manual reset.
-    /// @param initiallySignaled    If true, the event is created in signaled state.
-    /// @param canBeInherited       If true, the event can be inherited by child process, it's Windows-specific.
-    /// @param pName                Specified the event's name, it's Windows-specific, Windows uses this name to
-    ///                             uniquely identify fence objects across processes.
-    /// @returns Success if the event was successfully initialized, otherwise an appropriate error code.
-    Result Init(
-        bool manualReset        = true,
-        bool initiallySignaled  = false
-        );
-#endif
-
     /// Initializes the event object.  Clients must call this before using the Event object.
     ///
     /// @param flags                Event creation flags.
@@ -137,28 +122,4 @@ private:
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Event);
 };
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 412
-/// Waits for one or more events to enter the _set_ state before returning control to the caller.
-///
-/// @param [in] pAllocator If this function needs to allocate memory, it uses the specified allocator.
-/// @param [in] ppEvents   Array of one or more Event objects to wait on.
-/// @param [in] eventCount Number of events to wait on (size of the ppEvents array).
-/// @param [in] waitAll    True if this function should block until _all_ specified events have been signaled.  False
-///                        if this function should unblock when _any_ event in the list is signaled.
-/// @param [in] timeout    Max time to wait, in seconds.  Must be >= 0.
-///
-/// @returns Success if the wait completed successfully or Timeout if the wait did not complete but the operation timed
-///          out.  Otherwise, one of the following errors may be returned:
-///          + ErrorUnknown may be returned if an unexpected internal occurs when calling the OS.
-///          + ErrorOutOfMemory may be returned if an internal memory allocation failed.
-template <typename Allocator>
-extern Result WaitForEvents(
-    Allocator*         pAllocator,
-    const Event*const* ppEvents,
-    uint32             eventCount,
-    bool               waitAll,
-    float              timeout);
-#endif
-
 } // Util

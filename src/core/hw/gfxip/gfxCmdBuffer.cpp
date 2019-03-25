@@ -873,7 +873,7 @@ void GfxCmdBuffer::SetComputeState(
             bindParams.pipelineBindPoint  = PipelineBindPoint::Compute;
             bindParams.pPipeline          = newComputeState.pipelineState.pPipeline;
             bindParams.cs                 = newComputeState.dynamicCsInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 476
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             bindParams.apiPsoHash         = newComputeState.pipelineState.apiPsoHash;
 #endif
 

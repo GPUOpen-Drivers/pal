@@ -568,5 +568,8 @@ enum class TexPerfModulation : uint32
 // Dword offset of mmXDMA_SLV_FLIP_PENDING.
 constexpr uint32  mmXdmaSlvFlipPending = 0x348C;
 
+constexpr uint32  WavefrontSize32 = 32;
+constexpr uint32  WavefrontSize64 = 64;
+
 } // Gfx9
 } // Pal

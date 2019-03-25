@@ -635,13 +635,14 @@ void RsrcProcMgr::CmdResolveQuery(
                 {
                     if (doAccumulate == false)
                     {
-                        pCmdSpace += m_cmdUtil.BuildWriteData(resolveDstAddr,
+                        WriteDataInfo writeData = {};
+                        writeData.dstAddr   = resolveDstAddr;
+                        writeData.engineSel = WRITE_DATA_ENGINE_PFP;
+                        writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+                        pCmdSpace += m_cmdUtil.BuildWriteData(writeData,
                                                               writeDataSize,
-                                                              WRITE_DATA_ENGINE_PFP,
-                                                              WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                              true,
                                                               reinterpret_cast<const uint32*>(&zero),
-                                                              PredDisable,
                                                               pCmdSpace);
                     }
 
@@ -1161,8 +1162,8 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
             transition[regionId].imageInfo.newLayout.usages   = dstImageLayout.usages;
             transition[regionId].imageInfo.newLayout.engines  = dstImageLayout.engines;
             transition[regionId].imageInfo.subresRange        = range;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
-            if (dstImage.Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
+
+			if (dstImage.Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
             {
                 PAL_ASSERT(pRegions[i].pQuadSamplePattern != nullptr);
             }
@@ -1171,9 +1172,6 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
                 PAL_ASSERT(pRegions[i].pQuadSamplePattern == nullptr);
             }
             transition[regionId].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
-#else
-            transition[regionId].imageInfo.pQuadSamplePattern = nullptr;
-#endif
             transition[regionId].srcCacheMask                 = Pal::CoherResolve;
             transition[regionId].dstCacheMask                 = Pal::CoherResolve;
 
@@ -3066,14 +3064,14 @@ void RsrcProcMgr::DccDecompressOnCompute(
         } // end loop through all the slices
 
         // We have to mark this mip level as actually being DCC decompressed
+        WriteDataInfo writeData = {};
+        writeData.dstAddr = image.GetDccStateMetaDataAddr(mipLevel);
+        writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
         pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildWriteData(image.GetDccStateMetaDataAddr(mipLevel),
+        pComputeCmdSpace += m_cmdUtil.BuildWriteData(writeData,
                                                      NumBytesToNumDwords(sizeof(MipDccStateMetaData)),
-                                                     0,     // engine select, ignored for compute
-                                                     WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                     1,     // write confirm
                                                      reinterpret_cast<const uint32*>(&zero),
-                                                     PredDisable,
                                                      pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
     }

@@ -184,33 +184,28 @@ void BuildUpdateGds(
 {
     PAL_ASSERT(((gdsOffset % 4) == 0) && ((dataSize % 4) == 0) && (pData != nullptr));
 
-    // We'll need to know how many DWORDs we can write in a single WRITE_DATA packet without exceeding the size
-    // of the reserve buffer.
+    // Use WRITE_DATA to update the contents of the GDS. We'll need to know how many DWORDs we can write in a single
+    // WRITE_DATA packet without exceeding the size of the reserve buffer.
     const uint32 maxDwordsPerBatch = pCmdStream->ReserveLimit() - CmdUtil::GetWriteDataHeaderSize();
 
     uint32 dataDwords = static_cast<uint32>(dataSize / sizeof(uint32));
+
+    WriteDataInfo writeData = {};
+    writeData.dstAddr   = gdsOffset;
+    writeData.engineSel = WRITE_DATA_ENGINE_ME;
+    writeData.dstSel    = WRITE_DATA_DST_SEL_GDS;
 
     while (dataDwords > 0)
     {
         const uint32 batchDwords = Min(dataDwords, maxDwordsPerBatch);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-
-        // Use WRITE_DATA to update the contents of the GDS.
-        pCmdSpace += pCmdUtil->BuildWriteData(gdsOffset,
-                                              batchDwords,
-                                              WRITE_DATA_ENGINE_ME,
-                                              WRITE_DATA_DST_SEL_GDS,
-                                              true,
-                                              pData,
-                                              PredDisable,
-                                              pCmdSpace);
-
+        pCmdSpace += pCmdUtil->BuildWriteData(writeData, batchDwords, pData, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
 
-        dataDwords  -= batchDwords;
-        gdsOffset   += batchDwords * sizeof(uint32);
-        pData       += batchDwords;
+        dataDwords        -= batchDwords;
+        writeData.dstAddr += batchDwords * sizeof(uint32);
+        pData             += batchDwords;
     }
 }
 

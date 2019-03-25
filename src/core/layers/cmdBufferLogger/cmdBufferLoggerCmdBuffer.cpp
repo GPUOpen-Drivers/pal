@@ -1121,6 +1121,17 @@ void CmdBuffer::CmdBindPipeline(
     }
 
     GetNextLayer()->CmdBindPipeline(NextPipelineBindParams(params));
+
+    if (m_singleStep.waitIdlePipelineBinds)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampPipelineBinds)
+    {
+        AddTimestamp();
+    }
+
 }
 
 // =====================================================================================================================
@@ -1999,7 +2010,7 @@ void CmdBuffer::CmdBarrier(
 
     GetNextLayer()->CmdBarrier(nextBarrierInfo);
 
-    if (m_singleStep.waitIdleDispatches)
+    if (m_singleStep.waitIdleBarriers)
     {
         AddSingleStepBarrier();
     }
@@ -3127,12 +3138,10 @@ static void DumpImageResolveRegion(
         Snprintf(pString + currentLength, StringLength - currentLength, " }");
         pNextCmdBuffer->CmdCommentString(pString);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
         if (region.pQuadSamplePattern != nullptr)
         {
             DumpMsaaQuadSamplePattern(pCmdBuffer, *region.pQuadSamplePattern, "pQuadSamplePattern", "\t\t");
         }
-#endif
 
         Snprintf(pString, StringLength, "]");
         pNextCmdBuffer->CmdCommentString(pString);

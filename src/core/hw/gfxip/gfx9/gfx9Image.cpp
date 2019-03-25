@@ -970,12 +970,7 @@ void Image::InitLayoutStateMasks()
             }
             else
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
                 bool sampleLocsAlwaysKnown = m_createInfo.flags.sampleLocsAlwaysKnown;
-
-#else
-                bool sampleLocsAlwaysKnown = true;
-#endif
 
                 // Postpone decompresses for HTILE from Barrier-time to Resolve-time if sample location is always known.
                 if (sampleLocsAlwaysKnown)
@@ -1845,20 +1840,17 @@ uint32* Image::UpdateColorClearMetaData(
     // Number of DWORD registers which represent the fast-clear color for a bound color target:
     constexpr size_t MetaDataDwords = sizeof(Gfx9FastColorClearMetaData) / sizeof(uint32);
 
-    const gpusize gpuVirtAddr = FastClearMetaDataAddr(startMip);
-    PAL_ASSERT(gpuVirtAddr != 0);
-
     // Issue a WRITE_DATA command to update the fast-clear metadata.
-    return pCmdSpace + CmdUtil::BuildWriteDataPeriodic(EngineTypeUniversal,
-                                                       gpuVirtAddr,
-                                                       MetaDataDwords,
-                                                       numMips,
-                                                       engine_sel__pfp_write_data__prefetch_parser,
-                                                       dst_sel__pfp_write_data__memory,
-                                                       wr_confirm__pfp_write_data__wait_for_write_confirmation,
-                                                       packedColor,
-                                                       predicate,
-                                                       pCmdSpace);
+    WriteDataInfo writeData = {};
+    writeData.engineType = EngineTypeUniversal;
+    writeData.dstAddr    = FastClearMetaDataAddr(startMip);
+    writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+    writeData.dstSel     = dst_sel__pfp_write_data__memory;
+    writeData.predicate  = predicate;
+
+    PAL_ASSERT(writeData.dstAddr != 0);
+
+    return pCmdSpace + CmdUtil::BuildWriteDataPeriodic(writeData, MetaDataDwords, numMips, packedColor, pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -1890,6 +1882,12 @@ void Image::UpdateDccStateMetaData(
         const uint32 sliceBegin = range.startSubres.arraySlice;
         const uint32 sliceEnd   = range.startSubres.arraySlice + range.numSlices;
 
+        WriteDataInfo writeData = {};
+        writeData.engineType = engineType;
+        writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+        writeData.dstSel     = dst_sel__pfp_write_data__memory;
+        writeData.predicate  = predicate;
+
         for (uint32 mipLevelIdx = mipBegin; mipLevelIdx < mipEnd; mipLevelIdx++)
         {
             for (uint32 sliceIdx = sliceBegin; sliceIdx < sliceEnd; sliceIdx += maxSlicesPerPacket)
@@ -1897,19 +1895,14 @@ void Image::UpdateDccStateMetaData(
                 uint32 periodsToWrite = (sliceIdx + maxSlicesPerPacket <= sliceEnd) ? maxSlicesPerPacket :
                                                                                       sliceEnd - sliceIdx;
 
-                const gpusize gpuVirtAddr = GetDccStateMetaDataAddr(mipLevelIdx, sliceIdx);
-                PAL_ASSERT(gpuVirtAddr != 0);
+                writeData.dstAddr = GetDccStateMetaDataAddr(mipLevelIdx, sliceIdx);
+                PAL_ASSERT(writeData.dstAddr != 0);
 
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
-                pCmdSpace += CmdUtil::BuildWriteDataPeriodic(engineType,
-                                                             gpuVirtAddr,
+                pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData,
                                                              DwordsPerSlice,
                                                              periodsToWrite,
-                                                             engine_sel__pfp_write_data__prefetch_parser,
-                                                             dst_sel__pfp_write_data__memory,
-                                                             true,
                                                              reinterpret_cast<uint32*>(&metaData),
-                                                             predicate,
                                                              pCmdSpace);
                 pCmdStream->CommitCommands(pCmdSpace);
             }
@@ -1931,21 +1924,22 @@ uint32* Image::UpdateFastClearEliminateMetaData(
     // We need to write one DWORD per mip in the range. We can do this most efficiently with a single WRITE_DATA.
     PAL_ASSERT(range.numMips <= MaxImageMipLevels);
 
-    const gpusize gpuVirtAddr = GetFastClearEliminateMetaDataAddr(range.startSubres.mipLevel);
-    PAL_ASSERT(gpuVirtAddr != 0);
-
     MipFceStateMetaData metaData = { };
     metaData.fceRequired = value;
 
-    pCmdSpace += CmdUtil::BuildWriteDataPeriodic(pCmdBuffer->GetEngineType(),
-                                                 gpuVirtAddr,
+    WriteDataInfo writeData = {};
+    writeData.engineType = pCmdBuffer->GetEngineType();
+    writeData.dstAddr    = GetFastClearEliminateMetaDataAddr(range.startSubres.mipLevel);
+    writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+    writeData.dstSel     = dst_sel__pfp_write_data__memory;
+    writeData.predicate  = predicate;
+
+    PAL_ASSERT(writeData.dstAddr != 0);
+
+    pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData,
                                                  (sizeof(metaData) / sizeof(uint32)),
                                                  range.numMips,
-                                                 engine_sel__pfp_write_data__prefetch_parser,
-                                                 dst_sel__pfp_write_data__memory,
-                                                 true,
                                                  reinterpret_cast<uint32*>(&metaData),
-                                                 predicate,
                                                  pCmdSpace);
     return pCmdSpace;
 }
@@ -1965,22 +1959,17 @@ uint32* Image::UpdateWaTcCompatZRangeMetaData(
     // when the clear value is 0.0f, and false otherwise.
     const uint32 metaData = (depthValue == 0.0f) ? UINT_MAX : 0;
 
-    // Base GPU virtual address of the Image's waTcCompatZRange metadata.
-    const gpusize gpuVirtAddr = GetWaTcCompatZRangeMetaDataAddr(range.startSubres.mipLevel);
-
-    // Write a single DWORD starting at the GPU address of waTcCompatZRange metadata.
+    // Write a single DWORD per mip starting at the GPU address of waTcCompatZRange metadata.
     constexpr size_t dwordsToCopy = 1;
 
-    return pCmdSpace + CmdUtil::BuildWriteDataPeriodic(EngineTypeUniversal,
-                                                       gpuVirtAddr,
-                                                       dwordsToCopy,
-                                                       range.numMips,
-                                                       engine_sel__pfp_write_data__prefetch_parser,
-                                                       dst_sel__pfp_write_data__memory,
-                                                       wr_confirm__pfp_write_data__wait_for_write_confirmation,
-                                                       &metaData,
-                                                       predicate,
-                                                       pCmdSpace);
+    WriteDataInfo writeData = {};
+    writeData.engineType = EngineTypeUniversal;
+    writeData.dstAddr    = GetWaTcCompatZRangeMetaDataAddr(range.startSubres.mipLevel);
+    writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+    writeData.dstSel     = dst_sel__pfp_write_data__memory;
+    writeData.predicate  = predicate;
+
+    return pCmdSpace + CmdUtil::BuildWriteDataPeriodic(writeData, dwordsToCopy, range.numMips, &metaData, pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -2089,41 +2078,37 @@ uint32* Image::UpdateDepthClearMetaData(
     {
         // update depth-stencil meta data
         PAL_ASSERT(dwordsToCopy == 2);
-        return pCmdSpace + CmdUtil::BuildWriteDataPeriodic(EngineTypeUniversal,
-                                                           gpuVirtAddr,
-                                                           dwordsToCopy,
-                                                           range.numMips,
-                                                           engine_sel__pfp_write_data__prefetch_parser,
-                                                           dst_sel__pfp_write_data__memory,
-                                                           wr_confirm__pfp_write_data__wait_for_write_confirmation,
-                                                           pSrcData,
-                                                           predicate,
-                                                           pCmdSpace);
+
+        WriteDataInfo writeData = {};
+        writeData.engineType = EngineTypeUniversal;
+        writeData.dstAddr    = gpuVirtAddr;
+        writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+        writeData.dstSel     = dst_sel__pfp_write_data__memory;
+        writeData.predicate  = predicate;
+
+        pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData, dwordsToCopy, range.numMips, pSrcData, pCmdSpace);
     }
     else
     {
         // update depth-only or stencil-only meta data
         PAL_ASSERT(dwordsToCopy == 1);
-        size_t strideWriteData = sizeof(Gfx9FastDepthClearMetaData);
+        const size_t strideWriteData = sizeof(Gfx9FastDepthClearMetaData);
+
+        WriteDataInfo writeData = {};
+        writeData.engineType = EngineTypeUniversal;
+        writeData.dstAddr    = gpuVirtAddr;
+        writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+        writeData.dstSel     = dst_sel__pfp_write_data__memory;
+        writeData.predicate  = predicate;
 
         for (size_t levelOffset = 0; levelOffset < range.numMips; levelOffset++)
         {
-            pCmdSpace += CmdUtil::BuildWriteData(EngineTypeUniversal,
-                                                 gpuVirtAddr,
-                                                 dwordsToCopy,
-                                                 engine_sel__pfp_write_data__prefetch_parser,
-                                                 dst_sel__pfp_write_data__memory,
-                                                 wr_confirm__pfp_write_data__wait_for_write_confirmation,
-                                                 pSrcData,
-                                                 predicate,
-                                                 pCmdSpace);
-
-            gpuVirtAddr += strideWriteData;
+            pCmdSpace         += CmdUtil::BuildWriteData(writeData, dwordsToCopy, pSrcData, pCmdSpace);
+            writeData.dstAddr += strideWriteData;
         }
-
-        return pCmdSpace;
     }
 
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -2900,14 +2885,14 @@ Result Image::GetDefaultGfxLayout(
 
     if (pLayout != nullptr)
     {
-        if (subresId.aspect == ImageAspect::Color)
+        if ((subresId.aspect == ImageAspect::Depth) || (subresId.aspect == ImageAspect::Stencil))
         {
-            *pLayout = m_defaultGfxLayout.color;
+            *pLayout = m_defaultGfxLayout.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
         }
         else
         {
-            PAL_ASSERT((subresId.aspect == ImageAspect::Depth) || (subresId.aspect == ImageAspect::Stencil));
-            *pLayout = m_defaultGfxLayout.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
+            PAL_ASSERT(subresId.aspect != ImageAspect::Fmask);
+            *pLayout = m_defaultGfxLayout.color;
         }
 
         result = Result::Success;

@@ -60,6 +60,7 @@ private:
         CmdBuffer*               pCmdBuffer) const;
 
     Device*const   m_pDevice;
+    bool           m_timestampingActive;
     ICmdAllocator* m_pCmdAllocator;
     CmdBuffer*     m_pCmdBuffer;
     IGpuMemory*    m_pTimestamp;

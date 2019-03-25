@@ -115,7 +115,7 @@ static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
     {0, 4}, // SQTT_FILE_CHUNK_TYPE_ASIC_INFO,
     {0, 2}, // SQTT_FILE_CHUNK_TYPE_SQTT_DESC,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_SQTT_DATA,
-    {0, 0}, // SQTT_FILE_CHUNK_TYPE_API_INFO,
+    {0, 1}, // SQTT_FILE_CHUNK_TYPE_API_INFO,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_ISA_DATABASE,
     {1, 1}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,
@@ -353,9 +353,10 @@ typedef struct SqttFileChunkApiInfo
     uint16_t                    versionMajor;               /*!< The major API version. */
     uint16_t                    versionMinor;               /*!< The minor API version. */
     SqttProfilingMode           profilingMode;              /*!< The profiling mode used to capture this trace. */
+    uint32_t                    reserved;                   /*!< Reserved for 64-bit alignment. */
     SqttProfilingModeData       profilingModeData;          /*!< The input arguments provided for the profilingMode. */
     SqttInstructionTraceMode    instructionTraceMode;       /*!< The mode used for instruction tracing. */
-    uint32_t                    reserved;                   /*!< Reserved for 64-bit alignment. */
+    uint32_t                    reserved2;                  /*!< Reserved for 64-bit alignment. */
     SqttInstructionTraceData    instructionTraceData;       /*!< Input arguments related to instructionTraceMode. */
 } SqttFileChunkApiInfo;
 

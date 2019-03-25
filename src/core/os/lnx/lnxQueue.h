@@ -158,6 +158,7 @@ protected:
 
     const Device&          m_device;
     amdgpu_bo_handle*const m_pResourceList;
+    uint8*const            m_pResourcePriorityList;
     const size_t           m_resourceListSize;
     size_t                 m_numResourcesInList;
     size_t                 m_memListResourcesInList; // The number of resources added from global memory list

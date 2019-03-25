@@ -596,7 +596,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
     const uint32 addr2PreferredSwizzleTypeSet = m_pDevice->Settings().addr2PreferredSwizzleTypeSet;
 
-#if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446))
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446)
     // Enable gfx9 to handle 2d sampling on 3d despite its hardware always interpreting as 3d
     // The tile size doesn't matter, though, so we still let AddrLib handle this case.
     // D-mode isn't supported in all cases (PRT, depth-major mipmaps), so watch for overrides.
@@ -704,7 +704,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
             PAL_ASSERT(IsZSwizzle(pOut->swizzleMode));
         }
 
-#if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446))
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446)
         // view3dAs2dArray can only use D-swizzle for gfx9, so fail if the hint was overriden. See full details above.
         if (createInfo.flags.view3dAs2dArray != 0)
         {

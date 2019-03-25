@@ -300,14 +300,6 @@ CmdUtil::CmdUtil(
 
     memset(&m_registerInfo, 0, sizeof(m_registerInfo));
 
-    m_registerInfo.mmCpPerfmonCntl          = mmCP_PERFMON_CNTL;
-    m_registerInfo.mmCpStrmoutCntl          = mmCP_STRMOUT_CNTL;
-    m_registerInfo.mmGrbmGfxIndex           = mmGRBM_GFX_INDEX;
-    m_registerInfo.mmRlcPerfmonCntl         = mmRLC_PERFMON_CNTL;
-    m_registerInfo.mmSqPerfCounterCtrl      = mmSQ_PERFCOUNTER_CTRL;
-    m_registerInfo.mmSqThreadTraceUserData2 = mmSQ_THREAD_TRACE_USERDATA_2;
-    m_registerInfo.mmSqThreadTraceUserData3 = mmSQ_THREAD_TRACE_USERDATA_3;
-
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
         if (IsVega10(parent) || IsRaven(parent))
@@ -331,19 +323,25 @@ CmdUtil::CmdUtil(
             }
         }
 
-        m_registerInfo.mmAtcPerfResultCntl    = Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmAtcL2PerfResultCntl  = Gfx09::mmATC_L2_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmMcVmL2PerfResultCntl = Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmRlcPerfmonClkCntl      = Gfx09::mmRLC_PERFMON_CLK_CNTL;
+        m_registerInfo.mmRlcSpmGlobalMuxselAddr = Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmGlobalMuxselData = Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
+        m_registerInfo.mmRlcSpmSeMuxselAddr     = Gfx09::mmRLC_SPM_SE_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmSeMuxselData     = Gfx09::mmRLC_SPM_SE_MUXSEL_DATA;
+        m_registerInfo.mmAtcPerfResultCntl      = Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmAtcL2PerfResultCntl    = Gfx09::mmATC_L2_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmMcVmL2PerfResultCntl   = Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
+
         {
             m_registerInfo.mmRpbPerfResultCntl = Vega::mmRPB_PERFCOUNTER_RSLT_CNTL;
         }
+
         m_registerInfo.mmSpiShaderPgmLoLs           = Gfx09::mmSPI_SHADER_PGM_LO_LS;
         m_registerInfo.mmSpiShaderPgmLoEs           = Gfx09::mmSPI_SHADER_PGM_LO_ES;
         m_registerInfo.mmVgtGsMaxPrimsPerSubGroup   = Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP;
         m_registerInfo.mmDbDfsmControl              = Gfx09::mmDB_DFSM_CONTROL;
         m_registerInfo.mmUserDataStartHsShaderStage = Gfx09::mmSPI_SHADER_USER_DATA_LS_0;
         m_registerInfo.mmUserDataStartGsShaderStage = Gfx09::mmSPI_SHADER_USER_DATA_ES_0;
-        m_registerInfo.mmSpiConfigCntl              = Gfx09::mmSPI_CONFIG_CNTL;
     }
 }
 
@@ -709,15 +707,8 @@ size_t CmdUtil::BuildCopyDataGraphics(
     ME_COPY_DATA_wr_confirm_enum  wrConfirm,
     void*                         pBuffer)
 {
-    return BuildCopyDataInternal(EngineTypeUniversal,
-                                 engineSel,
-                                 dstSel,
-                                 dstAddr,
-                                 srcSel,
-                                 srcAddr,
-                                 countSel,
-                                 wrConfirm,
-                                 pBuffer);
+    return BuildCopyData(
+        EngineTypeUniversal, engineSel, dstSel, dstAddr, srcSel, srcAddr, countSel, wrConfirm, pBuffer);
 }
 
 // =====================================================================================================================
@@ -730,11 +721,11 @@ size_t CmdUtil::BuildCopyDataCompute(
     MEC_COPY_DATA_wr_confirm_enum  wrConfirm,
     void*                          pBuffer)
 {
-    return BuildCopyDataInternal(EngineTypeCompute, 0, dstSel, dstAddr, srcSel, srcAddr, countSel, wrConfirm, pBuffer);
+    return BuildCopyData(EngineTypeCompute, 0, dstSel, dstAddr, srcSel, srcAddr, countSel, wrConfirm, pBuffer);
 }
 // =====================================================================================================================
 // Builds a COPY_DATA packet for the compute/ graphics engine. Returns the size, in DWORDs, of the assembled PM4 command
-size_t CmdUtil::BuildCopyDataInternal(
+size_t CmdUtil::BuildCopyData(
     EngineType engineType,
     uint32     engineSel, // Ignored on async compute
     uint32     dstSel,
@@ -2373,7 +2364,7 @@ size_t CmdUtil::BuildReleaseMemInternal(
     pPacket->bitfields2.event_type = releaseMemInfo.vgtEvent;
     pPacket->ordinal3              = 0;
     pPacket->bitfields3.data_sel   = static_cast<MEC_RELEASE_MEM_data_sel_enum>(releaseMemInfo.dataSel);
-    pPacket->bitfields3.dst_sel    = dst_sel__mec_release_mem__memory_controller;
+    pPacket->bitfields3.dst_sel    = dst_sel__mec_release_mem__tc_l2;
     pPacket->ordinal4              = LowPart(releaseMemInfo.dstAddr);
     pPacket->address_hi            = HighPart(releaseMemInfo.dstAddr);  // ordinal5
     pPacket->data_lo               = LowPart(releaseMemInfo.data);      // ordinal6, overwritten below for gds
@@ -3054,15 +3045,13 @@ size_t CmdUtil::BuildWaitOnReleaseMemEvent(
     PAL_ASSERT((vgtEvent == PS_DONE) || (vgtEvent == CS_DONE) || VgtEventHasTs[vgtEvent]);
 
     // Write a known value to the timestamp.
-    size_t totalSize = BuildWriteData(engineType,
-                                      gpuAddr,
-                                      1,
-                                      engine_sel__me_write_data__micro_engine,
-                                      dst_sel__me_write_data__memory,
-                                      true,
-                                      &ClearedTimestamp,
-                                      PredDisable,
-                                      pBuffer);
+    WriteDataInfo writeData = {};
+    writeData.engineType = engineType;
+    writeData.dstAddr    = gpuAddr;
+    writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+    writeData.dstSel     = dst_sel__me_write_data__tc_l2;
+
+    size_t totalSize = BuildWriteData(writeData, ClearedTimestamp, pBuffer);
 
     // Issue the specified timestamp event.
     ReleaseMemInfo releaseInfo = {};
@@ -3246,26 +3235,30 @@ size_t CmdUtil::BuildWriteConstRam(
 }
 
 // =====================================================================================================================
+// Builds a PM4 packet that writes a single data DWORD into the GPU memory address "dstAddr"
+size_t CmdUtil::BuildWriteData(
+    const WriteDataInfo& info,
+    uint32               data,
+    void*                pBuffer) // [out] Build the PM4 packet in this buffer.
+{
+    // Fill out a packet that writes a single DWORD, get a pointer to the embedded data payload, and fill it out.
+    const size_t packetSize   = BuildWriteDataInternal(info, 1, pBuffer);
+    uint32*const pDataPayload = static_cast<uint32*>(pBuffer) + packetSize - 1;
+
+    *pDataPayload = data;
+
+    return packetSize;
+}
+
+// =====================================================================================================================
 // Builds a PM4 packet that writes the data in "pData" into the GPU memory address "dstAddr"
 size_t CmdUtil::BuildWriteData(
-    EngineType     engineType,    // Which engine will this packet be executed on?
-    gpusize        dstAddr,
-    size_t         dwordsToWrite,
-    uint32         engineSel,     // one of the XXX_WRITE_DATA_engine_sel_enum enumerations
-    uint32         dstSel,        // one of the XXX_WRITE_DATA_dst_sel_enum enumerations
-    uint32         wrConfirm,     // one of the XXX_WRITE_DATA_wr_confirm_enum enumerations
-    const uint32*  pData,
-    Pm4Predicate   predicate,
-    void*          pBuffer)       // [out] Build the PM4 packet in this buffer.
+    const WriteDataInfo& info,
+    size_t               dwordsToWrite,
+    const uint32*        pData,
+    void*                pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
-    const size_t packetSizeWithWrittenDwords = BuildWriteDataInternal(engineType,
-                                                                      dstAddr,
-                                                                      dwordsToWrite,
-                                                                      engineSel,
-                                                                      dstSel,
-                                                                      wrConfirm,
-                                                                      predicate,
-                                                                      pBuffer);
+    const size_t packetSizeWithWrittenDwords = BuildWriteDataInternal(info, dwordsToWrite, pBuffer);
 
     // If this is null, the caller is just interested in the final packet size
     if (pData != nullptr)
@@ -3281,14 +3274,9 @@ size_t CmdUtil::BuildWriteData(
 // Builds a WRITE-DATA packet for either the MEC or ME engine.  Writes the data in "pData" into the GPU memory
 // address "dstAddr".
 size_t CmdUtil::BuildWriteDataInternal(
-    EngineType     engineType,    // Which engine will this packet be executed on?
-    gpusize        dstAddr,
-    size_t         dwordsToWrite,
-    uint32         engineSel,     // one of the XXX_WRITE_DATA_engine_sel_enum enumerations
-    uint32         dstSel,        // one of the XXX_WRITE_DATA_dst_sel_enum enumerations
-    uint32         wrConfirm,     // one of the XXX_WRITE_DATA_wr_confirm_enum enumerations
-    Pm4Predicate   predicate,
-    void*          pBuffer)       // [out] Build the PM4 packet in this buffer.
+    const WriteDataInfo& info,
+    size_t               dwordsToWrite,
+    void*                pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     static_assert(sizeof(PM4MEC_WRITE_DATA) == sizeof(PM4ME_WRITE_DATA),
         "write_data packet has different sizes between compute and gfx!");
@@ -3308,22 +3296,32 @@ size_t CmdUtil::BuildWriteDataInternal(
          (static_cast<uint32>(wr_confirm__mec_write_data__wait_for_write_confirmation)        ==
           static_cast<uint32>(wr_confirm__me_write_data__wait_for_write_confirmation))),
          "WR_CONFIRM enumerations don't match between MEC and ME!");
+    static_assert(
+        ((static_cast<uint32>(addr_incr__me_write_data__do_not_increment_address) ==
+          static_cast<uint32>(addr_incr__mec_write_data__do_not_increment_address)) &&
+         (static_cast<uint32>(addr_incr__me_write_data__increment_address)        ==
+          static_cast<uint32>(addr_incr__mec_write_data__increment_address))),
+         "ADDR_INCR enumerations don't match between MEC and ME!");
 
     // We build the packet with the ME definition, but the MEC definition is identical, so it should work...
     const uint32 packetSize = static_cast<uint32>((sizeof(PM4ME_WRITE_DATA) / sizeof(uint32)) + dwordsToWrite);
     auto*const   pPacket    = static_cast<PM4ME_WRITE_DATA*>(pBuffer);
 
-    pPacket->header.u32All           = Type3Header(IT_WRITE_DATA, packetSize, false, ShaderGraphics, predicate);
+    pPacket->header.u32All           = Type3Header(IT_WRITE_DATA, packetSize, false, ShaderGraphics, info.predicate);
     pPacket->ordinal2                = 0;
-    pPacket->bitfields2.addr_incr    = addr_incr__me_write_data__increment_address;
+    pPacket->bitfields2.addr_incr    = info.dontIncrementAddr
+                                            ? addr_incr__me_write_data__do_not_increment_address
+                                            : addr_incr__me_write_data__increment_address;
     pPacket->bitfields2.cache_policy = cache_policy__me_write_data__lru;
-    pPacket->bitfields2.dst_sel      = static_cast<ME_WRITE_DATA_dst_sel_enum>(dstSel);
-    pPacket->bitfields2.wr_confirm   = static_cast<ME_WRITE_DATA_wr_confirm_enum>(wrConfirm);
-    pPacket->bitfields2.engine_sel   = static_cast<ME_WRITE_DATA_engine_sel_enum>(engineSel);
-    pPacket->ordinal3                = LowPart(dstAddr);
-    pPacket->dst_mem_addr_hi         = HighPart(dstAddr);
+    pPacket->bitfields2.dst_sel      = static_cast<ME_WRITE_DATA_dst_sel_enum>(info.dstSel);
+    pPacket->bitfields2.wr_confirm   = info.dontWriteConfirm
+                                            ? wr_confirm__me_write_data__do_not_wait_for_write_confirmation
+                                            : wr_confirm__me_write_data__wait_for_write_confirmation;
+    pPacket->bitfields2.engine_sel   = static_cast<ME_WRITE_DATA_engine_sel_enum>(info.engineSel);
+    pPacket->ordinal3                = LowPart(info.dstAddr);
+    pPacket->dst_mem_addr_hi         = HighPart(info.dstAddr);
 
-    switch (dstSel)
+    switch (info.dstSel)
     {
     case dst_sel__me_write_data__mem_mapped_register:
         PAL_ASSERT(pPacket->bitfields3a.reserved1 == 0);
@@ -3339,12 +3337,12 @@ size_t CmdUtil::BuildWriteDataInternal(
         break;
 
     case dst_sel__me_write_data__memory_sync_across_grbm:
-        PAL_ASSERT(Pal::Device::EngineSupportsGraphics(engineType));
+        PAL_ASSERT(Pal::Device::EngineSupportsGraphics(info.engineType));
         PAL_NOT_IMPLEMENTED();
         break;
 
     case dst_sel__mec_write_data__memory_mapped_adc_persistent_state:
-        PAL_ASSERT(engineType == EngineTypeCompute);
+        PAL_ASSERT(info.engineType == EngineTypeCompute);
         PAL_NOT_IMPLEMENTED();
         break;
 
@@ -3360,29 +3358,15 @@ size_t CmdUtil::BuildWriteDataInternal(
 // Builds a WRITE_DATA PM4 packet. If pPeriodData is non-null its contents (of length dwordsPerPeriod) will be copied
 // into the data payload periodsToWrite times. Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildWriteDataPeriodic(
-    EngineType    engineType,
-    gpusize       dstAddr,
-    size_t        dwordsPerPeriod,
-    size_t        periodsToWrite,
-    uint32        engineSel,
-    uint32        dstSel,
-    bool          wrConfirm,
-    const uint32* pPeriodData,
-    Pm4Predicate  predicate,
-    void*         pBuffer)         // [out] Build the PM4 packet in this buffer.
+    const WriteDataInfo& info,
+    size_t               dwordsPerPeriod,
+    size_t               periodsToWrite,
+    const uint32*        pPeriodData,
+    void*                pBuffer)         // [out] Build the PM4 packet in this buffer.
 {
-    const size_t dwordsToWrite = dwordsPerPeriod * periodsToWrite;
-
-    const size_t packetSizeWithWrittenDwords = BuildWriteDataInternal(engineType,
-                                                                      dstAddr,
-                                                                      dwordsToWrite,
-                                                                      engineSel,
-                                                                      dstSel,
-                                                                      wrConfirm,
-                                                                      predicate,
-                                                                      pBuffer);
-
-    const size_t packetSizeInBytes = (packetSizeWithWrittenDwords - dwordsToWrite) * sizeof(uint32);
+    const size_t dwordsToWrite               = dwordsPerPeriod * periodsToWrite;
+    const size_t packetSizeWithWrittenDwords = BuildWriteDataInternal(info, dwordsToWrite, pBuffer);
+    const size_t packetSizeInBytes           = (packetSizeWithWrittenDwords - dwordsToWrite) * sizeof(uint32);
 
     PAL_ASSERT(pPeriodData != nullptr);
 

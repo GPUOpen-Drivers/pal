@@ -66,6 +66,20 @@ struct DmaDataInfo
     PM4Predicate      predicate;      // Set if currently using predication
 };
 
+// Data required to build a write_data packet. We try to set up this struct so that zero-initializing gives reasonable
+// values for rarely changed members like predicate, dontWriteConfirm, etc.
+struct WriteDataInfo
+{
+    gpusize      dstAddr;           // Destination GPU memory address or memory mapped register offset.
+    uint32       engineSel;         // Which CP engine executes this packet (see WRITE_DATA_ENGINE_*).
+                                    // Ignored on the MEC.
+    uint32       dstSel;            // Where to write the data (see WRITE_DATA_DST_SEL_*)
+    PM4Predicate predicate;         // If this packet respects predication (zero defaults to disabled).
+    bool         dontWriteConfirm;  // If the engine should continue immediately without waiting for a write-confirm.
+    bool         dontIncrementAddr; // If the engine should write every DWORD to the same destination address.
+                                    // Some memory mapped registers use this to stream in an array of data.
+};
+
 // On different hardware families, some registers have different register offsets. This structure stores the register
 // offsets for some of these registers.
 struct RegisterInfo
@@ -78,6 +92,7 @@ struct RegisterInfo
     uint16  mmSqThreadTraceUserData2;
     uint16  mmSqThreadTraceUserData3;
     uint16  mmSqThreadTraceBase;
+    uint16  mmSqThreadTraceBase2;
     uint16  mmSqThreadTraceSize;
     uint16  mmSqThreadTraceMask;
     uint16  mmSqThreadTraceTokenMask;
@@ -493,25 +508,22 @@ public:
     size_t BuildWriteConstRam(const void* pSrcData, uint32 ramByteOffset, uint32 dwordSize, void* pBuffer) const;
 
     size_t BuildWriteData(
-        gpusize       gpuVirtAddr,
-        size_t        dwordsToWrite,
-        uint32        engineSel,
-        uint32        dstSel,
-        bool          wrConfirm,
-        const uint32* pData,
-        PM4Predicate  predicate,
-        void*         pBuffer) const;
+        const WriteDataInfo& info,
+        uint32               data,
+        void*                pBuffer) const;
+
+    size_t BuildWriteData(
+        const WriteDataInfo& info,
+        size_t               dwordsToWrite,
+        const uint32*        pData,
+        void*                pBuffer) const;
 
     size_t BuildWriteDataPeriodic(
-        gpusize       gpuVirtAddr,
-        size_t        dwordsPerPeriod,
-        size_t        periodsToWrite,
-        uint32        engineSel,
-        uint32        dstSel,
-        bool          wrConfirm,
-        const uint32* pPeriodData,
-        PM4Predicate  predicate,
-        void*         pBuffer) const;
+        const WriteDataInfo& info,
+        size_t               dwordsPerPeriod,
+        size_t               periodsToWrite,
+        const uint32*        pPeriodData,
+        void*                pBuffer) const;
 
     size_t BuildCommentString(const char* pComment, void* pBuffer) const;
 

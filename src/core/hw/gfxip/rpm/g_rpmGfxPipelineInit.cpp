@@ -127,12 +127,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -153,12 +148,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -184,12 +174,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -210,12 +195,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -236,12 +216,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -267,12 +242,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -293,12 +263,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -319,12 +284,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -350,12 +310,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -381,12 +336,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.dccDecompress = true;
@@ -410,12 +360,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -436,12 +381,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -462,12 +402,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -493,12 +428,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.fastClearElim = true;
@@ -527,12 +457,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.fmaskDecompress = true;
@@ -561,12 +486,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -592,12 +512,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -623,12 +538,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -654,12 +564,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -685,12 +590,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -716,12 +616,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -747,12 +642,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -778,12 +668,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -809,12 +694,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -843,12 +723,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -877,12 +752,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -911,12 +781,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -945,12 +810,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -979,12 +839,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -1013,12 +868,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -1047,12 +897,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -1081,12 +926,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1112,12 +952,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1143,12 +978,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1174,12 +1004,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1205,12 +1030,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1236,12 +1056,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1267,12 +1082,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1298,12 +1108,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1329,12 +1134,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1360,12 +1160,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1391,12 +1186,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1422,12 +1212,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1453,12 +1238,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1484,12 +1264,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1515,12 +1290,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1546,12 +1316,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1577,12 +1342,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1608,12 +1368,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1639,12 +1394,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1670,12 +1420,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1701,12 +1446,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1732,12 +1472,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1763,12 +1498,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1794,12 +1524,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1825,12 +1550,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1856,12 +1576,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1887,12 +1602,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1918,12 +1628,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1949,12 +1654,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1980,12 +1680,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2011,12 +1706,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2042,12 +1732,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2073,12 +1758,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2104,12 +1784,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2135,12 +1810,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2166,12 +1836,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2197,12 +1862,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2228,12 +1888,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2259,12 +1914,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2290,12 +1940,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2321,12 +1966,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2352,12 +1992,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2383,12 +2018,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2414,12 +2044,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2445,12 +2070,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2476,12 +2096,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2507,12 +2122,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2538,12 +2148,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2569,12 +2174,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2600,12 +2200,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2631,12 +2226,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2662,12 +2252,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2693,12 +2278,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2724,12 +2304,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2755,12 +2330,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2786,12 +2356,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2817,12 +2382,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2848,12 +2408,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2879,12 +2434,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2910,12 +2460,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2941,12 +2486,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2972,12 +2512,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3003,12 +2538,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3034,12 +2564,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3065,12 +2590,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3096,12 +2616,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3127,12 +2642,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3158,12 +2668,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3189,12 +2694,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3220,12 +2720,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3251,12 +2746,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3282,12 +2772,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3313,12 +2798,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3344,12 +2824,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3375,12 +2850,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3406,12 +2876,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3437,12 +2902,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3468,12 +2928,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3499,12 +2954,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3530,12 +2980,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3556,12 +3001,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3587,12 +3027,7 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.cbState.logicOp           = LogicOp::Copy;
         pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,

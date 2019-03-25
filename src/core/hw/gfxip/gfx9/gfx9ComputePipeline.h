@@ -64,10 +64,8 @@ protected:
     virtual Result HwlInit(
         const AbiProcessor&              abiProcessor,
         const CodeObjectMetadata&        metadata,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
         ComputePipelineIndirectFuncInfo* pIndirectFuncList,
         uint32                           indirectFuncCount,
-#endif
         Util::MsgPackReader*             pMetadataReader) override;
 
 private:

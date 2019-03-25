@@ -161,15 +161,36 @@ DevDriver::Result PlatformSettingsLoader::PerformSetValue(
         }
     }
 
-    if (ret == DevDriver::Result::NotReady)
+    for (uint32 idx = 0; AssertSettingsTbl[idx].hash != 0; idx++)
     {
-        for (uint32 idx = 0; AssertSettingsTbl[idx].hash != 0; idx++)
+        if (AssertSettingsTbl[idx].hash == hash)
         {
-            if (AssertSettingsTbl[idx].hash == hash)
+            PAL_ASSERT(settingValue.pValuePtr != nullptr);
+            bool* pEnable = reinterpret_cast<bool*>(settingValue.pValuePtr);
+            EnableAssertMode(AssertSettingsTbl[idx].category, *pEnable);
+            ret = DevDriver::Result::Success;
+        }
+    }
+#endif
+
+#if PAL_BUILD_CMD_BUFFER_LOGGER
+    constexpr uint32 CmdBufferLoggerSingleStepHash = 1570291248;
+    if (hash == CmdBufferLoggerSingleStepHash)
+    {
+        auto* pInfo = m_settingsInfoMap.FindKey(hash);
+        if (pInfo != nullptr)
+        {
+            // If the user has requested any of the WaitIdle flags for the CmdBufferLogger,
+            // we must enable the corresponding timestamp value as well.
+            constexpr uint32 WaitIdleMask   = 0x3E0;
+            constexpr uint32 WaitIdleOffset = 5;
+            PAL_ASSERT(settingValue.pValuePtr != nullptr);
+            uint32 value = *static_cast<uint32*>(settingValue.pValuePtr);
+
+            if (TestAnyFlagSet(value, WaitIdleMask))
             {
-                PAL_ASSERT(settingValue.pValuePtr != nullptr);
-                bool* pEnable = reinterpret_cast<bool*>(settingValue.pValuePtr);
-                EnableAssertMode(AssertSettingsTbl[idx].category, *pEnable);
+                value |= (value >> WaitIdleOffset);
+                memcpy(pInfo->pValuePtr, &value, settingValue.valueSize);
                 ret = DevDriver::Result::Success;
             }
         }
@@ -217,7 +238,19 @@ void PlatformSettingsLoader::OverrideDefaults()
 // initialized here.
 void PlatformSettingsLoader::ValidateSettings()
 {
-    // There's nothing that requires validation for platform settings, just update our state.
+#if PAL_BUILD_CMD_BUFFER_LOGGER
+    if (m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep != 0)
+    {
+        constexpr uint32 WaitIdleMask   = 0x3E0;
+        constexpr uint32 WaitIdleOffset = 5;
+
+        uint32* pSetting = &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
+        if (TestAnyFlagSet(*pSetting, WaitIdleMask))
+        {
+            *pSetting |= (*pSetting >> WaitIdleOffset);
+        }
+    }
+#endif
 
     m_state = SettingsLoaderState::Final;
 }

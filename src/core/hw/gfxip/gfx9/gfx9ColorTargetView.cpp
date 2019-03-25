@@ -397,9 +397,11 @@ void ColorTargetView::UpdateImageVa(
     Pm4ImgType* pPm4Img
     ) const
 {
+    const BoundGpuMemory& boundMem = m_pImage->Parent()->GetBoundGpuMemory();
+
     // The "GetSubresource256BAddrSwizzled" function will crash if no memory has been bound to
     // the associated image yet, so don't do anything if it's not safe
-    if (m_pImage->Parent()->GetBoundGpuMemory().IsBound())
+    if (boundMem.IsBound())
     {
         // Program Color Buffer base address
         pPm4Img->cbColorBase.bits.BASE_256B = m_pImage->GetSubresource256BAddrSwizzled(m_subresource);

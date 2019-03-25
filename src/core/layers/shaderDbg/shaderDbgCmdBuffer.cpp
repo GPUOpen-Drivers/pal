@@ -177,7 +177,7 @@ void CmdBuffer::CmdBindPipeline(
     const uint32 bindPointIdx = static_cast<uint32>(params.pipelineBindPoint);
     PAL_ASSERT(bindPointIdx <= 1);
     m_pipeInfo[bindPointIdx].pCurrentPipeline = static_cast<const Pipeline*>(params.pPipeline);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 476
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     m_pipeInfo[bindPointIdx].apiPsoHash       = params.apiPsoHash;
 #else
     m_pipeInfo[bindPointIdx].apiPsoHash       = params.pPipeline->GetInfo().palRuntimeHash;

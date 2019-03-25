@@ -96,6 +96,9 @@ struct NullDepthStencilPm4Img
 
     PM4CMDSETDATA              hdrDbHtileDataBase;
     regDB_HTILE_DATA_BASE      dbHtileDataBase;
+
+    PM4CMDSETDATA              hdrDbRenderControl;
+    regDB_RENDER_CONTROL       dbRenderControl;
 };
 
 // Structure used by UniversalCmdBuffer to track particular bits of hardware state that might need to be updated

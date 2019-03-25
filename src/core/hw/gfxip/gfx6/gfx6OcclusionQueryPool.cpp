@@ -471,6 +471,16 @@ void OcclusionQueryPool::OptimizedReset(
                 const uint32  totalDwordsPerSlot = periodDwords +
                                                    static_cast<uint32>(m_timestampSizePerSlotInBytes) / sizeof(uint32);
 
+                WriteDataInfo queryWriteData = {};
+                queryWriteData.dstAddr   = gpuAddr;
+                queryWriteData.engineSel = WRITE_DATA_ENGINE_ME;
+                queryWriteData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+                WriteDataInfo timestampWriteData = {};
+                timestampWriteData.dstAddr   = timestampGpuAddr;
+                timestampWriteData.engineSel = WRITE_DATA_ENGINE_ME;
+                timestampWriteData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
                 while (queryCount > 0)
                 {
                     // We'll need to know how many DWORDs we can write without exceeding the size of the reserve buffer.
@@ -478,32 +488,24 @@ void OcclusionQueryPool::OptimizedReset(
                     const uint32 maxSlots  = (remainingDwords - CmdUtil::GetWriteDataHeaderSize() * 2) / totalDwordsPerSlot;
                     const uint32 slotCount = Min(queryCount, maxSlots);
 
-                    pCmdSpace += cmdUtil.BuildWriteDataPeriodic(gpuAddr,
+                    pCmdSpace += cmdUtil.BuildWriteDataPeriodic(queryWriteData,
                                                                 periodDwords,
                                                                 slotCount,
-                                                                WRITE_DATA_ENGINE_ME,
-                                                                WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                                true,
                                                                 pSrcData,
-                                                                PredDisable,
                                                                 pCmdSpace);
 
-                    gpuAddr += slotCount * periodBytes;
+                    queryWriteData.dstAddr += slotCount * periodBytes;
 
                     if (HasTimestamps())
                     {
                         const uint32 zero = 0;
-                        pCmdSpace += cmdUtil.BuildWriteDataPeriodic(timestampGpuAddr,
+                        pCmdSpace += cmdUtil.BuildWriteDataPeriodic(timestampWriteData,
                                                                     1,
                                                                     slotCount,
-                                                                    WRITE_DATA_ENGINE_ME,
-                                                                    WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                                    true,
                                                                     &zero,
-                                                                    PredDisable,
                                                                     pCmdSpace);
 
-                        timestampGpuAddr += slotCount * m_timestampSizePerSlotInBytes;
+                        timestampWriteData.dstAddr += slotCount * m_timestampSizePerSlotInBytes;
                     }
 
                     queryCount -= slotCount;

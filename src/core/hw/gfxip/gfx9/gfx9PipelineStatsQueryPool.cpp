@@ -146,15 +146,13 @@ void PipelineStatsQueryPool::Begin(
             // Query event for compute engine only writes csInvocation, must write dummy zero's to other slots.
             constexpr uint32 DwordsToWrite = offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint32);
             const uint32 pData[DwordsToWrite] = {};
-            pCmdSpace += m_device.CmdUtil().BuildWriteData(engineType,
-                                                           gpuAddr,
-                                                           DwordsToWrite,
-                                                           0, // Engine select is ignored on compute
-                                                           dst_sel__mec_write_data__memory,
-                                                           true,
-                                                           pData,
-                                                           PredDisable,
-                                                           pCmdSpace);
+
+            WriteDataInfo writeData = {};
+            writeData.engineType = engineType;
+            writeData.dstAddr    = gpuAddr;
+            writeData.dstSel     = dst_sel__mec_write_data__memory;
+
+            pCmdSpace += m_device.CmdUtil().BuildWriteData(writeData, DwordsToWrite, pData, pCmdSpace);
 
             gpuAddr += offsetof(Gfx9PipelineStatsData, csInvocations);
         }
@@ -201,15 +199,13 @@ void PipelineStatsQueryPool::End(
             // Query event for compute engine only writes csInvocation, must write dummy zero's to other slots.
             constexpr uint32 DwordsToWrite = offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint32);
             const uint32 pData[DwordsToWrite] = {};
-            pCmdSpace += m_device.CmdUtil().BuildWriteData(engineType,
-                                                           gpuAddr,
-                                                           DwordsToWrite,
-                                                           0, // Engine select is ignored on compute
-                                                           dst_sel__mec_write_data__memory,
-                                                           true,
-                                                           pData,
-                                                           PredDisable,
-                                                           pCmdSpace);
+
+            WriteDataInfo writeData = {};
+            writeData.engineType = engineType;
+            writeData.dstAddr    = gpuAddr;
+            writeData.dstSel     = dst_sel__mec_write_data__memory;
+
+            pCmdSpace += m_device.CmdUtil().BuildWriteData(writeData, DwordsToWrite, pData, pCmdSpace);
 
             gpuAddr += offsetof(Gfx9PipelineStatsData, csInvocations);
         }

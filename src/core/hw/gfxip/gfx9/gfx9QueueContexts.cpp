@@ -305,16 +305,12 @@ void ComputeQueueContext::RebuildCommandStreams()
                                          pCmdSpace);
 
     // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-    constexpr uint32 IsActive = 1;
-    pCmdSpace += cmdUtil.BuildWriteData(EngineTypeCompute,
-                                        m_timestampMem.GpuVirtAddr(),
-                                        1,
-                                        0,
-                                        dst_sel__mec_write_data__memory,
-                                        wr_confirm__mec_write_data__wait_for_write_confirmation,
-                                        &IsActive,
-                                        PredDisable,
-                                        pCmdSpace);
+    WriteDataInfo writeData = {};
+    writeData.engineType = EngineTypeCompute;
+    writeData.dstAddr    = m_timestampMem.GpuVirtAddr();
+    writeData.dstSel     = dst_sel__mec_write_data__memory;
+
+    pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
 
     // Issue an acquire mem packet to invalidate all SQ caches (SQ I-cache and SQ K-cache).
     //
@@ -623,16 +619,13 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
                                          pCmdSpace);
 
     // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-    constexpr uint32 IsActive = 1;
-    pCmdSpace += cmdUtil.BuildWriteData(EngineTypeUniversal,
-                                        m_timestampMem.GpuVirtAddr(),
-                                        1,
-                                        engine_sel__pfp_write_data__prefetch_parser,
-                                        dst_sel__pfp_write_data__memory,
-                                        wr_confirm__pfp_write_data__wait_for_write_confirmation,
-                                        &IsActive,
-                                        PredDisable,
-                                        pCmdSpace);
+    WriteDataInfo writeData = {};
+    writeData.engineType = EngineTypeUniversal;
+    writeData.dstAddr    = m_timestampMem.GpuVirtAddr();
+    writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+    writeData.dstSel     = dst_sel__pfp_write_data__memory;
+
+    pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
 
     // Issue an acquire mem packet to invalidate all SQ caches (SQ I-cache and SQ K-cache).
     //

@@ -51,10 +51,6 @@ struct BlendStatePm4Img
 
     PM4_PFP_SET_CONTEXT_REG     hdrSxMrtBlendOpt;
     regSX_MRT0_BLEND_OPT        sxMrtBlendOpt[MaxColorTargets];
-
-    // Command space needed, in DWORDs. This field must always be last in the structure to not interfere w/ the actual
-    // commands contained within.
-    size_t                      spaceNeeded;
 };
 
 // =====================================================================================================================

@@ -150,12 +150,8 @@ union ImageCreateFlags
                                              ///  It uses a different tiling format than the decoder output buffer.
         uint32 optimalShareable        :  1; ///< Indicates metadata information is to be added into private data on
                                              ///  creation time and honored on open time.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
         uint32 sampleLocsAlwaysKnown   :  1; ///< Sample pattern is always known in client driver for MSAA depth image.
-#else
-        uint32 reserved0               :  1;
-#endif
-#if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446))
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446)
         uint32 view3dAs2dArray         :  1; ///< If set, client can create 2D views of this 3D image, treating
                                              ///  depth as array slices.
 #else
@@ -287,7 +283,6 @@ struct PresentableImageCreateInfo
     OsDisplayHandle     hDisplay;       ///< Display handle of the local display system only for WSI.
     OsWindowHandle      hWindow;        ///< Window handle only for WSI.
     ISwapChain*         pSwapChain;     ///< SwapChain object which the presentable image belongs to.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 394
     uint32              viewFormatCount;///< Number of additional image formats views of this image can be used with
                                         ///  or the special value AllCompatibleFormats to indicate that all
                                         ///  compatible formats can be used as a view format.
@@ -300,7 +295,6 @@ struct PresentableImageCreateInfo
                                         ///  the default values of zero and nullptr, respectively.
                                         ///  Note that this array is consumed at image creation time and should
                                         ///  not be accessed afterwards through GetImageCreateInfo().
-#endif
 };
 
 /// Specifies properties for private screen @ref IImage image creation.  Input structure to

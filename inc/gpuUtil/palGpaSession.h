@@ -212,12 +212,8 @@ struct GpaSampleConfig
                 Pal::uint32 enable                   :  1;  ///< Include SQTT data in the trace.
                 Pal::uint32 supressInstructionTokens :  1;  ///< Prevents capturing instruciton-level SQTT tokens,
                                                             ///  significantly reducing the amount of sample data.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
                 Pal::uint32 stallMode                :  2;  ///< Describes behavior when buffer full
                 Pal::uint32 reserved                 : 28;  ///< Reserved for future use.
-#else
-                Pal::uint32 reserved                 : 30;  ///< Reserved for future use.
-#endif
             };
             Pal::uint32 u32All;                             ///< Bit flags packed as uint32.
         } flags;                                            ///< Bit flags controlling SQTT samples.

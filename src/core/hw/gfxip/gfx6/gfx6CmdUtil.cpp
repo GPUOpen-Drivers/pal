@@ -307,6 +307,7 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmSqThreadTraceUserData2 = mmSQ_THREAD_TRACE_USERDATA_2__SI;
         m_registerInfo.mmSqThreadTraceUserData3 = mmSQ_THREAD_TRACE_USERDATA_3__SI;
         m_registerInfo.mmSqThreadTraceBase      = mmSQ_THREAD_TRACE_BASE__SI__CI;
+        m_registerInfo.mmSqThreadTraceBase2     = 0;
         m_registerInfo.mmSqThreadTraceSize      = mmSQ_THREAD_TRACE_SIZE__SI__CI;
         m_registerInfo.mmSqThreadTraceMask      = mmSQ_THREAD_TRACE_MASK__SI__CI;
         m_registerInfo.mmSqThreadTraceTokenMask = mmSQ_THREAD_TRACE_TOKEN_MASK__SI__CI;
@@ -328,6 +329,7 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmSqThreadTraceUserData2 = mmSQ_THREAD_TRACE_USERDATA_2__CI__VI;
         m_registerInfo.mmSqThreadTraceUserData3 = mmSQ_THREAD_TRACE_USERDATA_3__CI__VI;
         m_registerInfo.mmSqThreadTraceBase      = mmSQ_THREAD_TRACE_BASE__SI__CI;
+        m_registerInfo.mmSqThreadTraceBase2     = mmSQ_THREAD_TRACE_BASE2__CI;
         m_registerInfo.mmSqThreadTraceSize      = mmSQ_THREAD_TRACE_SIZE__SI__CI;
         m_registerInfo.mmSqThreadTraceMask      = mmSQ_THREAD_TRACE_MASK__SI__CI;
         m_registerInfo.mmSqThreadTraceTokenMask = mmSQ_THREAD_TRACE_TOKEN_MASK__SI__CI;
@@ -350,6 +352,7 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmSqThreadTraceUserData2 = mmSQ_THREAD_TRACE_USERDATA_2__CI__VI;
         m_registerInfo.mmSqThreadTraceUserData3 = mmSQ_THREAD_TRACE_USERDATA_3__CI__VI;
         m_registerInfo.mmSqThreadTraceBase      = mmSQ_THREAD_TRACE_BASE__VI;
+        m_registerInfo.mmSqThreadTraceBase2     = mmSQ_THREAD_TRACE_BASE2__VI;
         m_registerInfo.mmSqThreadTraceSize      = mmSQ_THREAD_TRACE_SIZE__VI;
         m_registerInfo.mmSqThreadTraceMask      = mmSQ_THREAD_TRACE_MASK__VI;
         m_registerInfo.mmSqThreadTraceTokenMask = mmSQ_THREAD_TRACE_TOKEN_MASK__VI;
@@ -3184,14 +3187,12 @@ size_t CmdUtil::BuildWaitOnEopEvent(
                 (eventType == CACHE_FLUSH_AND_INV_TS_EVENT));
 
     // Write a known value to the timestamp.
-    size_t totalSize = BuildWriteData(gpuAddr,
-                                      1,
-                                      WRITE_DATA_ENGINE_ME,
-                                      WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                      true,
-                                      &ClearedTimestamp,
-                                      PredDisable,
-                                      pBuffer);
+    WriteDataInfo writeData = {};
+    writeData.dstAddr   = gpuAddr;
+    writeData.engineSel = WRITE_DATA_ENGINE_ME;
+    writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+    size_t totalSize = BuildWriteData(writeData, ClearedTimestamp, pBuffer);
 
     // Issue the specified timestamp event.
     totalSize += BuildEventWriteEop(eventType,
@@ -3235,14 +3236,12 @@ size_t CmdUtil::BuildWaitOnGenericEopEvent(
                 (eventType == CACHE_FLUSH_AND_INV_TS_EVENT));
 
     // Write a known value to the timestamp.
-    size_t totalSize = BuildWriteData(gpuAddr,
-                                      1,
-                                      WRITE_DATA_ENGINE_ME,
-                                      WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                      true,
-                                      &ClearedTimestamp,
-                                      PredDisable,
-                                      pBuffer);
+    WriteDataInfo writeData = {};
+    writeData.dstAddr   = gpuAddr;
+    writeData.engineSel = WRITE_DATA_ENGINE_ME;
+    writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+    size_t totalSize = BuildWriteData(writeData, ClearedTimestamp, pBuffer);
 
     // Issue the specified timestamp event.
     totalSize += BuildGenericEopEvent(eventType,
@@ -3283,14 +3282,12 @@ size_t CmdUtil::BuildWaitOnEosEvent(
     PAL_ASSERT ((eventType == PS_DONE) || (eventType == CS_DONE));
 
     // Write a known value to the timestamp.
-    size_t totalSize = BuildWriteData(gpuAddr,
-                                      1,
-                                      WRITE_DATA_ENGINE_ME,
-                                      WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                      true,
-                                      &ClearedTimestamp,
-                                      PredDisable,
-                                      pBuffer);
+    WriteDataInfo writeData = {};
+    writeData.dstAddr   = gpuAddr;
+    writeData.engineSel = WRITE_DATA_ENGINE_ME;
+    writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+    size_t totalSize = BuildWriteData(writeData, ClearedTimestamp, pBuffer);
 
     // Issue the specified timestamp event.
     totalSize += BuildEventWriteEos(eventType,
@@ -3332,14 +3329,12 @@ size_t CmdUtil::BuildWaitOnGenericEosEvent(
     PAL_ASSERT ((eventType == PS_DONE) || (eventType == CS_DONE));
 
     // Write a known value to the timestamp.
-    size_t totalSize = BuildWriteData(gpuAddr,
-                                      1,
-                                      WRITE_DATA_ENGINE_ME,
-                                      WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                      true,
-                                      &ClearedTimestamp,
-                                      PredDisable,
-                                      pBuffer);
+    WriteDataInfo writeData = {};
+    writeData.dstAddr   = gpuAddr;
+    writeData.engineSel = WRITE_DATA_ENGINE_ME;
+    writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+    size_t totalSize = BuildWriteData(writeData, ClearedTimestamp, pBuffer);
 
     // Issue the specified timestamp event.
     totalSize += BuildGenericEosEvent(eventType,
@@ -3422,38 +3417,71 @@ size_t CmdUtil::BuildWriteConstRam(
 }
 
 // =====================================================================================================================
-// Builds a WRITE_DATA PM4 packet. If pData is non-null it will also copy in the data payload. Returns the size of the
-// PM4 command assembled, in DWORDs.
+// Builds a PM4 packet that writes a single data DWORD into GPU memory. Returns the size of the PM4 command assembled,
+// in DWORDs.
 size_t CmdUtil::BuildWriteData(
-    gpusize       gpuVirtAddr,   // [in] Destination address.
-    size_t        dwordsToWrite,
-    uint32        engineSel,
-    uint32        dstSel,
-    bool          wrConfirm,
-    const uint32* pData,
-    PM4Predicate  predicate,
-    void*         pBuffer        // [out] Build the PM4 packet in this buffer.
+    const WriteDataInfo& info,
+    uint32               data,
+    void*                pBuffer // [out] Build the PM4 packet in this buffer.
     ) const
 {
     // Make sure the address and size are valid. For register writes we don't need the alignment requirement.
-    PAL_ASSERT(((dstSel == WRITE_DATA_DST_SEL_REGISTER) || (dstSel == WRITE_DATA_DST_SEL_GDS)) ||
-               (((gpuVirtAddr & 0x3) == 0) && (dwordsToWrite > 0)));
+    PAL_ASSERT(((info.dstSel == WRITE_DATA_DST_SEL_REGISTER) || (info.dstSel == WRITE_DATA_DST_SEL_GDS)) ||
+               (((info.dstAddr & 0x3) == 0)));
 
     // Make sure the engine selection is valid.
-    PAL_ASSERT((engineSel == WRITE_DATA_ENGINE_ME)  ||
-               (engineSel == WRITE_DATA_ENGINE_PFP) ||
-               (engineSel == WRITE_DATA_ENGINE_CE));
+    PAL_ASSERT((info.engineSel == WRITE_DATA_ENGINE_ME)  ||
+               (info.engineSel == WRITE_DATA_ENGINE_PFP) ||
+               (info.engineSel == WRITE_DATA_ENGINE_CE));
+
+    const size_t packetSize = PM4_CMD_WRITE_DATA_DWORDS + 1;
+    auto*const   pPacket    = static_cast<PM4CMDWRITEDATA*>(pBuffer);
+
+    pPacket->header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, info.predicate);
+    pPacket->ordinal2      = 0;
+    pPacket->dstSel        = info.dstSel;
+    pPacket->wrOneAddr     = info.dontIncrementAddr;
+    pPacket->wrConfirm     = (info.dontWriteConfirm == false);
+    pPacket->engineSel     = info.engineSel;
+    pPacket->dstAddrLo     = LowPart(info.dstAddr);
+    pPacket->dstAddrHi     = HighPart(info.dstAddr);
+
+    uint32*const pDataPayload = static_cast<uint32*>(pBuffer) + packetSize - 1;
+    *pDataPayload = data;
+
+    return packetSize;
+}
+
+// =====================================================================================================================
+// Builds a WRITE_DATA PM4 packet. If pData is non-null it will also copy in the data payload. Returns the size of the
+// PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildWriteData(
+    const WriteDataInfo& info,
+    size_t               dwordsToWrite,
+    const uint32*        pData,
+    void*                pBuffer        // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+    // Make sure the address and size are valid. For register writes we don't need the alignment requirement.
+    PAL_ASSERT(((info.dstSel == WRITE_DATA_DST_SEL_REGISTER) || (info.dstSel == WRITE_DATA_DST_SEL_GDS)) ||
+               (((info.dstAddr & 0x3) == 0) && (dwordsToWrite > 0)));
+
+    // Make sure the engine selection is valid.
+    PAL_ASSERT((info.engineSel == WRITE_DATA_ENGINE_ME)  ||
+               (info.engineSel == WRITE_DATA_ENGINE_PFP) ||
+               (info.engineSel == WRITE_DATA_ENGINE_CE));
 
     const size_t packetSize = PM4_CMD_WRITE_DATA_DWORDS + dwordsToWrite;
     auto*const   pPacket    = static_cast<PM4CMDWRITEDATA*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, predicate);
+    pPacket->header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, info.predicate);
     pPacket->ordinal2      = 0;
-    pPacket->dstSel        = dstSel;
-    pPacket->wrConfirm     = wrConfirm;
-    pPacket->engineSel     = engineSel;
-    pPacket->dstAddrLo     = LowPart(gpuVirtAddr);
-    pPacket->dstAddrHi     = HighPart(gpuVirtAddr);
+    pPacket->dstSel        = info.dstSel;
+    pPacket->wrOneAddr     = info.dontIncrementAddr;
+    pPacket->wrConfirm     = (info.dontWriteConfirm == false);
+    pPacket->engineSel     = info.engineSel;
+    pPacket->dstAddrLo     = LowPart(info.dstAddr);
+    pPacket->dstAddrHi     = HighPart(info.dstAddr);
 
     if (pData != nullptr)
     {
@@ -3468,37 +3496,34 @@ size_t CmdUtil::BuildWriteData(
 // Builds a WRITE_DATA PM4 packet. If pPeriodData is non-null its contents (of length dwordsPerPeriod) will be copied
 // into the data payload periodsToWrite times. Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildWriteDataPeriodic(
-    gpusize       gpuVirtAddr,
-    size_t        dwordsPerPeriod,
-    size_t        periodsToWrite,
-    uint32        engineSel,
-    uint32        dstSel,
-    bool          wrConfirm,
-    const uint32* pPeriodData,
-    PM4Predicate  predicate,
-    void*         pBuffer          // [out] Build the PM4 packet in this buffer.
+    const WriteDataInfo& info,
+    size_t               dwordsPerPeriod,
+    size_t               periodsToWrite,
+    const uint32*        pPeriodData,
+    void*                pBuffer          // [out] Build the PM4 packet in this buffer.
     ) const
 {
     const size_t dwordsToWrite = dwordsPerPeriod * periodsToWrite;
 
     // Make sure the address and size are valid.
-    PAL_ASSERT(((gpuVirtAddr & 0x3) == 0) && (dwordsToWrite > 0));
+    PAL_ASSERT(((info.dstAddr & 0x3) == 0) && (dwordsToWrite > 0));
 
     // Make sure the engine selection is valid.
-    PAL_ASSERT((engineSel == WRITE_DATA_ENGINE_ME)  ||
-               (engineSel == WRITE_DATA_ENGINE_PFP) ||
-               (engineSel == WRITE_DATA_ENGINE_CE));
+    PAL_ASSERT((info.engineSel == WRITE_DATA_ENGINE_ME)  ||
+               (info.engineSel == WRITE_DATA_ENGINE_PFP) ||
+               (info.engineSel == WRITE_DATA_ENGINE_CE));
 
     const size_t packetSize = PM4_CMD_WRITE_DATA_DWORDS + dwordsToWrite;
     auto*const   pPacket    = static_cast<PM4CMDWRITEDATA*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, predicate);
+    pPacket->header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, info.predicate);
     pPacket->ordinal2      = 0;
-    pPacket->dstSel        = dstSel;
-    pPacket->wrConfirm     = wrConfirm;
-    pPacket->engineSel     = engineSel;
-    pPacket->dstAddrLo     = LowPart(gpuVirtAddr);
-    pPacket->dstAddrHi     = HighPart(gpuVirtAddr);
+    pPacket->dstSel        = info.dstSel;
+    pPacket->wrOneAddr     = info.dontIncrementAddr;
+    pPacket->wrConfirm     = (info.dontWriteConfirm == false);
+    pPacket->engineSel     = info.engineSel;
+    pPacket->dstAddrLo     = LowPart(info.dstAddr);
+    pPacket->dstAddrHi     = HighPart(info.dstAddr);
 
     if (pPeriodData != nullptr)
     {

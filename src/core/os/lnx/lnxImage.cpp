@@ -135,12 +135,8 @@ Result Image::CreatePresentableImage(
         imgCreateInfo.mipLevels             = 1;
         imgCreateInfo.samples               = 1;
         imgCreateInfo.fragments             = 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 394
         imgCreateInfo.viewFormatCount       = createInfo.viewFormatCount;
         imgCreateInfo.pViewFormats          = createInfo.pViewFormats;
-#else
-        imgCreateInfo.viewFormatCount       = AllCompatibleFormats;
-#endif
         imgCreateInfo.flags.flippable       = 1;
 
         // Linux doesn't support stereo images.

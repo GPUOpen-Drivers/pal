@@ -565,7 +565,7 @@ static float FloatNToFloat32(
             while ((fracBits & (info.fracMask + 1)) == 0)
             {
                 --exp;
-                fracBits >>= 1;
+                fracBits <<= 1;
             }
 
             fracBits  &= ~(info.fracMask + 1);  // Remove hidden bit

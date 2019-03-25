@@ -74,13 +74,11 @@ Result Screen::GetProperties(
     pInfo->hDisplay = nullptr;
     pInfo->screen   = m_connectorId;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 402
     pInfo->physicalDimension.width  = m_physicalDimension.width;
     pInfo->physicalDimension.height = m_physicalDimension.height;
 
     pInfo->physicalResolution.width  = m_physicalResolution.width;
     pInfo->physicalResolution.height = m_physicalResolution.height;
-#endif
 
     pInfo->pMainDevice = m_pDevice;
 
@@ -93,12 +91,6 @@ Result Screen::GetProperties(
 
     // Linux don't have pn source id concept.
     pInfo->vidPnSourceId = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 435
-    pInfo->wsiScreenProp.connectorId = m_connectorId;
-    pInfo->wsiScreenProp.drmMasterFd = m_drmMasterFd;
-    pInfo->wsiScreenProp.randrOutput = m_randrOutput;
-#endif
 
     Util::Strncpy(pInfo->displayName, "monitor", sizeof(pInfo->displayName));
 
@@ -153,7 +145,6 @@ Result Screen::ReleaseScreenAccess()
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 435
 // =====================================================================================================================
 Result Screen::GetRandrOutput(
     OsDisplayHandle hDisplay,
@@ -177,7 +168,6 @@ Result Screen::GetRandrOutput(
 
     return result;
 }
-#endif
 
 // =====================================================================================================================
 Result Screen::SetRandrOutput(

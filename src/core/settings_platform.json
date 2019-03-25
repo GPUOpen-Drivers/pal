@@ -1306,20 +1306,28 @@
                 "Value": 8
               },
               {
-                "Description": "WaitIdleDraws",
+                "Description": "TimestampPipelineBinds",
                 "Value": 16
               },
               {
-                "Description": "WaitIdleDispatches",
+                "Description": "WaitIdleDraws",
                 "Value": 32
               },
               {
-                "Description": "WaitIdleBarriers",
+                "Description": "WaitIdleDispatches",
                 "Value": 64
               },
               {
-                "Description": "WaitIdleBlts",
+                "Description": "WaitIdleBarriers",
                 "Value": 128
+              },
+              {
+                "Description": "WaitIdleBlts",
+                "Value": 256
+              },
+              {
+                "Description": "WaitIdlePipelineBinds",
+                "Value": 512
               }
             ]
           },

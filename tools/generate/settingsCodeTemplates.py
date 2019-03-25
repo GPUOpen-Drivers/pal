@@ -90,6 +90,7 @@ struct %SettingStructName% : public Pal::DriverSettings\n\
 };\n"
 
 SettingDef = "    %SettingType%    %SettingVarName%%ArrayLength%;\n"
+SettingStructName = "%UpperCamelComponentName%Settings"
 SettingStructDef = "\
     struct {\n\
 %StructSettingFields%\

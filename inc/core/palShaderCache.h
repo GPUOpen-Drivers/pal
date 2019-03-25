@@ -31,8 +31,6 @@
 
 #pragma once
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 408
 /// Starting with interface 408.0, it is an error to include palShaderCache.h because we want to remove it.  This file
 /// will be removed once interfaces older than 408.0 are no longer supported by PAL.
 #error "Fatal error! palShaderCache.h is deprecated and the client is still including it."
-#endif

@@ -420,12 +420,10 @@ public:
     virtual Result ReleaseScreenAccess() override
         { return m_pNextLayer->ReleaseScreenAccess(); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 435
     virtual Result GetRandrOutput(
         OsDisplayHandle hDisplay,
         uint32* pRandrOutput) override
         { return m_pNextLayer->GetRandrOutput(hDisplay, pRandrOutput); }
-#endif
 
     virtual Result SetRandrOutput(
         uint32 randrOutput) override

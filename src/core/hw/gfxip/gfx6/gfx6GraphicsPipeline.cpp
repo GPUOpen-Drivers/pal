@@ -1008,18 +1008,12 @@ void GraphicsPipeline::SetupCommonRegisters(
         break;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 387
     m_info.ps.flags.perSampleShading = m_paScModeCntl1.bits.PS_ITER_SAMPLE;
-#endif
 
     m_commands.set.context.dbShaderControl.u32All = registers.At(mmDB_SHADER_CONTROL);
 
     regDB_RENDER_OVERRIDE dbRenderOverride = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
     if ((createInfo.rsState.depthClampDisable == true) &&
-#else
-    if ((createInfo.rsState.depthClampEnable == false) &&
-#endif
         (m_commands.set.context.dbShaderControl.bits.Z_EXPORT_ENABLE != 0))
     {
         dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = 1;

@@ -28,7 +28,7 @@
 #include "core/hw/gfxip/gfx6/gfx6ComputePipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6IndirectCmdGenerator.h"
-#include "core/hw/gfxip/gfx6/gfx6PerfTrace.h"
+#include "core/hw/gfxip/gfx6/gfx6PerfExperiment.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
 #include "core/g_palPlatformSettings.h"
@@ -361,16 +361,13 @@ void ComputeCmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     uint32            value)
 {
     const GpuMemory* pGpuMemory = static_cast<const GpuMemory*>(&dstGpuMemory);
+    WriteDataInfo    writeData  = {};
+
+    writeData.dstAddr = pGpuMemory->GetBusAddrMarkerVa() + offset;
+    writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-    pCmdSpace += m_cmdUtil.BuildWriteData(pGpuMemory->GetBusAddrMarkerVa() + offset,
-                                          1,
-                                          WRITE_DATA_ENGINE_ME,
-                                          WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                          true,
-                                          &value,
-                                          PredDisable,
-                                          pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildWriteData(writeData, value, pCmdSpace);
     m_cmdStream.CommitCommands(pCmdSpace);
 }
 
@@ -1286,14 +1283,11 @@ void ComputeCmdBuffer::WriteEventCmd(
     if ((pipePoint == HwPipeTop) || (pipePoint == HwPipePreCs))
     {
         // Implement set/reset event with a WRITE_DATA command using the CP.
-        pCmdSpace += m_cmdUtil.BuildWriteData(boundMemObj.GpuVirtAddr(),
-                                              1,
-                                              0, // ignored for compute
-                                              WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                              true,
-                                              &data,
-                                              PredDisable,
-                                              pCmdSpace);
+        WriteDataInfo writeData = {};
+        writeData.dstAddr = boundMemObj.GpuVirtAddr();
+        writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+        pCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pCmdSpace);
     }
     else if (pipePoint == HwPipePostCs)
     {
@@ -1362,25 +1356,15 @@ void ComputeCmdBuffer::CmdSetPredication(
         uint32 predCopyData  = (predPolarity == true);
         *pPredCpuAddr        = (predPolarity == false);
 
+        WriteDataInfo writeData = {};
+        writeData.dstAddr = m_predGpuAddr;
+        writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
         pCmdSpace += m_cmdUtil.BuildCondExec(gpuVirtAddr, CmdUtil::GetWriteDataHeaderSize() + 1, pCmdSpace);
-        pCmdSpace += m_cmdUtil.BuildWriteData(m_predGpuAddr,
-                                              1,
-                                              WRITE_DATA_ENGINE_PFP,
-                                              WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                              true,
-                                              &predCopyData,
-                                              PredDisable,
-                                              pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWriteData(writeData, predCopyData, pCmdSpace);
 
         pCmdSpace += m_cmdUtil.BuildCondExec(gpuVirtAddr + 4, CmdUtil::GetWriteDataHeaderSize() + 1, pCmdSpace);
-        pCmdSpace += m_cmdUtil.BuildWriteData(m_predGpuAddr,
-                                              1,
-                                              WRITE_DATA_ENGINE_PFP,
-                                              WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                              true,
-                                              &predCopyData,
-                                              PredDisable,
-                                              pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWriteData(writeData, predCopyData, pCmdSpace);
 
         m_cmdStream.CommitCommands(pCmdSpace);
     }
@@ -1468,14 +1452,7 @@ void ComputeCmdBuffer::CmdInsertRgpTraceMarker(
 void ComputeCmdBuffer::CmdUpdateSqttTokenMask(
     const ThreadTraceTokenConfig& sqttTokenConfig)
 {
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-
-    pCmdSpace = Gfx6::ThreadTrace::WriteUpdateSqttTokenMask(&m_cmdStream,
-                                                            pCmdSpace,
-                                                            sqttTokenConfig,
-                                                            m_device);
-
-    m_cmdStream.CommitCommands(pCmdSpace);
+    PerfExperiment::UpdateSqttTokenMaskStatic(&m_cmdStream, sqttTokenConfig, m_device);
 }
 
 // =====================================================================================================================

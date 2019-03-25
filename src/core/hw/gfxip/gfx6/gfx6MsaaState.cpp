@@ -246,37 +246,19 @@ void MsaaState::BuildSamplePosPm4Image(
     const CmdUtil&               cmdUtil,
     MsaaSamplePositionsPm4Img*   pSamplePosPm4Image,
     uint32                       numSamples,
-    const MsaaQuadSamplePattern& quadSamplePattern,
-    size_t*                      pCentroidPrioritiesHdrSize,
-    size_t*                      pQuadSamplePatternHdrSize)
+    const MsaaQuadSamplePattern& quadSamplePattern)
 {
     // Setup the Centroid Priority registers
-    size_t hdrSize = 0;
-
-    hdrSize = cmdUtil.BuildSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,
-                                             mmPA_SC_CENTROID_PRIORITY_1,
-                                             &pSamplePosPm4Image->hdrPaScCentroidPrio);
-
-    pSamplePosPm4Image->spaceNeeded = hdrSize;
-
-    if (pCentroidPrioritiesHdrSize != nullptr)
-    {
-        *pCentroidPrioritiesHdrSize = hdrSize;
-    }
+    cmdUtil.BuildSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,
+                                   mmPA_SC_CENTROID_PRIORITY_1,
+                                   &pSamplePosPm4Image->hdrPaScCentroidPrio);
 
     SetCentroidPriorities(&pSamplePosPm4Image->paScCentroid, &quadSamplePattern.topLeft[0], numSamples);
 
     // Setup the sample locations registers
-    hdrSize = cmdUtil.BuildSetSeqContextRegs(mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0,
-                                             mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3,
-                                             &pSamplePosPm4Image->hdrPaScSampleQuad);
-
-    pSamplePosPm4Image->spaceNeeded += hdrSize;
-
-    if (pQuadSamplePatternHdrSize != nullptr)
-    {
-        *pQuadSamplePatternHdrSize = hdrSize;
-    }
+    cmdUtil.BuildSetSeqContextRegs(mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0,
+                                   mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3,
+                                   &pSamplePosPm4Image->hdrPaScSampleQuad);
 
     SetQuadSamplePattern(&pSamplePosPm4Image->paScSampleQuad, quadSamplePattern, numSamples);
 }

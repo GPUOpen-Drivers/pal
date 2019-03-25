@@ -121,18 +121,6 @@ enum class PrimitiveType : uint32
     Patch    = 0x5
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 409
-/// If next available quad falls outside tile aligned region of size defined by this enumeration the SC will
-/// force end of vector in the SC to shader wavefront
-enum class WaveBreakSize : uint32
-{
-    None   = 0x0,
-    _8x8   = 0x1,
-    _16x16 = 0x2,
-    _32x32 = 0x3,
-};
-#endif
-
 /// Specifies the target range of Z values after viewport transform.
 enum class DepthRange : uint32
 {
@@ -232,14 +220,12 @@ struct ComputePipelineCreateInfo
                                                  ///  register values, and additional metadata.
     size_t              pipelineBinarySize;      ///< Size of Pipeline ELF binary in bytes.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
     /// Optional.  Specifies a set of indirect functions for PAL to compute virtual addresses for during pipeline
     /// creation.  These GPU addresses can then be passed as shader arguments for a later dispatch operation to
     /// allow the pipeline's shaders to jump to that function.  Similar to a function pointer on the GPU.
     ComputePipelineIndirectFuncInfo*  pIndirectFuncList;
     uint32                            indirectFuncCount; ///< Number of entries in the pIndirectFuncList array.  Must
                                                          ///  be zero if pIndirectFuncList is null.
-#endif
 };
 
 /// Specifies properties for creation of a graphics @ref IPipeline object.  Input structure to
@@ -293,11 +279,7 @@ struct GraphicsPipelineCreateInfo
                                                    ///  axis-aligned line end caps during line rasterization.
         BinningOverride binningOverride;           ///< Binning setting for this pipeline.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         bool            depthClampDisable;         ///< Disable depth clamping to viewport min/max depth
-#else
-        bool            depthClampEnable;          ///< Disable depth clamping to viewport min/max depth
-#endif
     } rsState;             ///< Rasterizer state.
 
     struct
@@ -316,7 +298,6 @@ struct GraphicsPipelineCreateInfo
     } cbState;                                  ///< Color target state.
 
     ViewInstancingDescriptor viewInstancingDesc;    ///< Descriptor describes view instancing state
-                                                    ///  of the graphics pipeline
 
 };
 
@@ -370,7 +351,6 @@ struct PipelineInfo
                               ///  the corresponding shader stage.
     } shader[NumShaderTypes]; ///< Array of per-shader pipeline properties.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 387
     struct
     {
         union
@@ -383,7 +363,6 @@ struct PipelineInfo
             uint32 u32All;                      ///< All flags combined as a single uint32.
         } flags;
     } ps;                                       ///< Pixel shader properties.
-#endif
 };
 
 /// Used to represent API level shader stage.

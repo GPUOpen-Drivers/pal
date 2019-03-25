@@ -96,9 +96,6 @@ Platform::Platform(
     m_settingsLoader(&m_allocator, this),
     m_pRgpServer(nullptr),
     m_pLoggingServer(nullptr),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
-    m_pPipelineDumpService(nullptr),
-#endif
     m_pfnDeveloperCb(DefaultDeveloperCb),
     m_pClientPrivateData(nullptr),
     m_svmRangeStart(0),
@@ -433,10 +430,6 @@ Result Platform::EarlyInitDevDriver()
         m_pDevDriverServer = PAL_NEW(DevDriver::DevDriverServer, this, AllocInternal) (allocCb, createInfo);
         if (m_pDevDriverServer != nullptr)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
-            bool pipelineDumpsEnabled = false;
-#endif
-
             devDriverResult = m_pDevDriverServer->Initialize();
 
             if (devDriverResult == DevDriver::Result::Success)
@@ -456,21 +449,6 @@ Result Platform::EarlyInitDevDriver()
                                                                &clientId,
                                                                DevDriver::kFindClientTimeout,
                                                                &filter);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
-                // Destroy the developer driver server if developer mode is not enabled.
-                if (devDriverResult != DevDriver::Result::Success)
-                {
-                    m_pDevDriverServer->Destroy();
-                }
-                else
-                {
-                    // Check if pipeline dumps are enabled based on the returned status flag.
-                    const DevDriver::StatusFlags dumpFlag =
-                        static_cast<DevDriver::StatusFlags>(DevDriver::ClientStatusFlags::PipelineDumpsEnabled);
-                    pipelineDumpsEnabled = TestAnyFlagSet(filter.status, dumpFlag);
-                }
-#endif
             }
             else
             {
@@ -494,28 +472,6 @@ Result Platform::EarlyInitDevDriver()
                     "LogCategory enum does not match LogCategoryTable.");
                 // Initialize the logging subsystem if we successfully started the dev driver server.
                 m_pLoggingServer->AddCategoryTable(0, static_cast<uint32>(LogCategory::Count), LogCategoryTable);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
-                // Only create the pipeline dump service if pipeline dumps are enabled by the associated tool.
-                if (pipelineDumpsEnabled)
-                {
-                    m_pPipelineDumpService = PAL_NEW(PipelineDumpService, this, AllocInternal)(this);
-                    if (m_pPipelineDumpService != nullptr)
-                    {
-                        // Attempt to initialize the pipeline dump service.
-                        if (m_pPipelineDumpService->Init() == Result::Success)
-                        {
-                            // If we're successful, register it with the message channel.
-                            m_pDevDriverServer->GetMessageChannel()->RegisterService(m_pPipelineDumpService);
-                        }
-                        else
-                        {
-                            // If we fail to initialize, destroy the service object.
-                            PAL_SAFE_DELETE(m_pPipelineDumpService, this);
-                        }
-                    }
-                }
-#endif
             }
         }
         else
@@ -587,13 +543,6 @@ void Platform::DestroyDevDriver()
         // Null out cached pointers
         m_pRgpServer = nullptr;
         m_pLoggingServer = nullptr;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 437
-        if (m_pPipelineDumpService != nullptr)
-        {
-            PAL_SAFE_DELETE(m_pPipelineDumpService, this);
-        }
-#endif
 
         m_pDevDriverServer->Destroy();
         PAL_SAFE_DELETE(m_pDevDriverServer, this);

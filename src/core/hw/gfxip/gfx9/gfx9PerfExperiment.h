@@ -25,182 +25,323 @@
 
 #pragma once
 
-#include "core/perfExperiment.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfCtrInfo.h"
-#include "palHashMap.h"
+#include "core/perfExperiment.h"
+#include "palVector.h"
 
 namespace Pal
 {
+
+class  CmdStream;
+struct Gfx9PerfCounterInfo;
+struct GpuChipProperties;
+
 namespace Gfx9
 {
 
-class CmdStream;
-class Device;
+class  CmdUtil;
+class  Device;
+struct RegisterInfo;
 
-// =====================================================================================================================
-// Enumerates the possible "usage" states of a single performance counter resource. Each counter can be shared between 1
-// 64-bit summary counter, or up to 4 16-bit streaming counters.
-enum PerfCtrUseStatus: uint32
+// Perf experiments must manage three types of data:
+// - Global counters, also called legacy counters. 32 or 64 bit counters we manually read from registers.
+// - SPM counters, also called streaming perf monitors. 16 or 32 bit counters automatically streamed to a ring buffer.
+// - Thread traces, which stream shader instruction details to memory.
+//
+//
+// SPM counters are implemented between the RLC and the measuring blocks. The measuring blocks instantiate one or more
+// perfmon counter modules, each controlled by a pair of PERFCOUNTER#_SELECT/1 registers. Each module contains a pair
+// of 32-bit SPM delta counters, each 32-bit counter can be configured as a single 32-bit counter or two independent
+// 16-bit counters. Each 32-bit counter has a single wire back to the RLC. When the RLC sends a sample signal the
+// counters latch to their current value and send it over the wire one bit at a time from bit 0 to bit 31. The counters
+// repeat the same 32-bit value once every 32 clocks until the sampling is complete. Each individual instance of each
+// block has its own select registers and perfmon modules so in theory every counter in every instance could be running
+// a unique counter event at the same time.
+//
+// The RLC defines a few independent SPM sampling modules: one for global counters and one for each shader engine.
+// Each sampling module contains a 256-bit counter staging register, a mux select ram, and writes to its own ring
+// buffer. Every 16 cycles, 256 bits are read from the muxsel ram, giving the RLC 16 16-bit mux selects. Each select
+// identifies a single input wire from a specific block instance and 32-bit perfmon counter. 16 bits are deserialzed
+// from each of the 16 wires to fill the 256-bit staging register with 16 16-bit counter values; the 256-bit register
+// is then written to memory. Each 256-bit portion of the ring and muxsel ram is called a segment. Note that the RLC
+// reads in a segment in 16 clocks but it takes 32 clocks for each 32-bit perfmon counter to repeat its value. This
+// means the RLC can only read from any 32-bit counter's lower 16 bits during "even" segments and can only read from
+// the upper 16 bits during "odd" segments. The RLC must always read and write segments in an "even odd even odd..."
+// pattern; if we have more of one type of counter than the other we must pad the muxsel ram with "don't care" selects.
+// The last segment in the muxsel ram can be even or odd, there is no requirement that it be balanced.
+
+// The perfmon block defines a counter module that other blocks must import to support the generic global counter and
+// streaming counter functionality. Each counter is controlled by two select registers that can configure the whole
+// counter as either a 64-bit global counter, two 32-bit SPM counters, or four 16-bit SPM counters. All blocks should
+// duplicate this module exactly so we can use the CB registers as a template for all blocks.
+struct PerfmonSelect
 {
-    PerfCtrEmpty            = 0,    // Perf counter resource is unused
-    PerfCtr64BitSummary     = 1,    // Perf counter resource is used for a 64bit summary ctr
-    PerfCtr16BitStreaming1  = 2,    // Perf counter resource is used for 1 16bit streaming ctr
-    PerfCtr16BitStreaming2  = 3,    // Perf counter resource is used for 2 16bit streaming ctrs
-    PerfCtr16BitStreaming3  = 4,    // Perf counter resource is used for 3 16bit streaming ctrs
-    PerfCtr16BitStreaming4  = 5,    // Perf counter resource is used for 4 16bit streaming ctrs
+    regCB_PERFCOUNTER0_SELECT  sel0;
+    regCB_PERFCOUNTER0_SELECT1 sel1;
 };
 
-// =====================================================================================================================
-// Structure defining the performance counter resource usage for a GPU block.
-struct PerfCtrBlockUsage
+// Most blocks also define legacy global counter modules. They do not support SPM and only use one register.
+// There are two main variants: PERFCOUNTER#_SELECT and PERFCOUNTER#_CFG.
+typedef regCB_PERFCOUNTER3_SELECT LegacySelect;
+typedef regGCEA_PERFCOUNTER0_CFG  LegacyCfg;
+
+// Cfg-style blocks also need to program a generic result control register when counters start and are sampled.
+typedef regGCEA_PERFCOUNTER_RSLT_CNTL ResultCntl;
+
+// A helper enum to identify what kind of select a given GenericSelect is.
+enum class SelectType : uint8
 {
-    struct
-    {
-        // Usage status for each counter belonging to this particular instance.
-        PerfCtrUseStatus  counter[MaxCountersPerBlock];
-    }  instance[PerfCtrInfo::MaxNumBlockInstances];   // Usage status for each instance of this GPU block
+    Perfmon = 0,
+    LegacySel,
+    LegacyCfg,
+    Count
 };
 
-// =====================================================================================================================
-// Flags describing the configuration of the performance counters within an Experiment.
-union CounterFlags
+// To improve code reuse between blocks we define a generic counter select struct. Each select can be viewed as a
+// perfmon module or a legacy module but not both. The inUse bitfield tracks which PEF_SEL fields are in use; for
+// example, 0x1 indicates that the first 16-bit counter is in use and 0xF indicates that the whole module is in use.
+struct GenericSelect
 {
-    struct
+    uint8             inUse;     // Bitmask of which 16-bit sub counters are in use.
+    SelectType        type;      // Which member of the union we should use.
+    union
     {
-        uint32 indexedBlocks  :  1; // If set, one or more ctr's are on an indexed GPU block
-        uint32 eaCounters     :  1; // If set, EA counters are present
-        uint32 atcCounters    :  1; // If set, ATC counters are present
-        uint32 atcL2Counters  :  1; // If set, ATC L2 counters are present
-        uint32 mcVmL2Counters :  1; // If set, MC VM L2 counters are present
-        uint32 rpbCounters    :  1; // If set, RPB counters are present
-        uint32 rmiCounters    :  1; // If set, RMI counters are present
-        uint32 rlcCounters    :  1; // If set, RLC counters are present
-        uint32 sqCounters     :  1; // If set, SQ counters are present
-        uint32 taCounters     :  1; // If set, TA counters are present
-        uint32 tdCounters     :  1; // If set, TD counters are present
-        uint32 tcpCounters    :  1; // If set, TCP counters are present
-        uint32 tccCounters    :  1; // If set, TCC counters are present
-        uint32 tcaCounters    :  1; // If set, TCA counters are present
-        uint32 umcchCounters  :  1; // If set, UMCCH counters are present
-
-        uint32 reserved       : 17; // Reserved bits
+        PerfmonSelect perfmon;   // This counter select programmed as a perfmon module.
+        LegacySelect  legacySel; // This counter select programmed as a legacy global counter.
+        LegacyCfg     legacyCfg; // This counter select programmed as a legacy global config-style counter.
     };
-    uint32 u32All; // Value of the flags bitfield
+};
+
+// Most blocks implement a generic counter programming scheme with a fixed number of perfmon modules and legacy counters
+// per instance. Any blocks that deviate from the generic scheme must be handled manually.
+struct GenericBlockSelect
+{
+    bool              hasCounters;  // If any counters are in any module are in use.
+    regGRBM_GFX_INDEX grbmGfxIndex; // Use this to communicate with this block instance.
+    uint32            numModules;   // The length of pModules; the total number of perfmon and legacy modules.
+    GenericSelect*    pModules;     // All perfmon and/or legacy modules in this block. Note that this will only
+                                    // be allocated if the client enables a counter in this instance.
+};
+
+// A helper constant to remove this cast.
+constexpr uint32 GpuBlockCount = static_cast<uint32>(GpuBlock::Count);
+
+// Define a monolithic structure that can store every possible perf counter select register configuration. For most
+// blocks we can use allocate one GenericBlockSelect per global instance. Some blocks require special handling.
+struct GlobalSelectState
+{
+    // The SQ counters, implemented in the SQG block, are special. Each module has a single register with a unique
+    // format that can be a legacy counter or a single 32-bit SPM counter.
+    struct
+    {
+        bool                      perfmonInUse[Gfx9MaxSqgPerfmonModules];
+        bool                      hasCounters;
+        regGRBM_GFX_INDEX         grbmGfxIndex;
+        regSQ_PERFCOUNTER0_SELECT perfmon[Gfx9MaxSqgPerfmonModules];
+    } sqg[Gfx9MaxShaderEngines];
+
+    // The GRBM is a global block but it defines one special counter per SE. We treat its global counters generically
+    // under GpuBlock::Grbm but special case the per-SE counters using GpuBlock::GrbmSe.
+    struct
+    {
+        bool                           hasCounter;
+        regGRBM_SE0_PERFCOUNTER_SELECT select;     // This is a non-standard select register as well.
+    } grbmSe[Gfx9MaxShaderEngines];
+
+    // Each SDMA engine defines two global counters controlled by one register. This should only be used on ASICs
+    // that do not have generic SDMA counters.
+    struct
+    {
+        bool                  hasCounter[2]; // Each SDMA legacy control manages two global counters.
+        regSDMA0_PERFMON_CNTL perfmonCntl;   // This acts as two selects.
+    } legacySdma[Gfx9MaxSdmaInstances];
+
+    // Each UMCCH instance defines a set of special global counters.
+    struct
+    {
+        bool                  hasCounters;                           // If any counters are in any module are in use.
+        bool                  perfmonInUse[Gfx9MaxUmcchPerfModules]; // If this module's global counter is enabled.
+        regUMCCH0_PerfMonCtl1 perfmonCntl[Gfx9MaxUmcchPerfModules];  // The control for each global counter.
+    } umcch[Gfx9MaxUmcchInstances];
+
+    // The generic block state. These arrays are sparse in that elements can be zero or nullptr if:
+    // - The block doesn't exist on our device.
+    // - The block requires special handling (see above).
+    // - The client hasn't enabled any counters that use this block.
+    uint32              numGeneric[GpuBlockCount]; // The number of global instances in each generic array.
+    GenericBlockSelect* pGeneric[GpuBlockCount];   // The set of generic registers for each block type and instance.
+};
+
+// A single 16-bit muxsel value.
+union MuxselEncoding
+{
+    struct
+    {
+        uint16 counter  : 6; // A special ID used by the RLC to identify a specific 32-bit SPM wire select.
+        uint16 block    : 5; // A special block enum defined by the RLC.
+        uint16 instance : 5; // The local instance of the block.
+    } gfx9;
+
+    uint16 u16All; // All the fields above as a single uint16
+};
+
+// By definition there are 16 16-bit counters per muxsel state machine segment. Unfortunately RLC uses "segment" to
+// denote one set of counters written per iteration, this can get confusing to us because our interface splits the SPM
+// ring buffer into one "segment" per parallel SPM unit. To avoid confusion we will call a RLC "segment" a "line".
+//
+// Thus here we define the line sizes and the maximum number of ring segments.
+constexpr uint32 MuxselLineSizeInCounters = 16;
+constexpr uint32 MuxselLineSizeInDwords   = (MuxselLineSizeInCounters * sizeof(MuxselEncoding)) / sizeof(uint32);
+constexpr uint32 MaxNumSpmSegments        = static_cast<uint32>(SpmDataSegmentType::Count);
+
+// A single programming line in the RLC muxsel state machine.
+union SpmLineMapping
+{
+    MuxselEncoding muxsel[MuxselLineSizeInCounters];
+    uint32         u32Array[MuxselLineSizeInDwords];
+};
+
+// Stores general information we need for a single counter of any type.
+struct CounterMapping
+{
+    // Input information.
+    GpuBlock            block;          // The gpu block this counter instance belongs to.
+    uint32              globalInstance; // The global instance number of this counter.
+    uint32              eventId;        // The event that was tracked by this counter.
+
+    // The data type we use to send the counter's value back to the client. For global counters this is decided by
+    // PAL. For SPM counters this is decided by the client (assumed to be 16-bit for now).
+    PerfCounterDataType dataType;
+};
+
+// Stores information we need for a single global counter.
+struct GlobalCounterMapping
+{
+    CounterMapping general;   // General counter information.
+    uint32         counterId; // Which counter this is within its block.
+    gpusize        offset;    // Offset within the begin/end global buffers to the counter's value.
+};
+
+// Stores information we need for a single SPM counter.
+struct SpmCounterMapping
+{
+    CounterMapping     general;    // General counter information.
+
+    // RLC muxsel information. Note that isEven and isOdd can both be true if the counter is 32-bit!
+    SpmDataSegmentType segment;    // Segment this counter belongs to (global, Se0, Se1 etc).
+    MuxselEncoding     evenMuxsel; // Selects the lower half of a specific SPM wire for some block instance.
+    MuxselEncoding     oddMuxsel;  // Selects the upper half of a specific SPM wire for some block instance.
+    bool               isEven;     // If the counter requires the lower 16-bits of a 32-bit counter wire.
+    bool               isOdd;      // If the counter requires the upper 16-bits of a 32-bit counter wire.
+
+    // Output information.
+    gpusize            offsetLo;   // Offset within the segment's output buffer to the counter's lower 16 bits.
+    gpusize            offsetHi;   // For 32-bit counters, the corresponding offset for the upper 16 bits.
 };
 
 // =====================================================================================================================
-// Provides GCN-specific behavior for perf experiment objects.
+// Provides Gfx9-specific behavior for perf experiment objects.
 class PerfExperiment : public Pal::PerfExperiment
 {
 public:
     PerfExperiment(const Device* pDevice, const PerfExperimentCreateInfo& createInfo);
 
+    Result Init();
+
+    virtual Result AddCounter(const PerfCounterInfo& counterInfo) override;
+    virtual Result AddThreadTrace(const ThreadTraceInfo& traceInfo) override;
+    virtual Result AddSpmTrace(const SpmTraceCreateInfo& spmCreateInfo) override;
+    virtual Result Finalize() override;
+
+    virtual Result GetGlobalCounterLayout(GlobalCounterLayout* pLayout) const override;
+    virtual Result GetThreadTraceLayout(ThreadTraceLayout* pLayout) const override;
+    virtual Result GetSpmTraceLayout(SpmTraceLayout* pLayout) const override;
+
+    // These functions are called internally by our command buffers.
     virtual void IssueBegin(Pal::CmdStream* pPalCmdStream) const override;
-    virtual void UpdateSqttTokenMask(
-        Pal::CmdStream*               pCmdStream,
-        const ThreadTraceTokenConfig& sqttTokenConfig) const override;
     virtual void IssueEnd(Pal::CmdStream* pPalCmdStream) const override;
 
     virtual void BeginInternalOps(Pal::CmdStream* pCmdStream) const override;
     virtual void EndInternalOps(Pal::CmdStream* pCmdStream) const override;
 
+    virtual void UpdateSqttTokenMask(
+        Pal::CmdStream*               pPalCmdStream,
+        const ThreadTraceTokenConfig& sqttTokenConfig) const override;
+
+    static void UpdateSqttTokenMaskStatic(
+        Pal::CmdStream*               pPalCmdStream,
+        const ThreadTraceTokenConfig& sqttTokenConfig,
+        const Device&                 device);
+
 protected:
-    virtual ~PerfExperiment() {}
-
-    virtual Result CreateCounter(const PerfCounterInfo& info, Pal::PerfCounter** ppCounter) override;
-    virtual Result CreateThreadTrace(const ThreadTraceInfo& info) override;
-
-    Result ConstructSpmTraceObj(const SpmTraceCreateInfo& info, Pal::SpmTrace** ppSpmTrace) override;
-    Pal::StreamingPerfCounter* CreateStreamingPerfCounter(GpuBlock block, uint32 instance, uint32 slot) override;
-    void UpdateCounterFlags(GpuBlock block, bool isIndexed) override;
-
-    // Returns the number of HW registers that support streaming perf counters.
-    PAL_INLINE uint32 GetNumStreamingCounters(uint32 block) override
-    {
-        return m_device.Parent()->ChipProperties().gfx9.perfCounterInfo.block[block].numStreamingCounterRegs;
-    }
+    virtual ~PerfExperiment();
 
 private:
-    void InitBlockUsage();
+    Result AllocateGenericStructs(GpuBlock block, uint32 globalInstance);
+    Result AddSpmCounter(const PerfCounterInfo& counterInfo, SpmCounterMapping* pMapping);
+    Result BuildCounterMapping(const PerfCounterInfo& info, CounterMapping* pMapping) const;
 
-    Result ReserveCounterResource(const PerfCounterInfo& info, uint32* pCounterId, uint32* pCounterSubId);
-    void   SetCntrRate(uint32  rate);
+    Result BuildGrbmGfxIndex(GpuBlock block, uint32 globalInstance, regGRBM_GFX_INDEX* pGrbmGfxIndex) const;
 
-    void IssuePause(CmdStream* pCmdStream) const;
-    void IssueResume(CmdStream* pCmdStream) const;
+    MuxselEncoding BuildMuxselEncoding(GpuBlock block, uint32 counter, regGRBM_GFX_INDEX grbmGfxIndex) const;
 
-    uint32* WriteComputePerfCountEnable(CmdStream*  pCmdStream, uint32*  pCmdSpace, bool  enable) const;
-    uint32* WriteSetupPerfCounters(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    uint32* WriteStartPerfCounters(bool restart, CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    uint32* WriteStopPerfCounters(bool reset, CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    uint32* WriteSamplePerfCounters(
-        gpusize       baseGpuVirtAddr,
-        CmdStream*    pCmdStream,
-        uint32*       pCmdSpace) const;
+    // Here are a few helper functions which write into reserved command space.
+    uint32* WriteSpmSetup(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteStartThreadTraces(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteStopThreadTraces(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteSelectRegisters(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteEnableCfgRegisters(bool enable, bool clear, CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteStopAndSampleGlobalCounters(bool isBeginSample, CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteCopy64BitCounter(uint32     regAddrLo,
+                                  uint32     regAddrHi,
+                                  gpusize    destAddr,
+                                  CmdStream* pCmdStream,
+                                  uint32*    pCmdSpace) const;
 
-    uint32* WriteResetGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    uint32* WriteWaitIdleClean(
-        CmdStream*    pCmdStream,
-        bool          cacheFlush,
-        EngineType    engineType,
-        uint32*       pCmdSpace) const;
+    uint32* WriteGrbmGfxIndexBroadcastGlobal(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteGrbmGfxIndexBroadcastSe(uint32 seIndex, CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteUpdateSpiConfigCntl(bool enableSqgEvents, CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteUpdateWindowedCounters(bool enable, CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteWaitIdle(bool flushCaches, CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    uint32* WriteSetupUmcchCntlRegs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    // Helper functions to check if we've enabled any counters for a generic block.
+    bool HasGenericCounters(GpuBlock block) const;
 
-    // Returns true if one or more perf counters are on an indexed GPU block.
-    bool HasIndexedCounters() const { return m_counterFlags.indexedBlocks; }
+    // Some helpful references.
+    const GpuChipProperties&   m_chipProps;
+    const Gfx9PerfCounterInfo& m_counterInfo;
+    const Gfx9PalSettings&     m_settings;
+    const RegisterInfo&        m_registerInfo;
+    const CmdUtil&             m_cmdUtil;
 
-    // Returns true if EA counters are present.
-    bool HasEaCounters() const { return m_counterFlags.eaCounters; }
+    // Global counters are added iteratively so just use a vector to hold them.
+    Util::Vector<GlobalCounterMapping, 32, Platform> m_globalCounters;
 
-    // Returns true if ATC counters are present.
-    bool HasAtcCounters() const { return m_counterFlags.atcCounters; }
+    // Thread trace state. Each SQG runs an independent thread trace.
+    struct
+    {
+        bool                          inUse;        // If this thread trace is in use.
+        gpusize                       infoOffset;   // The offset to the ThreadTraceInfoData within our GPU memory.
+        gpusize                       bufferOffset; // The offset to the output buffer within our GPU memory.
+        gpusize                       bufferSize;   // The size of this trace's output buffer in bytes.
+        regGRBM_GFX_INDEX             grbmGfxIndex; // Used to write this trace's registers.
+        regSQ_THREAD_TRACE_CTRL       ctrl;
+        regSQ_THREAD_TRACE_MODE       mode;
+        regSQ_THREAD_TRACE_MASK       mask;
+        regSQ_THREAD_TRACE_PERF_MASK  perfMask;
+        regSQ_THREAD_TRACE_TOKEN_MASK tokenMask;
+    } m_sqtt[Gfx9MaxShaderEngines];
 
-    // Returns true if ATC L2 counters are present.
-    bool HasAtcL2Counters() const { return m_counterFlags.atcL2Counters; }
+    // Global SPM state.
+    SpmCounterMapping* m_pSpmCounters;                      // The list of all enabled SPM counters.
+    uint32             m_numSpmCounters;
+    SpmLineMapping*    m_pMuxselRams[MaxNumSpmSegments];    // One array of muxsel programmings for each segment.
+    uint32             m_numMuxselLines[MaxNumSpmSegments];
+    uint32             m_spmRingSize;                       // The SPM ring buffer size in bytes.
+    uint16             m_spmSampleInterval;                 // The SPM sample interval in sclks.
 
-    // Returns true if MC VM L2 counters are present.
-    bool HasMcVmL2Counters() const { return m_counterFlags.mcVmL2Counters; }
-
-    // Returns true if RPB counters are present.
-    bool HasRpbCounters() const { return m_counterFlags.rpbCounters; }
-
-    // Returns true if RMI counters are present.
-    bool HasRmiCounters() const { return m_counterFlags.rmiCounters; }
-
-    // Returns true if TA counters are present.
-    bool HasTaCounters() const { return m_counterFlags.taCounters; }
-
-    // Returns true if TD counters are present.
-    bool HasTdCounters() const { return m_counterFlags.tdCounters; }
-
-    // Returns true if TCP counters are present.
-    bool HasTcpCounters() const { return m_counterFlags.tcpCounters; }
-
-    // Returns true if TCC counters are present.
-    bool HasTccCounters() const { return m_counterFlags.tccCounters; }
-
-    // Returns true if TCA counters are present.
-    bool HasTcaCounters() const { return m_counterFlags.tcaCounters; }
-
-    // Returns true if RLC counters are present.
-    bool HasRlcCounters() const { return m_counterFlags.rlcCounters; }
-
-    // Returns true if SQ counters are present.
-    bool HasSqCounters() const { return m_counterFlags.sqCounters; }
-
-    // Returns true if Umcch counters are present.
-    bool HasUmcchCounters() const { return m_counterFlags.umcchCounters; }
-
-    const Device&       m_device;
-    CounterFlags        m_counterFlags;   // Flags describing the set of perf counters
-
-    // Performance counter usage status for each GPU block.
-    PerfCtrBlockUsage   m_blockUsage[static_cast<size_t>(GpuBlock::Count)];
-
-    regSQ_PERFCOUNTER_CTRL m_sqPerfCounterCtrl; // Pre-compute SQ_PERFCOUNTER_CTRL register
-    const GfxIpLevel       m_gfxLevel;
-    uint32                 m_spiConfigCntlDefault; // GPU-specific default value for SPI_CONFIG_CNTL
+    // A big struct that lists every block's PERFCOUNTER#_SELECT registers.
+    GlobalSelectState m_select;
 
     PAL_DISALLOW_DEFAULT_CTOR(PerfExperiment);
     PAL_DISALLOW_COPY_AND_ASSIGN(PerfExperiment);

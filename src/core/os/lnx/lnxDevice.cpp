@@ -653,18 +653,6 @@ void Device::FinalizeQueueProperties()
     m_engineProperties.perEngine[EngineTypeDma].flags.supportVirtualMemoryRemap       = 1;
     m_engineProperties.perEngine[EngineTypeUniversal].flags.supportVirtualMemoryRemap = 1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
-    constexpr uint32 WindowedIdx = static_cast<uint32>(PresentMode::Windowed);
-    constexpr uint32 FullscreenIdx = static_cast<uint32>(PresentMode::Fullscreen);
-
-    // We can assume that we modes are valid on all WsiPlatforms
-    m_supportedSwapChainModes[WindowedIdx] =
-        SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
-
-    m_supportedSwapChainModes[FullscreenIdx] =
-        SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
-#endif
-
     static_assert(MaxIbsPerSubmit >= MinCmdStreamsPerSubmission,
                   "The minimum supported number of command streams per submission is not enough for PAL!");
     if (Settings().maxNumCmdStreamsPerSubmit == 0)
@@ -718,10 +706,8 @@ Result Device::GetProperties(
         // Todo: Implement the sync file import/export upon sync object.
         pInfo->osProperties.supportSyncFileSemaphore = false;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 398
         pInfo->osProperties.supportSyncFileSemaphore = (m_semType == SemaphoreType::SyncObj);
         pInfo->osProperties.supportSyncFileFence     = (m_fenceType == FenceType::SyncObj);
-#endif
 
         pInfo->osProperties.timelineSemaphore.support                 = m_syncobjSupportState.timelineSemaphore;
         pInfo->osProperties.timelineSemaphore.supportHostQuery        = m_syncobjSupportState.timelineSemaphore;
@@ -804,9 +790,6 @@ Result Device::InitGpuProperties()
         case EngineTypeExclusiveCompute:
         case EngineTypeDma:
         case EngineTypeHighPriorityUniversal:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-        case EngineTypeHighPriorityGraphics:
-#endif
             m_engineProperties.perEngine[i].flags.supportsTrackBusyChunks = 1;
             break;
         default:
@@ -950,7 +933,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->doubleOffchipLdsBuffers = deviceInfo.gc_double_offchip_lds_buf;
     }
 
-    Gfx6::FinalizeGpuChipProperties(&m_chipProperties);
+    Gfx6::FinalizeGpuChipProperties(*this, &m_chipProperties);
     Gfx6::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
 
     m_engineProperties.perEngine[EngineTypeUniversal].flags.supportsMidCmdBufPreemption =
@@ -1054,7 +1037,7 @@ void Device::InitGfx9ChipProperties()
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
-    Gfx9::FinalizeGpuChipProperties(GetPlatform(), &m_chipProperties);
+    Gfx9::FinalizeGpuChipProperties(*this, &m_chipProperties);
 
     pChipInfo->numActiveRbs = CountSetBits(m_gpuInfo.enabled_rb_pipes_mask);
 
@@ -1397,9 +1380,7 @@ Result Device::InitMemQueueInfo()
                 break;
 
             case EngineTypeHighPriorityUniversal:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-            case EngineTypeHighPriorityGraphics:
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 459
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 459
 #endif
                 // not supported on linux
                 pEngineInfo->numAvailable       = 0;
@@ -1635,8 +1616,17 @@ size_t Device::QueueObjectSize(
     case QueueTypeCompute:
     case QueueTypeUniversal:
     case QueueTypeDma:
-        // Add the size of m_pResourceList
+        // Add the size of Linux::Queue::m_pResourceList
         size = sizeof(Queue) + CmdBufMemReferenceLimit * sizeof(amdgpu_bo_handle);
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
+        if (createInfo.enableGpuMemoryPriorities)
+        {
+            // Add the size of Linux::Queue::m_pResourcePriorityList
+            size += CmdBufMemReferenceLimit * sizeof(uint8);
+        }
+#endif
+
         break;
     case QueueTypeTimer:
         // Timer Queue is not supported so far.
@@ -3233,7 +3223,7 @@ void Device::CheckSyncObjectSupportStatus()
         }
         if (IsDrmVersionOrGreater(3,28))
         {
-	    // disable by default until kenerl and libdrm are finalized.
+            // disable by default until kenerl and libdrm are finalized.
             m_syncobjSupportState.timelineSemaphore = false;
         }
     }

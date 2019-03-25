@@ -204,7 +204,7 @@ public:
         uint32      slot,
         ImageLayout imageLayout,
         CmdStream*  pCmdStream,
-        uint32*     pCmdSpace) const;
+        uint32*     pCmdSpace) const override;
 
 protected:
     virtual ~Gfx9ColorTargetView()

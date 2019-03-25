@@ -904,14 +904,18 @@ uint32* CmdStream::WriteSetOnePrivilegedConfigReg(
                                                  ? dst_sel__me_copy_data__mem_mapped_register
                                                  : dst_sel__me_copy_data__perfcounters);
 
-    return pCmdSpace + m_cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                       dstSelect,
-                                                       regAddr,
-                                                       src_sel__me_copy_data__immediate_data,
-                                                       value,
-                                                       count_sel__me_copy_data__32_bits_of_data,
-                                                       wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                                       pCmdSpace);
+    // Assert that our register address will fit in the COPY_DATA packet.
+    PAL_ASSERT(CmdUtil::CanUseCopyDataRegOffset(regAddr));
+
+    return pCmdSpace + m_cmdUtil.BuildCopyData(GetEngineType(),
+                                               engine_sel__me_copy_data__micro_engine,
+                                               dstSelect,
+                                               regAddr,
+                                               src_sel__me_copy_data__immediate_data,
+                                               value,
+                                               count_sel__me_copy_data__32_bits_of_data,
+                                               wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                               pCmdSpace);
 }
 
 // =====================================================================================================================

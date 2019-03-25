@@ -121,13 +121,9 @@ Result ComputePipeline::InitFromPipelineBinary(
     {
         ExtractPipelineInfo(metadata, ShaderType::Compute, ShaderType::Compute);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
         DumpPipelineElf(abiProcessor,
                         "PipelineCs",
                         ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
-#else
-        DumpPipelineElf(abiProcessor, "PipelineCs", abiProcessor.GetPipelineName());
-#endif
 
         Abi::PipelineSymbolEntry symbol = { };
         if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsDisassembly, &symbol))
@@ -137,10 +133,8 @@ Result ComputePipeline::InitFromPipelineBinary(
 
         result = HwlInit(abiProcessor,
                          metadata,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
                          createInfo.pIndirectFuncList,
                          createInfo.indirectFuncCount,
-#endif
                          &metadataReader);
     }
 

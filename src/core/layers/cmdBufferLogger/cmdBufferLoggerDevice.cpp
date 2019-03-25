@@ -38,6 +38,13 @@ namespace CmdBufferLogger
 {
 
 // =====================================================================================================================
+static bool SupportsCommentString(
+    QueueType queueType)
+{
+    return ((queueType == QueueTypeUniversal) || (queueType == QueueTypeCompute));
+}
+
+// =====================================================================================================================
 Device::Device(
     PlatformDecorator* pPlatform,
     IDevice*           pNextDevice)
@@ -87,8 +94,8 @@ size_t Device::GetCmdBufferSize(
     nextCreateInfo.pCmdAllocator = NextCmdAllocator(createInfo.pCmdAllocator);
 
     size_t size = m_pNextLayer->GetCmdBufferSize(nextCreateInfo, pResult);
-    // TODO: Current the DMA queue does not support CmdCommentString. When it does, this branch can go away.
-    if (createInfo.queueType != QueueTypeDma)
+    // TODO: Some queues do not support CmdCommentString. When they do, this branch can go away.
+    if (SupportsCommentString(createInfo.queueType))
     {
         size += sizeof(CmdBuffer);
     }
@@ -112,15 +119,15 @@ Result Device::CreateCmdBuffer(
     CmdBufferCreateInfo nextCreateInfo = createInfo;
     nextCreateInfo.pCmdAllocator = NextCmdAllocator(createInfo.pCmdAllocator);
 
-    // TODO: Current the DMA queue does not support CmdCommentString. When it does, this branch can go away.
-    size_t offset = (createInfo.queueType != QueueTypeDma) ? sizeof(CmdBuffer) : sizeof(CmdBufferFwdDecorator);
+    // TODO: Some queues do not support CmdCommentString. When they do, this branch can go away.
+    const bool   supportsCommentString = SupportsCommentString(createInfo.queueType);
+    const size_t offset = (supportsCommentString) ? sizeof(CmdBuffer) : sizeof(CmdBufferFwdDecorator);
 
     Result result = m_pNextLayer->CreateCmdBuffer(nextCreateInfo,
                                                   VoidPtrInc(pPlacementAddr, offset),
                                                   &pNextCmdBuffer);
 
-    // TODO: Current the DMA queue does not support CmdCommentString. When it does, this branch can go away.
-    if ((result == Result::Success) && (createInfo.queueType != QueueTypeDma))
+    if ((result == Result::Success) && supportsCommentString)
     {
         PAL_ASSERT(pNextCmdBuffer != nullptr);
 
@@ -150,7 +157,8 @@ size_t Device::GetQueueSize(
     Result*                pResult
     ) const
 {
-    return m_pNextLayer->GetQueueSize(createInfo, pResult) + sizeof(Queue);
+    return m_pNextLayer->GetQueueSize(createInfo, pResult) +
+           (SupportsCommentString(createInfo.queueType) ? sizeof(Queue) : sizeof(QueueDecorator));
 }
 
 // =====================================================================================================================
@@ -160,24 +168,34 @@ Result Device::CreateQueue(
     IQueue**               ppQueue)
 {
     IQueue* pNextQueue = nullptr;
-    Queue*  pQueue = nullptr;
+    IQueue* pQueue = nullptr;
+
+    // TODO: Some queues do not support CmdCommentString. When they do, this branch can go away.
+    const bool   supportsCommentString = SupportsCommentString(createInfo.queueType);
+    const size_t offset = (supportsCommentString) ? sizeof(Queue) : sizeof(QueueDecorator);
 
     Result result = m_pNextLayer->CreateQueue(createInfo,
-                                              NextObjectAddr<Queue>(pPlacementAddr),
+                                              VoidPtrInc(pPlacementAddr, offset),
                                               &pNextQueue);
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && supportsCommentString)
     {
         PAL_ASSERT(pNextQueue != nullptr);
-        pNextQueue->SetClientData(pPlacementAddr);
 
         pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this);
+        result = static_cast<Queue*>(pQueue)->Init(createInfo.engineType, createInfo.queueType);
+    }
+    else if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextQueue != nullptr);
 
-        result = pQueue->Init(createInfo.engineType, createInfo.queueType);
+        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr)
+            QueueDecorator(pNextQueue, static_cast<const DeviceDecorator*>(m_pNextLayer));
     }
 
     if (result == Result::Success)
     {
+        pNextQueue->SetClientData(pPlacementAddr);
         (*ppQueue) = pQueue;
     }
 

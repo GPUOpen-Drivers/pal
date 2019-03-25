@@ -98,6 +98,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 };
@@ -816,7 +817,7 @@ void Device::InitGfx6ChipProperties()
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
-    Gfx6::FinalizeGpuChipProperties(&m_chipProperties);
+    Gfx6::FinalizeGpuChipProperties(*this, &m_chipProperties);
 }
 #endif
 
@@ -928,7 +929,7 @@ void Device::InitGfx9ChipProperties()
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
-    Gfx9::FinalizeGpuChipProperties(GetPlatform(), &m_chipProperties);
+    Gfx9::FinalizeGpuChipProperties(*this, &m_chipProperties);
 }
 #endif
 
@@ -966,9 +967,6 @@ Result Device::EarlyInit(
         case EngineTypeExclusiveCompute:
         case EngineTypeDma:
         case EngineTypeHighPriorityUniversal:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-        case EngineTypeHighPriorityGraphics:
-#endif
             m_engineProperties.perEngine[i].flags.supportsTrackBusyChunks = 1;
             break;
         default:

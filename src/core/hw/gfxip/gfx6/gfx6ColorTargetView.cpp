@@ -180,14 +180,11 @@ void ColorTargetView::BuildPm4Headers(
         // NOTE: We do not know the GPU virtual address of the metadata until bind-time.
         constexpr gpusize NumDwords = sizeof(m_pm4Cmds.mipMetaData) / sizeof(uint32);
 
-        m_pm4Cmds.spaceNeeded += cmdUtil.BuildWriteData(0,
-                                                       NumDwords,
-                                                       WRITE_DATA_ENGINE_PFP,
-                                                       WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                       true,
-                                                       nullptr,
-                                                       PredDisable,
-                                                       &m_pm4Cmds.hdrMipMetaData);
+        WriteDataInfo writeData = {};
+        writeData.engineSel = WRITE_DATA_ENGINE_PFP;
+        writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+        m_pm4Cmds.spaceNeeded += cmdUtil.BuildWriteData(writeData, NumDwords, nullptr, &m_pm4Cmds.hdrMipMetaData);
     }
 }
 

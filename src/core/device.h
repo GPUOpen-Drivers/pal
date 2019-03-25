@@ -81,11 +81,6 @@ constexpr uint32 MinVaRangeNumBits = 36u;
 // PAL minimum fragment size for local memory allocations
 constexpr gpusize PageSize = 0x1000u;
 
-// Represents the maximum number of UMC channels. UMC is the block that interfaces between the Scalable Data Fabric
-// (SDF) and the physical DRAM. Each UMC block has 1..n channels. Typically, there is one UMC channel per EA block, or
-// one per SDP (Scalable Data Port).
-constexpr uint32 MaxNumUmcChannels = 32;
-
 // Internal representation of the IDevice::m_pfnTable structure.
 struct DeviceInterfacePfnTable
 {
@@ -392,53 +387,8 @@ constexpr uint32 MinCmdStreamsPerSubmission = 4;
 // Size of an instruction cache line (bytes).
 constexpr gpusize ShaderICacheLineSize = 64;
 
-#if PAL_BUILD_GFX6
-// Maximum amount of counters per GPU block.
-constexpr size_t Gfx6MaxCountersPerBlock = 16;
-
-// Contains information for perf counters for Gfx6 HW.
-struct Gfx6PerfCounterInfo
-{
-    PerfExperimentDeviceFeatureFlags features;       // Performance experiment feature flags.
-
-    struct
-    {
-        bool     available;                         // If the block is available for perf experiments.
-        uint32   numShaderEngines;                  // Number of shader engines which contain this block
-                                                    // (1 for global blocks)
-        uint32   numShaderArrays;                   // Number of shader arrays which contain this block
-                                                    // (1 for global blocks)
-        uint32   numInstances;                      // Number of block instances in each shader array
-        uint32   numCounters;                       // Number of counters for each instance
-        uint32   maxEventId;                        // Maximum number of events for this block
-        uint32   numStreamingCounters;              // Number of streaming perf ctr's for each instance
-        uint32   numStreamingCounterRegs;           // Number of registers which can be configured for
-                                                    // streaming counters
-        uint32   spmBlockSelectCode;                // The select code for obtaining spm counter data for this block;
-
-        struct
-        {
-            uint32  perfSel0RegAddr;                // Perf select register offset #0
-            uint32  perfSel1RegAddr;                // Perf select register offset #1
-            uint32  perfCountLoAddr;                // Performance counter low address register offset
-            uint32  perfCountHiAddr;                // Performance counter high address register offset
-        } regInfo[Gfx6MaxCountersPerBlock];         // Register information for each counter
-    } block[static_cast<size_t>(GpuBlock::Count)];  // Counter information for each GPU block
-
-    uint32       mcConfigRegAddress;                // Chip-specific MC_CONFIG register address
-    uint32       mcWriteEnableMask;                 // Chip-specific MC_CONFIG write-enable mask
-    uint32       mcReadEnableShift;                 // Chip-specific MC_CONFIG read shift mask
-};
-#endif // PAL_BUILD_GFX6
-
-#if PAL_BUILD_GFX9
-// Maximum amount of counters per GPU block for Gfx9
-constexpr size_t MaxCountersPerBlock = 16;
-constexpr size_t MaxUmcCountersPerBlock = 5;
-
-// Maximum number of UMC perf counter registers exposed to SW, per UMC channel.
-constexpr size_t MaxCountersPerUmcch = 5;
-
+#if PAL_BUILD_GFX
+// Blocks can be distributed across the GPU in a few different ways.
 enum class PerfCounterDistribution : uint32
 {
     Unavailable = 0,    // Performance counter is unavailable.
@@ -447,49 +397,121 @@ enum class PerfCounterDistribution : uint32
     GlobalBlock,        // Performance counter exists outside of the shader engines.
 };
 
-// Contains information for perf counters for Gfx9
+// Set this to the highest number of perf counter modules across all blocks (except the UMCCH which is a special case).
+constexpr uint32 MaxPerfModules = 16;
+
+// The "PERFCOUNTER" registers frequently change address values between ASICs. To help keep this mess out of the
+// perf experiment code we define two structs and add them to the perf counter block info struct. Note that the
+// interpretation of these values depends on other state from the block info struct and some fields will be zero
+// if they have no meaning to a particular block or if that block has special case logic.
+
+// This struct has any registers that might have different addresses for each module.
+struct PerfCounterRegAddrPerModule
+{
+    uint32 selectOrCfg; // PERFCOUNTER#_SELECT or PERFCOUNTER#_CFG, depending on whether it's cfg-style.
+    uint32 select1;     // PERFCOUNTER#_SELECT1 for perfmon modules.
+    uint32 lo;          // PERCOUNTER#_LO or PERFCOUNTER_LO for cfg-style.
+    uint32 hi;          // PERCOUNTER#_HI or PERFCOUNTER_HI for cfg-style.
+};
+
+// A container for all perf counter register addresses for a single block. This is only used by blocks which use the
+// same register addresses for all instances. Some global blocks with multiple instances (e.g., SDMA) don't listen to
+// GRBM_GFX_INDEX and instead have unique register addresses for each instance so they can't use this struct; they are
+// rare so we treat them as special cases.
+struct PerfCounterRegAddr
+{
+    uint32 perfcounterRsltCntl; // Cfg-style blocks define a shared PERFCOUNTER_RSLT_CNTL register.
+
+    // Any registers that might have different addresses for each module. Indexed by the counter number in the registers
+    // (e.g., the 2 in CB_PERFCOUNTER2_LO).
+    PerfCounterRegAddrPerModule perfcounter[MaxPerfModules];
+};
+
+// Contains general information about perf counters for a HW block.
+struct PerfCounterBlockInfo
+{
+    PerfCounterDistribution distribution;            // How the block is distributed across the chip.
+    uint32                  numInstances;            // Number of block instances in each distribution.
+    uint32                  numGlobalInstances;      // Number of instances multiplied by the number of distributions.
+    uint32                  maxEventId;              // Maximum valid event ID for this block, note zero is valid.
+    uint32                  num16BitSpmCounters;     // Maximum number of 16-bit SPM counters per instance.
+    uint32                  num32BitSpmCounters;     // Maximum number of 32-bit SPM counters per instance.
+    uint32                  numGlobalOnlyCounters;   // Number of global counters that are legacy only, per instance.
+    uint32                  numGlobalSharedCounters; // Number of global counters that use the same counter state as
+                                                     // SPM counters, per instance.
+
+    // These fields are meant only for internal use in the perf experiment code.
+    PerfCounterRegAddr      regAddr;                 // The perfcounter register addresses for this block.
+    uint32                  numGenericSpmModules;    // Number of SPM perfmon modules per instance. Can be configured
+                                                     // as 1 global counter, 1-2 32-bit SPM counters, or 1-4 16-bit SPM
+                                                     // counters.
+    uint32                  numGenericLegacyModules; // Number of legacy (global only) counter modules per instance.
+    uint32                  numSpmWires;             // The number of 32-bit serial data wires going to the RLC. This
+                                                     // is the ultimate limit on the number of SPM counters.
+    uint32                  spmBlockSelect;          // Identifies this block in the RLC's SPM select logic.
+    bool                    isCfgStyle;              // An alternative counter programming model that: specifies legacy
+                                                     // "CFG" registers instead of "SELECT" registers, uses a master
+                                                     // "RSLT_CNTL" register, and can optionally use generic SPM.
+};
+
+#if PAL_BUILD_GFX6
+// SDMA is a global block with unique registers for each instance; this requires special handling.
+constexpr uint32 Gfx7MaxSdmaInstances   = 2;
+constexpr uint32 Gfx7MaxSdmaPerfModules = 2;
+
+// Contains information for perf counters for the Gfx6 layer.
+struct Gfx6PerfCounterInfo
+{
+    PerfExperimentDeviceFeatureFlags features;
+    PerfCounterBlockInfo             block[static_cast<size_t>(GpuBlock::Count)];
+
+    struct
+    {
+        uint32                       regAddress;      // Chip-specific MC_CONFIG register address
+        uint32                       readEnableShift; // Chip-specific MC_CONFIG read shift mask
+        uint32                       writeEnableMask; // Chip-specific MC_CONFIG write-enable mask
+    } mcConfig;                                       // We need this information to access the MC counters.
+
+    // SDMA addresses are handled specially
+    PerfCounterRegAddrPerModule      sdmaRegAddr[Gfx7MaxSdmaInstances][Gfx7MaxSdmaPerfModules];
+};
+#endif // PAL_BUILD_GFX6
+
+#if PAL_BUILD_GFX9
+// SDMA is a global block with unique registers for each instance; this requires special handling.
+constexpr uint32 Gfx9MaxSdmaInstances   = 2;
+constexpr uint32 Gfx9MaxSdmaPerfModules = 2;
+
+// UMC is the block that interfaces between the Scalable Data Fabric (SDF) and the physical DRAM. Each UMC block
+// has 1..n channels. Typically, there is one UMC channel per EA block, or one per SDP (Scalable Data Port). We
+// abstract this as the "UMCCH" (UMC per CHannel), a global block with one instance per channel. The UMC is totally
+// outside of the graphics core so it defines unique registers for each channel which requires special handling.
+constexpr uint32 Gfx9MaxUmcchInstances   = 32;
+constexpr uint32 Gfx9MaxUmcchPerfModules = 5;
+
+// Contains information for perf counters for the Gfx9 layer.
 struct Gfx9PerfCounterInfo
 {
-    PerfExperimentDeviceFeatureFlags features;       // Performance experiment feature flags.
+    PerfExperimentDeviceFeatureFlags features;
+    PerfCounterBlockInfo             block[static_cast<size_t>(GpuBlock::Count)];
+
+    // SDMA and UMCCH register addresses are handled specially
+    PerfCounterRegAddrPerModule      sdmaRegAddr[Gfx9MaxSdmaInstances][Gfx9MaxSdmaPerfModules];
 
     struct
     {
-        PerfCounterDistribution distribution;             // How the block is distributed across the chip.
-        uint32                  numInstances;             // Number of block instances in each distribution
-        uint32                  numCounters;              // Number of counters for each instance
-        uint32                  maxEventId;               // Maximum number of events for this block
-        uint32                  numStreamingCounters;     // Number of streaming perf ctr's for each instance
-        uint32                  numStreamingCounterRegs;  // Number of registers which can be configured for
-                                                          // streaming counters
-        uint32                  spmBlockSelectCode;       // The select code for obtaining spm counter data for
-                                                          // this block;
+        uint32 perfMonCtlClk;     // Master control for this instance's counters (UMCCH#_PerfMonCtlClk).
+
         struct
         {
-            uint32  perfSel0RegAddr;                // Perf select register offset #0
-            uint32  perfSel1RegAddr;                // Perf select register offset #1
-            uint32  perfCountLoAddr;                // Performance counter low address register offset
-            uint32  perfCountHiAddr;                // Performance counter high address register offset
-            uint32  perfRsltCntlRegAddr;            // Perf result control register offset
-        } regInfo[MaxCountersPerBlock];             // Register information for each counter
-    } block[static_cast<size_t>(GpuBlock::Count)];  // Counter information for each GPU block
-
-    struct
-    {
-        struct
-        {
-            uint32 ctlClkRegAddr;                   // Per channel global control register address.
-
-            struct
-            {
-                uint32 ctrControlRegAddr;            // Perf counter event select register.
-                uint32 resultRegLoAddr;              // Perf counter result register LO address. 32 bits.
-                uint32 resultRegHiAddr;              // Perf counter result register HI address. 16 valid bits.
-            } counter[MaxCountersPerUmcch];
-        } regInfo[MaxNumUmcChannels];
-    } umcChannelBlocks;                              // This struct is valid only when the available boolean above is
-                                                     // true for GpuBlock::Umcch.
+            uint32 perfMonCtl;   // Controls each UMCCH counter (UMCCH#_PerfMonCtl#).
+            uint32 perfMonCtrLo; // The lower half of each counter (UMCCH#_PerfMonCtr#_Lo).
+            uint32 perfMonCtrHi; // The upper half of each counter (UMCCH#_PerfMonCtr#_Hi).
+        } perModule[Gfx9MaxUmcchPerfModules];
+    } umcchRegAddr[Gfx9MaxUmcchInstances];
 };
 #endif // PAL_BUILD_GFX9
+#endif // PAL_BUILD_GFX
 
 // Everything PAL & its clients would ever need to know about the actual GPU hardware.
 struct GpuChipProperties
@@ -1769,13 +1791,6 @@ protected:
     Pal::GdsInfo  m_gdsInfo[EngineTypeCount][MaxAvailableEngines];
     bool          m_perPipelineBindPointGds;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
-    // A mask of SwapChainModeSupport flags for each present mode.
-    // This indicates which kinds of swap chains can be
-    // created depending on the client's intended present mode.
-    uint32 m_supportedSwapChainModes[static_cast<uint32>(PresentMode::Count)];
-#endif
-
     char  m_gpuName[MaxDeviceName];
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -1904,6 +1919,7 @@ extern void InitializeGpuChipProperties(
 
 // Finalize default values for the GPU chip properties for GFXIP 6/7/8 hardware.
 extern void FinalizeGpuChipProperties(
+    const Device&      device,
     GpuChipProperties* pInfo);
 
 extern void InitializePerfExperimentProperties(
@@ -1945,7 +1961,7 @@ extern void InitializeGpuChipProperties(
 
 // Finalize default values for the GPU chip properties for GFXIP9+ hardware.
 extern void FinalizeGpuChipProperties(
-    const Platform*    pPlatform,
+    const Device&      device,
     GpuChipProperties* pInfo);
 
 // Initialize default values for the GPU engine properties for GFXIP 6/7/8 hardware.

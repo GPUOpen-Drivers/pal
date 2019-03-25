@@ -38,7 +38,7 @@ namespace Linux
 {
 
 // More supported platforms could be added in the future.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392 && PAL_HAVE_WAYLAND_PLATFORM
+#if PAL_HAVE_WAYLAND_PLATFORM
 constexpr uint32 SupportedPlatformMask =
     WsiPlatform::Xcb | WsiPlatform::Xlib | WsiPlatform::Wayland | WsiPlatform::DirectDisplay;
 #else
@@ -59,7 +59,7 @@ size_t PresentFence::GetSize(
         case WsiPlatform::Xlib:
             size = Dri3PresentFence::GetSize();
             break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392 && PAL_HAVE_WAYLAND_PLATFORM
+#if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             size = WaylandPresentFence::GetSize();
             break;
@@ -101,7 +101,7 @@ Result PresentFence::Create(
                                               pPlacementAddr,
                                               ppPresentFence);
             break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392 && PAL_HAVE_WAYLAND_PLATFORM
+#if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             result = WaylandPresentFence::Create(static_cast<const WaylandWindowSystem&>(windowSystem),
                                                  initiallySignaled,
@@ -142,7 +142,7 @@ size_t WindowSystem::GetSize(
         case WsiPlatform::Xlib:
             size = Dri3WindowSystem::GetSize();
             break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392 && PAL_HAVE_WAYLAND_PLATFORM
+#if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             size = WaylandWindowSystem::GetSize();
             break;
@@ -180,7 +180,7 @@ Result WindowSystem::Create(
         case WsiPlatform::Xlib:
             result = Dri3WindowSystem::Create(device, createInfo, pPlacementAddr, ppWindowSystem);
             break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392 && PAL_HAVE_WAYLAND_PLATFORM
+#if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             result = WaylandWindowSystem::Create(device, createInfo, pPlacementAddr, ppWindowSystem);
             break;
@@ -231,7 +231,7 @@ Result WindowSystem::GetWindowGeometry(
         case WsiPlatform::Xlib:
             result = Dri3WindowSystem::GetWindowGeometryXlib(pDevice, hDisplay, hWindow, pExtents);
             break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392 && PAL_HAVE_WAYLAND_PLATFORM
+#if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             result = WaylandWindowSystem::GetWindowGeometry(pDevice, hDisplay, hWindow, pExtents);
             break;
@@ -271,7 +271,7 @@ Result WindowSystem::DeterminePresentationSupported(
         case WsiPlatform::Xlib:
             result = Dri3WindowSystem::DeterminePresentationSupportedXlib(pDevice, hDisplay, visualId);
             break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392 && PAL_HAVE_WAYLAND_PLATFORM
+#if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             result = WaylandWindowSystem::DeterminePresentationSupported(pDevice, hDisplay, visualId);
             break;

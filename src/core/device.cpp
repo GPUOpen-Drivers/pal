@@ -257,9 +257,6 @@ Device::Device(
     memset(m_gdsInfo, 0, sizeof(m_gdsInfo));
     memset(&m_gpuName[0], 0, sizeof(m_gpuName));
     memset(&m_flglState, 0, sizeof(m_flglState));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
-    memset(m_supportedSwapChainModes, 0, sizeof(m_supportedSwapChainModes));
-#endif
     memset(&m_flags, 0, sizeof(m_flags));
     memset(&m_bigSoftwareRelease, 0, sizeof(m_bigSoftwareRelease));
     memset(&m_virtualDisplayCaps, 0, sizeof(m_virtualDisplayCaps));
@@ -474,10 +471,6 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.disableResourceProcessingManager = false;
     m_publicSettings.tcCompatibleMetaData = 0x7F;
     m_publicSettings.maxUserDataEntries = 0xFFFFFFFF;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
-    m_publicSettings.userDataSpillTableRingSize = 256;
-    m_publicSettings.streamOutTableRingSize = 32;
-#endif
     m_publicSettings.cpDmaCmdCopyMemoryMaxBytes = 64 * 1024;
     m_publicSettings.forceHighClocks = false;
     m_publicSettings.numScratchWavesPerCu = 16;
@@ -492,6 +485,8 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.disableCommandBufferPreemption = false;
     m_publicSettings.disableSkipFceOptimization = true;
     m_publicSettings.dccBitsPerPixelThreshold = UINT_MAX;
+    m_publicSettings.largePageMinSizeForAlignmentInBytes =
+        m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
     m_publicSettings.miscellaneousDebugString[0] = '\0';
     m_publicSettings.renderedByString[0] = '\0';
 
@@ -1655,13 +1650,6 @@ Result Device::GetProperties(
         pInfo->timestampFrequency          = m_chipProperties.gpuCounterFrequency;
         pInfo->maxSemaphoreCount           = m_maxSemaphoreCount;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
-        // The device determined which modes are supported at initialization time.
-        memcpy(pInfo->swapChainProperties.supportedSwapChainModes,
-               m_supportedSwapChainModes,
-               sizeof(m_supportedSwapChainModes));
-#endif
-
         for (uint32 i = 0; i < EngineTypeCount; ++i)
         {
             const auto& engineInfo  = m_engineProperties.perEngine[i];
@@ -1679,13 +1667,11 @@ Result Device::GetProperties(
             pEngineInfo->gdsSizePerEngine              = engineInfo.gdsSizePerEngine;
             pEngineInfo->maxNumDedicatedCu             = engineInfo.maxNumDedicatedCu;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 430)
             // This may have its own value in the future for now use maxNumDedicatedCu
             pEngineInfo->maxNumDedicatedCuPerQueue     = engineInfo.maxNumDedicatedCu;
 
             // Long-term this value would be preferred to be reported by KMD.
             pEngineInfo->dedicatedCuGranularity        = engineInfo.dedicatedCuGranularity;
-#endif
 
             if (engineInfo.flags.borderColorPaletteSupport != 0)
             {
@@ -1761,6 +1747,10 @@ Result Device::GetProperties(
         pInfo->gpuMemoryProperties.privateApertureBase         = m_memoryProperties.privateApertureBase;
         pInfo->gpuMemoryProperties.sharedApertureBase          = m_memoryProperties.sharedApertureBase;
         pInfo->gpuMemoryProperties.busAddressableMemSize       = m_memoryProperties.busAddressableMemSize;
+
+        pInfo->gpuMemoryProperties.largePageSizeInBytes =
+                m_memoryProperties.largePageSupport.largePageSizeInBytes;
+
         pInfo->gpuMemoryProperties.performance.maxMemClock     = static_cast<float>(m_chipProperties.maxMemoryClock);
         pInfo->gpuMemoryProperties.performance.memPerfRating   = m_chipProperties.memoryPerfRating;
         pInfo->gpuMemoryProperties.performance.vramBusBitWidth = m_memoryProperties.vramBusBitWidth;
@@ -1821,14 +1811,12 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx6Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx6Props.numCuPerSh;
             pInfo->gfxipProperties.shaderCore.maxCusPerShaderArray = gfx6Props.maxNumCuPerSh;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 442)
             pInfo->gfxipProperties.shaderCore.numAvailableCus      = gfx6Props.numShaderEngines *
                                                                      gfx6Props.numShaderArrays *
                                                                      gfx6Props.numCuPerSh;
             pInfo->gfxipProperties.shaderCore.numPhysicalCus       = gfx6Props.numShaderEngines *
                                                                      gfx6Props.numShaderArrays *
                                                                      gfx6Props.maxNumCuPerSh;
-#endif
             pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx6Props.numSimdPerCu;
             pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx6Props.numWavesPerSimd;
             pInfo->gfxipProperties.shaderCore.wavefrontSize        = gfx6Props.wavefrontSize;
@@ -1904,10 +1892,8 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx9Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx9Props.numCuPerSh;
             pInfo->gfxipProperties.shaderCore.maxCusPerShaderArray = gfx9Props.maxNumCuPerSh;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 442)
             pInfo->gfxipProperties.shaderCore.numAvailableCus      = gfx9Props.numActiveCus;
             pInfo->gfxipProperties.shaderCore.numPhysicalCus       = gfx9Props.numPhysicalCus;
-#endif
             pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx9Props.numSimdPerCu;
             pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx9Props.numWavesPerSimd;
             pInfo->gfxipProperties.shaderCore.wavefrontSize        = gfx9Props.wavefrontSize;
@@ -2313,21 +2299,7 @@ size_t Device::GetCmdAllocatorSize(
     Result*                       pResult
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 395
-    CmdAllocatorCreateInfo localInfo = createInfo;
-    if ((createInfo.allocInfo[GpuScratchMemAlloc].allocSize    == 0) ||
-        (createInfo.allocInfo[GpuScratchMemAlloc].suballocSize == 0))
-    {
-        // For backwards-compatibility, we will just use the client's EmbeddedData allocation options for the
-        // InvisibleData allocations to prevent issues with trying to allocate zero bytes.
-        localInfo.allocInfo[GpuScratchMemAlloc] = localInfo.allocInfo[EmbeddedDataAlloc];
-        localInfo.allocInfo[GpuScratchMemAlloc].allocHeap = GpuHeapInvisible;
-    }
-
-    return CmdAllocator::GetSize(localInfo, pResult);
-#else
     return CmdAllocator::GetSize(createInfo, pResult);
-#endif
 }
 
 // =====================================================================================================================
@@ -2342,21 +2314,7 @@ Result Device::CreateCmdAllocator(
 
     if ((pPlacementAddr != nullptr) && (ppCmdAllocator != nullptr))
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 395
-        CmdAllocatorCreateInfo localInfo = createInfo;
-        if ((createInfo.allocInfo[GpuScratchMemAlloc].allocSize    == 0) ||
-            (createInfo.allocInfo[GpuScratchMemAlloc].suballocSize == 0))
-        {
-            // For backwards-compatibility, we will just use the client's EmbeddedData allocation options for the
-            // InvisibleData allocations to prevent issues with trying to allocate zero bytes.
-            localInfo.allocInfo[GpuScratchMemAlloc] = localInfo.allocInfo[EmbeddedDataAlloc];
-            localInfo.allocInfo[GpuScratchMemAlloc].allocHeap = GpuHeapInvisible;
-        }
-
-        CmdAllocator* pCmdAllocator = PAL_PLACEMENT_NEW(pPlacementAddr) CmdAllocator(this, localInfo);
-#else
         CmdAllocator* pCmdAllocator = PAL_PLACEMENT_NEW(pPlacementAddr) CmdAllocator(this, createInfo);
-#endif
 
         result = pCmdAllocator->Init();
         if (result != Result::Success)
@@ -4347,11 +4305,7 @@ bool Device::EngineSupportsGraphics(
 {
     bool  supportsGraphics = (engineType == EngineTypeUniversal);
 
-    supportsGraphics |= ((engineType == EngineTypeHighPriorityUniversal)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-                         ||(engineType == EngineTypeHighPriorityGraphics)
-#endif
-                        );
+    supportsGraphics |= (engineType == EngineTypeHighPriorityUniversal);
 
     return supportsGraphics;
 }

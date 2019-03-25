@@ -182,17 +182,32 @@ struct DmaDataInfo
     Pm4Predicate                  predicate;      // Set if currently using predication
 };
 
+// Data required to build a write_data packet. We try to set up this struct so that zero-initializing gives reasonable
+// values for rarely changed members like predicate, dontWriteConfirm, etc.
+struct WriteDataInfo
+{
+    EngineType   engineType;        // Which PAL engine will this packet be executed on?
+    gpusize      dstAddr;           // Destination GPU memory address or memory mapped register offset.
+    uint32       engineSel;         // Which CP engine executes this packet (see XXX_WRITE_DATA_engine_sel_enum)
+                                    // Ignored on the MEC.
+    uint32       dstSel;            // Where to write the data (see XXX_WRITE_DATA_dst_sel_enum)
+    Pm4Predicate predicate;         // If this packet respects predication (zero defaults to disabled).
+    bool         dontWriteConfirm;  // If the engine should continue immediately without waiting for a write-confirm.
+    bool         dontIncrementAddr; // If the engine should write every DWORD to the same destination address.
+                                    // Some memory mapped registers use this to stream in an array of data.
+};
+
 // On different hardware families, some registers have different register offsets. This structure stores the register
 // offsets for some of these registers.
 struct RegisterInfo
 {
-    uint16  mmCpPerfmonCntl;
-    uint16  mmCpStrmoutCntl;
-    uint16  mmGrbmGfxIndex;
-    uint16  mmRlcPerfmonCntl;
-    uint16  mmSqPerfCounterCtrl;
-    uint16  mmSqThreadTraceUserData2;
-    uint16  mmSqThreadTraceUserData3;
+    uint16  mmRlcPerfmonClkCntl;
+    uint16  mmRlcSpmGlobalMuxselAddr;
+    uint16  mmRlcSpmGlobalMuxselData;
+    uint16  mmRlcSpmSeMuxselAddr;
+    uint16  mmRlcSpmSeMuxselData;
+    uint16  mmRlcSpmPerfmonSe3To0SegmentSize;
+    uint16  mmRlcSpmPerfmonGlbSegmentSize;
     uint16  mmEaPerfResultCntl;
     uint16  mmAtcPerfResultCntl;
     uint16  mmAtcL2PerfResultCntl;
@@ -205,7 +220,6 @@ struct RegisterInfo
     uint16  mmDbDepthInfo;
     uint16  mmUserDataStartHsShaderStage;
     uint16  mmUserDataStartGsShaderStage;
-    uint16  mmSpiConfigCntl;
     uint16  mmPaStereoCntl;
     uint16  mmPaStateStereoX;
     uint16  mmComputeShaderChksum;
@@ -263,11 +277,17 @@ public:
     // The INDIRECT_BUFFER and COND_INDIRECT_BUFFER packet have a hard-coded IB size of 20 bits.
     static constexpr uint32 MaxIndirectBufferSizeDwords = (1 << 20) - 1;
 
+    // The COPY_DATA src_reg_offset and dst_reg_offset fields have a bit-width of 18 bits.
+    static constexpr uint32 MaxCopyDataRegOffset = (1 << 18) - 1;
+
     static bool IsContextReg(uint32 regAddr);
     static bool IsUserConfigReg(uint32 regAddr);
     static bool IsShReg(uint32 regAddr);
 
     static ME_WAIT_REG_MEM_function_enum WaitRegMemFunc(CompareFunc compareFunc);
+
+    // Checks if the register offset provided can be read or written using a COPY_DATA packet.
+    static bool CanUseCopyDataRegOffset(uint32 regOffset) { return (((~MaxCopyDataRegOffset) & regOffset) == 0); }
 
     size_t BuildAcquireMem(
         const AcquireMemInfo& acquireMemInfo,
@@ -324,6 +344,18 @@ public:
         MEC_COPY_DATA_count_sel_enum   countSel,
         MEC_COPY_DATA_wr_confirm_enum  wrConfirm,
         void*                          pBuffer);
+    // This generic version of BuildCopyData works on graphics and compute but doesn't provide any user-friendly enums.
+    // The caller must make sure that the arguments they use are legal on their engine.
+    static size_t BuildCopyData(
+        EngineType engineType,
+        uint32     engineSel,
+        uint32     dstSel,
+        gpusize    dstAddr,
+        uint32     srcSel,
+        gpusize    srcAddr,
+        uint32     countSel,
+        uint32     wrConfirm,
+        void*      pBuffer);
     template <bool dimInThreads, bool forceStartAt000>
     size_t BuildDispatchDirect(
         uint32          xDim,
@@ -610,26 +642,20 @@ public:
         uint32      dwordSize,
         void*       pBuffer);
     static size_t BuildWriteData(
-        EngineType      engineType,
-        gpusize         dstAddr,
-        size_t          dwordsToWrite,
-        uint32          engineSel,
-        uint32          dstSel,
-        uint32          wrConfirm,
-        const uint32*   pData,
-        Pm4Predicate    predicate,
-        void*           pBuffer);
+        const WriteDataInfo& info,
+        uint32               data,
+        void*                pBuffer);
+    static size_t BuildWriteData(
+        const WriteDataInfo& info,
+        size_t               dwordsToWrite,
+        const uint32*        pData,
+        void*                pBuffer);
     static size_t BuildWriteDataPeriodic(
-        EngineType    engineType,
-        gpusize       dstAddr,
-        size_t        dwordsPerPeriod,
-        size_t        periodsToWrite,
-        uint32        engineSel,
-        uint32        dstSel,
-        bool          wrConfirm,
-        const uint32* pPeriodData,
-        Pm4Predicate  predicate,
-        void*         pBuffer);
+        const WriteDataInfo& info,
+        size_t               dwordsPerPeriod,
+        size_t               periodsToWrite,
+        const uint32*        pPeriodData,
+        void*                pBuffer);
 
     static size_t BuildCommentString(const char* pComment, void* pBuffer);
 
@@ -640,24 +666,9 @@ public:
 
 private:
     static size_t BuildWriteDataInternal(
-        EngineType     engineType,
-        gpusize        dstAddr,
-        size_t         dwordsToWrite,
-        uint32         engineSel,
-        uint32         dstSel,
-        uint32         wrConfirm,
-        Pm4Predicate   predicate,
-        void*          pBuffer);
-    static size_t BuildCopyDataInternal(
-        EngineType engineType,
-        uint32     engineSel,
-        uint32     dstSel,
-        gpusize    dstAddr,
-        uint32     srcSel,
-        gpusize    srcAddr,
-        uint32     countSel,
-        uint32     wrConfirm,
-        void*      pBuffer);
+        const WriteDataInfo& info,
+        size_t               dwordsToWrite,
+        void*                pBuffer);
 
     template <typename AcquireMemPacketType>
     uint32 BuildAcquireMemInternal(

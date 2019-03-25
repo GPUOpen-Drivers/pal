@@ -281,6 +281,7 @@ GpuMemory::GpuMemory(
     m_priorityOffset(GpuMemPriorityOffset::Offset0),
     m_pImage(nullptr),
     m_mtype(MType::Default),
+    m_minPageSize(PAL_PAGE_BYTES),
     m_remoteSdiSurfaceIndex(0),
     m_remoteSdiMarkerIndex(0)
 {
@@ -447,8 +448,14 @@ Result GpuMemory::Init(
                 break;
             }
         }
-        // we cannot fire the assert if m_heapCount is 0
-        PAL_ASSERT(((m_flags.nonLocalOnly == 0) || (m_flags.localOnly == 0)) || (m_heapCount == 0));
+
+        // Give OS-specific code an opportunity to examine the client-specified heaps and add an extra GART backup
+        // heap for local-only allocations if needed.
+        if (m_heapCount > 0)
+        {
+            PAL_ASSERT((m_flags.nonLocalOnly == 0) || (m_flags.localOnly == 0));
+            OsFinalizeHeaps();
+        }
     }
 
     m_desc.preferredHeap = m_heaps[0];
@@ -534,7 +541,7 @@ Result GpuMemory::Init(
                 (createInfo.flags.sdiExternal == 0))
             {
 #if !defined(PAL_BUILD_BRANCH) || (PAL_BUILD_BRANCH >= 1740)
-                if (m_desc.size >= m_pDevice->MemoryProperties().largePageSupport.minSurfaceSizeForAlignmentInBytes)
+                if (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes)
                 {
                     const gpusize largePageSize = m_pDevice->MemoryProperties().largePageSupport.largePageSizeInBytes;
 
@@ -560,6 +567,23 @@ Result GpuMemory::Init(
                                          0,
                                          nullptr,
                                          nullptr);
+
+            if (IsVirtual() == false)
+            {
+                const gpusize fragmentSize = m_pDevice->MemoryProperties().fragmentSize;
+
+                // All currently supported OSes manage local framebuffer memory as physically contiguous allocations.
+                // This means that if the assigned VA, the requested PA alignment, and allocation size are all
+                // fragment aligned, we know that various "big page" hardware features are valid if the required
+                // big page size is compatible with the KMD-reported fragment size.
+                if (IsLocalOnly() &&
+                    IsPow2Aligned(m_desc.gpuVirtAddr, fragmentSize) &&
+                    IsPow2Aligned(GetPhysicalAddressAlignment(), fragmentSize) &&
+                    IsPow2Aligned(m_desc.size, fragmentSize))
+                {
+                    m_minPageSize = fragmentSize;
+                }
+            }
         }
 
         if (IsErrorResult(result) == false)
@@ -810,6 +834,17 @@ Result GpuMemory::Init(
 
     const Result result = OpenPeerMemory();
 
+    if (result == Result::Success)
+    {
+        // If this object's VA is aligned to the source object's minimum page size, inherit its minimum page size.
+        // Otherwise, stick with 4KiB default and we will have to potentially lose out on some big page optimizations.
+        const gpusize origMinPageSize = m_pOriginalMem->MinPageSize();
+        if (IsPow2Aligned(m_desc.gpuVirtAddr, origMinPageSize))
+        {
+            m_minPageSize = origMinPageSize;
+        }
+    }
+
     if (IsErrorResult(result) == false)
     {
         DescribeGpuMemory(Developer::GpuMemoryAllocationMethod::Peer);
@@ -965,13 +1000,6 @@ bool GpuMemory::IsCpuVisible() const
 }
 
 // =====================================================================================================================
-// Returns true if all of the heap types associated with this memory object will have 64kB contiguous pages.
-bool GpuMemory::IsBigPage() const
-{
-    return false;
-}
-
-// =====================================================================================================================
 // Returns an acceptable physical memory address base alignment for the given gpu memory object. To avoid fragmentation
 // this should be a small value unless there are hardware or OS reasons to increase it.
 gpusize GpuMemory::GetPhysicalAddressAlignment() const
@@ -1000,8 +1028,31 @@ gpusize GpuMemory::GetPhysicalAddressAlignment() const
         (IsTurboSyncSurface() == false) &&
         (m_pDevice->PhysicalEnginesAvailable() == false))
     {
-        // Clamp down to the real memory allocation granularity (typically 4KB).
-        alignment = Min(alignment, m_pDevice->MemoryProperties().realMemAllocGranularity);
+        const GpuMemoryProperties& memProps = m_pDevice->MemoryProperties();
+
+        // Default to clamping the physical address to system page alignment.
+        gpusize clamp = memProps.realMemAllocGranularity;
+
+        if (IsNonLocalOnly() == false)
+        {
+            // If the allocation supports local heaps and is suitably large, increase the clamp to the large page size
+            // (typically 256KiB or 2MiB) or fragment size (typically 64KiB) as appropriate to allow hardware-specific
+            // big page features when the allocation resides in local.  If the allocation is small, stick with the
+            // system page alignment to avoid fragmentation.
+            const gpusize fragmentSize = memProps.fragmentSize;
+
+            if (memProps.largePageSupport.sizeAlignmentNeeded &&
+                (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes))
+            {
+                clamp = memProps.largePageSupport.largePageSizeInBytes;
+            }
+            else if (m_desc.size >= fragmentSize)
+            {
+                clamp = fragmentSize;
+            }
+        }
+
+        alignment = Min(alignment, clamp);
     }
 
     return alignment;

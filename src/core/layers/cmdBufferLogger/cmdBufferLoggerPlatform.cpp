@@ -154,7 +154,11 @@ bool Platform::IsTimestampingEnabled() const
 {
     CmdBufferLoggerSingleStep singleStep = {};
     singleStep.u32All = PlatformSettings().cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
-    return (singleStep.timestampDraws | singleStep.timestampDispatches | singleStep.timestampBarriers);
+    return (singleStep.timestampDraws      |
+            singleStep.timestampDispatches |
+            singleStep.timestampBarriers   |
+            singleStep.timestampBlts       |
+            singleStep.timestampPipelineBinds);
 }
 
 // =====================================================================================================================

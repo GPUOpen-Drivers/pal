@@ -62,14 +62,14 @@ void ColorBlendState::BuildPm4Headers()
     const CmdUtil& cmdUtil = static_cast<Device*>(m_device.GetGfxDevice())->CmdUtil();
 
     // 1st PM4 packet: sets the following context registers: CB_BLEND0_CONTROL-CB_BLEND7_CONTROL
-    m_pm4Commands.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmCB_BLEND0_CONTROL,
-                                                               mmCB_BLEND7_CONTROL,
-                                                               &m_pm4Commands.hdrCbBlendControl);
+    cmdUtil.BuildSetSeqContextRegs(mmCB_BLEND0_CONTROL,
+                                   mmCB_BLEND7_CONTROL,
+                                   &m_pm4Commands.hdrCbBlendControl);
     // 2nd PM4 packet: sets the following context registers:
     // mmSX_MRT0_BLEND_OPT - mmSX_MRT7_BLEND_OPT
-    m_pm4Commands.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmSX_MRT0_BLEND_OPT,
-                                                                mmSX_MRT7_BLEND_OPT,
-                                                                &m_pm4Commands.hdrSxMrtBlendOpt);
+    cmdUtil.BuildSetSeqContextRegs(mmSX_MRT0_BLEND_OPT,
+                                   mmSX_MRT7_BLEND_OPT,
+                                   &m_pm4Commands.hdrSxMrtBlendOpt);
 }
 
 // =====================================================================================================================
@@ -522,17 +522,19 @@ uint32* ColorBlendState::WriteCommands(
     uint32*    pCmdSpace
     ) const
 {
+    static const uint32 Pm4SizeInDwords = (sizeof(BlendStatePm4Img) / sizeof(uint32));
+
     // When the command stream is null, we are writing the commands for this state into a pre-allocated buffer that has
     // enough space for the commands.
     // When the command stream is non-null, we are writing the commands as part of a ICmdBuffer::CmdBind* call.
     if (pCmdStream == nullptr)
     {
-        memcpy(pCmdSpace, &m_pm4Commands, m_pm4Commands.spaceNeeded * sizeof(uint32));
-        pCmdSpace += m_pm4Commands.spaceNeeded;
+        memcpy(pCmdSpace, &m_pm4Commands, sizeof(m_pm4Commands));
+        pCmdSpace += Pm4SizeInDwords;
     }
     else
     {
-        pCmdSpace = pCmdStream->WritePm4Image(m_pm4Commands.spaceNeeded, &m_pm4Commands, pCmdSpace);
+        pCmdSpace = pCmdStream->WritePm4Image(Pm4SizeInDwords, &m_pm4Commands, pCmdSpace);
     }
 
     return pCmdSpace;

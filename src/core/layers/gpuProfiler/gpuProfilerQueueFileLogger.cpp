@@ -136,9 +136,6 @@ void Queue::OpenLogFile(
         "Timer",
 
         "HpUniversal",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-        "HpGfxOnly",
-#endif
 
     };
 
@@ -216,9 +213,6 @@ void Queue::OpenSqttFile(
         "Dma",
         "Timer",
         "HpUniversal",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-        "HpGfxOnly",
-#endif
 
     };
 

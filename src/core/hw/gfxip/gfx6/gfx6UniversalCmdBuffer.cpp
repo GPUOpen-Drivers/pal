@@ -37,7 +37,6 @@
 #include "core/hw/gfxip/gfx6/gfx6IndirectCmdGenerator.h"
 #include "core/hw/gfxip/gfx6/gfx6MsaaState.h"
 #include "core/hw/gfxip/gfx6/gfx6PerfExperiment.h"
-#include "core/hw/gfxip/gfx6/gfx6PerfTrace.h"
 #include "core/hw/gfxip/gfx6/gfx6UniversalCmdBuffer.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
@@ -712,7 +711,9 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
                                                    pDeCmdSpace);
 
     // Write MSAA quad sample pattern registers
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(samplePosPm4Image.spaceNeeded, &samplePosPm4Image, pDeCmdSpace);
+    pDeCmdSpace = m_deCmdStream.WritePm4Image(SizeOfMsaaSamplePositionsPm4ImageInDwords,
+                                              &samplePosPm4Image,
+                                              pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
@@ -2319,16 +2320,14 @@ void UniversalCmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     uint32            value)
 {
     const GpuMemory* pGpuMemory = static_cast<const GpuMemory*>(&dstGpuMemory);
+    WriteDataInfo    writeData  = {};
+
+    writeData.dstAddr   = pGpuMemory->GetBusAddrMarkerVa() + offset;
+    writeData.engineSel = WRITE_DATA_ENGINE_ME;
+    writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildWriteData(pGpuMemory->GetBusAddrMarkerVa() + offset,
-                                            1,
-                                            WRITE_DATA_ENGINE_ME,
-                                            WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                            true,
-                                            &value,
-                                            PredDisable,
-                                            pDeCmdSpace);
+    pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, value, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
@@ -2518,7 +2517,9 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
                                                                mmPA_SC_SCREEN_SCISSOR_BR,
                                                                &pm4Commands.hdrPaScScreenScissorTlBr) +
                               m_cmdUtil.BuildSetOneContextReg(mmDB_HTILE_DATA_BASE,
-                                                              &pm4Commands.hdrDbHtileDataBase));
+                                                              &pm4Commands.hdrDbHtileDataBase) +
+                              m_cmdUtil.BuildSetOneContextReg(mmDB_RENDER_CONTROL,
+                                                              &pm4Commands.hdrDbRenderControl));
 
     pm4Commands.dbZInfo.u32All            = 0;
     pm4Commands.dbStencilInfo.u32All      = 0;
@@ -2533,6 +2534,14 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     pm4Commands.paScScreenScissorBr.bits.BR_Y = PaScScreenScissorMax;
 
     pm4Commands.dbHtileDataBase.u32All = 0;
+
+    // If the dbRenderControl.DEPTH_CLEAR_ENABLE bit is not reset to 0 after performing a graphics fast depth clear
+    // then any following draw call with pixel shader z-imports will have their z components clamped to the clear
+    // plane equation which was set in the fast clear.
+    //
+    //     [dbRenderControl.]DEPTH_CLEAR_ENABLE will modify the zplane of the incoming geometry to the clear plane.
+    //     So if the shader uses this z plane (that is, z-imports are enabled), this can affect the color output.
+    pm4Commands.dbRenderControl.u32All = 0;
 
     PAL_ASSERT(cmdDwords != 0);
     return m_deCmdStream.WritePm4Image(cmdDwords, &pm4Commands, pCmdSpace);
@@ -2806,30 +2815,26 @@ void UniversalCmdBuffer::WriteEventCmd(
         pipePoint = OptimizeHwPipePostBlit();
     }
 
+    WriteDataInfo writeData = {};
+
     switch (pipePoint)
     {
     case HwPipeTop:
         // Implement set/reset event with a WRITE_DATA command using PFP engine.
-        pDeCmdSpace += m_cmdUtil.BuildWriteData(boundMemObj.GpuVirtAddr(),
-                                                1,
-                                                WRITE_DATA_ENGINE_PFP,
-                                                WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                true,
-                                                &data,
-                                                PredDisable,
-                                                pDeCmdSpace);
+        writeData.dstAddr   = boundMemObj.GpuVirtAddr();
+        writeData.engineSel = WRITE_DATA_ENGINE_PFP;
+        writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+        pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
         break;
 
     case HwPipePostIndexFetch:
         // Implement set/reset event with a WRITE_DATA command using ME engine.
-        pDeCmdSpace += m_cmdUtil.BuildWriteData(boundMemObj.GpuVirtAddr(),
-                                                1,
-                                                WRITE_DATA_ENGINE_ME,
-                                                WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                true,
-                                                &data,
-                                                PredDisable,
-                                                pDeCmdSpace);
+        writeData.dstAddr   = boundMemObj.GpuVirtAddr();
+        writeData.engineSel = WRITE_DATA_ENGINE_ME;
+        writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+        pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
         break;
 
     case HwPipePreRasterization:
@@ -5147,14 +5152,7 @@ void UniversalCmdBuffer::InheritStateFromCmdBuf(
 void UniversalCmdBuffer::CmdUpdateSqttTokenMask(
     const ThreadTraceTokenConfig& sqttTokenConfig)
 {
-    uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-
-    pCmdSpace = Gfx6::ThreadTrace::WriteUpdateSqttTokenMask(&m_deCmdStream,
-        pCmdSpace,
-        sqttTokenConfig,
-        m_device);
-
-    m_deCmdStream.CommitCommands(pCmdSpace);
+    PerfExperiment::UpdateSqttTokenMaskStatic(&m_deCmdStream, sqttTokenConfig, m_device);
 }
 
 // =====================================================================================================================
@@ -5820,6 +5818,9 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
             m_rbPlusPm4Img.sxBlendOptEpsilon = cmdBuffer.m_rbPlusPm4Img.sxBlendOptEpsilon;
             m_rbPlusPm4Img.sxBlendOptControl = cmdBuffer.m_rbPlusPm4Img.sxBlendOptControl;
         }
+
+        m_spiPsInControl     = cmdBuffer.m_spiPsInControl;
+        m_spiVsOutConfig     = cmdBuffer.m_spiVsOutConfig;
     }
 
     if (cmdBuffer.HasStreamOutBeenSet())
@@ -5838,8 +5839,6 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_spillTable.stateGfx.dirty |= cmdBuffer.m_spillTable.stateGfx.dirty;
 
     m_pipelineCtxPm4Hash = cmdBuffer.m_pipelineCtxPm4Hash;
-    m_spiPsInControl     = cmdBuffer.m_spiPsInControl;
-    m_spiVsOutConfig     = cmdBuffer.m_spiVsOutConfig;
 
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
     m_gfxCmdBufState.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.gfxBltActive;

@@ -234,9 +234,7 @@ if(PAL_BUILD_CORE)
         core/masterQueueSemaphore.cpp
         core/openedQueueSemaphore.cpp
         core/palSettingsLoader.cpp
-        core/perfCounter.cpp
         core/perfExperiment.cpp
-        core/perfTrace.cpp
         core/platform.cpp
         core/platformSettingsLoader.cpp
         core/presentScheduler.cpp
@@ -375,10 +373,8 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx6/gfx6MaskRam.cpp
                 core/hw/gfxip/gfx6/gfx6MsaaState.cpp
                 core/hw/gfxip/gfx6/gfx6OcclusionQueryPool.cpp
-                core/hw/gfxip/gfx6/gfx6PerfCounter.cpp
                 core/hw/gfxip/gfx6/gfx6PerfCtrInfo.cpp
                 core/hw/gfxip/gfx6/gfx6PerfExperiment.cpp
-                core/hw/gfxip/gfx6/gfx6PerfTrace.cpp
                 core/hw/gfxip/gfx6/gfx6PipelineChunkEsGs.cpp
                 core/hw/gfxip/gfx6/gfx6PipelineChunkLsHs.cpp
                 core/hw/gfxip/gfx6/gfx6PipelineChunkVsPs.cpp
@@ -434,10 +430,8 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx9/gfx9MetaEq.cpp
                 core/hw/gfxip/gfx9/gfx9MsaaState.cpp
                 core/hw/gfxip/gfx9/gfx9OcclusionQueryPool.cpp
-                core/hw/gfxip/gfx9/gfx9PerfCounter.cpp
                 core/hw/gfxip/gfx9/gfx9PerfCtrInfo.cpp
                 core/hw/gfxip/gfx9/gfx9PerfExperiment.cpp
-                core/hw/gfxip/gfx9/gfx9PerfTrace.cpp
                 core/hw/gfxip/gfx9/gfx9PipelineChunkGs.cpp
                 core/hw/gfxip/gfx9/gfx9PipelineChunkHs.cpp
                 core/hw/gfxip/gfx9/gfx9PipelineChunkVsPs.cpp

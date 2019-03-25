@@ -44,6 +44,7 @@ Queue::Queue(
     :
     QueueDecorator(pNextQueue, pDevice),
     m_pDevice(pDevice),
+    m_timestampingActive(static_cast<Platform*>(pDevice->GetPlatform())->IsTimestampingEnabled()),
     m_pCmdAllocator(nullptr),
     m_pCmdBuffer(nullptr),
     m_pTimestamp(nullptr),
@@ -58,9 +59,10 @@ Result Queue::Init(
 {
     Result result = Result::Success;
 
-    Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
-    if (pPlatform->IsTimestampingEnabled())
+    if (m_timestampingActive)
     {
+        Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
+
         DeviceProperties deviceProps = {};
         result = m_pDevice->GetProperties(&deviceProps);
 
@@ -209,7 +211,7 @@ Result Queue::InitCmdBuffer(
 void Queue::Destroy()
 {
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
-    if (pPlatform->IsTimestampingEnabled())
+    if (m_timestampingActive)
     {
         if (m_pTimestamp != nullptr)
         {
@@ -267,7 +269,7 @@ Result Queue::Submit(
     SubmitInfo finalSubmitInfo = submitInfo;
     Result     result          = Result::Success;
 
-    if (pPlatform->IsTimestampingEnabled())
+    if (m_timestampingActive)
     {
         const uint32 maxCmdBufferCount = submitInfo.cmdBufferCount + 1;
 
@@ -329,7 +331,7 @@ Result Queue::Submit(
         result = QueueDecorator::Submit(finalSubmitInfo);
     }
 
-    if ((result == Result::Success) && pPlatform->IsTimestampingEnabled() && (finalSubmitInfo.pFence != nullptr))
+    if ((result == Result::Success) && m_timestampingActive && (finalSubmitInfo.pFence != nullptr))
     {
         result = m_pDevice->WaitForFences(1, &finalSubmitInfo.pFence, true, Timeout);
     }

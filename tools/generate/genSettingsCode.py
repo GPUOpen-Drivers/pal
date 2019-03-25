@@ -212,10 +212,10 @@ def defineEnum(valueList):
                     valueIfDefTmp += "#if " + type + newline
                     valueEndDefTmp += "#endif"
             # Add this value to the full list, and if it's not the last value (or if there's an #endif) add a newline
-            if i < (len(valueList["Values"]) - 1):
+            if i < (len(valueList["Values"]) - 1) or valueEndDefTmp != "":
                 enumValue += newline
-            elif valueEndDefTmp != "":
-                enumValue += newline
+                if i < (len(valueList["Values"]) - 1) and valueEndDefTmp != "":
+                    valueEndDefTmp += newline
             enumData += valueIfDefTmp + enumValue + valueEndDefTmp
 
         # Now fill in the dynamic data in the enum template
@@ -677,7 +677,7 @@ hardwareLayerLower = hardwareLayer.lower()
 # Setup the Setting struct definition
 ###################################################################################################################
 settingStruct = ""
-settingStructName = upperCamelComponentName + "Settings"
+settingStructName = codeTemplates.SettingStructName.replace("%UpperCamelComponentName%", upperCamelComponentName)
 
 settingStruct = codeTemplates.StructDef.replace("%SettingStructName%", settingStructName)
 settingStruct = settingStruct.replace("%SettingDefs%", settingDefs)

@@ -58,15 +58,17 @@ union CmdBufferLoggerSingleStep
 {
     struct
     {
-        uint32 timestampDraws      :  1;
-        uint32 timestampDispatches :  1;
-        uint32 timestampBarriers   :  1;
-        uint32 timestampBlts       :  1;
-        uint32 waitIdleDraws       :  1;
-        uint32 waitIdleDispatches  :  1;
-        uint32 waitIdleBarriers    :  1;
-        uint32 waitIdleBlts        :  1;
-        uint32 reserved            : 24;
+        uint32 timestampDraws         :  1;
+        uint32 timestampDispatches    :  1;
+        uint32 timestampBarriers      :  1;
+        uint32 timestampBlts          :  1;
+        uint32 timestampPipelineBinds :  1;
+        uint32 waitIdleDraws          :  1;
+        uint32 waitIdleDispatches     :  1;
+        uint32 waitIdleBarriers       :  1;
+        uint32 waitIdleBlts           :  1;
+        uint32 waitIdlePipelineBinds  :  1;
+        uint32 reserved               : 22;
     };
     uint32 u32All;
 };
@@ -577,7 +579,12 @@ private:
         uint32      zDim);
 
     bool IsTimestampingActive() const
-        { return (m_singleStep.timestampBarriers | m_singleStep.timestampDispatches | m_singleStep.timestampDraws); }
+    {
+        return (m_singleStep.timestampBarriers   |
+                m_singleStep.timestampDispatches |
+                m_singleStep.timestampDraws      |
+                m_singleStep.timestampBlts       |
+                m_singleStep.timestampPipelineBinds); }
     void AddTimestamp();
     void AddSingleStepBarrier();
 

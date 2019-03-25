@@ -95,11 +95,9 @@ struct MsaaSamplePositionsPm4Img
 
     PM4CMDSETDATA  hdrPaScSampleQuad;    // 2nd PM4 set data packet
     PaScSampleQuad paScSampleQuad;
-
-    // Command space needed, in DWORDs. This field must always be last in the structure to not
-    // interfere w/ the actual commands contained within.
-    size_t         spaceNeeded;
 };
+
+constexpr uint32 SizeOfMsaaSamplePositionsPm4ImageInDwords = sizeof(MsaaSamplePositionsPm4Img) / sizeof(uint32);
 
 // =====================================================================================================================
 // Gfx6 hardware layer MSAA State class: implements GFX6 specific functionality for the ApiStateObject class,
@@ -118,9 +116,7 @@ public:
         const CmdUtil&               cmdUtil,
         MsaaSamplePositionsPm4Img*   pSamplePosPm4Image,
         uint32                       numSamples,
-        const MsaaQuadSamplePattern& quadSamplePattern,
-        size_t*                      pCentroidPrioritiesHdrSize = nullptr,
-        size_t*                      pQuadSamplePatternHdrSize = nullptr);
+        const MsaaQuadSamplePattern& quadSamplePattern);
 
     static void SetCentroidPriorities(
         PaScCentroid*   pPaScCentroid,

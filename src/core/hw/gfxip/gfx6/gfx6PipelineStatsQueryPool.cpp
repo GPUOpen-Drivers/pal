@@ -144,14 +144,12 @@ void PipelineStatsQueryPool::Begin(
             // Query event for compute engine only writes csInvocation, must write dummy zero's to other slots.
             constexpr uint32 DwordsToWrite = offsetof(Gfx6PipelineStatsData, csInvocations) / sizeof(uint32);
             const uint32 pData[DwordsToWrite] = {};
-            pCmdSpace += m_device.CmdUtil().BuildWriteData(gpuAddr,
-                                                           DwordsToWrite,
-                                                           WRITE_DATA_ENGINE_ME,
-                                                           WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                           true,
-                                                           pData,
-                                                           PredDisable,
-                                                           pCmdSpace);
+
+            WriteDataInfo writeData = {};
+            writeData.dstAddr = gpuAddr;
+            writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+            pCmdSpace += m_device.CmdUtil().BuildWriteData(writeData, DwordsToWrite, pData, pCmdSpace);
 
             gpuAddr += offsetof(Gfx6PipelineStatsData, csInvocations);
         }
@@ -199,14 +197,12 @@ void PipelineStatsQueryPool::End(
             // Query event for compute engine only writes csInvocation, must write dummy zero's to other slots.
             constexpr uint32 DwordsToWrite = offsetof(Gfx6PipelineStatsData, csInvocations) / sizeof(uint32);
             const uint32 pData[DwordsToWrite] = {};
-            pCmdSpace += m_device.CmdUtil().BuildWriteData(gpuAddr,
-                                                           DwordsToWrite,
-                                                           WRITE_DATA_ENGINE_ME,
-                                                           WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                           true,
-                                                           pData,
-                                                           PredDisable,
-                                                           pCmdSpace);
+
+            WriteDataInfo writeData = {};
+            writeData.dstAddr = gpuAddr;
+            writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+            pCmdSpace += m_device.CmdUtil().BuildWriteData(writeData, DwordsToWrite, pData, pCmdSpace);
 
             gpuAddr += offsetof(Gfx6PipelineStatsData, csInvocations);
         }

@@ -74,26 +74,12 @@ PipelineAbiProcessor<Allocator>::PipelineAbiProcessor(
     m_pCompatRegisterBlob(nullptr),
     m_pMetadata(nullptr),
     m_metadataSize(0),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-    m_gpuVersionNote(),
-    m_abiMinorVersionNote(),
-    m_registerMap(128, pAllocator),
-    m_pipelineMetadataVector(pAllocator),
-    m_pipelineMetadataIndices(),
-#endif
     m_genericSymbolsMap(16u, pAllocator),
     m_pipelineSymbolsVector(pAllocator),
     m_pipelineSymbolIndices(),
     m_elfProcessor(pAllocator),
     m_pAllocator(pAllocator)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-    for (uint32 i = 0; i < static_cast<uint32>(PipelineMetadataType::Count); i++)
-    {
-        m_pipelineMetadataIndices[i] = -1;
-    }
-#endif
-
     for (uint32 i = 0; i < static_cast<uint32>(PipelineSymbolType::Count); i++)
     {
         m_pipelineSymbolIndices[i] = -1;
@@ -105,13 +91,6 @@ template <typename Allocator>
 Result PipelineAbiProcessor<Allocator>::Init()
 {
     Result result = m_elfProcessor.Init();
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-    if (result == Result::Success)
-    {
-        result = m_registerMap.Init();
-    }
-#endif
 
     if (result == Result::Success)
     {
@@ -129,9 +108,6 @@ Result PipelineAbiProcessor<Allocator>::Init()
 
         m_metadataMajorVer = PipelineMetadataMajorVersion;
         m_metadataMinorVer = PipelineMetadataMinorVersion;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-        m_abiMinorVersionNote = { PipelineMetadataMinorVersion };
-#endif
     }
 
     return result;
@@ -184,11 +160,6 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
         PAL_ASSERT_ALWAYS();
         break;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-    m_gpuVersionNote.gfxipMajorVer = gfxIpMajorVer;
-    m_gpuVersionNote.gfxipMinorVer = gfxIpMinorVer;
-    m_gpuVersionNote.gfxipStepping = gfxIpStepping;
-#endif
 }
 
 // =====================================================================================================================
@@ -499,133 +470,6 @@ Result PipelineAbiProcessor<Allocator>::AddGenericSymbolEntry(
     return m_genericSymbolsMap.Insert(entry.pName, entry);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-// =====================================================================================================================
-template <typename Allocator>
-Result PipelineAbiProcessor<Allocator>::AddRegisterEntry(
-    uint32 offset,
-    uint32 value)
-{
-    RegisterEntry entry = { };
-    entry.key   = offset;
-    entry.value = value;
-    return AddRegisterEntry(entry);
-}
-
-// =====================================================================================================================
-template <typename Allocator>
-Result PipelineAbiProcessor<Allocator>::AddPipelineMetadataEntry(
-    PipelineMetadataEntry entry)
-{
-    Result result = m_pipelineMetadataVector.PushBack(entry);
-    if (result == Result::Success)
-    {
-        m_pipelineMetadataIndices[static_cast<uint32>(entry.key)] = m_pipelineMetadataVector.NumElements() - 1;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-template <typename Allocator>
-bool PipelineAbiProcessor<Allocator>::HasRegisterEntry(
-    uint32  registerOffset,
-    uint32* pRegisterValue
-    ) const
-{
-    const RegisterEntry* pRegisterEntry = m_registerMap.FindKey(registerOffset);
-    const bool registerExists           = pRegisterEntry != nullptr;
-
-    if (registerExists)
-    {
-        *pRegisterValue = pRegisterEntry->value;
-    }
-
-    return registerExists;
-}
-
-// =====================================================================================================================
-template <typename Allocator>
-uint32 PipelineAbiProcessor<Allocator>::GetRegisterEntry(
-    uint32 registerOffset
-    ) const
-{
-    const RegisterEntry* pRegisterEntry = m_registerMap.FindKey(registerOffset);
-    PAL_ASSERT(pRegisterEntry != nullptr);
-    return pRegisterEntry->value;
-}
-
-// =====================================================================================================================
-template <typename Allocator>
-bool PipelineAbiProcessor<Allocator>::HasPipelineMetadataEntry(
-    PipelineMetadataType pipelineMetadataType,
-    uint32*              pPipelineMetadataValue
-    ) const
-{
-    const int32 index = m_pipelineMetadataIndices[static_cast<uint32>(pipelineMetadataType)];
-    const bool pipelineMetadataEntryExists = (index >= 0);
-
-    if (pipelineMetadataEntryExists)
-    {
-        *pPipelineMetadataValue = m_pipelineMetadataVector.At(index).value;
-    }
-
-    return pipelineMetadataEntryExists;
-}
-
-// =====================================================================================================================
-template <typename Allocator>
-bool PipelineAbiProcessor<Allocator>::HasPipelineMetadataEntries(
-    PipelineMetadataType pipelineMetadataTypeHigh,
-    PipelineMetadataType pipelineMetadataTypeLow
-    ) const
-{
-    const int32 indexHigh = m_pipelineMetadataIndices[static_cast<uint32>(pipelineMetadataTypeHigh)];
-    const int32 indexLow  = m_pipelineMetadataIndices[static_cast<uint32>(pipelineMetadataTypeLow)];
-
-    return (indexHigh >= 0) && (indexLow >= 0);
-}
-
-// =====================================================================================================================
-template <typename Allocator>
-bool PipelineAbiProcessor<Allocator>::HasPipelineMetadataEntries(
-    PipelineMetadataType pipelineMetadataTypeHigh,
-    PipelineMetadataType pipelineMetadataTypeLow,
-    uint64*              pPipelineMetadataValue
-    ) const
-{
-    const int32 indexHigh = m_pipelineMetadataIndices[static_cast<uint32>(pipelineMetadataTypeHigh)];
-    const int32 indexLow  = m_pipelineMetadataIndices[static_cast<uint32>(pipelineMetadataTypeLow)];
-
-    const bool pipelineMetadataEntriesExists = (indexHigh >= 0) && (indexLow >= 0);
-
-    if (pipelineMetadataEntriesExists)
-    {
-        *pPipelineMetadataValue = (static_cast<uint64>(m_pipelineMetadataVector.At(indexHigh).value) << 32) |
-                                  m_pipelineMetadataVector.At(indexLow).value;
-    }
-
-    return pipelineMetadataEntriesExists;
-}
-
-// =====================================================================================================================
-template <typename Allocator>
-uint64 PipelineAbiProcessor<Allocator>::GetPipelineMetadataEntries(
-    PipelineMetadataType pipelineMetadataTypeHigh,
-    PipelineMetadataType pipelineMetadataTypeLow
-    ) const
-{
-    const int32 indexHigh = m_pipelineMetadataIndices[static_cast<uint32>(pipelineMetadataTypeHigh)];
-    const int32 indexLow  = m_pipelineMetadataIndices[static_cast<uint32>(pipelineMetadataTypeLow)];
-
-    PAL_ASSERT(indexHigh >= 0);
-    PAL_ASSERT(indexLow >= 0);
-
-    return (static_cast<uint64>(m_pipelineMetadataVector.At(indexHigh).value) << 32) |
-           m_pipelineMetadataVector.At(indexLow).value;
-}
-#endif
-
 // =====================================================================================================================
 template <typename Allocator>
 bool PipelineAbiProcessor<Allocator>::HasPipelineSymbolEntry(
@@ -856,15 +700,9 @@ void PipelineAbiProcessor<Allocator>::ApplyRelocations(
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
 template <typename Allocator>
 Result PipelineAbiProcessor<Allocator>::Finalize(
     const MsgPackWriter& pipelineMetadataWriter)
-#else
-template <typename Allocator>
-Result PipelineAbiProcessor<Allocator>::Finalize(
-    const char* pPipelineName)
-#endif
 {
     Result result = Result::Success;
 
@@ -960,23 +798,6 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
                 break;
             }
         } // for each generic symbol
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-        // NOTE: This is a bit of a hack.  We're adding the human-readable name for this pipeline (if one exists) to
-        // the symbol-name string table as a temporary measure.  Eventually, the pipeline ABI metadata layout will be
-        // changed to be more extensible so that arbitrary data (such as strings) can be stored.
-        if (pPipelineName != nullptr)
-        {
-            PipelineMetadataEntry entry = { };
-            entry.key   = Abi::PipelineMetadataType::PipelineNameIndex;
-            entry.value = symbolStringProcessor.Add(pPipelineName);
-
-            if (entry.value != UINT_MAX)
-            {
-                this->AddPipelineMetadataEntry(entry);
-            }
-        }
-#endif
     }
 
     // Handle the AMDGPU & PAL ABI note entries:
@@ -997,7 +818,6 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
         result = noteProcessor.Init();
         if (result == Result::Success)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
             MsgPackWriter codeObjectMetadataWriter(m_pAllocator);
             codeObjectMetadataWriter.Reserve(pipelineMetadataWriter.GetSize());
             codeObjectMetadataWriter.DeclareMap(2);
@@ -1019,54 +839,6 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
             {
                 result = Result::ErrorOutOfMemory;
             }
-#else
-            if ((noteProcessor.Add(static_cast<uint32>(PipelineAbiNoteType::HsaIsa),
-                                   AmdGpuArchName,
-                                   &m_gpuVersionNote,
-                                   AbiAmdGpuVersionNoteSize) == UINT_MAX) ||
-                (noteProcessor.Add(static_cast<uint32>(PipelineAbiNoteType::AbiMinorVersion),
-                                   AmdGpuArchName,
-                                   &m_abiMinorVersionNote,
-                                   AbiMinorVersionNoteSize) == UINT_MAX))
-            {
-                result = Result::ErrorOutOfMemory;
-            }
-            else
-            {
-                const size_t noteEntryCount = (m_registerMap.GetNumEntries() + m_pipelineMetadataVector.NumElements());
-                AutoBuffer<PalMetadataNoteEntry, 64, Allocator> entries(noteEntryCount, m_pAllocator);
-
-                result = Result::ErrorOutOfMemory;
-
-                if (entries.Capacity() >= noteEntryCount)
-                {
-                    uint32 index = 0;
-
-                    for (auto iter = RegistersBegin(); iter.Get() != nullptr; iter.Next())
-                    {
-                        entries[index] = *reinterpret_cast<PalMetadataNoteEntry*>(&((*iter.Get()).value));
-                        ++index;
-                    }
-
-                    for (auto iter = PipelineMetadataBegin(); iter.IsValid(); iter.Next())
-                    {
-                        PalMetadataNoteEntry entry = *reinterpret_cast<PalMetadataNoteEntry*>(&iter.Get());
-                        entry.key |= PipelineMetadataBase;
-                        entries[index] = entry;
-
-                        ++index;
-                    }
-
-                    if (noteProcessor.Add(static_cast<uint32>(PipelineAbiNoteType::LegacyMetadata),
-                                          AmdGpuArchName,
-                                          &entries[0],
-                                          (noteEntryCount * sizeof(PalMetadataNoteEntry))) != UINT_MAX)
-                    {
-                        result = Result::Success;
-                    }
-                }
-            }
-#endif
         }
     }
 
@@ -1085,24 +857,6 @@ void PipelineAbiProcessor<Allocator>::SaveToBuffer(
 
     m_elfProcessor.SaveToBuffer(pBuffer);
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-// =====================================================================================================================
-template <typename Allocator>
-const char* PipelineAbiProcessor<Allocator>::GetPipelineName() const
-{
-    const char* pName = nullptr;
-
-    uint32 nameIndex = 0;
-    if (this->HasPipelineMetadataEntry(PipelineMetadataType::PipelineNameIndex, &nameIndex))
-    {
-        Elf::StringProcessor<Allocator> symbolStringProcessor(m_pSymbolStrTabSection, m_pAllocator);
-        pName = symbolStringProcessor.Get(nameIndex);
-    }
-
-    return pName;
-}
-#endif
 
 // =====================================================================================================================
 template <typename Allocator>
@@ -1130,13 +884,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
     size_t      bufferSize)
 {
     Result result = m_elfProcessor.LoadFromBuffer(pBuffer, bufferSize);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-    if (result == Result::Success)
-    {
-         result = m_registerMap.Init();
-    }
-#endif
 
     if (result == Result::Success)
     {
@@ -1195,9 +942,7 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
     if (result == Result::Success)
     {
         Elf::NoteProcessor<Allocator> noteProcessor(m_pNoteSection, m_pAllocator);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
         Vector<PalMetadataNoteEntry, 16, Allocator> legacyRegisters(m_pAllocator);
-#endif
 
         result = noteProcessor.Init();
         for (uint32 i = 0; ((result == Result::Success) && (i < noteProcessor.GetNumNotes())); ++i)
@@ -1272,9 +1017,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
             {
                 PAL_ASSERT(descSize == AbiMinorVersionNoteSize);
                 const auto*const pNote = static_cast<const AbiMinorVersionNote*>(pDesc);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-                m_abiMinorVersionNote = *pNote;
-#endif
                 m_metadataMajorVer = m_elfProcessor.GetFileHeader()->ei_abiversion;
                 m_metadataMinorVer = pNote->minorVersion;
                 break;
@@ -1293,24 +1035,7 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
                     if (pMetadataEntryReader->key < 0x10000000)
                     {
                         // Entry is a RegisterEntry
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
                         result = legacyRegisters.PushBack(*pMetadataEntryReader);
-#else
-                        result = AddRegisterEntry(*pMetadataEntryReader);
-                    }
-                    else
-                    {
-                        // Entry is a PipelineMetadataEntry
-                        PipelineMetadataEntry entry;
-
-                        entry.key = static_cast<PipelineMetadataType>(pMetadataEntryReader->key & 0x0FFFFFFF);
-                        entry.value = pMetadataEntryReader->value;
-
-                        PAL_ASSERT((entry.key >= PipelineMetadataType::ApiCsHashDword0) &&
-                                   (entry.key <  PipelineMetadataType::Count));
-
-                        result = AddPipelineMetadataEntry(entry);
-#endif
                     }
 
                     pMetadataEntryReader++;
@@ -1328,7 +1053,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
             PAL_SAFE_FREE(m_pCompatRegisterBlob, m_pAllocator);
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
         if ((result == Result::Success) && (legacyRegisters.NumElements() > 0))
         {
             // 1-3 bytes for map declaration + 5 bytes per key + 5 bytes per value
@@ -1349,28 +1073,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
                 m_compatRegisterSize = registerWriter.GetSize();
             }
         }
-#else
-        if ((result == Result::Success) && (m_registerMap.GetNumEntries() > 0))
-        {
-            // 1-3 bytes for map declaration + 5 bytes per key + 5 bytes per value
-            const uint32 allocSize = (3 + (10 * m_registerMap.GetNumEntries()) + 1);
-            m_pCompatRegisterBlob = PAL_MALLOC(allocSize, m_pAllocator, AllocInternal);
-
-            MsgPackWriter registerWriter(m_pCompatRegisterBlob, allocSize);
-            result = registerWriter.DeclareMap(m_registerMap.GetNumEntries());
-
-            for (auto iter = RegistersBegin(); ((result == Result::Success) && (iter.Get() != nullptr)); iter.Next())
-            {
-                const auto& entry = *reinterpret_cast<PalMetadataNoteEntry*>(&((*iter.Get()).value));
-                result = registerWriter.PackPair(entry.key, entry.value);
-            }
-
-            if (result == Result::Success)
-            {
-                m_compatRegisterSize = registerWriter.GetSize();
-            }
-        }
-#endif
     }
 
     if (result == Result::Success)
@@ -1508,7 +1210,6 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
 
     Result result = Result::Success;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
     Vector<PipelineMetadataEntry, 16, Allocator> metadata(m_pAllocator);
     int32 indices[static_cast<uint32>(PipelineMetadataType::Count)];
     for (uint32 i = 0; i < static_cast<uint32>(PipelineMetadataType::Count); i++)
@@ -1541,10 +1242,6 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
 
         pMetadataEntryReader++;
     }
-#else
-    const auto& metadata = m_pipelineMetadataVector;
-    const auto& indices  = m_pipelineMetadataIndices;
-#endif
 
     if (result == Result::Success)
     {

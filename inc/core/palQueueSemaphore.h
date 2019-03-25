@@ -86,14 +86,10 @@ struct ExternalQueueSemaphoreOpenInfo
         {
             uint32 crossProcess       :  1;   ///< This semaphore is created in another process.
             uint32 sharedViaNtHandle  :  1;   ///< The shared semaphore handle is NT handle.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 398
             uint32 isReference        :  1;   ///< If set, then the opened semaphore will reference the same sync
                                               ///< object in the kernel.  Otherwise, the object is copied to the
                                               ///< new Semaphore.
             uint32 reserved           : 29;   ///< Resevered for future use.
-#else
-            uint32 reserved           : 30;   ///< Resevered for future use.
-#endif
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;                            ///< External queue semaphore open flags.
@@ -184,16 +180,6 @@ public:
     /// @returns An OS-specific handle which can be used to access the semaphore object across processes.
     virtual OsExternalHandle ExportExternalHandle(
         const QueueSemaphoreExportInfo& exportInfo) const = 0;
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 398)
-    PAL_INLINE virtual OsExternalHandle ExportExternalHandle() const
-    {
-        QueueSemaphoreExportInfo exportInfo = {};
-        exportInfo.flags.isReference = 1;
-
-        return ExportExternalHandle(exportInfo);
-    }
-#endif
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

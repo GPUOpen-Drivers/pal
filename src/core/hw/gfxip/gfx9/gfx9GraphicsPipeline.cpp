@@ -805,22 +805,14 @@ void GraphicsPipeline::SetupCommonRegisters(
     // for 2 pipes.
     m_paScModeCntl1.bits.WALK_FENCE_SIZE = ((m_pDevice->GetNumPipesLog2() <= 1) ? 2 : 3);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 387
     m_info.ps.flags.perSampleShading = m_paScModeCntl1.bits.PS_ITER_SAMPLE;
-#endif
 
     // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
     regDB_RENDER_OVERRIDE dbRenderOverride = { };
     dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_chunkVsPs.DbShaderControl().bits.Z_ORDER == RE_Z);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
     // Configure depth clamping
     dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable != false) &&
                                                     (m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
-#else
-    // Configure depth clamping
-    dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampEnable == false) &&
-                                                    (m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
-#endif
     m_commands.common.dbRenderOverride.reg_data = dbRenderOverride.u32All;
 
     if (regInfo.mmPaStereoCntl != 0)
