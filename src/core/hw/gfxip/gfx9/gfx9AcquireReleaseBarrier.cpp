@@ -726,45 +726,12 @@ bool Device::WaRefreshTccToAlignMetadata(
     uint32            dstAccessMask
     ) const
 {
-    const auto& image       = static_cast<const Pal::Image&>(*imgBarrier.pImage);
-    const auto& gfx9Image   = static_cast<const Image&>(*image.GetGfxImage());
-    const auto& subresRange = imgBarrier.subresRange;
-
-    const SubresId         firstSubresId  = subresRange.startSubres;
-    const SubResourceInfo& firstSubres    = *image.SubresourceInfo(firstSubresId);
-    const uint32           lastMipInRange = (firstSubresId.mipLevel + (subresRange.numMips - 1));
-
-    bool imageRequiresWa = false;
-
-    // This workaround is specific to rendering TC-compatible metadata through the RB's as a render target. If we give
-    // DCC to an image that isn't a color target, we should skip the workaround.
-    if(image.IsRenderTarget())
-    {
-        // The following case is for color metadata.
-        const bool hasTcCompatibleDcc = (gfx9Image.HasDccData() && (firstSubres.flags.supportMetaDataTexFetch == 1));
-        if (hasTcCompatibleDcc  &&
-            ((image.GetImageCreateInfo().samples > 1) || gfx9Image.IsInMetadataMipTail(lastMipInRange)))
-        {
-            imageRequiresWa = true;
-        }
-    }
-    else if (image.IsDepthStencil())
-    {
-        // The following case is for depth/stencil metadata.
-        const bool hasTcCompatibleHtile = (gfx9Image.HasHtileData() &&
-                                           (firstSubres.flags.supportMetaDataTexFetch == 1));
-        if (hasTcCompatibleHtile &&
-            ((image.GetImageCreateInfo().samples > 1)            ||
-             (firstSubresId.aspect == Pal::ImageAspect::Stencil) ||
-             gfx9Image.IsInMetadataMipTail(lastMipInRange)))
-        {
-            imageRequiresWa = true;
-        }
-    }
+    const auto& image     = static_cast<const Pal::Image&>(*imgBarrier.pImage);
+    const auto& gfx9Image = static_cast<const Image&>(*image.GetGfxImage());
 
     bool needRefreshL2 = false;
 
-    if (imageRequiresWa)
+    if (gfx9Image.NeedFlushForMetadataPipeMisalignment(imgBarrier.subresRange))
     {
         if ((srcAccessMask == 0) || (dstAccessMask == 0))
         {

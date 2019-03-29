@@ -165,7 +165,11 @@ Pal::Result MlaaUtil<Allocator>::SetupAuxImages(
                 imageInfo.usageFlags.shaderRead  = 1;
                 imageInfo.usageFlags.colorTarget = 1;
                 imageInfo.flags.invariant        = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
+                imageInfo.metadataMode           = MetadataMode::Disabled;
+#else
                 imageInfo.flags.noMetadata       = 1;
+#endif
 
                 const size_t objectSize = m_pDevice->GetImageSize(imageInfo, &result);
 

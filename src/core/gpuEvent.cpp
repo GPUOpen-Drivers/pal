@@ -257,9 +257,9 @@ void GpuEvent::GetGpuMemoryRequirements(
     else
     {
         pGpuMemReqs->heapCount = 3;
-        pGpuMemReqs->heaps[1]  = GpuHeapLocal;
-        pGpuMemReqs->heaps[2]  = GpuHeapGartUswc;
-        pGpuMemReqs->heaps[3]  = GpuHeapGartCacheable;
+        pGpuMemReqs->heaps[0]  = GpuHeapLocal;
+        pGpuMemReqs->heaps[1]  = GpuHeapGartUswc;
+        pGpuMemReqs->heaps[2]  = GpuHeapGartCacheable;
     }
 }
 

@@ -252,7 +252,8 @@ void Device::SetupWorkarounds()
 {
     const auto& gfx9Props = m_pParent->ChipProperties().gfx9;
     // The LBPW feature uses a fixed late alloc VS limit based off of the available CUs.
-    if (gfx9Props.lbpwEnabled)
+    if (gfx9Props.lbpwEnabled
+        )
     {
         m_useFixedLateAllocVsLimit = true;
     }
@@ -261,9 +262,12 @@ void Device::SetupWorkarounds()
     {
         if (m_useFixedLateAllocVsLimit)
         {
-            // Use a fixed value for the late alloc VS limit based on the number of available CUs
-            // on the GPU. The computation is late_alloc_waves = 4 * (Available_CUs - 1)
-            m_lateAllocVsLimit = ((gfx9Props.numCuPerSh - 1) << 2);
+            if (IsGfx9(*m_pParent))
+            {
+                // Use a fixed value for the late alloc VS limit based on the number of available CUs
+                // on the GPU. The computation is late_alloc_waves = 4 * (Available_CUs - 1)
+                m_lateAllocVsLimit = 4 * (gfx9Props.numCuPerSh - 1);
+            }
         }
         else if (m_lateAllocVsLimit == LateAllocVsInvalid)
         {
@@ -1739,13 +1743,20 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
 
         PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format));
 
-        pOutSrd->word3.u32All  = ((SQ_RSRC_BUF << Gfx09::SQ_BUF_RSRC_WORD3__TYPE__SHIFT)   |
-                                  (SQ_SEL_X << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT) |
-                                  (SQ_SEL_Y << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT) |
-                                  (SQ_SEL_Z << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT) |
-                                  (SQ_SEL_W << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT) |
-                                  (BUF_DATA_FORMAT_32 << Gfx09::SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
-                                  (BUF_NUM_FORMAT_UINT << Gfx09::SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
+        if (pBufferViewInfo->gpuAddr != 0)
+        {
+            pOutSrd->word3.u32All  = ((SQ_RSRC_BUF << Gfx09::SQ_BUF_RSRC_WORD3__TYPE__SHIFT)   |
+                                      (SQ_SEL_X << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT) |
+                                      (SQ_SEL_Y << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT) |
+                                      (SQ_SEL_Z << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT) |
+                                      (SQ_SEL_W << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT) |
+                                      (BUF_DATA_FORMAT_32 << Gfx09::SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
+                                      (BUF_NUM_FORMAT_UINT << Gfx09::SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
+        }
+        else
+        {
+            pOutSrd->word3.u32All = 0;
+        }
 
         pOutSrd++;
     }

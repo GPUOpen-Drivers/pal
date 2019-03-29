@@ -356,6 +356,7 @@ Result Pipeline::GetShaderStatsForStage(
         pStats->common.numUsedSgprs = stageMetadata.sgprCount;
         pStats->common.numUsedVgprs = stageMetadata.vgprCount;
 
+#if PAL_BUILD_GFX6
         if (gpuInfo.gfxLevel < GfxIpLevel::GfxIp9)
         {
             pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
@@ -363,8 +364,10 @@ Result Pipeline::GetShaderStatsForStage(
             pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
                                                                                 : gpuInfo.gfx6.numShaderVisibleVgprs;
         }
+#endif
+
 #if PAL_BUILD_GFX9
-        else
+        if (gpuInfo.gfxLevel >= GfxIpLevel::GfxIp9)
         {
             pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
                                                                                 : gpuInfo.gfx9.numShaderVisibleSgprs;

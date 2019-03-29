@@ -1892,21 +1892,29 @@ void PAL_STDCALL Device::CreateUntypedBufferViewSrds(
 
         PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format));
 
-        uint32 word3Atc = 0;
-        if (static_cast<const Pal::Device*>(pDevice)->MemoryProperties().flags.iommuv2Support)
+        if (pBufferViewInfo->gpuAddr != 0)
         {
-            word3Atc = ((HighPart(pBufferViewInfo->gpuAddr) >> 0x10) != 0) ?
-                0 : ((LowPart(pBufferViewInfo->gpuAddr) != 0) || ((HighPart(pBufferViewInfo->gpuAddr) & 0xFFFF) != 0));
-        }
+            uint32 word3Atc = 0;
+            if (static_cast<const Pal::Device*>(pDevice)->MemoryProperties().flags.iommuv2Support)
+            {
+                word3Atc = ((HighPart(pBufferViewInfo->gpuAddr) >> 0x10) != 0) ?
+                           0 : ((LowPart(pBufferViewInfo->gpuAddr) != 0) ||
+                                ((HighPart(pBufferViewInfo->gpuAddr) & 0xFFFF) != 0));
+            }
 
-        pOutSrd->word3.u32All = ((SQ_RSRC_BUF << SQ_BUF_RSRC_WORD3__TYPE__SHIFT)     |
-                                 (word3Atc << SQ_BUF_RSRC_WORD3__ATC__SHIFT__CI__VI) |
-                                 (SQ_SEL_X << SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT)   |
-                                 (SQ_SEL_Y << SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT)   |
-                                 (SQ_SEL_Z << SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT)   |
-                                 (SQ_SEL_W << SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT)   |
-                                 (BUF_DATA_FORMAT_32 << SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
-                                 (BUF_NUM_FORMAT_UINT << SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
+            pOutSrd->word3.u32All = ((SQ_RSRC_BUF << SQ_BUF_RSRC_WORD3__TYPE__SHIFT)     |
+                                     (word3Atc << SQ_BUF_RSRC_WORD3__ATC__SHIFT__CI__VI) |
+                                     (SQ_SEL_X << SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT)   |
+                                     (SQ_SEL_Y << SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT)   |
+                                     (SQ_SEL_Z << SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT)   |
+                                     (SQ_SEL_W << SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT)   |
+                                     (BUF_DATA_FORMAT_32 << SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
+                                     (BUF_NUM_FORMAT_UINT << SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
+        }
+        else
+        {
+            pOutSrd->word3.u32All = 0;
+        }
 
         pOutSrd++;
     }

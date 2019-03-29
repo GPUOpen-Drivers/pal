@@ -187,12 +187,10 @@ void Device::TransitionDepthStencil(
                     pSyncReqs->cacheFlags    |= CacheSyncInvTcp;
                     pSyncReqs->cacheFlags    |= CacheSyncInvTccMd;
 
-                    // We also need to flush and invalidate L2 if we don't have any cache information just in case the
-                    // client expects direct memory access to work after this barrier.
-                    if (noCacheFlags)
-                    {
-                        pSyncReqs->cacheFlags |= CacheSyncFlushTcc | CacheSyncInvTcc;
-                    }
+                    // Note: If the client didn't provide any cache information, we cannot be sure whether or not they
+                    // wish to have the result of this transition flushed out to memory.  That would require an L2
+                    // Flush & Invalidate to be safe.  However, we are already doing an L2 Flush in our per-submit
+                    // postamble, so it is safe to leave data in L2.
                 }
                 else
                 {
@@ -244,12 +242,10 @@ void Device::TransitionDepthStencil(
                 pSyncReqs->cacheFlags |= CacheSyncInvTccMd;
             }
 
-            // We also need to flush and invalidate L2 if we don't have any cache information just in case the client
-            // expects direct memory access to work after this barrier.
-            if (noCacheFlags)
-            {
-                pSyncReqs->cacheFlags |= CacheSyncFlushTcc | CacheSyncInvTcc;
-            }
+            // Note: If the client didn't provide any cache information, we cannot be sure whether or not they wish to
+            // have the result of this transition flushed out to memory.  That would require an L2 Flush & Invalidate
+            // to be safe.  However, we are already doing an L2 Flush in our per-submit postamble, so it is safe to
+            // leave data in L2.
         }
     }
 
@@ -279,12 +275,8 @@ void Device::TransitionDepthStencil(
             pSyncReqs->cacheFlags                         |= CacheSyncFlushAndInvDb;
         }
 
-        // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function
-        // hardware.
-        constexpr uint32 MaybeFixedFunction = (CoherCopy               |
-                                               CoherDepthStencilTarget |
-                                               CoherResolve            |
-                                               CoherClear);
+        // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function hardware.
+        constexpr uint32 MaybeFixedFunction = (CoherCopy | CoherDepthStencilTarget | CoherResolve | CoherClear);
 
         // If applications use Vulkan's global memory barriers feature, PAL can end up with image transitions that
         // have no cache flags because the cache actions for the image were performed in a different transition.
@@ -295,22 +287,9 @@ void Device::TransitionDepthStencil(
             issuedBlt                                                   ||
             noCacheFlags)
         {
-            //  We will need flush & inv L2 on MSAA Z, MSAA color, mips in the metadata tail, or any stencil.
-            //
-            // The driver assumes that all meta-data surfaces are pipe-aligned, but there are cases where the
-            // HW does not actually pipe-align the data.  In these cases, the L2 cache needs to be flushed prior
-            // to the metadata being read by a shader.  The following case is for depth/stencil metadata.
-            const SubresId         firstSubresId        = subresRange.startSubres;
-            const SubResourceInfo& firstSubres          = *image.SubresourceInfo(firstSubresId);
-            const uint32           lastMipInRange       = (firstSubresId.mipLevel + (subresRange.numMips - 1));
-            const bool             hasTcCompatibleHtile = (gfx9Image.HasHtileData() &&
-                                                           (firstSubres.flags.supportMetaDataTexFetch == 1));
-            if (hasTcCompatibleHtile                                 &&
-                ((image.GetImageCreateInfo().samples > 1)            ||
-                 (firstSubresId.aspect == Pal::ImageAspect::Stencil) ||
-                 gfx9Image.IsInMetadataMipTail(lastMipInRange)))
+            if (gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
             {
-                pSyncReqs->cacheFlags |= CacheSyncFlushTcc | CacheSyncInvTcc;
+                pSyncReqs->cacheFlags |= (CacheSyncFlushTcc | CacheSyncInvTcc);
             }
         }
     }
@@ -636,20 +615,13 @@ void Device::ExpandColor(
             pSyncReqs->cacheFlags |= CacheSyncInvTccMd;
         }
 
-        // We also need to flush and invalidate L2 if we don't have any cache information just in case the client
-        // expects direct memory access to work after this barrier.
-        if (noCacheFlags)
-        {
-            pSyncReqs->cacheFlags |= CacheSyncFlushTcc | CacheSyncInvTcc;
-        }
+        // Note: If the client didn't provide any cache information, we cannot be sure whether or not they wish to have
+        // the result of this transition flushed out to memory.  That would require an L2 Flush & Invalidate to be safe.
+        // However, we are already doing an L2 Flush in our per-submit postamble, so it is safe to leave data in L2.
     }
 
-    // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function
-    // hardware.
-    constexpr uint32 MaybeFixedFunction = (CoherCopy        |
-                                           CoherColorTarget |
-                                           CoherResolve     |
-                                           CoherClear);
+    // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function hardware.
+    constexpr uint32 MaybeFixedFunction = (CoherCopy | CoherColorTarget | CoherResolve | CoherClear);
 
     // If applications use Vulkan's global memory barriers feature, PAL can end up with image transitions that
     // have no cache flags because the cache actions for the image were performed in a different transition.
@@ -661,21 +633,9 @@ void Device::ExpandColor(
          didGfxBlt                                                   ||
          noCacheFlags))
     {
-        //  We will need flush & inv L2 on MSAA Z, MSAA color, mips in the metadata tail, or any stencil.
-        //
-        // The driver assumes that all meta-data surfaces are pipe-aligned, but there are cases where the
-        // HW does not actually pipe-align the data.  In these cases, the L2 cache needs to be flushed prior
-        // to the metadata being read by a shader.  The following case is for color metadata.
-        const SubresId         firstSubresId      = subresRange.startSubres;
-        const SubResourceInfo& firstSubres        = *image.SubresourceInfo(firstSubresId);
-        const uint32           lastMipInRange     = (firstSubresId.mipLevel + (subresRange.numMips - 1));
-        const bool             hasTcCompatibleDcc = (gfx9Image.HasDccData() &&
-                                                     (firstSubres.flags.supportMetaDataTexFetch == 1));
-        if ((hasTcCompatibleDcc && ((image.GetImageCreateInfo().samples > 1) ||
-                                    gfx9Image.IsInMetadataMipTail(lastMipInRange))) ||
-            (gfx9Image.HasFmaskData() && (gfx9Image.HasDccData() == false)))
+        if (gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
         {
-            pSyncReqs->cacheFlags |= CacheSyncFlushTcc | CacheSyncInvTcc;
+            pSyncReqs->cacheFlags |= (CacheSyncFlushTcc | CacheSyncInvTcc);
         }
     }
 }
@@ -1043,34 +1003,34 @@ void Device::Barrier(
             srcCacheMask |= cmdBufState.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
         }
 
-        // alwaysL2Mask is a mask of usages that always read/write through the L2 cache.
-        const uint32 alwaysL2Mask = (CoherShader             |
-                                     CoherCopy               |
-                                     CoherColorTarget        |
-                                     CoherDepthStencilTarget |
-                                     CoherResolve            |
-                                     CoherClear              |
-                                     CoherIndirectArgs       |
-                                     CoherIndexData          |
-                                     CoherQueueAtomic        |
-                                     CoherTimestamp          |
-                                     CoherCeLoad             |
-                                     CoherCeDump             |
-                                     CoherStreamOut);
+        // AlwaysL2Mask is a mask of usages that always read/write through the L2 cache.
+        constexpr uint32 AlwaysL2Mask = (CoherShader             |
+                                         CoherCopy               |
+                                         CoherColorTarget        |
+                                         CoherDepthStencilTarget |
+                                         CoherResolve            |
+                                         CoherClear              |
+                                         CoherIndirectArgs       |
+                                         CoherIndexData          |
+                                         CoherQueueAtomic        |
+                                         CoherTimestamp          |
+                                         CoherCeLoad             |
+                                         CoherCeDump             |
+                                         CoherStreamOut);
 
         // MaybeL2Mask is a mask of usages that may or may not read/write through the L2 cache.
-        const uint32 maybeL2Mask = alwaysL2Mask;
+        const uint32 MaybeL2Mask = AlwaysL2Mask;
 
         // Flush L2 if prior output might have been through L2 and upcoming reads/writes might not be through L2.
-        if (TestAnyFlagSet(srcCacheMask, maybeL2Mask) && TestAnyFlagSet(transition.dstCacheMask, ~alwaysL2Mask))
+        if (TestAnyFlagSet(srcCacheMask, MaybeL2Mask) && TestAnyFlagSet(transition.dstCacheMask, ~AlwaysL2Mask))
         {
-            globalSyncReqs.cacheFlags |= CacheSyncInvTcc | CacheSyncFlushTcc;
+            globalSyncReqs.cacheFlags |= CacheSyncFlushTcc;
         }
 
         // Invalidate L2 if prior output might not have been through L2 and upcoming reads/writes might be through L2.
-        if (TestAnyFlagSet(srcCacheMask, ~alwaysL2Mask) && TestAnyFlagSet(transition.dstCacheMask, maybeL2Mask))
+        if (TestAnyFlagSet(srcCacheMask, ~AlwaysL2Mask) && TestAnyFlagSet(transition.dstCacheMask, MaybeL2Mask))
         {
-            globalSyncReqs.cacheFlags |= CacheSyncInvTcc | CacheSyncFlushTcc;
+            globalSyncReqs.cacheFlags |= CacheSyncInvTcc;
         }
 
         constexpr uint32 MaybeL1ShaderMask = CoherShader | CoherStreamOut | CoherCopy | CoherResolve | CoherClear;

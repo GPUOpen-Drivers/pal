@@ -6772,12 +6772,12 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
 
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-        // Insert a CS_PARTIAL_FLUSH and invalidate/flush the texture caches to make sure that the generated commands
-        // are written out to memory before we attempt to execute them. Then, a PFP_SYNC_ME is also required so that
-        // the PFP doesn't prefetch the generated commands before they are finished executing.
+        // Insert a CS_PARTIAL_FLUSH to make sure that the generated commands are written out to L2 before we attempt to
+        // execute them. Then, a PFP_SYNC_ME is also required so that the PFP doesn't prefetch the generated commands
+        // before they are finished executing.
         AcquireMemInfo acquireInfo = {};
         acquireInfo.flags.invSqK$ = 1;
-        acquireInfo.tcCacheOp     = TcCacheOp::WbInvL1L2;
+        acquireInfo.tcCacheOp     = TcCacheOp::Nop;
         acquireInfo.engineType    = EngineTypeUniversal;
         acquireInfo.baseAddress   = FullSyncBaseAddr;
         acquireInfo.sizeBytes     = FullSyncSize;

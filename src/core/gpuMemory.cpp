@@ -1030,29 +1030,35 @@ gpusize GpuMemory::GetPhysicalAddressAlignment() const
     {
         const GpuMemoryProperties& memProps = m_pDevice->MemoryProperties();
 
-        // Default to clamping the physical address to system page alignment.
-        gpusize clamp = memProps.realMemAllocGranularity;
-
-        if (IsNonLocalOnly() == false)
+        // Runtime will keep the same alignment between physical alignment and virtual alignment by default.
+        // If this function returns a smaller alignment, we have to use ReserveGpuVirtualAddress to reserve
+        // the VA which aligns to customer required alignment.
+        if (memProps.flags.virtualRemappingSupport == 1)
         {
-            // If the allocation supports local heaps and is suitably large, increase the clamp to the large page size
-            // (typically 256KiB or 2MiB) or fragment size (typically 64KiB) as appropriate to allow hardware-specific
-            // big page features when the allocation resides in local.  If the allocation is small, stick with the
-            // system page alignment to avoid fragmentation.
-            const gpusize fragmentSize = memProps.fragmentSize;
+            // Default to clamping the physical address to system page alignment.
+            gpusize clamp = memProps.realMemAllocGranularity;
 
-            if (memProps.largePageSupport.sizeAlignmentNeeded &&
-                (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes))
+            if (IsNonLocalOnly() == false)
             {
-                clamp = memProps.largePageSupport.largePageSizeInBytes;
+                // If the allocation supports local heaps and is suitably large, increase the clamp to the large
+                // page size (typically 256KiB or 2MiB) or fragment size (typically 64KiB) as appropriate to allow
+                // hardware-specific big page features when the allocation resides in local.  If the allocation is
+                // small, stick with the system page alignment to avoid fragmentation.
+                const gpusize fragmentSize = memProps.fragmentSize;
+
+                if (memProps.largePageSupport.sizeAlignmentNeeded &&
+                    (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes))
+                {
+                    clamp = memProps.largePageSupport.largePageSizeInBytes;
+                }
+                else if (m_desc.size >= fragmentSize)
+                {
+                    clamp = fragmentSize;
+                }
             }
-            else if (m_desc.size >= fragmentSize)
-            {
-                clamp = fragmentSize;
-            }
+
+            alignment = Min(alignment, clamp);
         }
-
-        alignment = Min(alignment, clamp);
     }
 
     return alignment;

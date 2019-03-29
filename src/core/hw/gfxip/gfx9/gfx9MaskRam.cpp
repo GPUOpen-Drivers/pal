@@ -1181,9 +1181,9 @@ Gfx9Htile::Gfx9Htile()
     Gfx9MaskRam(2, // hTile uses 32-bit (4 byte) quantities
                 3) // Equation is nibble addressed, so the low three bits will be zero for a dword quantity
 {
-    memset (&m_addrOutput,      0, sizeof(m_addrOutput));
-    memset (m_dbHtileSurface,   0, sizeof(m_dbHtileSurface));
-    memset (m_dbPreloadControl, 0, sizeof(m_dbHtileSurface));
+    memset(&m_addrOutput,      0, sizeof(m_addrOutput));
+    memset(m_dbHtileSurface,   0, sizeof(m_dbHtileSurface));
+    memset(m_dbPreloadControl, 0, sizeof(m_dbPreloadControl));
 
     m_addrOutput.pMipInfo = &m_addrMipOutput[0];
     m_addrOutput.size     = sizeof(m_addrOutput);

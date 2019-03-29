@@ -471,7 +471,11 @@ Result Image::CreateExternalSharedImage(
     else
     {
         createInfo.flags.optimalShareable = 0;
-        createInfo.flags.noMetadata = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
+        createInfo.metadataMode           = MetadataMode::Disabled;
+#else
+        createInfo.flags.noMetadata       = 1;
+#endif
     }
 
     Pal::Image* pImage = nullptr;

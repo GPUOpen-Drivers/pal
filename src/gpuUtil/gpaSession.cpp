@@ -1764,7 +1764,10 @@ uint32 GpaSession::BeginSample(
     else
     {
         // Prevent a memory leak.
-        FreeSampleItem(pSampleItem);
+        if (sampleExists == false)
+        {
+            FreeSampleItem(pSampleItem);
+        }
 
         sampleId = InvalidSampleId;
     }
@@ -3085,9 +3088,12 @@ Result GpaSession::AcquirePerfExperiment(
             // Add SQ thread trace to the experiment.
             if (sampleConfig.sqtt.flags.enable)
             {
+                // Set a default size for SQTT buffers to 128MB.
+                constexpr size_t DefaultSqttSeBufferSize = 128 * 1024 * 1024;
+
                 // Use default SQTT size if client doesn't request specific size.
                 const size_t sqttSeBufferSize = static_cast<size_t>((sampleConfig.sqtt.gpuMemoryLimit == 0) ?
-                    m_perfExperimentProps.maxSqttSeBufferSize :
+                    Util::Min(m_perfExperimentProps.maxSqttSeBufferSize, DefaultSqttSeBufferSize) :
                     sampleConfig.sqtt.gpuMemoryLimit / m_perfExperimentProps.shaderEngineCount);
 
                 const size_t alignedBufferSize = Util::Pow2AlignDown(sqttSeBufferSize,

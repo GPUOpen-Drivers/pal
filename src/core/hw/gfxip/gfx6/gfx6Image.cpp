@@ -1690,6 +1690,11 @@ bool Image::SupportsMetaDataTextureFetch(
     if ((m_device.GetPublicSettings()->tcCompatibleMetaData != 0) &&
         // TC compatibility is only important for Gfx8+
         (m_device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp8) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
+        // If the client has not given us a hint that the cost of decompress/expand blits is less important than
+        // texture-fetch performance.
+        (m_pParent->GetImageCreateInfo().metadataMode != MetadataMode::OptForTexFetchPerf) &&
+#endif
         // If this image isn't readable by a shader then no shader is going to be performing texture fetches from it...
         // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
         // preferred, the image will be readable by a shader.

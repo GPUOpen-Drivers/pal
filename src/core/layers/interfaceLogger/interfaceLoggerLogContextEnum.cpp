@@ -871,6 +871,24 @@ void LogContext::Enum(
 
 // =====================================================================================================================
 void LogContext::Enum(
+    MetadataMode value)
+{
+    const char*const StringTable[] =
+    {
+        "Default",
+        "OptForTexFetchPerf",
+        "Disabled",
+        "Count",
+    };
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < ArrayLen(StringTable));
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
     MgpuMode value)
 {
     const char*const StringTable[] =

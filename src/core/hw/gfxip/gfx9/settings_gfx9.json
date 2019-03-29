@@ -1220,14 +1220,29 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "HashName": 3707789309,
+      "HashName": 1871590621,
       "Defaults": {
         "Default": 0
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "numPSWavesSoftGroupedPerCu",
-      "Name": "NumPSWavesSoftGroupedPerCu"
+      "VariableName": "numPsWavesSoftGroupedPerCu",
+      "Name": "NumPsWavesSoftGroupedPerCu"
+    },
+    {
+      "Description": "When value is greater than zero, then it specifies the number of VS waves to be soft grouped.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx9"
+      ],
+      "HashName": 4021132771,
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "numVsWavesSoftGroupedPerCu",
+      "Name": "NumVsWavesSoftGroupedPerCu"
     },
     {
       "Description": "If true, the HW will alternate VGT's between draws rather than between sets of primitives within a draw. True is safer, but less performant.",

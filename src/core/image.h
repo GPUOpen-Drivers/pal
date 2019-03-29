@@ -375,7 +375,11 @@ public:
 
     // Returns whether or not this Image had metadata disabled by the client.
     bool IsMetadataDisabled() const
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
+        { return (m_createInfo.metadataMode == MetadataMode::Disabled); }
+#else
         { return (m_createInfo.flags.noMetadata != 0); }
+#endif
 
     // Returns whether or not this Image is an opened peer image.
     bool IsPeer() const { return (m_imageInfo.internalCreateInfo.pOriginalImage != nullptr); }

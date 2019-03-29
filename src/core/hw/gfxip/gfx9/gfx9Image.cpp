@@ -68,8 +68,7 @@ Image::Image(
     m_fastClearEliminateMetaDataOffset(0),
     m_fastClearEliminateMetaDataSize(0),
     m_waTcCompatZRangeMetaDataOffset(0),
-    m_waTcCompatZRangeMetaDataSizePerMip(0),
-    m_useCompToSingleForFastClears(false)
+    m_waTcCompatZRangeMetaDataSizePerMip(0)
 {
     memset(&m_layoutToState,      0, sizeof(m_layoutToState));
     memset(&m_defaultGfxLayout,   0, sizeof(m_defaultGfxLayout));
@@ -87,6 +86,8 @@ Image::Image(
         m_addrSurfSetting[planeIdx].size = sizeof(ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT);
 
         m_addrSurfOutput[planeIdx].pMipInfo = &m_addrMipOutput[planeIdx][0];
+
+        m_firstMipMetadataPipeMisaligned[planeIdx] = UINT_MAX;
     }
 }
 
@@ -756,6 +757,7 @@ Result Image::Finalize(
         }
 
         InitLayoutStateMasks();
+        InitPipeMisalignedMetadataFirstMip();
 
         if (m_createInfo.flags.prt != 0)
         {
@@ -1393,66 +1395,6 @@ bool Image::IsFastClearColorMetaFetchable(
     ) const
 {
     bool isMetaFetchable = true;
-
-    // If we're doing comp-to-single fast clears on this image, then there's no need to check for the clear color
-    // being one of the four magic codes.  If it is, great, if not, the image will still be meta-fetchable without
-    // requiring a fast-clear-eliminate step.
-    if (m_useCompToSingleForFastClears == false)
-    {
-        // Ok, not using comp-to-single, so we need to check for one of the four magic clear colors here.
-        const ChNumFormat     format        = m_createInfo.swizzledFormat.format;
-        const uint32          numComponents = NumComponents(format);
-        const ChannelSwizzle* pSwizzle      = &m_createInfo.swizzledFormat.swizzle.swizzle[0];
-        const auto&           settings      = GetGfx9Settings(m_device);
-
-        bool   rgbSeen          = false;
-        uint32 requiredRgbValue = 0; // not valid unless rgbSeen==true
-
-        for (uint32 cmpIdx = 0; ((cmpIdx < numComponents) && isMetaFetchable); cmpIdx++)
-        {
-            //  If forceRegularClearCode is set then we are not using one of the four "magic"
-            //  fast-clear colors so the fast-clear can't be meta-fetchable.
-            if ((IsColorDataZeroOrOne(pColor, cmpIdx) == false) || settings.forceRegularClearCode)
-            {
-                // This channel isn't zero or one, so the fast-clear can't be meta-fetchable.
-                isMetaFetchable = false;
-            }
-            else
-            {
-                switch (pSwizzle[cmpIdx])
-                {
-                case ChannelSwizzle::W:
-                    // All we need here is a zero-or-one value, which we already verified above.
-                    break;
-
-                case ChannelSwizzle::X:
-                case ChannelSwizzle::Y:
-                case ChannelSwizzle::Z:
-                    if (rgbSeen == false)
-                    {
-                        // Don't go down this path again.
-                        rgbSeen = true;
-
-                        // This is the first r-g-b value that we've come across, and it's a known zero-or-one value.
-                        // All future RGB values need to match this one, so just record this value for comparison
-                        // purposes.
-                        requiredRgbValue = pColor[cmpIdx];
-                    }
-                    else if (pColor[cmpIdx] != requiredRgbValue)
-                    {
-                        // Fast clear is a no-go.
-                        isMetaFetchable = false;
-                    }
-                    break;
-
-                default:
-                    // We don't really care about the non-RGBA channels.  It's either going to be zero or one, which
-                    // suits our purposes just fine.  :-)
-                    break;
-                } // end switch on the component select
-            }
-        } // end loop through all the components of this format
-    }
 
     return isMetaFetchable;
 }
@@ -2205,6 +2147,11 @@ bool Image::SupportsMetaDataTextureFetch(
     {
         // If this device doesn't allow any tex fetches of meta data, then don't bother continuing
         if ((m_device.GetPublicSettings()->tcCompatibleMetaData != 0) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
+            // If the client has not given us a hint that the cost of decompress/expand blits is less important than
+            // texture-fetch performance.
+            (m_pParent->GetImageCreateInfo().metadataMode != MetadataMode::OptForTexFetchPerf) &&
+#endif
             // If this image isn't readable by a shader then no shader is going to be performing texture fetches from
             // it... Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function
             // resolve is not preferred, the image will be readable by a shader.
@@ -2953,6 +2900,86 @@ bool Image::ImageSupportsShaderReadsAndWrites() const
     return supported;
 }
 
+// =====================================================================================================================
+bool Image::NeedFlushForMetadataPipeMisalignment(
+    const SubresRange& range
+    ) const
+{
+    const uint32 planeId = GetAspectIndex(range.startSubres.aspect);
+    return ((range.startSubres.mipLevel + range.numMips - 1) >= m_firstMipMetadataPipeMisaligned[planeId]);
+}
+
+// =====================================================================================================================
+// The driver will need to Flush & Invalidate cachelines in L2 which access metadata surfaces when switching between
+// CB/DB accesses and TC accesses of an Image.  This is because the driver assumes that all metadata surfaces are pipe
+// aligned, but there are cases where the data is not *actually* pipe-aligned because the CB/DB use a slightly different
+// addressing scheme than the TC does.
+void Image::InitPipeMisalignedMetadataFirstMip()
+{
+    const ImageCreateInfo& createInfo = m_pParent->GetImageCreateInfo();
+    const ImageInfo&       imageInfo  = m_pParent->GetImageInfo();
+
+    const uint32 subresourcesPerPlane = (createInfo.arraySize * createInfo.mipLevels);
+    for (uint32 planeId = 0; planeId < imageInfo.numPlanes; ++planeId)
+    {
+        const SubResourceInfo& subRes = *(m_pParent->SubresourceInfo(0) + (planeId * subresourcesPerPlane));
+        m_firstMipMetadataPipeMisaligned[planeId] = GetPipeMisalignedMetadataFirstMip(createInfo, subRes);
+    }
+}
+
+// =====================================================================================================================
+// Determines the first mipmap level for a single aspect which suffers the pipe-misaligned metadata issue. A value of
+// UINT_MAX indicates no mipmaps for this aspect are vulnerable, and zero indicates all mips are.
+uint32 Image::GetPipeMisalignedMetadataFirstMip(
+    const ImageCreateInfo& createInfo,
+    const SubResourceInfo& baseSubRes   // Base subresource for the current plane
+    ) const
+{
+    uint32 firstMip = UINT_MAX;
+
+    // Different GFX IP levels have different flavors of the pipe misalignment issue, and the workaround needs to be
+    // applied in different circumstances for each.
+
+    const GpuChipProperties& chipProps = m_gfxDevice.Parent()->ChipProperties();
+    const bool               isDepth   = m_pParent->IsDepthStencil();
+
+    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        // The pipe misalignment issue occurs on MSAA Z, MSAA color, mips in the metadata mip-tail, or any stencil.
+
+        uint32 firstMipInMetadataMipTail = UINT_MAX;
+        for (uint32 mip = 0; mip < m_pParent->GetImageCreateInfo().mipLevels; ++mip)
+        {
+            if (IsInMetadataMipTail(mip))
+            {
+                firstMipInMetadataMipTail = mip;
+                break;
+            }
+        }
+
+        if (isDepth)
+        {
+            if (HasHtileData() && (baseSubRes.flags.supportMetaDataTexFetch != 0))
+            {
+                const bool stencil = (baseSubRes.subresId.aspect == ImageAspect::Stencil);
+                firstMip = ((stencil || (createInfo.samples > 1)) ? 0 : firstMipInMetadataMipTail);
+            }
+        }
+        else
+        {
+            if (HasFmaskData() && (HasDccData() == false))
+            {
+                firstMip = 0;
+            }
+            else if (HasDccData() && (baseSubRes.flags.supportMetaDataTexFetch != 0))
+            {
+                firstMip = ((createInfo.samples > 1) ? 0 : firstMipInMetadataMipTail);
+            }
+        }
+    }
+
+    return firstMip;
+}
+
 } // Gfx9
 } // Pal
-

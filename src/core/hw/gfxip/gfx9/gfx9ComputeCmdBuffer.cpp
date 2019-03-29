@@ -1206,11 +1206,11 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    // Insert a CS_PARTIAL_FLUSH and invalidate/flush the texture caches to make sure that the generated commands
-    // are written out to memory before we attempt to execute them.
+    // Insert a CS_PARTIAL_FLUSH to make sure that the generated commands are written out to L2 before we attempt to
+    // execute them.
     AcquireMemInfo acquireInfo = {};
     acquireInfo.flags.invSqK$ = 1;
-    acquireInfo.tcCacheOp     = TcCacheOp::WbInvL1L2;
+    acquireInfo.tcCacheOp     = TcCacheOp::Nop;
     acquireInfo.engineType    = EngineTypeCompute;
     acquireInfo.baseAddress   = FullSyncBaseAddr;
     acquireInfo.sizeBytes     = FullSyncSize;

@@ -598,6 +598,7 @@ public:
     void Enum(IndexType value);
     void Enum(IndirectParamType value);
     void Enum(LogicOp value);
+    void Enum(MetadataMode value);
     void Enum(MgpuMode value);
     void Enum(MipFilter value);
     void Enum(NullGpuId value);
@@ -833,6 +834,7 @@ public:
     void KeyAndEnum(const char* pKey, IndexType value)                    { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, IndirectParamType value)            { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, LogicOp value)                      { Key(pKey); Enum(value); }
+    void KeyAndEnum(const char* pKey, MetadataMode value)                 { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, MgpuMode value)                     { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, MipFilter value)                    { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, NullGpuId value)                    { Key(pKey); Enum(value); }

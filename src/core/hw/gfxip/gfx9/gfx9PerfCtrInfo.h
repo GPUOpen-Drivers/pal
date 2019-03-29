@@ -39,8 +39,8 @@ namespace Gfx9
 // The SQTT buffer size and alignment info can be queried out of our device. That means we need to define some shared
 // constants for them instead of putting the constants into the perf experiment implementation.
 
-// Set a maximum thread trace buffer size (128MB) and default size (1MB) per SQG/SE.
-constexpr gpusize SqttMaximumBufferSize = 128 * 1024 * 1024;
+// Set a maximum thread trace buffer size (2GB) and default size (1MB) per SQG/SE.
+constexpr gpusize SqttMaximumBufferSize = 0x80000000;
 constexpr gpusize SqttDefaultBufferSize = 1024 * 1024;
 // The thread trace base address and buffer size must be shifted by 12 bits, giving us an alignment requirement.
 constexpr uint32  SqttBufferAlignShift = 12;

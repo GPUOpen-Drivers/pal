@@ -1459,10 +1459,12 @@ void LogContext::Struct(
         Value("prt");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 481
     if (value.noMetadata)
     {
         Value("noMetadata");
     }
+#endif
 
     if (value.needSwizzleEqs)
     {
@@ -1520,6 +1522,9 @@ void LogContext::Struct(
     KeyAndEnum("tilingPreference", value.tilingPreference);
     KeyAndEnum("tilingOptMode", value.tilingOptMode);
     KeyAndValue("tileSwizzle", value.tileSwizzle);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
+    KeyAndEnum("metadataMode", value.metadataMode);
+#endif
     KeyAndValue("maxBaseAlign", value.maxBaseAlign);
     KeyAndValue("rowPitch", value.rowPitch);
     KeyAndValue("depthPitch", value.depthPitch);

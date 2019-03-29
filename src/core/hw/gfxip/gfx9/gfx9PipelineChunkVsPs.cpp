@@ -192,7 +192,8 @@ void PipelineChunkVsPs::LateInit(
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_DISABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
-    m_commands.sh.ps.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.numPSWavesSoftGroupedPerCu > 0 ? 0 : 1);
+    m_commands.sh.ps.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.numPsWavesSoftGroupedPerCu > 0 ? 0 : 1);
+    m_commands.sh.vs.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE  = (settings.numVsWavesSoftGroupedPerCu > 0 ? 1 : 0);
 
     if (chipProps.gfx9.supportSpp != 0)
     {
@@ -324,6 +325,7 @@ void PipelineChunkVsPs::LateInit(
             {
                 pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS, m_commands.sh.vs.spiShaderPgmChksumVs);
             }
+
         } // if enableNgg == false
 
         pUploader->AddCtxReg(mmDB_SHADER_CONTROL,         m_commands.context.dbShaderControl);
@@ -530,14 +532,15 @@ void PipelineChunkVsPs::BuildPm4Headers(
     if ((loadInfo.enableNgg == false) && (chipProps.gfx9.supportSpp != 0))
     {
         m_commands.sh.vs.spaceNeeded += cmdUtil.BuildSetOneShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS,
-            ShaderGraphics,
-            &m_commands.sh.vs.hdrSpiShaderPgmChksum);
+                                                                 ShaderGraphics,
+                                                                 &m_commands.sh.vs.hdrSpiShaderPgmChksum);
     }
     else
     {
         m_commands.sh.vs.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
                                                          &m_commands.sh.vs.hdrSpiShaderPgmChksum);
     }
+
     m_commands.context.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmSPI_SHADER_Z_FORMAT,
                                                                     mmSPI_SHADER_COL_FORMAT,
                                                                     &m_commands.context.hdrSpiShaderFormat);

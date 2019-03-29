@@ -371,6 +371,8 @@ public:
 
     bool ImageSupportsShaderReadsAndWrites() const;
 
+    bool NeedFlushForMetadataPipeMisalignment(const SubresRange& range) const;
+
 private:
     // Address dimensions are calculated on a per-plane (aspect) basis
     static const uint32                      MaxNumPlanes = 3;
@@ -422,11 +424,12 @@ private:
         ImageLayout depthStencil[2];
     } m_defaultGfxLayout;
 
-    Result ComputeAlignedSurfaceDimensions(
-        const SubResourceInfo*              pSubResInfo,
-        ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*  pOutput);
+    // Tracks the first mip level which needs an L2 flush & invalidation under certain circumstances due to metadata
+    // not being pipe-aligned all the time in hardware.  A value of UINT_MAX means no mip levels require this
+    // workaround, a value of zero means all mips require it.  See InitPipeMisalignedMetadataFirstMip() for details.
+    uint32  m_firstMipMetadataPipeMisaligned[MaxNumPlanes];
+
     uint32 GetAspectIndex(ImageAspect  aspect) const;
-    void   GetFormatAndAspectForPlane(uint32  plane, SwizzledFormat* pFormat, ImageAspect*  pAspect) const;
 
     void InitDccStateMetaData(
         ImageMemoryLayout* pGpuMemLayout,
@@ -460,6 +463,10 @@ private:
          bool                cMaskMetaData = false) const;
 
     void InitLayoutStateMasks();
+    void InitPipeMisalignedMetadataFirstMip();
+    uint32 GetPipeMisalignedMetadataFirstMip(
+        const ImageCreateInfo& createInfo,
+        const SubResourceInfo& baseSubRes) const;
 
     uint32  GetMaskRam256BAddr(const Gfx9MaskRam*  pMaskRam, ImageAspect  aspect) const;
 
@@ -470,11 +477,9 @@ private:
     bool DoesImageSupportCopySrcCompression() const;
 
     // These static variables ensure that we are assigning a rotating set of swizzle indices for each new image.
-    static uint32 s_cbSwizzleIdx;
-    static uint32 s_txSwizzleIdx;
-    static uint32 s_fMaskSwizzleIdx;
-
-    bool m_useCompToSingleForFastClears;
+    static uint32  s_cbSwizzleIdx;
+    static uint32  s_txSwizzleIdx;
+    static uint32  s_fMaskSwizzleIdx;
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);
