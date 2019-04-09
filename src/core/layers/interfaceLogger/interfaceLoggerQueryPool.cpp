@@ -96,9 +96,9 @@ void QueryPool::Destroy()
 
 // =====================================================================================================================
 Result QueryPool::Reset(
-    uint32      startQuery,
-    uint32      queryCount,
-    const void* pMappedCpuAddr)
+    uint32  startQuery,
+    uint32  queryCount,
+    void*   pMappedCpuAddr)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::QueryPoolReset;

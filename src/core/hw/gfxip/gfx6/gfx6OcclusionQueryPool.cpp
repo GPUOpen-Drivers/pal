@@ -272,52 +272,19 @@ void OcclusionQueryPool::NormalReset(
 // =====================================================================================================================
 // Reset this query with CPU.
 Result OcclusionQueryPool::Reset(
-    uint32      startQuery,
-    uint32      queryCount,
-    const void* pMappedCpuAddr)
+    uint32  startQuery,
+    uint32  queryCount,
+    void*   pMappedCpuAddr)
 {
     Result result = ValidateSlot(startQuery + queryCount - 1);
 
     if ((result == Result::Success) && (m_forcedQueryResult == false))
     {
-        void* pGpuData = nullptr;
-
-        if (pMappedCpuAddr == nullptr)
-        {
-            result = m_gpuMemory.Map(&pGpuData);
-        }
-        else
-        {
-            pGpuData = const_cast<void*>(pMappedCpuAddr);
-        }
-
-        if (result == Result::Success)
-        {
-            // Reset the slot data
-            const size_t slotSize  = GetGpuResultSizeInBytes(1);
-            void*        pSlotData = VoidPtrInc(pGpuData, slotSize * startQuery);
-
-            for (uint32 i = 0; i < queryCount; i++)
-            {
-                memcpy(pSlotData, m_device.OcclusionSlotResetValue(), slotSize);
-                pSlotData = VoidPtrInc(pSlotData, slotSize);
-            }
-
-            if (HasTimestamps())
-            {
-                // Reset the timestamp
-                const size_t tsSize   = static_cast<size_t>(m_timestampSizePerSlotInBytes);
-                const size_t tsOffset = m_createInfo.numSlots * slotSize;
-                void* const  pTsData  = VoidPtrInc(pGpuData, tsOffset + tsSize * startQuery);
-
-                memset(pTsData, 0, tsSize * queryCount);
-            }
-
-            if (pMappedCpuAddr == nullptr)
-            {
-                result = m_gpuMemory.Unmap();
-            }
-        }
+        result = DoReset(startQuery,
+                         queryCount,
+                         pMappedCpuAddr,
+                         m_gpuResultSizePerSlotInBytes,
+                         m_device.OcclusionSlotResetValue());
     }
 
     return result;

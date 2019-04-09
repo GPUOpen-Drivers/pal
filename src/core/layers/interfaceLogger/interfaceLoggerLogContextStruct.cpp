@@ -87,6 +87,12 @@ void LogContext::Struct(
     }
 
     EndList();
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
+    KeyAndCacheCoherencyUsageFlags("globalSrcCacheMask", value.globalSrcCacheMask);
+    KeyAndCacheCoherencyUsageFlags("globalDstCacheMask", value.globalDstCacheMask);
+#endif
+
     KeyAndBeginList("transitions", false);
 
     for (uint32 idx = 0; idx < value.transitionCount; ++idx)

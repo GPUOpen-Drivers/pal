@@ -2360,8 +2360,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                 if (image.Parent()->IsDepthStencil())
                 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
-                    if (ImageLayoutToDepthCompressionState(image.LayoutToDepthCompressionState(baseSubResId),
-                                                           viewInfo.possibleLayouts) == DepthStencilCompressed)
+                    if (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false)
 #else
                     if (viewInfo.flags.shaderWritable == false)
 #endif
@@ -2373,8 +2372,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                 else
                 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
-                    if (ImageLayoutToColorCompressionState(image.LayoutToColorCompressionState(),
-                                                           viewInfo.possibleLayouts) != ColorDecompressed)
+                    if (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false)
 #else
                     if (viewInfo.flags.shaderWritable == false)
 #endif
@@ -3210,10 +3208,9 @@ uint32 Device::GetPipeInterleaveLog2() const
 // =====================================================================================================================
 // Creates a GFX9 specific settings loader object
 Pal::ISettingsLoader* CreateSettingsLoader(
-    Util::IndirectAllocator* pAllocator,
-    Pal::Device*             pDevice)
+    Pal::Device* pDevice)
 {
-    return PAL_NEW(Gfx9::SettingsLoader, pDevice->GetPlatform(), AllocInternal)(pAllocator, pDevice);
+    return PAL_NEW(Gfx9::SettingsLoader, pDevice->GetPlatform(), AllocInternal)(pDevice);
  }
 
 // =====================================================================================================================

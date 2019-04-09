@@ -45,10 +45,9 @@ namespace Pal
 // =====================================================================================================================
 // Constructor for the PlatformSettingsLoader object.
 PlatformSettingsLoader::PlatformSettingsLoader(
-    IndirectAllocator* pAllocator,
-    Platform*          pPlatform)
+    Platform* pPlatform)
     :
-    ISettingsLoader(pAllocator, static_cast<DriverSettings*>(&m_settings), g_palPlatformNumSettings),
+    ISettingsLoader(pPlatform, static_cast<DriverSettings*>(&m_settings), g_palPlatformNumSettings),
     m_pPlatform(pPlatform),
     m_settings(),
     m_pComponentName("Pal_Platform")

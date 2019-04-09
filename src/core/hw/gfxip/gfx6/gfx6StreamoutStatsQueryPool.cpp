@@ -201,6 +201,27 @@ void StreamoutStatsQueryPool::WaitForSlots(
 }
 
 // =====================================================================================================================
+// Reset this query with CPU.
+Result StreamoutStatsQueryPool::Reset(
+    uint32  startQuery,
+    uint32  queryCount,
+    void*   pMappedCpuAddr)
+{
+    Result result = ValidateSlot(startQuery + queryCount - 1);
+
+    if (result == Result::Success)
+    {
+        result = DoReset(startQuery,
+                         queryCount,
+                         pMappedCpuAddr,
+                         4,
+                         &StreamoutStatsResetMemValue32);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Adds commands needed to reset this query to the supplied stream on a command buffer that does not support
 // PM4 commands, or when an optimized path is unavailable.
 // Note that for DX12, except for timestamp all queries occurs on universal queue / direct command list only,

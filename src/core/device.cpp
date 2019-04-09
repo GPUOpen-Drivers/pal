@@ -229,7 +229,6 @@ Device::Device(
     m_pTrackedCmdAllocator(nullptr),
     m_pUntrackedCmdAllocator(nullptr),
     m_pSettingsLoader(nullptr),
-    m_allocator(pPlatform),
     m_deviceIndex(deviceIndex),
     m_deviceSize(deviceSize),
     m_hwDeviceSizes(hwDeviceSizes),
@@ -723,7 +722,7 @@ Result Device::InitSettings()
     // Make sure we only initialize settings once
     if (m_pSettingsLoader == nullptr)
     {
-        m_pSettingsLoader = PAL_NEW(Pal::SettingsLoader, GetPlatform(), AllocInternal)(&m_allocator, this);
+        m_pSettingsLoader = PAL_NEW(Pal::SettingsLoader, GetPlatform(), AllocInternal)(this);
 
         if (m_pSettingsLoader == nullptr)
         {

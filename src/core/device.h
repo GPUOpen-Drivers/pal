@@ -1852,18 +1852,17 @@ private:
     Util::Mutex   m_referencedGpuMemLock;
     gpusize       m_referencedGpuMemBytes[GpuHeapCount];
 
-    AddrMgr*                 m_pAddrMgr;
-    CmdAllocator*            m_pTrackedCmdAllocator;
-    CmdAllocator*            m_pUntrackedCmdAllocator;
-    SettingsLoader*          m_pSettingsLoader;
-    Util::IndirectAllocator  m_allocator;
-    const uint32             m_deviceIndex;       // Unique index of this GPU compared to all other GPUs in the system.
-    const size_t             m_deviceSize;
-    const HwIpDeviceSizes    m_hwDeviceSizes;
-    const uint32             m_maxSemaphoreCount; // The OS-specific GPU semaphore max signal count.
-    volatile uint32          m_frameCnt;  // Device frame count
-    ImageTexOptLevel         m_texOptLevel; // Client specified texture optimize level for internally-created views
-    ScreenColorSpace         m_hdrColorspaceFormat;  // Current HDR Colorspace Format
+    AddrMgr*               m_pAddrMgr;
+    CmdAllocator*          m_pTrackedCmdAllocator;
+    CmdAllocator*          m_pUntrackedCmdAllocator;
+    SettingsLoader*        m_pSettingsLoader;
+    const uint32           m_deviceIndex;       // Unique index of this GPU compared to all other GPUs in the system.
+    const size_t           m_deviceSize;
+    const HwIpDeviceSizes  m_hwDeviceSizes;
+    const uint32           m_maxSemaphoreCount; // The OS-specific GPU semaphore max signal count.
+    volatile uint32        m_frameCnt;  // Device frame count
+    ImageTexOptLevel       m_texOptLevel; // Client specified texture optimize level for internally-created views
+    ScreenColorSpace       m_hdrColorspaceFormat;  // Current HDR Colorspace Format
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

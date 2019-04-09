@@ -43,9 +43,9 @@ public:
     OcclusionQueryPool(const Device& device, const QueryPoolCreateInfo& createInfo);
 
     virtual Result Reset(
-        uint32      startQuery,
-        uint32      queryCount,
-        const void* pMappedCpuAddr) override;
+        uint32  startQuery,
+        uint32  queryCount,
+        void*   pMappedCpuAddr) override;
 
     virtual void Begin(
         GfxCmdBuffer*     pCmdBuffer,

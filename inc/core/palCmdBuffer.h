@@ -698,6 +698,20 @@ struct BarrierInfo
                                                      ///  be specified more than once in the list of transitions.
                                                      ///  PAL assumes that all specified subresources are unique.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
+    uint32  globalSrcCacheMask; ///< Bitmask of @ref CacheCoherencyUsageFlags describing previous write operations whose
+                                ///  results need to be visible for subsequent operations.  This is a global mask and is
+                                ///  combined (bitwise logical union) with the @ref srcCacheMask field belonging to
+                                ///  every element in @ref pTransitions.  If this is zero, then no global cache flags
+                                ///  are applied during every transition.
+
+    uint32  globalDstCacheMask; ///< Bitmask of @ref CacheCoherencyUsageFlags describing the operations expected to read
+                                ///  data flushed from the caches indicated by the srcCacheMask.  This is a global mask
+                                ///  and is combined (bitwise logical union) with the @ref dstCacheMask field belonging
+                                ///  to every element in @ref pTransitions.  If this is zero, then no global cache flags
+                                ///  are applied during every transition.
+#endif
+
     /// If non-null, this is a split barrier.  A split barrier is executed by making two separate CmdBarrier() calls
     /// with identical parameters with the exception that the first call sets flags.splitBarrierEarlyPhase and the
     /// second calls sets flags.splitBarrierLatePhase.

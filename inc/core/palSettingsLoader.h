@@ -76,12 +76,14 @@ typedef DevDriver::SettingsURIService::SettingType     SettingType;
 class ISettingsLoader
 {
 public:
-    ISettingsLoader(Util::IndirectAllocator* pAllocator, DriverSettings* pSettings, uint32 numSettings)
+    template <typename Allocator>
+    ISettingsLoader(Allocator* pAllocator, DriverSettings* pSettings, uint32 numSettings)
         :
         m_pSettingsPtr(pSettings),
         m_settingHash(),
         m_state(SettingsLoaderState::PreInit),
-        m_settingsInfoMap(numSettings, pAllocator)
+        m_allocator(pAllocator),
+        m_settingsInfoMap(numSettings, &m_allocator)
         {}
 
     virtual ~ISettingsLoader() {}
@@ -136,6 +138,7 @@ protected:
         uint32       valueSize;  // Size of the setting value
     };
 
+    Util::IndirectAllocator m_allocator;
     Util::HashMap<SettingNameHash, SettingInfo, Util::IndirectAllocator> m_settingsInfoMap;
     static constexpr uint32 NumSettingBuckets = 256;
 

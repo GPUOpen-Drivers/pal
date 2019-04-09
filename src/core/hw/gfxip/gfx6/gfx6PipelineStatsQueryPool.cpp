@@ -227,6 +227,27 @@ void PipelineStatsQueryPool::End(
 }
 
 // =====================================================================================================================
+// Reset this query with CPU.
+Result PipelineStatsQueryPool::Reset(
+    uint32  startQuery,
+    uint32  queryCount,
+    void*   pMappedCpuAddr)
+{
+    Result result = ValidateSlot(startQuery + queryCount - 1);
+
+    if (result == Result::Success)
+    {
+        result = DoReset(startQuery,
+                         queryCount,
+                         pMappedCpuAddr,
+                         4,
+                         &PipelineStatsResetMemValue32);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Adds the PM4 commands needed to stall the ME until the results of the query range are in memory.
 void PipelineStatsQueryPool::WaitForSlots(
     Pal::CmdStream* pCmdStream,

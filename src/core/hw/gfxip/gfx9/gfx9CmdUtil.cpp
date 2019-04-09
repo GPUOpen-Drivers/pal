@@ -898,8 +898,8 @@ size_t CmdUtil::BuildCopyData(
 
         // Make sure our dstAddr is properly aligned.  The alignment differs based on how much data is being written
         PAL_ASSERT (((countSel == count_sel__mec_copy_data__64_bits_of_data) &&
-                     ((isCompute    && (pPacketCompute->bitfields3c.reserved1 == 0)) ||
-                      (gfxSupported && (packetGfx.bitfields3c.reserved1 == 0)))) ||
+                     ((isCompute    && (pPacketCompute->bitfields5c.reserved1 == 0)) ||
+                      (gfxSupported && (packetGfx.bitfields5c.reserved1 == 0)))) ||
                     ((countSel == count_sel__mec_copy_data__32_bits_of_data) &&
                      ((isCompute    && (pPacketCompute->bitfields5b.reserved1 == 0)) ||
                       (gfxSupported && (packetGfx.bitfields5b.reserved1 == 0)))));

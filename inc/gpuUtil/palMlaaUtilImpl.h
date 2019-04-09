@@ -166,7 +166,7 @@ Pal::Result MlaaUtil<Allocator>::SetupAuxImages(
                 imageInfo.usageFlags.colorTarget = 1;
                 imageInfo.flags.invariant        = 1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
-                imageInfo.metadataMode           = MetadataMode::Disabled;
+                imageInfo.metadataMode           = Pal::MetadataMode::Disabled;
 #else
                 imageInfo.flags.noMetadata       = 1;
 #endif

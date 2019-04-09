@@ -238,7 +238,6 @@ private:
     // driver functionality. The server object handles all developer driver protocol management internally and exposes
     // interfaces to each protocol through explicit objects which can be retrieved through the main interface.
     DevDriver::DevDriverServer* m_pDevDriverServer;
-    Util::IndirectAllocator  m_allocator;
     PlatformSettingsLoader m_settingsLoader;
 
     // Locally cached pointers to protocol servers.

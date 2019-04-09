@@ -438,14 +438,16 @@ public:
     void ExpandColor(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
-        const BarrierTransition&      transition,
+        const BarrierInfo&            barrier,
+        uint32                        transitionId,
         bool                          earlyPhase,
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
     void TransitionDepthStencil(
         GfxCmdBuffer*                 pCmdBuf,
         GfxCmdBufferState             cmdBufState,
-        const BarrierTransition&      transition,
+        const BarrierInfo&            barrier,
+        uint32                        transitionId,
         bool                          earlyPhase,
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;

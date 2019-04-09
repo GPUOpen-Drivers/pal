@@ -651,7 +651,6 @@ protected:
     bool    m_waTcCompatZRange;
     bool    m_degeneratePrimFilter;
     ISettingsLoader*  m_pSettingsLoader;
-    Util::IndirectAllocator m_allocator;
 
     PAL_ALIGN(32) uint32 m_fastClearImageRefs[MaxNumFastClearImageRefs];
 
@@ -685,7 +684,7 @@ extern Result CreateDevice(
     DeviceInterfacePfnTable* pPfnTable,
     GfxDevice**              ppGfxDevice);
 // Creates SettingsLoader object for Gfx6/7/8 hardware layer
-extern Pal::ISettingsLoader* CreateSettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Device* pDevice);
+extern Pal::ISettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
 } // Gfx6
 #endif
 
@@ -699,7 +698,7 @@ extern Result CreateDevice(
     DeviceInterfacePfnTable*  pPfnTable,
     GfxDevice**               ppGfxDevice);
 // Creates SettingsLoader object for Gfx9/10 hardware layer
-extern Pal::ISettingsLoader* CreateSettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Device* pDevice);
+extern Pal::ISettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
 } // Gfx9
 #endif
 

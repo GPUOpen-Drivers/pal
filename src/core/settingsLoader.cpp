@@ -47,10 +47,9 @@ namespace Pal
 // =====================================================================================================================
 // Constructor for the SettingsLoader object.
 SettingsLoader::SettingsLoader(
-    IndirectAllocator* pAllocator,
-    Device*            pDevice)
+    Device* pDevice)
     :
-    ISettingsLoader(pAllocator, static_cast<DriverSettings*>(&m_settings), g_palNumSettings),
+    ISettingsLoader(pDevice->GetPlatform(), static_cast<DriverSettings*>(&m_settings), g_palNumSettings),
     m_pDevice(pDevice),
     m_settings(),
     m_pComponentName("Pal")

@@ -509,7 +509,7 @@ void UniversalCmdBuffer::ResetState()
 
     m_spiVsOutConfig.u32All    = 0;
     m_spiPsInControl.u32All    = 0;
-    m_paScShaderControl.u32All = 0;
+    m_paScShaderControl.u32All = 0xFFFFFFFF; ///< Initialize to a known bad value to ensure it is flushed on 1st draw
     m_binningMode              = FORCE_BINNING_ON; // set a value that we would never use
 
     // Reset the command buffer's HWL state tracking
@@ -4571,9 +4571,9 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     const regPA_SC_SHADER_CONTROL  newPaScShaderControl = pPipeline->PaScShaderControl(drawInfo.vtxIdxCount);
     if (newPaScShaderControl.u32All != m_paScShaderControl.u32All)
     {
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_SHADER_CONTROL,
-                                                          newPaScShaderControl.u32All,
-                                                          pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_SHADER_CONTROL,
+                                                               newPaScShaderControl.u32All,
+                                                               pDeCmdSpace);
 
         m_paScShaderControl.u32All = newPaScShaderControl.u32All;
     }

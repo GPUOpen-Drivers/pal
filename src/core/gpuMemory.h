@@ -45,7 +45,7 @@ enum class MType : uint32
     Default = 0,       // The kernel should use its default MTYPE.
     CachedNoncoherent, // Cache reads and writes without worrying about CPU coherency.
     CachedCoherent,    // Cache reads and writes while maintaining CPU coherency.
-    Uncached,          // Always read and write through the cache.
+    Uncached,          // Cache reads and writes punch through the cache.
     Count
 };
 

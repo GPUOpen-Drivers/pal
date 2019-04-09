@@ -57,6 +57,11 @@ public:
 
     virtual void WaitForSlots(Pal::CmdStream* pCmdStream, uint32 startQuery, uint32 queryCount) const override;
 
+    virtual Result Reset(
+        uint32  startQuery,
+        uint32  queryCount,
+        void*   pMappedCpuAddr) override;
+
 protected:
     virtual ~StreamoutStatsQueryPool() {}
 

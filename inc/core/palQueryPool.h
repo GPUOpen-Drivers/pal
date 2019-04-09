@@ -179,9 +179,9 @@ public:
     ///
     /// @returns Success if the reset was successfully performed.
     virtual Result Reset(
-        uint32      startQuery,
-        uint32      queryCount,
-        const void* pMappedCpuAddr) = 0;
+        uint32  startQuery,
+        uint32  queryCount,
+        void*   pMappedCpuAddr) = 0;
 
 /// To handle backwards compatibility.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 472

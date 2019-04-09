@@ -66,9 +66,9 @@ public:
         ) override;
 
     virtual Result Reset(
-        uint32      startQuery,
-        uint32      queryCount,
-        const void* pMappedCpuAddr) override
+        uint32  startQuery,
+        uint32  queryCount,
+        void*   pMappedCpuAddr) override
         { PAL_NEVER_CALLED(); return Result::Unsupported; }
 
     virtual void Begin(
@@ -140,6 +140,13 @@ protected:
         size_t           stride,
         const void*      pGpuData,
         void*            pData) = 0;
+
+    Result DoReset(
+        uint32      startQuery,
+        uint32      queryCount,
+        void*       pMappedCpuAddr,
+        gpusize     resetDataSizeInBytes,
+        const void* pResetData);
 
     const QueryPoolCreateInfo m_createInfo;
     BoundGpuMemory            m_gpuMemory;

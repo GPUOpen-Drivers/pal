@@ -750,6 +750,7 @@ Result GpuMemory::Init(
     m_flags.nonLocalOnly  = m_pOriginalMem->m_flags.nonLocalOnly;
     m_flags.interprocess  = m_pOriginalMem->m_flags.interprocess;
     m_flags.globalGpuVa   = m_pOriginalMem->m_flags.globalGpuVa;
+    m_flags.cpuVisible    = m_pOriginalMem->m_flags.cpuVisible;
 
     // Set the gpuVirtAddr if the GPU VA is visible to all devices
     if (IsGlobalGpuVa())

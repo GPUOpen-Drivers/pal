@@ -424,6 +424,8 @@ private:
         ImageLayout depthStencil[2];
     } m_defaultGfxLayout;
 
+    bool m_useCompToSingleForFastClears;
+
     // Tracks the first mip level which needs an L2 flush & invalidation under certain circumstances due to metadata
     // not being pipe-aligned all the time in hardware.  A value of UINT_MAX means no mip levels require this
     // workaround, a value of zero means all mips require it.  See InitPipeMisalignedMetadataFirstMip() for details.

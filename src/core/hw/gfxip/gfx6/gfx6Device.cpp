@@ -2271,8 +2271,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                     if ((TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipDepthStencil) ||
                          (startSubresInfo.flags.supportMetaDataTexFetch == true)) &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
-                        (ImageLayoutToDepthCompressionState(image.LayoutToDepthCompressionState(subresource),
-                                                            viewInfo.possibleLayouts) == DepthStencilCompressed))
+                        (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false))
 #else
                         (viewInfo.flags.shaderWritable == false))
 #endif
@@ -2288,8 +2287,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                 else if ((TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipColorTarget) ||
                           (startSubresInfo.flags.supportMetaDataTexFetch == true)) &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
-                         (ImageLayoutToColorCompressionState(image.LayoutToColorCompressionState(subresource),
-                                                            viewInfo.possibleLayouts) != ColorDecompressed))
+                         (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false))
 #else
                          (viewInfo.flags.shaderWritable == false))
 #endif
@@ -3411,10 +3409,9 @@ void InitializeGpuEngineProperties(
 // =====================================================================================================================
 // Creates a GFX6 specific settings loader object
 Pal::ISettingsLoader* CreateSettingsLoader(
-    Util::IndirectAllocator* pAllocator,
-    Pal::Device*             pDevice)
+    Pal::Device* pDevice)
 {
-    return PAL_NEW(Gfx6::SettingsLoader, pDevice->GetPlatform(), AllocInternal)(pAllocator, pDevice);
+    return PAL_NEW(Gfx6::SettingsLoader, pDevice->GetPlatform(), AllocInternal)(pDevice);
 }
 
 } // Gfx6

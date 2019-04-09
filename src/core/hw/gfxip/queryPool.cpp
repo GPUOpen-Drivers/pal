@@ -222,6 +222,57 @@ void QueryPool::Reset(
 }
 
 // =====================================================================================================================
+// Reset this query pool with CPU.
+Result QueryPool::DoReset(
+    uint32      startQuery,
+    uint32      queryCount,
+    void*       pMappedCpuAddr,
+    gpusize     resetDataSizeInBytes,
+    const void* pResetData)
+{
+    Result result = ValidateSlot(startQuery + queryCount - 1);
+
+    if (result == Result::Success)
+    {
+        void* pGpuData = pMappedCpuAddr;
+
+        if (pGpuData == nullptr)
+        {
+            result = m_gpuMemory.Map(&pGpuData);
+        }
+
+        if (result == Result::Success)
+        {
+            // Reset the query pool
+            uint8* pQueryData = static_cast<uint8*>(VoidPtrInc(pGpuData, GetGpuResultSizeInBytes(startQuery)));
+            const size_t itemCount = GetGpuResultSizeInBytes(queryCount) / static_cast<size_t>(resetDataSizeInBytes);
+
+            for (size_t i = 0; i < itemCount; i++)
+            {
+                memcpy(pQueryData + i * resetDataSizeInBytes, pResetData, static_cast<size_t>(resetDataSizeInBytes));
+            }
+
+            if (HasTimestamps())
+            {
+                // Reset timestamps
+                const size_t timestampSize   = static_cast<size_t>(m_timestampSizePerSlotInBytes);
+                const size_t timestampOffset = static_cast<size_t>(m_timestampStartOffset);
+                void* const  pTimestampData  = VoidPtrInc(pGpuData, timestampOffset + timestampSize * startQuery);
+
+                memset(pTimestampData, 0, timestampSize * queryCount);
+            }
+
+            if (pMappedCpuAddr == nullptr)
+            {
+                result = m_gpuMemory.Unmap();
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Returns the GPU address for the given slot in the query pool.
 Result QueryPool::GetQueryGpuAddress(
     uint32   slot,

@@ -117,13 +117,24 @@ static IMsaaState* BarrierMsaaState(
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
 void Device::TransitionDepthStencil(
     GfxCmdBuffer*                 pCmdBuf,
-    const BarrierTransition&      transition,
+    GfxCmdBufferState             cmdBufState,
+    const BarrierInfo&            barrier,
+    uint32                        transitionId,
     bool                          earlyPhase,
     SyncReqs*                     pSyncReqs,
     Developer::BarrierOperations* pOperations
     ) const
 {
+    const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
+    uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
+    const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
+#else
+    uint32       srcCacheMask = transition.srcCacheMask;
+    const uint32 dstCacheMask = transition.dstCacheMask;
+#endif
 
     // The "earlyPhase" for decompress/resummarize BLTs is before any waits and/or cache flushes have been inserted.
     // It is safe to perform a depth expand or htile resummarize in the early phase if the client reports there is dirty
@@ -139,6 +150,9 @@ void Device::TransitionDepthStencil(
     // If this transition does not flush dirty data out of the DB caches, we delay the decompress until all client-
     // specified stalls and cache flushes have been executed (the late phase).  This situation should be rare,
     // occurring in cases like a clear to shader read transition without any rendering in between.
+    //
+    // Note: Looking at this transition's cache mask in isolation to determine if the transition can be done during the
+    // early phase is intentional!
     if (earlyPhase == TestAnyFlagSet(transition.srcCacheMask, CoherDepthStencilTarget))
     {
         const auto& image                  = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
@@ -187,9 +201,9 @@ void Device::TransitionDepthStencil(
             // CoherDepthStencilTarget), this shouldn't result in any additional sync.
             //
             // Note that we must always invalidate these caches if the client didn't give us any cache information.
-            const bool noCacheFlags = ((transition.srcCacheMask == 0) && (transition.dstCacheMask == 0));
+            const bool noCacheFlags = ((srcCacheMask == 0) && (dstCacheMask == 0));
 
-            if (TestAnyFlagSet(transition.dstCacheMask, CoherShader | CoherCopy | CoherResolve) || noCacheFlags)
+            if (TestAnyFlagSet(dstCacheMask, CoherShader | CoherCopy | CoherResolve) || noCacheFlags)
             {
                 pSyncReqs->cpCoherCntl.bits.TCL1_ACTION_ENA = 1;
                 pSyncReqs->cpCoherCntl.bits.TC_ACTION_ENA   = 1;
@@ -274,9 +288,7 @@ void Device::DepthStencilExpand(
     ) const
 {
     pOperations->layoutTransitions.depthStencilExpand = 1;
-    DescribeBarrier(pCmdBuf,
-                    pOperations,
-                    &transition);
+    DescribeBarrier(pCmdBuf, pOperations, &transition);
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
@@ -305,9 +317,7 @@ void Device::DepthStencilExpandHiZRange(
     ) const
 {
     pOperations->layoutTransitions.htileHiZRangeExpand = 1;
-    DescribeBarrier(pCmdBuf,
-                    pOperations,
-                    &transition);
+    DescribeBarrier(pCmdBuf, pOperations, &transition);
 
     // CS blit to open-up the HiZ range.
     RsrcProcMgr().HwlExpandHtileHiZRange(pCmdBuf, gfx6Image, subresRange);
@@ -329,9 +339,7 @@ void Device::DepthStencilResummarize(
     ) const
 {
     pOperations->layoutTransitions.depthStencilResummarize = 1;
-    DescribeBarrier(pCmdBuf,
-                    pOperations,
-                    &transition);
+    DescribeBarrier(pCmdBuf, pOperations, &transition);
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
@@ -365,12 +373,14 @@ void Device::DepthStencilResummarize(
 void Device::ExpandColor(
     GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
-    const BarrierTransition&      transition,
+    const BarrierInfo&            barrier,
+    uint32                        transitionId,
     bool                          earlyPhase,
     SyncReqs*                     pSyncReqs,
     Developer::BarrierOperations* pOperations
     ) const
 {
+    const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
 
     const auto&        image                  = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
@@ -380,6 +390,14 @@ void Device::ExpandColor(
     uint32             blt[MaxImageMipLevels] = {};
     const uint32       allBltOperations       = GetColorBltPerSubres(pCmdBuf, blt, transition, earlyPhase);
     PAL_ASSERT(image.IsDepthStencil() == false);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
+    const uint32 srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
+    const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
+#else
+    const uint32 srcCacheMask = transition.srcCacheMask;
+    const uint32 dstCacheMask = transition.dstCacheMask;
+#endif
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     // If any mip level needs a Dcc decompress (Dcc FastClearEliminate) or Fmask decompress,
@@ -450,6 +468,9 @@ void Device::ExpandColor(
         // If this transition does not flush dirty data out of the CB caches, we delay the decompress until all client-
         // specified stalls and cache flushes have been executed (the late phase).  This situation should be rare,
         // occurring in cases like a clear to shader read transition without any rendering in between.
+        //
+        // Note: Looking at this transition's cache mask in isolation to determine if the transition can be done during
+        // the early phase is intentional!
         if (earlyPhase == TestAnyFlagSet(transition.srcCacheMask, CoherColorTarget))
         {
             if (TestAnyFlagSet(blt[mip], ColorBlt::DccDecompress))
@@ -507,9 +528,9 @@ void Device::ExpandColor(
         // texture caches to be flushed.
         //
         // Note that we must always invalidate these caches if the client didn't give us any cache information.
-        const bool noCacheFlags = ((transition.srcCacheMask == 0) && (transition.dstCacheMask == 0));
+        const bool noCacheFlags = ((srcCacheMask == 0) && (dstCacheMask == 0));
 
-        if (TestAnyFlagSet(transition.dstCacheMask, CoherShader | CoherCopy | CoherResolve) || noCacheFlags)
+        if (TestAnyFlagSet(dstCacheMask, CoherShader | CoherCopy | CoherResolve) || noCacheFlags)
         {
             pSyncReqs->cpCoherCntl.bits.TCL1_ACTION_ENA = 1;
             pSyncReqs->cpCoherCntl.bits.TC_ACTION_ENA   = 1;
@@ -667,10 +688,7 @@ void Device::DccDecompress(
     ) const
 {
     pOperations->layoutTransitions.dccDecompress = 1;
-
-    DescribeBarrier(pCmdBuf,
-                    pOperations,
-                    &transition);
+    DescribeBarrier(pCmdBuf, pOperations, &transition);
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
@@ -701,10 +719,7 @@ void Device::FmaskDecompress(
     ) const
 {
     pOperations->layoutTransitions.fmaskDecompress = 1;
-
-    DescribeBarrier(pCmdBuf,
-                    pOperations,
-                    &transition);
+    DescribeBarrier(pCmdBuf, pOperations, &transition);
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
@@ -764,9 +779,7 @@ void Device::MsaaDecompress(
     }
 
     pOperations->layoutTransitions.fmaskColorExpand = 1;
-    DescribeBarrier(pCmdBuf,
-                    pOperations,
-                    &transition);
+    DescribeBarrier(pCmdBuf, pOperations, &transition);
 
     RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx6Image, subresRange);
 }
@@ -784,9 +797,7 @@ void Device::FastClearEliminate(
     ) const
 {
     pOperations->layoutTransitions.fastClearEliminate = 1;
-    DescribeBarrier(pCmdBuf,
-                    pOperations,
-                    &transition);
+    DescribeBarrier(pCmdBuf, pOperations, &transition);
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
@@ -842,7 +853,7 @@ void Device::IssueSyncs(
         pOperations->pipelineStalls.waitOnEopTsBottomOfPipe = 1;
         pCmdSpace += m_cmdUtil.BuildWaitOnGenericEopEvent(eopEvent,
                                                           pCmdBuf->TimestampGpuVirtAddr(),
-                                                          isUniversal == false,
+                                                          (isUniversal == false),
                                                           pCmdSpace);
         pCmdBuf->SetPrevCmdBufInactive();
 
@@ -1010,6 +1021,7 @@ void Device::Barrier(
 {
     SyncReqs globalSyncReqs = {};
     Developer::BarrierOperations barrierOps = {};
+    GfxCmdBufferState cmdBufState = pCmdBuf->GetGfxCmdBufState();
 
     // -----------------------------------------------------------------------------------------------------------------
     // -- Early image layout transitions.
@@ -1041,11 +1053,11 @@ void Device::Barrier(
 
                     if (image.IsDepthStencil())
                     {
-                        TransitionDepthStencil(pCmdBuf, barrier.pTransitions[i], true, &globalSyncReqs, &barrierOps);
+                        TransitionDepthStencil(pCmdBuf, cmdBufState, barrier, i, true, &globalSyncReqs, &barrierOps);
                     }
                     else
                     {
-                        ExpandColor(pCmdBuf, pCmdStream, barrier.pTransitions[i], true, &globalSyncReqs, &barrierOps);
+                        ExpandColor(pCmdBuf, pCmdStream, barrier, i, true, &globalSyncReqs, &barrierOps);
                     }
                 }
             }
@@ -1055,7 +1067,6 @@ void Device::Barrier(
     // -----------------------------------------------------------------------------------------------------------------
     // -- Stalls and global cache management.
     // -----------------------------------------------------------------------------------------------------------------
-    GfxCmdBufferState cmdBufState = pCmdBuf->GetGfxCmdBufState();
 
     // Determine sync requirements for global pipeline waits.
     for (uint32 i = 0; i < barrier.pipePointWaitCount; i++)
@@ -1114,8 +1125,13 @@ void Device::Barrier(
     {
         const auto& transition = barrier.pTransitions[i];
 
-        uint32 srcCacheMask = transition.srcCacheMask;
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
+        uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
+        const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
+#else
+        uint32       srcCacheMask = transition.srcCacheMask;
+        const uint32 dstCacheMask = transition.dstCacheMask;
+#endif
         // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know which
         // write caches have been dirtied:
         // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
@@ -1135,7 +1151,6 @@ void Device::Barrier(
 
         // alwaysL2Mask is a mask of usages that always read/write through the L2 cache.
         uint32 alwaysL2Mask = CoherShader | CoherStreamOut | CoherQueueAtomic | CoherCeDump;
-
         if (Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp8)
         {
             alwaysL2Mask |= CoherCeLoad;
@@ -1149,29 +1164,25 @@ void Device::Barrier(
         //                        through L2.
         //     - Invalidate case: Prior output might not have been through L2 and upcoming reads/writes might be
         //                        through L2.
-        if ((TestAnyFlagSet(srcCacheMask, MaybeL2Mask) &&
-             TestAnyFlagSet(transition.dstCacheMask, ~alwaysL2Mask)) ||
-            (TestAnyFlagSet(srcCacheMask, ~alwaysL2Mask) &&
-             TestAnyFlagSet(transition.dstCacheMask, MaybeL2Mask)))
+        if ((TestAnyFlagSet(srcCacheMask, MaybeL2Mask)   && TestAnyFlagSet(dstCacheMask, ~alwaysL2Mask)) ||
+            (TestAnyFlagSet(srcCacheMask, ~alwaysL2Mask) && TestAnyFlagSet(dstCacheMask, MaybeL2Mask)))
         {
             globalSyncReqs.cpCoherCntl.bits.TC_ACTION_ENA = 1;
         }
 
-        constexpr uint32 MaybeL1ShaderMask = CoherShader | CoherStreamOut | CoherCopy | CoherResolve | CoherClear;
+        constexpr uint32 MaybeL1ShaderMask = (CoherShader | CoherStreamOut | CoherCopy | CoherResolve | CoherClear);
 
         // Invalidate L1 shader caches if the previous output may have done shader writes, since there is no coherence
         // between different CUs' TCP (vector L1) caches.  Invalidate TCP and SQ-K cache (scalar read cache) if this
         // barrier is forcing shader read coherency.
-        if (TestAnyFlagSet(srcCacheMask, MaybeL1ShaderMask) ||
-            TestAnyFlagSet(transition.dstCacheMask, MaybeL1ShaderMask))
+        if (TestAnyFlagSet(srcCacheMask, MaybeL1ShaderMask) || TestAnyFlagSet(dstCacheMask, MaybeL1ShaderMask))
         {
             globalSyncReqs.cpCoherCntl.bits.TCL1_ACTION_ENA      = 1;
             globalSyncReqs.cpCoherCntl.bits.SH_KCACHE_ACTION_ENA = 1;
         }
 
         if (TestAnyFlagSet(srcCacheMask, CoherColorTarget) &&
-            (TestAnyFlagSet(srcCacheMask, ~CoherColorTarget) ||
-             TestAnyFlagSet(transition.dstCacheMask, ~CoherColorTarget)))
+            (TestAnyFlagSet(srcCacheMask, ~CoherColorTarget) || TestAnyFlagSet(dstCacheMask, ~CoherColorTarget)))
         {
             // CB metadata caches can only be flushed with a pipelined VGT event, like CACHE_FLUSH_AND_INV.  In order to
             // ensure the cache flush finishes before continuing, we must wait on a timestamp.  Catch those cases early
@@ -1180,7 +1191,7 @@ void Device::Barrier(
             globalSyncReqs.waitOnEopTs      = 1;
             globalSyncReqs.cacheFlushAndInv = 1;
         }
-    }
+    } // For each transition
 
     // Check conditions that end up requiring a stall for all GPU work to complete.  The cases are:
     //     - A pipelined wait has been requested.
@@ -1380,9 +1391,7 @@ void Device::Barrier(
                     if (gfx6Image.HasColorMetaData() || gfx6Image.HasHtileData())
                     {
                         barrierOps.layoutTransitions.initMaskRam = 1;
-                        DescribeBarrier(pCmdBuf,
-                                        &barrierOps,
-                                        &barrier.pTransitions[i]);
+                        DescribeBarrier(pCmdBuf, &barrierOps, &barrier.pTransitions[i]);
 
                         RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx6Image, subresRange, &initSyncReqs);
                     }
@@ -1402,7 +1411,6 @@ void Device::Barrier(
         for (uint32 i = 0; i < barrier.transitionCount; i++)
         {
             const auto& transition = barrier.pTransitions[i];
-            uint32 srcCacheMask = transition.srcCacheMask;
 
             if (transition.imageInfo.pImage != nullptr)
             {
@@ -1416,7 +1424,15 @@ void Device::Barrier(
                     if (image.IsDepthStencil())
                     {
                         // Issue a late-phase DB decompress, if necessary.
-                        TransitionDepthStencil(pCmdBuf, transition, false, &imageSyncReqs, &barrierOps);
+                        TransitionDepthStencil(pCmdBuf, cmdBufState, barrier, i, false, &imageSyncReqs, &barrierOps);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
+                        uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
+                        const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
+#else
+                        uint32       srcCacheMask = transition.srcCacheMask;
+                        const uint32 dstCacheMask = transition.dstCacheMask;
+#endif
 
                         // There are two various srcCache Clear which we can further optimize if we know which
                         // write caches have been dirtied:
@@ -1432,7 +1448,7 @@ void Device::Barrier(
                         }
 
                         if (TestAnyFlagSet(srcCacheMask, CoherDepthStencilTarget) &&
-                            TestAnyFlagSet(transition.dstCacheMask, ~CoherDepthStencilTarget))
+                            TestAnyFlagSet(dstCacheMask, ~CoherDepthStencilTarget))
                         {
                             // Issue surface sync stalls on depth/stencil surface writes and flush DB caches
                             imageSyncReqs.cpCoherCntl.bits.DB_DEST_BASE_ENA = 1;
@@ -1442,7 +1458,7 @@ void Device::Barrier(
                     }
                     else
                     {
-                        ExpandColor(pCmdBuf, pCmdStream, transition, false, &imageSyncReqs, &barrierOps);
+                        ExpandColor(pCmdBuf, pCmdStream, barrier, i, false, &imageSyncReqs, &barrierOps);
                     }
 
                     IssueSyncs(pCmdBuf,
@@ -1455,6 +1471,7 @@ void Device::Barrier(
                 }
             }
         }
+
         DescribeBarrierEnd(pCmdBuf, &barrierOps);
     }
 }

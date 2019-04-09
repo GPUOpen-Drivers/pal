@@ -28,8 +28,6 @@
 #include "palSettingsLoader.h"
 #include "core/g_palSettings.h"
 
-namespace Util { class IndirectAllocator; }
-
 namespace Pal
 {
 
@@ -40,7 +38,7 @@ class Device;
 class SettingsLoader : public ISettingsLoader
 {
 public:
-    SettingsLoader(Util::IndirectAllocator* pAllocator, Device* pDevice);
+    explicit SettingsLoader(Device* pDevice);
     virtual ~SettingsLoader();
 
     virtual Result Init() override;

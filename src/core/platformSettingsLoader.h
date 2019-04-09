@@ -31,8 +31,6 @@
 #include "core/platform.h"
 #include "core/g_palPlatformSettings.h"
 
-namespace Util { class IndirectAllocator; }
-
 namespace Pal
 {
 
@@ -44,7 +42,7 @@ class Platform;
 class PlatformSettingsLoader : public ISettingsLoader
 {
 public:
-    PlatformSettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Platform* pPlatform);
+    explicit PlatformSettingsLoader(Pal::Platform* pPlatform);
     virtual ~PlatformSettingsLoader();
 
     virtual Result Init() override;

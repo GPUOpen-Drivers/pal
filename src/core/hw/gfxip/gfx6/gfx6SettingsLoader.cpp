@@ -46,10 +46,9 @@ constexpr uint32 MinUcodeFeatureVersionMcbpFix = 48;
 
 // =====================================================================================================================
 SettingsLoader::SettingsLoader(
-    Util::IndirectAllocator* pAllocator,
-    Pal::Device*             pDevice)
+    Pal::Device* pDevice)
     :
-    Pal::ISettingsLoader(pAllocator,
+    Pal::ISettingsLoader(pDevice->GetPlatform(),
                          static_cast<DriverSettings*>(&m_settings),
                          g_gfx6PalNumSettings),
     m_pDevice(pDevice),

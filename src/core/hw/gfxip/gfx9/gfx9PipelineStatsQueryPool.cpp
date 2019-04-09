@@ -273,6 +273,27 @@ void PipelineStatsQueryPool::WaitForSlots(
 }
 
 // =====================================================================================================================
+// Reset this query with CPU.
+Result PipelineStatsQueryPool::Reset(
+    uint32  startQuery,
+    uint32  queryCount,
+    void*   pMappedCpuAddr)
+{
+    Result result = ValidateSlot(startQuery + queryCount - 1);
+
+    if (result == Result::Success)
+    {
+        result = DoReset(startQuery,
+                         queryCount,
+                         pMappedCpuAddr,
+                         4,
+                         &PipelineStatsResetMemValue32);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Adds the PM4 commands needed to reset this query to the supplied stream on a command buffer that does not support
 // PM4 commands, or when an optimized path is unavailable.
 void PipelineStatsQueryPool::NormalReset(

@@ -569,7 +569,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
     const ImageCreateInfo& createInfo = pImage->GetImageCreateInfo();
     const ImageInfo&       imageInfo  = pImage->GetImageInfo();
-
+    const PalSettings&     settings   = GetDevice()->Settings();
     const ImageAspect aspect = (forFmask ? ImageAspect::Fmask : pBaseSubRes->subresId.aspect);
 
     ADDR2_GET_PREFERRED_SURF_SETTING_INPUT surfSettingInput = { };
@@ -586,7 +586,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     surfSettingInput.flags           = DetermineSurfaceFlags(*pImage, aspect);
     surfSettingInput.resourceType    = GetAddrResourceType(pImage);
     surfSettingInput.resourceLoction = ADDR_RSRC_LOC_UNDEF;
-    surfSettingInput.noXor           = GetDevice()->Settings().addr2DisableXorTileMode;
+    surfSettingInput.noXor           = settings.addr2DisableXorTileMode;
 
     // Note: This is used by the AddrLib as an additional clamp on 4kB vs. 64kB swizzle modes. It can be set to zero
     // to force the AddrLib to chose the most optimal mode.
@@ -594,7 +594,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
     InitTilingCaps(pImage, surfSettingInput.flags, &surfSettingInput.forbiddenBlock);
 
-    const uint32 addr2PreferredSwizzleTypeSet = m_pDevice->Settings().addr2PreferredSwizzleTypeSet;
+    const uint32 addr2PreferredSwizzleTypeSet = settings.addr2PreferredSwizzleTypeSet;
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446)
     // Enable gfx9 to handle 2d sampling on 3d despite its hardware always interpreting as 3d
@@ -650,8 +650,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         else if (pImage->GetGfxImage()->IsRestrictedTiledMultiMediaSurface() &&
                  (createInfo.tiling == ImageTiling::Optimal))
         {
-            const SettingsLoader* const pSettingsLoader = m_pDevice->GetSettingsLoader();
-
             if (IsVega10(*m_pDevice) || IsVega12(*m_pDevice)
                 || IsVega20(*m_pDevice)
                 )
@@ -673,7 +671,9 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                 }
                 else
                 {
-                    pOut->swizzleMode = ADDR_SW_64KB_S;
+                    {
+                        pOut->swizzleMode = ADDR_SW_64KB_S;
+                    }
                 }
             }
         }

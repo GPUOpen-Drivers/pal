@@ -40,6 +40,18 @@ namespace Pal
 namespace GpuProfiler
 {
 
+constexpr const char* EngineTypeStrings[] =
+{
+    "Gfx",
+    "Ace",
+    "XAce",
+    "Dma",
+    "Timer",
+    "HpUniversal",
+};
+
+static_assert(ArrayLen(EngineTypeStrings) == EngineTypeCount, "Missing entry in EngineTypeStrings.");
+
 // =====================================================================================================================
 // Writes .csv entries to file corresponding to the first count items in the m_logItems deque.  The caller guarantees
 // that all of these calls are idle.
@@ -127,21 +139,6 @@ void Queue::OpenLogFile(
 
     m_logFile.Close();
 
-    const char* pEngineTypeStrings[] =
-    {
-        "Gfx",
-        "Ace",
-        "XAce",
-        "Dma",
-        "Timer",
-
-        "HpUniversal",
-
-    };
-
-    static_assert(ArrayLen(pEngineTypeStrings) == EngineTypeCount,
-                  "Missing entry in pEngineTypeStrings.");
-
     // Build a file name for this frame's log file.  It will have the pattern frameAAAAAADevBEngCD-EE.csv, where:
     //     - AAAAAA: Frame number.
     //     - B:      Device index (mostly relevant when profiling MGPU systems).
@@ -155,7 +152,7 @@ void Queue::OpenLogFile(
              m_pDevice->GetPlatform()->LogDirPath(),
              frameId,
              m_pDevice->Id(),
-             pEngineTypeStrings[static_cast<uint32>(m_engineType)],
+             EngineTypeStrings[static_cast<uint32>(m_engineType)],
              m_engineIndex,
              m_queueId);
 
@@ -205,25 +202,12 @@ void Queue::OpenSqttFile(
     File*          pFile,
     const LogItem& logItem)
 {
-    const char* pEngineTypeStrings[] =
-    {
-        "Gfx",
-        "Ace",
-        "XAce",
-        "Dma",
-        "Timer",
-        "HpUniversal",
-
-    };
-
-    static_assert(ArrayLen(pEngineTypeStrings) == EngineTypeCount,
-                  "Missing entry in pEngineTypeStrings.");
-
     // CRC Info
     constexpr uint32 CrcInfoSize = 256;
     char crcInfo[CrcInfoSize];
     memset(crcInfo, 0, CrcInfoSize);
-    if (CmdBufferCall == logItem.type)
+
+    if (logItem.type == CmdBufferCall)
     {
         if (logItem.cmdBufCall.flags.draw == 1)
         {
@@ -237,7 +221,7 @@ void Queue::OpenSqttFile(
         }
     }
 
-    // frameAAAAAADevBEngCD-EE.SqttCmdBufFTraceGSeHCuUI.out, where:
+    // frameAAAAAADevBEngCD-EE.SqttCmdBufFTraceGSeHCuUI.ttv, where:
     //     - AAAAAA: Frame number.
     //     - B:      Device index (mostly relevant when profiling MGPU systems).
     //     - C:      Engine type (U = universal, C = compute, D = DMA, and T = timer).
@@ -255,7 +239,7 @@ void Queue::OpenSqttFile(
              m_pDevice->GetPlatform()->LogDirPath(),
              m_curLogFrame,
              m_pDevice->Id(),
-             pEngineTypeStrings[static_cast<uint32>(m_engineType)],
+             EngineTypeStrings[static_cast<uint32>(m_engineType)],
              m_engineIndex,
              m_queueId,
              m_curLogCmdBufIdx,
@@ -274,15 +258,45 @@ void Queue::OpenSpmFile(
     Util::File*    pFile,
     const LogItem& logItem)
 {
-    // frameAAAAAA.csv, where:
+    // CRC Info
+    constexpr uint32 CrcInfoSize = 256;
+    char crcInfo[CrcInfoSize];
+    memset(crcInfo, 0, CrcInfoSize);
+
+    if (logItem.type == CmdBufferCall)
+    {
+        if (logItem.cmdBufCall.flags.draw == 1)
+        {
+            Snprintf(crcInfo, CrcInfoSize, "_DRAW_PIPELINE%.16I64x",
+                     logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable);
+        }
+        else if (logItem.cmdBufCall.flags.dispatch == 1)
+        {
+            Snprintf(crcInfo, CrcInfoSize, "_DISPATCH_PIPELINE%.16I64x",
+                     logItem.cmdBufCall.dispatch.pipelineInfo.internalPipelineHash.stable);
+        }
+    }
+
+    // frameAAAAAADevBEngCD-EE.SpmCmdBufFI.csv, where:
     //     - AAAAAA: Frame number.
+    //     - B:      Device index (mostly relevant when profiling MGPU systems).
+    //     - C:      Engine type (U = universal, C = compute, D = DMA, and T = timer).
+    //     - D:      Engine index (for cases like compute/DMA where there are multiple instances of the same engine).
+    //     - EE:     Queue ID (there can be multiple IQueue objects created for the same engine instance).
+    //     - F:      Command buffer ID.
+    //     - I:      Concatenation of shader IDs bound (for draw/dispatch calls only).
     char logFilePath[512];
     Snprintf(&logFilePath[0],
              sizeof(logFilePath),
-             "%s/frame%06u_cb%03u_spm.csv",
+             "%s/frame%06uDev%uEng%s%u-%02u.SpmCmdBuf%u%s.csv",
              m_pDevice->GetPlatform()->LogDirPath(),
              m_curLogFrame,
-             m_curLogCmdBufIdx);
+             m_pDevice->Id(),
+             EngineTypeStrings[static_cast<uint32>(m_engineType)],
+             m_engineIndex,
+             m_queueId,
+             m_curLogCmdBufIdx,
+             crcInfo);
 
     Result result = pFile->Open(&logFilePath[0], FileAccessWrite);
     PAL_ASSERT(result == Result::Success);
@@ -720,18 +734,6 @@ void Queue::OutputTraceDataToFile(
                 // Spm trace chunk: Begin output of Spm trace data as a separate .csv file
                 if (m_pDevice->IsSpmTraceEnabled())
                 {
-                    File spmFile;
-                    OpenSpmFile(&spmFile, logItem);
-
-                    spmFile.Printf("Time,");
-
-                    // ThreadTraceViewer output: print the first line consisting of the counter names.
-                    for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); ++i)
-                    {
-                        const auto& counter = m_pDevice->StreamingPerfCounters()[i];
-                        spmFile.Printf("%s,", &counter.name[0]);
-                    }
-
                     // Find the first SPM_DB chunk, stopping if we reach the end before finding any.
                     size_t      offset = sizeof(SqttFileHeader);
                     const auto* pChunk = static_cast<const SqttFileChunkHeader*>(VoidPtrInc(pResult, offset));
@@ -758,21 +760,36 @@ void Queue::OutputTraceDataToFile(
                         const auto* pCounterInfo = static_cast<const SpmCounterInfo*>(VoidPtrInc(pResult, offset));
                         offset += pSpmDbChunk->numSpmCounterInfo * sizeof(*pCounterInfo);
 
-                        // ThreadTraceViewer output: print the frame number
-                        uint32 cbStartTime = 0;
-                        uint32 cbEndTime   = 1;
-                        spmFile.Printf("\nframe%u_cb%u,%u,%u\n",
-                                       m_curLogFrame, m_curLogCmdBufIdx, cbStartTime, cbEndTime);
+                        File spmFile;
+                        OpenSpmFile(&spmFile, logItem);
 
-                        const gpusize firstTimestamp = pTimestamp[0];
-
-                        // Note: ThreadTraceViewer crashes (1) On providing the actual timestamps which is a 64 bit number,
-                        // (2) If the first timestamp is 0, hence we are skipping the first timestamp and data!
-                        // (3) potentially if the timestamp interval is too small.
-                        for (uint32 sample = 1; sample < pSpmDbChunk->numTimestamps; ++sample)
+                        if (pSpmDbChunk->numTimestamps > 0)
                         {
-                            // ThreadTraceViewer output: print the timestamp.
-                            spmFile.Printf("%u,", (pTimestamp[sample] - firstTimestamp));
+                            // The ThreadTraceViewer supports draw and command buffer interval markers. We don't
+                            // have this hooked up in the GPU profiler currently but we can still write a single
+                            // "command buffer" indicating where SPM started and stopped.
+                            spmFile.Printf("frame%u_cb%u,%llu,%llu\n", m_curLogFrame, m_curLogCmdBufIdx,
+                                            pTimestamp[0], pTimestamp[pSpmDbChunk->numTimestamps - 1]);
+                        }
+
+                        // The column header must be this exact string for the ThreadTraceViewer to detect that it
+                        // can correlate the SPM timeline with the SQTT timeline.
+                        spmFile.Printf("Time (realtime clock),");
+
+                        // ThreadTraceViewer output: print the first line consisting of the counter names.
+                        for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); ++i)
+                        {
+                            const auto& counter = m_pDevice->StreamingPerfCounters()[i];
+                            spmFile.Printf("%s,", &counter.name[0]);
+                        }
+
+                        spmFile.Printf("\n");
+
+                        for (uint32 sample = 0; sample < pSpmDbChunk->numTimestamps; ++sample)
+                        {
+                            // Write the raw sample timestamps so that the ThreadTraceViewer can correlate the SPM
+                            // timeline to the SQTT timeline.
+                            spmFile.Printf("%llu,", pTimestamp[sample]);
 
                             uint32 counterIdx = 0;
                             for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); i++)

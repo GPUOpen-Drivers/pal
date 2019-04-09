@@ -2637,9 +2637,9 @@ public:
         }
 
     virtual Result Reset(
-        uint32      startQuery,
-        uint32      queryCount,
-        const void* pMappedCpuAddr) override
+        uint32  startQuery,
+        uint32  queryCount,
+        void*   pMappedCpuAddr) override
         { return m_pNextLayer->Reset(startQuery, queryCount, pMappedCpuAddr); }
 
     virtual void GetGpuMemoryRequirements(
