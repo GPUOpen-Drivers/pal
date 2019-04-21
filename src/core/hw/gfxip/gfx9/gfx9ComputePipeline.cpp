@@ -266,8 +266,9 @@ Result ComputePipeline::HwlInit(
 
         registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_commands.dynamic.computeResourceLimits.u32All);
 
+        const uint32 wavefrontSize   = 64;
         const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
-        const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx9.wavefrontSize);
+        const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, wavefrontSize);
 
         // SIMD_DEST_CNTL: Controls which SIMDs thread groups get scheduled on.  If the number of
         // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.

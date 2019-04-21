@@ -239,6 +239,10 @@ const RegisterRange Gfx9CsShShadowRange[] =
         1,
     },
     {
+        (mmCOMPUTE_THREAD_TRACE_ENABLE - PERSISTENT_SPACE_START),               // 0x2E1E
+        1,
+    },
+    {
         (mmCOMPUTE_USER_DATA_0 - PERSISTENT_SPACE_START),                       // 0x2E40 - 0x2E4F
         (mmCOMPUTE_USER_DATA_15 - mmCOMPUTE_USER_DATA_0 + 1),
     },
@@ -308,6 +312,10 @@ const RegisterRange Gfx9CsShShadowRangeRaven2[] =
     },
     {
         (mmCOMPUTE_TMPRING_SIZE - PERSISTENT_SPACE_START),                      // 0x2E18
+        1,
+    },
+    {
+        (mmCOMPUTE_THREAD_TRACE_ENABLE - PERSISTENT_SPACE_START),               // 0x2E1E
         1,
     },
     {

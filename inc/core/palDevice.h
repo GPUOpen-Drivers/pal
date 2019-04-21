@@ -1045,7 +1045,12 @@ struct DeviceProperties
                                             ///< harvesting CUs for yield in certain variants of ASICs (ex: Fiji PRO).
             uint32 numSimdsPerCu;           ///< Number of SIMDs per compute unit.
             uint32 numWavefrontsPerSimd;    ///< Number of wavefront slots in each SIMD.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 484
             uint32 wavefrontSize;           ///< Wavefront size.
+#endif
+            uint32 nativeWavefrontSize;     ///< The native wavefront size.
+            uint32 minWavefrontSize;        ///< The smallest supported wavefront size.
+            uint32 maxWavefrontSize;        ///< All powers of two between the min size and max size are supported.
             uint32 numAvailableSgprs;       ///< Number of available SGPRs.
             uint32 sgprsPerSimd;            ///< Number of physical SGPRs per SIMD.
             uint32 minSgprAlloc;            ///< Minimum number of SGPRs that can be allocated by a wave.

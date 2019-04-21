@@ -2706,7 +2706,7 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.hardwareContexts     = 8;
     pInfo->gfx6.numSimdPerCu          = NumSimdPerCu;
     pInfo->gfx6.numWavesPerSimd       = NumWavesPerSimd;
-    pInfo->gfx6.wavefrontSize         = 64;
+    pInfo->gfx6.nativeWavefrontSize   = 64;
     pInfo->gfx6.numShaderVisibleSgprs = MaxSgprsAvailable;
     pInfo->gfx6.numShaderVisibleVgprs = 256;
     pInfo->gfx6.numPhysicalVgprs      = 256;

@@ -8192,7 +8192,7 @@ union CP_MEC_DOORBELL_RANGE_LOWER {
         unsigned int                                                              :  2;
         unsigned int DOORBELL_RANGE_LOWER                                         : 26;
         unsigned int                                                              :  4;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8204,7 +8204,7 @@ union CP_MEC_DOORBELL_RANGE_UPPER {
         unsigned int                                                              :  2;
         unsigned int DOORBELL_RANGE_UPPER                                         : 26;
         unsigned int                                                              :  4;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -9673,7 +9673,7 @@ union CP_RB_DOORBELL_RANGE_LOWER {
         unsigned int                                                              :  2;
         unsigned int DOORBELL_RANGE_LOWER                                         : 26;
         unsigned int                                                              :  4;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -9685,7 +9685,7 @@ union CP_RB_DOORBELL_RANGE_UPPER {
         unsigned int                                                              :  2;
         unsigned int DOORBELL_RANGE_UPPER                                         : 26;
         unsigned int                                                              :  4;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25172,7 +25172,7 @@ union PA_SU_PERFCOUNTER0_HI {
     struct {
         unsigned int PERFCOUNTER_HI                                               : 16;
         unsigned int                                                              : 16;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25228,7 +25228,7 @@ union PA_SU_PERFCOUNTER1_HI {
     struct {
         unsigned int PERFCOUNTER_HI                                               : 16;
         unsigned int                                                              : 16;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25284,7 +25284,7 @@ union PA_SU_PERFCOUNTER2_HI {
     struct {
         unsigned int PERFCOUNTER_HI                                               : 16;
         unsigned int                                                              : 16;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25322,7 +25322,7 @@ union PA_SU_PERFCOUNTER3_HI {
     struct {
         unsigned int PERFCOUNTER_HI                                               : 16;
         unsigned int                                                              : 16;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25901,14 +25901,14 @@ union RLC_SPM_ACCUM_DATARAM_WRCOUNT {
 union RLC_SPM_ACCUM_MODE {
     struct {
         unsigned int EnableAccum                                                  :  1;
+        unsigned int                                                              : 31;
+    } bits, bitfields;
+    struct {
+        unsigned int                                                              :  1;
         unsigned int AutoAccumEn                                                  :  1;
         unsigned int AutoSpmEn                                                    :  1;
         unsigned int Globals_LoadOverride                                         :  1;
         unsigned int SE0_LoadOverride                                             :  1;
-        unsigned int                                                              : 27;
-    } bits, bitfields;
-    struct {
-        unsigned int                                                              :  5;
         unsigned int AutoResetPerfmonDisable                                      :  1;
         unsigned int RESERVED                                                     : 26;
     } rv2x;
@@ -28102,7 +28102,7 @@ union SDMA_PGFSM_CONFIG {
         unsigned int                                                              : 13;
         unsigned int SRBM_OVERRIDE                                                :  1;
         unsigned int REG_ADDR                                                     :  4;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28113,7 +28113,7 @@ union SDMA_PGFSM_READ {
     struct {
         unsigned int VALUE                                                        : 24;
         unsigned int                                                              :  8;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28123,7 +28123,7 @@ union SDMA_PGFSM_READ {
 union SDMA_PGFSM_WRITE {
     struct {
         unsigned int VALUE                                                        : 32;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28138,7 +28138,7 @@ union SDMA_POWER_GATING {
         unsigned int SDMA0_POWER_ON_REQ                                           :  1;
         unsigned int PG_CNTL_STATUS                                               :  2;
         unsigned int                                                              : 26;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -34193,12 +34193,19 @@ union SPI_WCL_PIPE_PERCENT_CS7 {
 union SPI_WCL_PIPE_PERCENT_GFX {
     struct {
         unsigned int VALUE                                                        :  7;
-        unsigned int LS_GRP_VALUE                                                 :  5;
+        unsigned int                                                              :  5;
         unsigned int HS_GRP_VALUE                                                 :  5;
-        unsigned int ES_GRP_VALUE                                                 :  5;
+        unsigned int                                                              :  5;
         unsigned int GS_GRP_VALUE                                                 :  5;
         unsigned int                                                              :  5;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              :  7;
+        unsigned int LS_GRP_VALUE                                                 :  5;
+        unsigned int                                                              :  5;
+        unsigned int ES_GRP_VALUE                                                 :  5;
+        unsigned int                                                              : 10;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -34390,7 +34397,7 @@ union SPI_WF_LIFETIME_STATUS_3 {
     struct {
         unsigned int MAX_CNT                                                      : 31;
         unsigned int INT_SENT                                                     :  1;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -34412,7 +34419,7 @@ union SPI_WF_LIFETIME_STATUS_5 {
     struct {
         unsigned int MAX_CNT                                                      : 31;
         unsigned int INT_SENT                                                     :  1;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -34467,7 +34474,7 @@ union SPI_WF_LIFETIME_STATUS_10 {
     struct {
         unsigned int MAX_CNT                                                      : 31;
         unsigned int INT_SENT                                                     :  1;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -34489,7 +34496,7 @@ union SPI_WF_LIFETIME_STATUS_12 {
     struct {
         unsigned int MAX_CNT                                                      : 31;
         unsigned int INT_SENT                                                     :  1;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -34589,12 +34596,16 @@ union SQC_CACHES {
         unsigned int TARGET_INST                                                  :  1;
         unsigned int TARGET_DATA                                                  :  1;
         unsigned int INVALIDATE                                                   :  1;
-        unsigned int WRITEBACK                                                    :  1;
-        unsigned int VOL                                                          :  1;
-        unsigned int                                                              : 11;
+        unsigned int                                                              : 13;
         unsigned int COMPLETE                                                     :  1;
         unsigned int                                                              : 15;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              :  3;
+        unsigned int WRITEBACK                                                    :  1;
+        unsigned int VOL                                                          :  1;
+        unsigned int                                                              : 27;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -35015,7 +35026,7 @@ union SQC_WRITEBACK {
         unsigned int DWB                                                          :  1;
         unsigned int DIRTY                                                        :  1;
         unsigned int                                                              : 30;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -35126,9 +35137,7 @@ union SQ_CMD_TIMESTAMP {
 
 union SQ_CONFIG {
     struct {
-        unsigned int                                                              : 11;
-        unsigned int OVERRIDE_LDS_IDX_BUSY                                        :  1;
-        unsigned int                                                              :  6;
+        unsigned int                                                              : 18;
         unsigned int ENABLE_HIPRIO_ON_EXP_RDY_VS                                  :  1;
         unsigned int PRIO_VAL_ON_EXP_RDY_VS                                       :  2;
         unsigned int                                                              :  8;
@@ -35141,7 +35150,7 @@ union SQ_CONFIG {
         unsigned int DEBUG_EN                                                     :  1;
         unsigned int DEBUG_SINGLE_MEMOP                                           :  1;
         unsigned int DEBUG_ONE_INST_CLAUSE                                        :  1;
-        unsigned int                                                              :  1;
+        unsigned int OVERRIDE_LDS_IDX_BUSY                                        :  1;
         unsigned int EARLY_TA_DONE_DISABLE                                        :  1;
         unsigned int DUA_FLAT_LOCK_ENABLE                                         :  1;
         unsigned int DUA_LDS_BYPASS_DISABLE                                       :  1;
@@ -36128,13 +36137,16 @@ union SQ_PERFCOUNTER0_LO {
 union SQ_PERFCOUNTER0_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36171,13 +36183,16 @@ union SQ_PERFCOUNTER1_LO {
 union SQ_PERFCOUNTER1_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36214,13 +36229,16 @@ union SQ_PERFCOUNTER2_LO {
 union SQ_PERFCOUNTER2_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36257,13 +36275,16 @@ union SQ_PERFCOUNTER3_LO {
 union SQ_PERFCOUNTER3_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36300,13 +36321,16 @@ union SQ_PERFCOUNTER4_LO {
 union SQ_PERFCOUNTER4_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36343,13 +36367,16 @@ union SQ_PERFCOUNTER5_LO {
 union SQ_PERFCOUNTER5_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36386,13 +36413,16 @@ union SQ_PERFCOUNTER6_LO {
 union SQ_PERFCOUNTER6_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36429,13 +36459,16 @@ union SQ_PERFCOUNTER7_LO {
 union SQ_PERFCOUNTER7_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36472,13 +36505,16 @@ union SQ_PERFCOUNTER8_LO {
 union SQ_PERFCOUNTER8_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36515,13 +36551,16 @@ union SQ_PERFCOUNTER9_LO {
 union SQ_PERFCOUNTER9_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36558,13 +36597,16 @@ union SQ_PERFCOUNTER10_LO {
 union SQ_PERFCOUNTER10_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36601,13 +36643,16 @@ union SQ_PERFCOUNTER11_LO {
 union SQ_PERFCOUNTER11_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36644,13 +36689,16 @@ union SQ_PERFCOUNTER12_LO {
 union SQ_PERFCOUNTER12_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36687,13 +36735,16 @@ union SQ_PERFCOUNTER13_LO {
 union SQ_PERFCOUNTER13_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36730,13 +36781,16 @@ union SQ_PERFCOUNTER14_LO {
 union SQ_PERFCOUNTER14_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -36773,13 +36827,16 @@ union SQ_PERFCOUNTER15_LO {
 union SQ_PERFCOUNTER15_SELECT {
     struct {
         unsigned int PERF_SEL                                                     :  9;
-        unsigned int                                                              :  3;
-        unsigned int SQC_BANK_MASK                                                :  4;
-        unsigned int                                                              :  4;
+        unsigned int                                                              : 11;
         unsigned int SPM_MODE                                                     :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQC_BANK_MASK                                                :  4;
+        unsigned int                                                              : 16;
+    } most;
     struct {
         unsigned int                                                              : 16;
         unsigned int SQC_CLIENT_MASK                                              :  4;
@@ -48659,7 +48716,7 @@ union VGT_HS_OFFCHIP_PARAM {
         unsigned int OFFCHIP_BUFFERING                                            :  9;
         unsigned int OFFCHIP_GRANULARITY                                          :  2;
         unsigned int                                                              : 21;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;

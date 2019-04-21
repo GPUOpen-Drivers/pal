@@ -155,13 +155,13 @@ PAL_INLINE static uint32 StreamOutNumRecords(
     // "workaround" for this, we account for the maximum thread_id in a wavefront when computing  the clamping value in
     // the stream-out SRD.
 
-    uint32 numRecords = ((UINT_MAX - chipProps.gfx6.wavefrontSize) + 1);
+    uint32 numRecords = ((UINT_MAX - chipProps.gfx6.nativeWavefrontSize) + 1);
     if ((chipProps.gfxLevel >= GfxIpLevel::GfxIp8) && (strideInBytes > 0))
     {
         PAL_ANALYSIS_ASSUME(strideInBytes != 0);
         // On GFX8.x, NUM_RECORDS is in bytes, so we need to take the vertex stride into account when computing
         // the stream-out clamp value expected by SC.
-        numRecords = (strideInBytes * (((UINT_MAX / strideInBytes) - chipProps.gfx6.wavefrontSize) + 1));
+        numRecords = (strideInBytes * (((UINT_MAX / strideInBytes) - chipProps.gfx6.nativeWavefrontSize) + 1));
     }
 
     return numRecords;

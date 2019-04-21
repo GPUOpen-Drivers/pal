@@ -47,7 +47,8 @@ GraphicsPipeline::GraphicsPipeline(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
     m_vertexBufferCount(0),
 #endif
-    m_vertsPerPrim(0)
+    m_vertsPerPrim(0),
+    m_logicOp(LogicOp::Copy)
 {
     m_flags.u32All = 0;
 
@@ -98,6 +99,9 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     const GraphicsPipelineCreateInfo&         createInfo,
     const GraphicsPipelineInternalCreateInfo& internalInfo)
 {
+    // Store the ROP code this pipeline was created with
+    m_logicOp = createInfo.cbState.logicOp;
+
     m_flags.adjacencyPrim         = createInfo.iaState.topologyInfo.adjacency;
     m_flags.perpLineEndCapsEnable = createInfo.rsState.perpLineEndCapsEnable;
 

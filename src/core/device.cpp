@@ -574,8 +574,11 @@ Result Device::HwlEarlyInit()
         if ((ChipProperties().gfxLevel < GfxIpLevel::GfxIp9) &&
             (ChipProperties().ossLevel < OssIpLevel::OssIp4))
         {
+#if PAL_BUILD_GFX6 || PAL_BUILD_OSS1 || PAL_BUILD_OSS2 || PAL_BUILD_OSS2_4
             result = AddrMgr1::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
+#endif
         }
+
 #if PAL_BUILD_GFX9
         else
         {
@@ -1818,7 +1821,12 @@ Result Device::GetProperties(
                                                                      gfx6Props.maxNumCuPerSh;
             pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx6Props.numSimdPerCu;
             pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx6Props.numWavesPerSimd;
-            pInfo->gfxipProperties.shaderCore.wavefrontSize        = gfx6Props.wavefrontSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 484
+            pInfo->gfxipProperties.shaderCore.wavefrontSize        = gfx6Props.nativeWavefrontSize;
+#endif
+            pInfo->gfxipProperties.shaderCore.nativeWavefrontSize  = gfx6Props.nativeWavefrontSize;
+            pInfo->gfxipProperties.shaderCore.minWavefrontSize     = gfx6Props.nativeWavefrontSize;
+            pInfo->gfxipProperties.shaderCore.maxWavefrontSize     = gfx6Props.nativeWavefrontSize;
             pInfo->gfxipProperties.shaderCore.numAvailableSgprs    = gfx6Props.numShaderVisibleSgprs;
             pInfo->gfxipProperties.shaderCore.sgprsPerSimd         = gfx6Props.numPhysicalSgprs;
             pInfo->gfxipProperties.shaderCore.minSgprAlloc         = gfx6Props.minSgprAlloc;
@@ -1895,7 +1903,12 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.numPhysicalCus       = gfx9Props.numPhysicalCus;
             pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx9Props.numSimdPerCu;
             pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx9Props.numWavesPerSimd;
-            pInfo->gfxipProperties.shaderCore.wavefrontSize        = gfx9Props.wavefrontSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 484
+            pInfo->gfxipProperties.shaderCore.wavefrontSize        = gfx9Props.nativeWavefrontSize;
+#endif
+            pInfo->gfxipProperties.shaderCore.nativeWavefrontSize  = gfx9Props.nativeWavefrontSize;
+            pInfo->gfxipProperties.shaderCore.minWavefrontSize     = gfx9Props.minWavefrontSize;
+            pInfo->gfxipProperties.shaderCore.maxWavefrontSize     = gfx9Props.maxWavefrontSize;
             pInfo->gfxipProperties.shaderCore.numAvailableSgprs    = gfx9Props.numShaderVisibleSgprs;
             pInfo->gfxipProperties.shaderCore.sgprsPerSimd         = gfx9Props.numPhysicalSgprs;
             pInfo->gfxipProperties.shaderCore.minSgprAlloc         = gfx9Props.minSgprAlloc;

@@ -279,6 +279,20 @@
       "Description": "Toss points enables stripping out of GPU work for more focused performace analysis. This setting controls which work will be tossed."
     },
     {
+      "Name": "Wddm1FreeVirtualGpuMemVA",
+      "Tags": [
+        "General"
+      ],
+      "HashName": 1212684339,
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "wddm1FreeVirtualGpuMemVA",
+      "Description": "Whether VA of virtual gpu memory will be freed and returned to VAM at memory destroy time under wddm1."
+    },
+    {
       "Name": "ForceFixedFuncColorResolve",
       "Tags": [
         "General",

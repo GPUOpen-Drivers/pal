@@ -202,7 +202,7 @@ PAL_INLINE static uint32 StreamOutNumRecords(
     // "workaround" for this, we account for the maximum thread_id in a wavefront when computing  the clamping value in
     // the stream-out SRD.
 
-    return ((UINT_MAX - chipProps.gfx9.wavefrontSize) + 1);
+    return ((UINT_MAX - chipProps.gfx9.maxWavefrontSize) + 1);
 }
 
 // =====================================================================================================================
@@ -7015,6 +7015,13 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_spiPsInControl       = cmdBuffer.m_spiPsInControl;
         m_paScShaderControl    = cmdBuffer.m_paScShaderControl;
         m_spiVsOutConfig       = cmdBuffer.m_spiVsOutConfig;
+    }
+
+    // If the nested command buffer updated PA_SC_CONS_RAST_CNTL, leak its state back to the caller.
+    if ((cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr) ||
+        (cmdBuffer.m_graphicsState.leakFlags.validationBits.msaaState))
+    {
+        m_paScConsRastCntl.u32All = cmdBuffer.m_paScConsRastCntl.u32All;
     }
 
     if (cmdBuffer.HasStreamOutBeenSet())

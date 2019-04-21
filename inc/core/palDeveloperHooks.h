@@ -209,7 +209,7 @@ enum BarrierReason : uint32
     BarrierReasonPostSqttTrace,                             ///< Barrier issued to wait for work from an sqtt trace
     BarrierReasonPrePerfDataCopy,                           ///< Barrier issued to wait for perf data to become
                                                             ///  available for copy
-    BarrierReasonPostGpuEvent,                              ///< Barrier issued to flush GPU event write data to memory
+    BarrierReasonFlushL2CachedData,                         ///< Barrier issued to flush L2 cached data to main memory
 
     BarrierReasonUnknown = 0xFFFFFFFF,                      ///< Unknown barrier reason
 

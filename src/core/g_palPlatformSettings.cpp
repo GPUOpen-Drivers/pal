@@ -97,6 +97,7 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.overlayMemoryInfoConfig.reportExternal = true;
     m_settings.overlayMemoryInfoConfig.reportInternal = true;
     m_settings.gpuProfilerMode = GpuProfilerDisabled;
+    m_settings.gpuProfilerTokenAllocatorSize = 4*1024*1024;
     memset(m_settings.gpuProfilerConfig.logDirectory, 0, 512);
     strncpy(m_settings.gpuProfilerConfig.logDirectory, "amdpal/", 512);
     m_settings.gpuProfilerConfig.startFrame = 0;
@@ -331,6 +332,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pGpuProfilerModeStr,
                            Util::ValueType::Uint,
                            &m_settings.gpuProfilerMode,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerTokenAllocatorSizeStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuProfilerTokenAllocatorSize,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerConfig_LogDirectoryStr,
@@ -713,6 +719,11 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gpuProfilerMode);
     m_settingsInfoMap.Insert(3490085415, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuProfilerTokenAllocatorSize;
+    info.valueSize = sizeof(m_settings.gpuProfilerTokenAllocatorSize);
+    m_settingsInfoMap.Insert(2716183183, info);
+
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.gpuProfilerConfig.logDirectory;
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.logDirectory);
@@ -929,7 +940,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 3932265532;
+            component.settingsDataHash = 2888708906;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

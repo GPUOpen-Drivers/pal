@@ -201,6 +201,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_gfxLevel(pDevice->Parent()->ChipProperties().gfxLevel),
     m_pDevice(pDevice),
     m_contextRegHash(0),
+    m_isNggFastLaunch(false),
     m_chunkHs(*pDevice,
               &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)]),
     m_chunkGs(*pDevice,
@@ -236,6 +237,10 @@ void GraphicsPipeline::EarlyInit(
 
     // VGT_SHADER_STAGES_EN and must be read first, since it determines which HW stages are active!
     m_commands.set.context.vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
+
+    m_isNggFastLaunch = (IsGfx091xPlus(*(m_pDevice->Parent())) ?
+                         (m_commands.set.context.vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH != 0) :
+                         (m_commands.set.context.vgtShaderStagesEn.gfx09_0.GS_FAST_LAUNCH != 0));
 
     // Similarly, VGT_GS_MODE should also be read early, since it determines if on-chip GS is enabled.
     registers.HasEntry(mmVGT_GS_MODE, &m_commands.set.context.vgtGsMode.u32All);
@@ -1105,7 +1110,7 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
     //          IA_MULTI_VGT_PARAM.SWITCH_ON_EOI    = 1;
     //      }
     //  }
-    if (IsNggFastLaunch() == 0)
+    if (IsNggFastLaunch() == false)
     {
         if (settings.wdLoadBalancingMode == Gfx9WdLoadBalancingBasic)
         {
@@ -1319,7 +1324,9 @@ void GraphicsPipeline::SetupLateAllocVs(
 
     // Target late-alloc limit uses PAL settings by default. The lateAllocVsLimit member from graphicsPipeline
     // can override this setting if corresponding flag is set.
-    uint32 targetLateAllocLimit = IsLateAllocVsLimit() ? GetLateAllocVsLimit() : m_pDevice->LateAllocVsLimit();
+    uint32 targetLateAllocLimit = (IsLateAllocVsLimit()                      // did the pipeline request to use the
+                                   ? GetLateAllocVsLimit()                   // pipeline specified late-alloc limit
+                                   : (m_pDevice->LateAllocVsLimit() + 1));   // 4 * (gfx9Props.numCuPerSh - 1)
 
     const uint32 vsNumSgpr = (spiShaderPgmRsrc1Vs.bits.SGPRS * 8);
     const uint32 vsNumVgpr = (spiShaderPgmRsrc1Vs.bits.VGPRS * 4);
@@ -2130,17 +2137,6 @@ void GraphicsPipeline::SetupStereoRegisters()
         }
     }
 
-}
-
-// =====================================================================================================================
-bool GraphicsPipeline::IsNggFastLaunch() const
-{
-    const auto&  device       = *(m_pDevice->Parent());
-    const uint32 gsFastLaunch = (IsGfx091xPlus(device)
-                                 ? m_commands.set.context.vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH
-                                 : m_commands.set.context.vgtShaderStagesEn.gfx09_0.GS_FAST_LAUNCH);
-
-    return (gsFastLaunch != 0);
 }
 
 } // Gfx9

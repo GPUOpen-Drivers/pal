@@ -628,6 +628,31 @@
       "Description": "Enables and sets the SQTT mode for the GPU performance profiler layer.  Actual capture of performance data must be specified via frame number with GpuProfilerConfig.StartFrame or by holding shift-F11."
     },
     {
+      "Name": "GpuProfilerTokenAllocatorSize",
+      "Tags": [
+        "GPU Profiler"
+      ],
+      "HashName": 2716183183,
+      "DependsOn": {
+        "Settings": [
+          {
+            "Values": [
+              1
+            ],
+            "LogicOp": "GreaterThan",
+            "Name": "GpuProfilerMode"
+          }
+        ]
+      },
+      "Defaults": {
+        "Default": "4*1024*1024"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "size_t",
+      "VariableName": "gpuProfilerTokenAllocatorSize",
+      "Description": "Batched cmd buffer token size with 32 bit build when GPU profile is enabled."
+    },
+    {
       "Name": "GpuProfilerConfig",
       "Tags": [
         "GPU Profiler"

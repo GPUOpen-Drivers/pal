@@ -2386,6 +2386,40 @@
       "Name": "WaRestrictMetaDataUseInMipTail"
     },
     {
+      "Description": "If the workaround is enabled, then non-copy ROP3 will disable the DCC overwrite combiner.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "HashName": 2566203469,
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waLogicOpDisablesOverwriteCombiner",
+      "Name": "WaLogicOpDisablesOverwriteCombiner"
+    },
+    {
+      "Description": "If the workaround is enabled, then rotated swizzle modes will disable the DCC overwrite combiner.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "HashName": 863498563,
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waRotatedSwizzleDisablesOverwriteCombiner",
+      "Name": "WaRotatedSwizzleDisablesOverwriteCombiner"
+    },
+    {
       "Description": "Controls whether the workaround waWrite1xAASampleLocationsToZero is active. FALSE:   Forces the workaround off. TRUE:    Forces the workaround on. Not Set: Allows the driver to decide, based on Chip ID.",
       "Tags": [
         "Hardware Workarounds"

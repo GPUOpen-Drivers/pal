@@ -1433,6 +1433,24 @@ Result GpaSession::End(
 
     if (result == Result::Success)
     {
+        // Issue a barrier to make sure any performance data that could be cached in L2 is flush to main memory.
+        BarrierTransition barrierTransition;
+        constexpr HwPipePoint HwPipeBottomConst = HwPipeBottom;
+
+        barrierTransition.srcCacheMask = CoherTimestamp;
+        barrierTransition.dstCacheMask = CoherMemory;
+        barrierTransition.imageInfo.pImage = nullptr;
+
+        BarrierInfo barrierInfo = {};
+        barrierInfo.waitPoint          = HwPipeTop;
+        barrierInfo.pipePointWaitCount = 1;
+        barrierInfo.pPipePoints        = &HwPipeBottomConst;
+        barrierInfo.transitionCount    = 1;
+        barrierInfo.pTransitions       = &barrierTransition;
+        barrierInfo.reason             = Developer::BarrierReasonFlushL2CachedData;
+
+        pCmdBuf->CmdBarrier(barrierInfo);
+
         // Copy all SQTT results to CPU accessible memory
         const uint32 numEntries = m_sampleCount;
         bool needsPostTraceIdle = true;
@@ -1448,21 +1466,14 @@ Result GpaSession::End(
                     needsPostTraceIdle = false;
 
                     // Issue a barrier to make sure work being measured is complete before copy
-                    BarrierTransition barrierTransition;
-                    constexpr HwPipePoint HwPipeBottomConst = HwPipeBottom;
-
                     barrierTransition.srcCacheMask     = CoherMemory;
                     barrierTransition.dstCacheMask     = CoherCopy;
                     barrierTransition.imageInfo.pImage = nullptr;
 
-                    BarrierInfo barrierInfo = {};
-
                     barrierInfo.waitPoint          = HwPipePreBlt;
-                    barrierInfo.pipePointWaitCount = 1;
-                    barrierInfo.pPipePoints        = &HwPipeBottomConst;
+                    barrierInfo.pipePointWaitCount = 0;
                     barrierInfo.transitionCount    = 1;
                     barrierInfo.pTransitions       = &barrierTransition;
-
                     barrierInfo.reason             = Developer::BarrierReasonPostSqttTrace;
 
                     pCmdBuf->CmdBarrier(barrierInfo);
@@ -1476,24 +1487,21 @@ Result GpaSession::End(
         // Mark completion after heap copy cmd finishes
         pCmdBuf->CmdSetEvent(*m_pGpuEvent, HwPipeBottom);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
         // Issue a barrier to make sure GPU event data is flushed to memory.
-        BarrierTransition barrierTransition;
-        constexpr HwPipePoint HwPipeBottomConst = HwPipeBottom;
-
         barrierTransition.srcCacheMask = CoherTimestamp;
         barrierTransition.dstCacheMask = CoherMemory;
         barrierTransition.imageInfo.pImage = nullptr;
 
-        BarrierInfo barrierInfo = {};
         barrierInfo.waitPoint          = HwPipeTop;
         barrierInfo.pipePointWaitCount = 1;
         barrierInfo.pPipePoints        = &HwPipeBottomConst;
         barrierInfo.transitionCount    = 1;
         barrierInfo.pTransitions       = &barrierTransition;
-
-        barrierInfo.reason             = Developer::BarrierReasonPostGpuEvent;
+        barrierInfo.reason             = Developer::BarrierReasonFlushL2CachedData;
 
         pCmdBuf->CmdBarrier(barrierInfo);
+#endif
 
         m_sessionState = GpaSessionState::Complete;
 
@@ -1694,6 +1702,7 @@ uint32 GpaSession::BeginSample(
 
                 // Acquire GPU memory for both pre-call/post-call timestamp in one chunk, so later we just need to
                 // copy the results once.
+                PAL_ASSERT(m_timestampAlignment >= sizeof(uint64)); // If assert fails, need to adjust the request size.
                 result = AcquireGpuMem(m_timestampAlignment + sizeof(uint64),
                                        m_timestampAlignment,
                                        GpuHeapGartCacheable,
@@ -2116,7 +2125,7 @@ void GpaSession::CopyResults(
         barrierInfo.transitionCount    = 1;
         barrierInfo.pTransitions       = &barrierTransition;
 
-        barrierInfo.reason             = Developer::BarrierReasonPostGpuEvent;
+        barrierInfo.reason             = Developer::BarrierReasonFlushL2CachedData;
 
         pCmdBuf->CmdBarrier(barrierInfo);
 

@@ -170,6 +170,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.samplerAnisoBias = 0;
     m_settings.samplerSecAnisoBias = 0;
     m_settings.waRestrictMetaDataUseInMipTail = false;
+    m_settings.waLogicOpDisablesOverwriteCombiner = false;
+    m_settings.waRotatedSwizzleDisablesOverwriteCombiner = false;
 
     m_settings.waWrite1xAASampleLocationsToZero = false;
     m_settings.waColorCacheControllerInvalidEviction = false;
@@ -740,6 +742,16 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waRestrictMetaDataUseInMipTail,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLogicOpDisablesOverwriteCombinerStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waLogicOpDisablesOverwriteCombiner,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaRotatedSwizzleDisablesOverwriteCombinerStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waRotatedSwizzleDisablesOverwriteCombiner,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaWrite1xAASampleLocationsToZeroStr,
                            Util::ValueType::Boolean,
                            &m_settings.waWrite1xAASampleLocationsToZero,
@@ -821,6 +833,16 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaRestrictMetaDataUseInMipTailStr,
                            Util::ValueType::Boolean,
                            &m_settings.waRestrictMetaDataUseInMipTail,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLogicOpDisablesOverwriteCombinerStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waLogicOpDisablesOverwriteCombiner,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaRotatedSwizzleDisablesOverwriteCombinerStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waRotatedSwizzleDisablesOverwriteCombiner,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaWrite1xAASampleLocationsToZeroStr,
@@ -1447,6 +1469,16 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(599120928, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waLogicOpDisablesOverwriteCombiner;
+    info.valueSize = sizeof(m_settings.waLogicOpDisablesOverwriteCombiner);
+    m_settingsInfoMap.Insert(2566203469, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waRotatedSwizzleDisablesOverwriteCombiner;
+    info.valueSize = sizeof(m_settings.waRotatedSwizzleDisablesOverwriteCombiner);
+    m_settingsInfoMap.Insert(863498563, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waWrite1xAASampleLocationsToZero;
     info.valueSize = sizeof(m_settings.waWrite1xAASampleLocationsToZero);
     m_settingsInfoMap.Insert(2042380720, info);
@@ -1537,7 +1569,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 875220583;
+            component.settingsDataHash = 4061125703;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

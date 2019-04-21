@@ -96,7 +96,7 @@ gpusize ShaderRing::ComputeAllocationSize() const
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
     // The size to allocate for this Ring is: threadsPerWavefront * maxWaves * itemSize DWORDs.
-    return (chipProps.gfx9.wavefrontSize * m_numMaxWaves * m_itemSizeMax * sizeof(uint32));
+    return (chipProps.gfx9.maxWavefrontSize * m_numMaxWaves * m_itemSizeMax * sizeof(uint32));
 }
 
 // =====================================================================================================================
@@ -211,7 +211,8 @@ ScratchRing::ScratchRing(
         srdTableIndex = ShaderRingSrd::ScratchCompute;
 
         // We must allow for at least as many waves as there are in the largest threadgroup.
-        m_numMaxWaves = Max<size_t>(m_numMaxWaves, (chipProps.gfxip.maxThreadGroupSize / chipProps.gfx9.wavefrontSize));
+        const uint32 maxWaves = chipProps.gfxip.maxThreadGroupSize / chipProps.gfx9.minWavefrontSize;
+        m_numMaxWaves         = Max<size_t>(m_numMaxWaves, maxWaves);
     }
 
     // The hardware can only support a limited number of scratch waves per CU so make sure we don't exceed that number.
@@ -247,7 +248,7 @@ size_t ScratchRing::CalculateWaves() const
     if (m_itemSizeMax > 0)
     {
         const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-        const size_t waveSize              = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.wavefrontSize);
+        const size_t waveSize              = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.maxWavefrontSize);
 
         // Attempt to allow as many waves in parallel as possible, but make sure we don't launch more waves than we
         // can handle in the scratch ring.
@@ -268,7 +269,7 @@ size_t ScratchRing::CalculateWaveSize() const
     const     GpuChipProperties& chipProps                = m_pDevice->Parent()->ChipProperties();
     constexpr uint32             WaveSizeGranularityShift = 8;
 
-    return AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.wavefrontSize) >> WaveSizeGranularityShift;
+    return AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.maxWavefrontSize) >> WaveSizeGranularityShift;
 }
 
 // =====================================================================================================================
@@ -279,7 +280,7 @@ gpusize ScratchRing::ComputeAllocationSize() const
     const PalSettings&       settings  = m_pDevice->Parent()->Settings();
 
     // Compute the adjusted scratch size required by each wave.
-    const size_t waveSize = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.wavefrontSize);
+    const size_t waveSize = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.maxWavefrontSize);
 
     // The ideal size to allocate for this Ring is: threadsPerWavefront * maxWaves * itemSize DWORDs.
     // We clamp this allocation to a maximum size to prevent the driver from using an unreasonable amount of scratch.

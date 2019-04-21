@@ -2845,7 +2845,9 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numShaderArrays         = 1;
         pInfo->gfx9.numSimdPerCu            = Gfx9NumSimdPerCu;
         pInfo->gfx9.numWavesPerSimd         = Gfx9NumWavesPerSimd;
-        pInfo->gfx9.wavefrontSize           = 64;
+        pInfo->gfx9.nativeWavefrontSize     = 64;
+        pInfo->gfx9.minWavefrontSize        = 64;
+        pInfo->gfx9.maxWavefrontSize        = 64;
         pInfo->gfx9.numShaderVisibleSgprs   = MaxSgprsAvailable;
         pInfo->gfx9.numPhysicalSgprs        = Gfx9PhysicalSgprsPerSimd;
         pInfo->gfx9.sgprAllocGranularity    = 16;

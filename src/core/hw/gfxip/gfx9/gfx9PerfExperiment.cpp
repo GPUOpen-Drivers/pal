@@ -401,7 +401,7 @@ Result PerfExperiment::AddCounter(
 
                         m_select.sqg[info.instance].perfmonInUse[idx]               = true;
                         m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL      = info.eventId;
-                        m_select.sqg[info.instance].perfmon[idx].bits.SQC_BANK_MASK = bankMask;
+                        m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = bankMask;
                         m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE      = PERFMON_SPM_MODE_OFF;
                         m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE     = PERFMON_COUNTER_MODE_ACCUM;
 
@@ -696,7 +696,6 @@ Result PerfExperiment::AddSpmCounter(
 
                         m_select.sqg[info.instance].perfmonInUse[idx]               = true;
                         m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL      = info.eventId;
-                        m_select.sqg[info.instance].perfmon[idx].bits.SQC_BANK_MASK = bankMask;
                         m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE      = PERFMON_SPM_MODE_32BIT_CLAMP;
                         m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE     = PERFMON_COUNTER_MODE_ACCUM;
 
@@ -713,6 +712,7 @@ Result PerfExperiment::AddSpmCounter(
 
                             m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = clientMask;
                             m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = simdMask;
+                            m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK    = bankMask;
                         }
 
                         // Each SQ module gets a single wire with one sub-counter (use the default value of zero).
@@ -1947,10 +1947,11 @@ void PerfExperiment::UpdateSqttTokenMaskStatic(
     const ThreadTraceTokenConfig& sqttTokenConfig,
     const Device&                 device)
 {
-    CmdStream*const pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
-    uint32*         pCmdSpace  = pCmdStream->ReserveCommands();
+    const Pal::Device&  palDevice  = *(device.Parent());
+    CmdStream*const     pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
+    uint32*             pCmdSpace  = pCmdStream->ReserveCommands();
 
-    if (device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
+    if (palDevice.ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
     {
         regSQ_THREAD_TRACE_TOKEN_MASK tokenMask = {};
         tokenMask.u32All = GetGfx9SqttTokenMask(sqttTokenConfig);

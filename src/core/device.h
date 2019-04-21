@@ -664,7 +664,7 @@ struct GpuChipProperties
             uint32 numPhysicalVgprs;
             uint32 minVgprAlloc;
             uint32 vgprAllocGranularity;
-            uint32 wavefrontSize;
+            uint32 nativeWavefrontSize;
             uint32 numShaderEngines;
             uint32 numShaderArrays;
             uint32 maxNumCuPerSh;
@@ -718,7 +718,9 @@ struct GpuChipProperties
             uint32 numShaderArrays;
             uint32 maxNumRbPerSe;
             uint32 activeNumRbPerSe;
-            uint32 wavefrontSize;
+            uint32 nativeWavefrontSize;
+            uint32 minWavefrontSize;        // The smallest supported wavefront size.
+            uint32 maxWavefrontSize;        // All powers of two between the min size and max size are supported.
             uint32 numShaderVisibleSgprs;
             uint32 numPhysicalSgprs;
             uint32 minSgprAlloc;

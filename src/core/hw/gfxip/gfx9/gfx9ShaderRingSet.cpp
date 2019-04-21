@@ -329,6 +329,8 @@ void UniversalRingSet::BuildPm4Headers()
 // Initializes this Universal-Queue shader-ring set object.
 Result UniversalRingSet::Init()
 {
+    const Pal::Device&  device = *(m_pDevice->Parent());
+
     // First, call the base class' implementation to allocate and init each Ring object.
     Result result = ShaderRingSet::Init();
 
@@ -359,7 +361,16 @@ Result UniversalRingSet::Init()
 
         // The OFFCHIP_GRANULARITY field of VGT_HS_OFFCHIP_PRARM is determined at init-time by the value of the related
         // setting.
-        m_pm4Commands.vgtHsOffchipParam.bits.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
+        if (IsGfx9(device)
+           )
+        {
+            m_pm4Commands.vgtHsOffchipParam.most.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
+        }
+        else
+        {
+            // Which GPU is this?
+            PAL_ASSERT_ALWAYS();
+        }
     }
 
     if (result == Result::Success)
@@ -389,6 +400,8 @@ Result UniversalRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
     const SamplePatternPalette& samplePatternPalette)
 {
+    const Pal::Device&  device = *(m_pDevice->Parent());
+
     // First, perform the base class' validation.
     Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette);
 
@@ -434,10 +447,12 @@ Result UniversalRingSet::Validate(
         // Off-chip LDS Buffers:
         if (pOffchipLds->IsMemoryValid())
         {
-            m_pm4Commands.vgtHsOffchipParam.bits.OFFCHIP_BUFFERING = pOffchipLds->ItemSizeMax();
-
-            // OFFCHIP_BUFFERING setting is biased by one (i.e., 0=1, 511=512, etc.).
-            m_pm4Commands.vgtHsOffchipParam.bits.OFFCHIP_BUFFERING--;
+            if (IsGfx9(device)
+               )
+            {
+                // OFFCHIP_BUFFERING setting is biased by one (i.e., 0=1, 511=512, etc.).
+                m_pm4Commands.vgtHsOffchipParam.most.OFFCHIP_BUFFERING = pOffchipLds->ItemSizeMax() - 1;
+            }
         }
     }
 

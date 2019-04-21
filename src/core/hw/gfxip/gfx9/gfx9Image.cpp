@@ -1413,9 +1413,6 @@ bool Image::IsFastClearColorMetaFetchable(
 
         for (uint32 cmpIdx = 0; ((cmpIdx < numComponents) && isMetaFetchable); cmpIdx++)
         {
-            //# In the 10.2+ cModel there is a bug where the texture pipe doesn't understand
-            //# those four fast-clear colors. We set forceRegularClearCode if we want to avoid
-            //# using those, thus avoiding the bug.
             //  If forceRegularClearCode is set then we are not using one of the four "magic"
             //  fast-clear colors so the fast-clear can't be meta-fetchable.
             if ((IsColorDataZeroOrOne(pColor, cmpIdx) == false) || settings.forceRegularClearCode)

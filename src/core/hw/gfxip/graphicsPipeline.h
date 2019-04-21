@@ -52,6 +52,7 @@ public:
     bool PsUsesAppendConsume() const { return m_flags.psUsesAppendConsume; }
     bool UsesViewportArrayIndex() const { return m_flags.vportArrayIdx; }
     bool IsPerpEndCapsEnabled() const { return m_flags.perpLineEndCapsEnable; }
+    LogicOp GetLogicOp() const { return m_logicOp; }
 
     BinningOverride GetBinningOverride() const { return m_binningOverride; }
 
@@ -135,6 +136,7 @@ private:
     uint32  m_lateAllocVsLimit;
 
     ViewInstancingDescriptor m_viewInstancingDesc;  // View instancing descriptor.
+    LogicOp                  m_logicOp;             // ROP code this pipeline was created with
 
     PAL_DISALLOW_DEFAULT_CTOR(GraphicsPipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(GraphicsPipeline);

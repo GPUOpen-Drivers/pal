@@ -72,16 +72,30 @@ uint32* WorkaroundState::PreDraw(
     const ValidateDrawInfo& drawInfo,        // Draw info
     uint32*                 pCmdSpace)
 {
-    const auto& dirtyFlags    = gfxState.dirtyFlags;
-
+    const auto&      dirtyFlags       = gfxState.dirtyFlags;
     const auto*const pBlendState      = static_cast<const ColorBlendState*>(gfxState.pColorBlendState);
     const auto*const pMsaaState       = static_cast<const MsaaState*>(gfxState.pMsaaState);
     const auto*const pDepthTargetView =
         static_cast<const DepthStencilView*>(gfxState.bindTargets.depthTarget.pDepthStencilView);
     const auto*const pPipeline        = static_cast<const GraphicsPipeline*>(gfxState.pipelineState.pPipeline);
 
-    if (m_settings.waColorCacheControllerInvalidEviction &&
-        (stateDirty && (dirtyFlags.validationBits.colorTargetView || dirtyFlags.validationBits.colorBlendState)))
+    // the pipeline is only dirty if it is in fact dirty and the setting that is affected by a dirty
+    // pipeline is active.
+    const bool pipelineDirty = m_settings.waLogicOpDisablesOverwriteCombiner &&
+                               stateDirty                                    &&
+                               gfxState.pipelineState.dirtyFlags.pipelineDirty;
+
+    // colorBlendWorkaoundsActive will be true if the state of the view and / or blend state
+    // is important.
+    const bool colorBlendWorkaroundsActive = m_settings.waColorCacheControllerInvalidEviction ||
+                                             m_settings.waRotatedSwizzleDisablesOverwriteCombiner;
+
+    // If the pipeline is dirty and it matters, then we have to look at all the bound targets
+    if (pipelineDirty  ||
+        // Otherwise, if the view and/or blend states are important, look at all the bound targets
+        (colorBlendWorkaroundsActive &&
+         stateDirty                  &&
+         (dirtyFlags.validationBits.colorTargetView || dirtyFlags.validationBits.colorBlendState)))
     {
         for (uint32  cbIdx = 0; cbIdx < gfxState.bindTargets.colorTargetCount; cbIdx++)
         {
@@ -92,15 +106,36 @@ uint32* WorkaroundState::PreDraw(
             {
                 const auto* pGfxImage = pView->GetImage();
 
-                if ((pGfxImage != nullptr) && (pGfxImage->HasDccData()))
+                // pGfxImage will be NULL for buffer views...
+                if (pGfxImage != nullptr)
                 {
+                    const auto* pPalImage       = pGfxImage->Parent();
+                    const auto& createInfo      = pPalImage->GetImageCreateInfo();
+                    const bool  rop3Enabled     = (m_settings.waLogicOpDisablesOverwriteCombiner &&
+                                                   (pPipeline->GetLogicOp() != LogicOp::Copy));
+                    const bool  blendingEnabled = ((pBlendState != nullptr) && pBlendState->IsBlendEnabled(cbIdx));
+
                     regCB_COLOR0_DCC_CONTROL cbColorDccControl = {};
 
-                    if ((pBlendState != nullptr) && pBlendState->IsBlendEnabled(cbIdx))
+                    // if ( (blending or rop3) && (MSAA or EQAA) && dcc_enabled )
+                    //     CB_COLOR<n>_DCC_CONTROL.OVERWRITE_COMBINER_DISABLE = 1;
+                    if ((rop3Enabled || blendingEnabled) &&
+                        (createInfo.fragments > 1)       &&
+                        pGfxImage->HasDccData())
                     {
-                        const auto& createInfo = pGfxImage->Parent()->GetImageCreateInfo();
+                        cbColorDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
+                    }
+                    else if (m_settings.waRotatedSwizzleDisablesOverwriteCombiner)
+                    {
+                        const SubresId  subResId     = { ImageAspect::Color, pView->MipLevel(), 0 };
+                        const auto*     pSubResInfo  = pPalImage->SubresourceInfo(subResId);
+                        const auto&     surfSettings = pGfxImage->GetAddrSettings(pSubResInfo);
 
-                        cbColorDccControl.bits.OVERWRITE_COMBINER_DISABLE = ((createInfo.fragments > 1) ? 1 : 0);
+                        // Disable overwrite-combiner for rotated swizzle modes
+                        if (AddrMgr2::IsRotatedSwizzle(surfSettings.swizzleMode))
+                        {
+                            cbColorDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
+                        }
                     }
 
                     pCmdSpace = pDeCmdStream->WriteContextRegRmw<pm4OptImmediate>(

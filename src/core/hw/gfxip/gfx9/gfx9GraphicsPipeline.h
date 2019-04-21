@@ -124,7 +124,7 @@ public:
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_commands.set.context.vgtGsOnchipCntl; }
 
     bool IsNgg() const { return (m_commands.set.context.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
-    bool IsNggFastLaunch() const;
+    bool IsNggFastLaunch() const { return m_isNggFastLaunch; }
 
     bool UsesInnerCoverage() const { return m_chunkVsPs.UsesInnerCoverage(); }
     bool UsesOffchipParamCache() const { return (m_spiPsInControl.bits.OFFCHIP_PARAM_EN != 0); }
@@ -320,6 +320,7 @@ private:
     const GfxIpLevel  m_gfxLevel;
     Device*const      m_pDevice;
     uint64            m_contextRegHash;
+    bool              m_isNggFastLaunch; ///< Is NGG fast launch enabled?
 
     // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
     // WD_SWITCH_ON_EOP is required.

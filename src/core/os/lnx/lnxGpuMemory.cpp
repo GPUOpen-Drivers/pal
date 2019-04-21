@@ -586,9 +586,37 @@ OsExternalHandle GpuMemory::ExportExternalHandle(
 Result GpuMemory::OsMap(
     void** ppData)
 {
-    Device* pDevice = static_cast<Device*>(m_pDevice);
+    Device* pDevice;
+    amdgpu_bo_handle hSurface;
 
-    Result result = pDevice->Map(m_hSurface, ppData);
+    if (m_pOriginalMem == nullptr)
+    {
+        pDevice = static_cast<Device*>(m_pDevice);
+        hSurface = m_hSurface;
+    }
+    else
+    {
+        // It is the case that memory shared cross devices but in one same process,
+        // On linux, each struct page has a mapping field pointing to the struct
+        // address_space it originates from for reverse mapping purposes.
+        // We use one address_space structure for each device we manage and this
+        // address_space in turn is referenced by the file descriptor you use for
+        // the mmap() call.
+        // Now when those two doesn't match the kernel can't figure out where a
+        // page is mapped when the reverse mapping is needed. E.g. just a cat
+        // /proc/self/mem could crash really badly.
+        // The problem is that a file descriptor can only point to one address
+        // space. In other words the file descriptor which has imported an DMA-buf
+        // handle obviously points to the importer and not the exporter.
+        // There is no way around that as far as I know. We either need to use the
+        // file descriptor of the exporting device or the DMA-buf file descriptor
+        // for the mmap().
+
+        pDevice = static_cast<Device*>(m_pOriginalMem->GetDevice());
+        hSurface = ((Pal::Linux::GpuMemory *)m_pOriginalMem)->m_hSurface;
+    }
+
+    Result result = pDevice->Map(hSurface, ppData);
 
     return result;
 }
@@ -597,9 +625,22 @@ Result GpuMemory::OsMap(
 // Unmaps the allocation out of CPU address space.
 Result GpuMemory::OsUnmap()
 {
-    Device* pDevice = static_cast<Device*>(m_pDevice);
+    Device* pDevice;
+    amdgpu_bo_handle hSurface;
 
-    Result result = pDevice->Unmap(m_hSurface);
+    if (m_pOriginalMem == nullptr)
+    {
+        pDevice = static_cast<Device*>(m_pDevice);
+        hSurface = m_hSurface;
+    }
+    else
+    {
+        // same as OsMap
+        pDevice = static_cast<Device*>(m_pOriginalMem->GetDevice());
+        hSurface = ((Pal::Linux::GpuMemory *)m_pOriginalMem)->m_hSurface;
+    }
+
+    Result result = pDevice->Unmap(hSurface);
 
     return result;
 }

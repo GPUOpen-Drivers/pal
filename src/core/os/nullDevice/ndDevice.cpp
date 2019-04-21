@@ -450,7 +450,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    2; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // tahiti__GPU__SP__NUM_GPRS;
         pChipInfo->numCuPerSh              =    8; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =   12; // GPU__TC__NUM_TCCS;
@@ -468,7 +468,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    2; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    5; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    8; // GPU__TC__NUM_TCCS;
@@ -486,7 +486,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    2; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    5; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
@@ -504,7 +504,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    6; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
@@ -522,7 +522,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    1; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    5; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;
@@ -540,7 +540,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    8; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
@@ -558,7 +558,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    1; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    3; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
@@ -576,7 +576,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =   11; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =   16; // GPU__TC__NUM_TCCS;
@@ -594,7 +594,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    2; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;
@@ -612,7 +612,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    1; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    2; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;
@@ -630,7 +630,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    7; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
@@ -649,7 +649,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    8; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
@@ -667,7 +667,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    6; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;
@@ -685,7 +685,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    8; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =   12; // GPU__TC__NUM_TCCS;
@@ -703,7 +703,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =   16; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =   16; // GPU__TC__NUM_TCCS;
@@ -721,7 +721,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    9; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    8; // GPU__TC__NUM_TCCS;
@@ -739,7 +739,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    8; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
@@ -757,7 +757,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    5; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
@@ -775,7 +775,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    3; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;
@@ -840,7 +840,9 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =   64;
+        pChipInfo->maxWavefrontSize        =   64;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =   16; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =   16; // GPU__TC__NUM_TCCS;
@@ -855,7 +857,9 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =   64;
+        pChipInfo->maxWavefrontSize        =   64;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    5; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    8; // GPU__TC__NUM_TCCS;
@@ -870,7 +874,9 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =   64;
+        pChipInfo->maxWavefrontSize        =   64;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =   16; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =   16; // GPU__TC__NUM_TCCS;
@@ -885,7 +891,9 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =   64;
+        pChipInfo->maxWavefrontSize        =   64;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =   11; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
@@ -900,7 +908,9 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    1; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =   64;
+        pChipInfo->maxWavefrontSize        =   64;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =    3; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;

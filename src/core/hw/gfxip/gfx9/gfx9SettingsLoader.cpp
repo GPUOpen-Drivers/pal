@@ -277,6 +277,8 @@ void SettingsLoader::OverrideDefaults(
 
         m_settings.waDummyZpassDoneBeforeTs = true;
 
+        m_settings.waLogicOpDisablesOverwriteCombiner = true;
+
         // Metadata is not pipe aligned once we get down to the mip chain within the tail
         m_settings.waitOnMetadataMipTail = true;
 
@@ -298,6 +300,11 @@ void SettingsLoader::OverrideDefaults(
         if (IsVega20(device))
         {
             m_settings.waDisableDfsmWithEqaa = true;
+        }
+
+        if (device.ChipProperties().gfx9.rbPlus)
+        {
+            m_settings.waRotatedSwizzleDisablesOverwriteCombiner = true;
         }
 
         if (IsVega10(device) || IsRaven(device)
