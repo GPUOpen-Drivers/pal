@@ -585,18 +585,18 @@ static bool ComputeResultsForOneSlot(
         }
 
         pOutputBuffer[0] = isBinary ? (result != 0) : result;
-    }
 
-    // The caller also wants us to output whether or not the final query results were available. If we're
-    // accumulating data we must AND our data the present data so the caller knows if all queries were available.
-    if (TestAnyFlagSet(flags, QueryResultAvailability))
-    {
-        if (TestAnyFlagSet(flags, QueryResultAccumulate))
+        // The caller also wants us to output whether or not the final query results were available. If we're
+        // accumulating data we must AND our data the present data so the caller knows if all queries were available.
+        if (TestAnyFlagSet(flags, QueryResultAvailability))
         {
-            queryReady = queryReady && (pOutputBuffer[1] != 0);
-        }
+            if (TestAnyFlagSet(flags, QueryResultAccumulate))
+            {
+                queryReady = queryReady && (pOutputBuffer[1] != 0);
+            }
 
-        pOutputBuffer[1] = queryReady;
+            pOutputBuffer[1] = queryReady;
+        }
     }
 
     return queryReady;

@@ -837,6 +837,7 @@ uint32 RsrcProcMgr::GetClearDepth(
 // Issues the dispatch call for the specified dimensions
 void RsrcProcMgr::MetaDataDispatch(
     GfxCmdBuffer*       pCmdBuffer,        // command buffer used for the dispatch call
+    const Image&        image,             // image that owns the mask ram
     const Gfx9MaskRam*  pMaskRam,          // mask ram the dispatch will access
     uint32              width,             // width of the mip level being cleared
     uint32              height,            // height of the mip-level being cleared
@@ -849,7 +850,7 @@ void RsrcProcMgr::MetaDataDispatch(
     uint32  yInc = 0;
     uint32  zInc = 0;
 
-    pMaskRam->GetXyzInc(&xInc, &yInc, &zInc);
+    pMaskRam->GetXyzInc(image, &xInc, &yInc, &zInc);
 
     // Calculate the size of the specified region in terms of the meta-block being compressed.  i.e,. an 8x8 block
     // of color pixels is a 1x1 "block" of DCC "pixels".  Remember that fractional blocks still count as a "full"'
@@ -917,7 +918,7 @@ bool RsrcProcMgr::InitMaskRam(
 
         // We're transitioning out of "uninitialized" state here, so take advantage of this one-time opportunity
         // to upload the meta-equation so our upcoming compute shader knows what to do.
-        pHtile->UploadEq(pCmdBuffer);
+        pHtile->UploadEq(pCmdBuffer, pParentImg);
 
         InitHtile(pCmdBuffer, pCmdStream, dstImage, range);
     }
@@ -927,7 +928,7 @@ bool RsrcProcMgr::InitMaskRam(
             (TestAnyFlagSet(fullRangeInitMask,
                             Gfx9InitMetaDataFill::Gfx9InitMetaDataFillDcc) == false))
         {
-            dstImage.GetDcc()->UploadEq(pCmdBuffer);
+            dstImage.GetDcc()->UploadEq(pCmdBuffer, pParentImg);
 
             const bool dccClearUsedCompute = ClearDcc(pCmdBuffer,
                                                       pCmdStream,
@@ -945,7 +946,7 @@ bool RsrcProcMgr::InitMaskRam(
                             Gfx9InitMetaDataFill::Gfx9InitMetaDataFillCmask) == false))
         {
             // If we have fMask, then we have cMask
-            dstImage.GetCmask()->UploadEq(pCmdBuffer);
+            dstImage.GetCmask()->UploadEq(pCmdBuffer, pParentImg);
 
             // The docs state that we only need to initialize either cMask or fMask data.  Init the cMask data
             // since we have a meta-equation for that one.
@@ -959,7 +960,7 @@ bool RsrcProcMgr::InitMaskRam(
 
     if (dstImage.HasFastClearMetaData() && fullRangeInitMask == 0)
     {
-        if (dstImage.HasDsMetadata())
+        if (dstImage.HasHtileData())
         {
             // The DB Tile Summarizer requires a TC compatible clear value of stencil,
             // because TC isn't aware of DB_STENCIL_CLEAR register.
@@ -1001,7 +1002,7 @@ void RsrcProcMgr::BuildHtileLookupTable(
 
     const auto&     createInfo = pParentImg->GetImageCreateInfo();
     const auto*     pBaseHtile = dstImage.GetHtile();
-    const uint32    pipeBankXor = pBaseHtile->CalcPipeXorMask(range.startSubres.aspect);
+    const uint32    pipeBankXor = pBaseHtile->CalcPipeXorMask(dstImage, range.startSubres.aspect);
     const auto&     hTileAddrOutput = pBaseHtile->GetAddrOutput();
     const uint32    log2MetaBlkWidth = Log2(hTileAddrOutput.metaBlkWidth);
     const uint32    log2MetaBlkHeight = Log2(hTileAddrOutput.metaBlkHeight);
@@ -1013,7 +1014,7 @@ void RsrcProcMgr::BuildHtileLookupTable(
 
     if (m_pDevice->GetHwStencilFmt(createInfo.swizzledFormat.format) != STENCIL_INVALID)
     {
-        PAL_ASSERT(pipeBankXor == pBaseHtile->CalcPipeXorMask(ImageAspect::Stencil));
+        PAL_ASSERT(pipeBankXor == pBaseHtile->CalcPipeXorMask(dstImage, ImageAspect::Stencil));
     }
 
     const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx9BuildHtileLookupTable);
@@ -1032,7 +1033,7 @@ void RsrcProcMgr::BuildHtileLookupTable(
 
     // Create a view of the hTile equation so that the shader can access it.
     BufferViewInfo hTileEqBufferView = {};
-    pBaseHtile->BuildEqBufferView(&hTileEqBufferView);
+    pBaseHtile->BuildEqBufferView(dstImage, &hTileEqBufferView);
     pParentDev->CreateUntypedBufferViewSrds(1, &hTileEqBufferView, &bufferSrds[1]);
 
     const uint32 lastMip = range.startSubres.mipLevel + range.numMips - 1;
@@ -1093,6 +1094,7 @@ void RsrcProcMgr::BuildHtileLookupTable(
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
         MetaDataDispatch(pCmdBuffer,
+                         dstImage,
                          pBaseHtile,
                          mipLevelWidth,
                          mipLevelHeight,
@@ -1795,7 +1797,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                         FastDepthStencilClearCompute(pCmdBuffer,
                                                      gfx9Image,
                                                      pRanges[idx],
-                                                     pHtile->GetClearValue(m_pDevice, depth),
+                                                     pHtile->GetClearValue(depth),
                                                      clearFlags);
                     }
 
@@ -1972,7 +1974,7 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
     AutoBuffer<const ImageResolveRegion*, 2 * MaxImageMipLevels, Platform>
         fixUpRegionList(regionCount, m_pDevice->GetPlatform());
 
-    bool canDoDepthStencilCopyResolve = (pGfxSrcImage->HasDsMetadata() || pGfxDstImage->HasDsMetadata());
+    bool canDoDepthStencilCopyResolve = pGfxSrcImage->HasHtileData() || (pGfxDstImage->HasHtileData() == false);
 
     if (fixUpRegionList.Capacity() >= regionCount)
     {
@@ -2154,7 +2156,7 @@ void RsrcProcMgr::InitHtile(
     const Pal::Device*     pParentDev = pParentImg->GetDevice();
     const ImageCreateInfo& createInfo = pParentImg->GetImageCreateInfo();
     const auto*            pHtile     = dstImage.GetHtile();
-    const uint32           initValue  = pHtile->GetInitialValue(*m_pDevice);
+    const uint32           initValue  = pHtile->GetInitialValue();
 
     // There shouldn't be any 3D images with HTile allocations.
     PAL_ASSERT(createInfo.imageType != ImageType::Tex3d);
@@ -3475,7 +3477,7 @@ void Gfx9RsrcProcMgr::ClearHtileAllBytes(
         // On GFX9, we create a single view of the hTile buffer that points to the base mip level.  It's
         // up to the equation to "find" each mip level and slice from that base location.
         BufferViewInfo hTileSurfBufferView = {};
-        pHtile->BuildSurfBufferView(&hTileSurfBufferView);
+        pHtile->BuildSurfBufferView(dstImage, &hTileSurfBufferView);
         // Make it Structured
         hTileSurfBufferView.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         hTileSurfBufferView.swizzledFormat.swizzle =
@@ -3553,7 +3555,7 @@ void Gfx9RsrcProcMgr::ClearHtileAllBytes(
         // Create an SRD for the htile surface itself. This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
         BufferViewInfo hTileSurfBufferView = {};
-        pHtile->BuildSurfBufferView(&hTileSurfBufferView);
+        pHtile->BuildSurfBufferView(dstImage, &hTileSurfBufferView);
         // Make it Structured
         hTileSurfBufferView.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         hTileSurfBufferView.swizzledFormat.swizzle =
@@ -3707,7 +3709,7 @@ void Gfx9RsrcProcMgr::ClearHtileSelectedBytes(
         // On GFX9, we create a single view of the hTile buffer that points to the base mip level.  It's
         // up to the equation to "find" each mip level and slice from that base location.
         BufferViewInfo hTileSurfBufferView = {};
-        pHtile->BuildSurfBufferView(&hTileSurfBufferView);
+        pHtile->BuildSurfBufferView(dstImage, &hTileSurfBufferView);
         // Make it Structured
         hTileSurfBufferView.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         hTileSurfBufferView.swizzledFormat.swizzle =
@@ -3784,7 +3786,7 @@ void Gfx9RsrcProcMgr::ClearHtileSelectedBytes(
         // Create an SRD for the htile surface itself.  This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
         BufferViewInfo hTileSurfBufferView = {};
-        pHtile->BuildSurfBufferView(&hTileSurfBufferView);
+        pHtile->BuildSurfBufferView(dstImage, &hTileSurfBufferView);
         // Make it Structured
         hTileSurfBufferView.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         hTileSurfBufferView.swizzledFormat.swizzle =
@@ -3924,20 +3926,20 @@ void Gfx9RsrcProcMgr::DoFastClear(
     const uint32           log2MetaBlkHeight = Log2(dccAddrOutput.metaBlkHeight);
     const uint32           sliceSize         = (dccAddrOutput.pitch * dccAddrOutput.height) >>
                                                (log2MetaBlkWidth + log2MetaBlkHeight);
-    const uint32           effectiveSamples  = pDcc->GetNumEffectiveSamples(clearPurpose);
+    const uint32           effectiveSamples  = pDcc->GetNumEffectiveSamples(pGfxDevice, clearPurpose);
 
     const RpmComputePipeline  pipeline  = (is3dImage? RpmComputePipeline::Gfx9ClearDccSingleSample3d
                                           : ((effectiveSamples > 1) ? RpmComputePipeline::Gfx9ClearDccMultiSample2d
                                           : RpmComputePipeline::Gfx9ClearDccSingleSample2d));
 
     const auto*const pPipeline    = GetPipeline(pipeline);
-    const uint32     pipeBankXor  = pDcc->CalcPipeXorMask(clearRange.startSubres.aspect);
+    const uint32     pipeBankXor  = pDcc->CalcPipeXorMask(dstImage, clearRange.startSubres.aspect);
 
     BufferSrd     bufferSrds[2] = {};
     uint32        xInc = 0;
     uint32        yInc = 0;
     uint32        zInc = 0;
-    pDcc->GetXyzInc(&xInc, &yInc, &zInc);
+    pDcc->GetXyzInc(dstImage, &xInc, &yInc, &zInc);
 
     uint32        threadsPerGroup[3] = {};
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
@@ -3952,12 +3954,12 @@ void Gfx9RsrcProcMgr::DoFastClear(
     // Create an SRD for the DCC surface itself.  This is a constant across all mip-levels as it's the shaders
     // job to calculate the proper address for each pixel of each mip level.
     BufferViewInfo bufferViewDccSurf = {};
-    pDcc->BuildSurfBufferView(&bufferViewDccSurf);
+    pDcc->BuildSurfBufferView(dstImage, &bufferViewDccSurf);
     pDevice->CreateUntypedBufferViewSrds(1, &bufferViewDccSurf, &bufferSrds[0]);
 
     // Create an SRD for the DCC equation.  Again, this is a constant as there is only one equation
     BufferViewInfo bufferViewDccEq = {};
-    pDcc->BuildEqBufferView(&bufferViewDccEq);
+    pDcc->BuildEqBufferView(dstImage, &bufferViewDccEq);
     pDevice->CreateUntypedBufferViewSrds(1, &bufferViewDccEq, &bufferSrds[1]);
 
     // Clear each mip level invidually.  Create a constant buffer so the compute shader knows the
@@ -4014,6 +4016,7 @@ void Gfx9RsrcProcMgr::DoFastClear(
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
         MetaDataDispatch(pCmdBuffer,
+                         dstImage,
                          pDcc,
                          mipLevelWidth,
                          mipLevelHeight,
@@ -4071,7 +4074,7 @@ void Gfx9RsrcProcMgr::DoOptimizedCmaskInit(
         // Create an SRD for the cmask surface itself.  This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
         BufferViewInfo bufferViewCmaskSurf = {};
-        pCmask->BuildSurfBufferView(&bufferViewCmaskSurf);
+        pCmask->BuildSurfBufferView(image, &bufferViewCmaskSurf);
         // Make it Structured
         bufferViewCmaskSurf.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         bufferViewCmaskSurf.swizzledFormat.swizzle =
@@ -4145,7 +4148,7 @@ void Gfx9RsrcProcMgr::DoOptimizedCmaskInit(
         // Create an SRD for the cmask surface itself.  This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
         BufferViewInfo bufferViewCmaskSurf = {};
-        pCmask->BuildSurfBufferView(&bufferViewCmaskSurf);
+        pCmask->BuildSurfBufferView(image, &bufferViewCmaskSurf);
         // Make it Structured
         bufferViewCmaskSurf.swizzledFormat.format  = Pal::ChNumFormat::X32Y32Z32W32_Uint;
         bufferViewCmaskSurf.swizzledFormat.swizzle =
@@ -4268,7 +4271,7 @@ void Gfx9RsrcProcMgr::DoOptimizedFastClear(
         // Create an SRD for the DCC surface itself.  This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
         BufferViewInfo bufferViewDccSurf = {};
-        pDcc->BuildSurfBufferView(&bufferViewDccSurf);
+        pDcc->BuildSurfBufferView(dstImage, &bufferViewDccSurf);
         // Make it Structured
         bufferViewDccSurf.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         bufferViewDccSurf.swizzledFormat.swizzle =
@@ -4342,7 +4345,7 @@ void Gfx9RsrcProcMgr::DoOptimizedFastClear(
         // Create an SRD for the DCC surface itself.  This is a constant across all mip-levels as it's the shaders
         // job to calculate the proper address for each pixel of each mip level.
         BufferViewInfo bufferViewDccSurf = {};
-        pDcc->BuildSurfBufferView(&bufferViewDccSurf);
+        pDcc->BuildSurfBufferView(dstImage, &bufferViewDccSurf);
         // Make it Structured
         bufferViewDccSurf.swizzledFormat.format = Pal::ChNumFormat::X32Y32Z32W32_Uint;
         bufferViewDccSurf.swizzledFormat.swizzle =
@@ -4498,7 +4501,7 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
     {
         const auto&     createInfo         = pParentImg->GetImageCreateInfo();
         const auto*     pBaseHtile         = dstImage.GetHtile();
-        const uint32    pipeBankXor        = pBaseHtile->CalcPipeXorMask(range.startSubres.aspect);
+        const uint32    pipeBankXor        = pBaseHtile->CalcPipeXorMask(dstImage, range.startSubres.aspect);
         const auto&     hTileAddrOutput    = pBaseHtile->GetAddrOutput();
         const uint32    log2MetaBlkWidth   = Log2(hTileAddrOutput.metaBlkWidth);
         const uint32    log2MetaBlkHeight  = Log2(hTileAddrOutput.metaBlkHeight);
@@ -4528,12 +4531,12 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
         // On GFX9, we create a single view of the hTile buffer that points to the base mip level.  It's
         // up to the equation to "find" each mip level and slice from that base location.
         BufferViewInfo hTileSurfBufferView = { };
-        pBaseHtile->BuildSurfBufferView(&hTileSurfBufferView);
+        pBaseHtile->BuildSurfBufferView(dstImage, &hTileSurfBufferView);
         pParentDev->CreateUntypedBufferViewSrds(1, &hTileSurfBufferView, &bufferSrds[0]);
 
         // Create a view of the hTile equation so that the shader can access it.
         BufferViewInfo hTileEqBufferView = { };
-        pBaseHtile->BuildEqBufferView(&hTileEqBufferView);
+        pBaseHtile->BuildEqBufferView(dstImage, &hTileEqBufferView);
         pParentDev->CreateUntypedBufferViewSrds(1, &hTileEqBufferView, &bufferSrds[1]);
 
         const uint32 lastMip = range.startSubres.mipLevel + range.numMips - 1;
@@ -4583,6 +4586,7 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
             memcpy(pSrdTable, &constData[0], sizeof(constData));
 
             MetaDataDispatch(pCmdBuffer,
+                             dstImage,
                              pBaseHtile,
                              mipLevelWidth,
                              mipLevelHeight,
@@ -4747,7 +4751,7 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
     const Image* pGfxSrcImage = reinterpret_cast<const Image*>(srcImage.GetGfxImage());
     const Image* pGfxDstImage = reinterpret_cast<const Image*>(dstImage.GetGfxImage());
 
-    if (pGfxSrcImage->HasDsMetadata() && pGfxDstImage->HasDsMetadata())
+    if (pGfxSrcImage->HasHtileData() && pGfxDstImage->HasHtileData())
     {
         SubresId dstSubresId = {};
 
@@ -4784,12 +4788,12 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
 
             // Dst htile surface
             const Gfx9Htile* pDstHtile = pGfxDstImage->GetHtile();
-            pDstHtile->BuildSurfBufferView(&bufferView[0]);
+            pDstHtile->BuildSurfBufferView(*pGfxDstImage, &bufferView[0]);
             dstImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[0], &bufferSrds[0]);
 
             // Src htile surface
             const Gfx9Htile* pSrcHtile = pGfxSrcImage->GetHtile();
-            pSrcHtile->BuildSurfBufferView(&bufferView[1]);
+            pSrcHtile->BuildSurfBufferView(*pGfxSrcImage, &bufferView[1]);
             srcImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[1], &bufferSrds[1]);
 
             // Src htile lookup table
@@ -4857,7 +4861,7 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
                 Pow2Align(pDstSubresInfo->extentTexels.height, HtileTexelAlign)
                     / HtileTexelAlign,                                                       //dstMipLevelHtileDim.y
                 // start cb1[3]
-                pDstHtile->GetInitialValue(*m_pDevice) & htileMask,                          //zsDecompressedValue
+                pDstHtile->GetInitialValue() & htileMask,                                    //zsDecompressedValue
                 htileMask,                                                                   //htileMask
                 0u,                                                                          //Padding
                 0u,                                                                          //Padding
@@ -5064,7 +5068,7 @@ void Gfx9RsrcProcMgr::InitCmask(
         const uint32  log2MetaBlkHeight  = Log2(cMaskAddrOutput.metaBlkHeight);
         const uint32  sliceSize          = (cMaskAddrOutput.pitch * cMaskAddrOutput.height) >>
                                            (log2MetaBlkWidth + log2MetaBlkHeight);
-        const uint32  pipeBankXor        = pCmask->CalcPipeXorMask(initRange.startSubres.aspect);
+        const uint32  pipeBankXor        = pCmask->CalcPipeXorMask(image, initRange.startSubres.aspect);
         uint32        threadsPerGroup[3] = {};
 
         // Does cMask *ever* depend on the number of samples?  If so, our shader is going to need some tweaking.
@@ -5084,9 +5088,9 @@ void Gfx9RsrcProcMgr::InitCmask(
 #endif
 
         BufferViewInfo bufferViewCmaskSurf = { };
-        pCmask->BuildSurfBufferView(&bufferViewCmaskSurf);
+        pCmask->BuildSurfBufferView(image, &bufferViewCmaskSurf);
         BufferViewInfo bufferViewCmaskEq   = { };
-        pCmask->BuildEqBufferView(&bufferViewCmaskEq);
+        pCmask->BuildEqBufferView(image, &bufferViewCmaskEq);
 
         const uint32 constData[] =
         {
@@ -5118,6 +5122,7 @@ void Gfx9RsrcProcMgr::InitCmask(
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
         MetaDataDispatch(pCmdBuffer,
+                         image,
                          pCmask,
                          createInfo.extent.width,
                          createInfo.extent.height,

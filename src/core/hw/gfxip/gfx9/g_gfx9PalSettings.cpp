@@ -81,6 +81,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.csSimdDestCntl = CsSimdDestCntlDefault;
     m_settings.htileEnable = true;
     m_settings.depthCompressEnable = true;
+
     m_settings.stencilCompressEnable = true;
     m_settings.dbPreloadEnable = true;
     m_settings.dbPreloadWinEnable = false;
@@ -131,7 +132,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.gfx9OffChipHsMultiWavePatchDataCopy = false;
     m_settings.gfx9OptimizeDsDataFetch = false;
     m_settings.nggEnableMode = NggPipelineTypeAll;
-    m_settings.nggSubgroupSize = NggSubgroupSizeAuto;
+    m_settings.nggSubgroupSize = NggSubgroupOptimizeForPrims;
     m_settings.nggPrimsPerSubgroup = 256;
     m_settings.nggVertsPerSubgroup = 256;
     m_settings.nggLateAllocGs = 127;
@@ -1568,7 +1569,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3736112750;
+            component.settingsDataHash = 4061125703;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

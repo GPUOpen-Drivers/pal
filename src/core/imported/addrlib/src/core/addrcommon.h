@@ -261,8 +261,7 @@ union ConfigFlags
         UINT_32 allowLargeThickTile    : 1;    ///< Allow 64*thickness*bytesPerPixel > rowSize
         UINT_32 disableLinearOpt       : 1;    ///< Disallow tile modes to be optimized to linear
         UINT_32 use32bppFor422Fmt      : 1;    ///< View 422 formats as 32 bits per pixel element
-        UINT_32 forceDccAndTcCompat    : 1;    ///< Force enable DCC and TC compatibility
-        UINT_32 reserved               : 20;   ///< Reserved bits for future use
+        UINT_32 reserved               : 21;   ///< Reserved bits for future use
     };
 
     UINT_32 value;

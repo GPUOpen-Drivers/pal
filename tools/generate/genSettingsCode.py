@@ -211,17 +211,6 @@ def defineEnum(valueList):
                 for type in value["BuildTypes"]:
                     valueIfDefTmp += "#if " + type + newline
                     valueEndDefTmp += "#endif"
-            else:
-                if "OrBuildTypes" in value:
-                    valueIfDefTmp   = "#if "
-                    valueEndDefTmp  = "#endif"
-                    numOrBuildTypes = len(value["OrBuildTypes"])
-                    for i in range(numOrBuildTypes):
-                        type = value["OrBuildTypes"][i]
-                        valueIfDefTmp += type
-                        if i < (numOrBuildTypes - 1):
-                            valueIfDefTmp += " || "
-
             # Add this value to the full list, and if it's not the last value (or if there's an #endif) add a newline
             if i < (len(valueList["Values"]) - 1) or valueEndDefTmp != "":
                 enumValue += newline
@@ -431,20 +420,6 @@ for setting in settingsData["Settings"]:
         while endifCount > 0:
             endDefTmp += codeTemplates.EndIf + newline
             endifCount -= 1
-    else:
-        if "OrBuildTypes" in setting:
-            numOrBuildTypes = len(setting["OrBuildTypes"])
-            if numOrBuildTypes > 0:
-                ifDefTmp   = "#if "
-                endDefTmp += codeTemplates.EndIf + newline
-
-            for i in range(numOrBuildTypes):
-                expression = setting["OrBuildTypes"][i]
-                ifDefTmp += expression
-                if i < (numOrBuildTypes - 1):
-                    ifDefTmp += " || "
-
-            ifDefTmp += newline
 
     ###################################################################################################################
     # Create enum definition from the valid value list (if required)

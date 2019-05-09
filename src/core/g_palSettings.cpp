@@ -70,6 +70,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.addr2Disable4kBSwizzleMode = 0x0;
     m_settings.addr2DisableXorTileMode = false;
     m_settings.overlayReportHDR = true;
+    m_settings.wholePipelineOptimizations = OptTrimUnusedOutputs;
     m_settings.forceHeapPerfToFixedValues = false;
     m_settings.cpuReadPerfForLocal = 1;
     m_settings.cpuWritePerfForLocal = 1;
@@ -87,7 +88,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.gpuWritePerfForGartCacheable = 1;
     m_settings.allocationListReusable = true;
     m_settings.fenceTimeoutOverrideInSec = 0;
-    m_settings.force64kPageGranularity = false;
     m_settings.updateOneGpuVirtualAddress = false;
     m_settings.alwaysResident = false;
     m_settings.disableSyncobjFence = false;
@@ -238,6 +238,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.overlayReportHDR,
                            InternalSettingScope::PrivatePalKey);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWholePipelineOptimizationsStr,
+                           Util::ValueType::Uint,
+                           &m_settings.wholePipelineOptimizations,
+                           InternalSettingScope::PrivatePalKey);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceHeapPerfToFixedValuesStr,
                            Util::ValueType::Boolean,
                            &m_settings.forceHeapPerfToFixedValues,
@@ -251,11 +256,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pFenceTimeoutOverrideStr,
                            Util::ValueType::Uint,
                            &m_settings.fenceTimeoutOverrideInSec,
-                           InternalSettingScope::PrivatePalKey);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForce64kPageGranularityStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.force64kPageGranularity,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUpdateOneGpuVirtualAddressStr,
@@ -608,6 +608,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.overlayReportHDR);
     m_settingsInfoMap.Insert(2354711641, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.wholePipelineOptimizations;
+    info.valueSize = sizeof(m_settings.wholePipelineOptimizations);
+    m_settingsInfoMap.Insert(2263765076, info);
+
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.forceHeapPerfToFixedValues;
     info.valueSize = sizeof(m_settings.forceHeapPerfToFixedValues);
@@ -692,11 +697,6 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.fenceTimeoutOverrideInSec;
     info.valueSize = sizeof(m_settings.fenceTimeoutOverrideInSec);
     m_settingsInfoMap.Insert(970172817, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.force64kPageGranularity;
-    info.valueSize = sizeof(m_settings.force64kPageGranularity);
-    m_settingsInfoMap.Insert(1833432496, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.updateOneGpuVirtualAddress;
@@ -969,7 +969,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 4270971069;
+            component.settingsDataHash = 769802641;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

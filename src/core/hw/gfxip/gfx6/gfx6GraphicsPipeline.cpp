@@ -360,16 +360,7 @@ Result GraphicsPipeline::HwlInit(
 
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
         GraphicsPipelineUploader uploader(loadInfo.loadedCtxRegCount, loadInfo.loadedShRegCount);
-        result = PerformRelocationsAndUploadToGpuMemory(
-            abiProcessor,
-            metadata,
-            &uploader,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
-            createInfo.flags.preferNonLocalHeap
-#else
-            false
-#endif
-        );
+        result = PerformRelocationsAndUploadToGpuMemory(abiProcessor, metadata, &uploader);
 
         if (result == Result::Success)
         {

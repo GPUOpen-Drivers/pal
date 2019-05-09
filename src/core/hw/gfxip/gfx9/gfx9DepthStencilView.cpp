@@ -322,7 +322,6 @@ void DepthStencilView::UpdateImageVa(
         if (m_flags.depth)
         {
             const uint32 gpuVirtAddr = m_pImage->GetSubresource256BAddrSwizzled(m_depthSubresource);
-            PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_depthSubresource) == 0);
 
             // Program depth read and write bases
             pPm4Img->dbZReadBase.u32All  = gpuVirtAddr;
@@ -332,7 +331,6 @@ void DepthStencilView::UpdateImageVa(
         if (m_flags.stencil)
         {
             const uint32 gpuVirtAddr = m_pImage->GetSubresource256BAddrSwizzled(m_stencilSubresource);
-            PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_stencilSubresource) == 0);
 
             // Program stencil read and write bases
             pPm4Img->dbStencilReadBase.u32All  = gpuVirtAddr;

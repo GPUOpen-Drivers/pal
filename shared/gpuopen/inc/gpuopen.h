@@ -196,7 +196,11 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 #include <stdint.h>
 
 // Macros for conditional language support.
+#ifdef _MSVC_LANG
+#define DD_CPLUSPLUS _MSVC_LANG
+#else
 #define DD_CPLUSPLUS __cplusplus
+#endif
 // Denotes versions of the C++ standard from __cplusplus.
 // See here for details on what values you can expect:
 //      https://en.cppreference.com/w/cpp/preprocessor/replace

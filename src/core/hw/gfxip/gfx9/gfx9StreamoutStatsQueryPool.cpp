@@ -346,42 +346,32 @@ bool StreamoutStatsQueryPool::ComputeResults(
     const void*      pGpuData,
     void*            pData)
 {
+    const StreamoutStatsDataPair* pDataPair = static_cast<const StreamoutStatsDataPair*>(pGpuData);
+    StreamoutStatsData* pQueryData = static_cast<StreamoutStatsData*>(pData);
+
     bool queryReady = true;
     for (uint32 i = 0; i < queryCount; i++)
     {
-        const StreamoutStatsDataPair* pDataPair = static_cast<const StreamoutStatsDataPair*>(pGpuData);
-        StreamoutStatsData* pQueryData = static_cast<StreamoutStatsData*>(pData);
-
         bool countersReady = false;
         do
         {
             // AND all 4 counters together and check whether the 63rd bit is 1 or not
-            countersReady = ((pDataPair->end.primCountWritten   &
-                              pDataPair->begin.primCountWritten &
-                              pDataPair->end.primStorageNeeded  &
-                              pDataPair->begin.primStorageNeeded) & StreamoutStatsResultValidMask) != 0;
+            countersReady = ((pDataPair[i].end.primCountWritten   &
+                pDataPair[i].begin.primCountWritten &
+                pDataPair[i].end.primStorageNeeded  &
+                pDataPair[i].begin.primStorageNeeded) & StreamoutStatsResultValidMask) != 0;
         } while ((countersReady == false) && TestAnyFlagSet(flags, QueryResultWait));
 
         if (countersReady)
         {
-            const uint64 primCountWritten  = pDataPair->end.primCountWritten - pDataPair->begin.primCountWritten;
-            const uint64 primStorageNeeded = pDataPair->end.primStorageNeeded - pDataPair->begin.primStorageNeeded;
+            const uint64 primCountWritten = pDataPair[i].end.primCountWritten - pDataPair[i].begin.primCountWritten;
+            const uint64 primStorageNeeded = pDataPair[i].end.primStorageNeeded - pDataPair[i].begin.primStorageNeeded;
 
-            pQueryData->primCountWritten  = primCountWritten;
-            pQueryData->primStorageNeeded = primStorageNeeded;
+            pQueryData[i].primCountWritten = primCountWritten;
+            pQueryData[i].primStorageNeeded = primStorageNeeded;
         }
-
-        if (TestAnyFlagSet(flags, QueryResultAvailability))
-        {
-            uint64* pAvailabilityState = static_cast<uint64*>(VoidPtrInc(pData, sizeof(StreamoutStatsData)));
-            *pAvailabilityState        = static_cast<uint64>(countersReady);
-        }
-
         // The entire query will only be ready if all of its counters were ready.
         queryReady = queryReady && countersReady;
-
-        pGpuData = VoidPtrInc(pGpuData, GetGpuResultSizeInBytes(1));
-        pData    = VoidPtrInc(pData, stride);
     }
 
     return queryReady;

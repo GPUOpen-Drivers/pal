@@ -243,6 +243,7 @@ protected:
 
     static void MetaDataDispatch(
         GfxCmdBuffer*       pCmdBuffer,
+        const Image&        image,
         const Gfx9MaskRam*  pMaskRam,
         uint32              width,
         uint32              height,

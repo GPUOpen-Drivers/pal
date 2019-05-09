@@ -120,12 +120,11 @@ void Pipeline::DestroyInternal()
 Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
     const AbiProcessor&       abiProcessor,
     const CodeObjectMetadata& metadata,
-    PipelineUploader*         pUploader,
-    bool                      preferNonLocalHeap)
+    PipelineUploader*         pUploader)
 {
     PAL_ASSERT(pUploader != nullptr);
 
-    Result result = pUploader->Begin(m_pDevice, abiProcessor, metadata, &m_perfDataInfo[0], preferNonLocalHeap);
+    Result result = pUploader->Begin(m_pDevice, abiProcessor, metadata, &m_perfDataInfo[0]);
     if (result == Result::Success)
     {
         m_gpuMemSize = pUploader->GpuMemSize();
@@ -497,8 +496,7 @@ Result PipelineUploader::Begin(
     Device*                   pDevice,
     const AbiProcessor&       abiProcessor,
     const CodeObjectMetadata& metadata,
-    PerfDataInfo*             pPerfDataInfoList,
-    bool                      preferNonLocalHeap)
+    PerfDataInfo*             pPerfDataInfoList)
 {
     PAL_ASSERT(pPerfDataInfoList != nullptr);
 
@@ -507,19 +505,9 @@ Result PipelineUploader::Begin(
     GpuMemoryCreateInfo createInfo = { };
     createInfo.alignment = GpuMemByteAlign;
     createInfo.vaRange   = VaRange::DescriptorTable;
-
-    if (preferNonLocalHeap)
-    {
-        createInfo.heaps[0]  = GpuHeapGartUswc;
-        createInfo.heapCount = 1;
-    }
-    else
-    {
-        createInfo.heaps[0]  = GpuHeapLocal;
-        createInfo.heaps[1]  = GpuHeapGartUswc;
-        createInfo.heapCount = 2;
-    }
-
+    createInfo.heaps[0]  = GpuHeapLocal;
+    createInfo.heaps[1]  = GpuHeapGartUswc;
+    createInfo.heapCount = 2;
     createInfo.priority  = GpuMemPriority::High;
 
     GpuMemoryInternalCreateInfo internalInfo = { };

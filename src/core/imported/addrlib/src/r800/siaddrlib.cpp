@@ -1570,9 +1570,8 @@ VOID SiLib::HwlComputeXmaskCoordFromAddr(
             {
                 macroOffset |= (pipebit1<<1);
             }
-            if ((pTileInfo->pipeConfig == ADDR_PIPECFG_P16_32x32_8x16) ||
-                (pTileInfo->pipeConfig == ADDR_PIPECFG_P16_32x32_16x16)
-               )
+            if((pTileInfo->pipeConfig == ADDR_PIPECFG_P16_32x32_8x16) ||
+               (pTileInfo->pipeConfig == ADDR_PIPECFG_P16_32x32_16x16))
             {
                 macroOffset |= (pipebit3<<1);
             }

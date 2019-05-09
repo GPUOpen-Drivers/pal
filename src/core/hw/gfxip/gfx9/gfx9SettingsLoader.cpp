@@ -127,18 +127,11 @@ void SettingsLoader::ValidateSettings(
 
     if (m_settings.binningMaxAllocCountNggOnChip == 0)
     {
-        // With NGG + on chip PC there is a single view of the PC rather than a
-        // division per SE. The recommended value for this is to allow a single batch to
-        // consume at most 1/3 of the parameter cache lines.
-        m_settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 3;
-
-        if (IsGfx9(*m_pDevice))
-        {
-            // On GFX9, the PA_SC_BINNER_CNTL_1::MAX_ALLOC_COUNT value is in units of
-            // 2 parameter cache lines. So divide by 2.
-            m_settings.binningMaxAllocCountNggOnChip /= 2;
-        }
-
+        // With NGG + on chip PC there is a single view of the PC rather than a division per SE. The recommended value
+        // for MAX_ALLOC_COUNT is TotalParamCacheCacheLines / 2 / 3. There's a divide by 2 because the register units
+        // are "2 cache lines" and a divide by 3 is because the HW team estimates it is best to only have one third of
+        // the PC used by a single batch.
+        m_settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 6;
     }
 
     if (IsVega10(*m_pDevice))
@@ -222,11 +215,6 @@ void SettingsLoader::ValidateSettings(
         m_settings.gfx9RbPlusEnable = false;
     }
 
-    if (gfx9Props.supportOutOfOrderPrimitives == 0)
-    {
-        m_settings.enableOutOfOrderPrimitives = OutOfOrderPrimDisable;
-    }
-
     if ((pPalSettings->distributionTessMode == DistributionTessTrapezoidOnly) ||
         (pPalSettings->distributionTessMode == DistributionTessDefault))
     {
@@ -293,9 +281,6 @@ void SettingsLoader::OverrideDefaults(
 
         // Metadata is not pipe aligned once we get down to the mip chain within the tail
         m_settings.waitOnMetadataMipTail = true;
-
-        // Set this to 1 in Gfx9 to enable CU soft group for PS by default.
-        m_settings.numPsWavesSoftGroupedPerCu = 1;
 
         if (IsVega10(device) || IsRaven(device))
         {

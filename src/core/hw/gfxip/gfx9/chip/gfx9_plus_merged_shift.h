@@ -5448,6 +5448,7 @@ constexpr unsigned int SPI_SHADER_USER_DATA_ADDR_HI_GS__MEM_BASE__SHIFT = 0x0000
 constexpr unsigned int SPI_SHADER_USER_DATA_ADDR_HI_HS__MEM_BASE__SHIFT = 0x00000000;
 constexpr unsigned int SPI_SHADER_USER_DATA_ADDR_LO_GS__MEM_BASE__SHIFT = 0x00000000;
 constexpr unsigned int SPI_SHADER_USER_DATA_ADDR_LO_HS__MEM_BASE__SHIFT = 0x00000000;
+constexpr unsigned int SPI_SHADER_USER_DATA_COMMON_13__DATA__SHIFT = 0x00000000;
 constexpr unsigned int SPI_SHADER_USER_DATA_PS_0__DATA__SHIFT   = 0x00000000;
 constexpr unsigned int SPI_SHADER_USER_DATA_PS_1__DATA__SHIFT   = 0x00000000;
 constexpr unsigned int SPI_SHADER_USER_DATA_PS_2__DATA__SHIFT   = 0x00000000;
@@ -7445,7 +7446,6 @@ namespace Gfx09
     constexpr unsigned int SPI_SHADER_USER_DATA_COMMON_10__DATA__SHIFT = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_COMMON_11__DATA__SHIFT = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_COMMON_12__DATA__SHIFT = 0x00000000;
-    constexpr unsigned int SPI_SHADER_USER_DATA_COMMON_13__DATA__SHIFT = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_COMMON_14__DATA__SHIFT = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_COMMON_15__DATA__SHIFT = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_COMMON_16__DATA__SHIFT = 0x00000000;

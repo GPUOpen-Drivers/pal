@@ -45,27 +45,28 @@ namespace Gfx9 {
 
 static ADDR2_META_FLAGS GetMetaFlags(const Image&  image);
 
+static bool SupportFastColorClear(
+    const Pal::Device& device,
+    const Image&       image,
+    AddrSwizzleMode    swizzleMode);
+
 //=============== Implementation for Gfx9MaskRam: ======================================================================
 
 // =====================================================================================================================
 // Constructor for the Gfx9MaskRam class
 Gfx9MaskRam::Gfx9MaskRam(
-    const Image&  image,
     int32         metaDataSizeLog2,
     uint32        firstUploadBit)
     :
     MaskRam(),
-    m_image(image),
-    m_pGfxDevice(static_cast<const Device*>(image.Parent()->GetDevice()->GetGfxDevice())),
-    m_meta(m_pGfxDevice, 27, "meta"),
-    m_pipe(m_pGfxDevice, 27, "pipe"),
-    m_metaEquationValid(false),
-    m_metaDataWordSizeLog2(metaDataSizeLog2),
-    m_dataOffset(m_pGfxDevice, 27, "dataOffset"),
+    m_dataOffset(27, "dataOffset"),
+    m_meta(27, "meta"),
+    m_pipe(27, "pipe"),
     // The size of the RB equation is really Log2(numPipes).  This is known to the device, but we dont' have a device
     // available here.  :-(  Set it to zero for the time being and set the real size when we go to calculate the
     // actual meta-data equation.
-    m_rb(m_pGfxDevice, 0, "rb"),
+    m_rb(0, "rb"),
+    m_metaDataWordSizeLog2(metaDataSizeLog2),
     m_firstUploadBit(firstUploadBit),
     m_effectiveSamples(1), // assume single-sampled image
     m_rbAppendedWithPipeBits(0)
@@ -81,6 +82,7 @@ Gfx9MaskRam::Gfx9MaskRam(
 // =====================================================================================================================
 // Builds a buffer view for accessing the meta equation from the GPU
 void Gfx9MaskRam::BuildEqBufferView(
+    const Image&     image,       // image that owns the equation
     BufferViewInfo*  pBufferView
     ) const
 {
@@ -91,16 +93,17 @@ void Gfx9MaskRam::BuildEqBufferView(
     pBufferView->range          = (m_meta.GetNumValidBits() - m_firstUploadBit) *
                                   MetaDataAddrCompNumTypes                      *
                                   sizeof (uint32);
-    pBufferView->gpuAddr        = m_image.Parent()->GetGpuVirtualAddr() + m_eqGpuAccess.offset;
+    pBufferView->gpuAddr        = image.Parent()->GetGpuVirtualAddr() + m_eqGpuAccess.offset;
 }
 
 // =====================================================================================================================
 // Populates a buffer view info object which wraps the mask-ram sub-allocation
 void Gfx9MaskRam::BuildSurfBufferView(
+    const Image&     image,       // image that owns the equation
     BufferViewInfo*  pViewInfo    // [out] The buffer view
     ) const
 {
-    pViewInfo->gpuAddr        = m_image.Parent()->GetBoundGpuMemory().GpuVirtAddr() + MemoryOffset();
+    pViewInfo->gpuAddr        = image.Parent()->GetBoundGpuMemory().GpuVirtAddr() + MemoryOffset();
     pViewInfo->range          = TotalSize();
     pViewInfo->stride         = 1;
     pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
@@ -108,20 +111,21 @@ void Gfx9MaskRam::BuildSurfBufferView(
 
 // =====================================================================================================================
 // Calculates the data offset equation for this mask-ram.
-void Gfx9MaskRam::CalcDataOffsetEquation()
+void Gfx9MaskRam::CalcDataOffsetEquation(
+    const Image& image)
 {
-    const auto*            pParent        = m_image.Parent();
-    const AddrSwizzleMode  swizzleMode    = GetSwizzleMode();
+    const auto*            pParent        = image.Parent();
+    const AddrSwizzleMode  swizzleMode    = GetSwizzleMode(image);
     const uint32           blockSizeLog2  = Log2(AddrMgr2::GetBlockSize(swizzleMode));
-    const uint32           bppLog2        = GetBytesPerPixelLog2();
-    const uint32           numSamplesLog2 = GetNumSamplesLog2();
+    const uint32           bppLog2        = GetBytesPerPixelLog2(image);
+    const uint32           numSamplesLog2 = GetNumSamplesLog2(image);
 
     CompPair  cx = {};
     cx.compType = MetaDataAddrCompX;
     CompPair  cy = {};
     cy.compType = MetaDataAddrCompY;
 
-    if (IsThick())
+    if (IsThick(image))
     {
         CompPair  cz = { MetaDataAddrCompZ, 0 };
 
@@ -272,15 +276,20 @@ void Gfx9MaskRam::CalcDataOffsetEquation()
 // =====================================================================================================================
 // Calculates the pipe equation for this mask-ram.
 void Gfx9MaskRam::CalcPipeEquation(
-    uint32  numPipesLog2)
+    const Image&  image,
+    uint32        numPipesLog2)
 {
-    const int32            numSamplesLog2     = GetNumSamplesLog2();
-    const AddrSwizzleMode  swizzleMode        = GetSwizzleMode();
+
+    const Pal::Image*      pParent            = image.Parent();
+    const Pal::Device*     pDevice            = pParent->GetDevice();
+    const Device*          pGfxDevice         = static_cast<const Device*>(pDevice->GetGfxDevice());
+    const int32            numSamplesLog2     = GetNumSamplesLog2(image);
+    const AddrSwizzleMode  swizzleMode        = GetSwizzleMode(image);
     const uint32           blockSizeLog2      = Log2(AddrMgr2::GetBlockSize(swizzleMode));
-    const uint32           pipeInterleaveLog2 = m_pGfxDevice->GetPipeInterleaveLog2();
+    const uint32           pipeInterleaveLog2 = pGfxDevice->GetPipeInterleaveLog2();
 
     CompPair  tileMin = { MetaDataAddrCompX, 3};
-    MetaDataAddrEquation  dataOffsetLocal(m_pGfxDevice, m_dataOffset.GetNumValidBits(), "dataOffsetLocal");
+    MetaDataAddrEquation  dataOffsetLocal(m_dataOffset.GetNumValidBits(), "dataOffsetLocal");
 
     // For color, filter out sample bits only
     // otherwise filter out everything under an 8x8 tile
@@ -344,10 +353,10 @@ void Gfx9MaskRam::CalcPipeEquation(
 
     if (AddrMgr2::IsXorSwizzle(swizzleMode) || AddrMgr2::IsPrtSwizzle(swizzleMode))
     {
-        MetaDataAddrEquation  xorMask(m_pGfxDevice, numPipesLog2, "xorMask");
-        MetaDataAddrEquation  xorMask2(m_pGfxDevice, numPipesLog2, "xorMask2");
+        MetaDataAddrEquation  xorMask(numPipesLog2, "xorMask");
+        MetaDataAddrEquation  xorMask2(numPipesLog2, "xorMask2");
 
-        if (IsThick())
+        if (IsThick(image))
         {
             dataOffsetLocal.Copy(&xorMask2, pipeInterleaveLog2 + numPipesLog2, 2 * numPipesLog2);
             for (uint32 localPipe = 0; localPipe < numPipesLog2; localPipe++)
@@ -380,18 +389,22 @@ void Gfx9MaskRam::CalcPipeEquation(
         m_pipe.XorIn(&xorMask);
     }
 
-    m_pipe.PrintEquation(m_pGfxDevice->Parent());
+    m_pipe.PrintEquation(pDevice);
 }
 
 // =====================================================================================================================
 // Calculate the pipe-bank XOR value as used by the meta-data equation.
 uint32 Gfx9MaskRam::CalcPipeXorMask(
+    const Image&  image,
     ImageAspect   aspect
     ) const
 {
-    const uint32  pipeInterleaveLog2 = m_pGfxDevice->GetPipeInterleaveLog2();
-    const uint32  numPipesLog2       = CapPipe();
-    const uint32  pipeBankXor        = GetPipeBankXor(aspect);
+    const Pal::Image*const  pParent            = image.Parent();
+    const Pal::Device*const pDevice            = pParent->GetDevice();
+    const auto*const        pGfxDevice         = static_cast<const Device*>(pDevice->GetGfxDevice());
+    const uint32            pipeInterleaveLog2 = pGfxDevice->GetPipeInterleaveLog2();
+    const uint32            numPipesLog2       = CapPipe(image);
+    const uint32            pipeBankXor        = GetPipeBankXor(image, aspect);
 
     const uint32 pipeXorMaskNibble = (pipeBankXor & ((1 << numPipesLog2) - 1)) << (pipeInterleaveLog2 + 1);
 
@@ -399,7 +412,7 @@ uint32 Gfx9MaskRam::CalcPipeXorMask(
     PAL_ASSERT ((pipeXorMaskNibble & ((1 << m_firstUploadBit) - 1)) == 0);
 
     // Ensure we either have a zero pipe-bank-xor value or we have a swizzle mode that supports non-zero XOR values.
-    PAL_ASSERT((pipeXorMaskNibble == 0) || AddrMgr2::IsXorSwizzle(GetSwizzleMode()));
+    PAL_ASSERT((pipeXorMaskNibble == 0) || AddrMgr2::IsXorSwizzle(GetSwizzleMode(image)));
 
     // Our shaders always (eventually) compute byte addresses, so return this in terms of bytes for easy use by the CS
     return (pipeXorMaskNibble >> 1);
@@ -415,10 +428,11 @@ uint32 Gfx9MaskRam::GetRbAppendedBit(
 
 // =====================================================================================================================
 void Gfx9MaskRam::SetRbAppendedBit(
-    uint32  bitPos,
-    uint32  bitVal)
+    const Pal::Device*  pDevice,
+    uint32              bitPos,
+    uint32              bitVal)
 {
-    const Gfx9PalSettings&  settings = GetGfx9Settings(*(m_pGfxDevice->Parent()));
+    const Gfx9PalSettings&  settings = GetGfx9Settings(*pDevice);
 
     // There's no need for this setting unless this workaround is enabled.  Other code depends on the
     // "m_rbAppendedWithPipeBits" setting remaining zero if this workaround is disabled.
@@ -446,32 +460,34 @@ void Gfx9MaskRam::SetRbAppendedBit(
 //
 //          metaOffset |= (b << n)
 //      }
-void Gfx9MaskRam::CalcMetaEquation()
+void Gfx9MaskRam::CalcMetaEquation(
+    const Image& image)
 {
-    const Pal::Image*  pParent = m_image.Parent();
-    const Pal::Device* pDevice = m_pGfxDevice->Parent();
+    const Pal::Image*  pParent = image.Parent();
+    const Pal::Device* pDevice = pParent->GetDevice();
 
     // GFX9 is the only GPU that utilizes the meta-data addressing equation...
     if (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
     {
-        const ADDR2_META_FLAGS  metaFlags          = GetMetaFlags(m_image);
+        const Device*           pGfxDevice         = static_cast<Device*>(pDevice->GetGfxDevice());
+        const ADDR2_META_FLAGS  metaFlags          = GetMetaFlags(image);
         const auto*             pCreateInfo        = &pParent->GetImageCreateInfo();
-        const uint32            numSamplesLog2     = GetNumSamplesLog2();
-        const uint32            maxFragsLog2       = m_pGfxDevice->GetMaxFragsLog2();
-        const uint32            pipeInterleaveLog2 = m_pGfxDevice->GetPipeInterleaveLog2();
-        const uint32            bppLog2            = GetBytesPerPixelLog2();
+        const uint32            numSamplesLog2     = GetNumSamplesLog2(image);
+        const uint32            maxFragsLog2       = pGfxDevice->GetMaxFragsLog2();
+        const uint32            pipeInterleaveLog2 = pGfxDevice->GetPipeInterleaveLog2();
+        const uint32            bppLog2            = GetBytesPerPixelLog2(image);
         const Gfx9PalSettings&  settings           = GetGfx9Settings(*pDevice);
 
         // Min metablock size if thick is 64KB, otherwise 4KB
-        uint32 minMetaBlockSizeLog2     = (IsThick() ? 16 : 12);
+        uint32 minMetaBlockSizeLog2     = (IsThick(image) ? 16 : 12);
         uint32 metaDataWordsPerPageLog2 = minMetaBlockSizeLog2 - m_metaDataWordSizeLog2;
-        uint32 numSesLog2               = m_pGfxDevice->GetNumShaderEnginesLog2();
-        uint32 numRbsLog2               = m_pGfxDevice->GetNumRbsPerSeLog2();
+        uint32 numSesLog2               = pGfxDevice->GetNumShaderEnginesLog2();
+        uint32 numRbsLog2               = pGfxDevice->GetNumRbsPerSeLog2();
 
         // Get the total # of RB's before modifying due to rb align
         const uint32 numTotalRbsPreRbAlignLog2 = numSesLog2 + numRbsLog2;
 
-        uint32  numPipesLog2   = CapPipe();
+        uint32  numPipesLog2   = CapPipe(image);
         uint32  numSesDataLog2 = numSesLog2;      // Cap the pipe bits to block size
 
         int32 compFragLog2 = (IsColor() && (numSamplesLog2 > maxFragsLog2))
@@ -479,7 +495,7 @@ void Gfx9MaskRam::CalcMetaEquation()
                              : numSamplesLog2;
         int32 uncompFragLog2 = numSamplesLog2 - compFragLog2;
 
-        CalcDataOffsetEquation();
+        CalcDataOffsetEquation(image);
 
         // if not pipe aligned, reduce the working number of pipes and SEs
         if (metaFlags.pipeAligned == false)
@@ -496,12 +512,12 @@ void Gfx9MaskRam::CalcMetaEquation()
             numRbsLog2 = 0;
         }
 
-        CalcPipeEquation(numPipesLog2);
-        CalcRbEquation(numSesLog2, numRbsLog2);
+        CalcPipeEquation(image, numPipesLog2);
+        CalcRbEquation(pDevice, numSesLog2, numRbsLog2);
 
         uint32 numTotalRbsLog2 = numSesLog2 + numRbsLog2;
 
-        int32                compBlkSizeLog2 = 8;
+        int                  compBlkSizeLog2 = 8;
         Gfx9MaskRamBlockSize compBlkDimsLog2 = {};
         CalcCompBlkSizeLog2(&compBlkDimsLog2);
         if (IsColor())
@@ -522,7 +538,7 @@ void Gfx9MaskRam::CalcMetaEquation()
             const uint32  thinImageAdder = ((settings.waMetaAliasingFixEnabled  == false)
                                             ? 10
                                             : Max(10u, pipeInterleaveLog2));
-            numCompBlksPerMetaBlk        = numTotalRbsPreRbAlignLog2 + (IsThick() ? 18 : thinImageAdder);
+            numCompBlksPerMetaBlk        = numTotalRbsPreRbAlignLog2 + (IsThick(image) ? 18 : thinImageAdder);
 
             if ((numCompBlksPerMetaBlk + compBlkSizeLog2) > (27 + bppLog2))
             {
@@ -536,7 +552,7 @@ void Gfx9MaskRam::CalcMetaEquation()
         CalcMetaBlkSizeLog2(&metaBlockSizeLog2);
 
         // Use the growing square or growing cube order for thick as a starting point for the metadata address
-        if (IsThick())
+        if (IsThick(image))
         {
             CompPair  cx = { MetaDataAddrCompX, 0};
             CompPair  cy = { MetaDataAddrCompY, 0};
@@ -574,9 +590,9 @@ void Gfx9MaskRam::CalcMetaEquation()
         }
 
         // Keep a copy of the pipe and rb equations
-        MetaDataAddrEquation  origRbEquation(m_pGfxDevice, m_rb.GetNumValidBits(), "origRbEquation");
+        MetaDataAddrEquation  origRbEquation(m_rb.GetNumValidBits(), "origRbEquation");
         m_rb.Copy(&origRbEquation);
-        MetaDataAddrEquation  origPipeEquation(m_pGfxDevice, m_pipe.GetNumValidBits(), "origPipeEquation");
+        MetaDataAddrEquation  origPipeEquation(m_pipe.GetNumValidBits(), "origPipeEquation");
         m_pipe.Copy(&origPipeEquation);
 
         // filter out everything under the compressed block size
@@ -640,7 +656,7 @@ void Gfx9MaskRam::CalcMetaEquation()
                 else
                 {
                     CompPair             compPair = { MetaDataAddrCompZ, MinMetaEqCompPos };
-                    MetaDataAddrEquation filteredPipeEq(m_pGfxDevice, 1, "filtered");
+                    MetaDataAddrEquation filteredPipeEq(1, "filtered");
 
                     m_pipe.Copy(&filteredPipeEq, j, 1);
                     filteredPipeEq.Filter(compPair, MetaDataAddrCompareGt, 0, MetaDataAddrCompZ);
@@ -656,10 +672,10 @@ void Gfx9MaskRam::CalcMetaEquation()
 
         // Loop through each bit of the channel, get the smallest coordinate, and remove it from the metaaddr,
         // and the rb_equation
-        MergePipeAndRbEq();
+        MergePipeAndRbEq(pDevice);
 
         // Loop through the rb bits and see what remain; filter out the smallest coordinate if it remains
-        const uint32  rbBitsLeft = RemoveSmallRbBits();
+        const uint32  rbBitsLeft = RemoveSmallRbBits(pDevice);
 
         // capture the size of the metaaddr
         uint32  metaEquationSize = m_meta.GetNumValidBits();
@@ -729,7 +745,18 @@ void Gfx9MaskRam::CalcMetaEquation()
                           compFragLog2 + i);
         }
 
-        TrimMetaEquationSize();
+        // Ok, we always calculate the meta-equation to be 32-bits long, but that's enough to address 4Gnibbles.  We
+        // can trim this down to be no bigger than log2(mask-ram-size).  Do that here.  Remember that the address is
+        // actually a nibble-address at this point, so multiply the actual mask-ram-size by two to convert from bytes
+        // to nibbles.
+        const uint32  requiredNumEqBits = Log2(Pow2Pad(TotalSize() * 2));
+
+        // The idea here is to *shrink* the equation to the number of bits required to actually address the meta-data
+        // surface.  If the "SetEquationSize" call would instead *increase* the size of the equation, then something
+        // has gone horribly wrong.
+        PAL_ASSERT(requiredNumEqBits <= m_meta.GetNumValidBits());
+
+        m_meta.SetEquationSize(requiredNumEqBits, false);
 
         // Determine how many sample bits are needed to process this equation.
         m_effectiveSamples = m_meta.GetNumSamples();
@@ -737,41 +764,20 @@ void Gfx9MaskRam::CalcMetaEquation()
         m_meta.PrintEquation(pDevice);
 
         // After meta equation calculation is done extract meta equation parameter information
-        m_meta.GenerateMetaEqParamConst(m_image, maxFragsLog2, m_firstUploadBit, &m_metaEqParam);
+        m_meta.GenerateMetaEqParamConst(image, maxFragsLog2, m_firstUploadBit, &m_metaEqParam);
 
         // For some reason, the number of samples addressed by the equation sometimes differs from the number of
         // samples associated with the data-surface.  Still seems to work...
         PAL_ALERT (m_effectiveSamples != (1u << numSamplesLog2));
-
-        // Mark this equation as valid
-        m_metaEquationValid = true;
     }
 }
 
 // =====================================================================================================================
-// Set the meta equation size to the minimum required to support the actual size of the mask-ram
-void Gfx9MaskRam::TrimMetaEquationSize()
-{
-    // Ok, we always calculate the meta-equation to be 32-bits long, but that's enough to address 4Gnibbles.  We
-    // can trim this down to be no bigger than log2(mask-ram-size).  Do that here.  Remember that the address is
-    // actually a nibble-address at this point, so multiply the actual mask-ram-size by two to convert from bytes
-    // to nibbles.
-    const uint32  requiredNumEqBits = Log2(Pow2Pad(TotalSize() * 2));
-
-    // The idea here is to *shrink* the equation to the number of bits required to actually address the meta-data
-    // surface.  If the "SetEquationSize" call would instead *increase* the size of the equation, then something
-    // has gone horribly wrong.
-    PAL_ASSERT(requiredNumEqBits <= m_meta.GetNumValidBits());
-
-    m_meta.SetEquationSize(requiredNumEqBits, false);
-}
-
-// =====================================================================================================================
 void Gfx9MaskRam::CalcRbEquation(
-    uint32  numSesLog2,
-    uint32  numRbsPerSeLog2)
+    const Pal::Device*  pDevice,
+    uint32              numSesLog2,
+    uint32              numRbsPerSeLog2)
 {
-    const Pal::Device*      pDevice         = m_pGfxDevice->Parent();
     const Gfx9PalSettings&  settings        = GetGfx9Settings(*pDevice);
     const uint32            numTotalRbsLog2 = numSesLog2 + numRbsPerSeLog2;
 
@@ -819,14 +825,19 @@ void Gfx9MaskRam::CalcRbEquation(
 }
 
 // =====================================================================================================================
-uint32 Gfx9MaskRam::CapPipe() const
+uint32 Gfx9MaskRam::CapPipe(
+    const Image&  image
+    ) const
 {
-    const AddrSwizzleMode  swizzleMode        = GetSwizzleMode();
+    const auto*            pParent            = image.Parent();
+    const AddrSwizzleMode  swizzleMode        = GetSwizzleMode(image);
     const uint32           blockSizeLog2      = Log2(AddrMgr2::GetBlockSize(swizzleMode));
-    const uint32           numSesLog2         = m_pGfxDevice->GetNumShaderEnginesLog2();
-    const uint32           pipeInterleaveLog2 = m_pGfxDevice->GetPipeInterleaveLog2();
+    const auto*            pDevice            = pParent->GetDevice();
+    const auto*            pGfxDevice         = static_cast<const Device*>(pDevice->GetGfxDevice());
+    const uint32           numSesLog2         = pGfxDevice->GetNumShaderEnginesLog2();
+    const uint32           pipeInterleaveLog2 = pGfxDevice->GetPipeInterleaveLog2();
 
-    uint32  numPipesLog2 = m_pGfxDevice->GetNumPipesLog2();
+    uint32  numPipesLog2 = pGfxDevice->GetNumPipesLog2();
 
     // pipes+SEs can't exceed 32 for now
     PAL_ASSERT((numPipesLog2 + numSesLog2) <= 5);
@@ -838,28 +849,33 @@ uint32 Gfx9MaskRam::CapPipe() const
 }
 
 // =====================================================================================================================
-uint32  Gfx9MaskRam::GetBytesPerPixelLog2() const
+uint32  Gfx9MaskRam::GetBytesPerPixelLog2(
+    const Image&  image
+    ) const
 {
-    const SubResourceInfo*const pBaseSubResInfo = m_image.Parent()->SubresourceInfo(0);
+    const SubResourceInfo*const pBaseSubResInfo = image.Parent()->SubresourceInfo(0);
     return Log2(BitsPerPixel(pBaseSubResInfo->format.format) / 8);
 }
 
 // =====================================================================================================================
-AddrSwizzleMode Gfx9MaskRam::GetSwizzleMode() const
+AddrSwizzleMode Gfx9MaskRam::GetSwizzleMode(
+    const Image& image
+    ) const
 {
     // We always want to use the swizzle mode associated with the first sub-resource.
     //   1) For color images, the swizzle mode is constant across all sub-resources.
     //   2) For depth+stencil images, the meta equation is generated based on the swizzle mode of the depth aspect
     //      (which will always be the first aspect).
     //   3) For stencil-only or Z-only images, there is only one aspect, so it will be first.
-    const SubResourceInfo*const pBaseSubResInfo = m_image.Parent()->SubresourceInfo(0);
+    const SubResourceInfo*const pBaseSubResInfo = image.Parent()->SubresourceInfo(0);
 
-    return m_image.GetAddrSettings(pBaseSubResInfo).swizzleMode;
+    return image.GetAddrSettings(pBaseSubResInfo).swizzleMode;
 }
 
 // =====================================================================================================================
 // Retrieves the pipe-bank xor setting for the image associated with this mask ram.
 uint32  Gfx9MaskRam::GetPipeBankXor(
+    const Image&  image,
     ImageAspect   aspect
     ) const
 {
@@ -868,20 +884,22 @@ uint32  Gfx9MaskRam::GetPipeBankXor(
     PAL_ASSERT (m_firstUploadBit != 0);
 
     // The pipeBankXor setting for an image is expected to be a constant across all mips / slices of one aspect.
-    const auto*    pParent      = m_image.Parent();
+    const auto*    pParent      = image.Parent();
     const SubresId baseSubResId = { aspect, 0, 0 };
 
-    const uint32   pipeBankXor  = AddrMgr2::GetTileInfo(pParent, baseSubResId)->pipeBankXor;
+    const uint32   pipeBankXor = AddrMgr2::GetTileInfo(pParent, baseSubResId)->pipeBankXor;
 
-    return AdjustPipeBankXorForSwizzle(pipeBankXor);
+    return AdjustPipeBankXorForSwizzle(image, pipeBankXor);
 }
 
 // =====================================================================================================================
 // Initialize this object's "m_eqGpuAccess" with data used to eventually upload this equation to GPU accessible memory
 void Gfx9MaskRam::InitEqGpuAccess(
+    const Image&  image,
     gpusize*      pGpuSize)
 {
-    if (IsMetaEquationValid())
+    // GFX9 is the only GPU that utilizes the meta-data addressing equation...
+    if (image.Parent()->GetDevice()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
     {
         // The GPU version of the meta equation will be accessed by a buffer view which can address any alignment.  Make
         // it dword-aligned here just to be nice.
@@ -903,9 +921,10 @@ bool Gfx9MaskRam::IsPipeAligned(
 // Returns the dimensions, in pixels, of a block that gets compressed to one mask-ram equivalent unit.  This is easy
 // for hTile and cMask.  DCC is a pain.
 void Gfx9MaskRam::GetXyzInc(
-    uint32*  pXinc, // [out] Num X pixels that get compressed into one mask-ram dword (htile) or nibble (cMask)
-    uint32*  pYinc, // [out] Num Y pixels that get compressed into one mask-ram dword (htile) or nibble (cMask)
-    uint32*  pZinc  // [out] Num Z pixels that get compressed into one mask-ram dword (htile) or nibble (cMask)
+    const Image&  image, // image that owns this mask ram memory
+    uint32*       pXinc, // [out] Num X pixels that get compressed into one mask-ram dword (htile) or nibble (cMask)
+    uint32*       pYinc, // [out] Num Y pixels that get compressed into one mask-ram dword (htile) or nibble (cMask)
+    uint32*       pZinc  // [out] Num Z pixels that get compressed into one mask-ram dword (htile) or nibble (cMask)
     ) const
 {
     *pXinc = 8;
@@ -922,10 +941,12 @@ bool Gfx9MaskRam::IsRbAligned(
 
 // =====================================================================================================================
 // Returns true for swizzle modes that are the equivalent of the old "thick" tiling modes on pre-gfx9 HW.
-bool Gfx9MaskRam::IsThick() const
+bool Gfx9MaskRam::IsThick(
+    const Image& image
+    ) const
 {
-    const auto&            createInfo  = m_image.Parent()->GetImageCreateInfo();
-    const AddrSwizzleMode  swizzleMode = GetSwizzleMode();
+    const auto&            createInfo  = image.Parent()->GetImageCreateInfo();
+    const AddrSwizzleMode  swizzleMode = GetSwizzleMode(image);
 
     return  ((createInfo.imageType == ImageType::Tex3d) &&
              (IsStandardSwzzle(swizzleMode) ||
@@ -937,7 +958,8 @@ bool Gfx9MaskRam::IsThick() const
 // image data owns DCC memory and fMask owns cMask memory.  The owner's pipe-bank-xor value might not be compatible
 // with the tiling (swizzle) mode of the mask-ram, so perform any necessary adjustments here.
 uint32 Gfx9MaskRam::AdjustPipeBankXorForSwizzle(
-    uint32  pipeBankXor
+    const Image&  image,
+    uint32        pipeBankXor
     ) const
 {
 
@@ -951,10 +973,9 @@ uint32 Gfx9MaskRam::AdjustPipeBankXorForSwizzle(
 //      The idea is this: we first start with the lsb of the rb_id, find the smallest component, and remove it from
 //      the metadata address, and also from all upper rb_id bits that have this component.  For the rb_id bits, if we
 //      removed that component, then we add back all of the other components that contributed to the lsb of rb_id:
-void Gfx9MaskRam::MergePipeAndRbEq()
+void Gfx9MaskRam::MergePipeAndRbEq(
+    const Pal::Device*  pDevice)
 {
-    const Pal::Device*  pDevice = m_pGfxDevice->Parent();
-
     for (uint32  pipeAddrBit = 0; pipeAddrBit < m_pipe.GetNumValidBits(); pipeAddrBit++)
     {
         // Find the lowest coordinate within this pipeAddrBit that is contributing.
@@ -994,7 +1015,7 @@ void Gfx9MaskRam::MergePipeAndRbEq()
                                                                       MetaDataAddrCompareEq) == false)
                             {
                                 m_rb.SetBit(rbAddrBit, localPipePair.compType, localPipePair.compPos);
-                                SetRbAppendedBit(rbAddrBit, 1);
+                                SetRbAppendedBit(pDevice, rbAddrBit, 1);
                             }
 
                             eqData &= ~(1 << lowPipeBit);
@@ -1014,10 +1035,10 @@ void Gfx9MaskRam::MergePipeAndRbEq()
 // Iterate through the remaining RB bits, from lsb to msb, taking the smallest coordinate of each bit, and removing it
 // from the metadata equation, and the remaining upper RB bits.  Like for the pipe bits, if an RB bit gets a component
 // removed, then we add in all other terms not already present from the Rb bit that did the removal.
-uint32 Gfx9MaskRam::RemoveSmallRbBits()
+uint32 Gfx9MaskRam::RemoveSmallRbBits(
+    const Pal::Device*  pDevice)
 {
-    const Pal::Device*  pDevice    = m_pGfxDevice->Parent();
-    uint32              rbBitsLeft = 0;
+    uint32  rbBitsLeft = 0;
 
     for (uint32  rbAddrBit = 0; rbAddrBit < m_rb.GetNumValidBits(); rbAddrBit++)
     {
@@ -1057,7 +1078,7 @@ uint32 Gfx9MaskRam::RemoveSmallRbBits()
                         if (rbData != 0)
                         {
                             m_rb.SetMask(scanHiRbAddrBit, localRbAddrType, rbData);
-                            SetRbAppendedBit(scanHiRbAddrBit, GetRbAppendedBit(rbAddrBit));
+                            SetRbAppendedBit(pDevice, scanHiRbAddrBit, GetRbAppendedBit(rbAddrBit));
                         }
                     }
                 } // end check for the higher RB bit containing a reference to the just-found "low bit"
@@ -1074,13 +1095,14 @@ uint32 Gfx9MaskRam::RemoveSmallRbBits()
 // =====================================================================================================================
 // Uploads the meta-equation associated with this mask ram to GPU accessible memory.
 void Gfx9MaskRam::UploadEq(
-    CmdBuffer*  pCmdBuffer
+    CmdBuffer*         pCmdBuffer,
+    const Pal::Image*  pParentImg
     ) const
 {
-    const Pal::Image*   pParentImg = m_image.Parent();
-    const Pal::Device*  pDevice    = m_pGfxDevice->Parent();
+    const Pal::Device*  pDevice  = pParentImg->GetDevice();
 
-    if (IsMetaEquationValid())
+    // Only GFX9 GPUs use the convoluted meta-addressing scheme that requires equations being uploaded to the shaders.
+    if (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
     {
         // If this trips, that implies that InitEqGpuAccess() wasn't called during the creation of this
         // mask ram object.
@@ -1132,42 +1154,32 @@ bool Gfx9MaskRam::SupportFastColorClear(
 
 // =====================================================================================================================
 // Determimes if the given Image object should use HTILE metadata.
-HtileUsageFlags Gfx9Htile::UseHtileForImage(
+bool Gfx9Htile::UseHtileForImage(
     const Pal::Device& device,
     const Image&       image)
 {
     const Pal::Image*const pParent    = image.Parent();
-    HtileUsageFlags        hTileUsage = {};
+    const auto&            settings   = GetGfx9Settings(device);
+    const auto&            createInfo = pParent->GetImageCreateInfo();
 
-    // If this isn't a depth buffer, then hTile is a non-starter.
-    if (pParent->IsDepthStencil())
-    {
-        const auto& settings   = GetGfx9Settings(device);
-        const auto& createInfo = pParent->GetImageCreateInfo();
+    static const uint32 MinHtileWidth  = 8;
+    static const uint32 MinHtileHeight = 8;
 
-        static const uint32 MinHtileWidth  = 8;
-        static const uint32 MinHtileHeight = 8;
+    bool  useHtile = ((pParent->IsDepthStencil()     == true)          &&
+                      (pParent->IsShared()           == false)         &&
+                      (pParent->IsMetadataDisabled() == false)         &&
+                      (settings.htileEnable          == true))         &&
+                      (createInfo.extent.width       >= MinHtileWidth) &&
+                      (createInfo.extent.height      >= MinHtileHeight);
 
-        hTileUsage.dsMetadata = ((pParent->IsShared()           == false)         &&
-                                 (pParent->IsMetadataDisabled() == false)         &&
-                                 (settings.htileEnable          == true))         &&
-                                 (createInfo.extent.width       >= MinHtileWidth) &&
-                                 (createInfo.extent.height      >= MinHtileHeight);
-
-    }
-
-    return hTileUsage;
+    return useHtile;
 }
 
 // =====================================================================================================================
-Gfx9Htile::Gfx9Htile(
-    const Image&     image,
-    HtileUsageFlags  hTileUsage)
+Gfx9Htile::Gfx9Htile()
     :
-    Gfx9MaskRam(image,
-                2, // hTile uses 32-bit (4 byte) quantities
-                3), // Equation is nibble addressed, so the low three bits will be zero for a dword quantity
-    m_hTileUsage(hTileUsage)
+    Gfx9MaskRam(2, // hTile uses 32-bit (4 byte) quantities
+                3) // Equation is nibble addressed, so the low three bits will be zero for a dword quantity
 {
     memset(&m_addrOutput,      0, sizeof(m_addrOutput));
     memset(m_dbHtileSurface,   0, sizeof(m_dbHtileSurface));
@@ -1181,31 +1193,35 @@ Gfx9Htile::Gfx9Htile(
 // =====================================================================================================================
 // Returns the pipe-bank xor setting for this hTile sruface.
 uint32 Gfx9Htile::GetPipeBankXor(
+    const Image&  image,
     ImageAspect   aspect
     ) const
 {
-    const Pal::Device*     pDevice  = m_pGfxDevice->Parent();
+    const Pal::Device*     pDevice  = image.Parent()->GetDevice();
     const Gfx9PalSettings& settings = GetGfx9Settings(*pDevice);
 
     // Due to a HW bug, some GPU's don't support the use of a pipe-bank xor value for hTile surfaces.
     return (settings.waHtilePipeBankXorMustBeZero
             ? 0
-            : Gfx9MaskRam::GetPipeBankXor(aspect));
+            : Gfx9MaskRam::GetPipeBankXor(image, aspect));
 }
 
 // =====================================================================================================================
-uint32 Gfx9Htile::GetNumSamplesLog2() const
+uint32 Gfx9Htile::GetNumSamplesLog2(
+    const Image&  image
+    ) const
 {
-    return Log2(m_image.Parent()->GetImageCreateInfo().samples);
+    return Log2(image.Parent()->GetImageCreateInfo().samples);
 }
 
 // =====================================================================================================================
 // Builds the PM4 packet headers for an image of PM4 commands used to write this View object to hardware.
 void Gfx9Htile::SetupHtilePreload(
+    const Image& image,
     uint32       mipLevel)
 {
-    const  Pal::Image*       pParent         = m_image.Parent();
-    const  Pal::Device*      pDevice         = m_pGfxDevice->Parent();
+    const  Pal::Image*       pParent         = image.Parent();
+    const  Pal::Device*      pDevice         = pParent->GetDevice();
     const  Gfx9PalSettings&  settings        = GetGfx9Settings(*pDevice);
     const  SubresId          baseSubResource = pParent->GetBaseSubResource();
 
@@ -1286,18 +1302,19 @@ void Gfx9Htile::SetupHtilePreload(
 // =====================================================================================================================
 // Initializes this HTile object for the given Image and mipmap level.
 Result Gfx9Htile::Init(
-    gpusize*  pGpuOffset,    // [in,out] Current GPU memory offset & size
-    bool      hasEqGpuAccess)
+    const Pal::Device& device,
+    const Image&       image,
+    gpusize*           pGpuOffset,    // [in,out] Current GPU memory offset & size
+    bool               hasEqGpuAccess)
 {
-    const Pal::Device&       device           = *(m_pGfxDevice->Parent());
     const  Gfx9PalSettings&  settings         = GetGfx9Settings(device);
-    const  Pal::Image*const  pParent          = m_image.Parent();
+    const  Pal::Image*const  pParent          = image.Parent();
     const  ImageCreateInfo&  imageCreateInfo  = pParent->GetImageCreateInfo();
     const  auto&             chipProps        = device.ChipProperties();
     const  uint32            activeRbCount    = chipProps.gfx9.numActiveRbs;
 
-    m_flags.compressZ = settings.depthCompressEnable   && (m_hTileUsage.dsMetadata != 0);
-    m_flags.compressS = settings.stencilCompressEnable && (m_hTileUsage.dsMetadata != 0);
+    m_flags.compressZ = settings.depthCompressEnable;
+    m_flags.compressS = settings.stencilCompressEnable;
 
     // NOTE: Default ZRANGE_PRECISION to 1, since this is typically the optimal value for DX applications, since they
     // usually clear Z to 1.0f and use a < depth comparison for their depth testing. But we change ZRANGE_PRECISION
@@ -1305,9 +1322,8 @@ Result Gfx9Htile::Init(
     // far Z plane.
     m_flags.zrangePrecision = 1;
 
-    // If the associated image is a Z-only format, then setup hTile to not include stencil data.
-    m_flags.tileStencilDisable = ((m_image.IsHtileDepthOnly()
-                                  ) ? 1 : 0);
+    // There are instances where we don't want the hTile buffer to reflect any stencil data
+    m_flags.tileStencilDisable = image.IsHtileDepthOnly() ? 1 : 0;
 
     // Determine the subResource ID of the base slice and mip-map for this aspect
     const SubresId  baseSubResource = pParent->GetBaseSubResource();
@@ -1336,13 +1352,13 @@ Result Gfx9Htile::Init(
         if ((chipProps.gfxLevel == GfxIpLevel::GfxIp9)
             )
         {
-            SetupHtilePreload(mipLevel);
+            SetupHtilePreload(image, mipLevel);
         }
     }
 
     // Call the address library to compute the HTile properties.
     const SubResourceInfo*  pBaseSubResInfo = pParent->SubresourceInfo(baseSubResource);
-    Result                  result          = ComputeHtileInfo(pBaseSubResInfo);
+    Result                  result          = ComputeHtileInfo(device, image, pBaseSubResInfo);
     if (result == Result::Success)
     {
         // Compute our aligned GPU memory offset and update the caller-provided running total.  Don't update the
@@ -1350,12 +1366,12 @@ Result Gfx9Htile::Init(
         UpdateGpuMemOffset(pGpuOffset);
 
         // The addressing equation is the same for all sub-resources, so only bother to calculate it once
-        CalcMetaEquation();
+        CalcMetaEquation(image);
 
         if (hasEqGpuAccess)
         {
             // Calculate info as to where the GPU can find the hTile equation
-            InitEqGpuAccess(pGpuOffset);
+            InitEqGpuAccess(image, pGpuOffset);
         }
     }
 
@@ -1365,14 +1381,15 @@ Result Gfx9Htile::Init(
 // =====================================================================================================================
 // Calls into AddrLib to compute HTILE info for a subresource
 Result Gfx9Htile::ComputeHtileInfo(
+    const Pal::Device&     device,
+    const Image&           image,
     const SubResourceInfo* pSubResInfo)
 {
-    const Pal::Device&     device             = *(m_pGfxDevice->Parent());
-    const Pal::Image*const pParent            = m_image.Parent();
+    const Pal::Image*const pParent            = image.Parent();
     const ImageCreateInfo& imageCreateInfo    = pParent->GetImageCreateInfo();
-    const auto&            surfSettings       = m_image.GetAddrSettings(pSubResInfo);
+    const auto&            surfSettings       = image.GetAddrSettings(pSubResInfo);
     const auto*const       pAddrMgr           = static_cast<const AddrMgr2::AddrMgr2*>(device.GetAddrMgr());
-    const auto*            pParentSurfAddrOut = m_image.GetAddrOutput(pSubResInfo);
+    const auto*            pParentSurfAddrOut = image.GetAddrOutput(pSubResInfo);
 
     Result result = Result::ErrorInitializationFailed;
 
@@ -1384,7 +1401,7 @@ Result Gfx9Htile::ComputeHtileInfo(
     addrHtileIn.numSlices         = imageCreateInfo.arraySize;
     addrHtileIn.numMipLevels      = imageCreateInfo.mipLevels;
     addrHtileIn.depthFlags        = pAddrMgr->DetermineSurfaceFlags(*pParent, pSubResInfo->subresId.aspect);
-    addrHtileIn.hTileFlags        = GetMetaFlags(m_image);
+    addrHtileIn.hTileFlags        = GetMetaFlags(image);
     addrHtileIn.firstMipIdInTail  = pParentSurfAddrOut->firstMipIdInTail;
 
     const ADDR_E_RETURNCODE addrRet = Addr2ComputeHtileInfo(device.AddrLibHandle(), &addrHtileIn, &m_addrOutput);
@@ -1418,7 +1435,7 @@ void Gfx9Htile::CalcCompBlkSizeLog2(
     Gfx9MaskRamBlockSize*  pBlockSize
     ) const
 {
-    // For non-color surfaces, compressed block size is always 8x8
+    // For non-color surfaces, compessed block size is always 8x8
     pBlockSize->width  = 3;
     pBlockSize->height = 3;
     pBlockSize->depth  = 3;
@@ -1440,8 +1457,7 @@ void Gfx9Htile::CalcMetaBlkSizeLog2(
 // =====================================================================================================================
 // Computes a value for updating the HTile buffer for a fast depth clear.
 uint32 Gfx9Htile::GetClearValue(
-    const Device*  pDevice,
-    float          depthValue
+    float depthValue
     ) const
 {
     // Maximum 14-bit UINT value.
@@ -1481,7 +1497,6 @@ uint32 Gfx9Htile::GetClearValue(
                        ((SMem     &     0x3) <<  8) |
                        ((SResults &     0xF) <<  4) |
                        ((ZMask    &     0xF) <<  0) );
-
     }
     else
     {
@@ -1587,24 +1602,8 @@ void Gfx9Htile::ComputeResummarizeData(
 
 // =====================================================================================================================
 // Computes the initial value of the htile which depends on whether or not tile stencil is disabled.
-uint32 Gfx9Htile::GetInitialValue(
-    const Device&  device
-    ) const
+uint32 Gfx9Htile::GetInitialValue() const
 {
-    // These are the possible layouts of hTile memory:
-
-    // Z and stencil:
-    //      |31       12|11 10|9    8|7   6|5   4|3     0|
-    //      +-----------+-----+------+-----+-----+-------+
-    //      |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
-    //
-    //
-    // Z only (no stencil):
-    //      |31     18|17      4|3     0|
-    //      +---------+---------+-------+
-    //      |  Max Z  |  Min Z  | ZMask |
-    //
-
     // Initial values for a fully decompressed/expanded htile
     constexpr uint32 ZMaskExpanded            = 0xf;
     constexpr uint32 SMemExpanded             = 0x3;
@@ -1619,7 +1618,6 @@ uint32 Gfx9Htile::GetInitialValue(
     }
     else
     {
-
         initialValue = InitialValueDepthStencil;
     }
 
@@ -1629,22 +1627,21 @@ uint32 Gfx9Htile::GetInitialValue(
 //=============== Implementation for Gfx9Dcc: ==========================================================================
 
 // =====================================================================================================================
-Gfx9Dcc::Gfx9Dcc(
-    const Image&  image)
+Gfx9Dcc::Gfx9Dcc()
     :
-    Gfx9MaskRam(image,
-                0,  // DCC uses 1-byte quantities, log2(1) = 0
+    Gfx9MaskRam(0,  // DCC uses 1-byte quantities, log2(1) = 0
                 1), // ignore the first bit of a nibble equation
     m_dccControl()
 {
     memset(&m_addrOutput, 0, sizeof(m_addrOutput));
-
     m_addrOutput.size     = sizeof(m_addrOutput);
+
     m_addrOutput.pMipInfo = &m_addrMipOutput[0];
 }
 
 // =====================================================================================================================
 uint32 Gfx9Dcc::GetNumEffectiveSamples(
+    const Device*    pGfxDevice,
     DccClearPurpose  clearPurpose
     ) const
 {
@@ -1669,31 +1666,34 @@ uint32 Gfx9Dcc::GetNumEffectiveSamples(
         //    check and make sure things are initialized properly.)   It's not clear that any other clients that may
         //    use DCC surfaces will employ the max_compressed_frag setting and thus need to see 0xff so as not to
         //    corrupt the data.
-        numSamples = Min(numSamples, 1u << m_pGfxDevice->GetMaxFragsLog2());
+        numSamples = Min(numSamples, 1u << pGfxDevice->GetMaxFragsLog2());
     }
 
     return numSamples;
 }
 
 // =====================================================================================================================
-uint32 Gfx9Dcc::GetNumSamplesLog2() const
+uint32 Gfx9Dcc::GetNumSamplesLog2(
+    const Image&  image
+    ) const
 {
     // The number of samples, which is used for the calculation of the DCC equation is set as this:
     //      input_num_samples   = (pCS->mode_resolve && mrt>0) ? 1 : pCS->num_fragments[mrt];
-    return Log2(m_image.Parent()->GetImageCreateInfo().fragments);
+    return Log2(image.Parent()->GetImageCreateInfo().fragments);
 }
 
 // =====================================================================================================================
 // Returns the dimensions, in pixels, of a block that gets compressed to one DCC byte.
 void Gfx9Dcc::GetXyzInc(
-    uint32*  pXinc, // [out] Num X pixels that get compressed into one DCC byte
-    uint32*  pYinc, // [out] Num Y pixels that get compressed into one DCC byte
-    uint32*  pZinc  // [out] Num Z pixels that get compressed into one DCC byte
+    const Image&  image, // image that owns this DCC memory
+    uint32*       pXinc, // [out] Num X pixels that get compressed into one DCC byte
+    uint32*       pYinc, // [out] Num Y pixels that get compressed into one DCC byte
+    uint32*       pZinc  // [out] Num Z pixels that get compressed into one DCC byte
     ) const
 {
-    const uint32          bppLog2     = GetBytesPerPixelLog2();
-    const ImageType       imageType   = m_image.GetOverrideImageType();
-    const AddrSwizzleMode swizzleMode = GetSwizzleMode();
+    const uint32          bppLog2     = GetBytesPerPixelLog2(image);
+    const ImageType       imageType   = image.GetOverrideImageType();
+    const AddrSwizzleMode swizzleMode = GetSwizzleMode(image);
 
     // There are instances where 3D images use the 2D layout.
     bool  isEffective2d    = AddrMgr2::IsDisplayableSwizzle(swizzleMode);
@@ -1762,22 +1762,23 @@ void Gfx9Dcc::GetXyzInc(
 
 // =====================================================================================================================
 Result Gfx9Dcc::Init(
-    gpusize*  pGpuOffset,
-    bool      hasEqGpuAccess)
+    const Image&   image,
+    gpusize*       pGpuOffset,
+    bool           hasEqGpuAccess)
 {
-    Result result = ComputeDccInfo();
+    Result result = ComputeDccInfo(image);
 
     if (result == Result::Success)
     {
         // Compute our aligned GPU memory offset and update the caller-provided running total.
         UpdateGpuMemOffset(pGpuOffset);
 
-        SetControlReg();
+        SetControlReg(image);
 
         if (hasEqGpuAccess)
         {
             // Calculate info as to where the GPU can find the DCC equation
-            InitEqGpuAccess(pGpuOffset);
+            InitEqGpuAccess(image, pGpuOffset);
         }
     }
 
@@ -1786,9 +1787,10 @@ Result Gfx9Dcc::Init(
 
 // =====================================================================================================================
 // Calls into AddrLib to compute DCC info for a subresource
-Result Gfx9Dcc::ComputeDccInfo()
+Result Gfx9Dcc::ComputeDccInfo(
+    const Image&  image)
 {
-    const Pal::Image*const      pParent         = m_image.Parent();
+    const Pal::Image*const      pParent         = image.Parent();
     const Pal::Device*const     pDevice         = pParent->GetDevice();
     const Pal::ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
     const auto*const            pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(pDevice->GetAddrMgr());
@@ -1797,16 +1799,16 @@ Result Gfx9Dcc::ComputeDccInfo()
     // the base of the color aspect here.
     const SubresId         subResId           = { ImageAspect::Color, 0, 0 };
     const SubResourceInfo* pSubResInfo        = pParent->SubresourceInfo(subResId);
-    const auto&            surfSettings       = m_image.GetAddrSettings(pSubResInfo);
-    const auto*            pParentSurfAddrOut = m_image.GetAddrOutput(pSubResInfo);
+    const auto&            surfSettings       = image.GetAddrSettings(pSubResInfo);
+    const auto*            pParentSurfAddrOut = image.GetAddrOutput(pSubResInfo);
 
     ADDR2_COMPUTE_DCCINFO_INPUT  dccInfoInput = {};
     Result                       result       = Result::ErrorInitializationFailed;
 
     dccInfoInput.size             = sizeof(dccInfoInput);
-    dccInfoInput.dccKeyFlags      = GetMetaFlags(m_image);
+    dccInfoInput.dccKeyFlags      = GetMetaFlags(image);
     dccInfoInput.colorFlags       = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.aspect);
-    dccInfoInput.resourceType     = m_image.GetAddrSettings(pSubResInfo).resourceType;
+    dccInfoInput.resourceType     = image.GetAddrSettings(pSubResInfo).resourceType;
     dccInfoInput.swizzleMode      = surfSettings.swizzleMode;
     dccInfoInput.bpp              = BitsPerPixel(pSubResInfo->format.format);
     dccInfoInput.unalignedWidth   = imageCreateInfo.extent.width;
@@ -1816,7 +1818,7 @@ Result Gfx9Dcc::ComputeDccInfo()
                                      ? imageCreateInfo.arraySize
                                      : imageCreateInfo.extent.depth);
     dccInfoInput.numMipLevels     = imageCreateInfo.mipLevels;
-    dccInfoInput.dataSurfaceSize  = static_cast<UINT_32>(m_image.GetAddrOutput(pSubResInfo)->surfSize);
+    dccInfoInput.dataSurfaceSize  = static_cast<UINT_32>(image.GetAddrOutput(pSubResInfo)->surfSize);
     dccInfoInput.firstMipIdInTail = pParentSurfAddrOut->firstMipIdInTail;
 
     const ADDR_E_RETURNCODE addrRet = Addr2ComputeDccInfo(pDevice->AddrLibHandle(), &dccInfoInput, &m_addrOutput);
@@ -1828,7 +1830,7 @@ Result Gfx9Dcc::ComputeDccInfo()
         m_sliceSize = 0; // todo, how to set this?
         m_totalSize = m_addrOutput.dccRamSize;
 
-        CalcMetaEquation();
+        CalcMetaEquation(image);
 
         result = Result::Success;
     }
@@ -1838,9 +1840,10 @@ Result Gfx9Dcc::ComputeDccInfo()
 
 // =====================================================================================================================
 // Returns the optimal value of DCC_CONTROL.MIN_COMPERSSED_BLOCK_SIZE
-uint32 Gfx9Dcc::GetMinCompressedBlockSize() const
+uint32 Gfx9Dcc::GetMinCompressedBlockSize(
+    const Image&  image)
 {
-    const auto&  chipProp = m_pGfxDevice->Parent()->ChipProperties();
+    const auto&  chipProp = image.Parent()->GetDevice()->ChipProperties();
 
     //    [min-compressed-block-size] should be set to 32 for dGPU and 64 for APU because all of our APUs to date
     //    use DIMMs which have a request granularity size of 64B while all other chips have a 32B request size
@@ -1855,12 +1858,13 @@ uint32 Gfx9Dcc::GetMinCompressedBlockSize() const
 
 // =====================================================================================================================
 // Calculates the value for the CB_DCC_CONTROL register
-void Gfx9Dcc::SetControlReg()
+void Gfx9Dcc::SetControlReg(
+    const Image&  image)
 {
     const SubresId          subResId    = { ImageAspect::Color, 0, 0 };
-    const Pal::Image*       pParent     = m_image.Parent();
+    const Pal::Image*       pParent     = image.Parent();
     const SubResourceInfo*  pSubResInfo = pParent->SubresourceInfo(subResId);
-    const Pal::Device*      pDevice     = m_pGfxDevice->Parent();
+    const Pal::Device*      pDevice     = pParent->GetDevice();
     const GfxIpLevel        gfxLevel    = pDevice->ChipProperties().gfxLevel;
     const ImageCreateInfo&  createInfo  = pParent->GetImageCreateInfo();
 
@@ -1890,7 +1894,7 @@ void Gfx9Dcc::SetControlReg()
         }
     }
 
-    m_dccControl.bits.MIN_COMPRESSED_BLOCK_SIZE = GetMinCompressedBlockSize();
+    m_dccControl.bits.MIN_COMPRESSED_BLOCK_SIZE = GetMinCompressedBlockSize(image);
     m_dccControl.bits.COLOR_TRANSFORM           = DCC_CT_AUTO;
     m_dccControl.bits.LOSSY_RGB_PRECISION       = 0;
     m_dccControl.bits.LOSSY_ALPHA_PRECISION     = 0;
@@ -1990,8 +1994,8 @@ bool Gfx9Dcc::UseDccForImage(
     {
         // Here we are either a color image or a UAV resource, so determine the swizzle mode. GFX9+ resources have
         // the same swizzle mode for all mip-levels and slices, so just look at the base level.
-        const SubresId              subResId     = pParent->GetBaseSubResource();
-        const SubResourceInfo*const pSubResInfo  = pParent->SubresourceInfo(subResId);
+        const SubresId              subResId     = image.Parent()->GetBaseSubResource();
+        const SubResourceInfo*const pSubResInfo  = image.Parent()->SubresourceInfo(subResId);
         const auto&                 surfSettings = image.GetAddrSettings(pSubResInfo);
         const AddrSwizzleMode       swizzleMode  = surfSettings.swizzleMode;
 
@@ -2104,13 +2108,12 @@ uint8 Gfx9Dcc::GetFastClearCode(
                                                 //       before it can be used as a texture
 {
     // Fast-clear code that is valid for images that won't be texture fetched.
-    const Pal::Image*   pParent             = image.Parent();
     Gfx9DccClearColor   clearCode           = Gfx9DccClearColor::ClearColorReg;
     const auto&         settings            = GetGfx9Settings(*image.Parent()->GetDevice());
     const Pal::SubresId baseSubResource     = { clearRange.startSubres.aspect,
                                                 clearRange.startSubres.mipLevel,
                                                 clearRange.startSubres.arraySlice };
-    const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(baseSubResource);
+    const SubResourceInfo*const pSubResInfo = image.Parent()->SubresourceInfo(baseSubResource);
 
     if ((pSubResInfo->flags.supportMetaDataTexFetch != 0) && (settings.forceRegularClearCode == false))
     {
@@ -2123,7 +2126,7 @@ uint8 Gfx9Dcc::GetFastClearCode(
         // If the clear-color is *not* one of those colors, then this routine will produce the "default"
         // clear-code.  The default clear-code is not understood by the TC and a fast-clear-eliminate pass must be
         // issued prior to using this surface as a texture.
-        const ImageCreateInfo& createInfo    = pParent->GetImageCreateInfo();
+        const ImageCreateInfo& createInfo    = image.Parent()->GetImageCreateInfo();
         const uint32           numComponents = NumComponents(createInfo.swizzledFormat.format);
         const SurfaceSwap      surfSwap      = Formats::Gfx9::ColorCompSwap(createInfo.swizzledFormat);
         const ChannelSwizzle*  pSwizzle      = &createInfo.swizzledFormat.swizzle.swizzle[0];
@@ -2283,11 +2286,9 @@ uint8 Gfx9Dcc::GetFastClearCode(
 }
 
 //=============== Implementation for Gfx9Cmask: ========================================================================
-Gfx9Cmask::Gfx9Cmask(
-    const Image&  image)
+Gfx9Cmask::Gfx9Cmask()
     :
-    Gfx9MaskRam(image,
-                -1, // cMask uses nibble quantities
+    Gfx9MaskRam(-1, // cMask uses nibble quantities
                 0)  // no bits can be ignored
 {
     memset(&m_addrOutput, 0, sizeof(m_addrOutput));
@@ -2325,18 +2326,19 @@ void Gfx9Cmask::CalcMetaBlkSizeLog2(
 }
 
 // =====================================================================================================================
-Result Gfx9Cmask::ComputeCmaskInfo()
+Result Gfx9Cmask::ComputeCmaskInfo(
+    const Image&  image)
 {
-    const Pal::Image*const  pParent    = m_image.Parent();
+    const Pal::Image*const  pParent    = image.Parent();
     const Pal::Device*const pDevice    = pParent->GetDevice();
     const ImageCreateInfo&  createInfo = pParent->GetImageCreateInfo();
     const auto*const        pAddrMgr   = static_cast<const AddrMgr2::AddrMgr2*>(pDevice->GetAddrMgr());
 
     // Only need the sub-res info for the aspect...
     const SubresId              subResId    = { ImageAspect::Color, 0, 0 };
-    const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(subResId);
+    const SubResourceInfo*const pSubResInfo = image.Parent()->SubresourceInfo(subResId);
 
-    const auto*                     pFmask     = m_image.GetFmask();
+    const auto*                     pFmask     = image.GetFmask();
     ADDR2_COMPUTE_CMASK_INFO_INPUT  cMaskInput = {};
     Result                          result     = Result::ErrorInitializationFailed;
 
@@ -2344,10 +2346,10 @@ Result Gfx9Cmask::ComputeCmaskInfo()
     cMaskInput.unalignedWidth  = createInfo.extent.width;
     cMaskInput.unalignedHeight = createInfo.extent.height;
     cMaskInput.numSlices       = createInfo.arraySize;
-    cMaskInput.resourceType    = m_image.GetAddrSettings(pSubResInfo).resourceType;
+    cMaskInput.resourceType    = image.GetAddrSettings(pSubResInfo).resourceType;
     cMaskInput.colorFlags      = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.aspect);
     cMaskInput.swizzleMode     = pFmask->GetSwizzleMode();
-    cMaskInput.cMaskFlags      = GetMetaFlags(m_image);
+    cMaskInput.cMaskFlags      = GetMetaFlags(image);
 
     const ADDR_E_RETURNCODE  addrRet = Addr2ComputeCmaskInfo(pDevice->AddrLibHandle(),
                                                              &cMaskInput,
@@ -2366,36 +2368,42 @@ Result Gfx9Cmask::ComputeCmaskInfo()
 
 // =====================================================================================================================
 // The bytes-per-pixel of the cMask surface is the bpp of the associated fMask surface
-uint32 Gfx9Cmask::GetBytesPerPixelLog2() const
+uint32 Gfx9Cmask::GetBytesPerPixelLog2(
+    const Image&  image
+    ) const
 {
-    return Log2(m_image.GetFmask()->GetAddrOutput().bpp / 8);
+    return Log2(image.GetFmask()->GetAddrOutput().bpp / 8);
 }
 
 // =====================================================================================================================
 // Gets the pipe-bank xor value for the data surface associated with this meta surface.  For a cMask meta surface, the
 // associated data surface is fMask.
 uint32 Gfx9Cmask::GetPipeBankXor(
+    const Image&  image,
     ImageAspect   aspect
     ) const
 {
-    const uint32 pipeBankXor = m_image.GetFmask()->GetPipeBankXor();
+    const uint32 pipeBankXor = image.GetFmask()->GetPipeBankXor();
 
-    return AdjustPipeBankXorForSwizzle(pipeBankXor);
+    return AdjustPipeBankXorForSwizzle(image, pipeBankXor);
 }
 
 // =====================================================================================================================
 // Returns the swizzle mode of the associated fmask surface
-AddrSwizzleMode Gfx9Cmask::GetSwizzleMode() const
+AddrSwizzleMode Gfx9Cmask::GetSwizzleMode(
+    const Image& image
+    ) const
 {
-    return m_image.GetFmask()->GetSwizzleMode();
+    return image.GetFmask()->GetSwizzleMode();
 }
 
 // =====================================================================================================================
 Result Gfx9Cmask::Init(
-    gpusize*  pGpuOffset,
-    bool      hasEqGpuAccess)
+    const Image&   image,
+    gpusize*       pGpuOffset,
+    bool           hasEqGpuAccess)
 {
-    Result result = ComputeCmaskInfo();
+    Result result = ComputeCmaskInfo(image);
 
     if (result == Result::Success)
     {
@@ -2404,12 +2412,12 @@ Result Gfx9Cmask::Init(
         UpdateGpuMemOffset(pGpuOffset);
 
         // The addressing equation is the same for all sub-resources, so only bother to calculate it once
-        CalcMetaEquation();
+        CalcMetaEquation(image);
 
         if (hasEqGpuAccess)
         {
             // Calculate info as to where the GPU can find the cMask equation
-            InitEqGpuAccess(pGpuOffset);
+            InitEqGpuAccess(image, pGpuOffset);
         }
     }
 
@@ -2433,7 +2441,7 @@ bool Gfx9Cmask::UseCmaskForImage(
     else
     {
         // Forcing CMask usage forces FMask usage, which is required for EQAA.
-        useCmask = (pParent->IsEqaa() ||
+        useCmask = (image.Parent()->IsEqaa() ||
                     (pParent->IsRenderTarget() &&
                     (pParent->IsShared() == false) &&
                     (pParent->IsMetadataDisabled() == false) &&
@@ -2446,12 +2454,10 @@ bool Gfx9Cmask::UseCmaskForImage(
 //=============== Implementation for Gfx9Fmask: ========================================================================
 
 // =====================================================================================================================
-Gfx9Fmask::Gfx9Fmask(
-    const Image&  image)
+Gfx9Fmask::Gfx9Fmask()
     :
     MaskRam(),
-    m_pipeBankXor(0),
-    m_image(image)
+    m_pipeBankXor(0)
 {
     memset(&m_surfSettings, 0, sizeof(m_surfSettings));
     memset(&m_addrOutput,    0, sizeof(m_addrOutput));
@@ -2540,16 +2546,17 @@ regSQ_IMG_RSRC_WORD1 Gfx9Fmask::Gfx9FmaskFormat(
 
 // =====================================================================================================================
 Result Gfx9Fmask::Init(
-    gpusize*  pGpuOffset)
+    const Image&   image,
+    gpusize*       pGpuOffset)
 {
-    Result result = ComputeFmaskInfo();
+    Result result = ComputeFmaskInfo(image);
 
     if (result == Result::Success)
     {
         // fMask surfaces have a pipe/bank xor value which is independent of the image's pipe-bank xor value.
-        result = m_image.ComputePipeBankXor(ImageAspect::Fmask,
-                                            &m_surfSettings,
-                                            &m_pipeBankXor);
+        result = image.ComputePipeBankXor(ImageAspect::Fmask,
+                                          &m_surfSettings,
+                                          &m_pipeBankXor);
     }
 
     if (result == Result::Success)
@@ -2591,16 +2598,16 @@ uint32 Gfx9Fmask::GetPackedExpandedValue(
 }
 
 // =====================================================================================================================
-Result Gfx9Fmask::ComputeFmaskInfo()
+Result Gfx9Fmask::ComputeFmaskInfo(
+    const Image&  image)
 {
-    const Pal::Image&       parent   = *(m_image.Parent());
-    const Pal::Device*const pDevice  = parent.GetDevice();
+    const Pal::Device*const pDevice  = image.Parent()->GetDevice();
     const auto*const        pAddrMgr = static_cast<const AddrMgr2::AddrMgr2*>(pDevice->GetAddrMgr());
 
-    Result result = pAddrMgr->ComputeFmaskSwizzleMode(parent, &m_surfSettings);
+    Result result = pAddrMgr->ComputeFmaskSwizzleMode(*image.Parent(), &m_surfSettings);
     if (result == Result::Success)
     {
-        const auto& createInfo = parent.GetImageCreateInfo();
+        const auto& createInfo = image.Parent()->GetImageCreateInfo();
 
         ADDR2_COMPUTE_FMASK_INFO_INPUT  fMaskInput = {};
 
@@ -2637,9 +2644,9 @@ Result Gfx9Fmask::ComputeFmaskInfo()
 static ADDR2_META_FLAGS GetMetaFlags(
     const Image&  image)
 {
-    const Pal::Image*const  pParent    = image.Parent();
-    const Pal::Device*      pDevice    = pParent->GetDevice();
-    const Device*           pGfxDevice = static_cast<Device*>(pDevice->GetGfxDevice());
+    const Pal::Image*const  pParent         = image.Parent();
+    const Pal::Device*      pDevice         = pParent->GetDevice();
+    const Device*           pGfxDevice      = static_cast<Device*>(pDevice->GetGfxDevice());
 
     ADDR2_META_FLAGS  metaFlags = {};
 

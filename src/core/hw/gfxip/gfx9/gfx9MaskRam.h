@@ -80,17 +80,6 @@ enum MetaDataType : uint32
     MetaDataNumTypes,
 };
 
-union HtileUsageFlags
-{
-    struct
-    {
-        uint32  dsMetadata       :  1; // hTile reflects data stored in the parent depth/stencil image.
-        uint32  reservedFutureHw :  1;
-        uint32  reserved         : 30;
-    };
-    uint32  value;
-};
-
 // =====================================================================================================================
 // Anything that affects all GFX9 mask ram types goes here.  Most importantly, this class provides functions for
 // calculating the meta data addressing equation -- i.e., how to turn an x,y,z coordinate into an offset into a
@@ -99,23 +88,28 @@ union HtileUsageFlags
 class Gfx9MaskRam : public MaskRam
 {
 public:
-    Gfx9MaskRam(
-        const Image&  image,
-        int32         metaDataSizeLog2,
-        uint32        firstUploadBit);
+    Gfx9MaskRam(int32   metaDataSizeLog2,
+                uint32  firstUploadBit);
     // Destructor has nothing to do.
     virtual ~Gfx9MaskRam() {}
 
     void BuildEqBufferView(
+        const Image&     image,
         BufferViewInfo*  pBufferView) const;
     void BuildSurfBufferView(
+        const Image&     image,
         BufferViewInfo*  pViewInfo) const;
     uint32 CalcPipeXorMask(
+        const Image&  image,
         ImageAspect   aspect) const;
     const MetaDataAddrEquation&  GetMetaEquation() const { return m_meta; }
     const MetaEquationParam& GetMetaEquationParam() const { return m_metaEqParam; }
-    virtual uint32  GetPipeBankXor(ImageAspect   aspect) const;
-    void UploadEq(CmdBuffer*  pCmdBuffer) const;
+    virtual uint32  GetPipeBankXor(
+        const Image&  image,
+        ImageAspect   aspect) const;
+    void UploadEq(
+        CmdBuffer*         pCmdBuffer,
+        const Pal::Image*  pParentImg) const;
     bool HasEqGpuAccess() const { return m_eqGpuAccess.offset != 0; }
     static bool SupportFastColorClear(
         const Pal::Device& device,
@@ -131,58 +125,57 @@ public:
     uint32  GetNumEffectiveSamples() const { return m_effectiveSamples; }
 
     virtual void GetXyzInc(
-        uint32*  pXinc,
-        uint32*  pYinc,
-        uint32*  pZinc) const;
+        const Image&  image,
+        uint32*       pXinc,
+        uint32*       pYinc,
+        uint32*       pZinc) const;
 
     static bool IsRbAligned(const Image*  pImage);
     static bool IsPipeAligned(const Image*  pImage);
-    bool IsMetaEquationValid() const { return m_metaEquationValid; }
 
 protected:
-    void                    InitEqGpuAccess(gpusize*  pGpuSize);
-    virtual void            CalcMetaEquation();
-    virtual uint32          GetBytesPerPixelLog2() const;
-    virtual uint32          GetNumSamplesLog2() const = 0;
-    virtual AddrSwizzleMode GetSwizzleMode() const;
-    bool                    IsThick() const;
-    uint32                  AdjustPipeBankXorForSwizzle( uint32  pipeBankXor) const;
-    void                    TrimMetaEquationSize();
+    void                    InitEqGpuAccess(const Image&  image, gpusize*  pGpuSize);
+    virtual void            CalcMetaEquation(const Image& image);
+    virtual uint32          GetBytesPerPixelLog2(const Image&  image) const;
+    virtual uint32          GetNumSamplesLog2(const Image&  image) const = 0;
+    virtual AddrSwizzleMode GetSwizzleMode(const Image& image) const;
+    bool                    IsThick(const Image& image) const;
+    uint32                  AdjustPipeBankXorForSwizzle(const Image&  image, uint32  pipeBankXor) const;
 
     // Of the three types of mask-ram surfaces (hTile, dcc and cMask), only DCC is really associated with
     // a color image.  hTile is associated with depth, and cMask is the meta surface for fMask, so, for
     // two-outta-three, the associated surface is not a color image.
     virtual bool  IsColor() const { return false; }
 
-    const Image&          m_image;
-    const Device*         m_pGfxDevice;
-
     // Equations used for calculating locations within this meta-surface
+    MetaDataAddrEquation  m_dataOffset;
     MetaDataAddrEquation  m_meta;
     MetaDataAddrEquation  m_pipe;
+    MetaDataAddrEquation  m_rb;
+    MetaEquationParam     m_metaEqParam;
 
     ADDR2_META_MIP_INFO   m_addrMipOutput[MaxImageMipLevels];
-    bool                  m_metaEquationValid;
-    const int32           m_metaDataWordSizeLog2;
 
 private:
-    void   CalcDataOffsetEquation();
-    void   CalcPipeEquation(uint32  numPipesLog2);
-    uint32 CapPipe() const;
-    void   CalcRbEquation(uint32  numSesLog2, uint32  numRbsPerSeLog2);
-    void   MergePipeAndRbEq();
-    uint32 RemoveSmallRbBits();
+    void   CalcDataOffsetEquation(const Image& image);
+    void   CalcPipeEquation(
+        const Image&  image,
+        uint32        numPipesLog2);
+    uint32 CapPipe(const Image&  image) const;
+    void   CalcRbEquation(
+        const Pal::Device*  pDevice,
+        uint32              numSesLog2,
+        uint32              numRbsPerSeLog2);
+    void   MergePipeAndRbEq(const Pal::Device*  pDevice);
+    uint32 RemoveSmallRbBits(const Pal::Device*  pDevice);
 
     uint32 GetRbAppendedBit(uint32  bitPos) const;
-    void   SetRbAppendedBit(uint32  bitPos, uint32  bitVal);
+    void   SetRbAppendedBit(const Pal::Device*  pDevice, uint32  bitPos, uint32  bitVal);
 
     virtual void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const = 0;
     virtual void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const = 0;
 
-    MetaDataAddrEquation  m_dataOffset;
-    MetaDataAddrEquation  m_rb;
-    MetaEquationParam     m_metaEqParam;
-
+    const int32      m_metaDataWordSizeLog2;
     const uint32     m_firstUploadBit;
     uint32           m_effectiveSamples;
     MetaEqGpuAccess  m_eqGpuAccess;
@@ -196,15 +189,14 @@ private:
 class Gfx9Htile : public Gfx9MaskRam
 {
 public:
-    Gfx9Htile(const Image&  image, HtileUsageFlags  htileUsage);
+    Gfx9Htile();
     // Destructor has nothing to do.
     virtual ~Gfx9Htile() {}
 
-    static HtileUsageFlags UseHtileForImage(const Pal::Device& device, const Image& image);
+    static bool UseHtileForImage(const Pal::Device& device, const Image& image);
 
     uint32 GetClearValue(
-        const Device*  pDevice,
-        float          depthValue) const;
+        float    depthValue) const;
 
     uint32 GetAspectMask(
         uint32   aspectFlags) const;
@@ -213,13 +205,17 @@ public:
         uint32*            pHtileValue,
         uint32*            pHtileMask) const;
 
-    uint32 GetInitialValue(const Device& device) const;
+    uint32 GetInitialValue() const;
 
-    virtual uint32  GetPipeBankXor(ImageAspect   aspect) const override;
+    virtual uint32  GetPipeBankXor(
+        const Image&  image,
+        ImageAspect   aspect) const override;
 
     Result Init(
-        gpusize*  pGpuOffset,
-        bool      hasEqGpuAccess);
+        const Pal::Device& device,
+        const Image&       image,
+        gpusize*           pGpuOffset,
+        bool               hasEqGpuAccess);
 
     bool DepthCompressed() const { return m_flags.compressZ; }
     bool StencilCompressed() const { return m_flags.compressS; }
@@ -228,15 +224,17 @@ public:
     const regDB_HTILE_SURFACE& DbHtileSurface(uint32  mipLevel) const { return m_dbHtileSurface[mipLevel]; }
     const regDB_PRELOAD_CONTROL& DbPreloadControl(uint32  mipLevel) const { return m_dbPreloadControl[mipLevel]; }
     const ADDR2_COMPUTE_HTILE_INFO_OUTPUT&  GetAddrOutput() const { return m_addrOutput; }
-    HtileUsageFlags  GetHtileUsage() const { return m_hTileUsage; }
 
 protected:
-    virtual uint32  GetNumSamplesLog2() const override;
+    virtual uint32  GetNumSamplesLog2(const Image&  image) const override;
 
 private:
-    Result ComputeHtileInfo(const SubResourceInfo* pSubResInfo);
+    Result ComputeHtileInfo(
+        const Pal::Device&     device,
+        const Image&           image,
+        const SubResourceInfo* pSubResInfo);
 
-    void SetupHtilePreload(uint32 mipLevel);
+    void SetupHtilePreload(const Image& image, uint32 mipLevel);
 
     virtual void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
     virtual void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
@@ -256,7 +254,6 @@ private:
 
     ADDR2_COMPUTE_HTILE_INFO_OUTPUT  m_addrOutput;
     Gfx9HtileFlags                   m_flags;                                // HTile properties flags
-    HtileUsageFlags                  m_hTileUsage;
     regDB_HTILE_SURFACE              m_dbHtileSurface[MaxImageMipLevels];    // DB_HTILE_SURFACE register value
     regDB_PRELOAD_CONTROL            m_dbPreloadControl[MaxImageMipLevels];  // DB_PRELOAD_CONTROL register value
 
@@ -331,11 +328,11 @@ struct MipDccStateMetaData
 class Gfx9Dcc : public Gfx9MaskRam
 {
 public:
-    Gfx9Dcc(const Image&  image);
+    Gfx9Dcc();
     // Destructor has nothing to do.
     virtual ~Gfx9Dcc() {}
 
-    Result Init(gpusize*  pSize, bool  hasEqGpuAccess);
+    Result Init(const Image&   image, gpusize*  pSize, bool  hasEqGpuAccess);
     static bool UseDccForImage(const Image& image, bool metaDataTexFetchSupported);
 
     // Returns the value of the DCC control register for this DCC surface
@@ -352,23 +349,27 @@ public:
     // Initial value for a DCC allocation.
     static constexpr uint8 InitialValue = 0xFF;
 
-    uint32  GetNumEffectiveSamples(DccClearPurpose  clearPurpose) const;
+    uint32  GetNumEffectiveSamples(
+        const Device*    pGfxDevice,
+        DccClearPurpose  clearPurpose) const;
 
     virtual void GetXyzInc(
-        uint32*  pXinc,
-        uint32*  pYinc,
-        uint32*  pZinc) const override;
+        const Image&  image,
+        uint32*       pXinc,
+        uint32*       pYinc,
+        uint32*       pZinc) const override;
 
 protected:
-    virtual uint32  GetNumSamplesLog2() const override;
+    virtual uint32  GetNumSamplesLog2(const Image&  image) const override;
 
 private:
     ADDR2_COMPUTE_DCCINFO_OUTPUT  m_addrOutput;
     regCB_COLOR0_DCC_CONTROL      m_dccControl;
 
-    Result ComputeDccInfo();
-    void   SetControlReg();
-    uint32 GetMinCompressedBlockSize() const;
+    uint32 ComputeMetaDataBlocks(const Image&  image, uint32  mipLevel) const;
+    Result ComputeDccInfo(const Image& image);
+    void   SetControlReg(const Image&  image);
+    static uint32 GetMinCompressedBlockSize(const Image&  image);
 
     // The surface associated with a DCC surface is guaranteed to be a color image
     virtual bool  IsColor() const override { return true; }
@@ -384,30 +385,33 @@ private:
 class Gfx9Cmask : public Gfx9MaskRam
 {
 public:
-    Gfx9Cmask(const Image&  image);
+    Gfx9Cmask();
     // Destructor has nothing to do.
     virtual ~Gfx9Cmask() {}
 
     Result Init(
-        gpusize*  pGpuOffset,
-        bool      hasEqGpuAccess);
+        const Image&   image,
+        gpusize*       pGpuOffset,
+        bool           hasEqGpuAccess);
     static bool UseCmaskForImage(
         const Pal::Device& device,
         const Image&       image);
     const ADDR2_COMPUTE_CMASK_INFO_OUTPUT&  GetAddrOutput() const { return m_addrOutput; }
-    virtual uint32  GetPipeBankXor(ImageAspect   aspect) const override;
+    virtual uint32  GetPipeBankXor(
+        const Image&  image,
+        ImageAspect   aspect) const override;
 
     // Initial value for a cMask allocation (MSAA associated cMask only)
     static constexpr uint8 InitialValue = 0xCC;
 
 protected:
-    virtual uint32  GetBytesPerPixelLog2() const override;
+    virtual uint32  GetBytesPerPixelLog2(const Image&  image) const override;
 
     // FMASK always treated as 1xAA for Cmask addressing
-    virtual uint32  GetNumSamplesLog2() const override { return 0; }
+    virtual uint32  GetNumSamplesLog2(const Image&  image) const override { return 0; }
 
     // Returns the swizzle mode of the associated fmask surface
-    AddrSwizzleMode GetSwizzleMode() const override;
+    AddrSwizzleMode GetSwizzleMode(const Image& image) const override;
 
 private:
     ADDR2_COMPUTE_CMASK_INFO_OUTPUT  m_addrOutput;
@@ -415,7 +419,7 @@ private:
     void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
     void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
 
-    Result ComputeCmaskInfo();
+    Result ComputeCmaskInfo(const Image&  image);
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9Cmask);
 };
@@ -426,11 +430,13 @@ private:
 class Gfx9Fmask : public MaskRam
 {
 public:
-    Gfx9Fmask(const Image&  image);
+    Gfx9Fmask();
     // Destructor has nothing to do.
     virtual ~Gfx9Fmask() {}
 
-    Result Init(gpusize*  pGpuOffset);
+    Result Init(
+        const Image&   image,
+        gpusize*       pGpuOffset);
     regSQ_IMG_RSRC_WORD1 Gfx9FmaskFormat(uint32  samples, uint32  fragments, bool isUav) const;
     const ADDR2_COMPUTE_FMASK_INFO_OUTPUT&  GetAddrOutput() const { return m_addrOutput; }
     AddrSwizzleMode GetSwizzleMode() const { return m_surfSettings.swizzleMode; }
@@ -445,9 +451,8 @@ private:
     ADDR2_COMPUTE_FMASK_INFO_OUTPUT          m_addrOutput;
     ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT  m_surfSettings;
     uint32                                   m_pipeBankXor;
-    const Image&                             m_image;
 
-    Result ComputeFmaskInfo();
+    Result ComputeFmaskInfo(const Image&  image);
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9Fmask);
 };

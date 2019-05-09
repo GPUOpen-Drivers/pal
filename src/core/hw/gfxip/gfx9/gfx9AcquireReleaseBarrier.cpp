@@ -23,7 +23,6 @@
  *
  **********************************************************************************************************************/
 
-#include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"

@@ -449,25 +449,6 @@ void PipelineAbiProcessor<Allocator>::GetDisassembly(
 
 // =====================================================================================================================
 template <typename Allocator>
-void PipelineAbiProcessor<Allocator>::GetAmdIl(
-    const void** ppData,
-    size_t*      pDataSize
-    ) const
-{
-    if (m_pAmdIlSection != nullptr)
-    {
-        *ppData    = m_pAmdIlSection->GetData();
-        *pDataSize = m_pAmdIlSection->GetDataSize();
-    }
-    else
-    {
-        *ppData    = nullptr;
-        *pDataSize = 0;
-    }
-}
-
-// =====================================================================================================================
-template <typename Allocator>
 Result PipelineAbiProcessor<Allocator>::AddPipelineSymbolEntry(
     PipelineSymbolEntry entry)
 {

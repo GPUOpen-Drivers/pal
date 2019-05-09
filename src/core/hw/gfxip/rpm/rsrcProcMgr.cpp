@@ -1978,16 +1978,11 @@ void RsrcProcMgr::CmdScaledCopyImage(
                                Formats::IsBlockCompressed(dstInfo.swizzledFormat.format));
     const bool isYuv        = (Formats::IsYuv(srcInfo.swizzledFormat.format) ||
                                Formats::IsYuv(dstInfo.swizzledFormat.format));
+    const bool isSrgb       = Formats::IsSrgb(dstInfo.swizzledFormat.format);
     const bool p2pBltWa     = m_pDevice->Parent()->ChipProperties().p2pBltWaInfo.required &&
                               pDstImage->GetBoundGpuMemory().Memory()->AccessesPeerMemory();
 
     SwizzledFormat dstFormat = pDstImage->SubresourceInfo(copyInfo.pRegions[0].dstSubres)->format;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
-    if (Formats::IsUndefined(copyInfo.pRegions[0].swizzledFormat.format) == false)
-    {
-        dstFormat = copyInfo.pRegions[0].swizzledFormat;
-    }
-#endif
     const bool enableGammaConversion =
         (Formats::IsSrgb(dstFormat.format) && (flags.srcSrgbAsUnorm == 0)) ? 1 : 0;
 
@@ -2126,10 +2121,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         // Convert uint color key to float representation
         SwizzledFormat format = srcColorKey ? srcCreateInfo.swizzledFormat : dstCreateInfo.swizzledFormat;
         RpmUtil::ConvertClearColorToNativeFormat(format, format, colorKey);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
-        // Only GenerateMips uses swizzledFormat in regions, color key is not available in this case.
-        PAL_ASSERT(Formats::IsUndefined(copyInfo.pRegions[0].swizzledFormat.format));
-#endif
+
         // Set constant to respect or ignore alpha channel color diff
         constexpr uint32 FloatOne = 0x3f800000;
         alphaDiffMul = Formats::HasUnusedAlpha(format) ? 0 : FloatOne;
@@ -2185,10 +2177,8 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             const Extent3d& srcExtent = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->extentTexels;
             const float srcLeft       = (1.f * copyRegion.srcOffset.x) / srcExtent.width;
             const float srcTop        = (1.f * copyRegion.srcOffset.y) / srcExtent.height;
-            const float srcRight      = (1.f * (copyRegion.srcOffset.x + copyRegion.srcExtent.width)) /
-                                        srcExtent.width;
-            const float srcBottom     = (1.f * (copyRegion.srcOffset.y + copyRegion.srcExtent.height)) /
-                                        srcExtent.height;
+            const float srcRight      = (1.f * (copyRegion.srcOffset.x + copyRegion.srcExtent.width)) / srcExtent.width;
+            const float srcBottom     = (1.f * (copyRegion.srcOffset.y + copyRegion.srcExtent.height)) / srcExtent.height;
 
             PAL_ASSERT((srcLeft   >= 0.0f)   && (srcLeft   <= 1.0f) &&
                        (srcTop    >= 0.0f)   && (srcTop    <= 1.0f) &&
@@ -2236,13 +2226,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         // Determine which image formats to use for the copy.
         SwizzledFormat srcFormat = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->format;
         SwizzledFormat dstFormat = pDstImage->SubresourceInfo(copyRegion.dstSubres)->format;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
-        if (Formats::IsUndefined(copyRegion.swizzledFormat.format) == false)
-        {
-            srcFormat = copyRegion.swizzledFormat;
-            dstFormat = copyRegion.swizzledFormat;
-        }
-#endif
 
         const uint32 zfilter   = copyInfo.filter.zFilter;
         const uint32 magfilter = copyInfo.filter.magnification;
@@ -2559,10 +2542,6 @@ void RsrcProcMgr::ScaledCopyImageCompute(
         // Convert uint color key to float representation
         SwizzledFormat format = srcColorKey ? srcInfo.swizzledFormat : dstInfo.swizzledFormat;
         RpmUtil::ConvertClearColorToNativeFormat(format, format, colorKey);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
-        // Only GenerateMips uses swizzledFormat in regions, color key is not available in this case.
-        PAL_ASSERT(Formats::IsUndefined(copyInfo.pRegions[0].swizzledFormat.format));
-#endif
 
         // Set constant to respect or ignore alpha channel color diff
         constexpr uint32 FloatOne = 0x3f800000;
@@ -2635,13 +2614,6 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
             SwizzledFormat dstFormat = pDstImage->SubresourceInfo(copyRegion.dstSubres)->format;
             SwizzledFormat srcFormat = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->format;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
-            if (Formats::IsUndefined(copyRegion.swizzledFormat.format) == false)
-            {
-                srcFormat = copyRegion.swizzledFormat;
-                dstFormat = copyRegion.swizzledFormat;
-            }
-#endif
 
             const uint32 zfilter   = copyInfo.filter.zFilter;
             const uint32 magfilter = copyInfo.filter.magnification;
@@ -4899,9 +4871,7 @@ void RsrcProcMgr::ResolveImageGraphics(
 
             bindTargetsInfo.depthTarget.depthLayout = dstImageLayout;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
-                                          GetGfxPipeline(ResolveDepth),
-                                          InternalApiPsoHash, });
+            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveDepth), InternalApiPsoHash, });
 #else
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveDepth), });
 #endif
@@ -5044,10 +5014,7 @@ void RsrcProcMgr::ResolveImageCompute(
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
         // Select a Resolve shader based on the source Image's sample-count and resolve method.
-        const ComputePipeline*const pPipeline = GetCsResolvePipeline(srcImage,
-                                                                     pRegions[idx].srcAspect,
-                                                                     resolveMode,
-                                                                     method);
+        const ComputePipeline*const pPipeline = GetCsResolvePipeline(srcImage, pRegions[idx].srcAspect, resolveMode, method);
 
         uint32 threadsPerGroup[3] = {};
         pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);

@@ -50,61 +50,58 @@ namespace GpuUtil
 * @class GpuEventPool
 * @brief Helper class providing a pool to efficiently manage IGPuEvent objects.
 *
-* A GpuEventPool is a container for a set of GPU event objects. Its main purpose is to provide client with a utility to
-* efficiently manage PAL's GPU events.
+* A GpuEventPool is a container for a set of GpuEvent objects. Its main purpose is to provide client with a utility to
+* efficiently manage PAL's GpuEvents.
 *
 * @warning GpuEventPool is not thread safe.  Acquire event or recycle event from different threads should use
 *          different pool objects.
 ***********************************************************************************************************************
 */
-template <typename PlatformAllocator, typename GpuEventAllocator>
 class GpuEventPool
 {
-    typedef Util::Deque<Pal::IGpuEvent*, PlatformAllocator> GpuEventDeque;
+    typedef Util::Deque<Pal::IGpuEvent*, Pal::IPlatform> GpuEventDeque;
 
 public:
     /// Constructor.
     ///
-    /// @param [in] pDevice             The device this pool is based on.
-    /// @param [in] pPlatformAllocator  The allocator that allocates class owned list objects.
-    /// @param [in] pAllocator          The allocator that allocates GPU event objects.
+    /// @param [in] pPlatform  The allocator that will allocate memory if required.
+    /// @param [in] pDevice    The device this pool is based on.
     GpuEventPool(
-        Pal::IDevice*      pDevice,
-        PlatformAllocator* pPlatformAllocator,
-        GpuEventAllocator* pAllocator);
+        Pal::IPlatform* pPlatform,
+        Pal::IDevice*   pDevice);
 
     /// Destructor.
     ///
-    /// Cleans up all allocated GPU event objects in this pool.
+    /// Cleans up all allocated GpuEvent objects in this pool.
     ~GpuEventPool();
 
-    /// Reset the pool by releasing all GPU events (both the backing system memory and video memory) back to allocator.
-    /// This should only be called after all work referring to those events have finished on GPU.
-    Pal::Result Reset();
-
-    /// Provide an available GPU event from free event list, or allocate a new one if the list is empty.
-    /// A newly created GPU event gets a new allocated GPU memory, the backing video mem is GPU-access only scratch
-    /// memory from the invisible heap.
+    /// Initialize the newly constructed pool by pre-allocating client-specified number of GpuEvent objects.
     ///
-    /// @param [in]  pCmdBuffer  Provides an allocator and a way to allocate video memory for GPU event.
-    /// @param [out] ppEvent     The provided available event.
-    Pal::Result GetFreeEvent(Pal::ICmdBuffer* pCmdBuffer, Pal::IGpuEvent**const ppEvent);
+    /// @param [in] pCmdBuffer       The PAL command buffer that this event pool will operate on.
+    /// @param [in] defaultCapacity  The default number of gpu events pre-allocated in the pool for efficiency.
+    Pal::Result Init(Pal::ICmdBuffer* pCmdBuffer, Pal::uint32 defaultCapacity);
 
-    /// Return a GPU event back to free event list. The returned GPU event is regarded freed and can be reused at any
-    /// time without the need to re-allocating video memory or initilization. The event value is not guaranteed so
-    /// client needs to reset the value before use. Need to reset from GPU because the video memory is GPU-access only.
-    Pal::Result ReturnEvent(Pal::IGpuEvent* pEvent);
+    /// Reset the pool by reseting and moving all allocated GpuEvent objects back to available list.
+    /// This should only be called after all work referring to those events have finished
+    /// @param [in] pCmdBuffer       The PAL command buffer that this event pool will operate on.
+    Pal::Result Reset(Pal::ICmdBuffer* pCmdBuffer);
+
+    /// Provide an available GpuEvent from available list, or allocate a new one if available list is empty.
+    /// The GPU event always binds a new GPU memory. The backing memory is scratch memory on invisible heap.
+    ///
+    /// @param [out] ppEvent  The provided available event.
+    Pal::Result GetFreeEvent(Pal::IGpuEvent**const ppEvent);
 
 private:
-    // Create a new GPU event object and allocate video memory for it. A GPU-access only scratch memory from the
-    // invisible heap is allocated.
-    Pal::Result CreateNewEvent(Pal::ICmdBuffer* pCmdBuffer, Pal::IGpuEvent**const ppEvent);
+    // Create a new GpuEvent object without binding GPU memory.
+    Pal::Result CreateNewEvent(Pal::IGpuEvent**const ppEvent);
 
-    Pal::IDevice*const      m_pDevice;
-    GpuEventAllocator*const m_pAllocator; // System memory allocator that allocates GPU event objects
+    Pal::IPlatform*const m_pPlatform;
+    Pal::IDevice*const   m_pDevice;
+    Pal::ICmdBuffer*     m_pCmdBuffer;
 
-    GpuEventDeque m_freeEventList;
-    GpuEventDeque m_globalEventList;
+    GpuEventDeque m_availableEvents;
+    GpuEventDeque m_busyEvents;
 
     PAL_DISALLOW_DEFAULT_CTOR(GpuEventPool);
     PAL_DISALLOW_COPY_AND_ASSIGN(GpuEventPool);

@@ -1331,10 +1331,29 @@ Result ElfProcessor<Allocator>::LoadFromBuffer(
                 pSection->SetType(static_cast<SectionHeaderType>(pSectionHdrReader->sh_type));
                 pSection->SetFlags(pSectionHdrReader->sh_flags);
                 pSection->SetAddr(pSectionHdrReader->sh_addr);
+
+                if (pSectionHdrReader->sh_link != 0)
+                {
+                    PAL_ASSERT(pSectionHdrReader->sh_link < m_sections.NumSections());
+                    pSection->SetLink(m_sections.Get(pSectionHdrReader->sh_link));
+                }
+
+                switch (static_cast<SectionHeaderType>(pSectionHdrReader->sh_type))
+                {
+                    case SectionHeaderType::Rel:
+                    case SectionHeaderType::Rela:
+                        // Only relocation sections have the index of another section in the info field.
+                        PAL_ASSERT(pSectionHdrReader->sh_info < m_sections.NumSections());
+                        pSection->SetInfo(m_sections.Get(pSectionHdrReader->sh_info));
+                        break;
+                    default:
+                        break;
+                }
+
                 pSection->SetAlignment(pSectionHdrReader->sh_addralign);
                 pSection->SetEntrySize(pSectionHdrReader->sh_entsize);
-                pSection->SetOffset(static_cast<size_t>(pSectionHdrReader->sh_offset));
 
+                pSection->SetOffset(static_cast<size_t>(pSectionHdrReader->sh_offset));
                 const void* pData = VoidPtrInc(pBufferStart, static_cast<size_t>(pSectionHdrReader->sh_offset));
                 if ((pSectionHdrReader->sh_size != 0) &&
                     (pSection->SetData(pData, static_cast<size_t>(pSectionHdrReader->sh_size)) == nullptr))
@@ -1346,39 +1365,6 @@ Result ElfProcessor<Allocator>::LoadFromBuffer(
                 pSectionHdrReader++;
             }  // For each section header.
         }
-    }
-
-    if ((result == Result::Success) && (m_fileHeader.e_shnum > 0))
-    {
-        const SectionHeader* pSectionHdrReader =
-            static_cast<const SectionHeader*>(VoidPtrInc(pBufferStart, static_cast<size_t>(m_fileHeader.e_shoff)));
-        // We start at index 1
-        pSectionHdrReader++;
-
-        // All sections are available, process sh_link and sh_info now
-        for (uint32 i = 1; i < m_fileHeader.e_shnum; i++)
-        {
-            Section<Allocator>* pSection = m_sections.Get(i);
-
-            if (pSectionHdrReader->sh_link != 0)
-            {
-                PAL_ASSERT(pSectionHdrReader->sh_link < m_sections.NumSections());
-                pSection->SetLink(m_sections.Get(pSectionHdrReader->sh_link));
-            }
-
-            switch (static_cast<SectionHeaderType>(pSectionHdrReader->sh_type))
-            {
-                case SectionHeaderType::Rel:
-                case SectionHeaderType::Rela:
-                    // Only relocation sections have the index of another section in the info field.
-                    PAL_ASSERT(pSectionHdrReader->sh_info < m_sections.NumSections());
-                    pSection->SetInfo(m_sections.Get(pSectionHdrReader->sh_info));
-                    break;
-                default:
-                    break;
-            }
-            pSectionHdrReader++;
-        }  // For each section header.
     }
 
     if ((result == Result::Success) && (m_fileHeader.e_phnum > 0))

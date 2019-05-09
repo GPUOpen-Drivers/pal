@@ -465,18 +465,18 @@ static bool ComputeResultsForOneSlot(
         }
 
         memcpy(pOutputBuffer, results, numStatsEnabled * sizeof(ResultUint));
-    }
 
-    // The caller also wants us to output whether or not the final query results were available. If we're
-    // accumulating data we must AND our data the present data so the caller knows if all queries were available.
-    if (TestAnyFlagSet(resultFlags, QueryResultAvailability))
-    {
-        if (TestAnyFlagSet(resultFlags, QueryResultAccumulate))
+        // The caller also wants us to output whether or not the final query results were available. If we're
+        // accumulating data we must AND our data the present data so the caller knows if all queries were available.
+        if (TestAnyFlagSet(resultFlags, QueryResultAvailability))
         {
-            queryReady = queryReady && (pOutputBuffer[numStatsEnabled] != 0);
-        }
+            if (TestAnyFlagSet(resultFlags, QueryResultAccumulate))
+            {
+                queryReady = queryReady && (pOutputBuffer[numStatsEnabled] != 0);
+            }
 
-        pOutputBuffer[numStatsEnabled] = queryReady;
+            pOutputBuffer[numStatsEnabled] = queryReady;
+        }
     }
 
     return queryReady;

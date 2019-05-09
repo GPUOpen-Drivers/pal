@@ -309,8 +309,7 @@ typedef union _ADDR_CREATE_FLAGS
         UINT_32 checkLast2DLevel       : 1;    ///< Check the last 2D mip sub level
         UINT_32 useHtileSliceAlign     : 1;    ///< Do htile single slice alignment
         UINT_32 allowLargeThickTile    : 1;    ///< Allow 64*thickness*bytesPerPixel > rowSize
-        UINT_32 forceDccAndTcCompat    : 1;    ///< Force enable DCC and TC compatibility
-        UINT_32 reserved               : 24;   ///< Reserved bits for future use
+        UINT_32 reserved               : 25;   ///< Reserved bits for future use
     };
 
     UINT_32 value;

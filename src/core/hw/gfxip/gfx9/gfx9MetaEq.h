@@ -109,7 +109,7 @@ static const uint8  MinMetaEqCompPos = 0xFF;
 class MetaDataAddrEquation
 {
 public:
-    MetaDataAddrEquation(const Device*  pDevice, uint32  maxEquationBits, const char*  pName = nullptr);
+    MetaDataAddrEquation(uint32  maxEquationBits, const char*  pName = nullptr);
     virtual ~MetaDataAddrEquation() {}
 
     // This is the maximum number of bits that any given equation can produce
@@ -140,7 +140,6 @@ public:
     bool FindSmallComponent(
         uint32     bitPos,
         CompPair*  pCompPair) const;
-    CompPair  GetFirst(uint32 bitPos) const { return m_firstPair[bitPos]; }
     CompPair Get(
         uint32  bitPos) const;
     uint32 Get(
@@ -170,7 +169,6 @@ public:
         uint32     end = 0);
     void PrintEquation(const Pal::Device*  pDevice) const;
     bool Remove(const CompPair&  compPair);
-    bool Remove(const CompPair&  compPair, uint32 bitPos);
     void GenerateMetaEqParamConst(
         const Image&       image,
         uint32             maxCompFrag,
@@ -184,10 +182,6 @@ public:
         uint32                     bitPos,
         MetaDataAddrComponentType  compType,
         uint32                     compPos);
-    void SetBit(
-        uint32           bitPos,
-        const CompPair&  compPair)
-        { SetBit(bitPos, compPair.compType, compPair.compPos); }
     static CompPair SetCompPair(
         MetaDataAddrComponentType  compType,
         uint32                     compPos);
@@ -221,7 +215,6 @@ public:
         MetaDataAddrCompareTypes  compareType);
 
 private:
-    void ClearBitPos(uint32  bitPos);
     void FilterOneCompType(
         MetaDataAddrCompareTypes   compareFunc,
         const CompPair&            compPair,
@@ -236,11 +229,7 @@ private:
     char    m_equationName[MaxEquationNameLength]; // The name given to this equation, used only for printing
 #endif
 
-    const Device*  m_pGfxDevice;
-    uint32         m_maxBits;                 // The maximum number of bits this equation could have
-
-    // Tracks the first CompPair added through "SetBits" for each bit of the equation
-    CompPair            m_firstPair[MaxNumMetaDataAddrBits];
+    uint32  m_maxBits;                             // The maximum number of bits this equation could have
 
     // One of the meta-data address equations.
     //    equation[0][MetaDataAddrCompX] = 0x5 would mean that the "X" component of bit 0 of this equation is

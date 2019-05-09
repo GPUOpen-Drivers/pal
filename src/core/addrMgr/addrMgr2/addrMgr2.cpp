@@ -569,7 +569,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
     const ImageCreateInfo& createInfo = pImage->GetImageCreateInfo();
     const ImageInfo&       imageInfo  = pImage->GetImageInfo();
-    const PalSettings&     settings   = m_pDevice->Settings();
+    const PalSettings&     settings   = GetDevice()->Settings();
     const ImageAspect aspect = (forFmask ? ImageAspect::Fmask : pBaseSubRes->subresId.aspect);
 
     ADDR2_GET_PREFERRED_SURF_SETTING_INPUT surfSettingInput = { };

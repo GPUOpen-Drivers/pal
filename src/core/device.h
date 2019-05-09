@@ -698,9 +698,9 @@ struct GpuChipProperties
                 uint32 supportDonutTessDistribution             :  1; // HW supports donut distribution mode.
                 uint32 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
                 uint32 supportRgpTraces                         :  1; // HW supports RGP traces.
-                uint32 placeholder0                             :  1; // Placeholder. Do not use.
-                uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
-                uint32 reserved                                 : 13;
+
+                uint32 reserved                                 : 15;
+
             };
 
             Gfx6PerfCounterInfo perfCounterInfo; // Contains information for perf counters for a specific hardware block
@@ -777,9 +777,8 @@ struct GpuChipProperties
                 uint32 placeholder1                             :  5; // Placeholder. Do not use.
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
-                uint32 supportReleaseAcquireInterface           :  1; // True when ASIC supports the new barrier
-                                                                      // interface designed for Acquire/Released-based
-                                                                      // barrier.
+                uint32 supportReleaseAcquireInterface           :  1; // If true, ASIC supports the new barrier interface
+                                                                      // designed for Acquire/Released-based barrier.
                 uint32 supportSplitReleaseAcquire               :  1; // If true, ASIC supports split a barrier to
                                                                       // CmdRelease() and CmdAcquire()
                                                                       // instead of CmdReleaseThenAcquire().
@@ -787,8 +786,7 @@ struct GpuChipProperties
                                                                       //       prerequisite.
                 uint32 eccProtectedGprs                         :  1; // Are VGPR's ECC-protected?
                 uint32 overrideDefaultSpiConfigCntl             :  1; // KMD provides default value for SPI_CONFIG_CNTL.
-                uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
-                uint32 reserved                                 :  3;
+                uint32 reserved                                 :  4;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block

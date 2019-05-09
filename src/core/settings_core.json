@@ -425,6 +425,37 @@
       "Description": "Determines if the developer mode overlay will report information about HDR mode."
     },
     {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "OptNone",
+            "Value": 0,
+            "Description": "Disable all pipeline optimization"
+          },
+          {
+            "Name": "OptTrimUnusedOutputs",
+            "Value": 1,
+            "Description": "Trim unused shader outputs (which allows dead-code removal to trim unused Shader inputs as well, and bubble-up to all pipeline stages)"
+          }
+        ],
+        "Name": "PipelineOptFlags",
+        "Description": "Whole pipeline optimization modes"
+      },
+      "Name": "WholePipelineOptimizations",
+      "Tags": [
+        "Performance"
+      ],
+      "HashName": 2263765076,
+      "Defaults": {
+        "Default": "OptTrimUnusedOutputs"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "enum",
+      "VariableName": "wholePipelineOptimizations",
+      "Description": "Selects which methods of whole-pipeline optimizations are enabled. 0x1 - Trim unused Shader outputs (which allows dead-code removal to trimunused Shader inputs as well, and bubble-up to all pipeline stages).  By default, only the removal of unused shader outputs is performed."
+    },
+    {
       "Name": "ForceHeapPerfToFixedValues",
       "Tags": [
         "Performance",
@@ -669,20 +700,6 @@
       "Type": "uint32",
       "VariableName": "fenceTimeoutOverrideInSec",
       "Description": "Timeout value to override app-specified value for fence timeouts.  This setting is meaningless if the app specified zero seconds.  A value of zero here means to use the app-specified timeout value.  Useful on HW simulation where working cases can result in false timeouts.  Value specified in seconds"
-    },
-    {
-      "Name": "Force64kPageGranularity",
-      "Tags": [
-        "Performance"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "HashName": 1833432496,
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "force64kPageGranularity",
-      "Description": "If set, force all gpu allocations to be aligned/sized in 64k increments. Should improve performance, but will waste a lot of memory in alignment and padding."
     },
     {
       "Name": "UpdateOneGpuVirtualAddress",
