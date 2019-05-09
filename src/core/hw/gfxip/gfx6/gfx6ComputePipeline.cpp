@@ -171,10 +171,9 @@ void ComputePipeline::SetupSignatureFromElf(
 // Initializes HW-specific state related to this compute pipeline (register values, user-data mapping, etc.) using the
 // specified Pipeline ABI processor.
 Result ComputePipeline::HwlInit(
+    const ComputePipelineCreateInfo& createInfo,
     const AbiProcessor&              abiProcessor,
     const CodeObjectMetadata&        metadata,
-    ComputePipelineIndirectFuncInfo* pIndirectFuncList,
-    uint32                           indirectFuncCount,
     MsgPackReader*                   pMetadataReader)
 {
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
@@ -187,7 +186,16 @@ Result ComputePipeline::HwlInit(
     if (result == Result::Success)
     {
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
-        result = PerformRelocationsAndUploadToGpuMemory(abiProcessor, metadata, &uploader);
+        result = PerformRelocationsAndUploadToGpuMemory(
+            abiProcessor,
+            metadata,
+            &uploader,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
+            createInfo.flags.preferNonLocalHeap
+#else
+            false
+#endif
+        );
     }
 
     if (result == Result::Success)
@@ -296,7 +304,7 @@ Result ComputePipeline::HwlInit(
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
         SetupSignatureFromElf(metadata, registers);
 
-        GetFunctionGpuVirtAddrs(abiProcessor, uploader, pIndirectFuncList, indirectFuncCount);
+        GetFunctionGpuVirtAddrs(abiProcessor, uploader, createInfo.pIndirectFuncList, createInfo.indirectFuncCount);
     }
 
     return result;

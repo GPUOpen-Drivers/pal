@@ -57,8 +57,10 @@ constexpr uint32 MaxMsaaFragments = 8;
 /// Sampling pattern grid size. This is a quad of pixels, i.e. 2x2 grid of pixels.
 constexpr Extent2d MaxGridSize = { 2, 2 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 493
 /// 1xMSAA grid size in which sample locations can vary, i.e. all 4 pixels in quad must have the same sample location.
 constexpr Extent2d Max1xMsaaGridSize = { 1, 1 };
+#endif
 
 /// The positions are rounded to 1/Pow2(SubPixelBits)
 constexpr uint32 SubPixelBits = 4;

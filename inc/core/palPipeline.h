@@ -179,8 +179,13 @@ union PipelineCreateFlags
 {
     struct
     {
-        uint32 clientInternal :  1; ///< Internal pipeline not created by the application.
-        uint32 reserved       : 31; ///< Reserved for future use.
+        uint32 clientInternal     : 1;  ///< Internal pipeline not created by the application.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
+        uint32 preferNonLocalHeap : 1;  ///< Use Gart for the PSO memory.
+        uint32 reserved           : 30; ///< Reserved for future use.
+#else
+        uint32 reserved           : 31; ///< Reserved for future use.
+#endif
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };

@@ -2894,7 +2894,7 @@ void CmdBuffer::CmdStopGpuProfilerLogging()
     GetNextLayer()->CmdStopGpuProfilerLogging();
 }
 
-// =====================================================================================================================
+// ============================
 void CmdBuffer::CmdUpdateMemory(
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset,

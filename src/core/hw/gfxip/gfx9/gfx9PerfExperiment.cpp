@@ -278,7 +278,7 @@ Result PerfExperiment::AllocateGenericStructs(
         }
 
         // Check that we haven't allocated the per-module array already.
-        if (m_select.pGeneric[blockIdx][globalInstance].pModules == nullptr)
+        if ((result == Result::Success) && (m_select.pGeneric[blockIdx][globalInstance].pModules == nullptr))
         {
             GenericBlockSelect*const pSelect = &m_select.pGeneric[blockIdx][globalInstance];
 

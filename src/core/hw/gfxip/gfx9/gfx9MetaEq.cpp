@@ -41,18 +41,32 @@ namespace Gfx9
 //=============== Implementation for MetaDataAddrEquation: =============================================================
 // =====================================================================================================================
 MetaDataAddrEquation::MetaDataAddrEquation(
-    uint32      maxEquationBits, // maximum number of bits this equation could possibly have
-    const char* pName)           // a identifier for this equation, only used for debug prints.  Can be NULL
+    const Device*  pDevice,
+    uint32         maxEquationBits, // maximum number of bits this equation could possibly have
+    const char*    pName)           // a identifier for this equation, only used for debug prints.  Can be NULL
     :
+    m_pGfxDevice(pDevice),
     m_maxBits(maxEquationBits)
 {
     PAL_ASSERT (maxEquationBits < MaxNumMetaDataAddrBits);
+
+    memset(&m_firstPair[0], 0, sizeof(m_firstPair));
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     Strncpy(m_equationName, ((pName != nullptr) ? pName : ""), MaxEquationNameLength);
 #endif
 
     Reset();
+}
+
+// =====================================================================================================================
+void MetaDataAddrEquation::ClearBitPos(
+    uint32  bitPos)
+{
+    for (uint32 compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
+    {
+        ClearBits(bitPos, compType, 0);
+    }
 }
 
 // =====================================================================================================================
@@ -458,22 +472,27 @@ void MetaDataAddrEquation::Mort2d(
     uint32     start,
     uint32     end)
 {
+    const Pal::Device&  palDevice = *(m_pGfxDevice->Parent());
+
     if (end == 0)
     {
         end = m_maxBits - 1;
     }
 
-    for (uint32 i = start; i <= end; i++)
+    if (IsGfx9(palDevice))
     {
-        CompPair*  pChosen = pPair0;
-
-        if (((i - start) % 2) != 0)
+        for (uint32 i = start; i <= end; i++)
         {
-            pChosen = pPair1;
-        }
+            CompPair*  pChosen = pPair0;
 
-        SetBit(i, pChosen->compType, pChosen->compPos);
-        pChosen->compPos++;
+            if (((i - start) % 2) != 0)
+            {
+                pChosen = pPair1;
+            }
+
+            SetBit(i, pChosen->compType, pChosen->compPos);
+            pChosen->compPos++;
+        }
     }
 }
 
@@ -509,7 +528,7 @@ void MetaDataAddrEquation::PrintEquation(
     const Gfx9PalSettings&  settings = GetGfx9Settings(*pDevice);
     if (TestAnyFlagSet(settings.printMetaEquationInfo, Gfx9PrintMetaEquationInfoEquations))
     {
-        PAL_DPINFO("%s equation\n", m_equationName);
+        DbgPrintf(DbgPrintCatInfoMsg, DbgPrintStyleNoPrefix, "%s equation", m_equationName);
 
         for (uint32 bit = 0; bit < GetNumValidBits(); bit++)
         {
@@ -542,7 +561,7 @@ void MetaDataAddrEquation::PrintEquation(
                 *pChar = ' ';
             }
 
-            PAL_DPINFO("\teq[%2d] = %s\n", bit, printMe);
+            DbgPrintf(DbgPrintCatInfoMsg, DbgPrintStyleNoPrefix, "\teq[%2d] = %s", bit, printMe);
         }
     }
 #endif // PAL_ENABLE_PRINTS_ASSERTS
@@ -550,18 +569,30 @@ void MetaDataAddrEquation::PrintEquation(
 
 // =====================================================================================================================
 bool MetaDataAddrEquation::Remove(
-    const CompPair&  compPair)
+    const CompPair&  compPair,
+    uint32           bitPos)
 {
     const uint32  mask        = 1 << compPair.compPos;
     bool          dataRemoved = false;
 
+    if (TestAnyFlagSet(Get(bitPos, compPair.compType), mask))
+    {
+        ClearBits(bitPos, compPair.compType, ~mask);
+        dataRemoved = true;
+    }
+
+    return dataRemoved;
+}
+
+// =====================================================================================================================
+bool MetaDataAddrEquation::Remove(
+    const CompPair&  compPair)
+{
+    bool  dataRemoved = false;
+
     for (uint32  bitPos = 0; bitPos < GetNumValidBits(); bitPos++)
     {
-        if (TestAnyFlagSet(Get(bitPos, compPair.compType), mask))
-        {
-            ClearBits(bitPos, compPair.compType, ~mask);
-            dataRemoved = true;
-        }
+        dataRemoved |= Remove(compPair, bitPos);
     }
 
     return dataRemoved;
@@ -621,10 +652,7 @@ void MetaDataAddrEquation::SetEquationSize(
         // If there is anything leftover after the current equation finishes, then remove it
         for (uint32 bitPos = m_maxBits; bitPos < numBits; bitPos++)
         {
-            for (uint32 compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
-            {
-                ClearBits(bitPos, compType, 0);
-            }
+            ClearBitPos(bitPos);
         }
     }
 
@@ -861,6 +889,11 @@ void MetaDataAddrEquation::SetMask(
     uint32  mask)
 {
     ValidateInput(bitPos, compType);
+
+    if (IsEmpty(bitPos) && IsPowerOfTwo(mask))
+    {
+        m_firstPair[bitPos] = MetaDataAddrEquation::SetCompPair(compType, Util::Log2(mask));
+    }
 
     // Set the requested bit(s) in the equation
     m_equation[bitPos][compType] |= mask;

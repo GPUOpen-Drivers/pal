@@ -216,6 +216,8 @@ public:
     // Returns true if this Image has associated HTile data.
     virtual bool HasHtileData() const override { return (m_pHtile == nullptr) ? false : true; }
 
+    virtual bool HasDsMetadata() const { return (GetHtileUsage().dsMetadata != 0); }
+
     // Returns a pointer to the hTile object associated with this image
     const Gfx9Htile* GetHtile() const
         { return (HasHtileData() ? m_pHtile : nullptr); }
@@ -282,7 +284,8 @@ public:
     bool HasDccData() const { return (m_pDcc != nullptr); }
     virtual bool HasFmaskData() const override;
 
-    bool HasHtileLookupTable() const { return (HasHtileData() && (m_metaDataLookupTableOffsets[0] != 0u)); }
+    bool HasHtileLookupTable() const
+        { return (HasHtileData() && (m_metaDataLookupTableOffsets[0] != 0u)); }
 
     // Returns a pointer to the Gfx9Dcc object associated with a particular sub-Resource.
     const  Gfx9Dcc*   GetDcc()   const { return m_pDcc; }
@@ -458,6 +461,10 @@ private:
         SubResourceInfo*       pSubResInfoList,
         void*                  pSubResTileInfoList,
         gpusize*               pGpuMemSize);
+
+    // Returns a bitfield indicating what the possible uses of the hTile surface are.  No bits will
+    // be set if hTile does not exist.
+    HtileUsageFlags GetHtileUsage() const;
 
     void GetMetaEquationConstParam(
          MetaDataClearConst* pParam,

@@ -353,6 +353,10 @@ void FillSqttAsicInfo(
         for (uint32 sa = 0; sa < MaxShaderArraysPerSe; sa++)
         {
             pAsicInfo->cuMask[se][sa] = properties.gfxipProperties.shaderCore.activeCuMask[se][sa];
+
+            // If this triggers we need to update the RGP spec to use at least 32 bits per SA.
+            PAL_ASSERT(Util::TestAnyFlagSet(
+                        properties.gfxipProperties.shaderCore.activeCuMask[se][sa], 0xffff0000) == false);
         }
     }
 }

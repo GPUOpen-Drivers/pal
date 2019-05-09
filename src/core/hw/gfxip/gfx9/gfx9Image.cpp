@@ -344,17 +344,17 @@ Result Image::Finalize(
     const SharedMetadataInfo&   sharedMetadata    = m_pImageInfo->internalCreateInfo.sharedMetadata;
     const bool                  useSharedMetadata = m_pImageInfo->internalCreateInfo.flags.useSharedMetadata;
 
-    bool useDcc   = false;
-    bool useHtile = false;
-    bool useCmask = false;
+    bool            useDcc     = false;
+    HtileUsageFlags htileUsage = {};
+    bool            useCmask   = false;
 
     Result result = Result::Success;
 
     if (useSharedMetadata)
     {
-        useDcc   = (sharedMetadata.dccOffset != 0);
-        useHtile = (sharedMetadata.htileOffset != 0);
-        useCmask = (sharedMetadata.cmaskOffset != 0) && (sharedMetadata.fmaskOffset != 0);
+        useDcc                = (sharedMetadata.dccOffset != 0);
+        htileUsage.dsMetadata = (sharedMetadata.htileOffset != 0);
+        useCmask              = (sharedMetadata.cmaskOffset != 0) && (sharedMetadata.fmaskOffset != 0);
 
         // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
         if (useDcc && (sharedMetadata.fastClearMetaDataOffset == 0))
@@ -363,17 +363,17 @@ Result Image::Finalize(
             result = Result::ErrorNotShareable;
         }
 
-        if (useHtile && (sharedMetadata.fastClearMetaDataOffset == 0))
+        if ((htileUsage.dsMetadata != 0) && (sharedMetadata.fastClearMetaDataOffset == 0))
         {
-            useHtile = false;
-            result = Result::ErrorNotShareable;
+            htileUsage.dsMetadata = 0;
+            result                = Result::ErrorNotShareable;
         }
     }
     else
     {
-        useHtile = Gfx9Htile::UseHtileForImage(m_device, *this);
-        useDcc   = Gfx9Dcc::UseDccForImage(*this, (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0));
-        useCmask = Gfx9Cmask::UseCmaskForImage(m_device, *this);
+        htileUsage = Gfx9Htile::UseHtileForImage(m_device, *this);
+        useDcc     = Gfx9Dcc::UseDccForImage(*this, (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0));
+        useCmask   = Gfx9Cmask::UseCmaskForImage(m_device, *this);
     }
 
     // Also determine if we need any metadata for these mask RAM objects.
@@ -384,20 +384,20 @@ Result Image::Finalize(
     bool needsWaTcCompatZRangeMetaData = false;
 
     // Initialize Htile:
-    if (useHtile)
+    if (htileUsage.value != 0)
     {
-        m_pHtile = PAL_NEW(Gfx9Htile, m_device.GetPlatform(), SystemAllocType::AllocObject);
+        m_pHtile = PAL_NEW(Gfx9Htile, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this, htileUsage);
         if (m_pHtile != nullptr)
         {
             if (useSharedMetadata)
             {
                 gpusize forcedOffset = sharedMetadata.htileOffset;
-                result = m_pHtile->Init(m_device, *this, &forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
+                result = m_pHtile->Init(&forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
                 *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
             }
             else
             {
-                result = m_pHtile->Init(m_device, *this, pGpuMemSize, true);
+                result = m_pHtile->Init(pGpuMemSize, true);
             }
 
             if (result == Result::Success)
@@ -414,7 +414,8 @@ Result Image::Finalize(
                 }
             }
 
-            if (result == Result::Success)
+            // If this hTile surface doesn't support compression, then we can't do fast clears.
+            if ((result == Result::Success) && (htileUsage.dsMetadata == 1))
             {
                 // Depth subresources with hTile memory must be fast-cleared either through the compute or graphics
                 // engine.  Slow clears won't work as the hTile memory wouldn't get updated.
@@ -476,26 +477,26 @@ Result Image::Finalize(
         {
             result = Result::ErrorOutOfMemory;
         }
-    } // End check for (useHtile != false)
+    } // End check for needing hTile data
 
     // Initialize DCC:
     if (useDcc && (result == Result::Success))
     {
         // There is nothing mip-level specific about DCC on Gfx9, so we just have one DCC objct that represents the
         // entire DCC allocation.
-        m_pDcc = PAL_NEW(Gfx9Dcc, m_device.GetPlatform(), SystemAllocType::AllocObject);
+        m_pDcc = PAL_NEW(Gfx9Dcc, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this);
         if (m_pDcc != nullptr)
         {
             if (useSharedMetadata)
             {
                 gpusize forcedOffset = sharedMetadata.dccOffset;
-                result = m_pDcc->Init(*this, &forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
+                result = m_pDcc->Init(&forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
                 *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
             }
             else
             {
 
-                result = m_pDcc->Init(*this, pGpuMemSize, true);
+                result = m_pDcc->Init(pGpuMemSize, true);
             }
 
             if (result == Result::Success)
@@ -564,18 +565,18 @@ Result Image::Finalize(
     if (useCmask && (result == Result::Success))
     {
         // Cmask setup depends on Fmask swizzle mode, so setup Fmask first.
-        m_pFmask = PAL_NEW(Gfx9Fmask, m_device.GetPlatform(), SystemAllocType::AllocObject);
+        m_pFmask = PAL_NEW(Gfx9Fmask, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this);
         if (m_pFmask != nullptr)
         {
             if (useSharedMetadata)
             {
                 gpusize forcedOffset = sharedMetadata.fmaskOffset;
-                result = m_pFmask->Init(*this, &forcedOffset);
+                result = m_pFmask->Init(&forcedOffset);
                 *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
             }
             else
             {
-                result = m_pFmask->Init(*this, pGpuMemSize);
+                result = m_pFmask->Init(pGpuMemSize);
             }
 
             if ((m_createInfo.flags.repetitiveResolve != 0) || (coreSettings.forceFixedFuncColorResolve != 0))
@@ -606,18 +607,18 @@ Result Image::Finalize(
         // On GFX9, Cmask and fmask go together. There's no point to having just one of them.
         if (result == Result::Success)
         {
-            m_pCmask = PAL_NEW(Gfx9Cmask, m_device.GetPlatform(), SystemAllocType::AllocObject);
+            m_pCmask = PAL_NEW(Gfx9Cmask, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this);
             if (m_pCmask != nullptr)
             {
                 if (useSharedMetadata)
                 {
                     gpusize forcedOffset = sharedMetadata.cmaskOffset;
-                    result = m_pCmask->Init(*this, &forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
+                    result = m_pCmask->Init(&forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
                     *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
                 }
                 else
                 {
-                    result = m_pCmask->Init(*this, pGpuMemSize, true);
+                    result = m_pCmask->Init(pGpuMemSize, true);
                 }
 
                 // It's possible for the metadata allocation to require more alignment than the base allocation. Bump
@@ -925,7 +926,7 @@ void Image::InitLayoutStateMasks()
         m_defaultGfxLayout.color = compressedLayout;
 
     }
-    else if (m_pHtile != nullptr)
+    else if (HasDsMetadata())
     {
         PAL_ASSERT(Parent()->IsDepthStencil());
 
@@ -1080,7 +1081,7 @@ uint32 Image::GetMaskRam256BAddr(
     ImageAspect         aspect
     ) const
 {
-    return Get256BAddrSwizzled(GetMaskRamBaseAddr(pMaskRam), pMaskRam->GetPipeBankXor(*this, aspect));
+    return Get256BAddrSwizzled(GetMaskRamBaseAddr(pMaskRam), pMaskRam->GetPipeBankXor(aspect));
 }
 
 // =====================================================================================================================
@@ -1559,7 +1560,7 @@ bool Image::IsFormatReplaceable(
         // Depth surfaces are either Z-16 unorm or Z-32 float; they would get replaced to x16-uint or x32-uint.
         // Z-16 unorm is actually replaceable, but Z-32 float will be converted to unorm if replaced.
         isFormatReplaceable =
-            ((HasHtileData() == false) ||
+            ((HasDsMetadata() == false) ||
              (ImageLayoutToDepthCompressionState(layoutToState, layout) != DepthStencilCompressed));
     }
     else
@@ -1617,6 +1618,19 @@ bool Image::IsSubResourceLinear(
     }
 
     return isLinear;
+}
+
+// =====================================================================================================================
+HtileUsageFlags Image::GetHtileUsage() const
+{
+    HtileUsageFlags  hTileUsage = {};
+
+    if (m_pHtile != nullptr)
+    {
+        hTileUsage = m_pHtile->GetHtileUsage();
+    }
+
+    return hTileUsage;
 }
 
 // =====================================================================================================================
@@ -2029,7 +2043,7 @@ uint32* Image::UpdateDepthClearMetaData(
     uint32*            pCmdSpace
     ) const
 {
-    PAL_ASSERT(HasHtileData());
+    PAL_ASSERT(HasDsMetadata());
 
     PAL_ASSERT((range.startSubres.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize));
 
@@ -2328,7 +2342,8 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
 
     // Image must have hTile data for a meta-data texture fetch to make sense.  This function is called before any
     // hTile memory has been allocated, so we can't look to see if hTile memory actually exists, because it won't.
-    if (Gfx9Htile::UseHtileForImage(m_device, (*this)) && isFmtLegal)
+    const HtileUsageFlags  hTileUsage = Gfx9Htile::UseHtileForImage(m_device, (*this));
+    if ((hTileUsage.dsMetadata != 0) && isFmtLegal)
     {
         if ((m_createInfo.samples > 1) &&
             // MSAA meta-data surfaces are only texture fetchable if allowed in the caps.
@@ -2376,7 +2391,7 @@ void CpuProcessEq(
     {
         const auto&   eq          = pMaskRam->GetMetaEquation();
         const auto&   createInfo  = pParent->GetImageCreateInfo();
-        const uint32  pipeXorMask = pMaskRam->CalcPipeXorMask(*pImage, clearRange.startSubres.aspect);
+        const uint32  pipeXorMask = pMaskRam->CalcPipeXorMask(clearRange.startSubres.aspect);
 
         // This is a mask used to determine which byte within the MetaDataType will be updated.  If
         // MetaDataType is a byte-quantity, this will be zero.
@@ -2387,7 +2402,7 @@ void CpuProcessEq(
         uint32  xInc = 0;
         uint32  yInc = 0;
         uint32  zInc = 0;
-        pMaskRam->GetXyzInc(*pImage, &xInc, &yInc, &zInc);
+        pMaskRam->GetXyzInc(&xInc, &yInc, &zInc);
 
         uint32  numSlices  = createInfo.extent.depth;
         uint32  firstSlice = 0;
@@ -2545,7 +2560,7 @@ void Image::CpuProcessDccEq(
                                                       clearRange,
                                                       dccAddrOutput,
                                                       Log2(dccAddrOutput.metaBlkDepth),
-                                                      pDcc->GetNumEffectiveSamples(&m_gfxDevice, clearPurpose),
+                                                      pDcc->GetNumEffectiveSamples(clearPurpose),
                                                       clearValue,
                                                       0xFF); // keep all of clearValue, erase current data
 }
@@ -2589,13 +2604,13 @@ void Image::InitMetadataFill(
 
     if (HasHtileData() && TestAnyFlagSet(fullRangeInitMask, Gfx9InitMetaDataFill::Gfx9InitMetaDataFillHtile))
     {
-        const uint32 initValue = m_pHtile->GetInitialValue();
+        const uint32 initValue = m_pHtile->GetInitialValue(m_gfxDevice);
 
         // This will initialize both the depth and stencil aspects simultaneously.  They share hTile data,
         // so it isn't practical to init them separately anyway
         pCmdBuffer->CmdFillMemory(gpuMemObj, m_pHtile->MemoryOffset(), m_pHtile->TotalSize(), initValue);
 
-        m_pHtile->UploadEq(pCmdBuffer, Parent());
+        m_pHtile->UploadEq(pCmdBuffer);
     }
     else if (Parent()->IsRenderTarget())
     {
@@ -2608,7 +2623,7 @@ void Image::InitMetadataFill(
 
             pCmdBuffer->CmdFillMemory(gpuMemObj, m_pDcc->MemoryOffset(), m_pDcc->TotalSize(), DccInitValue);
 
-            m_pDcc->UploadEq(pCmdBuffer, Parent());
+            m_pDcc->UploadEq(pCmdBuffer);
         }
 
         // If we have fMask then we also have cMask.
@@ -2620,7 +2635,7 @@ void Image::InitMetadataFill(
                                                static_cast<uint32>(Gfx9Cmask::InitialValue <<  0));
 
             pCmdBuffer->CmdFillMemory(gpuMemObj, m_pCmask->MemoryOffset(), m_pCmask->TotalSize(), CmaskInitValue);
-            m_pCmask->UploadEq(pCmdBuffer, Parent());
+            m_pCmask->UploadEq(pCmdBuffer);
 
             pCmdBuffer->CmdFillMemory(gpuMemObj,
                                       m_pFmask->MemoryOffset(),

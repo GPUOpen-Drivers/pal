@@ -142,7 +142,8 @@ protected:
     Result PerformRelocationsAndUploadToGpuMemory(
         const AbiProcessor&       abiProcessor,
         const CodeObjectMetadata& metadata,
-        PipelineUploader*         pUploader);
+        PipelineUploader*         pUploader,
+        bool                      preferNonLocalHeap);
 
     void ExtractPipelineInfo(
         const CodeObjectMetadata& metadata,
@@ -209,7 +210,8 @@ public:
         Device*                   pDevice,
         const AbiProcessor&       abiProcessor,
         const CodeObjectMetadata& metadata,
-        PerfDataInfo*             pPerfDataInfoList);
+        PerfDataInfo*             pPerfDataInfoList,
+        bool                      preferNonLocalHeap);
 
     void End();
 

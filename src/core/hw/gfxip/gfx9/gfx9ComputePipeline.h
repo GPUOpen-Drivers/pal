@@ -62,10 +62,9 @@ public:
 
 protected:
     virtual Result HwlInit(
+        const ComputePipelineCreateInfo& createInfo,
         const AbiProcessor&              abiProcessor,
         const CodeObjectMetadata&        metadata,
-        ComputePipelineIndirectFuncInfo* pIndirectFuncList,
-        uint32                           indirectFuncCount,
         Util::MsgPackReader*             pMetadataReader) override;
 
 private:

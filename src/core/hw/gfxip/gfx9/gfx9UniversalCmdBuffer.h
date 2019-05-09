@@ -91,7 +91,8 @@ struct NullDepthStencilPm4Img
     regPA_SC_SCREEN_SCISSOR_TL   paScScreenScissorTl;
     regPA_SC_SCREEN_SCISSOR_BR   paScScreenScissorBr;
 
-    PM4PFP_SET_CONTEXT_REG       hdrDbHtileDataBase;
+    PM4PFP_SET_CONTEXT_REG       hdrDbRenderOverride2;
+    regDB_RENDER_OVERRIDE2       dbRenderOverride2;
     regDB_HTILE_DATA_BASE        dbHtileDataBase;
 
     PM4PFP_SET_CONTEXT_REG       hdrDbRenderControl;
@@ -745,39 +746,39 @@ protected:
         const DepthStencilState* pDepthStencilState,
         const MsaaState*         pMsaaState) const;
 
-    template <bool indexed, bool indirect>
+    template <bool Indexed, bool Indirect>
     void ValidateDraw(const ValidateDrawInfo& drawInfo);
 
-    template <bool indexed, bool indirect, bool pm4OptImmediate>
+    template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
     void ValidateDraw(const ValidateDrawInfo& drawInfopDeCmdSpace);
 
-    template <bool indexed, bool indirect, bool pm4OptImmediate, bool pipelineDirty>
+    template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty>
     uint32* ValidateDraw(
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
-    template <bool indexed, bool indirect, bool pm4OptImmediate, bool pipelineDirty, bool stateDirty>
+    template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
     uint32* ValidateDraw(
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
-    template <bool indexed, bool indirect, bool pm4OptImmediate, bool pipelineDirty, bool stateDirty, bool isNgg>
+    template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty, bool IsNgg>
     uint32* ValidateDraw(
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
-    template <bool indexed,
-              bool indirect,
-              bool pm4OptImmediate,
-              bool pipelineDirty,
-              bool stateDirty,
-              bool isNgg,
-              bool isNggFastLaunch>
+    template <bool Indexed,
+              bool Indirect,
+              bool Pm4OptImmediate,
+              bool PipelineDirty,
+              bool StateDirty,
+              bool IsNgg,
+              bool IsNggFastLaunch>
     uint32* ValidateDraw(
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
-    template <bool indexed, bool indirect, bool isNgg, bool isNggFastLaunch, bool pm4OptImmediate>
+    template <bool Indexed, bool Indirect, bool IsNggFastLaunch, bool Pm4OptImmediate>
     uint32* ValidateDrawTimeHwState(
         regPA_SC_MODE_CNTL_1          paScModeCntl1,
         regDB_COUNT_CONTROL           dbCountControl,
@@ -807,14 +808,14 @@ protected:
     virtual void P2pBltWaCopyEnd() override;
 
 private:
-    template <bool issueSqttMarkerEvent, bool viewInstancingEnable>
+    template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDraw(
         ICmdBuffer* pCmdBuffer,
         uint32      firstVertex,
         uint32      vertexCount,
         uint32      firstInstance,
         uint32      instanceCount);
-    template <bool issueSqttMarkerEvent, bool viewInstancingEnable>
+    template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDrawOpaque(
         ICmdBuffer* pCmdBuffer,
         gpusize streamOutFilledSizeVa,
@@ -822,7 +823,7 @@ private:
         uint32  stride,
         uint32  firstInstance,
         uint32  instanceCount);
-    template <bool issueSqttMarkerEvent, bool isNggFastLaunch, bool viewInstancingEnable>
+    template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
         uint32      firstIndex,
@@ -830,7 +831,7 @@ private:
         int32       vertexOffset,
         uint32      firstInstance,
         uint32      instanceCount);
-    template <bool issueSqttMarkerEvent, bool viewInstancingEnable>
+    template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
@@ -838,7 +839,7 @@ private:
         uint32            stride,
         uint32            maximumCount,
         gpusize           countGpuAddr);
-    template <bool issueSqttMarkerEvent, bool isNggFastLaunch, bool viewInstancingEnable>
+    template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndexedIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
