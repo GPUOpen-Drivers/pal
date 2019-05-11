@@ -2152,7 +2152,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         }
         else if ((Formats::BytesPerPixel(format) == 1)      &&
                  pParent->IsAspectValid(ImageAspect::Depth) &&
-                 image.HasHtileData())
+                 image.HasDsMetadata())
         {
             // If they're requesting the stencil plane (i.e., an 8bpp view)       -and-
             // this surface also has Z data (i.e., is not a stencil-only surface) -and-
@@ -2913,7 +2913,7 @@ void InitializeGpuChipProperties(
         pInfo->gpuType = GpuType::Discrete;
         pInfo->gfx9.numShaderEngines               = 4;
         pInfo->gfx9.maxGsWavesPerVgt               = 32;
-        pInfo->gfx9.parameterCacheLines            = 4096;
+        pInfo->gfx9.parameterCacheLines            = 2048;
         pInfo->gfx9.supportReleaseAcquireInterface = 1;
         pInfo->gfx9.supportSplitReleaseAcquire     = 0;
 
@@ -2970,7 +2970,9 @@ void InitializeGpuChipProperties(
         nullBufferView.gfx9.word3.bits.TYPE = SQ_RSRC_BUF;
         nullImageView.gfx9.word3.bits.TYPE  = SQ_RSRC_IMG_2D_ARRAY;
 
-        pInfo->imageProperties.maxImageArraySize  = Gfx9MaxImageArraySlices;
+        pInfo->imageProperties.maxImageArraySize = Gfx9MaxImageArraySlices;
+
+        pInfo->gfx9.supportOutOfOrderPrimitives = 1;
     }
 
     pInfo->nullSrds.pNullBufferView = &nullBufferView;

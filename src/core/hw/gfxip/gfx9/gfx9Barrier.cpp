@@ -1295,18 +1295,11 @@ void Device::Barrier(
                         // Using our knowledge of the code above (and praying it never changes) we need:
                         // - A CS_PARTIAL_FLUSH, L1 invalidation and TCC's meta cache invalidation if a compute shader
                         //   was used.
-                        // - A CP DMA sync to wait for all asynchronous CP DMAs which are used to upload our
-                        //   meta-equation. (GFX9 only)
                         if (usedCompute)
                         {
                             initSyncReqs.csPartialFlush = 1;
                             initSyncReqs.cacheFlags    |= CacheSyncInvTcp;
                             initSyncReqs.cacheFlags    |= CacheSyncInvTccMd;
-                        }
-
-                        if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-                        {
-                            initSyncReqs.syncCpDma = 1;
                         }
                     }
                 }

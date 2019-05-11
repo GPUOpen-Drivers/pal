@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -23,10 +23,13 @@
  *
  **********************************************************************************************************************/
 
+#pragma once
+
 #include "palCmdBuffer.h"
 #include "palDequeImpl.h"
 #include "palGpuEvent.h"
 #include "palGpuEventPool.h"
+#include "palLinearAllocator.h"
 
 using namespace Pal;
 
@@ -34,121 +37,93 @@ namespace GpuUtil
 {
 
 // =====================================================================================================================
-GpuEventPool::GpuEventPool(
-    IPlatform* pPlatform,
-    IDevice*   pDevice)
+template <typename PlatformAllocator, typename GpuEventAllocator>
+GpuEventPool<PlatformAllocator, GpuEventAllocator>::GpuEventPool(
+    IDevice*           pDevice,
+    PlatformAllocator* pPlatformAllocator,
+    GpuEventAllocator* pAllocator)
     :
-    m_pPlatform(pPlatform),
     m_pDevice(pDevice),
-    m_pCmdBuffer(nullptr),
-    m_availableEvents(m_pPlatform),
-    m_busyEvents(m_pPlatform)
+    m_pAllocator(pAllocator),
+    m_freeEventList(pPlatformAllocator),
+    m_globalEventList(pPlatformAllocator)
 {
 }
 
 // =====================================================================================================================
-GpuEventPool::~GpuEventPool()
+template <typename PlatformAllocator, typename GpuEventAllocator>
+GpuEventPool<PlatformAllocator, GpuEventAllocator>::~GpuEventPool()
 {
-    while (m_busyEvents.NumElements() > 0)
+    DXC_ASSERT(m_freeEventList.NumElements() == m_globalEventList.NumElements());
+
+    while (m_freeEventList.NumElements() > 0)
     {
         IGpuEvent* pEvent = nullptr;
-        m_busyEvents.PopFront(&pEvent);
-        pEvent->Destroy();
-        PAL_SAFE_FREE(pEvent, m_pPlatform);
+        m_freeEventList.PopFront(&pEvent);
     }
-    while (m_availableEvents.NumElements() > 0)
+    while (m_globalEventList.NumElements() > 0)
     {
         IGpuEvent* pEvent = nullptr;
-        m_availableEvents.PopFront(&pEvent);
+        m_globalEventList.PopFront(&pEvent);
         pEvent->Destroy();
-        PAL_SAFE_FREE(pEvent, m_pPlatform);
+        PAL_SAFE_FREE(pEvent, m_pAllocator);
     }
 }
 
 // =====================================================================================================================
-Result GpuEventPool::Init(
-    ICmdBuffer* pCmdBuffer,
-    uint32      defaultCapacity)
+// Unmap the backing video memory, free up the system memory of the IGpuEvent objects. And release all the event entries
+// from the lists.
+template <typename PlatformAllocator, typename GpuEventAllocator>
+Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::Reset()
 {
-    // Initialize GPU memory allocator.
-    m_pCmdBuffer = pCmdBuffer;
-
     Result result = Result::Success;
 
-    // Pre-allocate some gpuEvents for this pool.
-    for (uint32 i = 0; i < defaultCapacity; i++)
+    // At this point we expect all allocated GpuEvents have been returned back to m_freeEventList.
+    DXC_ASSERT(m_freeEventList.NumElements() == m_globalEventList.NumElements());
+
+    // Some allocators don't require freeing the GpuEvent objects memory here (like VirtualLinearAllocator that will
+    // rewind).
+    while (m_freeEventList.NumElements() > 0)
     {
-        IGpuEvent* pEvent = nullptr;
-        result = CreateNewEvent(&pEvent);
-
-        if (result == Result::Success)
-        {
-            result = m_availableEvents.PushBack(pEvent);
-        }
-        else
-        {
-            break;
-        }
+        Pal::IGpuEvent* pEvent = nullptr;
+        m_freeEventList.PopFront(&pEvent);
     }
-
-    PAL_ASSERT(m_availableEvents.NumElements() == defaultCapacity);
+    while (m_globalEventList.NumElements() > 0)
+    {
+        Pal::IGpuEvent* pEvent = nullptr;
+        m_globalEventList.PopFront(&pEvent);
+        pEvent->Destroy();
+        PAL_SAFE_FREE(pEvent, m_pAllocator);
+    }
 
     return result;
 }
 
 // =====================================================================================================================
-Result GpuEventPool::Reset(
-    ICmdBuffer* pCmdBuffer) // We need it in case gpuEventPool's container updates to a new palCmdBuffer at Reset.
-{
-    Result result = Result::Success;
-
-    // Update to new CmdBuffer.
-    m_pCmdBuffer = pCmdBuffer;
-
-    while (m_busyEvents.NumElements() > 0)
-    {
-        IGpuEvent* pEvent = nullptr;
-        m_busyEvents.PopFront(&pEvent);
-        m_availableEvents.PushBack(pEvent);
-    }
-
-    PAL_ASSERT(m_busyEvents.NumElements() == 0);
-    return result;
-}
-
-// =====================================================================================================================
-Result GpuEventPool::GetFreeEvent(
+template <typename PlatformAllocator, typename GpuEventAllocator>
+Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::GetFreeEvent(
+    Pal::ICmdBuffer* pCmdBuffer,
     IGpuEvent**const ppEvent)
 {
     Result result = Result::Success;
 
-    if (m_availableEvents.NumElements() > 0)
+    if (m_freeEventList.NumElements() > 0)
     {
-        result = m_availableEvents.PopFront(ppEvent);
+        result = m_freeEventList.PopFront(ppEvent);
     }
     else
     {
-        result = CreateNewEvent(ppEvent);
-    }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
-    // Bind GPU memory to the event.
-    if (result == Result::Success)
-    {
-        m_pCmdBuffer->AllocateAndBindGpuMemToEvent(*ppEvent);
-    }
-#endif
-
-    if (result == Result::Success)
-    {
-        result = m_busyEvents.PushBack(*ppEvent);
+        result = CreateNewEvent(pCmdBuffer, ppEvent);
+        m_globalEventList.PushBack(*ppEvent);
     }
 
     return result;
 }
 
 // =====================================================================================================================
-Result GpuEventPool::CreateNewEvent(
+template <typename PlatformAllocator, typename GpuEventAllocator>
+Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::CreateNewEvent(
+    Pal::ICmdBuffer* pCmdBuffer,
     IGpuEvent**const ppEvent)
 {
     Result result = Result::Success;
@@ -163,8 +138,8 @@ Result GpuEventPool::CreateNewEvent(
     {
         result = Result::ErrorOutOfMemory;
         void* pMemory = PAL_MALLOC(eventSize,
-                                    m_pPlatform,
-                                    Util::SystemAllocType::AllocObject);
+                                   m_pAllocator,
+                                   Util::SystemAllocType::AllocObject);
 
         if (pMemory != nullptr)
         {
@@ -172,12 +147,28 @@ Result GpuEventPool::CreateNewEvent(
 
             if (result != Result::Success)
             {
-                PAL_SAFE_FREE(pMemory, m_pPlatform);
+                PAL_SAFE_FREE(pMemory, m_pAllocator);
             }
         }
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
+    // Bind GPU memory to the event.
+    if (result == Result::Success)
+    {
+        result = pCmdBuffer->AllocateAndBindGpuMemToEvent(*ppEvent);
+    }
+#endif
+
     return result;
+}
+
+// =====================================================================================================================
+template <typename PlatformAllocator, typename GpuEventAllocator>
+Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::ReturnEvent(
+    IGpuEvent* pEvent)
+{
+    return m_freeEventList.PushBack(pEvent);
 }
 
 } //GpuUtil

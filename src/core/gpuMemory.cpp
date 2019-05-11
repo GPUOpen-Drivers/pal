@@ -473,6 +473,7 @@ Result GpuMemory::Init(
         if (createInfo.flags.sdiExternal == 0)
         {
             PAL_ASSERT(IsPow2Aligned(m_desc.alignment, allocGranularity));
+            m_desc.alignment = Pow2Align(m_desc.alignment, allocGranularity);
         }
     }
 

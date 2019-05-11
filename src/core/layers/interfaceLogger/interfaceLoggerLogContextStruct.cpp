@@ -2966,5 +2966,6 @@ void LogContext::Struct(
     EndList();
     EndMap();
 }
+
 } // InterfaceLogger
 } // Pal

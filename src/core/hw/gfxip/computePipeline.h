@@ -56,10 +56,9 @@ protected:
         { return (shaderType == ShaderType::Compute) ? &m_stageInfo : nullptr; }
 
     virtual Result HwlInit(
+        const ComputePipelineCreateInfo& createInfo,
         const AbiProcessor&              abiProcessor,
         const CodeObjectMetadata&        metadata,
-        ComputePipelineIndirectFuncInfo* pIndirectFuncList,
-        uint32                           indirectFuncCount,
         Util::MsgPackReader*             pMetadataReader) = 0;
 
     void GetFunctionGpuVirtAddrs(

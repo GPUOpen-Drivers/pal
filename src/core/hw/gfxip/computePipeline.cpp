@@ -131,10 +131,9 @@ Result ComputePipeline::InitFromPipelineBinary(
             m_stageInfo.disassemblyLength = static_cast<size_t>(symbol.size);
         }
 
-        result = HwlInit(abiProcessor,
+        result = HwlInit(createInfo,
+                         abiProcessor,
                          metadata,
-                         createInfo.pIndirectFuncList,
-                         createInfo.indirectFuncCount,
                          &metadataReader);
     }
 

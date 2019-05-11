@@ -186,10 +186,9 @@ static PAL_INLINE uint32 LoadedShRegCount(
 // Initializes HW-specific state related to this compute pipeline (register values, user-data mapping, etc.) using the
 // specified Pipeline ABI processor.
 Result ComputePipeline::HwlInit(
+    const ComputePipelineCreateInfo& createInfo,
     const AbiProcessor&              abiProcessor,
     const CodeObjectMetadata&        metadata,
-    ComputePipelineIndirectFuncInfo* pIndirectFuncList,
-    uint32                           indirectFuncCount,
     MsgPackReader*                   pMetadataReader)
 {
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
@@ -204,12 +203,24 @@ Result ComputePipeline::HwlInit(
     if (result == Result::Success)
     {
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
-        result = PerformRelocationsAndUploadToGpuMemory(abiProcessor, metadata, &uploader);
+        result = PerformRelocationsAndUploadToGpuMemory(
+            abiProcessor,
+            metadata,
+            &uploader,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
+            createInfo.flags.preferNonLocalHeap
+#else
+            false
+#endif
+        );
     }
     if (result ==  Result::Success)
     {
         BuildPm4Headers(uploader);
         UpdateRingSizes(metadata);
+
+        // Update the pipeline signature with user-mapping data contained in the ELF:
+        SetupSignatureFromElf(metadata, registers);
 
         Abi::PipelineSymbolEntry csProgram  = { };
         if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsMainEntry, &csProgram))
@@ -317,10 +328,7 @@ Result ComputePipeline::HwlInit(
 
         m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
 
-        // Finally, update the pipeline signature with user-mapping data contained in the ELF:
-        SetupSignatureFromElf(metadata, registers);
-
-        GetFunctionGpuVirtAddrs(abiProcessor, uploader, pIndirectFuncList, indirectFuncCount);
+        GetFunctionGpuVirtAddrs(abiProcessor, uploader, createInfo.pIndirectFuncList, createInfo.indirectFuncCount);
     }
 
     return result;

@@ -215,7 +215,8 @@ union ImageUsageFlags
                                              ///  may be able to enable additional compression on the baseLevels which
                                              ///  are used exclusively as color target and shader read.
         uint32 placeHolder1           :  1;
-        uint32 reserved               : 18;  ///< Reserved for future use.
+        uint32 placeHolder2           :  1;
+        uint32 reserved               : 17;  ///< Reserved for future use.
     };
     uint32 u32All;                 ///< Flags packed as 32-bit uint.
 };

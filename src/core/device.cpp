@@ -1615,6 +1615,13 @@ void Device::FinalizeMemoryHeapProperties()
             break;
         }
     }
+    if (Settings().force64kPageGranularity)
+    {
+        m_memoryProperties.realMemAllocGranularity    = Pow2Align(m_memoryProperties.realMemAllocGranularity, 65536);
+        m_memoryProperties.virtualMemAllocGranularity =
+            Pow2Align(m_memoryProperties.virtualMemAllocGranularity, 65536);
+        m_memoryProperties.virtualMemPageSize         = Pow2Align(m_memoryProperties.virtualMemPageSize, 65536);
+    }
 }
 
 // =====================================================================================================================
@@ -1839,12 +1846,11 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.gsVgtTableDepth      = gfx6Props.gsVgtTableDepth;
 
             // Tessellation distribution mode flags.
-            pInfo->gfxipProperties.flags.supportPatchTessDistribution     =
-                m_chipProperties.gfx6.supportPatchTessDistribution;
-            pInfo->gfxipProperties.flags.supportDonutTessDistribution     =
-                m_chipProperties.gfx6.supportDonutTessDistribution;
-            pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution =
-                m_chipProperties.gfx6.supportTrapezoidTessDistribution;
+            pInfo->gfxipProperties.flags.supportPatchTessDistribution     = gfx6Props.supportPatchTessDistribution;
+            pInfo->gfxipProperties.flags.supportDonutTessDistribution     = gfx6Props.supportDonutTessDistribution;
+            pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution = gfx6Props.supportTrapezoidTessDistribution;
+
+            pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives = gfx6Props.supportOutOfOrderPrimitives;
 
             if (m_chipProperties.gfxLevel == GfxIpLevel::GfxIp6)
             {
@@ -1853,8 +1859,12 @@ Result Device::GetProperties(
                 {
                     for (uint32 sh = 0; sh < gfx6Props.numShaderArrays; ++sh)
                     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
+                        pInfo->gfxipProperties.shaderCore.activeCuMask[se][sh] = gfx6Props.activeCuMaskGfx6[se][sh];
+#else
                         pInfo->gfxipProperties.shaderCore.activeCuMask[se][sh] =
                             static_cast<uint16>(gfx6Props.activeCuMaskGfx6[se][sh]);
+#endif
                     }
                 }
             }
@@ -1863,8 +1873,12 @@ Result Device::GetProperties(
                 // Gfx7-8 have a max 4SE x 1SH layout
                 for (uint32 se = 0; se < gfx6Props.numShaderEngines; ++se)
                 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
+                    pInfo->gfxipProperties.shaderCore.activeCuMask[se][0] = gfx6Props.activeCuMaskGfx7[se];
+#else
                     pInfo->gfxipProperties.shaderCore.activeCuMask[se][0] =
                         static_cast<uint16>(gfx6Props.activeCuMaskGfx7[se]);
+#endif
                 }
             }
             break;
@@ -1924,18 +1938,26 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.flags.eccProtectedGprs = gfx9Props.eccProtectedGprs;
 
             // Tessellation distribution mode flags.
-            pInfo->gfxipProperties.flags.supportPatchTessDistribution     =
-                m_chipProperties.gfx9.supportPatchTessDistribution;
-            pInfo->gfxipProperties.flags.supportDonutTessDistribution     =
-                m_chipProperties.gfx9.supportDonutTessDistribution;
-            pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution =
-                m_chipProperties.gfx9.supportTrapezoidTessDistribution;
+            pInfo->gfxipProperties.flags.supportPatchTessDistribution     = gfx9Props.supportPatchTessDistribution;
+            pInfo->gfxipProperties.flags.supportDonutTessDistribution     = gfx9Props.supportDonutTessDistribution;
+            pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution = gfx9Props.supportTrapezoidTessDistribution;
 
-            pInfo->gfxipProperties.flags.support1xMsaaSampleLocations =
-                m_chipProperties.gfx9.support1xMsaaSampleLocations;
+            pInfo->gfxipProperties.flags.support1xMsaaSampleLocations = gfx9Props.support1xMsaaSampleLocations;
+
+            pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives = gfx9Props.supportOutOfOrderPrimitives;
 
             PAL_ASSERT((gfx9Props.numShaderEngines <= MaxShaderEngines) &&
                        (gfx9Props.numShaderArrays  <= MaxShaderArraysPerSe));
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
+            for (uint32 se = 0; se < gfx9Props.numShaderEngines; ++se)
+            {
+                for (uint32 sa = 0; sa < gfx9Props.numShaderArrays; ++sa)
+                {
+                    pInfo->gfxipProperties.shaderCore.activeCuMask[se][sa] = gfx9Props.activeCuMask[se][sa];
+                }
+            }
+#else
             if (pInfo->gfxLevel == GfxIpLevel::GfxIp9)
             {
                 for (uint32 se = 0; se < gfx9Props.numShaderEngines; ++se)
@@ -1950,6 +1972,7 @@ Result Device::GetProperties(
                     }
                 }
             }
+#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
             break;
         }
 #endif // PAL_BUILD_GFX9

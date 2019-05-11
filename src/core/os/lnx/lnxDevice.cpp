@@ -926,8 +926,6 @@ void Device::InitGfx6ChipProperties()
         break;
     }
 
-    pChipInfo->numMcdTiles = (m_gpuInfo.vram_bit_width / 64);
-
     if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_DEV_INFO, sizeof(deviceInfo), &deviceInfo) == 0)
     {
         pChipInfo->doubleOffchipLdsBuffers = deviceInfo.gc_double_offchip_lds_buf;

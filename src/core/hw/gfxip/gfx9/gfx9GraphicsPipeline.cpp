@@ -323,7 +323,16 @@ Result GraphicsPipeline::HwlInit(
 
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
         GraphicsPipelineUploader uploader(loadInfo.loadedCtxRegCount, loadInfo.loadedShRegCount);
-        result = PerformRelocationsAndUploadToGpuMemory(abiProcessor, metadata, &uploader);
+        result = PerformRelocationsAndUploadToGpuMemory(
+            abiProcessor,
+            metadata,
+            &uploader,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
+            createInfo.flags.preferNonLocalHeap
+#else
+            false
+#endif
+        );
 
         if (result == Result::Success)
         {
@@ -782,7 +791,8 @@ void GraphicsPipeline::SetupCommonRegisters(
     const RegisterVector&             registers,
     GraphicsPipelineUploader*         pUploader)
 {
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+    const auto&              palDevice = *(m_pDevice->Parent());
+    const GpuChipProperties& chipProps = palDevice.ChipProperties();
     const RegisterInfo&      regInfo   = m_pDevice->CmdUtil().GetRegInfo();
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
 

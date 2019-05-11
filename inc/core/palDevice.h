@@ -869,7 +869,6 @@ struct DeviceProperties
         PrtFeatureFlags prtFeatures;    ///< PRT features supported by the hardware.
         gpusize         prtTileSize;    ///< Size, in bytes, of a PRT tile.
         uint8           numSwizzleEqs;  ///< How many swizzle equations are in pSwizzleEqs.
-
         const SwizzleEquation* pSwizzleEqs; ///< These describe how to interpret device-dependent tiling modes.
 
         bool     tilingSupported[static_cast<size_t>(ImageTiling::Count)]; ///< If each image tiling is supported.
@@ -990,7 +989,8 @@ struct DeviceProperties
 #else
                 uint32 placeholder7                             : 1; ///< Placeholder, do not use
 #endif
-                uint32 reserved                                 : 5; ///< Reserved for future use.
+                uint32 supportOutOfOrderPrimitives              : 1; ///< HW supports higher throughput for out of order
+                uint32 reserved                                 : 4; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1078,8 +1078,13 @@ struct DeviceProperties
             uint32 shaderPrefetchBytes;     ///< Number of bytes the SQ will prefetch, if any.
             uint32 numAvailableCus;         ///< Total number of CUs that are actually usable.
             uint32 numPhysicalCus;          ///< Count of physical CUs prior to harvesting.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
+            uint32 activeCuMask[MaxShaderEngines][MaxShaderArraysPerSe];
+                                            ///< Mask of present, non-harvested CUs (physical layout)
+#else
             uint16 activeCuMask[MaxShaderEngines][MaxShaderArraysPerSe];
                                             ///< Mask of present, non-harvested CUs (physical layout)
+#endif
         } shaderCore;                       ///< Properties of computational power of the shader engine.
 
     } gfxipProperties;

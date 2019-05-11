@@ -260,7 +260,7 @@ public:
     const char* GetComment() const;
 
     /// Gets the pipeline's disassembly data, if it is present.  The disassembly data contains a series of
-    /// null-terimated strings (one per shader stage), each of which is a text representation of that stage's
+    /// null-terimated strings (one per HW shader stage), each of which is a text representation of that stage's
     /// executable shader code.  Each shader stage has an associated symbol type which defines the size and
     /// offset to the disassembly data for that stage.
     ///
@@ -269,6 +269,19 @@ public:
     /// @param [out] pDataSize  Size of the disassembly data in bytes.  Will be zero if the disassembly data
     ///                         is not present in the ELF.
     void GetDisassembly(
+        const void** ppData,
+        size_t*      pDataSize) const;
+
+    /// Gets the pipeline's AMDIL token data, if it is present.  The AMDIL data contains a series of binary
+    /// blobs (one per API shader stage), each of which is a binary representation of that API shader's
+    /// executable shader IL.  Each API shader stage has an associated symbol type which defines the size and
+    /// offset to the disassembly data for that stage.
+    ///
+    /// @param [out] ppData     Pointer to the AMDIL token data for the whole pipeline.  Will be nullptr if
+    ///                         the AMDIL data is not present in the ELF.
+    /// @param [out] pDataSize  Size of the AMDIL data in bytes.  Will be zero if the AMDIL data is not present
+    ///                         in the ELF.
+    void GetAmdIl(
         const void** ppData,
         size_t*      pDataSize) const;
 

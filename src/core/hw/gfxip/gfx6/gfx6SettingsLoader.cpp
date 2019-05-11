@@ -262,10 +262,7 @@ void SettingsLoader::ValidateSettings(
         m_settings.stencilCompressEnable   = false;
     }
 
-    // Out of Order primitives are only supported on Hawaii and Gfx8 ASICs with more than one VGT.
-    // Hawaii has a hardware bug where the hardware can hang when a multi-cycle primitive is processed
-    // when out of order is enabled. So we disable out of order prims for that ASIC.
-    if ((IsGfx8(*m_pDevice) == false) || (gfx6Props.numShaderEngines < 2))
+    if (gfx6Props.supportOutOfOrderPrimitives == 0)
     {
         m_settings.gfx7EnableOutOfOrderPrimitives = OutOfOrderPrimDisable;
     }

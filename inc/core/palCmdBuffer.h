@@ -925,15 +925,20 @@ struct TypedBufferCopyRegion
 /// destination image subresource.  Used as an input to ICmdBuffer::CmdScaledCopyImage.
 struct ImageScaledCopyRegion
 {
-    SubresId         srcSubres;     ///< Selects the source subresource.
-    Offset3d         srcOffset;     ///< Offset to the start of the chosen region in the source subresource.
-    SignedExtent3d   srcExtent;     ///< Signed size of the source region in pixels.  A negative size indicates a copy
-                                    ///  in the reverse direction.
-    SubresId         dstSubres;     ///< Selects the destination subresource.
-    Offset3d         dstOffset;     ///< Offset to the start of the chosen region in the destination subresource.
-    SignedExtent3d   dstExtent;     ///< Signed size of the destination region in pixels.  A negative size indicates a
-                                    ///  copy in the reverse direction.
-    uint32           numSlices;     ///< Number of slices the copy will span.
+    SubresId         srcSubres;      ///< Selects the source subresource.
+    Offset3d         srcOffset;      ///< Offset to the start of the chosen region in the source subresource.
+    SignedExtent3d   srcExtent;      ///< Signed size of the source region in pixels.  A negative size indicates a copy
+                                     ///  in the reverse direction.
+    SubresId         dstSubres;      ///< Selects the destination subresource.
+    Offset3d         dstOffset;      ///< Offset to the start of the chosen region in the destination subresource.
+    SignedExtent3d   dstExtent;      ///< Signed size of the destination region in pixels.  A negative size indicates a
+                                     ///  copy in the reverse direction.
+    uint32           numSlices;      ///< Number of slices the copy will span.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
+    SwizzledFormat   swizzledFormat; ///< If not Undefined, reinterpret both subresources using this format and swizzle.
+                                     ///  The specified format needs to have been included in the "pViewFormats" list
+                                     ///  specified at image-creation time, otherwise the result might be incorrect.
+#endif
 };
 
 /// Specifies parameters for a color-space-conversion copy from one region in a source image subresource to a region in
@@ -952,7 +957,7 @@ struct ColorSpaceConversionRegion
     uint32          yuvStartSlice;  ///< Array slice of the YUV image where the copy will begin.  All aspects of planar
                                     ///  YUV images will be implicitly involved in the copy.  This can either be the
                                     ///  source or destination of the copy, depending on whether the copy is performing
-                                    //   an RGB->YUV or YUV->RGB conversion.
+                                    ///  an RGB->YUV or YUV->RGB conversion.
     uint32          sliceCount;     ///< Number of slices the copy will span.
 };
 
@@ -1188,7 +1193,7 @@ struct InputAssemblyStateParams
                                                ///  will restart a primitive.  When using a 16-bit index buffer, the
                                                ///  upper 16 bits of this value will be ignored.
 
-    bool             primitiveRestartEnable;   ///< Enables the index specified by primitiveRestartIndex to _cut_ a
+    bool              primitiveRestartEnable;  ///< Enables the index specified by primitiveRestartIndex to _cut_ a
                                                ///  primitive (i.e., triangle strip) and begin a new primitive with
                                                ///  the next index.
 };
@@ -1199,10 +1204,10 @@ struct TriangleRasterStateParams
 {
     FillMode        fillMode;        ///< Specifies whether triangles should be rendered solid or wireframe.
     CullMode        cullMode;        ///< Specifies which, if any, triangles should be culled based on whether they are
-                                     ///< front or back facing.
+                                     ///  front or back facing.
     FaceOrientation frontFace;       ///< Specifies the vertex winding that results in a front-facing triangle.
     ProvokingVertex provokingVertex; ///< Specifies whether the first or last vertex of a primitive is the provoking
-                                     ///< vertex as it affects flat shading.
+                                     ///  vertex as it affects flat shading.
     union
     {
         struct
@@ -1231,12 +1236,12 @@ struct PointLineRasterStateParams
 struct DepthBiasParams
 {
     float depthBias;            ///< Base depth bias to be added to each fragment's Z value.  In units of the
-                                ///< minimum delta representable in the bound depth buffer.
+                                ///  minimum delta representable in the bound depth buffer.
     float depthBiasClamp;       ///< Maximum allowed depth bias result.  Prevents polygons viewed at a sharp value
-                                ///< from generating very large biases.
+                                ///  from generating very large biases.
     float slopeScaledDepthBias; ///< Factor multiplied by the depth slope (change in Z coord per x/y pixel) to
-                                ///< create more bias for "steep" polygons.  This result is applied to the final
-                                ///< Z value in addition to the base depthBias parameter.
+                                ///  create more bias for "steep" polygons.  This result is applied to the final
+                                ///  Z value in addition to the base depthBias parameter.
 };
 
 /// Specifies parameters for setting the value range to be used for depth bounds testing.
@@ -1256,16 +1261,16 @@ struct StencilRefMaskParams
     uint8 frontReadMask;   ///< Bitmask to restrict stencil buffer reads for front-facing polygons.
     uint8 frontWriteMask;  ///< Bitmask to restrict stencil buffer writes for front-facing polygons.
     uint8 frontOpValue;    ///< Stencil operation value for front-facing polygons.
-                           ///< This is the value used as a parameter for a given stencil operation.
-                           ///< For example: StencilOp::IncWrap will use this value when incrementing the current
-                           ///< stencil contents. Typically, this would be set to one, but on AMD hardware,
-                           ///< this register is 8 bits so there is a greater flexibility.
+                           ///  This is the value used as a parameter for a given stencil operation.
+                           ///  For example: StencilOp::IncWrap will use this value when incrementing the current
+                           ///  stencil contents. Typically, this would be set to one, but on AMD hardware,
+                           ///  this register is 8 bits so there is a greater flexibility.
 
     uint8 backRef;         ///< Stencil reference value for back-facing polygons.
     uint8 backReadMask;    ///< Bitmask to restrict stencil buffer reads for back-facing polygons.
     uint8 backWriteMask;   ///< Bitmask to restrict stencil buffer writes for back-facing polygons.
     uint8 backOpValue;     ///< Stencil operation value for back-facing polygons - See description of frontOpValue
-                           ///< for further details.
+                           ///  for further details.
     union
     {
         uint8 u8All;                         ///< Flags packed as a 8-bit uint.
@@ -1319,9 +1324,9 @@ struct ViewportParams
     } viewports[MaxViewports]; ///< Array of desciptors for each viewport.
 
     float           horzDiscardRatio;   ///< The ratio between guardband discard rect width and viewport width.
-                                        ///< For all guard band ratio settings, values less than 1.0f are illegal.
-                                        ///< Value FLT_MAX opens the guardband as wide as the HW supports.
-                                        ///< Value 1.0f disables the guardband.
+                                        ///  For all guard band ratio settings, values less than 1.0f are illegal.
+                                        ///  Value FLT_MAX opens the guardband as wide as the HW supports.
+                                        ///  Value 1.0f disables the guardband.
     float           vertDiscardRatio;   ///< The ratio between guardband discard rect height and viewport height.
     float           horzClipRatio;      ///< The ratio between guardband clip rect width and viewport width.
     float           vertClipRatio;      ///< The ratio between guardband clip rect height and viewport height.
@@ -1498,16 +1503,16 @@ union ScaledCopyFlags
     struct
     {
         uint32 srcColorKey  : 1;  ///< If set, enables source color-keying by using the value in the ColorKey member.
-                                  ///< That is, any pixel in the source image that matches the color key should not be
-                                  ///< copied to the destination image, and all of the source pixels that do not match
-                                  ///< the color key should be copied. Mutually exclusive with dstColorKey.
+                                  ///  That is, any pixel in the source image that matches the color key should not be
+                                  ///  copied to the destination image, and all of the source pixels that do not match
+                                  ///  the color key should be copied. Mutually exclusive with dstColorKey.
         uint32 dstColorKey  : 1;  ///< If set, enables destination color-keying by using the value in the ColorKey
-                                  ///< member. That is, any pixel in the destination image that matches the color key
-                                  ///< should be replaced with the corresponding pixel from the source image, and all of
-                                  ///< the destination pixels that do not match the color key should not be replaced.
-                                  ///< Mutually exclusive with srcColorKey.
+                                  ///  member. That is, any pixel in the destination image that matches the color key
+                                  ///  should be replaced with the corresponding pixel from the source image, and all of
+                                  ///  the destination pixels that do not match the color key should not be replaced.
+                                  ///  Mutually exclusive with srcColorKey.
         uint32 srcAlpha     : 1;  ///< If set, use alpha channel in source surface as blend factor.
-                                  ///< color = src alpha * src color + (1.0 - src alpha) * dst color.
+                                  ///  color = src alpha * src color + (1.0 - src alpha) * dst color.
         uint32 reserved     : 29; ///< reserved for future useage.
     };
     uint32 u32All;                ///< Flags packed as uint32.
