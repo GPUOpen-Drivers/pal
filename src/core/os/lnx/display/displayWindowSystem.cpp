@@ -268,11 +268,11 @@ Result DisplayWindowSystem::ModeSet(
 void DisplayWindowSystem::DestroyPresentableImage(
     WindowSystemImageHandle hImage)
 {
-    drm_mode_destroy_dumb dreq = {};
+    drm_gem_close dreq = {};
 
     dreq.handle = hImage.hBuffer;
 
-    m_drmProcs.pfnDrmIoctl(m_drmMasterFd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
+    m_drmProcs.pfnDrmIoctl(m_drmMasterFd, DRM_IOCTL_GEM_CLOSE, &dreq);
 }
 
 // =====================================================================================================================
