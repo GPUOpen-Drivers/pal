@@ -29,6 +29,8 @@
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
+#include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 
 namespace Pal
 {
@@ -83,6 +85,8 @@ public:
     static uint32* HandleBoundTargetChanged(
         const CmdUtil& cmdUtil,
         uint32*        pCmdSpace);
+
+    TargetExtent2d GetExtent() const { return m_extent; }
 
 protected:
     virtual ~DepthStencilView()
@@ -144,11 +148,14 @@ protected:
 
     SubresId  m_depthSubresource;   // Sub-resource associated with the Depth plane
     SubresId  m_stencilSubresource; // Sub-resource associated with the Stencil plane
+    TargetExtent2d  m_extent;
 
     DepthStencilLayoutToState  m_depthLayoutToState;
     DepthStencilLayoutToState  m_stencilLayoutToState;
 
 private:
+    HtileUsageFlags            m_hTileUsage;
+
     PAL_DISALLOW_DEFAULT_CTOR(DepthStencilView);
     PAL_DISALLOW_COPY_AND_ASSIGN(DepthStencilView);
 
@@ -197,10 +204,6 @@ struct Gfx9DepthStencilViewPm4Img
 
     PM4PFP_SET_CONTEXT_REG           hdrPaSuPolyOffsetDbFmtCntl;
     regPA_SU_POLY_OFFSET_DB_FMT_CNTL paSuPolyOffsetDbFmtCntl;
-
-    PM4PFP_SET_CONTEXT_REG      hdrPaScScreenScissor;
-    regPA_SC_SCREEN_SCISSOR_TL  paScScreenScissorTl;
-    regPA_SC_SCREEN_SCISSOR_BR  paScScreenScissorBr;
 
     PM4PFP_SET_CONTEXT_REG  hdrCoherDestBase;
     regCOHER_DEST_BASE_0    coherDestBase0;

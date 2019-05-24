@@ -36,8 +36,10 @@ QueueSemaphore::QueueSemaphore(
     :
     m_pDevice(pDevice),
     m_maxWaitsPerSignal(pDevice->MaxQueueSemaphoreCount()),
+#if PAL_AMDGPU_BUILD
     m_hSemaphore(0),
     m_skipNextWait(false)
+#endif
 {
     m_flags.u32All = 0;
 }

@@ -163,6 +163,16 @@ void PipelineChunkGs::LateInit(
         lateAllocWaves = settings.nggLateAllocGs;
     }
 
+    const auto&  pgmRsrc1Gs     = m_commands.sh.spiShaderPgmRsrc1Gs.bits;
+    const auto&  pgmRsrc2Gs     = m_commands.sh.spiShaderPgmRsrc2Gs.bits;
+    const uint32 lateAllocLimit = GraphicsPipeline::CalcMaxLateAllocLimit(m_device,
+                                                                          registers,
+                                                                          pgmRsrc1Gs.VGPRS,
+                                                                          pgmRsrc1Gs.SGPRS,
+                                                                          pgmRsrc2Gs.SCRATCH_EN,
+                                                                          lateAllocWaves);
+    lateAllocWaves = Min(lateAllocWaves, lateAllocLimit);
+
     // If late-alloc for NGG is enabled, or if we're using on-chip legacy GS path, we need to avoid using CU1
     // for GS waves to avoid a deadlock with the PS. It is impossible to fully disable LateAlloc on Gfx9+, even
     // with LateAlloc = 0.

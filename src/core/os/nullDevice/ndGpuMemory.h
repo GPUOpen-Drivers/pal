@@ -50,7 +50,9 @@ public:
         IDevice*const*          ppDevice,
         Pal::Image*const*       ppImage) override;
 
+#if PAL_KMT_BUILD || PAL_AMDGPU_BUILD
     virtual OsExternalHandle ExportExternalHandle(const GpuMemoryExportInfo& exportInfo) const override;
+#endif
 
     virtual Result OpenPeerMemory() override;
 

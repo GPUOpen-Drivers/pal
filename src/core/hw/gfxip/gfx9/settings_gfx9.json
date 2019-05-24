@@ -473,7 +473,7 @@
         "IsHex": true
       },
       "Defaults": {
-        "Default": 1023
+        "Default": 511
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
@@ -1222,7 +1222,7 @@
       ],
       "HashName": 1871590621,
       "Defaults": {
-        "Default": 0
+        "Default": 4
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
@@ -1303,21 +1303,6 @@
       "Type": "bool",
       "VariableName": "useMaxOffchipLdsBuffers",
       "Name": "UseMaxOffchipLdsBuffers"
-    },
-    {
-      "Description": "If true, the HW-VS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-VS prefers to send only one wave to each CU before moving to the next enabled CU.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "HashName": 1712293842,
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "vsCuGroupEnabled",
-      "Name": "VsCuGroupEnabled"
     },
     {
       "Description": "Load half-packed VS waves, forcing them to use half as much space in the param cache at the expense of inefficient use of ALU resources, if the export count is >= this threshold. This can help performance in some cases.",
@@ -2685,10 +2670,10 @@
       ],
       "HashName": 4142650735,
       "Defaults": {
-        "Default": 2
+        "Default": "Gfx10VrsHtileEncodingTwoBit"
       },
       "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
+      "Type": "enum",
       "VariableName": "vrsHtileEncoding",
       "Name": "VrsHtileEncoding",
       "OrBuildTypes": [
@@ -2710,6 +2695,25 @@
       "Type": "bool",
       "VariableName": "vrsForceRateFine",
       "Name": "VrsForceRateFine",
+      "OrBuildTypes": [
+        "PAL_BUILD_NAVI21",
+        "PAL_BUILD_NAVI21_LITE"
+      ]
+    },
+    {
+      "Description": "If true, NULL source images are handled by modifying the combiner state.  False causes the depth buffer to be updated",
+      "Tags": [
+        "VRS",
+        "Gfx10"
+      ],
+      "HashName": 2743300351,
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "optimizeNullSourceImage",
+      "Name": "OptimizeNullSourceImage",
       "OrBuildTypes": [
         "PAL_BUILD_NAVI21",
         "PAL_BUILD_NAVI21_LITE"

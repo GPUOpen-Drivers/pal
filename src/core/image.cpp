@@ -937,14 +937,15 @@ Result Image::BindGpuMemory(
 
     if (ret == Result::Success)
     {
+        auto*const pGpuMem = static_cast<GpuMemory*>(pGpuMemory);
+
         // Flippable images should always be bound to flippable memory.  As an exception, it is OK to be bound to a
         // virtual GPU memory object, but it is the clients responsibility to ensure the virtual image is exclusively
         // pointing to flippable memory.
-        PAL_ASSERT((pGpuMemory == nullptr) ||
-                   (static_cast<GpuMemory*>(pGpuMemory)->IsFlippable() == IsFlippable()) ||
-                   static_cast<GpuMemory*>(pGpuMemory)->IsVirtual());
+        PAL_ASSERT((pGpuMem == nullptr) || (pGpuMem->IsFlippable() == IsFlippable()) || pGpuMem->IsVirtual());
 
         m_vidMem.Update(pGpuMemory, offset);
+
     }
 
     UpdateMetaDataInfo(pGpuMemory);

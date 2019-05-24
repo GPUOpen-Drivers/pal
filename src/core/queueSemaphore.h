@@ -53,10 +53,14 @@ public:
     virtual Result Open(const QueueSemaphoreOpenInfo& openInfo);
     virtual Result OpenExternal(const ExternalQueueSemaphoreOpenInfo& openInfo);
 
+#if (PAL_KMT_BUILD || PAL_AMDGPU_BUILD)
     virtual OsExternalHandle ExportExternalHandle(
         const QueueSemaphoreExportInfo& exportInfo) const override;
+#endif
 
+#if PAL_AMDGPU_BUILD
     amdgpu_semaphore_handle GetSyncObjHandle() const { return m_hSemaphore; }
+#endif
 
     static Result ValidateInit(const Device* pDevice, const QueueSemaphoreCreateInfo& createInfo);
     static Result ValidateOpen(const Device* pDevice, const QueueSemaphoreOpenInfo& openInfo);
@@ -89,11 +93,14 @@ protected:
 
     uint64  m_maxWaitsPerSignal;  // Upper limit to number of simultaneous unconsumed signals on this semaphore.
 
+#if PAL_AMDGPU_BUILD
     amdgpu_semaphore_handle m_hSemaphore;
     bool                    m_skipNextWait; // For SemaphoreType::SyncObj Semaphore, we can create
                                             // Signaled Semaphore with DRM_SYNCOBJ_CREATE_SIGNALED.
                                             // For other Semaphores, keep usage of m_skipNextWait
                                             // as a workaround to skip the OS wait if it is set.
+#endif
+
 private:
     Result ValidateOpenExternal(const ExternalQueueSemaphoreOpenInfo& openInfo);
 

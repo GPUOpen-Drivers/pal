@@ -48,6 +48,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_vertexBufferCount(0),
 #endif
     m_vertsPerPrim(0),
+    m_numColorTargets(0),
     m_logicOp(LogicOp::Copy)
 {
     m_flags.u32All = 0;
@@ -150,10 +151,15 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     hasher.Update(internalInfo.flags);
 #endif
 
-    for (uint32 i = 0; i < MaxColorTargets; ++i)
+    for (uint8 i = 0; i < MaxColorTargets; ++i)
     {
         m_targetSwizzledFormats[i] = createInfo.cbState.target[i].swizzledFormat;
         m_targetWriteMasks[i]      = createInfo.cbState.target[i].channelWriteMask;
+        if ((Formats::IsUndefined(m_targetSwizzledFormats[i].format) == false) ||
+            (m_targetWriteMasks[i] != 0))
+        {
+            m_numColorTargets = i + 1;
+        }
     }
 
     m_viewInstancingDesc                   = createInfo.viewInstancingDesc;

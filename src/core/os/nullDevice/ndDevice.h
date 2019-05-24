@@ -253,6 +253,11 @@ public:
     virtual Result FlglGetFrameCounterResetStatus(
         bool* pReset) const override { return Result::Success; }
 
+    virtual bool DidDelagSettingsChange() override
+    {
+        return false;
+    }
+
     virtual bool DidTurboSyncSettingsChange() override
     {
         return false;
@@ -297,11 +302,13 @@ public:
         uint32                    screenTargetId,
         VirtualDisplayProperties* pProperties) override { return Result::Success; }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
+#if PAL_AMDGPU_BUILD
     virtual Result GetConnectorIdFromOutput(
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
         uint32*         pConnectorId) override { return Result::Success; }
+#endif
 #endif
 
 protected:
@@ -322,6 +329,8 @@ protected:
 
     virtual size_t QueueObjectSize(
         const QueueCreateInfo& createInfo) const override;
+
+    virtual Result PerformOsInternalQueueInit() override { return Result::Success; }
 
 private:
     virtual Result EarlyInit(const HwIpLevels& ipLevels) override;

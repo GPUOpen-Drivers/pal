@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 
 namespace Pal
 {
@@ -80,6 +81,8 @@ public:
         const Device& device,
         uint32*       pCmdSpace);
 
+    TargetExtent2d GetExtent() const { return m_extent; }
+
 protected:
     virtual ~ColorTargetView()
     {
@@ -107,7 +110,6 @@ protected:
         const ColorTargetViewCreateInfo&         createInfo,
         const ColorTargetViewInternalCreateInfo& internalInfo,
         const Extent3d&                          baseExtent,
-        const Extent3d&                          extent,
         Pm4ImgType*                              pPm4Img,
         regCB_COLOR0_INFO*                       pCbColorInfo,
         CbColorViewType*                         pCbColorView) const;
@@ -138,8 +140,10 @@ protected:
     const Device*const  m_pDevice;
     const Image* const  m_pImage;
 
-    SubresId  m_subresource;
-    uint32    m_arraySize;
+    SubresId           m_subresource;
+    uint32             m_arraySize;
+    SwizzledFormat     m_swizzledFormat;
+    TargetExtent2d     m_extent;
 
     ColorLayoutToState  m_layoutToState;
 
@@ -172,10 +176,6 @@ struct Gfx9ColorTargetViewPm4Img
     regCB_COLOR0_CLEAR_WORD1      cbColorClearWord1;
     regCB_COLOR0_DCC_BASE         cbColorDccBase;
     regCB_COLOR0_DCC_BASE_EXT     cbColorDccBaseExt;
-
-    PM4PFP_SET_CONTEXT_REG        hdrPaScGenericScissor;
-    regPA_SC_GENERIC_SCISSOR_TL   paScGenericScissorTl;
-    regPA_SC_GENERIC_SCISSOR_BR   paScGenericScissorBr;
 
     PM4PFP_SET_CONTEXT_REG        hdrCbMrtEpitch;
     regCB_MRT0_EPITCH             cbMrtEpitch;

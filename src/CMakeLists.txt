@@ -108,6 +108,18 @@ if(PAL_CLIENT_VULKAN)
     target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN)
 endif()
 
+if(UNIX)
+    if(PAL_CLIENT_DX12)
+        set(PAL_DX_BUILD ON)
+        # Public because it is used in the interface.
+        target_compile_definitions(pal PUBLIC PAL_DX_BUILD)
+    else()
+        set(PAL_AMDGPU_BUILD ON)
+        # Public because it is used in the interface.
+        target_compile_definitions(pal PUBLIC PAL_AMDGPU_BUILD)
+    endif()
+endif()
+
 if(PAL_BUILD_DTIF)
     target_compile_definitions(pal PRIVATE PAL_BUILD_DTIF)
 endif()
@@ -274,10 +286,11 @@ if(PAL_BUILD_CORE)
         core/os/nullDevice/ndGpuMemory.cpp
         core/os/nullDevice/ndPlatform.cpp
         core/os/nullDevice/ndQueue.cpp
-		core/os/nullDevice/ndFence.cpp
+        core/os/nullDevice/ndFence.cpp
     )
 
-    if(UNIX)
+    if(PAL_AMDGPU_BUILD)
+        message(STATUS "PAL build with amdgpu back-end enabled")
         target_sources(pal PRIVATE
             core/os/lnx/lnxDevice.cpp
             core/os/lnx/lnxTimestampFence.cpp
@@ -313,7 +326,48 @@ if(PAL_BUILD_CORE)
             target_include_directories(pal PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIR})
         endif()
 
+#if PAL_DX_BUILD or PAL_KMT_BUILD
+    elseif(PAL_DX_BUILD OR PAL_KMT_BUILD)
+        if(PAL_DX_BUILD)
+            message(STATUS "PAL build with WDDM DX back-end enabled")
+            target_sources(pal PRIVATE core/os/win/dxPlatform.cpp)
+        elseif(PAL_KMT_BUILD)
+            message(STATUS "PAL build with WDDM KMT back-end enabled")
+            target_sources(pal PRIVATE core/os/win/kmtPlatform.cpp)
+        endif()
+
+        target_sources(pal PRIVATE
+            core/os/win/winDevice.cpp
+            core/os/win/winFence.cpp
+            core/os/win/winFlgl.cpp
+            core/os/win/winGpuMemory.cpp
+            core/os/win/winImage.cpp
+            core/os/win/winOglPresent.cpp
+            core/os/win/winLdaChain.cpp
+            core/os/win/winPlatform.cpp
+            core/os/win/winPresentScheduler.cpp
+            core/os/win/winPresentTechniqueBlit.cpp
+            core/os/win/winPresentTechniqueEmu.cpp
+            core/os/win/winPresentTechniqueFlip.cpp
+            core/os/win/winPresentTechniqueGdi.cpp
+            core/os/win/winPrivateScreen.cpp
+            core/os/win/winQueue.cpp
+            core/os/win/winQueueSemaphore.cpp
+            core/os/win/winRegistry.cpp
+            core/os/win/winScreen.cpp
+            core/os/win/winSwapChain.cpp
+            core/os/win/winTimerQueue.cpp
+            core/os/win/wddm1/wddm1Device.cpp
+            core/os/win/wddm1/wddm1GpuMemory.cpp
+            core/os/win/wddm1/wddm1Queue.cpp
+            core/os/win/wddm1/wddm1VamMgr.cpp
+            core/os/win/wddm2/wddm2Device.cpp
+            core/os/win/wddm2/wddm2GpuMemory.cpp
+            core/os/win/wddm2/wddm2HwsQueue.cpp
+            core/os/win/wddm2/wddm2Queue.cpp
+        )
     endif()
+#endif
 
 ### PAL core/hw ################################################################
     if(PAL_BUILD_GFX)

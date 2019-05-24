@@ -151,6 +151,14 @@ public:
 
     uint32 GetVsUserDataBaseOffset() const;
 
+    static uint32 CalcMaxLateAllocLimit(
+        const Device&          device,
+        const RegisterVector&  registers,
+        uint32                 numVgprs,
+        uint32                 numSgprs,
+        uint32                 scratchEn,
+        uint32                 targetLateAllocLimit);
+
 protected:
     virtual ~GraphicsPipeline() { }
 
@@ -190,11 +198,14 @@ private:
 
     void SetupSignatureFromElf(
         const CodeObjectMetadata& metadata,
-        const RegisterVector&     registers);
+        const RegisterVector&     registers,
+        uint16*                   pEsGsLdsSizeRegGs,
+        uint16*                   pEsGsLdsSizeRegVs);
     void SetupSignatureForStageFromElf(
         const CodeObjectMetadata& metadata,
         const RegisterVector&     registers,
-        HwShaderStage             stage);
+        HwShaderStage             stage,
+        uint16*                   pEsGsLdsSizeReg);
 
     void BuildPm4Headers(
         const GraphicsPipelineUploader& uploader);
@@ -214,10 +225,6 @@ private:
     void FixupIaMultiVgtParam(
         bool                   forceWdSwitchOnEop,
         regIA_MULTI_VGT_PARAM* pIaMultiVgtParam) const;
-
-    void SetupLateAllocVs(
-        const RegisterVector&     registers,
-        GraphicsPipelineUploader* pUploader);
 
     void SetupRbPlusRegistersForSlot(
         uint32                   slot,
@@ -365,10 +372,11 @@ class GraphicsPipelineUploader : public Pal::PipelineUploader
 {
 public:
     explicit GraphicsPipelineUploader(
-        uint32 ctxRegisterCount,
-        uint32 shRegisterCount)
+        Device* pDevice,
+        uint32  ctxRegisterCount,
+        uint32  shRegisterCount)
         :
-        PipelineUploader(ctxRegisterCount, shRegisterCount)
+        PipelineUploader(pDevice->Parent(), ctxRegisterCount, shRegisterCount)
         { }
     virtual ~GraphicsPipelineUploader() { }
 

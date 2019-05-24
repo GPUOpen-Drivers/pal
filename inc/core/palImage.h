@@ -108,6 +108,27 @@ enum class ImageAspect : uint32
     Count
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
+/// Image metadata modes.
+enum class MetadataMode : uint16
+{
+    Default = 0,        ///< Default behavior.  PAL chooses if metadata should be present or not.
+    ForceEnabled,       ///< Optimization Hint:  Tells PAL that the client would prefer Metadata if possible.
+                        ///  useful for scenarios where metadata isn't an obvious win and clients can enable based
+                        ///  on some hueristic or app-detect.
+    Disabled,           ///< The Image will not contain any compression metadata.
+    Count,
+};
+
+/// Image metadata TC compat modes.
+enum class MetadataTcCompatMode : uint16
+{
+    Default = 0,        ///< Default behavior.  PAL chooses if TC compat should be enabled (if compressed).
+    ForceEnabled,       ///< Optimization Hint:  Tells PAL that the client would prefer Metadata is TC compat.
+    Disabled,           ///< Optimization Hint:  Tells PAL that the client would prefer Metadata is not TC compat.
+    Count,
+};
+#else
 /// Image metadata modes.
 enum class MetadataMode : uint32
 {
@@ -121,6 +142,7 @@ enum class MetadataMode : uint32
     Disabled,           ///< The Image will not contain any compression metadata.
     Count,
 };
+#endif
 
 /// Image shared metadata support level
 enum class MetadataSharingLevel : uint32
@@ -251,7 +273,10 @@ struct ImageCreateInfo
     TilingOptMode      tilingOptMode;     ///< Hints to pal to select the appropriate tiling mode.
     uint32             tileSwizzle;       ///< If fixedTileSwizzle is set, use this value for the image's base tile
                                           ///  swizzle.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
+    MetadataMode         metadataMode;    ///< Metadata behavior mode for this image.
+    MetadataTcCompatMode metadataTcCompatMode; ///< TC compat mode for this image.
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
     MetadataMode       metadataMode;      ///< Metadata behavior mode for this image.
 #endif
     uint32             maxBaseAlign;      ///< Maximum address alignment for this image or zero for an unbounded

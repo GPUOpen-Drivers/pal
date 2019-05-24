@@ -457,6 +457,8 @@ void RsrcProcMgr::CopyColorImageGraphics(
     uint32                 flags
     ) const
 {
+    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+
     // Get some useful information about the image.
     const auto& dstSubResInfo = dstImage.SubresourceInfo(dstImage.GetBaseSubResource());
     const auto& srcSubResInfo = srcImage.SubresourceInfo(srcImage.GetBaseSubResource());
@@ -711,6 +713,8 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     uint32                 flags
     ) const
 {
+    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+
     const auto& device        = *m_pDevice->Parent();
     const auto& texOptLevel   = device.TexOptLevel();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
@@ -1006,19 +1010,22 @@ void RsrcProcMgr::CopyImageCompute(
     const bool      isCompressed  = (Formats::IsBlockCompressed(srcCreateInfo.swizzledFormat.format) ||
                                      Formats::IsBlockCompressed(dstCreateInfo.swizzledFormat.format));
     const bool      useMipInSrd   = CopyImageUseMipLevelInSrd(isCompressed);
-    const ImageType imageType     = srcImage.GetGfxImage()->GetOverrideImageType();
+    const GfxImage* pSrcGfxImage  = srcImage.GetGfxImage();
+    const ImageType imageType     = pSrcGfxImage->GetOverrideImageType();
 
     bool isFmaskCopy          = false;
     bool isFmaskCopyOptimized = false;
     // Get the appropriate pipeline object.
     const ComputePipeline* pPipeline = nullptr;
 
-    const bool isDepth = (srcImage.IsDepthStencil() || dstImage.IsDepthStencil());
     // The Fmask accelerated copy should be used in all non-EQAA cases where Fmask is enabled. There is no use case
     // Fmask accelerated EQAA copy and it would require several new shaders. It can be implemented at a future
     // point if required.
-    if ((srcImage.IsMetadataDisabled() == false) && (srcCreateInfo.fragments > 1) && (isDepth == false))
+    if (pSrcGfxImage->HasFmaskData() == true)
     {
+        PAL_ASSERT(srcCreateInfo.fragments > 1);
+        PAL_ASSERT((srcImage.IsDepthStencil() == false) && (dstImage.IsDepthStencil() == false));
+
         if (srcCreateInfo.samples != srcCreateInfo.fragments)
         {
             PAL_NOT_IMPLEMENTED();
@@ -2019,6 +2026,8 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     ScaledCopyInternalFlags flags
     ) const
 {
+    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+
     // Get some useful information about the image.
     const auto* pSrcImage                 = static_cast<const Image*>(copyInfo.pSrcImage);
     const auto* pDstImage                 = static_cast<const Image*>(copyInfo.pDstImage);
@@ -2498,11 +2507,11 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     else
     {
         const bool isDepth = (pSrcImage->IsDepthStencil() || pDstImage->IsDepthStencil());
-        if ((srcInfo.samples > 1)  && (isDepth == false))
+        if ((srcInfo.samples > 1) && (isDepth == false))
         {
             // EQAA images or MSAA images with FMask disabled are unsupported for scaled copy. There is no use case for
             // EQAA and it would require several new shaders. It can be implemented if needed at a future point.
-            PAL_ASSERT((srcInfo.samples == srcInfo.fragments) && (pSrcImage->IsMetadataDisabled() == false));
+            PAL_ASSERT((srcInfo.samples == srcInfo.fragments) && (pSrcGfxImage->HasFmaskData() == true));
             pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskScaledCopy);
             isFmaskCopy = true;
         }
@@ -2678,7 +2687,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             // Enable gamma conversion when dstFormat is Srgb, but only if srcFormat is not Srgb-as-Unorm.
             // Because the Srgb-as-Unorm sample is still gamma compressed and therefore no additional
             // conversion before shader export is needed.
-            const uint32_t enableGammaConversion =
+            const uint32 enableGammaConversion =
                 (Formats::IsSrgb(dstFormat.format) && (flags.srcSrgbAsUnorm == 0)) ? 1 : 0;
 
             const uint32 copyData[] =
@@ -3921,6 +3930,8 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
     ColorTargetViewCreateInfo* pColorViewInfo,
     BindTargetParams*          pBindTargetsInfo) const
 {
+    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+
     const auto& createInfo = dstImage.GetImageCreateInfo();
     const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
     ColorTargetViewInternalCreateInfo colorViewInfoInternal = {};
@@ -4803,6 +4814,8 @@ void RsrcProcMgr::ResolveImageGraphics(
     const ImageResolveRegion* pRegions
     ) const
 {
+    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+
     const auto& device        = *m_pDevice->Parent();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
@@ -5150,6 +5163,11 @@ void RsrcProcMgr::ResolveImageCompute(
                                     dstLayoutCompute,
                                     device.TexOptLevel());
 
+        if (HwlImageUsesCompressedWrites(pUserData))
+        {
+            HwlUpdateDstImageStateMetaData(pCmdBuffer, dstImage, viewRange);
+        }
+
         viewRange.startSubres = srcSubres;
         RpmUtil::BuildImageViewInfo(&imageView[1],
                                     srcImage,
@@ -5165,10 +5183,6 @@ void RsrcProcMgr::ResolveImageCompute(
 #else
         device.CreateImageViewSrds(2, &imageView[0], pUserData);
 #endif
-
-        // It is expected that if the destination image contains any metadata, that metadata should be decompressed.
-        // We want to make sure the image SRD does not support compressed writes to the destination image.
-        PAL_ASSERT(HwlImageUsesCompressedWrites(pUserData) == false);
         pUserData += SrdDwordAlignment() * 2;
 
         if (isCsFmask)
@@ -5478,6 +5492,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     ) const
 {
     PAL_ASSERT(image.IsDepthStencil());
+    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
 
     const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
     const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
@@ -5635,6 +5650,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     ) const
 {
     PAL_ASSERT(image.IsDepthStencil());
+    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
 
     const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
     const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
@@ -5793,6 +5809,7 @@ void RsrcProcMgr::GenericColorBlit(
     ) const
 {
     PAL_ASSERT(dstImage.IsRenderTarget());
+    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
 
     const auto& imageCreateInfo = dstImage.GetImageCreateInfo();
     const bool  is3dImage       = (imageCreateInfo.imageType == ImageType::Tex3d);
@@ -5888,8 +5905,10 @@ void RsrcProcMgr::GenericColorBlit(
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
-    const uint32 lastMip = (range.startSubres.mipLevel + range.numMips - 1);
-    gpusize mipCondDwordsOffset = metaDataOffset;
+    const uint32 lastMip                = (range.startSubres.mipLevel + range.numMips - 1);
+    gpusize      mipCondDwordsOffset    = metaDataOffset;
+    bool         needDisablePredication = false;
+
     for (uint32 mip = range.startSubres.mipLevel; mip <= lastMip; ++mip)
     {
         // If this is a decompress operation of some sort, then don't bother continuing unless this
@@ -5899,8 +5918,7 @@ void RsrcProcMgr::GenericColorBlit(
         {
             // Use predication to skip this operation based on the image's conditional dwords.
             // We can only perform this optimization if the client is not currently using predication.
-            bool needDisablePredication = false;
-            if ((pCmdBuffer->GetGfxCmdBufState().clientPredicate == 0) && (pGpuMemory != nullptr))
+            if ((pCmdBuffer->GetGfxCmdBufState().flags.clientPredicate == 0) && (pGpuMemory != nullptr))
             {
                 // Set/Enable predication
                 pCmdBuffer->CmdSetPredication(nullptr,
@@ -5980,21 +5998,21 @@ void RsrcProcMgr::GenericColorBlit(
                     PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
                 }
             } // End for each array slice.
-
-            if (needDisablePredication)
-            {
-                // Disable predication
-                pCmdBuffer->CmdSetPredication(nullptr,
-                                              0,
-                                              nullptr,
-                                              0,
-                                              static_cast<PredicateType>(0),
-                                              false,
-                                              false,
-                                              false);
-            }
         }
     } // End for each mip level.
+
+    if (needDisablePredication)
+    {
+        // Disable predication
+        pCmdBuffer->CmdSetPredication(nullptr,
+                                      0,
+                                      nullptr,
+                                      0,
+                                      static_cast<PredicateType>(0),
+                                      false,
+                                      false,
+                                      false);
+    }
 
     // Restore original command buffer state.
     pCmdBuffer->PopGraphicsState();
@@ -6012,6 +6030,8 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     const ImageResolveRegion* pRegions
     ) const
 {
+    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
 
@@ -6213,6 +6233,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
 {
     PAL_ASSERT(srcImage.IsDepthStencil() && dstImage.IsDepthStencil());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
 
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();

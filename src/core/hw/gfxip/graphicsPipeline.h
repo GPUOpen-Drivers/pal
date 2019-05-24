@@ -66,6 +66,7 @@ public:
     // Accessors for arrays of per-target info stored from pipeline creation.
     const SwizzledFormat* TargetFormats() const { return &m_targetSwizzledFormats[0]; }
     const uint8* TargetWriteMasks() const { return &m_targetWriteMasks[0]; }
+    uint8 NumColorTargets() const { return m_numColorTargets; }
 
 protected:
     GraphicsPipeline(Device* pDevice, bool isInternal);
@@ -131,6 +132,7 @@ private:
     // optimization programming.
     SwizzledFormat  m_targetSwizzledFormats[MaxColorTargets];
     uint8           m_targetWriteMasks[MaxColorTargets];
+    uint8           m_numColorTargets;
 
     // Use this late_alloc_vs limit if lateAllocVsLimit flag is set.
     uint32  m_lateAllocVsLimit;

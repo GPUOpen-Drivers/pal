@@ -112,7 +112,7 @@ struct QueueCreateInfo
                                        ///  has manually done a blit present
         uint32 placeholder2              :  1; ///< Reserved field. Set to 0.
 
-#if defined(__unix__) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
+#if PAL_AMDGPU_BUILD && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
         uint32 enableGpuMemoryPriorities :  1; ///< Enables support for GPU memory priorities on this Queue. This is
                                                ///  optional because enabling the feature requires a small amount of
                                                ///  memory overhead per-Queue for bookkeeping purposes.

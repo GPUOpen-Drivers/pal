@@ -181,7 +181,6 @@ constexpr unsigned int mmCB_COLOR7_DCC_BASE_EXT_DEFAULT         = 0x00CD;
 constexpr unsigned int mmCB_COLOR7_FMASK_BASE_EXT_DEFAULT       = 0x00CD;
 constexpr unsigned int mmCB_COLOR7_FMASK_DEFAULT                = 0xCDCDCDCD;
 constexpr unsigned int mmCB_COLOR_CONTROL_DEFAULT               = 0xCD0049;
-constexpr unsigned int mmCB_HW_CONTROL_1_DEFAULT                = 0x10000000;
 constexpr unsigned int mmCB_HW_MEM_ARBITER_RD_DEFAULT           = 0x29000;
 constexpr unsigned int mmCB_HW_MEM_ARBITER_WR_DEFAULT           = 0x29000;
 constexpr unsigned int mmCB_PERFCOUNTER0_HI_DEFAULT             = 0xCDCDCDCD;
@@ -1751,6 +1750,7 @@ namespace Gfx09
     constexpr unsigned int mmCB_COLOR7_INFO_DEFAULT                 = 0xC05CD4D;
     constexpr unsigned int mmCB_COLOR7_VIEW_DEFAULT                 = 0xDCDC5CD;
     constexpr unsigned int mmCB_DCC_CONFIG_DEFAULT                  = 0x4000000;
+    constexpr unsigned int mmCB_HW_CONTROL_1_DEFAULT                = 0x10000000;
     constexpr unsigned int mmCB_HW_CONTROL_2_DEFAULT                = 0x0000;
     constexpr unsigned int mmCB_HW_CONTROL_3_DEFAULT                = 0x0000;
     constexpr unsigned int mmCB_HW_CONTROL_DEFAULT                  = 0x14107;

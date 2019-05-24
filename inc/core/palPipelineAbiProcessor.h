@@ -141,9 +141,9 @@ public:
         const void* pData,
         size_t      dataSize);
 
-    /// Set the pipelines' AMDIL data.  This should contain binaries for all shader stages in the
+    /// Set the pipelines' AMDIL data.  This should contain AMDIL disassembly for all shader stages in the
     /// pipeline.  Each shader stage has an associated symbol type which defines the size and offset to the
-    /// binary data for that stage.
+    /// AMDIL disassembly data for that stage.
     ///
     /// @param [in] pData     Pointer to the pipeline's AMDIL binary data.
     /// @param [in] dataSize  Size of the binary data, in bytes.

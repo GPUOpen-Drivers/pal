@@ -58,7 +58,8 @@ union GraphicsStateFlags
                 uint16 colorTargetView        : 1; // Gfx9 only
                 uint16 depthStencilView       : 1; // Gfx9 only
                 uint16 reservedForFutureHw    : 1;
-                uint16 reservedValidationBits : 4;
+                uint16 reservedForFutureHw1   : 2;
+                uint16 reservedValidationBits : 2;
             };
 
             uint16 u16All;
@@ -90,6 +91,18 @@ union GraphicsStateFlags
 
 static_assert(sizeof(GraphicsStateFlags) == sizeof(uint32), "Bad bitfield size.");
 
+union TargetExtent2d
+{
+    struct
+    {
+        uint32 width  : 16; ///< Width of region (max width is 16k).
+        uint32 height : 16; ///< Height of region (max height is 16k).
+    };
+    uint32 value;
+};
+
+constexpr uint32 MaxScissorExtent = 16384;
+
 // Represents the graphics state which is currently active within the command buffer.
 struct GraphicsState
 {
@@ -101,6 +114,7 @@ struct GraphicsState
     // Lower MaxColorTargets bits are used. Each indicate how this slot is bound.
     // 0 indicates that it's bound to NULL, 1 means it's bound to a color target.
     uint32                      boundColorTargetMask;
+    TargetExtent2d              targetExtent;
 
     BindStreamOutTargetParams   bindStreamOutTargets;
 

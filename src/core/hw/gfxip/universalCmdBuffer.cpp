@@ -240,6 +240,20 @@ void UniversalCmdBuffer::ResetState()
     // NULL color target will only be bound if the slot was not NULL and is being set to NULL. Use a value of all 1s
     // so NULL color targets will be bound when BuildNullColorTargets() is called for the first time.
     m_graphicsState.boundColorTargetMask = NoNullColorTargetMask;
+
+    if (IsNested() == false)
+    {
+        // Fully open scissor by default
+        m_graphicsState.targetExtent.width  = MaxScissorExtent;
+        m_graphicsState.targetExtent.height = MaxScissorExtent;
+    }
+    else
+    {
+        // For nested case, default to an invalid value to trigger validation if BindTarget called.
+        static_assert(static_cast<uint16>(USHRT_MAX) > static_cast<uint16>(MaxScissorExtent), "Check Scissor logic");
+        m_graphicsState.targetExtent.width  = USHRT_MAX;
+        m_graphicsState.targetExtent.height = USHRT_MAX;
+    }
 }
 
 // =====================================================================================================================
@@ -603,11 +617,13 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
                &graphics.bindTargets.colorTargets[0],
                sizeof(m_graphicsState.bindTargets.colorTargets));
         m_graphicsState.bindTargets.colorTargetCount = graphics.bindTargets.colorTargetCount;
+        m_graphicsState.targetExtent.value           = graphics.targetExtent.value;
     }
 
     if (graphics.leakFlags.validationBits.depthStencilView != 0)
     {
         m_graphicsState.bindTargets.depthTarget = graphics.bindTargets.depthTarget;
+        m_graphicsState.targetExtent.value      = graphics.targetExtent.value;
     }
 
     if (graphics.leakFlags.nonValidationBits.streamOutTargets != 0)

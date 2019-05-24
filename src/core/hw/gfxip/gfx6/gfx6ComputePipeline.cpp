@@ -182,20 +182,23 @@ Result ComputePipeline::HwlInit(
     RegisterVector registers(m_pDevice->GetPlatform());
     Result result = pMetadataReader->Unpack(&registers);
 
-    ComputePipelineUploader uploader(settings.enableLoadIndexForObjectBinds ? BaseLoadedShRegCount : 0);
+    ComputePipelineUploader uploader(m_pDevice, settings.enableLoadIndexForObjectBinds ? BaseLoadedShRegCount : 0);
     if (result == Result::Success)
     {
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
             abiProcessor,
             metadata,
-            &uploader,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
-            createInfo.flags.preferNonLocalHeap
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488)
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
+            (createInfo.flags.preferNonLocalHeap == 1) ? GpuHeapGartUswc : GpuHeapInvisible,
 #else
-            false
+            (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
 #endif
-        );
+#else
+            GpuHeapInvisible,
+#endif
+            &uploader);
     }
 
     if (result == Result::Success)
@@ -249,62 +252,65 @@ Result ComputePipeline::HwlInit(
             uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_commands.set.computeNumThreadY);
             uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_commands.set.computeNumThreadZ);
         }
-        uploader.End();
+        result = uploader.End();
 
-        registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_commands.dynamic.computeResourceLimits.u32All);
-        const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
-        const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx6.nativeWavefrontSize);
-
-        // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If the number of
-        // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.
-        m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
-
-        // Force even distribution on all SIMDs in CU for workgroup size is 64
-        // This has shown some good improvements if #CU per SE not a multiple of 4
-        if (((chipProps.gfx6.numShaderArrays * chipProps.gfx6.numCuPerSh) & 0x3) && (wavesPerGroup == 1))
+        if (result == Result::Success)
         {
-            m_commands.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST__CI__VI = 1;
+            registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_commands.dynamic.computeResourceLimits.u32All);
+            const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
+            const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx6.nativeWavefrontSize);
+
+            // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If the number of
+            // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.
+            m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
+
+            // Force even distribution on all SIMDs in CU for workgroup size is 64
+            // This has shown some good improvements if #CU per SE not a multiple of 4
+            if (((chipProps.gfx6.numShaderArrays * chipProps.gfx6.numCuPerSh) & 0x3) && (wavesPerGroup == 1))
+            {
+                m_commands.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST__CI__VI = 1;
+            }
+
+            if (m_pDevice->Parent()->LegacyHwsTrapHandlerPresent())
+            {
+                // If the legacy HWS's trap handler is present, compute shaders must always set the TRAP_PRESENT
+                // flag.
+
+                // TODO: Handle the case where the client enabled a trap handler and the hardware scheduler's trap handler
+                // is already active!
+                PAL_ASSERT(m_commands.dynamic.computePgmRsrc2.bits.TRAP_PRESENT == 0);
+                m_commands.dynamic.computePgmRsrc2.bits.TRAP_PRESENT = 1;
+            }
+
+            // LOCK_THRESHOLD: Sets per-SH low threshold for locking.  Set in units of 4, 0 disables locking.
+            // LOCK_THRESHOLD's maximum value: (6 bits), in units of 4, so it is max of 252.
+            constexpr uint32 Gfx6MaxLockThreshold = 252;
+            PAL_ASSERT(settings.csLockThreshold <= Gfx6MaxLockThreshold);
+            m_commands.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD =
+                Min((settings.csLockThreshold >> 2), Gfx6MaxLockThreshold >> 2);
+
+            // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If no override is set, just keep
+            // the existing value in COMPUTE_RESOURCE_LIMITS.
+            switch (settings.csSimdDestCntl)
+            {
+            case CsSimdDestCntlForce1:
+                m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 1;
+                break;
+            case CsSimdDestCntlForce0:
+                m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 0;
+                break;
+            default:
+                PAL_ASSERT(settings.csSimdDestCntl == CsSimdDestCntlDefault);
+                break;
+            }
+
+            m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
+
+            // Finally, update the pipeline signature with user-mapping data contained in the ELF:
+            SetupSignatureFromElf(metadata, registers);
+
+            GetFunctionGpuVirtAddrs(abiProcessor, uploader, createInfo.pIndirectFuncList, createInfo.indirectFuncCount);
         }
-
-        if (m_pDevice->Parent()->LegacyHwsTrapHandlerPresent())
-        {
-            // If the legacy HWS's trap handler is present, compute shaders must always set the TRAP_PRESENT
-            // flag.
-
-            // TODO: Handle the case where the client enabled a trap handler and the hardware scheduler's trap handler
-            // is already active!
-            PAL_ASSERT(m_commands.dynamic.computePgmRsrc2.bits.TRAP_PRESENT == 0);
-            m_commands.dynamic.computePgmRsrc2.bits.TRAP_PRESENT = 1;
-        }
-
-        // LOCK_THRESHOLD: Sets per-SH low threshold for locking.  Set in units of 4, 0 disables locking.
-        // LOCK_THRESHOLD's maximum value: (6 bits), in units of 4, so it is max of 252.
-        constexpr uint32 Gfx6MaxLockThreshold = 252;
-        PAL_ASSERT(settings.csLockThreshold <= Gfx6MaxLockThreshold);
-        m_commands.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD =
-            Min((settings.csLockThreshold >> 2), Gfx6MaxLockThreshold >> 2);
-
-        // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If no override is set, just keep
-        // the existing value in COMPUTE_RESOURCE_LIMITS.
-        switch (settings.csSimdDestCntl)
-        {
-        case CsSimdDestCntlForce1:
-            m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 1;
-            break;
-        case CsSimdDestCntlForce0:
-            m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 0;
-            break;
-        default:
-            PAL_ASSERT(settings.csSimdDestCntl == CsSimdDestCntlDefault);
-            break;
-        }
-
-        m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
-
-        // Finally, update the pipeline signature with user-mapping data contained in the ELF:
-        SetupSignatureFromElf(metadata, registers);
-
-        GetFunctionGpuVirtAddrs(abiProcessor, uploader, createInfo.pIndirectFuncList, createInfo.indirectFuncCount);
     }
 
     return result;

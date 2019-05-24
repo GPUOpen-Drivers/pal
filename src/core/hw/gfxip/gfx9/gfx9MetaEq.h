@@ -146,6 +146,7 @@ public:
     uint32 Get(
         uint32  bitPos,
         uint32  compType) const;
+    const uint32*  GetEquation(uint32  firstBit) const { return &m_equation[firstBit][0]; }
     uint32 GetNumSamples() const;
     gpusize GetGpuSize() const;
     bool IsEqual(

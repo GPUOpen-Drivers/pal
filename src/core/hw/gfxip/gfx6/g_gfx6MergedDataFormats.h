@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -252,6 +252,10 @@ constexpr FormatFeatureFlags IrXsIwXdIaIflTrTwTaCBMXP = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIwXdIaIflIfmmTrTwTaCBMXP = static_cast<FormatFeatureFlags>(IrXsIwXdIaIflTrTwTaCBMXP | Ifmm);
 constexpr FormatFeatureFlags IrXsIwXdIaIflTrTwTaCBDMX = static_cast<FormatFeatureFlags>(IrXsIwXdIaIflTrTwTaCBMXP |
                                                                                         FormatFeatureDepthTarget);
+constexpr FormatFeatureFlags IrXsIwXdIaIflIfmmCBX     = static_cast<FormatFeatureFlags>(IrXsIwXdCBX |
+                                                                                        Ia |
+                                                                                        Ifl |
+                                                                                        Ifmm);
 constexpr FormatFeatureFlags IrXsIwXdIaIflIfmmTrTwTaCBDMX = static_cast<FormatFeatureFlags>(IrXsIwXdIaIflTrTwTaCBDMX | Ifmm);
 
 // Lookup table for GPU access capabilities for each format/tiling-type pairing in Gfx6.
@@ -18696,16 +18700,16 @@ constexpr MergedFormatPropertiesTable Gfx8_1MergedFormatPropertiesTable =
         { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc6_Sfloat
         { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc7_Unorm
         { Copy,                           IrXsIfl                        }, // ChNumFormat::Bc7_Srgb
-        { Copy,                           IrXsIfl                        }, // ChNumFormat::Etc2X8Y8Z8_Unorm
-        { Copy,                           IrXsIfl                        }, // ChNumFormat::Etc2X8Y8Z8_Srgb
-        { Copy,                           IrXsIfl                        }, // ChNumFormat::Etc2X8Y8Z8W1_Unorm
-        { Copy,                           IrXsIfl                        }, // ChNumFormat::Etc2X8Y8Z8W1_Srgb
-        { Copy,                           IrXsIfl                        }, // ChNumFormat::Etc2X8Y8Z8W8_Unorm
-        { Copy,                           IrXsIfl                        }, // ChNumFormat::Etc2X8Y8Z8W8_Srgb
-        { Copy,                           IrXsIfl                        }, // ChNumFormat::Etc2X11_Unorm
-        { Copy,                           IrXsIfl                        }, // ChNumFormat::Etc2X11_Snorm
-        { Copy,                           IrXsIfl                        }, // ChNumFormat::Etc2X11Y11_Unorm
-        { Copy,                           IrXsIfl                        }, // ChNumFormat::Etc2X11Y11_Snorm
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8_Unorm
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8_Srgb
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8W1_Unorm
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8W1_Srgb
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8W8_Unorm
+        { None,                           None                           }, // ChNumFormat::Etc2X8Y8Z8W8_Srgb
+        { None,                           None                           }, // ChNumFormat::Etc2X11_Unorm
+        { None,                           None                           }, // ChNumFormat::Etc2X11_Snorm
+        { None,                           None                           }, // ChNumFormat::Etc2X11Y11_Unorm
+        { None,                           None                           }, // ChNumFormat::Etc2X11Y11_Snorm
         { None,                           None                           }, // ChNumFormat::AstcLdr4x4_Unorm
         { None,                           None                           }, // ChNumFormat::AstcLdr4x4_Srgb
         { None,                           None                           }, // ChNumFormat::AstcLdr5x4_Unorm

@@ -105,28 +105,6 @@ struct RegisterInfo
     uint16  mmSrbmPerfmonCntl;
 };
 
-// This structure stores the PM4 packet to set flip control registers.
-struct FlipControlPacket
-{
-    uint32 mmDcpGrphUpdate;
-    uint32 dcpGrphUpdate;
-    uint32 mmCrtcMasterUpdateMode;
-    uint32 crtcMasterUpdateMode;
-    uint32 mmDcpGrphFlipCtrl;
-    uint32 dcpGrphFlipCtrl;
-    uint32 mmDcpGrphPitch;
-    uint32 dcpGrphPitch;
-    uint32 crtcPacketHeader;
-    uint32 crtcPacketHeaderSignature;
-    uint32 crtcPacketLength;
-    uint32 mmDcpGrphPrimarySurfAddrHi;
-    uint32 dcpGrphPrimarySurfAddrHi;
-    uint32 mmDcpGrphPrimarySurfAddr;
-    uint32 dcpGrphPrimarySurfAddr;
-    uint32 mmDcpGrphUpdate1;
-    uint32 dcpGrphUpdate1;
-};
-
 // Pre-baked commands to prefetch (prime caches) for a pipeline.  This will be done with a CPDMA operation that will
 // prime GL2.
 struct PipelinePrefetchPm4
@@ -289,13 +267,6 @@ public:
         void*          pBuffer) const;
 
     size_t BuildEventWriteQuery(VGT_EVENT_TYPE eventType, gpusize address, void* pBuffer) const;
-
-    size_t BuildFlipControlPacket(
-        gpusize gpuPhysAddr,
-        uint32  actualWidth,
-        uint32  crtcIndex,
-        bool    waitForVsync,
-        void*   pBuffer) const;
 
     size_t BuildGenericSync(
         regCP_COHER_CNTL cpCoherCntl,

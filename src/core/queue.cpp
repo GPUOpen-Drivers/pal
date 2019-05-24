@@ -36,6 +36,9 @@
 #include "core/queueSemaphore.h"
 #include "core/swapChain.h"
 #include "core/hw/ossip/ossDevice.h"
+#include "core/hw/gfxip/gfxDevice.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
+#include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "palDequeImpl.h"
 #include "palSysUtil.h"
 
@@ -90,7 +93,7 @@ Queue::Queue(
     m_queuePriority(QueuePriority::Low),
     m_persistentCeRamOffset(0),
     m_persistentCeRamSize(0),
-    m_pDevOverlayCmdBufferDeque(nullptr)
+    m_pTrackedCmdBufferDeque(nullptr)
 {
     if (m_pDevice->Settings().ifhGpuMask & (0x1 << m_pDevice->ChipProperties().gpuIndex))
     {
@@ -171,15 +174,15 @@ void Queue::Destroy()
     // slow and have chance to be preempted. Solution is call WaitIdle before doing anything else.
     WaitIdle();
 
-    if (m_pDevOverlayCmdBufferDeque != nullptr)
+    if (m_pTrackedCmdBufferDeque != nullptr)
     {
-        while (m_pDevOverlayCmdBufferDeque->NumElements() > 0)
+        while (m_pTrackedCmdBufferDeque->NumElements() > 0)
         {
             TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
-            m_pDevOverlayCmdBufferDeque->PopFront(&pTrackedCmdBuffer);
+            m_pTrackedCmdBufferDeque->PopFront(&pTrackedCmdBuffer);
             DestroyTrackedCmdBuffer(pTrackedCmdBuffer);
         }
-        PAL_SAFE_DELETE(m_pDevOverlayCmdBufferDeque, m_pDevice->GetPlatform());
+        PAL_SAFE_DELETE(m_pTrackedCmdBufferDeque, m_pDevice->GetPlatform());
     }
 
     if (m_pDummyCmdBuffer != nullptr)
@@ -290,14 +293,17 @@ Result Queue::Init(
         }
     }
 
-    // If developer mode is enabled we need to initialize some internal resources.
-    if ((result == Result::Success) && m_pDevice->GetPlatform()->IsDeveloperModeEnabled())
+    const bool shouldAllocTrackedCmdBuffers =
+        m_pDevice->GetPlatform()->IsDeveloperModeEnabled();
+
+    // Initialize internal tracked command buffers if they are required.
+    if ((result == Result::Success) && shouldAllocTrackedCmdBuffers)
     {
-        m_pDevOverlayCmdBufferDeque =
+        m_pTrackedCmdBufferDeque =
             PAL_NEW(TrackedCmdBufferDeque, m_pDevice->GetPlatform(), AllocInternal)
             (m_pDevice->GetPlatform());
 
-        result = (m_pDevOverlayCmdBufferDeque != nullptr) ? Result::Success : Result::ErrorOutOfMemory;
+        result = (m_pTrackedCmdBufferDeque != nullptr) ? Result::Success : Result::ErrorOutOfMemory;
     }
 
     return result;
@@ -539,45 +545,98 @@ void Queue::DumpCmdToFile(
 Result Queue::CreateTrackedCmdBuffer(
     TrackedCmdBuffer** ppTrackedCmdBuffer)
 {
+    PAL_ASSERT(m_pTrackedCmdBufferDeque != nullptr);
+
     Result result = Result::Success;
 
-    TrackedCmdBuffer* pTrackedCmdBuffer = PAL_NEW(TrackedCmdBuffer, m_pDevice->GetPlatform(), AllocInternal);
+    TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
 
-    if (pTrackedCmdBuffer == nullptr)
+    if ((m_pTrackedCmdBufferDeque->NumElements() == 0) ||
+        (m_pTrackedCmdBufferDeque->Front()->pFence->GetStatus() == Result::NotReady))
     {
-        result = Result::ErrorOutOfMemory;
+        pTrackedCmdBuffer = PAL_NEW(TrackedCmdBuffer, m_pDevice->GetPlatform(), AllocInternal);
+
+        if (pTrackedCmdBuffer == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+
+        if (result == Result::Success)
+        {
+            Pal::FenceCreateInfo createInfo = {};
+            result = m_pDevice->CreateInternalFence(createInfo, &pTrackedCmdBuffer->pFence);
+        }
+
+        if (result == Result::Success)
+        {
+            CmdBufferCreateInfo createInfo = {};
+            createInfo.pCmdAllocator       = m_pDevice->InternalCmdAllocator(m_engineType);
+            createInfo.queueType           = m_type;
+            createInfo.engineType          = m_engineType;
+
+    #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 449)
+            createInfo.engineSubType = m_pDevice->EngineProperties().perEngine[m_engineType].engineSubType[m_engineId];
+    #endif
+
+            CmdBufferInternalCreateInfo internalInfo = {};
+            internalInfo.flags.isInternal            = 1;
+
+            result = m_pDevice->CreateInternalCmdBuffer(createInfo, internalInfo, &pTrackedCmdBuffer->pCmdBuffer);
+        }
+    }
+    else
+    {
+        result = m_pTrackedCmdBufferDeque->PopFront(&pTrackedCmdBuffer);
     }
 
+    // Immediately push this command buffer onto the back of the deque to avoid leaking memory.
     if (result == Result::Success)
     {
-        Pal::FenceCreateInfo createInfo = {};
-        result = m_pDevice->CreateInternalFence(createInfo, &pTrackedCmdBuffer->pFence);
+        result = m_pTrackedCmdBufferDeque->PushBack(pTrackedCmdBuffer);
     }
 
+    if ((result != Result::Success) && (pTrackedCmdBuffer != nullptr))
+    {
+        DestroyTrackedCmdBuffer(pTrackedCmdBuffer);
+        pTrackedCmdBuffer = nullptr;
+    }
+
+    // Rebuild the command buffer with the assumption it will be used for a single submission.
     if (result == Result::Success)
     {
-        CmdBufferCreateInfo createInfo = {};
-        createInfo.pCmdAllocator       = m_pDevice->InternalCmdAllocator(m_engineType);
-        createInfo.queueType           = m_type;
-        createInfo.engineType          = m_engineType;
+        CmdBufferBuildInfo buildInfo = {};
+        buildInfo.flags.optimizeOneTimeSubmit = 1;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 449)
-        createInfo.engineSubType = m_pDevice->EngineProperties().perEngine[m_engineType].engineSubType[m_engineId];
-#endif
-
-        CmdBufferInternalCreateInfo internalInfo = {};
-        internalInfo.flags.isInternal            = 1;
-
-        result = m_pDevice->CreateInternalCmdBuffer(createInfo, internalInfo, &pTrackedCmdBuffer->pCmdBuffer);
+        result = pTrackedCmdBuffer->pCmdBuffer->Begin(buildInfo);
     }
 
     if (result == Result::Success)
     {
         *ppTrackedCmdBuffer = pTrackedCmdBuffer;
     }
-    else
+
+    return result;
+}
+
+// =====================================================================================================================
+Result Queue::SubmitTrackedCmdBuffer(
+    TrackedCmdBuffer* pTrackedCmdBuffer)
+{
+    Result result = pTrackedCmdBuffer->pCmdBuffer->End();
+
+    if (result == Result::Success)
     {
-        DestroyTrackedCmdBuffer(pTrackedCmdBuffer);
+        result = m_pDevice->ResetFences(1, reinterpret_cast<IFence**>(&pTrackedCmdBuffer->pFence));
+    }
+
+    if (result == Result::Success)
+    {
+        SubmitInfo submitInfo     = {};
+        submitInfo.cmdBufferCount = 1;
+        submitInfo.ppCmdBuffers   = reinterpret_cast<ICmdBuffer**>(&pTrackedCmdBuffer->pCmdBuffer);
+        submitInfo.pFence         = pTrackedCmdBuffer->pFence;
+
+        result = Submit(submitInfo);
     }
 
     return result;
@@ -585,7 +644,7 @@ Result Queue::CreateTrackedCmdBuffer(
 
 // =====================================================================================================================
 // Destroys a tracked command buffer object. It is the caller's responsibility to make sure that the command buffer has
-// finished executing before calling this function.
+// finished executing before calling this function and that it has been removed from the deque.
 void Queue::DestroyTrackedCmdBuffer(
     TrackedCmdBuffer* pTrackedCmdBuffer)
 {
@@ -722,6 +781,7 @@ Result Queue::PresentDirectInternal(
     const PresentDirectInfo& presentInfo,
     bool                     isClientPresent)
 {
+
     Result result = Result::Success;
 
     // Check if our queue supports the given present mode.
@@ -738,12 +798,11 @@ Result Queue::PresentDirectInternal(
     }
     else
     {
-         // We only want to add the dev overlay when the client issues their present.
-        if (isClientPresent &&  Queue::SupportsDevOverlay(m_type) &&
-            m_pDevice->GetPlatform()->ShowDevDriverOverlay()      &&
-            (presentInfo.flags.srcIsTypedBuffer == 0))
+        // We only want to add postprocessing when this is a non-internal present. Internal presents are expected to
+        // have done so themselves.
+        if ((result == Result::Success) && isClientPresent)
         {
-            result = SubmitDevOverlayCmdBuffer(static_cast<const Image&>(*presentInfo.pSrcImage));
+            result = SubmitPostprocessCmdBuffer(static_cast<Image&>(*presentInfo.pSrcImage));
         }
 
         if (result == Result::Success)
@@ -794,7 +853,10 @@ Result Queue::PresentSwapChain(
 {
     Result result = Result::Success;
 
-    auto*const pSrcImage  = static_cast<const Image*>(presentInfo.pSrcImage);
+    const auto*const  pSrcImage       = static_cast<const Image*>(presentInfo.pSrcImage);
+    const Image*const pPresentedImage =
+        pSrcImage;
+
     auto*const pSwapChain = static_cast<SwapChain*>(presentInfo.pSwapChain);
 
     // Validate the present info. If this succeeds we must always call into the swap chain to release ownership of the
@@ -803,15 +865,16 @@ Result Queue::PresentSwapChain(
     {
         result = Result::ErrorInvalidPointer;
     }
-    else if((pSrcImage->IsPresentable() == false) ||
-            ((presentInfo.presentMode == PresentMode::Fullscreen) && (pSrcImage->IsFlippable() == false)) ||
-            (presentInfo.imageIndex >= pSwapChain->CreateInfo().imageCount))
+    else if ((pPresentedImage->IsPresentable() == false) ||
+             ((presentInfo.presentMode == PresentMode::Fullscreen) && (pPresentedImage->IsFlippable() == false)) ||
+             (presentInfo.imageIndex >= pSwapChain->CreateInfo().imageCount))
     {
         result = Result::ErrorInvalidValue;
     }
-    else if (Queue::SupportsDevOverlay(m_type) && m_pDevice->GetPlatform()->ShowDevDriverOverlay())
+
+    if (result == Result::Success)
     {
-        result = SubmitDevOverlayCmdBuffer(static_cast<const Image&>(*presentInfo.pSrcImage));
+        result = SubmitPostprocessCmdBuffer(static_cast<Image&>(*presentInfo.pSrcImage));
     }
 
     if (presentInfo.flags.notifyOnly == 0)
@@ -1314,69 +1377,36 @@ void Queue::IncFrameCount()
 }
 
 // =====================================================================================================================
-// Draw the developer overlay using a tracked command buffer.
-Result Queue::SubmitDevOverlayCmdBuffer(
+// Applies developer overlay and other postprocessing to be done prior to presenting an image.
+Result Queue::SubmitPostprocessCmdBuffer(
     const Image& image)
 {
-    PAL_ASSERT(m_pDevOverlayCmdBufferDeque != nullptr);
-    PAL_ASSERT(m_pDevice->GetPlatform()->IsDeveloperModeEnabled());
+    Result result = Result::Success;
 
-    TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
-    Result            result            = Result::Success;
+    const bool shouldPostprocess =
+        (Queue::SupportsComputeShader(m_type) &&
+         (
+          m_pDevice->GetPlatform()->ShowDevDriverOverlay()));
 
-    // Create a new command buffer if the least recently used one is still busy.
-    if ((m_pDevOverlayCmdBufferDeque->NumElements() == 0) ||
-        (m_pDevOverlayCmdBufferDeque->Front()->pFence->GetStatus() == Result::NotReady))
+    if (shouldPostprocess)
     {
+        const auto& presentedImage =
+            image;
+
+        TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
         result = CreateTrackedCmdBuffer(&pTrackedCmdBuffer);
-    }
-    else
-    {
-        result = m_pDevOverlayCmdBufferDeque->PopFront(&pTrackedCmdBuffer);
-    }
 
-    // Immediately push this command buffer onto the back of the deque to avoid leaking memory.
-    if (result == Result::Success)
-    {
-        result = m_pDevOverlayCmdBufferDeque->PushBack(pTrackedCmdBuffer);
-
-        if (result != Result::Success)
+        if (result == Result::Success)
         {
-            // We failed to push this command buffer onto the deque. To avoid leaking memory we must delete it.
-            DestroyTrackedCmdBuffer(pTrackedCmdBuffer);
-            pTrackedCmdBuffer = nullptr;
+
+            // If developer mode is enabled, we need to apply the developer overlay.
+            if (m_pDevice->GetPlatform()->ShowDevDriverOverlay())
+            {
+                m_pDevice->ApplyDevOverlay(presentedImage, pTrackedCmdBuffer->pCmdBuffer);
+            }
+
+            result = SubmitTrackedCmdBuffer(pTrackedCmdBuffer);
         }
-    }
-
-    // Rebuild the command buffer and submit it with the fence.
-    if (result == Result::Success)
-    {
-        CmdBufferBuildInfo buildInfo = {};
-        buildInfo.flags.optimizeOneTimeSubmit = 1;
-
-        result = pTrackedCmdBuffer->pCmdBuffer->Begin(buildInfo);
-    }
-
-    if (result == Result::Success)
-    {
-        m_pDevice->ApplyDevOverlay(image, pTrackedCmdBuffer->pCmdBuffer);
-
-        result = pTrackedCmdBuffer->pCmdBuffer->End();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_pDevice->ResetFences(1, reinterpret_cast<IFence**>(&pTrackedCmdBuffer->pFence));
-    }
-
-    if (result == Result::Success)
-    {
-        SubmitInfo submitInfo     = {};
-        submitInfo.cmdBufferCount = 1;
-        submitInfo.ppCmdBuffers   = reinterpret_cast<ICmdBuffer**>(&pTrackedCmdBuffer->pCmdBuffer);
-        submitInfo.pFence         = pTrackedCmdBuffer->pFence;
-
-        result = Submit(submitInfo);
     }
 
     return result;

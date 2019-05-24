@@ -127,7 +127,7 @@ static constexpr char AmdGpuDisassemblyName[] = ".AMDGPU.disasm";
 /// Name prefix of the section where our pipeline binaries store extra information e.g. LLVM IR.
 static constexpr char AmdGpuCommentName[] = ".AMDGPU.comment.";
 
-/// Name of the section where our pipeline binaries store AMDIL binaries.
+/// Name of the section where our pipeline binaries store AMDIL disassembly.
 static constexpr char AmdGpuCommentAmdIlName[] = ".AMDGPU.comment.amdil";
 
 /// String table of the Pipeline ABI symbols.
@@ -299,6 +299,8 @@ static const char* PipelineMetadataNameStrings[] =
 
     "INTERNAL_PIPELINE_HASH_DWORD2",
     "INTERNAL_PIPELINE_HASH_DWORD3",
+
+    "RESERVED2",
 };
 
 /// The pipeline ABI note types.
@@ -402,19 +404,19 @@ enum class PipelineSymbolType : uint32
     PsShdrIntrlData,   ///< PS shader internal data pointer.  Optional.
     CsShdrIntrlData,   ///< CS shader internal data pointer.  Optional.
     PipelineIntrlData, ///< Cross-shader internal data pointer.  Optional.
-    CsAmdIl,           ///< API CS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
-    VsAmdIl,           ///< API VS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
-    HsAmdIl,           ///< API HS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
-    DsAmdIl,           ///< API DS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
-    GsAmdIl,           ///< API GS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
-    PsAmdIl,           ///< API PS shader AMDIL binary.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    CsAmdIl,           ///< API CS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    VsAmdIl,           ///< API VS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    HsAmdIl,           ///< API HS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    DsAmdIl,           ///< API DS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    GsAmdIl,           ///< API GS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    PsAmdIl,           ///< API PS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
     Count,
 
     ShaderMainEntry   = LsMainEntry,        ///< Shorthand for the first shader's entry point
     ShaderIntrlTblPtr = LsShdrIntrlTblPtr,  ///< Shorthand for the first shader's internal table pointer
     ShaderDisassembly = LsDisassembly,      ///< Shorthand for the first shader's disassembly string
     ShaderIntrlData   = LsShdrIntrlData,    ///< Shorthand for the first shader's internal data pointer
-    ShaderAmdIl       = CsAmdIl,            ///< Shorthand for the first shader's AMDIL binary
+    ShaderAmdIl       = CsAmdIl,            ///< Shorthand for the first shader's AMDIL disassembly string
 };
 
 static_assert(static_cast<uint32>(PipelineSymbolType::Count) == sizeof(PipelineAbiSymbolNameStrings)/sizeof(char*),
@@ -624,6 +626,8 @@ enum class PipelineMetadataType : uint32
     InternalPipelineHashDword2,   ///< Dword 2 of a 128-bit hash identifying the internal pipeline (unique portion).
     InternalPipelineHashDword3,   ///< Dword 3 of a 128-bit hash identifying the internal pipeline (unique portion).
 
+    Reserved2,                    ///< Reserved for future use.
+
     Count,
 
     ShaderNumUsedVgprs              = LsNumUsedVgprs,              ///< Shorthand for the first shader's used VGPR count
@@ -693,11 +697,14 @@ enum class UserDataMapping : uint32
                                     ///  stages.
     ViewId            = 0x1000000B, ///< View id (32-bit unsigned integer) identifies a view of graphic
                                     ///  pipeline instancing.
-    StreamOutTable    = 0x1000000C, ///< 32-bit pointer to GPU memory containing the stream out target SRD table.  This can
-                                    ///  only appear for one shader stage per pipeline.
+    StreamOutTable    = 0x1000000C, ///< 32-bit pointer to GPU memory containing the stream out target SRD table.  This
+                                    ///  can only appear for one shader stage per pipeline.
     PerShaderPerfData = 0x1000000D, ///< 32-bit pointer to GPU memory containing the per-shader performance data buffer.
-    VertexBufferTable = 0x1000000F, ///< 32-bit pointer to GPU memory containing the vertex buffer SRD table.  This can only
-                                    ///  appear for one shader stage per pipeline.
+    VertexBufferTable = 0x1000000F, ///< 32-bit pointer to GPU memory containing the vertex buffer SRD table.  This can
+                                    ///  only appear for one shader stage per pipeline.
+    NggCullingData    = 0x10000011, ///< 64-bit pointer to GPU memory containing the hardware register data needed by
+                                    ///  some NGG pipelines to perform culling.  This value contains the address of the
+                                    //   first of two consecutive registers which provide the full GPU address.
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
 

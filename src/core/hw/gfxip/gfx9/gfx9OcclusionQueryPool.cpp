@@ -249,7 +249,7 @@ void OcclusionQueryPool::OptimizedReset(
 
         const Interval<gpusize, bool> interval = { gpuAddr, gpuAddr + GetGpuResultSizeInBytes(queryCount) - 1 };
 
-        if (pCmdBuffer->GetGfxCmdBufState().prevCmdBufActive || pActiveRanges->Overlap(&interval))
+        if (pCmdBuffer->GetGfxCmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
         {
             pCmdSpace += cmdUtil.BuildWaitOnReleaseMemEvent(pCmdBuffer->GetEngineType(),
                                                             BOTTOM_OF_PIPE_TS,

@@ -181,7 +181,11 @@ union PipelineCreateFlags
     {
         uint32 clientInternal     : 1;  ///< Internal pipeline not created by the application.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
         uint32 preferNonLocalHeap : 1;  ///< Use Gart for the PSO memory.
+#else
+        uint32 overrideGpuHeap    : 1;  ///< Override the default GPU heap (local invisible) the pipeline resides in.
+#endif
         uint32 reserved           : 30; ///< Reserved for future use.
 #else
         uint32 reserved           : 31; ///< Reserved for future use.
@@ -191,7 +195,11 @@ union PipelineCreateFlags
 };
 
 /// Constant definining the max number of view instance count that is supported.
+#if PAL_CLIENT_DX11
+constexpr uint32 MaxViewInstanceCount = 32;
+#else
 constexpr uint32 MaxViewInstanceCount = 6;
+#endif
 
 /// Specifies graphic pipeline view instancing state.
 struct ViewInstancingDescriptor
@@ -218,19 +226,24 @@ struct ComputePipelineIndirectFuncInfo
 /// IDevice::CreateComputePipeline().
 struct ComputePipelineCreateInfo
 {
-    PipelineCreateFlags flags;                   ///< Flags controlling pipeline creation.
+    PipelineCreateFlags flags;                 ///< Flags controlling pipeline creation.
 
-    const void*         pPipelineBinary;         ///< Pointer to Pipeline ELF binary implementing the Pipeline ABI
-                                                 ///  interface. The Pipeline ELF contains pre-compiled shaders,
-                                                 ///  register values, and additional metadata.
-    size_t              pipelineBinarySize;      ///< Size of Pipeline ELF binary in bytes.
-
+    const void*         pPipelineBinary;       ///< Pointer to Pipeline ELF binary implementing the Pipeline ABI
+                                               ///  interface. The Pipeline ELF contains pre-compiled shaders,
+                                               ///  register values, and additional metadata.
+    size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 502
+    GpuHeap             preferredHeapType;     ///< Upload this pipeline to this heap. This setting is ignored if
+                                               ///  overrideGpuHeap flag is not set. The device will fallback to using
+                                               ///  the local visible heap if the requested heap type is unsupported.
+#endif
     /// Optional.  Specifies a set of indirect functions for PAL to compute virtual addresses for during pipeline
     /// creation.  These GPU addresses can then be passed as shader arguments for a later dispatch operation to
     /// allow the pipeline's shaders to jump to that function.  Similar to a function pointer on the GPU.
     ComputePipelineIndirectFuncInfo*  pIndirectFuncList;
     uint32                            indirectFuncCount; ///< Number of entries in the pIndirectFuncList array.  Must
                                                          ///  be zero if pIndirectFuncList is null.
+
 };
 
 /// Specifies properties for creation of a graphics @ref IPipeline object.  Input structure to
@@ -239,10 +252,15 @@ struct GraphicsPipelineCreateInfo
 {
     PipelineCreateFlags flags;                 ///< Flags controlling pipeline creation.
 
-    const void*         pPipelineBinary;         ///< Pointer to Pipeline ELF binary implementing the Pipeline ABI
-                                                 ///  interface. The Pipeline ELF contains pre-compiled shaders,
-                                                 ///  register values, and additional metadata.
-    size_t              pipelineBinarySize;      ///< Size of Pipeline ELF binary in bytes.
+    const void*         pPipelineBinary;       ///< Pointer to Pipeline ELF binary implementing the Pipeline ABI
+                                               ///  interface. The Pipeline ELF contains pre-compiled shaders,
+                                               ///  register values, and additional metadata.
+    size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 502
+    GpuHeap             preferredHeapType;     ///< Upload this pipeline to this heap. This setting is ignored if
+                                               ///  overrideGpuHeap flag is not set. The device will fallback to using
+                                               ///  the local visible heap if the requested heap type is unsupported.
+#endif
     bool                useLateAllocVsLimit;   ///< If set, use the specified lateAllocVsLimit instead of PAL internally
                                                ///  determining the limit.
     uint32              lateAllocVsLimit;      ///< The number of VS waves that can be in flight without having param

@@ -941,7 +941,7 @@ void Device::IssueSyncs(
     {
         pCmdBuf->SetGfxCmdBufGfxBltState(false);
     }
-    if ((pCmdBuf->GetGfxCmdBufState().gfxBltActive == false) &&
+    if ((pCmdBuf->GetGfxCmdBufState().flags.gfxBltActive == false) &&
         ((syncReqs.cacheFlushAndInv != 0) && (syncReqs.waitOnEopTs != 0)))
     {
         pCmdBuf->SetGfxCmdBufGfxBltWriteCacheState(false);
@@ -951,7 +951,7 @@ void Device::IssueSyncs(
     {
         pCmdBuf->SetGfxCmdBufCsBltState(false);
     }
-    if ((pCmdBuf->GetGfxCmdBufState().csBltActive == false) && (syncReqs.cpCoherCntl.bits.TC_ACTION_ENA != 0))
+    if ((pCmdBuf->GetGfxCmdBufState().flags.csBltActive == false) && (syncReqs.cpCoherCntl.bits.TC_ACTION_ENA != 0))
     {
         pCmdBuf->SetGfxCmdBufCsBltWriteCacheState(false);
     }
@@ -960,7 +960,7 @@ void Device::IssueSyncs(
     {
         pCmdBuf->SetGfxCmdBufCpBltState(false);
     }
-    if ((pCmdBuf->GetGfxCmdBufState().cpBltActive == false) && (syncReqs.cpCoherCntl.bits.TC_ACTION_ENA != 0))
+    if ((pCmdBuf->GetGfxCmdBufState().flags.cpBltActive == false) && (syncReqs.cpCoherCntl.bits.TC_ACTION_ENA != 0))
     {
         pCmdBuf->SetGfxCmdBufCpBltWriteCacheState(false);
         pCmdBuf->SetGfxCmdBufCpMemoryWriteL2CacheStaleState(false);
@@ -1077,7 +1077,7 @@ void Device::Barrier(
         // that we must sync CP DMA in any case that might expect the results of the CP blt to be available. Luckily
         // PAL only uses CP blts to optimize blt operations so we only need to sync if a pipe point is HwPipePostBlt
         // or later.
-        if (cmdBufState.cpBltActive && (pipePoint >= HwPipePostBlt))
+        if (cmdBufState.flags.cpBltActive && (pipePoint >= HwPipePostBlt))
         {
             globalSyncReqs.syncCpDma = 1;
         }
@@ -1143,10 +1143,10 @@ void Device::Barrier(
         {
             srcCacheMask &= ~(CoherCopy | CoherClear | CoherResolve);
 
-            srcCacheMask |= cmdBufState.gfxWriteCachesDirty       ? CoherColorTarget : 0;
-            srcCacheMask |= cmdBufState.csWriteCachesDirty        ? CoherShader      : 0;
-            srcCacheMask |= cmdBufState.cpWriteCachesDirty        ? CoherShader      : 0;
-            srcCacheMask |= cmdBufState.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
+            srcCacheMask |= cmdBufState.flags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
+            srcCacheMask |= cmdBufState.flags.csWriteCachesDirty        ? CoherShader      : 0;
+            srcCacheMask |= cmdBufState.flags.cpWriteCachesDirty        ? CoherShader      : 0;
+            srcCacheMask |= cmdBufState.flags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
         }
 
         // alwaysL2Mask is a mask of usages that always read/write through the L2 cache.
@@ -1443,8 +1443,8 @@ void Device::Barrier(
                         {
                             srcCacheMask &= ~CoherClear;
 
-                            srcCacheMask |= cmdBufState.gfxWriteCachesDirty ? CoherDepthStencilTarget : 0;
-                            srcCacheMask |= cmdBufState.csWriteCachesDirty  ? CoherShader             : 0;
+                            srcCacheMask |= cmdBufState.flags.gfxWriteCachesDirty ? CoherDepthStencilTarget : 0;
+                            srcCacheMask |= cmdBufState.flags.csWriteCachesDirty  ? CoherShader             : 0;
                         }
 
                         if (TestAnyFlagSet(srcCacheMask, CoherDepthStencilTarget) &&

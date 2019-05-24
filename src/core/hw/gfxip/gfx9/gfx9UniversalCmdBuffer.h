@@ -50,8 +50,6 @@ struct UniversalCmdBufferState
     {
         struct
         {
-            uint32 ceStreamDirty         :  1; // A CE RAM Dump command was added to the CE stream since the last Draw
-                                               // requires increment & wait on CE counter commands to be added.
             // Tracks whether or not *ANY* piece of ring memory being dumped-to by the CE (by PAL or the client) has
             // wrapped back to the beginning within this command buffer. If no ring has wrapped yet, there is no need
             // to ever stall the CE from getting too far ahead or to ask the DE to invalidate the Kcache for us.
@@ -68,7 +66,7 @@ struct UniversalCmdBufferState
             uint32 optimizeLinearGfxCpy  :  1;
             uint32 firstDrawExecuted     :  1;
             uint32 reservedForFutureHw   :  1;
-            uint32 reserved              : 22;
+            uint32 reserved              : 23;
         };
         uint32 u32All;
     } flags;
@@ -77,6 +75,13 @@ struct UniversalCmdBufferState
     // Thus we only need to track this minimum diff amount. If ceWaitOnDeCounterDiff flag is also set, the CE will
     // be asked to wait for a DE counter diff at the next Draw or Dispatch.
     uint32  minCounterDiff;
+
+    // If non-null, points to the most recent DUMP_CONST_RAM or DUMP_CONST_RAM_OFFSET packet written into the CE cmd
+    // stream.  If null, then no DUMP_CONST_RAM_* packets have been written since the previous Draw or Dispatch.
+    uint32*               pLastDumpCeRam;
+    // Stores the 2nd ordinal of the most-recent DUMP_CONST_RAM_* packet to avoid a read-modify-write when updating
+    // that packet to set the increment_ce bit.
+    DumpConstRamOrdinal2  lastDumpCeRamOrdinal2;
 
     // Copy of what will be written into CE RAM for NGG pipelines.
     Util::Abi::PrimShaderCbLayout  primShaderCbLayout;
@@ -87,10 +92,6 @@ struct UniversalCmdBufferState
 // of PM4 space needed by setting several reg's in each packet.
 struct NullDepthStencilPm4Img
 {
-    PM4PFP_SET_CONTEXT_REG       hdrPaScScreenScissor;
-    regPA_SC_SCREEN_SCISSOR_TL   paScScreenScissorTl;
-    regPA_SC_SCREEN_SCISSOR_BR   paScScreenScissorBr;
-
     PM4PFP_SET_CONTEXT_REG       hdrDbRenderOverride2;
     regDB_RENDER_OVERRIDE2       dbRenderOverride2;
     regDB_HTILE_DATA_BASE        dbHtileDataBase;
@@ -182,14 +183,14 @@ struct ColorInfoReg
     regCB_COLOR0_INFO      cbColorInfo;
 };
 
-struct GenericScissorReg
+struct ScreenScissorReg
 {
-    PM4PFP_SET_CONTEXT_REG      header;
-    regPA_SC_GENERIC_SCISSOR_TL paScGenericScissorTl;
-    regPA_SC_GENERIC_SCISSOR_BR paScGenericScissorBr;
+    PM4PFP_SET_CONTEXT_REG     hdrPaScScreenScissors;
+    regPA_SC_SCREEN_SCISSOR_TL paScScreenScissorTl;
+    regPA_SC_SCREEN_SCISSOR_BR paScScreenScissorBr;
 };
 
-constexpr size_t MaxNullColorTargetPm4ImgSize = sizeof(ColorInfoReg) * MaxColorTargets + sizeof(GenericScissorReg);
+constexpr size_t MaxNullColorTargetPm4ImgSize = sizeof(ColorInfoReg) * MaxColorTargets;
 
 struct BlendConstReg
 {
@@ -363,7 +364,8 @@ struct NggState
                     uint8 viewports           : 1;
                     uint8 triangleRasterState : 1;
                     uint8 inputAssemblyState  : 1;
-                    uint8 reserved            : 5;
+                    uint8 msaaState           : 1;
+                    uint8 reserved            : 4;
                 };
                 uint8 u8All;
             } dirty;
@@ -371,6 +373,7 @@ struct NggState
         uint16 u16All;
     } flags;
 
+    uint32 numSamples;          // Number of active MSAA samples.
     uint16 startIndexReg;       // Register where the index start offset is written
     uint16 log2IndexSizeReg;    // Register where the Log2(sizeof(indexType)) is written
 };
@@ -808,14 +811,17 @@ protected:
     virtual void P2pBltWaCopyEnd() override;
 
 private:
-    template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable>
+    template <bool IssueSqttMarkerEvent,
+              bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDraw(
         ICmdBuffer* pCmdBuffer,
         uint32      firstVertex,
         uint32      vertexCount,
         uint32      firstInstance,
         uint32      instanceCount);
-    template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable>
+
+    template <bool IssueSqttMarkerEvent,
+              bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDrawOpaque(
         ICmdBuffer* pCmdBuffer,
         gpusize streamOutFilledSizeVa,
@@ -823,7 +829,10 @@ private:
         uint32  stride,
         uint32  firstInstance,
         uint32  instanceCount);
-    template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable>
+
+    template <bool IssueSqttMarkerEvent,
+              bool IsNggFastLaunch,
+              bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
         uint32      firstIndex,
@@ -831,6 +840,7 @@ private:
         int32       vertexOffset,
         uint32      firstInstance,
         uint32      instanceCount);
+
     template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
@@ -839,6 +849,7 @@ private:
         uint32            stride,
         uint32            maximumCount,
         gpusize           countGpuAddr);
+
     template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndexedIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
@@ -896,7 +907,7 @@ private:
     uint32* WaitOnCeCounter(uint32* pDeCmdSpace);
     uint32* IncrementDeCounter(uint32* pDeCmdSpace);
 
-    Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_gfxCmdBufState.packetPredicate); }
+    Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_gfxCmdBufState.flags.packetPredicate); }
 
     template <bool IssueSqttMarkerEvent>
     void SetDispatchFunctions();
@@ -1000,7 +1011,7 @@ private:
 
     void P2pBltWaSync();
 
-    uint32* UpdateNggRingData(
+    uint32* UpdateNggCullingDataBuffer(
         uint32* pDeCmdSpace);
 
     uint32* BuildWriteViewId(
@@ -1009,11 +1020,24 @@ private:
 
     void SwitchDrawFunctions(
         bool viewInstancingEnable,
-        bool nggFastLuanch);
+        bool nggFastLaunch);
+
+    template <bool IssueSqtt>
+    void SwitchDrawFunctionsInternal(
+        bool viewInstancingEnable,
+        bool nggFastLaunch);
+
+    template <bool NggFastLaunch,
+              bool IssueSqtt>
+    void SwitchDrawFunctionsInternal(
+        bool viewInstancingEnable);
+
+    template <bool ViewInstancing,
+              bool NggFastLaunch,
+              bool IssueSqtt>
+    void SwitchDrawFunctionsInternal();
 
     BinningMode GetDisableBinningSetting(Extent2d* pBinSize) const;
-
-    uint32 GetDccControl(uint32 bppMoreThan64) const;
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;

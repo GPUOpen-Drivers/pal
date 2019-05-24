@@ -171,6 +171,7 @@ public:
     virtual Result SignalSemaphoreValue(
         uint64                   value) = 0;
 
+#if PAL_KMT_BUILD || PAL_AMDGPU_BUILD
     /// Returns an OS-specific handle which can be used to refer to this semaphore object across processes. This will
     /// return a null or invalid handle if the object was not created with the external create flag set.
     ///
@@ -180,6 +181,7 @@ public:
     /// @returns An OS-specific handle which can be used to access the semaphore object across processes.
     virtual OsExternalHandle ExportExternalHandle(
         const QueueSemaphoreExportInfo& exportInfo) const = 0;
+#endif
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

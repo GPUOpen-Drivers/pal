@@ -51,6 +51,13 @@ namespace Pal
 namespace Gfx9
 {
 
+// Helper struct for the 2nd dword of a DUMP_CONST_RAM_* CE packet.
+union DumpConstRamOrdinal2
+{
+    decltype(PM4_CE_DUMP_CONST_RAM::bitfields2)  bits;
+    uint32                                       u32All;
+};
+
 // Describes the layout of the index buffer attributes used by a INDEX_ATTRIBUTES_INDIRECT packet.
 struct IndexAttribIndirect
 {
@@ -142,7 +149,7 @@ constexpr uint32 Gfx9NumSimdPerCu = 4;
 constexpr uint32 Gfx9NumWavesPerSimd = 10;
 constexpr uint32 Gfx9NumWavesPerCu   = Gfx9NumWavesPerSimd * Gfx9NumSimdPerCu;
 
-// Number of slots(dwords) that one GPU event will need to support ReleaseAcquireInterface.
+// Number of slots the GPU events need in order to support all the MultiSlots usecases (for now just AcqRelBarrier).
 constexpr uint32 MaxSlotsPerEvent = 2;
 
 // Enumerates the possible hardware stages which a shader can run as.  GFX9 combines several shader stages:
@@ -391,6 +398,16 @@ union SamplerSrd
     Gfx9SamplerSrd gfx9;
 };
 
+union TargetViewExtent2d
+{
+    struct
+    {
+        uint32 width  : 16; ///< Width of region (max width is 16k).
+        uint32 height : 16; ///< Height of region (max height is 16k).
+    };
+    uint32 value;
+};
+
 // Maximum scissor rect value for the top-left corner.
 constexpr uint32 ScissorMaxTL = 16383;
 // Maximum scissor rect value for the bottom-right corner.
@@ -508,12 +525,15 @@ struct GraphicsPipelineSignature
     // User-data entry mapping for each graphics HW shader stage: (HS, GS, VS, PS)
     UserDataEntryMap  stage[NumHwShaderStagesGfx];
 
-    // Register address for the GPU virtual address of the vertex buffer table used by this pipeline. Zero
-    // indicates that the vertex buffer table is not accessed.
+    // Register address for the GPU virtual address of the vertex buffer table used by this pipeline. Zero indicates
+    // that the vertex buffer table is not accessed.
     uint16  vertexBufTableRegAddr;
-    // Register address for the GPU virtual address of the stream-output table used by this pipeline. Zero
-    // indicates that stream-output is not used by this pipeline.
+    // Register address for the GPU virtual address of the stream-output table used by this pipeline. Zero indicates
+    // that stream-output is not used by this pipeline.
     uint16  streamOutTableRegAddr;
+    // Register address for the GPU virtual address of the NGG culling data constant buffer used by this pipeline.
+    // Zero indicates that the NGG culling constant buffer is not used by the pipeline.
+    uint16  nggCullingDataAddr;
 
     // Register address for the vertex ID offset of a draw. The instance ID offset is always the very next register.
     uint16  vertexOffsetRegAddr;
@@ -524,11 +544,6 @@ struct GraphicsPipelineSignature
     uint16  startIndexRegAddr;
     // Register address for the Log2(sizeof(indexType)) of a draw for an NGG Fast Launch VS.
     uint16  log2IndexSizeRegAddr;
-
-    // Register address for the IMM_LDS_ESGS_SIZE parameter for the GS stage.
-    uint16  esGsLdsSizeRegAddrGs;
-    // Register address for the IMM_LDS_ESGS_SIZE parameter for the VS (copy shader) stage.
-    uint16  esGsLdsSizeRegAddrVs;
 
     // First user-data entry which is spilled to GPU memory. A value of 'NoUserDataSpilling' indicates the pipeline
     // does not spill user-data entries to memory.
@@ -541,10 +556,6 @@ struct GraphicsPipelineSignature
     // Address of each shader stage's user-SGPR for view ID.  This is a compacted list, so it is not safe to assume
     // that each index of this array corresponds to the associated HW shader stage enum value.
     uint16  viewIdRegAddr[NumHwShaderStagesGfx];
-
-    // First user-data entry (+1) containing the GPU virtual address of the performance data buffer used for
-    // shader-specific performance profiling. Zero indicates that the shader does not use this buffer.
-    uint16  perfDataAddr[NumHwShaderStagesGfx];
 
     // Hash of each stages user-data mapping, used to speed up pipeline binds.
     uint64  userDataHash[NumHwShaderStagesGfx];

@@ -332,14 +332,21 @@ void Device::FinalizeChipProperties(
     }
 
     pChipProperties->gfxip.tessFactorBufferSizePerSe = settings.tessFactorBufferSizePerSe;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 500
+    const PalPublicSettings* pPublicSettings = Parent()->GetPublicSettings();
+    const bool               useMultiSlot    = pPublicSettings->enableGpuEventMultiSlot &&
+                                               pPublicSettings->useAcqRelInterface;
+
+    // Now is time to update the numSlotsPerEvent based on the new enableGpuEventMultiSlot value updated by client.
+    pChipProperties->gfxip.numSlotsPerEvent = useMultiSlot ? MaxSlotsPerEvent : 1;
+#endif
 }
 
 // =====================================================================================================================
 // Peforms extra initialization which needs to be done after the parent Device is finalized.
 Result Device::Finalize()
 {
-    const auto& settings     = Settings();
-
     Result result = GfxDevice::Finalize();
 
     if (result == Result::Success)
@@ -2980,14 +2987,14 @@ void InitializeGpuChipProperties(
     pInfo->nullSrds.pNullFmaskView  = &nullImageView;
     pInfo->nullSrds.pNullSampler    = &NullSampler;
 
+    pInfo->gfxip.numSlotsPerEvent = 1;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 500
     if (pInfo->gfx9.supportReleaseAcquireInterface == 1)
     {
         pInfo->gfxip.numSlotsPerEvent = MaxSlotsPerEvent;
     }
-    else
-    {
-        pInfo->gfxip.numSlotsPerEvent = 1;
-    }
+#endif
 }
 
 // =====================================================================================================================

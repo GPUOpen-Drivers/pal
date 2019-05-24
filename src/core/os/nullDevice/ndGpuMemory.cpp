@@ -93,6 +93,7 @@ Result NdGpuMemory::AllocateOrPinMemory(
     return result;
 }
 
+#if PAL_KMT_BUILD || PAL_AMDGPU_BUILD
 // =====================================================================================================================
 
 OsExternalHandle NdGpuMemory::ExportExternalHandle(
@@ -100,6 +101,7 @@ OsExternalHandle NdGpuMemory::ExportExternalHandle(
 {
     return 0;
 }
+#endif // PAL_KMT_BUILD || PAL_AMDGPU_BUILD
 
 // =====================================================================================================================
 // Performs OS-specific initialization for allocating peer memory objects.

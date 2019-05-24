@@ -75,7 +75,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.fmaskCompressDisable = false;
     m_settings.fmaskAllowPipeBankXor = false;
     m_settings.dccOnComputeEnable = 0x3;
-    m_settings.useDcc = 0x3ff;
+    m_settings.useDcc = 0x1ff;
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
     m_settings.csSimdDestCntl = CsSimdDestCntlDefault;
@@ -110,13 +110,12 @@ void SettingsLoader::SetupDefaults()
     m_settings.primGroupSize = 128;
     m_settings.gfx9RbPlusEnable = true;
 
-    m_settings.numPsWavesSoftGroupedPerCu = 0;
+    m_settings.numPsWavesSoftGroupedPerCu = 4;
     m_settings.numVsWavesSoftGroupedPerCu = 0;
     m_settings.switchVgtOnDraw = false;
     m_settings.tessFactorBufferSizePerSe = 8192;
     m_settings.disableTessDonutWalkPattern = 0;
     m_settings.useMaxOffchipLdsBuffers = true;
-    m_settings.vsCuGroupEnabled = false;
     m_settings.vsHalfPackThreshold = 16;
     m_settings.vsForcePartialWave = false;
     m_settings.disableCoverageAaMask = true;
@@ -479,11 +478,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseMaxOffchipLdsBuffersStr,
                            Util::ValueType::Boolean,
                            &m_settings.useMaxOffchipLdsBuffers,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pVsCuGroupEnabledStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.vsCuGroupEnabled,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pVsHalfPackThresholdStr,
@@ -1207,11 +1201,6 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.useMaxOffchipLdsBuffers);
     m_settingsInfoMap.Insert(3365086421, info);
 
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.vsCuGroupEnabled;
-    info.valueSize = sizeof(m_settings.vsCuGroupEnabled);
-    m_settingsInfoMap.Insert(1712293842, info);
-
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.vsHalfPackThreshold;
     info.valueSize = sizeof(m_settings.vsHalfPackThreshold);
@@ -1568,7 +1557,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3736112750;
+            component.settingsDataHash = 423274787;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

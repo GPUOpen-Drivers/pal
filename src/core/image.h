@@ -112,7 +112,7 @@ union InternalImageFlags
     struct
     {
         uint32 hwRotationEnabled           :  1;  // If the DCE will scan vertically to achieve hw rotation
-        uint32 primarySupportsNonLocalHeap :  1;  // The resource is primary(flippable) and can be in a non-local heap
+        uint32 primarySupportsNonLocalHeap :  1;  // The resource is primary (flippable) and can be in a non-local heap
         uint32 privateScreenPresent        :  1;  // The image is created for private screen present
         uint32 presentable                 :  1;  // Image can be be used for Present call
         uint32 stereo                      :  1;  // Image supports stereoscopic rendering and display.  Implies an
@@ -123,7 +123,10 @@ union InternalImageFlags
                                                   // external shared images.
         uint32 turbosync                   :  1;  // Image supports turbosync flip.
         uint32 useSharedMetadata           :  1;  // Indicate SharedMetadataInfo will be used.
-        uint32 reserved                    :  24;
+        uint32 placeholder0                :  1;  // Placeholder.
+        uint32 placeholder1                :  1;  // Placeholder.
+        uint32 placeholder2                :  1;  // Placeholder.
+        uint32 reserved                    : 21;
     };
     uint32 value;
 };
@@ -346,15 +349,11 @@ public:
 
     // Returns whether or not this image can be used as resolve destination access
     bool IsResolveDst() const
-    {
-        return (m_createInfo.usageFlags.resolveDst != 0);
-    }
+        { return (m_createInfo.usageFlags.resolveDst != 0); }
 
     // Returns the dcc encoding for possible view formats
     DccFormatEncoding GetDccFormatEncoding() const
-    {
-        return m_imageInfo.dccFormatEncoding;
-    }
+        { return m_imageInfo.dccFormatEncoding; }
 
     // Returns the first Mip which is shader writable if this value is 0 then entire
     // image is shader writable. Only relevent when shaderwritable flag is set.
@@ -373,8 +372,9 @@ public:
     bool IsShared() const
         { return (m_createInfo.flags.shareable != 0); }
 
-    // Returns whether or not this Image had metadata disabled by the client.
-    bool IsMetadataDisabled() const
+    // Returns whether or not this Image had metadata disabled by the client. This does NOT
+    // tell you if Metadata does exist or not (PAL may still disable Metadata for other reasons).
+    bool IsMetadataDisabledByClient() const
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
         { return (m_createInfo.metadataMode == MetadataMode::Disabled); }
 #else
@@ -398,9 +398,7 @@ public:
 
     // Returns true if TurboSync surface
     bool IsTurboSyncSurface() const
-    {
-        return m_imageInfo.internalCreateInfo.flags.turbosync;
-    }
+        { return m_imageInfo.internalCreateInfo.flags.turbosync; }
 
     // Returns true if this is an EQAA image (i.e., fragment and sample counts differ).
     bool IsEqaa() const
@@ -496,7 +494,7 @@ private:
     gpusize            m_gpuMemAlignment;   // Required GPU memory alignment in bytes.
     ImageMemoryLayout  m_gpuMemLayout;      // High-level layout of this image in memory.
 
-    // The private screen object if this image is created on it, thus this image can be used for preseting on this
+    // The private screen object if this image is created on it, thus this image can be used for presenting on this
     // private screen.
     PrivateScreen*  m_pPrivateScreen;
     // A private screen can only use a limited number of images for presenting. For example: on Windows, KMD only stores

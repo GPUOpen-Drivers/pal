@@ -103,7 +103,7 @@ def genDefaultLine(defaultValue, varName, isString, isHex, size):
             if defaultValueStr[-1] == "L":
                 defaultValueStr = defaultValueStr[:-1]
         except TypeError:
-            print("Couldn't convert setting " + varName + " to hex format.")
+            # This is an expected case for bitmask settings with an enum value (represented as a string in the JSON) for the default
             defaultValueStr = str(defaultValue)
 
     if isString:
@@ -119,7 +119,7 @@ def genDefaultLine(defaultValue, varName, isString, isHex, size):
 
     return default
 
-maxTypeLen = 30
+maxTypeLen = 40
 def getTypeSpacing(type):
     assertExit((len(type) < maxTypeLen), "Need to increase maxTypeLen for type name: " + type)
     numSpaces = maxTypeLen - len(type)
@@ -139,19 +139,19 @@ registryTypes = { "uint32":"Uint",
 def getRegistryType(type):
     return "Util::ValueType::"+registryTypes[type]
 
-ddSettingTypes = { "uint32":"Uint",
-                   "bool":"Boolean",
-                   "int32":"Int",
-                   "gpusize":"Uint64",
-                   "float":"Float",
-                   "string":"String",
-                   "uint64":"Uint64",
-                   "size_t":"Uint",
-                   "enum": "Uint",
-                   "uint16":"Uint",
-                   "int16":"Int"}
+JsonTypeToDDSettingType = { "uint32":"Uint",
+                            "bool":"Boolean",
+                            "int32":"Int",
+                            "gpusize":"Uint64",
+                            "float":"Float",
+                            "string":"String",
+                            "uint64":"Uint64",
+                            "size_t":"Uint",
+                            "enum": "Uint",
+                            "uint16":"Uint",
+                            "int16":"Int"}
 def getDevDriverType(type):
-    return "SettingType::"+ddSettingTypes[type]
+    return "SettingType::"+JsonTypeToDDSettingType[type]
 
 def assertExit(condition, msg):
     if not condition:
@@ -236,13 +236,17 @@ def defineEnum(valueList):
     return enumDef
 
 def defineSettingVariable(setting):
+
     type = setting["Type"]
     if type == "string":
-      type = "char"
-    elif type == "enum":
-      assertExit((("ValidValues" in setting) and ("Name" in setting["ValidValues"])),
-                 "Named ValidValues definition missing from Enum type setting: " + setting["Name"])
-      type = setting["ValidValues"]["Name"]
+        type = "char"
+
+    # Enums are a special case, we override the type name with the name in the ValidValues section
+    if type == "enum":
+        assertExit((("ValidValues" in setting) and ("Name" in setting["ValidValues"])),
+                   "Named ValidValues definition missing from Enum type setting: " + setting["Name"])
+        type = setting["ValidValues"]["Name"]
+
     settingDef = codeTemplates.SettingDef.replace("%SettingType%", (type + getTypeSpacing(type)))
     settingDef = settingDef.replace("%SettingVarName%", setting["VariableName"])
     arrayLength = ""
@@ -395,6 +399,8 @@ if "DefinedConstants" in settingsData:
 # Process any top level enum definitions
 if "Enums" in settingsData:
     for enum in settingsData["Enums"]:
+        #Top level enums don't define this field, but the defineEnum() function looks for it
+        enum["IsEnum"] = True
         enumCode += defineEnum(enum)
 
 for setting in settingsData["Settings"]:
@@ -517,10 +523,10 @@ for setting in settingsData["Settings"]:
                 defaultsCode += codeTemplates.EndIf
             elif fieldHasWinDefault:
                 defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(fieldDefaults["WinDefault"], fieldVarName, isFieldString, isFieldHex, size)
-                defaultsCode += "#else" + defaultLine + codeTemplates.EndIf
+                defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
             elif fieldHasLnxDefault:
                 defaultsCode += "#if" + codeTemplates.LnxIfDef + genDefaultLine(fieldDefaults["LnxDefault"], fieldVarName, isFieldString, isFieldHex, size)
-                defaultsCode += "#else" + defaultLine + codeTemplates.EndIf
+                defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
             else:
                 defaultsCode += defaultLine
     else:

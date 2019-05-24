@@ -106,28 +106,32 @@ struct ComputeState
     UserDataEntries          csUserDataEntries;
 };
 
-union GfxCmdBufferState
+struct GfxCmdBufferState
 {
-    struct
+    union
     {
-        uint32 clientPredicate           :  1;  // Track if client is currently using predication functionality.
-        uint32 packetPredicate           :  1;  // Track if command buffer packets are currently using predication.
-        uint32 gfxBltActive              :  1;  // Track if there are potentially any GFX Blt in flight.
-        uint32 gfxWriteCachesDirty       :  1;  // Track if any of the GFX Blt write caches may be dirty.
-        uint32 csBltActive               :  1;  // Track if there are potentially any CS Blt in flight.
-        uint32 csWriteCachesDirty        :  1;  // Track if any of the CS Blt write caches may be dirty.
-        uint32 cpBltActive               :  1;  // Track if there are potentially any CP Blt in flight. A CP Blt is an
-                                                // asynchronous CP DMA operation acting as a PAL Blt.
-        uint32 cpWriteCachesDirty        :  1;  // Track if any of the CP Blt write caches may be dirty.
-        uint32 cpMemoryWriteL2CacheStale :  1;  // Track if a CP memory write has occurred and the L2 cache could be
-                                                // stale.
-        uint32 prevCmdBufActive          :  1;  // Set if it's possible work from a previous command buffer submitted on
-                                                // this queue may still be active.  This flag starts set and will be
-                                                // cleared if/when an EOP wait is inserted in this command buffer.
-        uint32 reserved                  : 22;
-    };
+        struct
+        {
+            uint32 clientPredicate           :  1;  // Track if client is currently using predication functionality.
+            uint32 packetPredicate           :  1;  // Track if command buffer packets are currently using predication.
+            uint32 gfxBltActive              :  1;  // Track if there are potentially any GFX Blt in flight.
+            uint32 gfxWriteCachesDirty       :  1;  // Track if any of the GFX Blt write caches may be dirty.
+            uint32 csBltActive               :  1;  // Track if there are potentially any CS Blt in flight.
+            uint32 csWriteCachesDirty        :  1;  // Track if any of the CS Blt write caches may be dirty.
+            uint32 cpBltActive               :  1;  // Track if there are potentially any CP Blt in flight. A CP Blt is
+                                                    // an asynchronous CP DMA operation acting as a PAL Blt.
+            uint32 cpWriteCachesDirty        :  1;  // Track if any of the CP Blt write caches may be dirty.
+            uint32 cpMemoryWriteL2CacheStale :  1;  // Track if a CP memory write has occurred and the L2 cache could be
+                                                    // stale.
+            uint32 prevCmdBufActive          :  1;  // Set if it's possible work from a previous command buffer
+                                                    // submitted on this queue may still be active.  This flag starts
+                                                    // set and will be cleared if/when an EOP wait is inserted in this
+                                                    // command buffer.
+            uint32 reserved                  : 22;
+        };
 
-    uint32 u32All;
+        uint32 u32All;
+    } flags;
 };
 
 // Internal flags for CmdScaledCopyImage.
@@ -346,18 +350,18 @@ public:
     // Helper functions
     HwPipePoint OptimizeHwPipePostBlit() const;
     uint32 ConvertToInternalPipelineStageMask(uint32 stageMask) const;
-    void SetGfxCmdBufGfxBltState(bool gfxBltActive) { m_gfxCmdBufState.gfxBltActive = gfxBltActive; }
-    void SetGfxCmdBufCsBltState(bool csBltActive) { m_gfxCmdBufState.csBltActive = csBltActive; }
-    void SetGfxCmdBufCpBltState(bool cpBltActive) { m_gfxCmdBufState.cpBltActive = cpBltActive; }
+    void SetGfxCmdBufGfxBltState(bool gfxBltActive) { m_gfxCmdBufState.flags.gfxBltActive = gfxBltActive; }
+    void SetGfxCmdBufCsBltState(bool csBltActive) { m_gfxCmdBufState.flags.csBltActive = csBltActive; }
+    void SetGfxCmdBufCpBltState(bool cpBltActive) { m_gfxCmdBufState.flags.cpBltActive = cpBltActive; }
     void SetGfxCmdBufGfxBltWriteCacheState(bool gfxWriteCacheDirty)
-        { m_gfxCmdBufState.gfxWriteCachesDirty = gfxWriteCacheDirty; }
+        { m_gfxCmdBufState.flags.gfxWriteCachesDirty = gfxWriteCacheDirty; }
     void SetGfxCmdBufCsBltWriteCacheState(bool csWriteCacheDirty)
-        { m_gfxCmdBufState.csWriteCachesDirty = csWriteCacheDirty; }
+        { m_gfxCmdBufState.flags.csWriteCachesDirty = csWriteCacheDirty; }
     void SetGfxCmdBufCpBltWriteCacheState(bool cpWriteCacheDirty)
-        { m_gfxCmdBufState.cpWriteCachesDirty = cpWriteCacheDirty; }
+        { m_gfxCmdBufState.flags.cpWriteCachesDirty = cpWriteCacheDirty; }
     void SetGfxCmdBufCpMemoryWriteL2CacheStaleState(bool cpMemoryWriteDirty)
-        { m_gfxCmdBufState.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
-    void SetPrevCmdBufInactive() { m_gfxCmdBufState.prevCmdBufActive = 0; }
+        { m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
+    void SetPrevCmdBufInactive() { m_gfxCmdBufState.flags.prevCmdBufActive = 0; }
 
     // Obtains a fresh command stream chunk from the current command allocator, for use as the target of GPU-generated
     // commands. The chunk is inserted onto the generated-chunks list so it can be recycled by the allocator after the

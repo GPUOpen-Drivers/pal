@@ -376,6 +376,9 @@ Result Image::Finalize(
         useCmask   = Gfx9Cmask::UseCmaskForImage(m_device, *this);
     }
 
+    // The only metadata that makes sense together is F/Cmask + DCC.
+    PAL_ASSERT((htileUsage.value == 0) || ((useDcc == false) && (useCmask == false)));
+
     // Also determine if we need any metadata for these mask RAM objects.
     bool needsFastColorClearMetaData = false;
     bool needsFastDepthClearMetaData = false;
@@ -857,6 +860,7 @@ void Image::InitLayoutStateMasks()
                 {
                     compressedLayout.usages |= LayoutShaderRead;
                 }
+
             }
 
         }
@@ -1062,7 +1066,9 @@ gpusize Image::GetMaskRamBaseAddr(
     const  gpusize  maskRamMemOffset = pMaskRam->MemoryOffset();
 
     // Verify that the mask ram isn't thought to be in the same place as the image itself.  That would be "bad".
-    PAL_ASSERT(maskRamMemOffset != 0);
+    {
+        PAL_ASSERT(maskRamMemOffset != 0);
+    }
 
     const  gpusize  baseAddr = m_pParent->GetBoundGpuMemory().GpuVirtAddr() + maskRamMemOffset;
 
@@ -2222,7 +2228,10 @@ bool Image::SupportsMetaDataTextureFetch(
     {
         // If this device doesn't allow any tex fetches of meta data, then don't bother continuing
         if ((m_device.GetPublicSettings()->tcCompatibleMetaData != 0) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
+            // If the image requested TC compat off
+            (m_pParent->GetImageCreateInfo().metadataTcCompatMode != MetadataTcCompatMode::Disabled) &&
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
             // If the client has not given us a hint that the cost of decompress/expand blits is less important than
             // texture-fetch performance.
             (m_pParent->GetImageCreateInfo().metadataMode != MetadataMode::OptForTexFetchPerf) &&
@@ -2604,7 +2613,7 @@ void Image::InitMetadataFill(
 
     if (HasHtileData() && TestAnyFlagSet(fullRangeInitMask, Gfx9InitMetaDataFill::Gfx9InitMetaDataFillHtile))
     {
-        const uint32 initValue = m_pHtile->GetInitialValue(m_gfxDevice);
+        const uint32 initValue = m_pHtile->GetInitialValue();
 
         // This will initialize both the depth and stencil aspects simultaneously.  They share hTile data,
         // so it isn't practical to init them separately anyway

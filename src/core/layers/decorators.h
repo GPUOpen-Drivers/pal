@@ -412,6 +412,7 @@ public:
         int32* pScanLine) const override
         { return m_pNextLayer->GetScanLine(pScanLine); }
 
+#if PAL_AMDGPU_BUILD
     virtual Result AcquireScreenAccess(
         OsDisplayHandle hDisplay,
         WsiPlatform     wsiPlatform) override
@@ -428,6 +429,7 @@ public:
     virtual Result SetRandrOutput(
         uint32 randrOutput) override
         { return m_pNextLayer->SetRandrOutput(randrOutput); }
+#endif
 
     IScreen* GetNextLayer() const { return m_pNextLayer; }
 
@@ -1020,6 +1022,9 @@ public:
         bool*            pIsFlipOwner) const override
         { return m_pNextLayer->GetFlipStatus(vidPnSrcId, pFlipFlags, pIsFlipOwner); }
 
+    virtual bool DidDelagSettingsChange() override
+        { return m_pNextLayer->DidDelagSettingsChange(); }
+
     virtual bool DidTurboSyncSettingsChange() override
         { return m_pNextLayer->DidTurboSyncSettingsChange(); }
 
@@ -1060,12 +1065,14 @@ public:
         { return m_pNextLayer->DetermineHwStereoRenderingSupported(viewInstancingInfo); }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
+#if PAL_AMDGPU_BUILD
     virtual Result GetConnectorIdFromOutput(
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
         uint32*         pConnectorId) override
         { return m_pNextLayer->GetConnectorIdFromOutput(hDisplay, randrOutput, wsiPlatform, pConnectorId); }
+#endif
 #endif
 
     virtual const char* GetCacheFilePath() const override
@@ -1913,7 +1920,7 @@ public:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 474
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override
-    { return m_pNextLayer->AllocateAndBindGpuMemToEvent(pGpuEvent); }
+    { return m_pNextLayer->AllocateAndBindGpuMemToEvent(NextGpuEvent(pGpuEvent)); }
 #endif
 
     virtual void CmdExecuteNestedCmdBuffers(
@@ -2336,8 +2343,10 @@ public:
     virtual Result Unmap() override
         { return m_pNextLayer->Unmap(); }
 
+#if PAL_KMT_BUILD || PAL_AMDGPU_BUILD
     virtual OsExternalHandle ExportExternalHandle(const GpuMemoryExportInfo& handleInfo) const override
         { return m_pNextLayer->ExportExternalHandle(handleInfo); }
+#endif
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
@@ -2785,9 +2794,11 @@ public:
     virtual bool HasStalledQueues() override
         { return m_pNextLayer->HasStalledQueues(); }
 
+#if PAL_KMT_BUILD  || PAL_AMDGPU_BUILD
     virtual OsExternalHandle ExportExternalHandle(
         const QueueSemaphoreExportInfo& exportInfo) const override
         { return m_pNextLayer->ExportExternalHandle(exportInfo); }
+#endif
 
     virtual Result QuerySemaphoreValue(uint64*  pValue) override
         { return m_pNextLayer->QuerySemaphoreValue(pValue); }

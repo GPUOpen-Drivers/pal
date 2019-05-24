@@ -1052,11 +1052,11 @@ void UniversalCmdBuffer::CmdBarrier(
 
     // Barriers do not honor predication.
     const uint32 packetPredicate = PacketPredicate();
-    m_gfxCmdBufState.packetPredicate = 0;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.Barrier(this, &m_deCmdStream, barrierInfo);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -2737,7 +2737,7 @@ Result UniversalCmdBuffer::AddPostamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if (m_gfxCmdBufState.cpBltActive)
+    if (m_gfxCmdBufState.flags.cpBltActive)
     {
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (CP_DMA/DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
@@ -2799,7 +2799,7 @@ void UniversalCmdBuffer::WriteEventCmd(
     // GFX6-8 should always have supportReleaseAcquireInterface=0, so GpuEvent is always single slot (one dword).
     PAL_ASSERT(m_device.Parent()->ChipProperties().gfxip.numSlotsPerEvent == 1);
 
-    if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.cpBltActive))
+    if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.flags.cpBltActive))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
@@ -4707,7 +4707,7 @@ void UniversalCmdBuffer::CmdResolveQuery(
 {
     // Resolving a query is not supposed to honor predication.
     const uint32 packetPredicate = PacketPredicate();
-    m_gfxCmdBufState.packetPredicate = 0;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.RsrcProcMgr().CmdResolveQuery(this,
                                            static_cast<const QueryPool&>(queryPool),
@@ -4719,7 +4719,7 @@ void UniversalCmdBuffer::CmdResolveQuery(
                                            dstOffset,
                                            dstStride);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -5420,8 +5420,8 @@ void UniversalCmdBuffer::CmdSetPredication(
 {
     PAL_ASSERT((pQueryPool == nullptr) || (pGpuMemory == nullptr));
 
-    m_gfxCmdBufState.clientPredicate = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
-    m_gfxCmdBufState.packetPredicate = m_gfxCmdBufState.clientPredicate;
+    m_gfxCmdBufState.flags.clientPredicate = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
+    m_gfxCmdBufState.flags.packetPredicate = m_gfxCmdBufState.flags.clientPredicate;
 
     gpusize gpuVirtAddr = 0;
     if (pGpuMemory != nullptr)
@@ -5565,7 +5565,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         // Generate the indirect command buffer chunk(s) using RPM. Since we're wrapping the command generation and
         // execution inside a CmdIf, we want to disable normal predication for this blit.
         const uint32 packetPredicate = PacketPredicate();
-        m_gfxCmdBufState.packetPredicate = 0;
+        m_gfxCmdBufState.flags.packetPredicate = 0;
 
         m_device.RsrcProcMgr().CmdGenerateIndirectCmds(this,
                                                        PipelineState(bindPoint)->pPipeline,
@@ -5575,7 +5575,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
                                                        m_graphicsState.iaState.indexCount,
                                                        maximumCount);
 
-        m_gfxCmdBufState.packetPredicate = packetPredicate;
+        m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
@@ -5841,12 +5841,12 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pipelineCtxPm4Hash = cmdBuffer.m_pipelineCtxPm4Hash;
 
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
-    m_gfxCmdBufState.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.gfxBltActive;
-    m_gfxCmdBufState.csBltActive               = cmdBuffer.m_gfxCmdBufState.csBltActive;
-    m_gfxCmdBufState.gfxWriteCachesDirty       = cmdBuffer.m_gfxCmdBufState.gfxWriteCachesDirty;
-    m_gfxCmdBufState.csWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.csWriteCachesDirty;
-    m_gfxCmdBufState.cpWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.cpWriteCachesDirty;
-    m_gfxCmdBufState.cpMemoryWriteL2CacheStale = cmdBuffer.m_gfxCmdBufState.cpMemoryWriteL2CacheStale;
+    m_gfxCmdBufState.flags.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.flags.gfxBltActive;
+    m_gfxCmdBufState.flags.csBltActive               = cmdBuffer.m_gfxCmdBufState.flags.csBltActive;
+    m_gfxCmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_gfxCmdBufState.flags.gfxWriteCachesDirty;
+    m_gfxCmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.flags.csWriteCachesDirty;
+    m_gfxCmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.flags.cpWriteCachesDirty;
+    m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale;
 
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the
@@ -6286,7 +6286,7 @@ void UniversalCmdBuffer::CpCopyMemory(
     dmaDataInfo.srcSel      = supportsL2 ? CPDMA_SRC_SEL_SRC_ADDR_USING_L2 : CPDMA_SRC_SEL_SRC_ADDR;
     dmaDataInfo.sync        = false;
     dmaDataInfo.usePfp      = false;
-    dmaDataInfo.predicate   = static_cast<PM4Predicate>(GetGfxCmdBufState().packetPredicate);
+    dmaDataInfo.predicate   = static_cast<PM4Predicate>(GetGfxCmdBufState().flags.packetPredicate);
     dmaDataInfo.dstAddr     = dstAddr;
     dmaDataInfo.srcAddr     = srcAddr;
     dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);

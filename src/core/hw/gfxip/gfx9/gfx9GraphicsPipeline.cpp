@@ -49,16 +49,14 @@ const GraphicsPipelineSignature NullGfxSignature =
     { 0, },                     // User-data mapping for each shader stage
     UserDataNotMapped,          // Vertex buffer table register address
     UserDataNotMapped,          // Stream-out table register address
+    UserDataNotMapped,          // NGG culling data constant buffer
     UserDataNotMapped,          // Vertex offset register address
     UserDataNotMapped,          // Draw ID register address
     UserDataNotMapped,          // Start Index register address
     UserDataNotMapped,          // Log2(sizeof(indexType)) register address
-    UserDataNotMapped,          // ES/GS LDS size register address
-    UserDataNotMapped,          // ES/GS LDS size register address
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     { UserDataNotMapped, },     // Compacted view ID register addresses
-    { UserDataNotMapped, },     // Performance data address for each shader stage
     { 0, },                     // User-data mapping hashes per-stage
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
@@ -250,7 +248,7 @@ void GraphicsPipeline::EarlyInit(
     }
 
     // Must be called *after* determining active HW stages!
-    SetupSignatureFromElf(metadata, registers);
+    SetupSignatureFromElf(metadata, registers, &pInfo->esGsLdsSizeRegGs, &pInfo->esGsLdsSizeRegVs);
 
     const Gfx9PalSettings& settings = m_pDevice->Settings();
     if (settings.enableLoadIndexForObjectBinds != false)
@@ -264,32 +262,17 @@ void GraphicsPipeline::EarlyInit(
             BaseLoadedCntxRegCount;
     }
 
-    pInfo->enableNgg        = IsNgg();
-    pInfo->usesOnChipGs     = IsGsOnChip();
-    pInfo->esGsLdsSizeRegGs = m_signature.esGsLdsSizeRegAddrGs;
-    pInfo->esGsLdsSizeRegVs = m_signature.esGsLdsSizeRegAddrVs;
+    pInfo->enableNgg    = IsNgg();
+    pInfo->usesOnChipGs = IsGsOnChip();
 
     if (IsTessEnabled())
     {
-        m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)].regOffset =
-            m_signature.perfDataAddr[HwShaderStage::Hs];
-
         m_chunkHs.EarlyInit(pInfo);
     }
-
     if (IsGsEnabled() || pInfo->enableNgg)
     {
-        m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Gs)].regOffset =
-            m_signature.perfDataAddr[HwShaderStage::Gs];
-
         m_chunkGs.EarlyInit(pInfo);
     }
-
-    m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Vs)].regOffset =
-            m_signature.perfDataAddr[HwShaderStage::Vs];
-    m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ps)].regOffset =
-            m_signature.perfDataAddr[HwShaderStage::Ps];
-
     m_chunkVsPs.EarlyInit(registers, pInfo);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -322,17 +305,20 @@ Result GraphicsPipeline::HwlInit(
         EarlyInit(metadata, registers, &loadInfo);
 
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
-        GraphicsPipelineUploader uploader(loadInfo.loadedCtxRegCount, loadInfo.loadedShRegCount);
+        GraphicsPipelineUploader uploader(m_pDevice, loadInfo.loadedCtxRegCount, loadInfo.loadedShRegCount);
         result = PerformRelocationsAndUploadToGpuMemory(
             abiProcessor,
             metadata,
-            &uploader,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
-            createInfo.flags.preferNonLocalHeap
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488)
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
+            (createInfo.flags.preferNonLocalHeap == 1) ? GpuHeapGartUswc : GpuHeapInvisible,
 #else
-            false
+            (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
 #endif
-        );
+#else
+            GpuHeapInvisible,
+#endif
+            &uploader);
 
         if (result == Result::Success)
         {
@@ -353,15 +339,18 @@ Result GraphicsPipeline::HwlInit(
             SetupNonShaderRegisters(createInfo, registers, &uploader);
             SetupStereoRegisters();
 
-            uploader.End();
+            result = uploader.End();
 
-            hasher.Update(m_commands.set.context);
-            hasher.Update(m_commands.common);
-            hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextRegHash));
+            if (result == Result::Success)
+            {
+                hasher.Update(m_commands.set.context);
+                hasher.Update(m_commands.common);
+                hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextRegHash));
 
-            m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
+                m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
 
-            UpdateRingSizes(metadata);
+                UpdateRingSizes(metadata);
+            }
         }
     }
 
@@ -900,7 +889,33 @@ void GraphicsPipeline::SetupCommonRegisters(
     // If NGG is enabled, there is no hardware-VS, so there is no need to compute the late-alloc VS limit.
     if (IsNgg() == false)
     {
-        SetupLateAllocVs(registers, pUploader);
+        // Target late-alloc limit uses PAL settings by default. The lateAllocVsLimit member from graphicsPipeline
+        // can override this setting if corresponding flag is set. Did the pipeline request to use the pipeline
+        // specified late-alloc limit 4 * (gfx9Props.numCuPerSh - 1).
+        const uint32 targetLateAllocLimit = IsLateAllocVsLimit()
+                                            ? GetLateAllocVsLimit()
+                                            : m_pDevice->LateAllocVsLimit() + 1;
+
+        regSPI_SHADER_PGM_RSRC1_VS spiShaderPgmRsrc1Vs = { };
+        spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
+
+        regSPI_SHADER_PGM_RSRC2_VS spiShaderPgmRsrc2Vs = { };
+        spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
+        const uint32 programmedLimit = CalcMaxLateAllocLimit(*m_pDevice,
+                                                             registers,
+                                                             spiShaderPgmRsrc1Vs.bits.VGPRS,
+                                                             spiShaderPgmRsrc1Vs.bits.SGPRS,
+                                                             spiShaderPgmRsrc2Vs.bits.SCRATCH_EN,
+                                                             targetLateAllocLimit);
+
+        if (m_gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            m_commands.set.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
+        }
+        if (pUploader->EnableLoadIndexPath())
+        {
+            pUploader->AddShReg(mmSPI_SHADER_LATE_ALLOC_VS, m_commands.set.sh.spiShaderLateAllocVs);
+        }
     }
     SetupIaMultiVgtParam(registers);
 }
@@ -1305,19 +1320,17 @@ void GraphicsPipeline::SetupNonShaderRegisters(
 }
 
 // =====================================================================================================================
-// Sets-up the SPI_SHADER_LATE_ALLOC_VS.
-void GraphicsPipeline::SetupLateAllocVs(
-    const RegisterVector&     registers,
-    GraphicsPipelineUploader* pUploader)
+// Sets-up the late alloc limit. VS and GS will both use this function.
+uint32 GraphicsPipeline::CalcMaxLateAllocLimit(
+    const Device&          device,
+    const RegisterVector&  registers,
+    uint32                 numVgprs,
+    uint32                 numSgprs,
+    uint32                 scratchEn,
+    uint32                 targetLateAllocLimit)
 {
-    const auto pPalSettings = m_pDevice->Parent()->GetPublicSettings();
-    const auto gfx9Settings = m_pDevice->Settings();
-
-    regSPI_SHADER_PGM_RSRC1_VS spiShaderPgmRsrc1Vs = { };
-    spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
-
-    regSPI_SHADER_PGM_RSRC2_VS spiShaderPgmRsrc2Vs = { };
-    spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
+    const auto pPalSettings = device.Parent()->GetPublicSettings();
+    const auto gfx9Settings = device.Settings();
 
     regSPI_SHADER_PGM_RSRC2_PS spiShaderPgmRsrc2Ps = { };
     spiShaderPgmRsrc2Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_PS);
@@ -1326,27 +1339,21 @@ void GraphicsPipeline::SetupLateAllocVs(
     // without allocating export space.
     uint32 lateAllocLimit = 0;
 
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+    const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
 
     // Maximum value of the LIMIT field of the SPI_SHADER_LATE_ALLOC_VS register
     // It is the number of wavefronts minus one.
     const uint32 maxLateAllocLimit = chipProps.gfxip.maxLateAllocVsLimit - 1;
 
-    // Target late-alloc limit uses PAL settings by default. The lateAllocVsLimit member from graphicsPipeline
-    // can override this setting if corresponding flag is set.
-    uint32 targetLateAllocLimit = (IsLateAllocVsLimit()                      // did the pipeline request to use the
-                                   ? GetLateAllocVsLimit()                   // pipeline specified late-alloc limit
-                                   : (m_pDevice->LateAllocVsLimit() + 1));   // 4 * (gfx9Props.numCuPerSh - 1)
-
-    const uint32 vsNumSgpr = (spiShaderPgmRsrc1Vs.bits.SGPRS * 8);
-    const uint32 vsNumVgpr = (spiShaderPgmRsrc1Vs.bits.VGPRS * 4);
+    const uint32 vsNumSgpr = (numSgprs * 8);
+    const uint32 vsNumVgpr = (numVgprs * 4);
 
     if (gfx9Settings.lateAllocVs == LateAllocVsBehaviorDisabled)
     {
         // Disable late alloc vs entirely
         lateAllocLimit = 0;
     }
-    else if (m_pDevice->UseFixedLateAllocVsLimit())
+    else if (device.UseFixedLateAllocVsLimit())
     {
         // When using the fixed wave limit scheme, just accept the client or device specified target value.  The
         // fixed scheme mandates that we are disabling a CU from running VS work, so any limit the client may
@@ -1375,7 +1382,7 @@ void GraphicsPipeline::SetupLateAllocVs(
 
         // Find the maximum number of VS waves that can be launched based on scratch usage if both the PS and VS use
         // scratch.
-        if ((spiShaderPgmRsrc2Vs.bits.SCRATCH_EN != 0) && (spiShaderPgmRsrc2Ps.bits.SCRATCH_EN != 0))
+        if ((scratchEn != 0) && (spiShaderPgmRsrc2Ps.bits.SCRATCH_EN != 0))
         {
             // The maximum number of waves per SH that can launch using scratch is the number of CUs per SH times
             // the setting that clamps the maximum number of in-flight scratch waves.
@@ -1398,14 +1405,7 @@ void GraphicsPipeline::SetupLateAllocVs(
     lateAllocLimit = (lateAllocLimit > 0) ? (lateAllocLimit - 1) : 0;
 
     const uint32 programmedLimit = Min(lateAllocLimit, maxLateAllocLimit);
-    if (m_gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        m_commands.set.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
-    }
-    if (pUploader->EnableLoadIndexPath())
-    {
-        pUploader->AddShReg(mmSPI_SHADER_LATE_ALLOC_VS, m_commands.set.sh.spiShaderLateAllocVs);
-    }
+    return programmedLimit;
 }
 
 // =====================================================================================================================
@@ -1548,7 +1548,8 @@ uint32 GraphicsPipeline::GetVsUserDataBaseOffset() const
 void GraphicsPipeline::SetupSignatureForStageFromElf(
     const CodeObjectMetadata& metadata,
     const RegisterVector&     registers,
-    HwShaderStage             stage)
+    HwShaderStage             stage,
+    uint16*                   pEsGsLdsSizeReg)
 {
     const uint16 streamOutTableEntryPlus1 = (metadata.pipeline.hasEntry.streamOutTableAddress == 0)
                                             ? UserDataNotMapped
@@ -1577,14 +1578,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 
     const uint32 stageId = static_cast<uint32>(stage);
     auto*const   pStage  = &m_signature.stage[stageId];
-
-    constexpr Abi::HardwareStage PalToAbiHwShaderStage[] =
-    {
-        Abi::HardwareStage::Hs,
-        Abi::HardwareStage::Gs,
-        Abi::HardwareStage::Vs,
-        Abi::HardwareStage::Ps,
-    };
 
     for (uint16 offset = baseRegAddr; offset <= lastRegAddr; ++offset)
     {
@@ -1680,20 +1673,10 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                            (m_signature.drawIndexRegAddr == UserDataNotMapped));
                 m_signature.drawIndexRegAddr = offset;
             }
-            else if (value == static_cast<uint32>(Abi::UserDataMapping::EsGsLdsSize))
+            else if ((value == static_cast<uint32>(Abi::UserDataMapping::EsGsLdsSize)) &&
+                     (pEsGsLdsSizeReg != nullptr))
             {
-                if (stage == HwShaderStage::Gs)
-                {
-                    m_signature.esGsLdsSizeRegAddrGs = offset;
-                }
-                else if (stage == HwShaderStage::Vs)
-                {
-                    m_signature.esGsLdsSizeRegAddrVs = offset;
-                }
-                else
-                {
-                    PAL_NEVER_CALLED(); // PS and HS cannot reference the ES/GS LDS ring size!
-                }
+                (*pEsGsLdsSizeReg) = offset;
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::BaseIndex))
             {
@@ -1715,7 +1698,24 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderPerfData))
             {
-                m_signature.perfDataAddr[stageId] = offset;
+                constexpr uint32 PalToAbiHwShaderStage[] =
+                {
+                    static_cast<uint32>(Abi::HardwareStage::Hs),
+                    static_cast<uint32>(Abi::HardwareStage::Gs),
+                    static_cast<uint32>(Abi::HardwareStage::Vs),
+                    static_cast<uint32>(Abi::HardwareStage::Ps),
+                };
+
+                m_perfDataInfo[PalToAbiHwShaderStage[stageId]].regOffset = offset;
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::NggCullingData))
+            {
+                // There can be only one NGG culling data buffer per pipeline, and it must be used by the
+                // primitive shader.
+                PAL_ASSERT((m_signature.nggCullingDataAddr == offset) ||
+                           (m_signature.nggCullingDataAddr == UserDataNotMapped));
+                PAL_ASSERT(stage == HwShaderStage::Gs);
+                m_signature.nggCullingDataAddr = offset;
             }
             else
             {
@@ -1724,6 +1724,18 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             }
         } // If HasEntry()
     } // For each user-SGPR
+
+    if ((stage == HwShaderStage::Gs) && (m_signature.nggCullingDataAddr == UserDataNotMapped))
+    {
+        // It is also supported to use the LO/HI GS program registers as the NGG culling data constant buffer. Check
+        // that register if we haven't seen an address for the culling data buffer yet.
+        uint32 value = 0;
+        if (registers.HasEntry(mmSPI_SHADER_PGM_LO_GS, &value) &&
+            (value == static_cast<uint32>(Abi::UserDataMapping::NggCullingData)))
+        {
+            m_signature.nggCullingDataAddr = mmSPI_SHADER_PGM_LO_GS;
+        }
+    }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Backwards compatibility for the stream-out table user-SGPR.  Older ABI versions encoded this by mapping the
@@ -1755,7 +1767,9 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 // Initializes the signature of a graphics pipeline using a pipeline ELF.
 void GraphicsPipeline::SetupSignatureFromElf(
     const CodeObjectMetadata& metadata,
-    const RegisterVector&     registers)
+    const RegisterVector&     registers,
+    uint16*                   pEsGsLdsSizeRegGs,
+    uint16*                   pEsGsLdsSizeRegVs)
 {
     if (metadata.pipeline.hasEntry.spillThreshold != 0)
     {
@@ -1769,17 +1783,17 @@ void GraphicsPipeline::SetupSignatureFromElf(
 
     if (IsTessEnabled())
     {
-        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Hs);
+        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Hs, nullptr);
     }
     if (IsGsEnabled() || IsNgg())
     {
-        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Gs);
+        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Gs, pEsGsLdsSizeRegGs);
     }
     if (IsNgg() == false)
     {
-        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Vs);
+        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Vs, pEsGsLdsSizeRegVs);
     }
-    SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Ps);
+    SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Ps, nullptr);
 
     // Finally, compact the array of view ID register addresses
     // so that all of the mapped ones are at the front of the array.

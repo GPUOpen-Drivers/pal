@@ -484,6 +484,7 @@ public:
     ///          + ErrorUnavailable if the GPU memory object is not a real allocation.
     virtual Result Unmap() = 0;
 
+#if PAL_KMT_BUILD || PAL_AMDGPU_BUILD
     /// Returns an OS-specific handle which can be used to refer to this GPU memory object across processes. This will
     /// return a null or invalid handle if the object was not created with the @ref interprocess create flag set.
     ///
@@ -493,6 +494,7 @@ public:
     ///
     /// @returns An OS-specific handle which can be used to access the GPU memory object across processes.
     virtual OsExternalHandle ExportExternalHandle(const GpuMemoryExportInfo& exportInfo) const = 0;
+#endif
 
     /// Returns a structure containing some fundemental information that describes this GPU memory object.
     ///

@@ -96,10 +96,10 @@ bool Gfx6Htile::UseHtileForImage(
             // Disabling Htile for this type of image could potentially cause performance issues for the apps using them.
             PAL_ALERT(waDisableHtile);
 
-            useHtile = ((pParent->IsShared()           == false) &&
-                        (pParent->IsMetadataDisabled() == false) &&
-                        (settings.htileEnable          == true)  &&
-                        (waDisableHtile                == false));
+            useHtile = ((pParent->IsShared()                   == false) &&
+                        (pParent->IsMetadataDisabledByClient() == false) &&
+                        (settings.htileEnable                  == true)  &&
+                        (waDisableHtile                        == false));
         }
     }
 
@@ -673,7 +673,9 @@ bool Gfx6Cmask::UseCmaskForImage(
     {
         useCmask = (pParent->GetInternalCreateInfo().sharedMetadata.cmaskOffset != 0);
     }
-    else if (pParent->IsRenderTarget() && (pParent->IsShared() == false) && (pParent->IsMetadataDisabled() == false))
+    else if (pParent->IsRenderTarget()      &&
+             (pParent->IsShared() == false) &&
+             (pParent->IsMetadataDisabledByClient() == false))
     {
         if (pParent->GetImageCreateInfo().samples > 1)
         {
@@ -902,10 +904,10 @@ bool Gfx6Fmask::UseFmaskForImage(
 
     // Multisampled Images require FMask.
     return (pParent->IsEqaa() ||
-            ((pParent->IsRenderTarget()     == true)  &&
-            (pParent->IsShared()           == false) &&
-            (pParent->IsMetadataDisabled() == false) &&
-            (pParent->GetImageCreateInfo().samples > 1)));
+            ((pParent->IsRenderTarget()             == true)  &&
+             (pParent->IsShared()                   == false) &&
+             (pParent->IsMetadataDisabledByClient() == false) &&
+             (pParent->GetImageCreateInfo().samples > 1)));
 }
 
 // =====================================================================================================================
@@ -1144,12 +1146,17 @@ bool Gfx6Dcc::UseDccForImage(
     const auto             pPalSettings = device.GetPublicSettings();
 
     // Assume that DCC is available; check for conditions where it won't work.
-    bool useDcc = true;
+    bool useDcc         = true;
+    bool mustDisableDcc = false;
 
     if (pParent->GetInternalCreateInfo().flags.useSharedMetadata)
     {
         const auto& metadata = image.Parent()->GetInternalCreateInfo().sharedMetadata;
         useDcc = (metadata.dccOffset != 0) && (metadata.fastClearMetaDataOffset != 0);
+        if (useDcc == false)
+        {
+            mustDisableDcc = true;
+        }
     }
     else
     {
@@ -1162,23 +1169,27 @@ bool Gfx6Dcc::UseDccForImage(
             (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp7))
         {
             useDcc = false;
+            mustDisableDcc = true;
         }
-        else if (pParent->IsMetadataDisabled())
+        else if (pParent->IsMetadataDisabledByClient())
         {
             // Don't use DCC if the caller asked that we allocate no metadata.
             useDcc = false;
+            mustDisableDcc = true;
         }
         else if (pParent->GetDccFormatEncoding() == DccFormatEncoding::Incompatible)
         {
             // Don't use DCC if the caller can switch between color target formats.
             // Or if caller can switch between shader formats
             useDcc = false;
+            mustDisableDcc = true;
         }
         else if (pParent->IsDepthStencil() || allMipsShaderWritable || (pParent->IsRenderTarget() == false))
         {
             // DCC only makes sense for renderable color buffers, or those color buffers such that some mips are
             // not shader writable
             useDcc = false;
+            mustDisableDcc = true;
         }
         // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
         // preferred, the image will be readable by a shader.
@@ -1195,18 +1206,21 @@ bool Gfx6Dcc::UseDccForImage(
         {
             // DCC is never available for shared, presentable, or flippable images.
             useDcc = false;
+            mustDisableDcc = true;
         }
         else if (tileType == ADDR_THICK)
         {
             // THICK micro-tiling does not support DCC. The reason for this is that the CB does not support doing a DCC
             // decompress operation on THICK micro-tiled Images.
             useDcc = false;
+            mustDisableDcc = true;
         }
         else if (image.IsMacroTiled(tileMode) == false)
         {
             // If the tile-mode is 1D or linear, then this surface has no chance of using DCC memory.  2D tiled surfaces
             // get much more complicated...  allow DCC for whatever levels of the surface can support it.
             useDcc = false;
+            mustDisableDcc = true;
         }
         else if ((createInfo.extent.width * createInfo.extent.height) <=
                 (pPalSettings->hintDisableSmallSurfColorCompressionSize *
@@ -1234,6 +1248,7 @@ bool Gfx6Dcc::UseDccForImage(
             {
                 // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
                 useDcc = false;
+                mustDisableDcc = true;
             }
             else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccPrt) == false))
             {
@@ -1268,6 +1283,10 @@ bool Gfx6Dcc::UseDccForImage(
                     if (BitsPerPixel(format) == 8)
                     {
                         useDcc = Pal::Gfx6::Device::WaEnableDcc8bppWithMsaa;
+                        if (useDcc == false)
+                        {
+                            mustDisableDcc = true;
+                        }
                     }
                 }
             }
@@ -1287,6 +1306,13 @@ bool Gfx6Dcc::UseDccForImage(
             }
         }
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
+    if ((mustDisableDcc == false) && (createInfo.metadataMode == MetadataMode::ForceEnabled))
+    {
+        useDcc = true;
+    }
+#endif
 
     return useDcc;
 }

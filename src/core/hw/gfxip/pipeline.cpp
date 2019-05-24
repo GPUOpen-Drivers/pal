@@ -69,6 +69,8 @@ struct SerializedData
     ShaderMetadata  shaderMetadata;
 };
 
+constexpr size_t GpuMemByteAlign = 256;
+
 // =====================================================================================================================
 Pipeline::Pipeline(
     Device* pDevice,
@@ -79,7 +81,9 @@ Pipeline::Pipeline(
     m_gpuMemSize(0),
     m_pPipelineBinary(nullptr),
     m_pipelineBinaryLen(0),
-    m_apiHwMapping()
+    m_apiHwMapping(),
+    m_perfDataMem(),
+    m_perfDataGpuMemSize(0)
 {
     m_flags.value      = 0;
     m_flags.isInternal = isInternal;
@@ -98,6 +102,12 @@ Pipeline::~Pipeline()
     {
         m_pDevice->MemMgr()->FreeGpuMem(m_gpuMem.Memory(), m_gpuMem.Offset());
         m_gpuMem.Update(nullptr, 0);
+    }
+
+    if (m_perfDataMem.IsBound())
+    {
+        m_pDevice->MemMgr()->FreeGpuMem(m_perfDataMem.Memory(), m_perfDataMem.Offset());
+        m_perfDataMem.Update(nullptr, 0);
     }
 
     PAL_SAFE_FREE(m_pPipelineBinary, m_pDevice->GetPlatform());
@@ -120,12 +130,84 @@ void Pipeline::DestroyInternal()
 Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
     const AbiProcessor&       abiProcessor,
     const CodeObjectMetadata& metadata,
-    PipelineUploader*         pUploader,
-    bool                      preferNonLocalHeap)
+    const GpuHeap&            clientPreferredHeap,
+    PipelineUploader*         pUploader)
 {
     PAL_ASSERT(pUploader != nullptr);
 
-    Result result = pUploader->Begin(m_pDevice, abiProcessor, metadata, &m_perfDataInfo[0], preferNonLocalHeap);
+    // Compute the total size of all shader stages' performance data buffers.
+    gpusize performanceDataOffset = 0;
+    for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
+    {
+        const uint32 performanceDataBytes = metadata.pipeline.hardwareStage[s].perfDataBufferSize;
+        if (performanceDataBytes != 0)
+        {
+            m_perfDataInfo[s].sizeInBytes = performanceDataBytes;
+            m_perfDataInfo[s].cpuOffset   = static_cast<size_t>(performanceDataOffset);
+
+            performanceDataOffset += performanceDataBytes;
+        }
+    } // for each hardware stage
+
+    m_perfDataGpuMemSize = performanceDataOffset;
+    Result result        = Result::Success;
+
+    if (m_perfDataGpuMemSize > 0)
+    {
+        // Allocate gpu memory for the perf data.
+        GpuMemoryCreateInfo createInfo = { };
+        createInfo.heapCount           = 1;
+        createInfo.heaps[0]            = GpuHeap::GpuHeapLocal;
+        createInfo.alignment           = GpuMemByteAlign;
+        createInfo.vaRange             = VaRange::DescriptorTable;
+        createInfo.priority            = GpuMemPriority::High;
+        createInfo.size                = m_perfDataGpuMemSize;
+
+        GpuMemoryInternalCreateInfo internalInfo = { };
+        internalInfo.flags.alwaysResident        = 1;
+
+        GpuMemory* pGpuMem         = nullptr;
+        gpusize    perfDataOffset  = 0;
+
+        result = m_pDevice->MemMgr()->AllocateGpuMem(createInfo,
+                                                     internalInfo,
+                                                     false,
+                                                     &pGpuMem,
+                                                     &perfDataOffset);
+
+        if (result == Result::Success)
+        {
+            m_perfDataMem.Update(pGpuMem, perfDataOffset);
+
+            void* m_pPerfDataMapped = nullptr;
+            result                  = pGpuMem->Map(&m_pPerfDataMapped);
+
+            if (result == Result::Success)
+            {
+                memset(VoidPtrInc(m_pPerfDataMapped, static_cast<size_t>(perfDataOffset)),
+                       0,
+                       static_cast<size_t>(m_perfDataGpuMemSize));
+
+                // Initialize the performance data buffer for each shader stage and finalize its GPU virtual address.
+                for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
+                {
+                    if (m_perfDataInfo[s].sizeInBytes != 0)
+                    {
+                        m_perfDataInfo[s].gpuVirtAddr =
+                            LowPart(m_perfDataMem.GpuVirtAddr() + m_perfDataInfo[s].cpuOffset);
+                    }
+                } // for each hardware stage
+
+                pGpuMem->Unmap();
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        result = pUploader->Begin(abiProcessor, metadata, clientPreferredHeap);
+    }
+
     if (result == Result::Success)
     {
         m_gpuMemSize = pUploader->GpuMemSize();
@@ -312,13 +394,14 @@ Result Pipeline::GetPerformanceData(
         }
         else if ((*pSize) >= perfDataInfo.sizeInBytes)
         {
-            void* pData = nullptr;
-            result = m_gpuMem.Map(&pData);
+            auto pPerfDataMem = m_perfDataMem.Memory();
+            void* pData       = nullptr;
+            result            = pPerfDataMem->Map(&pData);
 
             if (result == Result::Success)
             {
                 memcpy(pBuffer, VoidPtrInc(pData, perfDataInfo.cpuOffset), perfDataInfo.sizeInBytes);
-                result = m_gpuMem.Unmap();
+                result = pPerfDataMem->Unmap();
             }
         }
     }
@@ -461,12 +544,16 @@ void Pipeline::DumpPipelineElf(
 
 // =====================================================================================================================
 PipelineUploader::PipelineUploader(
-    uint32 ctxRegisterCount,
-    uint32 shRegisterCount)
+    Device* pDevice,
+    uint32  ctxRegisterCount,
+    uint32  shRegisterCount)
     :
+    m_pDevice(pDevice),
     m_pGpuMemory(nullptr),
     m_baseOffset(0),
     m_gpuMemSize(0),
+    m_pUploadGpuMem(nullptr),
+    m_uploadOffset(0),
     m_codeGpuVirtAddr(0),
     m_dataGpuVirtAddr(0),
     m_ctxRegGpuVirtAddr(0),
@@ -480,6 +567,7 @@ PipelineUploader::PipelineUploader(
     , m_pCtxRegWritePtrStart(nullptr),
     m_pShRegWritePtrStart(nullptr)
 #endif
+    , m_pipelineHeapType(GpuHeap::GpuHeapCount)
 {
 }
 
@@ -494,36 +582,54 @@ PipelineUploader::~PipelineUploader()
 // and data.  The GPU virtual addresses for the code, data, and register segments are also computed.  The caller is
 // responsible for calling End() which unmaps the GPU memory.
 Result PipelineUploader::Begin(
-    Device*                   pDevice,
     const AbiProcessor&       abiProcessor,
     const CodeObjectMetadata& metadata,
-    PerfDataInfo*             pPerfDataInfoList,
-    bool                      preferNonLocalHeap)
+    const GpuHeap&            clientPreferredHeap)
 {
-    PAL_ASSERT(pPerfDataInfoList != nullptr);
+    static_assert(static_cast<uint32>(PreferredPipelineUploadHeap::PipelineHeapLocal)         ==
+        static_cast<uint32>(GpuHeap::GpuHeapLocal),         "Pipeline heap enumeration needs to be updated!");
+    static_assert(static_cast<uint32>(PreferredPipelineUploadHeap::PipelineHeapInvisible)     ==
+        static_cast<uint32>(GpuHeap::GpuHeapInvisible),     "Pipeline heap enumeration needs to be updated!");
+    static_assert(static_cast<uint32>(PreferredPipelineUploadHeap::PipelineHeapGartUswc)      ==
+        static_cast<uint32>(GpuHeap::GpuHeapGartUswc),      "Pipeline heap enumeration needs to be updated!");
+    static_assert(static_cast<uint32>(PreferredPipelineUploadHeap::PipelineHeapGartCacheable) ==
+        static_cast<uint32>(GpuHeap::GpuHeapGartCacheable), "Pipeline heap enumeration needs to be updated!");
+    static_assert(static_cast<uint32>(PreferredPipelineUploadHeap::PipelineHeapDeferToClient) ==
+        static_cast<uint32>(GpuHeap::GpuHeapCount),         "Pipeline heap enumeration needs to be updated!");
 
-    constexpr size_t GpuMemByteAlign = 256;
+    const auto& settingPreferredHeap = m_pDevice->Settings().preferredPipelineUploadHeap;
 
-    GpuMemoryCreateInfo createInfo = { };
-    createInfo.alignment = GpuMemByteAlign;
-    createInfo.vaRange   = VaRange::DescriptorTable;
-
-    if (preferNonLocalHeap)
+    // Compute the final destination heap of the pipeline.
+    if (settingPreferredHeap == PreferredPipelineUploadHeap::PipelineHeapDeferToClient)
     {
-        createInfo.heaps[0]  = GpuHeapGartUswc;
-        createInfo.heapCount = 1;
+        // The panel setting is set to use the client specified heap.
+        m_pipelineHeapType = clientPreferredHeap;
     }
     else
     {
-        createInfo.heaps[0]  = GpuHeapLocal;
-        createInfo.heaps[1]  = GpuHeapGartUswc;
-        createInfo.heapCount = 2;
+        // Non-default panel setting.
+        m_pipelineHeapType = static_cast<GpuHeap>(settingPreferredHeap);
     }
 
-    createInfo.priority  = GpuMemPriority::High;
+    if (m_pDevice->ValidatePipelineUploadHeap(m_pipelineHeapType) == false)
+    {
+        // Fall back to local visible heap.
+        m_pipelineHeapType = GpuHeap::GpuHeapLocal;
+
+        // We cannot upload to this heap for this device. We will fall back to using the optimal heap instead.
+        PAL_ALERT(m_pDevice->ValidatePipelineUploadHeap(clientPreferredHeap));
+    }
+
+    GpuMemoryCreateInfo createInfo = { };
+    createInfo.alignment           = GpuMemByteAlign;
+    createInfo.vaRange             = VaRange::DescriptorTable;
+    createInfo.heaps[0]            = m_pipelineHeapType;
+    createInfo.heaps[1]            = GpuHeapGartUswc;
+    createInfo.heapCount           = 2;
+    createInfo.priority            = GpuMemPriority::High;
 
     GpuMemoryInternalCreateInfo internalInfo = { };
-    internalInfo.flags.alwaysResident = 1;
+    internalInfo.flags.alwaysResident        = 1;
 
     const void* pCodeBuffer = nullptr;
     size_t      codeLength  = 0;
@@ -548,21 +654,6 @@ Result PipelineUploader::Begin(
         createInfo.size = (Pow2Align(createInfo.size, sizeof(uint32)) + (RegisterEntryBytes * totalRegisters));
     }
 
-    // Compute the total size of all shader stages' performance data buffers.
-    gpusize performanceDataOffset = createInfo.size;
-    for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
-    {
-        const uint32 performanceDataBytes = metadata.pipeline.hardwareStage[s].perfDataBufferSize;
-        if (performanceDataBytes != 0)
-        {
-            pPerfDataInfoList[s].sizeInBytes = performanceDataBytes;
-            pPerfDataInfoList[s].cpuOffset   = static_cast<size_t>(performanceDataOffset);
-
-            createInfo.size       += performanceDataBytes;
-            performanceDataOffset += performanceDataBytes;
-        }
-    } // for each hardware stage
-
     // The driver must make sure there is a distance of at least gpuInfo.shaderPrefetchBytes
     // that follows the end of the shader to avoid a page fault when the SQ tries to
     // prefetch past the end of a shader
@@ -571,23 +662,38 @@ Result PipelineUploader::Begin(
     // defaulting to the hardware supported maximum if necessary
 
     const gpusize minSafeSize = Pow2Align(codeLength, ShaderICacheLineSize) +
-                                pDevice->ChipProperties().gfxip.shaderPrefetchBytes;
+                                m_pDevice->ChipProperties().gfxip.shaderPrefetchBytes;
 
     createInfo.size = Max(createInfo.size, minSafeSize);
 
-    Result result = pDevice->MemMgr()->AllocateGpuMem(createInfo, internalInfo, false, &m_pGpuMemory, &m_baseOffset);
+    m_gpuMemSize  = createInfo.size;
+    Result result = m_pDevice->MemMgr()->AllocateGpuMem(createInfo, internalInfo, false, &m_pGpuMemory, &m_baseOffset);
+
     if (result == Result::Success)
     {
-        result = m_pGpuMemory->Map(&m_pMappedPtr);
+        if (m_pipelineHeapType != GpuHeap::GpuHeapInvisible)
+        {
+            result       = m_pGpuMemory->Map(&m_pMappedPtr);
+            m_pMappedPtr = VoidPtrInc(m_pMappedPtr, static_cast<size_t>(m_baseOffset));
+        }
+        else
+        {
+            m_pMappedPtr = PAL_CALLOC_ALIGNED(static_cast<size_t>(m_gpuMemSize),
+                                              GpuMemByteAlign,
+                                              m_pDevice->GetPlatform(),
+                                              AllocInternal);
+            if (m_pMappedPtr == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
         if (result == Result::Success)
         {
-            m_gpuMemSize = createInfo.size;
-            m_pMappedPtr = VoidPtrInc(m_pMappedPtr, static_cast<size_t>(m_baseOffset));
-
             gpusize gpuVirtAddr = (m_pGpuMemory->Desc().gpuVirtAddr + m_baseOffset);
-            void*   pMappedPtr  = m_pMappedPtr;
+            void* pMappedPtr    = m_pMappedPtr;
+            m_codeGpuVirtAddr   = gpuVirtAddr;
 
-            m_codeGpuVirtAddr = gpuVirtAddr;
             memcpy(pMappedPtr, pCodeBuffer, codeLength);
 
             pMappedPtr   = VoidPtrInc(pMappedPtr, codeLength);
@@ -616,7 +722,7 @@ Result PipelineUploader::Begin(
                     if (abiProcessor.HasPipelineSymbolEntry(symbolType, &symbol) &&
                         (symbol.sectionType == Abi::AbiSectionType::Data))
                     {
-                        pDevice->GetGfxDevice()->PatchPipelineInternalSrdTable(
+                        m_pDevice->GetGfxDevice()->PatchPipelineInternalSrdTable(
                             VoidPtrInc(pMappedPtr,  static_cast<size_t>(symbol.value)), // Dst
                             VoidPtrInc(pDataBuffer, static_cast<size_t>(symbol.value)), // Src
                             static_cast<size_t>(symbol.size),
@@ -656,18 +762,6 @@ Result PipelineUploader::Begin(
                 m_pShRegWritePtrStart  = m_pShRegWritePtr;
 #endif
             }
-
-            // Initialize the performance data buffer for each shader stage and finalize its GPU virtual address.
-            for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
-            {
-                if (pPerfDataInfoList[s].sizeInBytes != 0)
-                {
-                    const size_t offset = pPerfDataInfoList[s].cpuOffset;
-                    pPerfDataInfoList[s].gpuVirtAddr = LowPart(gpuVirtAddr + offset);
-                    memset(VoidPtrInc(m_pMappedPtr, offset), 0, pPerfDataInfoList[s].sizeInBytes);
-                }
-            } // for each hardware stage
-
         } // if Map() succeeded
     } // if AllocateGpuMem() succeeded
 
@@ -675,9 +769,12 @@ Result PipelineUploader::Begin(
 }
 
 // =====================================================================================================================
-// "Finishes" uploading a pipeline to GPU memory by unmapping the GPU allocation.
-void PipelineUploader::End()
+// "Finishes" uploading a pipeline to GPU memory by requesting the device to submit a DMA copy of the pipeline from
+// its initial heap to the local invisible heap. The temporary CPU visible heap is freed.
+Result PipelineUploader::End()
 {
+    Result result = Result::Success;
+
     if ((m_pGpuMemory != nullptr) && (m_pMappedPtr != nullptr))
     {
         // Sanity check to make sure we allocated the correct amount of memory for any loaded SH or context registers.
@@ -690,10 +787,105 @@ void PipelineUploader::End()
 #endif
         m_pCtxRegWritePtr = nullptr;
         m_pShRegWritePtr  = nullptr;
-        m_pMappedPtr      = nullptr;
 
-        m_pGpuMemory->Unmap();
+        if (m_pipelineHeapType == GpuHeap::GpuHeapInvisible)
+        {
+            result = CreateUploadCmdBuffer();
+
+            if (result == Result::Success)
+            {
+                CmdBufferBuildFlags flags     = { };
+                flags.optimizeExclusiveSubmit = true;
+                flags.optimizeOneTimeSubmit   = true;
+
+                CmdBufferBuildInfo buildInfo = { };
+                buildInfo.flags              = flags;
+                m_pUploadCmdBuffer->Begin(buildInfo);
+
+                // Copy the pipeline built in CPU memory using embedded data buffer from the command buffer
+                int64 pipelineBytesLeft        = m_gpuMemSize;
+                const uint32 embeddedDataLimit = m_pUploadCmdBuffer->GetEmbeddedDataLimit() * sizeof(uint32);
+                gpusize dstOffset              = m_baseOffset;
+                size_t srcOffset               = 0;
+
+                do
+                {
+                    gpusize allocSize = (embeddedDataLimit >= pipelineBytesLeft) ?
+                        pipelineBytesLeft : embeddedDataLimit;
+
+                    GpuMemory* pGpuMem   = nullptr;
+                    gpusize gpuMemOffset = 0;
+
+                    void* pEmbeddedData = m_pUploadCmdBuffer->CmdAllocateEmbeddedData(
+                        NumBytesToNumDwords(static_cast<uint32>(allocSize)), 1, &pGpuMem, &gpuMemOffset);
+
+                    PAL_ASSERT(pEmbeddedData != nullptr);
+
+                    const void* pSrcData = VoidPtrInc(m_pMappedPtr, srcOffset);
+                    memcpy(pEmbeddedData, pSrcData, static_cast<size_t>(allocSize));
+
+                    MemoryCopyRegion copyRegion = { };
+                    copyRegion.copySize         = allocSize;
+                    copyRegion.dstOffset        = dstOffset;
+                    copyRegion.srcOffset        = gpuMemOffset;
+
+                    m_pUploadCmdBuffer->CmdCopyMemory(*pGpuMem, *m_pGpuMemory, 1, &copyRegion);
+
+                    dstOffset         += allocSize;
+                    srcOffset         += static_cast<size_t>(allocSize);
+                    pipelineBytesLeft -= embeddedDataLimit;
+
+                } while (pipelineBytesLeft > 0);
+
+                result = m_pUploadCmdBuffer->End();
+
+                if (result == Result::Success)
+                {
+                    ICmdBuffer*const pSubmitCmdBuffer = m_pUploadCmdBuffer;
+
+                    SubmitInfo submitInfo     = { };
+                    submitInfo.cmdBufferCount = 1;
+                    submitInfo.ppCmdBuffers   = &pSubmitCmdBuffer;
+
+                    result = m_pDevice->InternalDmaSubmit(submitInfo);
+                }
+
+                PAL_ASSERT(result == Result::Success);
+
+                if (m_pUploadCmdBuffer != nullptr)
+                {
+                    m_pUploadCmdBuffer->DestroyInternal();
+                }
+            }
+
+            PAL_FREE(m_pMappedPtr, m_pDevice->GetPlatform());
+        }
+        else
+        {
+            m_pGpuMemory->Unmap();
+        }
+
+        m_pMappedPtr = nullptr;
     }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result PipelineUploader::CreateUploadCmdBuffer()
+{
+    // Perform a DMA copy to the final destination.
+    CmdBufferCreateInfo cmdBufCreateInfo = { };
+    cmdBufCreateInfo.engineType          = EngineType::EngineTypeDma;
+    cmdBufCreateInfo.queueType           = QueueType::QueueTypeDma;
+    cmdBufCreateInfo.pCmdAllocator       = m_pDevice->InternalCmdAllocator(EngineType::EngineTypeDma);
+
+    CmdBufferInternalCreateInfo cmdBufInternalCreateInfo = { };
+    cmdBufInternalCreateInfo.flags.isInternal            = true;
+
+    return m_pDevice->CreateInternalCmdBuffer(cmdBufCreateInfo,
+                                              cmdBufInternalCreateInfo,
+                                              &m_pUploadCmdBuffer);
 }
 
 } // Pal

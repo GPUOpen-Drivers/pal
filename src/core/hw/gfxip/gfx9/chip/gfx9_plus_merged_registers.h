@@ -2977,11 +2977,15 @@ union CB_HW_CONTROL {
 union CB_HW_CONTROL_1 {
     struct {
         unsigned int CM_CACHE_NUM_TAGS                                            :  5;
+        unsigned int                                                              : 27;
+    } bits, bitfields;
+    struct {
+        unsigned int                                                              :  5;
         unsigned int FC_CACHE_NUM_TAGS                                            :  6;
         unsigned int CC_CACHE_NUM_TAGS                                            :  6;
         unsigned int CM_TILE_FIFO_DEPTH                                           :  9;
         unsigned int RMI_CREDITS                                                  :  6;
-    } bits, bitfields;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3016,7 +3020,7 @@ union CB_HW_CONTROL_3 {
         unsigned int DISABLE_CC_CACHE_OVWR_STATUS_ACCUM                           :  1;
         unsigned int                                                              :  1;
         unsigned int DISABLE_CC_CACHE_PANIC_GATING                                :  1;
-        unsigned int DISABLE_OVERWRITE_COMBINER_TARGET_MASK_VALIDATION            :  1;
+        unsigned int                                                              :  1;
         unsigned int SPLIT_ALL_FAST_MODE_TRANSFERS                                :  1;
         unsigned int DISABLE_SHADER_BLEND_OPTS                                    :  1;
         unsigned int DISABLE_CMASK_LAST_QUAD_INSERTION                            :  1;
@@ -3038,14 +3042,12 @@ union CB_HW_CONTROL_3 {
         unsigned int                                                              :  5;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 27;
-        unsigned int DISABLE_DUALSRC_WITH_OBJPRIMID_FIX                           :  1;
-        unsigned int                                                              :  4;
-    } most;
-    struct {
         unsigned int                                                              :  6;
         unsigned int DISABLE_CC_CACHE_OVWR_KEY_MOD                                :  1;
-        unsigned int                                                              : 21;
+        unsigned int                                                              :  1;
+        unsigned int DISABLE_OVERWRITE_COMBINER_TARGET_MASK_VALIDATION            :  1;
+        unsigned int                                                              : 18;
+        unsigned int DISABLE_DUALSRC_WITH_OBJPRIMID_FIX                           :  1;
         unsigned int COLOR_CACHE_PREFETCH_NUM_CLS                                 :  2;
         unsigned int                                                              :  2;
     } gfx09;
@@ -25826,17 +25828,16 @@ union RLC_SPM_ACCUM_CTRL {
         unsigned int StrobeResetPerfMonitors                                      :  1;
         unsigned int StrobeStartAccumulation                                      :  1;
         unsigned int StrobeRearmAccum                                             :  1;
-        unsigned int StrobeSpmDoneInt                                             :  1;
-        unsigned int StrobeAccumDoneInt                                           :  1;
-        unsigned int                                                              :  1;
-        unsigned int StrobeStartSpm                                               :  4;
-        unsigned int                                                              : 22;
+        unsigned int                                                              :  7;
+        unsigned int RESERVED                                                     : 22;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  5;
+        unsigned int                                                              :  3;
+        unsigned int StrobeSpmDoneInt                                             :  1;
+        unsigned int StrobeAccumDoneInt                                           :  1;
         unsigned int StrobeResetAccum                                             :  1;
-        unsigned int                                                              :  4;
-        unsigned int RESERVED                                                     : 22;
+        unsigned int StrobeStartSpm                                               :  4;
+        unsigned int                                                              : 22;
     } rv2x;
 
     unsigned int u32All;

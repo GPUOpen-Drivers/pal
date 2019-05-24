@@ -36,8 +36,6 @@
 #include "palSysUtil.h"
 #include "palTimeGraphImpl.h"
 
-#include "core/os/lnx/lnxHeaders.h"
-
 using namespace Util;
 
 namespace Pal

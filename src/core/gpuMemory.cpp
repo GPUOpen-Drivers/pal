@@ -283,7 +283,8 @@ GpuMemory::GpuMemory(
     m_mtype(MType::Default),
     m_minPageSize(PAL_PAGE_BYTES),
     m_remoteSdiSurfaceIndex(0),
-    m_remoteSdiMarkerIndex(0)
+    m_remoteSdiMarkerIndex(0),
+    m_markerVirtualAddr(0)
 {
     memset(&m_desc, 0, sizeof(m_desc));
     memset(&m_heaps[0], 0, sizeof(m_heaps));
@@ -306,10 +307,11 @@ GpuMemory::~GpuMemory()
     data.flags.isCmdAllocator     = IsCmdAllocator();
     data.flags.isVirtual          = IsVirtual();
     m_pDevice->DeveloperCb(Developer::CallbackType::FreeGpuMemory, &data);
+
 }
 
 // =====================================================================================================================
-// Initializes GPU memory objects that are build from create info structs. This includes:
+// Initializes GPU memory objects that are built from create info structs. This includes:
 // - Real GPU memory allocations owned by the local process.
 // - Virtual GPU memory allocations owned by the local process.
 // - External, shared GPU memory objects that point to GPU memory allocations owned by an external process.
@@ -317,45 +319,49 @@ Result GpuMemory::Init(
     const GpuMemoryCreateInfo&         createInfo,
     const GpuMemoryInternalCreateInfo& internalInfo)
 {
-    m_desc.flags.isVirtual     = createInfo.flags.virtualAlloc || createInfo.flags.sdiExternal;
-    m_desc.flags.isExternPhys  = createInfo.flags.sdiExternal;
-    m_desc.flags.isExternal    = internalInfo.flags.isExternal;
-    m_desc.flags.isShared      = internalInfo.flags.isExternal; // External memory is memory shared between processes.
+    m_pImage = static_cast<Image*>(createInfo.pImage);
 
-    m_flags.isShareable        = createInfo.flags.shareable;
-    m_flags.isFlippable        = createInfo.flags.flippable;
-    m_flags.interprocess       = createInfo.flags.interprocess;
-    m_flags.globallyCoherent   = createInfo.flags.globallyCoherent;
-    m_flags.xdmaBuffer         = createInfo.flags.xdmaBuffer || internalInfo.flags.xdmaBuffer;
-    m_flags.globalGpuVa        = createInfo.flags.globalGpuVa;
-    m_flags.useReservedGpuVa   = createInfo.flags.useReservedGpuVa;
-    m_flags.typedBuffer        = createInfo.flags.typedBuffer;
-    m_flags.turboSyncSurface   = createInfo.flags.turboSyncSurface;
-    m_flags.busAddressable     = createInfo.flags.busAddressable;
-    m_flags.isStereo           = createInfo.flags.stereo;
-    m_flags.autoPriority       = createInfo.flags.autoPriority;
-    m_flags.peerWritable       = createInfo.flags.peerWritable;
+    m_desc.flags.isVirtual       = createInfo.flags.virtualAlloc || createInfo.flags.sdiExternal;
+    m_desc.flags.isExternPhys    = createInfo.flags.sdiExternal;
+    m_desc.flags.isExternal      = internalInfo.flags.isExternal;
+    m_desc.flags.isShared        = internalInfo.flags.isExternal; // External memory is memory shared between processes.
+
+    {
+        m_flags.isFlippable      = createInfo.flags.flippable;
+        m_flags.isShareable      = createInfo.flags.shareable;
+        m_flags.interprocess     = createInfo.flags.interprocess;
+        m_flags.peerWritable     = createInfo.flags.peerWritable;
+        m_flags.turboSyncSurface = createInfo.flags.turboSyncSurface;
+    }
+    m_flags.globallyCoherent     = createInfo.flags.globallyCoherent;
+    m_flags.xdmaBuffer           = createInfo.flags.xdmaBuffer || internalInfo.flags.xdmaBuffer;
+    m_flags.globalGpuVa          = createInfo.flags.globalGpuVa;
+    m_flags.useReservedGpuVa     = createInfo.flags.useReservedGpuVa;
+    m_flags.typedBuffer          = createInfo.flags.typedBuffer;
+    m_flags.busAddressable       = createInfo.flags.busAddressable;
+    m_flags.isStereo             = createInfo.flags.stereo;
+    m_flags.autoPriority         = createInfo.flags.autoPriority;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 455
-    m_flags.restrictedContent  = createInfo.flags.restrictedContent;
-    m_flags.restrictedAccess   = createInfo.flags.restrictedAccess;
-    m_flags.crossAdapter       = createInfo.flags.crossAdapter;
+    m_flags.restrictedContent    = createInfo.flags.restrictedContent;
+    m_flags.restrictedAccess     = createInfo.flags.restrictedAccess;
+    m_flags.crossAdapter         = createInfo.flags.crossAdapter;
 #endif
 
-    m_flags.isClient           = internalInfo.flags.isClient;
-    m_flags.pageDirectory      = internalInfo.flags.pageDirectory;
-    m_flags.pageTableBlock     = internalInfo.flags.pageTableBlock;
-    m_flags.udmaBuffer         = internalInfo.flags.udmaBuffer;
-    m_flags.unmapInfoBuffer    = internalInfo.flags.unmapInfoBuffer;
-    m_flags.historyBuffer      = internalInfo.flags.historyBuffer;
-    m_flags.isCmdAllocator     = internalInfo.flags.isCmdAllocator;
-    m_flags.buddyAllocated     = internalInfo.flags.buddyAllocated;
-    m_flags.privateScreen      = internalInfo.flags.privateScreen;
-    m_flags.isUserQueue        = internalInfo.flags.userQueue;
-    m_flags.isTimestamp        = internalInfo.flags.timestamp;
-    m_flags.accessedPhysically = internalInfo.flags.accessedPhysically;
+    m_flags.isClient             = internalInfo.flags.isClient;
+    m_flags.pageDirectory        = internalInfo.flags.pageDirectory;
+    m_flags.pageTableBlock       = internalInfo.flags.pageTableBlock;
+    m_flags.udmaBuffer           = internalInfo.flags.udmaBuffer;
+    m_flags.unmapInfoBuffer      = internalInfo.flags.unmapInfoBuffer;
+    m_flags.historyBuffer        = internalInfo.flags.historyBuffer;
+    m_flags.isCmdAllocator       = internalInfo.flags.isCmdAllocator;
+    m_flags.buddyAllocated       = internalInfo.flags.buddyAllocated;
+    m_flags.privateScreen        = internalInfo.flags.privateScreen;
+    m_flags.isUserQueue          = internalInfo.flags.userQueue;
+    m_flags.isTimestamp          = internalInfo.flags.timestamp;
+    m_flags.accessedPhysically   = internalInfo.flags.accessedPhysically;
 
-    if (!IsClient())
+    if (IsClient() == false)
     {
         m_flags.autoPriority = m_pDevice->IsUsingAutoPriorityForInternalAllocations();
     }
@@ -386,7 +392,6 @@ Result GpuMemory::Init(
     m_priority       = createInfo.priority;
     m_priorityOffset = createInfo.priorityOffset;
     m_heapCount      = createInfo.heapCount;
-    m_pImage         = static_cast<Image*>(createInfo.pImage);
     m_schedulerId    = internalInfo.schedulerId;
     m_mtype          = internalInfo.mtype;
 
@@ -742,16 +747,16 @@ Result GpuMemory::Init(
         m_heaps[i] = m_pOriginalMem->m_heaps[i];
     }
 
-    m_desc.preferredHeap  = m_heaps[0];
-    m_desc.flags.isShared = 1;
-    m_flags.isShareable   = m_pOriginalMem->m_flags.isShareable;
-    m_flags.isFlippable   = m_pOriginalMem->m_flags.isFlippable;
-    m_flags.isStereo      = m_pOriginalMem->m_flags.isStereo;
-    m_flags.localOnly     = m_pOriginalMem->m_flags.localOnly;
-    m_flags.nonLocalOnly  = m_pOriginalMem->m_flags.nonLocalOnly;
-    m_flags.interprocess  = m_pOriginalMem->m_flags.interprocess;
-    m_flags.globalGpuVa   = m_pOriginalMem->m_flags.globalGpuVa;
-    m_flags.cpuVisible    = m_pOriginalMem->m_flags.cpuVisible;
+    m_desc.preferredHeap        = m_heaps[0];
+    m_desc.flags.isShared       = 1;
+    m_flags.isShareable         = m_pOriginalMem->m_flags.isShareable;
+    m_flags.isFlippable         = m_pOriginalMem->m_flags.isFlippable;
+    m_flags.isStereo            = m_pOriginalMem->m_flags.isStereo;
+    m_flags.localOnly           = m_pOriginalMem->m_flags.localOnly;
+    m_flags.nonLocalOnly        = m_pOriginalMem->m_flags.nonLocalOnly;
+    m_flags.interprocess        = m_pOriginalMem->m_flags.interprocess;
+    m_flags.globalGpuVa         = m_pOriginalMem->m_flags.globalGpuVa;
+    m_flags.cpuVisible          = m_pOriginalMem->m_flags.cpuVisible;
 
     // Set the gpuVirtAddr if the GPU VA is visible to all devices
     if (IsGlobalGpuVa())
@@ -772,9 +777,13 @@ Result GpuMemory::Init(
                (m_pOriginalMem->m_flags.buddyAllocated == 0) &&
                (m_pOriginalMem->m_flags.alwaysResident == 0));
 
-    Pal::GpuMemoryExportInfo exportInfo = {};
+    Pal::GpuMemoryExportInfo exportInfo = { };
     const Result result = OpenSharedMemory(
+#if PAL_AMDGPU_BUILD
             m_pOriginalMem->ExportExternalHandle(exportInfo));
+#else
+            0);
+#endif
     if (IsErrorResult(result) == false)
     {
         DescribeGpuMemory(Developer::GpuMemoryAllocationMethod::Opened);
@@ -803,17 +812,17 @@ Result GpuMemory::Init(
         m_heaps[i] = m_pOriginalMem->m_heaps[i];
     }
 
-    m_desc.preferredHeap  = m_heaps[0];
-    m_desc.flags.isPeer   = 1;
-    m_flags.isShareable   = m_pOriginalMem->m_flags.isShareable;
-    m_flags.isFlippable   = m_pOriginalMem->m_flags.isFlippable;
-    m_flags.isStereo      = m_pOriginalMem->m_flags.isStereo;
-    m_flags.localOnly     = m_pOriginalMem->m_flags.localOnly;
-    m_flags.nonLocalOnly  = m_pOriginalMem->m_flags.nonLocalOnly;
-    m_flags.interprocess  = m_pOriginalMem->m_flags.interprocess;
-    m_flags.globalGpuVa   = m_pOriginalMem->m_flags.globalGpuVa;
-    m_flags.cpuVisible    = m_pOriginalMem->m_flags.cpuVisible;
-    m_flags.peerWritable  = m_pOriginalMem->m_flags.peerWritable;
+    m_desc.preferredHeap        = m_heaps[0];
+    m_desc.flags.isPeer         = 1;
+    m_flags.isShareable         = m_pOriginalMem->m_flags.isShareable;
+    m_flags.isFlippable         = m_pOriginalMem->m_flags.isFlippable;
+    m_flags.isStereo            = m_pOriginalMem->m_flags.isStereo;
+    m_flags.localOnly           = m_pOriginalMem->m_flags.localOnly;
+    m_flags.nonLocalOnly        = m_pOriginalMem->m_flags.nonLocalOnly;
+    m_flags.interprocess        = m_pOriginalMem->m_flags.interprocess;
+    m_flags.globalGpuVa         = m_pOriginalMem->m_flags.globalGpuVa;
+    m_flags.cpuVisible          = m_pOriginalMem->m_flags.cpuVisible;
+    m_flags.peerWritable        = m_pOriginalMem->m_flags.peerWritable;
     PAL_ASSERT(m_flags.peerWritable == 1);
 
     // Set the gpuVirtAddr if the GPU VA is visible to all devices

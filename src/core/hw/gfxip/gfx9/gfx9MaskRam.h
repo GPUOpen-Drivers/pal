@@ -115,6 +115,7 @@ public:
     const MetaDataAddrEquation&  GetMetaEquation() const { return m_meta; }
     const MetaEquationParam& GetMetaEquationParam() const { return m_metaEqParam; }
     virtual uint32  GetPipeBankXor(ImageAspect   aspect) const;
+    void CpuUploadEq(void*  pCpuMem) const;
     void UploadEq(CmdBuffer*  pCmdBuffer) const;
     bool HasEqGpuAccess() const { return m_eqGpuAccess.offset != 0; }
     static bool SupportFastColorClear(
@@ -147,7 +148,7 @@ protected:
     virtual AddrSwizzleMode GetSwizzleMode() const;
     bool                    IsThick() const;
     uint32                  AdjustPipeBankXorForSwizzle( uint32  pipeBankXor) const;
-    void                    TrimMetaEquationSize();
+    void                    FinalizeMetaEquation();
 
     // Of the three types of mask-ram surfaces (hTile, dcc and cMask), only DCC is really associated with
     // a color image.  hTile is associated with depth, and cMask is the meta surface for fMask, so, for
@@ -162,7 +163,6 @@ protected:
     MetaDataAddrEquation  m_pipe;
 
     ADDR2_META_MIP_INFO   m_addrMipOutput[MaxImageMipLevels];
-    bool                  m_metaEquationValid;
     const int32           m_metaDataWordSizeLog2;
 
 private:
@@ -183,10 +183,11 @@ private:
     MetaDataAddrEquation  m_rb;
     MetaEquationParam     m_metaEqParam;
 
-    const uint32     m_firstUploadBit;
-    uint32           m_effectiveSamples;
-    MetaEqGpuAccess  m_eqGpuAccess;
-    uint32           m_rbAppendedWithPipeBits;
+    const uint32          m_firstUploadBit;
+    bool                  m_metaEquationValid;
+    uint32                m_effectiveSamples;
+    MetaEqGpuAccess       m_eqGpuAccess;
+    uint32                m_rbAppendedWithPipeBits;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9MaskRam);
 };
@@ -202,9 +203,7 @@ public:
 
     static HtileUsageFlags UseHtileForImage(const Pal::Device& device, const Image& image);
 
-    uint32 GetClearValue(
-        const Device*  pDevice,
-        float          depthValue) const;
+    uint32 GetClearValue(float  depthValue) const;
 
     uint32 GetAspectMask(
         uint32   aspectFlags) const;
@@ -213,7 +212,7 @@ public:
         uint32*            pHtileValue,
         uint32*            pHtileMask) const;
 
-    uint32 GetInitialValue(const Device& device) const;
+    uint32 GetInitialValue() const;
 
     virtual uint32  GetPipeBankXor(ImageAspect   aspect) const override;
 

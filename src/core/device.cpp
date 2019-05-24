@@ -39,6 +39,7 @@
 #include "core/hw/ossip/ossDevice.h"
 #include "core/addrMgr/addrMgr.h"
 #include "core/svmMgr.h"
+#include "palDequeImpl.h"
 #include "palFormatInfo.h"
 #include "palHashMapImpl.h"
 #include "palIntrusiveListImpl.h"
@@ -62,15 +63,15 @@ namespace Pal
 // Translation table for obtaining memory ops per clock for a given Pal::LocalMemoryType.
 static constexpr uint32 MemoryOpsPerClockTable[static_cast<uint32>(LocalMemoryType::Count)] =
 {
-    0, // Unknown
-    2, // Ddr2
-    2, // Ddr3
-    2, // Ddr4
-    4, // Gddr5
-    4, // Gddr6
-    2, // Hbm
-    2, // Hbm2
-    2  // Hbm3
+    0,  // Unknown
+    2,  // Ddr2
+    2,  // Ddr3
+    2,  // Ddr4
+    4,  // Gddr5
+    16, // Gddr6
+    2,  // Hbm
+    2,  // Hbm2
+    2   // Hbm3
 };
 
 // =====================================================================================================================
@@ -223,12 +224,14 @@ Device::Device(
     m_force32BitVaSpace(pPlatform->Force32BitVaSpace()),
     m_disableSwapChainAcquireBeforeSignaling(false),
     m_localInvDropCpuWrites(false),
+    m_pSettingsLoader(nullptr),
+    m_copyQueuesLock(),
+    m_pInternalCopyQueue(nullptr),
     m_referencedGpuMem(ReferencedMemoryMapElements, pPlatform),
     m_referencedGpuMemLock(),
     m_pAddrMgr(nullptr),
     m_pTrackedCmdAllocator(nullptr),
     m_pUntrackedCmdAllocator(nullptr),
-    m_pSettingsLoader(nullptr),
     m_deviceIndex(deviceIndex),
     m_deviceSize(deviceSize),
     m_hwDeviceSizes(hwDeviceSizes),
@@ -306,6 +309,15 @@ Device::~Device()
 // this device object.
 Result Device::Cleanup()
 {
+    Result result = Result::Success;
+
+    // Cleanup the internal device-owned queues.
+    if (m_pInternalCopyQueue != nullptr)
+    {
+        m_pInternalCopyQueue->Destroy();
+        PAL_SAFE_FREE(m_pInternalCopyQueue, GetPlatform());
+    }
+
     // If we're cleaning up the device, the client must have destroyed all of their queues.
     PAL_ASSERT(m_queues.IsEmpty());
 
@@ -328,8 +340,6 @@ Result Device::Cleanup()
     }
 
     m_connectedPrivateScreens = 0;
-
-    Result result = Result::Success;
 
     if (m_pTextWriter != nullptr)
     {
@@ -453,6 +463,11 @@ Result Device::EarlyInit(
         m_chipProperties.imageProperties.pSwizzleEqs   = m_pAddrMgr->SwizzleEquations();
     }
 
+    if (result == Result::Success)
+    {
+        result = m_copyQueuesLock.Init();
+    }
+
     return result;
 }
 
@@ -488,6 +503,10 @@ Result Device::SetupPublicSettingDefaults()
         m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
     m_publicSettings.miscellaneousDebugString[0] = '\0';
     m_publicSettings.renderedByString[0] = '\0';
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 500
+    m_publicSettings.enableGpuEventMultiSlot = false;
+    m_publicSettings.useAcqRelInterface = false;
+#endif
 
     return ret;
 }
@@ -1114,6 +1133,8 @@ Result Device::CommitSettingsAndInit()
         }
     }
 
+    OsFinalizeSettings();
+
     // The memory heap properties need to be finalized after the settings because we use settings to store the
     // performance ratings for each GPU memory heap.
     FinalizeMemoryHeapProperties();
@@ -1246,19 +1267,19 @@ void Device::InitPageFaultDebugSrd()
 Result Device::InitDummyChunkMem()
 {
     GpuMemoryCreateInfo createInfo = {};
-    createInfo.vaRange = VaRange::Default;
-    createInfo.alignment = 0;
-    createInfo.size = 4096;
-    createInfo.priority = GpuMemPriority::Normal;
-    createInfo.heaps[0] = GpuHeapGartUswc;
-    createInfo.heapCount = 1;
+    createInfo.vaRange             = VaRange::Default;
+    createInfo.alignment           = 0;
+    createInfo.size                = 4096;
+    createInfo.priority            = GpuMemPriority::Normal;
+    createInfo.heaps[0]            = GpuHeapGartUswc;
+    createInfo.heapCount           = 1;
 
     GpuMemoryInternalCreateInfo internalCreateInfo = {};
-    internalCreateInfo.flags.alwaysResident = 1;
+    internalCreateInfo.flags.alwaysResident        = 1;
 
     GpuMemory* pGpuMem = nullptr;
-    gpusize memOffset = 0;
-    Result result = m_memMgr.AllocateGpuMem(createInfo, internalCreateInfo, false, &pGpuMem, &memOffset);
+    gpusize memOffset  = 0;
+    Result result      = m_memMgr.AllocateGpuMem(createInfo, internalCreateInfo, false, &pGpuMem, &memOffset);
 
     if (result == Result::Success)
     {
@@ -1382,29 +1403,31 @@ Result Device::Finalize(
             {
                 result = CreateInternalCmdAllocators();
             }
-
-            if ((result == Result::Success) && (m_pPlatform->InternalResidencyOptsDisabled() == false))
+        }
+#endif
+            // Initialize a real dummy command stream, which is filled with NOP
+            if (result == Result::Success)
             {
-                result = PerformOsInternalQueueInit();
+                result = CreateDummyCommandStreams();
             }
 
             if (result == Result::Success)
             {
+                result = PerformOsInternalQueueInit();
+            }
+
+#if PAL_BUILD_GFX
+            if (m_pGfxDevice != nullptr && result == Result::Success)
+            {
+                // Finalize the device here after the internal copy queues have been created.
                 result = m_pGfxDevice->Finalize();
             }
-        }
 #endif
     }
 
     if (result == Result::Success)
     {
         result = CreateEngines(finalizeInfo);
-    }
-
-    // Initialize a real dummy command stream, which is filled with NOP
-    if (result == Result::Success)
-    {
-        result = CreateDummyCommandStreams();
     }
 
     // If developer mode is enabled we need to initialize some internal resources.
@@ -4149,6 +4172,23 @@ void Device::IncFrameCount()
 }
 
 // =====================================================================================================================
+bool Device::UsingHdrColorspaceFormat(
+    ) const
+{
+    constexpr uint32 HdrMask = TfPq2084      |
+                               CsBt2020      |
+                               CsDolbyVision |
+                               CsAdobe       |
+                               CsDciP3       |
+                               CsScrgb       |
+                               CsUserDefined |
+                               CsNative      |
+                               CsFreeSync2;
+
+    return ((m_hdrColorspaceFormat & HdrMask) != 0);
+}
+
+// =====================================================================================================================
 // Applies the developer overlay to the destination image by writing commands into the provided command buffer
 void Device::ApplyDevOverlay(
     const IImage& dstImage,
@@ -4280,17 +4320,10 @@ void Device::ApplyDevOverlay(
     // If the setting is enabled, display a visual confirmation of HDR Mode
     if (Settings().overlayReportHDR)
     {
-        static const uint32 HdrMask = ScreenColorSpace::TfPq2084      |
-                                      ScreenColorSpace::CsBt2020      |
-                                      ScreenColorSpace::CsDolbyVision |
-                                      ScreenColorSpace::CsAdobe       |
-                                      ScreenColorSpace::CsDciP3       |
-                                      ScreenColorSpace::CsScrgb;
-
         Util::Snprintf(overlayTextBuffer,
                        OverlayTextBufferSize,
                        "HDR %s - Colorspace Format: %u",
-                       ((m_hdrColorspaceFormat & HdrMask) != 0) ? "Enabled" : "Disabled",
+                       UsingHdrColorspaceFormat() ? "Enabled" : "Disabled",
                        m_hdrColorspaceFormat);
 
         m_pTextWriter->DrawDebugText(dstImage,
@@ -4458,6 +4491,131 @@ Result Device::P2pBltWaModifyRegionListMemoryToImage(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Creates a queue and optional fence for PAL internal use.
+Result Device::CreateInternalQueue(
+    const QueueCreateInfo& queueCreateInfo,
+    Queue**                ppQueue,
+    const FenceCreateInfo& fenceCreateInfo,
+    Fence**                ppFence)
+{
+    Result result = Result::Success;
+
+    PAL_ASSERT(ppQueue != nullptr);
+
+    size_t queueSize = GetQueueSize(queueCreateInfo, &result);
+
+    if (result == Result::Success)
+    {
+        void* pMemory = PAL_MALLOC(queueSize, GetPlatform(), Util::SystemAllocType::AllocInternal);
+
+        if (pMemory != nullptr)
+        {
+            IQueue* pQueue = nullptr;
+            result = CreateQueue(queueCreateInfo, pMemory, &pQueue);
+
+            if (result != Result::Success)
+            {
+                PAL_SAFE_FREE(pMemory, GetPlatform());
+            }
+            else
+            {
+                (*ppQueue) = static_cast<Queue*>(pQueue);
+            }
+        }
+        else
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    }
+    PAL_ASSERT(result == Result::Success);
+
+    // Create internal fence.
+    if ((result == Result::Success) && (ppFence != nullptr))
+    {
+        const size_t fenceSize = GetFenceSize(nullptr);
+
+        void* pMemory = PAL_MALLOC(fenceSize, GetPlatform(), AllocInternal);
+
+        if (pMemory != nullptr)
+        {
+            IFence* pFence = nullptr;
+            result = CreateFence(fenceCreateInfo, pMemory, &pFence);
+
+            if (result != Result::Success)
+            {
+                PAL_SAFE_FREE(pMemory, GetPlatform());
+            }
+            else
+            {
+                (*ppFence) = static_cast<Fence*>(pFence);
+            }
+        }
+        else
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    }
+    PAL_ASSERT(result == Result::Success);
+
+    return result;
+}
+
+// =====================================================================================================================
+// Creates a DMA queue and fence which are meant for uploading pipeline binaries to local invisible heap.
+Result Device::CreateInternalCopyQueues()
+{
+    Result result                   = Result::Success;
+    QueueCreateInfo queueCreateInfo = { };
+    queueCreateInfo.queueType       = QueueType::QueueTypeDma;
+    queueCreateInfo.engineType      = EngineType::EngineTypeDma;
+    queueCreateInfo.priority        = QueuePriority::Low;
+
+    result = CreateInternalQueue(queueCreateInfo, &m_pInternalCopyQueue);
+    PAL_ASSERT(result == Result::Success);
+
+    return result;
+}
+
+// =====================================================================================================================
+// Performs a DMA queue submit and waits for its completion. Assumes the command buffers in the SubmitInfo are DMA
+// command buffers.
+Result Device::InternalDmaSubmit(
+    const SubmitInfo& submitInfo)
+{
+    Result result = Result::Success;
+
+    // Obtain a queue to submit commands to upload this pipeline.
+    m_copyQueuesLock.Lock();
+
+    PAL_ASSERT(m_pInternalCopyQueue != nullptr);
+
+    result = m_pInternalCopyQueue->SubmitInternal(submitInfo, false);
+
+    if (result == Result::Success)
+    {
+        // Wait for the submission to be complete before returning.
+        result = m_pInternalCopyQueue->WaitIdle();
+        PAL_ASSERT(result == Result::Success);
+    }
+
+    m_copyQueuesLock.Unlock();
+
+    return result;
+}
+
+// =====================================================================================================================
+// Returns true if the specified heap is valid for pipelines on this device
+bool Device::ValidatePipelineUploadHeap(
+    const GpuHeap& preferredHeap
+    ) const
+{
+    // No global restrictions based on the heap type
+    bool  valid = true;
+
+    return valid;
 }
 
 } // Pal

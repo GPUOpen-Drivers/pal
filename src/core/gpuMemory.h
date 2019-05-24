@@ -76,7 +76,8 @@ struct GpuMemoryInternalCreateInfo
             uint32 timestamp          :  1; // GPU memory will be used for KMD timestamp writeback.
             uint32 accessedPhysically :  1; // GPU memory will be accessed physically (physical engine like MM video).
             uint32 pageFaultDebugSrd  :  1; // GPU memory will be used for PageFaultDebugSrd feature.
-            uint32 reserved           : 15;
+            uint32 placeholder1       :  1; // Reserved. Set to 0.
+            uint32 reserved           : 14;
         };
         uint32 u32All;
     } flags;
@@ -152,7 +153,8 @@ union GpuMemoryFlags
         uint32 restrictedContent        :  1; // GPU memory is protected content
         uint32 restrictedAccess         :  1; // GPU memory is restricted shared access resource
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
-        uint32 reserved                 : 28;
+        uint32 placeholder1             :  1; // Placeholder.
+        uint32 reserved                 : 27;
     };
     uint64  u64All;
 };
@@ -211,62 +213,59 @@ public:
     size_t HeapCount() const { return m_heapCount; }
     GpuHeap Heap(size_t index) const { return m_heaps[index]; }
 
-    bool IsVirtual()          const { return (m_desc.flags.isVirtual   != 0); }
-    bool IsPeer()             const { return (m_desc.flags.isPeer      != 0); }
-    bool IsShared()           const { return (m_desc.flags.isShared    != 0); }
-    bool IsExternal()         const { return (m_desc.flags.isExternal  != 0); }
-    bool IsPinned()           const { return (m_flags.isPinned         != 0); }
-    bool IsShareable()        const { return (m_flags.isShareable      != 0); }
-    bool IsFlippable()        const { return (m_flags.isFlippable      != 0); }
-    bool IsStereo()           const { return (m_flags.isStereo         != 0); }
-    bool IsClient()           const { return (m_flags.isClient         != 0); }
-    bool IsPageDirectory()    const { return (m_flags.pageDirectory    != 0); }
-    bool IsPageTableBlock()   const { return (m_flags.pageTableBlock   != 0); }
-    bool IsCmdAllocator()     const { return (m_flags.isCmdAllocator   != 0); }
-    bool IsUdmaBuffer()       const { return (m_flags.udmaBuffer       != 0); }
-    bool IsUnmapInfoBuffer()  const { return (m_flags.unmapInfoBuffer  != 0); }
-    bool IsHistoryBuffer()    const { return (m_flags.historyBuffer    != 0); }
-    bool IsXdmaBuffer()       const { return (m_flags.xdmaBuffer       != 0); }
-    bool IsAlwaysResident()   const { return (m_flags.alwaysResident   != 0); }
-    bool WasBuddyAllocated()  const { return (m_flags.buddyAllocated   != 0); }
-    bool IsLocalOnly()        const { return (m_flags.localOnly        != 0); }
-    bool IsNonLocalOnly()     const { return (m_flags.nonLocalOnly     != 0); }
-    bool IsCpuVisible()       const;
-    bool IsPrivateScreen()    const { return (m_flags.privateScreen    != 0); }
-    bool IsInterprocess()     const { return (m_flags.interprocess     != 0); }
-    bool IsUserQueue()        const { return (m_flags.isUserQueue      != 0); }
-    bool IsGloballyCoherent() const { return (m_flags.globallyCoherent != 0); }
-    bool IsTimestamp()        const { return (m_flags.isTimestamp      != 0); }
-    bool IsGlobalGpuVa()      const { return (m_flags.globalGpuVa      != 0); }
-    bool IsGpuVaPreReserved() const { return (m_flags.useReservedGpuVa != 0); }
-    bool IsTypedBuffer()      const { return (m_flags.typedBuffer      != 0); }
-    bool IsAutoPriority()     const { return (m_flags.autoPriority     != 0); }
-    bool IsBusAddressable()   const { return (m_flags.busAddressable   != 0); }
-    bool IsTurboSyncSurface() const { return (m_flags.turboSyncSurface != 0); }
-    bool IsPeerWritable()     const { return (m_flags.peerWritable     != 0); }
-    bool IsRestrictedContent() const { return (m_flags.restrictedContent != 0); }
-    bool IsRestrictedAccess() const { return (m_flags.restrictedAccess != 0); }
-    bool IsCrossAdapter()     const { return (m_flags.crossAdapter     != 0); }
-    bool IsMapppedToPeerMemory()  const { return (m_flags.mapppedToPeerMemory  != 0); }
-    bool IsSvmAlloc()         const { return (m_desc.flags.isSvmAlloc  != 0); }
-    bool IsExecutable()       const { return (m_desc.flags.isExecutable != 0); }
-    bool IsAccessedPhysically() const { return (m_flags.accessedPhysically != 0); }
+    bool IsVirtual()             const { return (m_desc.flags.isVirtual           != 0); }
+    bool IsPeer()                const { return (m_desc.flags.isPeer              != 0); }
+    bool IsShared()              const { return (m_desc.flags.isShared            != 0); }
+    bool IsExternal()            const { return (m_desc.flags.isExternal          != 0); }
+    bool IsPinned()              const { return (m_flags.isPinned                 != 0); }
+    bool IsShareable()           const { return (m_flags.isShareable              != 0); }
+    bool IsFlippable()           const { return (m_flags.isFlippable              != 0); }
+    bool IsStereo()              const { return (m_flags.isStereo                 != 0); }
+    bool IsClient()              const { return (m_flags.isClient                 != 0); }
+    bool IsPageDirectory()       const { return (m_flags.pageDirectory            != 0); }
+    bool IsPageTableBlock()      const { return (m_flags.pageTableBlock           != 0); }
+    bool IsCmdAllocator()        const { return (m_flags.isCmdAllocator           != 0); }
+    bool IsUdmaBuffer()          const { return (m_flags.udmaBuffer               != 0); }
+    bool IsUnmapInfoBuffer()     const { return (m_flags.unmapInfoBuffer          != 0); }
+    bool IsHistoryBuffer()       const { return (m_flags.historyBuffer            != 0); }
+    bool IsXdmaBuffer()          const { return (m_flags.xdmaBuffer               != 0); }
+    bool IsAlwaysResident()      const { return (m_flags.alwaysResident           != 0); }
+    bool WasBuddyAllocated()     const { return (m_flags.buddyAllocated           != 0); }
+    bool IsLocalOnly()           const { return (m_flags.localOnly                != 0); }
+    bool IsNonLocalOnly()        const { return (m_flags.nonLocalOnly             != 0); }
+    bool IsCpuVisible()          const;
+    bool IsPrivateScreen()       const { return (m_flags.privateScreen            != 0); }
+    bool IsInterprocess()        const { return (m_flags.interprocess             != 0); }
+    bool IsUserQueue()           const { return (m_flags.isUserQueue              != 0); }
+    bool IsGloballyCoherent()    const { return (m_flags.globallyCoherent         != 0); }
+    bool IsTimestamp()           const { return (m_flags.isTimestamp              != 0); }
+    bool IsGlobalGpuVa()         const { return (m_flags.globalGpuVa              != 0); }
+    bool IsGpuVaPreReserved()    const { return (m_flags.useReservedGpuVa         != 0); }
+    bool IsTypedBuffer()         const { return (m_flags.typedBuffer              != 0); }
+    bool IsAutoPriority()        const { return (m_flags.autoPriority             != 0); }
+    bool IsBusAddressable()      const { return (m_flags.busAddressable           != 0); }
+    bool IsTurboSyncSurface()    const { return (m_flags.turboSyncSurface         != 0); }
+    bool IsPeerWritable()        const { return (m_flags.peerWritable             != 0); }
+    bool IsRestrictedContent()   const { return (m_flags.restrictedContent        != 0); }
+    bool IsRestrictedAccess()    const { return (m_flags.restrictedAccess         != 0); }
+    bool IsCrossAdapter()        const { return (m_flags.crossAdapter             != 0); }
+    bool IsMapppedToPeerMemory() const { return (m_flags.mapppedToPeerMemory      != 0); }
+    bool IsSvmAlloc()            const { return (m_desc.flags.isSvmAlloc          != 0); }
+    bool IsExecutable()          const { return (m_desc.flags.isExecutable        != 0); }
+    bool IsAccessedPhysically()  const { return (m_flags.accessedPhysically       != 0); }
     void SetAccessedPhysically() { m_flags.accessedPhysically = 1; }
     void SetSurfaceBusAddr(gpusize surfaceBusAddr) { m_desc.surfaceBusAddr = surfaceBusAddr; }
-    void SetMarkerBusAddr(gpusize markerBusAddr) { m_desc.markerBusAddr = markerBusAddr; }
+    void SetMarkerBusAddr(gpusize markerBusAddr)   { m_desc.markerBusAddr  = markerBusAddr;  }
     gpusize GetRemoteSdiSurfaceIndex() const { return m_remoteSdiSurfaceIndex; }
-    gpusize GetRemoteSdiMarkerIndex() const { return m_remoteSdiMarkerIndex; }
-    gpusize GetBusAddrMarkerVa() const { return m_markerVirtualAddr; }
-    void SetRemoteSdiSurfaceIndex(gpusize index) { m_remoteSdiSurfaceIndex = index; }
-    void SetRemoteSdiMarkerIndex(gpusize index) { m_remoteSdiMarkerIndex = index; }
-    void SetBusAddrMarkerVa(gpusize markerVa) { m_markerVirtualAddr = markerVa; }
+    gpusize GetRemoteSdiMarkerIndex()  const { return m_remoteSdiMarkerIndex;  }
+    gpusize GetBusAddrMarkerVa()       const { return m_markerVirtualAddr;     }
+    void SetRemoteSdiSurfaceIndex(gpusize index) { m_remoteSdiSurfaceIndex = index;    }
+    void SetRemoteSdiMarkerIndex(gpusize index)  { m_remoteSdiMarkerIndex  = index;    }
+    void SetBusAddrMarkerVa(gpusize markerVa)    { m_markerVirtualAddr     = markerVa; }
 
     gpusize MinPageSize() const { return m_minPageSize; }
 
-    bool IsByteRangeValid(gpusize startOffset, gpusize size) const
-    {
-        return ((startOffset + size) <= m_desc.size);
-    }
+    bool IsByteRangeValid(gpusize startOffset, gpusize size) const { return ((startOffset + size) <= m_desc.size); }
 
     Image* GetImage() const { return m_pImage; }
 
@@ -277,8 +276,7 @@ public:
     void SetMapDestPeerMem(GpuMemory* pMapDestPeerMem);
     GpuMemory* MapDestPeerGpuMem() const { return (IsMapppedToPeerMemory() ? m_pMapDestPeerMem : nullptr); }
 
-    bool AccessesPeerMemory()  const
-             { return (IsPeer() || IsMapppedToPeerMemory()); }
+    bool AccessesPeerMemory() const { return (IsPeer() || IsMapppedToPeerMemory()); }
 
 protected:
     explicit GpuMemory(Device* pDevice);
@@ -375,13 +373,13 @@ protected:
     gpusize m_remoteSdiMarkerIndex;
 
 private:
-    // Marker virtual address as returned by KMD
-    gpusize m_markerVirtualAddr;
-
     // Some OSes have special rules about heap preferences.  This method should be overriden by such OSes to examine
     // the memory object and update/finalize the heap preferences as required.  One example is adding a backup GART
     // heap for client-requested local-only allocations on some OSes.
     virtual void OsFinalizeHeaps() { }
+
+    // Marker virtual address as returned by KMD
+    gpusize m_markerVirtualAddr;
 
     PAL_DISALLOW_DEFAULT_CTOR(GpuMemory);
     PAL_DISALLOW_COPY_AND_ASSIGN(GpuMemory);

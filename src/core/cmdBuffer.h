@@ -820,6 +820,13 @@ public:
         return AllocateGpuScratchMem(sizeInDwords, alignmentInDwords, &pGpuMem, &offset);
     }
 
+    // Allocated embedded data for physical engines. The function returns the memory object and offset.
+    uint32* CmdAllocateEmbeddedData(
+        uint32      sizeInDwords,
+        uint32      alignmentInDwords,
+        GpuMemory** ppGpuMem,
+        gpusize*    pOffset);
+
 protected:
     CmdBuffer(const Device&              device,
               const CmdBufferCreateInfo& createInfo);
@@ -852,13 +859,6 @@ protected:
     CmdStreamChunk* GetEmbeddedDataChunk(
         uint32 numDwords)
         { return GetDataChunk(EmbeddedDataAlloc, &m_embeddedData, numDwords); }
-
-    // Allocated embedded dat for physical engines. The function returns the memory object and offset.
-    uint32* CmdAllocateEmbeddedData(
-        uint32      sizeInDwords,
-        uint32      alignmentInDwords,
-        GpuMemory** ppGpuMem,
-        gpusize*    pOffset);
 
     gpusize AllocateGpuScratchMem(
         uint32      sizeInDwords,

@@ -32,6 +32,7 @@
 #include "core/hw/ossip/ossDevice.h"
 #include "core/addrMgr/addrMgr.h"
 #include "palDevice.h"
+#include "palDeque.h"
 #include "palInlineFuncs.h"
 #include "palIntrusiveList.h"
 #include "palMutex.h"
@@ -1670,8 +1671,13 @@ public:
 
     void SetHdrColorspaceFormat(ScreenColorSpace newFormat) { m_hdrColorspaceFormat = newFormat; }
 
+    bool UsingHdrColorspaceFormat() const;
+
     const PalPublicSettings* GetPublicSettings() const
         { return static_cast<const PalPublicSettings*>(&m_publicSettings); }
+
+    virtual bool ValidatePipelineUploadHeap(const GpuHeap& preferredHeap) const;
+    Result InternalDmaSubmit(const SubmitInfo& submitInfo);
 
 protected:
     Device(
@@ -1699,6 +1705,8 @@ protected:
 
     virtual Result OsEarlyInit() = 0;
     virtual Result OsLateInit() = 0;
+
+    virtual void OsFinalizeSettings() { }
 
     // Responsible for setting up some of this GPU's queue properties which are based on settings.
     virtual void FinalizeQueueProperties() = 0;
@@ -1741,12 +1749,18 @@ protected:
 
     virtual Result EnumPrivateScreensInfo(uint32* pNumScreens) = 0;
 
-    // Used to invoke OS device layers to init their internal queues after internal command allocators have been
-    // created.
-    virtual Result PerformOsInternalQueueInit() { return Result::Success; }
-
     uint32 GetDeviceIndex() const
         { return m_deviceIndex; }
+
+    // Used to call into the OS layer to optionally perform any internal queue creation.
+    virtual Result PerformOsInternalQueueInit() = 0;
+
+    // Helpers for creating queues for PAL internal use.
+    Result CreateInternalCopyQueues();
+    Result CreateInternalQueue(const QueueCreateInfo& queueCreatInfo,
+                               Queue**                ppQueue,
+                               const FenceCreateInfo& fenceCreateInfo = FenceCreateInfo(),
+                               Fence**                ppFence = nullptr);
 
     Platform*      m_pPlatform;
     InternalMemMgr m_memMgr;
@@ -1830,11 +1844,15 @@ protected:
     bool m_disableSwapChainAcquireBeforeSignaling;
     bool m_localInvDropCpuWrites;
 
-    PalPublicSettings       m_publicSettings;
+    PalPublicSettings      m_publicSettings;
+    SettingsLoader*        m_pSettingsLoader;
 
     // Get*FilePath need to return a persistent storage
     char m_cacheFilePath[MaxPathStrLen];
     char m_debugFilePath[MaxPathStrLen];
+
+    Util::Mutex m_copyQueuesLock;
+    Queue* m_pInternalCopyQueue;
 
 private:
     Result HwlEarlyInit();
@@ -1842,13 +1860,13 @@ private:
     Result InitDummyChunkMem();
     Result CreateInternalCmdAllocators();
 
+    Result SetupPublicSettingDefaults();
+
     Result CreateEngines(const DeviceFinalizeInfo& finalizeInfo);
 
     Result CreateDummyCommandStreams();
 
     uint64 GetTimeoutValueInNs(uint64  appTimeoutInNs) const;
-
-    Result SetupPublicSettingDefaults();
 
     typedef Util::HashMap<IGpuMemory*, uint32, Pal::Platform>  MemoryRefMap;
 
@@ -1859,7 +1877,6 @@ private:
     AddrMgr*               m_pAddrMgr;
     CmdAllocator*          m_pTrackedCmdAllocator;
     CmdAllocator*          m_pUntrackedCmdAllocator;
-    SettingsLoader*        m_pSettingsLoader;
     const uint32           m_deviceIndex;       // Unique index of this GPU compared to all other GPUs in the system.
     const size_t           m_deviceSize;
     const HwIpDeviceSizes  m_hwDeviceSizes;

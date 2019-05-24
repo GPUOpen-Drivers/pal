@@ -339,10 +339,11 @@ class GraphicsPipelineUploader : public Pal::PipelineUploader
 {
 public:
     explicit GraphicsPipelineUploader(
-        uint32 ctxRegisterCount,
-        uint32 shRegisterCount)
+        Device* pDevice,
+        uint32  ctxRegisterCount,
+        uint32  shRegisterCount)
         :
-        PipelineUploader(ctxRegisterCount, shRegisterCount)
+        PipelineUploader(pDevice->Parent(), ctxRegisterCount, shRegisterCount)
     { }
     virtual ~GraphicsPipelineUploader() { }
 

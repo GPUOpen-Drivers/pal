@@ -778,7 +778,7 @@ private:
     uint32* WaitOnCeCounter(uint32* pDeCmdSpace);
     uint32* IncrementDeCounter(uint32* pDeCmdSpace);
 
-    PM4Predicate PacketPredicate() const { return static_cast<PM4Predicate>(m_gfxCmdBufState.packetPredicate); }
+    PM4Predicate PacketPredicate() const { return static_cast<PM4Predicate>(m_gfxCmdBufState.flags.packetPredicate); }
 
     template <bool IssueSqttMarkerEvent>
     void SetDispatchFunctions();

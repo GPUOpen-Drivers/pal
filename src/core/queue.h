@@ -265,7 +265,7 @@ public:
 
     void IncFrameCount();
 
-    static bool SupportsDevOverlay(QueueType queueType)
+    static bool SupportsComputeShader(QueueType queueType)
         { return (queueType == QueueTypeUniversal) || (queueType == QueueTypeCompute); }
 
     bool IsPresentModeSupported(PresentMode presentMode) const;
@@ -294,7 +294,8 @@ protected:
 
     bool IsMinClockRequired() const { return false; }
 
-    Result SubmitDevOverlayCmdBuffer(const Image& image);
+    // Applies developer overlay and other postprocessing to be done prior to presenting an image.
+    Result SubmitPostprocessCmdBuffer(const Image& image);
 
     virtual Result DoAssociateFenceWithLastSubmit(Fence* pFence) = 0;
 
@@ -360,7 +361,8 @@ private:
 #endif
 
     Result CreateTrackedCmdBuffer(TrackedCmdBuffer** ppTrackedCmdBuffer);
-    void DestroyTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer);
+    void   DestroyTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer);
+    Result SubmitTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer);
 
     // Each Queue needs a QueueContext to apply any hardware-specific pre- or post-processing before Submit().
     QueueContext*     m_pQueueContext;
@@ -387,10 +389,10 @@ private:
     uint32  m_persistentCeRamSize;         // Amount of CE RAM space (in DWORDs) which this Queue will keep persistent
                                            // across multiple submissions.
 
-    // All command buffers used by this queue to render the developer overlay.
-    // The least recently used item is at the front. Only allocated when developer mode is enabled.
+    // Internal command buffers used by this queue for various postprocess tasks such as render the developer overlay.
+    // The least recently used item is at the front.
     typedef Util::Deque<TrackedCmdBuffer*, Platform> TrackedCmdBufferDeque;
-    TrackedCmdBufferDeque* m_pDevOverlayCmdBufferDeque;
+    TrackedCmdBufferDeque* m_pTrackedCmdBufferDeque;
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

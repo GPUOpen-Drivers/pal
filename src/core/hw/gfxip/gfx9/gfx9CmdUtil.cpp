@@ -1376,9 +1376,11 @@ size_t CmdUtil::BuildDumpConstRam(
     constexpr uint32 PacketSize = (sizeof(PM4_CE_DUMP_CONST_RAM) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_CE_DUMP_CONST_RAM*>(pBuffer);
 
+    DumpConstRamOrdinal2 ordinal2 = { };
+    ordinal2.bits.offset = ramByteOffset;
+
     pPacket->header.u32All     = Type3Header(IT_DUMP_CONST_RAM, PacketSize);
-    pPacket->ordinal2          = 0;
-    pPacket->bitfields2.offset = ramByteOffset;
+    pPacket->ordinal2          = ordinal2.u32All;
     pPacket->ordinal3          = 0;
     pPacket->bitfields3.num_dw = dwordSize;
     pPacket->addr_lo           = LowPart(dstGpuAddr);
@@ -1404,9 +1406,11 @@ size_t CmdUtil::BuildDumpConstRamOffset(
     constexpr uint32 PacketSize = (sizeof(PM4_CE_DUMP_CONST_RAM_OFFSET) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_CE_DUMP_CONST_RAM_OFFSET*>(pBuffer);
 
+    DumpConstRamOrdinal2 ordinal2 = { };
+    ordinal2.bits.offset = ramByteOffset;
+
     pPacket->header.u32All     = Type3Header(IT_DUMP_CONST_RAM_OFFSET, PacketSize);
-    pPacket->ordinal2          = 0;
-    pPacket->bitfields2.offset = ramByteOffset;
+    pPacket->ordinal2          = ordinal2.u32All;
     pPacket->ordinal3          = 0;
     pPacket->bitfields3.num_dw = dwordSize;
     pPacket->addr_offset       = dstAddrOffset;

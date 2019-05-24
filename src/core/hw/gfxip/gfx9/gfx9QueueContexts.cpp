@@ -33,6 +33,7 @@
 #include "core/hw/gfxip/gfx9/gfx9QueueContexts.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderRingSet.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalEngine.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/g_gfx9ShadowedRegistersInit.h"
 
 #include <limits.h>
@@ -1060,10 +1061,18 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
         cmdUtil.BuildSetOneContextReg(mmVGT_TESS_DISTRIBUTION, &m_universalPreamble.hdrVgtTessDistribution);
 
     m_universalPreamble.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmCB_DCC_CONTROL, &m_universalPreamble.hdrDccControl);
+
+    m_universalPreamble.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL, &m_universalPreamble.hdrSmallPrimFilterCntl);
 
     m_universalPreamble.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmCOHER_DEST_BASE_HI_0, &m_universalPreamble.hdrCoherDestBaseHi);
+
+    m_universalPreamble.spaceNeeded +=
+        cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
+                                       mmPA_SC_GENERIC_SCISSOR_BR,
+                                       &m_universalPreamble.hdrPaScGenericScissors);
 }
 
 // =====================================================================================================================
@@ -1107,11 +1116,31 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
     m_universalPreamble.vgtTessDistribution.bits.DONUT_SPLIT   = donutDistribution;
     m_universalPreamble.vgtTessDistribution.bits.TRAP_SPLIT    = trapezoidDistribution;
 
+    m_universalPreamble.paScGenericScissorTl.u32All                     = 0;
+    m_universalPreamble.paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = 1;
+    m_universalPreamble.paScGenericScissorBr.u32All                     = 0;
+    m_universalPreamble.paScGenericScissorBr.bits.BR_X                  = ScissorMaxBR;
+    m_universalPreamble.paScGenericScissorBr.bits.BR_Y                  = ScissorMaxBR;
+
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
         m_universalPreamble.gfx9.vgtMaxVtxIndx.bits.MAX_INDX    = 0xFFFFFFFF;
         m_universalPreamble.gfx9.vgtMinVtxIndx.bits.MIN_INDX    = 0;
         m_universalPreamble.gfx9.vgtIndxOffset.bits.INDX_OFFSET = 0;
+    }
+
+    // Set-and-forget DCC register:
+    //  This will stop compression to one of the four "magic" clear colors.
+    if (IsGfx091xPlus(device) && settings.forceRegularClearCode)
+    {
+        m_universalPreamble.cbDccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_AC01 = 1;
+    }
+
+    // Set-and-forget DCC register:
+    if (IsGfx9(device))
+    {
+        m_universalPreamble.cbDccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
+        m_universalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK            = 4;
     }
 
     // Small primitive filter control

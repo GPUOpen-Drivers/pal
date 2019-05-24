@@ -193,7 +193,6 @@ void PipelineChunkVsPs::LateInit(
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_DISABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
     m_commands.sh.ps.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.numPsWavesSoftGroupedPerCu > 0 ? 0 : 1);
-    m_commands.sh.vs.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE  = (settings.numVsWavesSoftGroupedPerCu > 0 ? 1 : 0);
 
     if (chipProps.gfx9.supportSpp != 0)
     {
@@ -231,7 +230,7 @@ void PipelineChunkVsPs::LateInit(
 
         // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
         // always use the setting PAL prefers.
-        m_commands.sh.vs.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE = (settings.vsCuGroupEnabled ? 1 : 0);
+        m_commands.sh.vs.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE = (settings.numVsWavesSoftGroupedPerCu > 0 ? 1 : 0);
 
         if (chipProps.gfx9.supportSpp != 0)
         {

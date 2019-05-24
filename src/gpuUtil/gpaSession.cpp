@@ -300,8 +300,19 @@ void FillSqttAsicInfo(
     pAsicInfo->vgprsPerSimd               = properties.gfxipProperties.shaderCore.vgprsPerSimd;
     pAsicInfo->sgprsPerSimd               = properties.gfxipProperties.shaderCore.sgprsPerSimd;
     pAsicInfo->shaderEngines              = properties.gfxipProperties.shaderCore.numShaderEngines;
-    pAsicInfo->computeUnitPerShaderEngine = properties.gfxipProperties.shaderCore.numCusPerShaderArray *
-                                            properties.gfxipProperties.shaderCore.numShaderArrays;
+    uint32 computeUnitPerShaderEngine     = 0;
+    for (uint32 seIndex = 0; seIndex < properties.gfxipProperties.shaderCore.numShaderEngines; seIndex++)
+    {
+        const uint32 computeUnitPerPreviousShaderEngine = computeUnitPerShaderEngine;
+        computeUnitPerShaderEngine                      = 0;
+        for (uint32 saIndex = 0; saIndex < properties.gfxipProperties.shaderCore.numShaderArrays; saIndex++)
+        {
+            const uint32 activeCuMask   = properties.gfxipProperties.shaderCore.activeCuMask[seIndex][saIndex];
+            computeUnitPerShaderEngine += Util::CountSetBits(activeCuMask);
+        }
+        PAL_ASSERT((seIndex == 0) || (computeUnitPerShaderEngine == computeUnitPerPreviousShaderEngine));
+    }
+    pAsicInfo->computeUnitPerShaderEngine = computeUnitPerShaderEngine;
     pAsicInfo->simdPerComputeUnit         = properties.gfxipProperties.shaderCore.numSimdsPerCu;
     pAsicInfo->wavefrontsPerSimd          = properties.gfxipProperties.shaderCore.numWavefrontsPerSimd;
     pAsicInfo->minimumVgprAlloc           = properties.gfxipProperties.shaderCore.minVgprAlloc;
@@ -352,7 +363,7 @@ void FillSqttAsicInfo(
     {
         for (uint32 sa = 0; sa < MaxShaderArraysPerSe; sa++)
         {
-            pAsicInfo->cuMask[se][sa] = properties.gfxipProperties.shaderCore.activeCuMask[se][sa];
+            pAsicInfo->cuMask[se][sa] = static_cast<uint16>(properties.gfxipProperties.shaderCore.activeCuMask[se][sa]);
 
             // If this triggers we need to update the RGP spec to use at least 32 bits per SA.
             PAL_ASSERT(Util::TestAnyFlagSet(

@@ -399,6 +399,14 @@ enum InternalSettingScope : uint32
 
 };
 
+/// Enum defining override states for feature settings.
+enum class FeatureOverride : uint32
+{
+    Default  = 0,  ///< Default setting state.
+    Enabled  = 1,  ///< (Force) enabled state.  Default may change itself to this state.
+    Disabled = 2   ///< (Force) disabled state.  Default may change itself to this state.
+};
+
 static constexpr uint32 MaxPathStrLen = 512;
 static constexpr uint32 MaxFileNameStrLen = 256;
 static constexpr uint32 MaxMiscStrLen = 61;
@@ -504,6 +512,13 @@ struct PalPublicSettings
     /// PAL automatically pad allocation sizes and alignments to enable this optimization.  By default, PAL will use
     /// the KMD-reported limit.
     gpusize largePageMinSizeForAlignmentInBytes;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 500
+    /// The acquire/release-based barrier interface is enabled.
+    bool useAcqRelInterface;
+    /// Enable multiple slots instead of single DWORD slot for GPU event. This will enable anywhere that can utilize
+    /// multiple event slots for optimization or function purpose, such as AcqRelBarrier interface.
+    bool enableGpuEventMultiSlot;
+#endif
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1121,9 +1136,11 @@ struct DeviceProperties
             uint32 u32All;
         } timelineSemaphore;
 
+#if PAL_AMDGPU_BUILD
         bool   supportOpaqueFdSemaphore; ///< Support export/import semaphore as opaque fd in linux KMD.
         bool   supportSyncFileSemaphore; ///< Support export/import semaphore as sync file in linux KMD.
         bool   supportSyncFileFence;     ///< Support export/import fence as sync file in linux KMD.
+#endif
 
         bool   supportQueuePriority;        ///< Support create queue with priority
         bool   supportDynamicQueuePriority; ///< Support set the queue priority through IQueue::SetExecutionPriority
@@ -4368,6 +4385,14 @@ public:
     virtual Result UpdateChillStatus(
         uint64 lastChillActiveTimeStampUs) = 0;
 
+    /// Checks if delag settings have changed since the last time the function was called.
+    /// This is intended to be a lightweight function that can be called once a frame. If the function returns true,
+    /// then the user changed some delag related settings in the UI, the Pal client should re-read the delag
+    /// application profile settings.
+    ///
+    /// @returns true if delag settings have been changed, otherwise false.
+    virtual bool DidDelagSettingsChange() = 0;
+
     /// Checks if TurboSync settings have changed since the last time the function was called.
     /// This is intended to be a lightweight function that can be called once a frame. If the function returns true,
     /// then the user changed some TurboSync related settings in the UI, the Pal client should re-read the TurboSync
@@ -4437,6 +4462,7 @@ public:
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const = 0;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
+#if PAL_AMDGPU_BUILD
     /// Get connector ID from RandR output object.
     ///
     /// @param [in]   hDisplay        Display handle of the window system.
@@ -4451,6 +4477,7 @@ public:
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
         uint32*         pConnectorId) = 0;
+#endif
 #endif
 
     /// Get file path used to put all files for cache purpose

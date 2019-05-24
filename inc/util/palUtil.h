@@ -71,6 +71,9 @@
 /// Force cache line alignment.
 #define PAL_ALIGN_CACHE_LINE PAL_ALIGN(PAL_CACHE_LINE_BYTES)
 
+/// Value representing an invalid file descriptor on Linux systems.
+constexpr int32_t InvalidFd = -1;
+
 /// Library-wide namespace encapsulating all PAL utility collection entities.
 namespace Util
 {

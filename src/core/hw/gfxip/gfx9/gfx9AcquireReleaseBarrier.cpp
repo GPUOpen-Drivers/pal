@@ -398,7 +398,7 @@ void Device::IssueReleaseSync(
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-    if (pCmdBuf->GetGfxCmdBufState().cpBltActive && TestAnyFlagSet(stageMask, PipelineStageBlt))
+    if (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive && TestAnyFlagSet(stageMask, PipelineStageBlt))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
@@ -1372,9 +1372,11 @@ size_t Device::BuildReleaseSyncPackets(
     VGT_EVENT_TYPE vgtEvents[MaxSlotsPerEvent]; // Always create the max size.
     uint32         vgtEventCount = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 500
     // If it reaches here, we know the Release-Acquire barrier is enabled, so each event should have MaxSlotsPerEvent
     // number of slots.
     PAL_ASSERT(numEventSlots == MaxSlotsPerEvent);
+#endif
 
     // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
     // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
@@ -1384,6 +1386,8 @@ size_t Device::BuildReleaseSyncPackets(
         // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
         vgtEvents[vgtEventCount++] = CACHE_FLUSH_AND_INV_TS_EVENT;
     }
+    // Unfortunately, there is no VS_DONE event with which to implement PipelineStageVs/Hs/Ds/Gs, so it has to
+    // conservatively use BottomOfPipe.
     else if (TestAnyFlagSet(stageMask, PipelineStageVs            |
                                        PipelineStageHs            |
                                        PipelineStageDs            |
@@ -1398,17 +1402,25 @@ size_t Device::BuildReleaseSyncPackets(
     }
     else if (TestAnyFlagSet(stageMask, PipelineStagePs | PipelineStageCs))
     {
-        if (TestAnyFlagSet(stageMask, PipelineStagePs))
+        // If the signal/wait event has multiple slots, we can utilize it to issue separate EOS event for PS and CS
+        // waves. Otherwise just fall back to a single BOP pipeline stage.
+        if (numEventSlots > 1)
         {
-            // Implement set with an EOS event waiting for PS waves to complete. Unfortunately, there is no VS_DONE
-            // event with which to implement PipelineStageVs/Hs/Ds/Gs, so it has to conservatively use BottomOfPipe.
-            vgtEvents[vgtEventCount++] = PS_DONE;
-        }
+            if (TestAnyFlagSet(stageMask, PipelineStagePs))
+            {
+                // Implement set with an EOS event waiting for PS waves to complete.
+                vgtEvents[vgtEventCount++] = PS_DONE;
+            }
 
-        if (TestAnyFlagSet(stageMask, PipelineStageCs))
+            if (TestAnyFlagSet(stageMask, PipelineStageCs))
+            {
+                // Implement set/reset with an EOS event waiting for CS waves to complete.
+                vgtEvents[vgtEventCount++] = CS_DONE;
+            }
+        }
+        else
         {
-            // Implement set/reset with an EOS event waiting for CS waves to complete.
-            vgtEvents[vgtEventCount++] = CS_DONE;
+            vgtEvents[vgtEventCount++] = BOTTOM_OF_PIPE_TS;
         }
     }
 
@@ -1431,6 +1443,8 @@ size_t Device::BuildReleaseSyncPackets(
         // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
         vgtEvents[vgtEventCount++] = CS_DONE;
     }
+
+    PAL_ASSERT(vgtEventCount <= numEventSlots);
 
     // Build the release packets.
     size_t dwordsWritten = 0;

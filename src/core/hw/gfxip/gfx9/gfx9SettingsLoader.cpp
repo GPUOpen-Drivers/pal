@@ -294,7 +294,8 @@ void SettingsLoader::OverrideDefaults(
         // Metadata is not pipe aligned once we get down to the mip chain within the tail
         m_settings.waitOnMetadataMipTail = true;
 
-        // Set this to 1 in Gfx9 to enable CU soft group for PS by default.
+        // Set this to 1 in Gfx9 to enable CU soft group for VS/PS by default.
+        m_settings.numVsWavesSoftGroupedPerCu = 1;
         m_settings.numPsWavesSoftGroupedPerCu = 1;
 
         if (IsVega10(device) || IsRaven(device))

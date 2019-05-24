@@ -407,6 +407,7 @@ public:
     virtual Result GetScanLine(
         int32* pScanLine) const = 0;
 
+#if PAL_AMDGPU_BUILD
     /// Acquires exclusive access to the screen. AcquireScreenAccess will lease crtcs, encoders and connectors from
     /// window system, and a new DRM master will be created to hold and control those lease objects. Once leased, those
     /// resources cannot be controlled by the window system, such as XServer, Wayland, unless the new DRM master is
@@ -444,6 +445,8 @@ public:
     /// @returns Success if the call succeeded.
     virtual Result SetRandrOutput(
         uint32 randrOutput) = 0;
+
+#endif
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

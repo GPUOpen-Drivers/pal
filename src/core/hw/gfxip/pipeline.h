@@ -26,18 +26,20 @@
 
 #pragma once
 
+#include "core/cmdBuffer.h"
 #include "core/device.h"
 #include "core/gpuMemory.h"
 #include "palElfPackager.h"
 #include "palLib.h"
 #include "palMetroHash.h"
-#include "palSparseVectorImpl.h"
 #include "palPipeline.h"
 #include "palPipelineAbiProcessor.h"
+#include "palSparseVectorImpl.h"
 
 namespace Pal
 {
 
+class CmdBuffer;
 class CmdStream;
 class PipelineUploader;
 
@@ -142,8 +144,8 @@ protected:
     Result PerformRelocationsAndUploadToGpuMemory(
         const AbiProcessor&       abiProcessor,
         const CodeObjectMetadata& metadata,
-        PipelineUploader*         pUploader,
-        bool                      preferNonLocalHeap);
+        const GpuHeap&            clientPreferredHeap,
+        PipelineUploader*         pUploader);
 
     void ExtractPipelineInfo(
         const CodeObjectMetadata& metadata,
@@ -192,6 +194,9 @@ private:
         uint32  value;  // Flags packed as a uint32.
     } m_flags;
 
+    BoundGpuMemory m_perfDataMem;
+    gpusize        m_perfDataGpuMemSize;
+
     PAL_DISALLOW_DEFAULT_CTOR(Pipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(Pipeline);
 };
@@ -202,18 +207,17 @@ class PipelineUploader
 {
 public:
     PipelineUploader(
-        uint32 ctxRegisterCount,
-        uint32 shRegisterCount);
+        Device* pDevice,
+        uint32  ctxRegisterCount,
+        uint32  shRegisterCount);
     virtual ~PipelineUploader();
 
     Result Begin(
-        Device*                   pDevice,
         const AbiProcessor&       abiProcessor,
         const CodeObjectMetadata& metadata,
-        PerfDataInfo*             pPerfDataInfoList,
-        bool                      preferNonLocalHeap);
+        const GpuHeap&            preferredHeap);
 
-    void End();
+    Result End();
 
     uint32 ShRegisterCount() const { return m_shRegisterCount; }
     uint32 CtxRegisterCount() const { return m_ctxRegisterCount; }
@@ -250,9 +254,18 @@ protected:
     }
 
 private:
+
+    Result CreateUploadCmdBuffer();
+
+    Device*const m_pDevice;
+
     GpuMemory*  m_pGpuMemory;
     gpusize     m_baseOffset;
     gpusize     m_gpuMemSize;
+
+    // GpuMemory objects of embedded data allocations used for uploading pipelines to local invis heap.
+    GpuMemory* m_pUploadGpuMem;
+    gpusize    m_uploadOffset;
 
     gpusize     m_prefetchGpuVirtAddr;
     gpusize     m_prefetchSize;
@@ -272,6 +285,10 @@ private:
     uint32*  m_pCtxRegWritePtrStart;
     uint32*  m_pShRegWritePtrStart;
 #endif
+
+    CmdBuffer* m_pUploadCmdBuffer; // Dma command buffer for uploading this pipeline to local invis heap if that is the
+                                   // destination type chosen.
+    GpuHeap    m_pipelineHeapType; // The heap type where this pipeline is located.
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineUploader);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineUploader);

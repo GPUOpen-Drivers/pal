@@ -26,13 +26,13 @@
 #include "palFileMap.h"
 #include "palAssert.h"
 #include "palFile.h"
-#include "core/os/lnx/lnxHeaders.h"
+
 #include <cstdio>
-#include <unistd.h>
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <fcntl.h>
+#include <unistd.h>
 
 namespace Util
 {

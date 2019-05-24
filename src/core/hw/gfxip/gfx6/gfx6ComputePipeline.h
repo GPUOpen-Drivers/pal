@@ -27,6 +27,7 @@
 
 #include "core/hw/gfxip/computePipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
+#include "core/hw/gfxip/gfx6/gfx6Device.h"
 
 namespace Pal
 {
@@ -37,7 +38,6 @@ namespace Gfx6
 {
 
 class ComputePipelineUploader;
-class Device;
 
 // =====================================================================================================================
 // GFX6 compute pipeline class: implements GFX6 specific functionality for the ComputePipeline class.
@@ -131,9 +131,10 @@ class ComputePipelineUploader : public Pal::PipelineUploader
 {
 public:
     explicit ComputePipelineUploader(
-        uint32 shRegisterCount)
+        Device* pDevice,
+        uint32  shRegisterCount)
         :
-        PipelineUploader(0, shRegisterCount)
+        PipelineUploader(pDevice->Parent(), 0, shRegisterCount)
         { }
     virtual ~ComputePipelineUploader() { }
 

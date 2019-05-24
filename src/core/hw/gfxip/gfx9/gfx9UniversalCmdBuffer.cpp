@@ -70,9 +70,6 @@ constexpr uint32 VgtIndexTypeLookup[] =
     VGT_INDEX_32    // IndexType::Idx32
 };
 
-// We got this value from HW's testing and perf lab test.
-constexpr uint32  MinBound64bppColorTargetsForOverwriteCombiner = 5;
-
 // Structure used to convert the "c" value (a combination of various states) to the appropriate deferred-batch
 // binning sizes for those states.  Two of these structs define one "range" of "c" values.
 struct CtoBinSize
@@ -336,7 +333,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                                                                                &m_rbPlusPm4Img.header);
     }
 
-    SwitchDrawFunctions(false, false);
+    SwitchDrawFunctions(
+        false,
+        false);
 }
 
 // =====================================================================================================================
@@ -497,6 +496,9 @@ void UniversalCmdBuffer::ResetState()
     }
 
     SetUserDataValidationFunctions(false, false, false);
+    SwitchDrawFunctions(
+        false,
+        false);
 
     m_vgtDmaIndexType.u32All = 0;
     m_vgtDmaIndexType.bits.SWAP_MODE = VGT_DMA_SWAP_NONE;
@@ -513,8 +515,11 @@ void UniversalCmdBuffer::ResetState()
     m_binningMode              = FORCE_BINNING_ON; // set a value that we would never use
 
     // Reset the command buffer's HWL state tracking
-    m_state.flags.u32All   = 0;
-    m_state.minCounterDiff = UINT_MAX;
+    m_state.flags.u32All                            = 0;
+    m_state.pLastDumpCeRam                          = nullptr;
+    m_state.lastDumpCeRamOrdinal2.u32All            = 0;
+    m_state.lastDumpCeRamOrdinal2.bits.increment_ce = 1;
+    m_state.minCounterDiff                          = UINT_MAX;
 
     // Set to an invalid (unaligned) address to indicate that streamout hasn't been set yet, and initialize the SRDs'
     // NUM_RECORDS fields to indicate a zero stream-out stride.
@@ -555,6 +560,7 @@ void UniversalCmdBuffer::ResetState()
     m_drawIndexReg              = UserDataNotMapped;
     m_nggState.startIndexReg    = UserDataNotMapped;
     m_nggState.log2IndexSizeReg = UserDataNotMapped;
+    m_nggState.numSamples       = 1;
 
     m_pSignatureCs         = &NullCsSignature;
     m_pSignatureGfx        = &NullGfxSignature;
@@ -595,9 +601,12 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
         // NGG Fast Launch pipelines require issuing different packets for indexed draws. We'll need to switch the
         // draw function pointers around to handle this case.
-        if ((oldIsNggFastLaunch != newIsNggFastLaunch) || (oldUsesViewInstancing != newUsesViewInstancing))
+        if ((oldIsNggFastLaunch     != newIsNggFastLaunch)     ||
+            (oldUsesViewInstancing  != newUsesViewInstancing))
         {
-            SwitchDrawFunctions(newUsesViewInstancing, newIsNggFastLaunch);
+            SwitchDrawFunctions(
+                newUsesViewInstancing,
+                newIsNggFastLaunch);
         }
 
         // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.  This
@@ -879,10 +888,17 @@ void UniversalCmdBuffer::CmdBindMsaaState(
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
         pDeCmdSpace = pNewState->WriteCommands(&m_deCmdStream, pDeCmdSpace);
         m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+        m_nggState.numSamples = pNewState->NumSamples();
+    }
+    else
+    {
+        m_nggState.numSamples = 1;
     }
 
     m_graphicsState.pMsaaState                          = pNewState;
     m_graphicsState.dirtyFlags.validationBits.msaaState = 1;
+    m_nggState.flags.dirty.msaaState                    = 1;
 }
 
 // =====================================================================================================================
@@ -1169,12 +1185,12 @@ void UniversalCmdBuffer::CmdBarrier(
     CmdBuffer::CmdBarrier(barrierInfo);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
-    m_gfxCmdBufState.packetPredicate = 0;
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.Barrier(this, &m_deCmdStream, barrierInfo);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -1185,12 +1201,12 @@ void UniversalCmdBuffer::CmdRelease(
     CmdBuffer::CmdRelease(releaseInfo, pGpuEvent);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
-    m_gfxCmdBufState.packetPredicate = 0;
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.BarrierRelease(this, &m_deCmdStream, releaseInfo, pGpuEvent);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -1202,12 +1218,12 @@ void UniversalCmdBuffer::CmdAcquire(
     CmdBuffer::CmdAcquire(acquireInfo, gpuEventCount, ppGpuEvents);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
-    m_gfxCmdBufState.packetPredicate = 0;
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.BarrierAcquire(this, &m_deCmdStream, acquireInfo, gpuEventCount, ppGpuEvents);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -1217,12 +1233,12 @@ void UniversalCmdBuffer::CmdReleaseThenAcquire(
     CmdBuffer::CmdReleaseThenAcquire(barrierInfo);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
-    m_gfxCmdBufState.packetPredicate = 0;
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.BarrierReleaseThenAcquire(this, &m_deCmdStream, barrierInfo);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -1340,6 +1356,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     bool waitOnMetadataMipTail = false;
 
     uint32 bppMoreThan64 = 0;
+    TargetExtent2d surfaceExtent = { MaxScissorExtent, MaxScissorExtent }; // Default to fully open
 
     // Bind all color targets.
     const uint32 colorTargetLimit   = Max(params.colorTargetCount, m_graphicsState.bindTargets.colorTargetCount);
@@ -1351,6 +1368,7 @@ void UniversalCmdBuffer::CmdBindTargets(
         const auto*const pNewView = (slot < params.colorTargetCount)
                                     ? static_cast<const ColorTargetView*>(params.colorTargets[slot].pColorTargetView)
                                     : nullptr;
+        bool             validViewFound = false;
 
         if (pNewView != nullptr)
         {
@@ -1361,11 +1379,18 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                   pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
 
+            if (validViewFound == false)
+            {
+                // For MRT case, extents must match across all MRTs.
+                surfaceExtent = pNewView->GetExtent();
+            }
+
             pNewView->UpdateDccStateMetadata(&m_deCmdStream, params.colorTargets[slot].imageLayout);
 
             // Set the bit means this color target slot is not bound to a NULL target.
             newColorTargetMask |= (1 << slot);
 
+            validViewFound = true;
         }
 
         if ((pCurrentView != nullptr) && (pCurrentView != pNewView))  // view1->view2 or view->null
@@ -1378,10 +1403,6 @@ void UniversalCmdBuffer::CmdBindTargets(
     }
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
-    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_DCC_CONTROL,
-                                                      GetDccControl(bppMoreThan64),
-                                                      pDeCmdSpace);
 
     // Bind NULL for all remaining color target slots. We must build the PM4 image on the stack because we must call
     // the command stream's WritePm4Image to keep the PM4 optimizer in the loop.
@@ -1409,6 +1430,10 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                    params.depthTarget.stencilLayout,
                                                    &m_deCmdStream,
                                                    pDeCmdSpace);
+
+        TargetExtent2d depthViewExtent = pNewDepthView->GetExtent();
+        surfaceExtent.width  = Util::Min(surfaceExtent.width,  depthViewExtent.width);
+        surfaceExtent.height = Util::Min(surfaceExtent.height, depthViewExtent.height);
 
         if (pNewDepthView->GetImage()->HasWaTcCompatZRangeMetaData())
         {
@@ -1439,6 +1464,23 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                             TcCacheOp::Nop,
                                                             TimestampGpuVirtAddr(),
                                                             pDeCmdSpace);
+    }
+
+    if (surfaceExtent.value != m_graphicsState.targetExtent.value)
+    {
+        // Set scissor owned by the target.
+        ScreenScissorReg* pScreenScissors = reinterpret_cast<ScreenScissorReg*>(pDeCmdSpace);
+        m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
+                                         mmPA_SC_SCREEN_SCISSOR_BR,
+                                         pScreenScissors);
+        pScreenScissors->paScScreenScissorTl.u32All    = 0;
+        pScreenScissors->paScScreenScissorBr.u32All    = 0;
+        pScreenScissors->paScScreenScissorBr.bits.BR_X = surfaceExtent.width;
+        pScreenScissors->paScScreenScissorBr.bits.BR_Y = surfaceExtent.height;
+
+        pDeCmdSpace += Util::NumBytesToNumDwords(sizeof(ScreenScissorReg));
+
+        m_graphicsState.targetExtent.value = surfaceExtent.value;
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -1818,7 +1860,8 @@ void UniversalCmdBuffer::DescribeDraw(
 // =====================================================================================================================
 // Issues a non-indexed draw command. We must discard the draw if vertexCount or instanceCount are zero. To avoid
 // branching, we will rely on the HW to discard the draw for us.
-template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable>
+template <bool IssueSqttMarkerEvent,
+          bool ViewInstancingEnable>
 void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     ICmdBuffer* pCmdBuffer,
     uint32      firstVertex,
@@ -1897,7 +1940,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 
 // =====================================================================================================================
 // Issues a draw opaque command.
-template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable>
+template <bool IssueSqttMarkerEvent,
+          bool ViewInstancingEnable>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     ICmdBuffer* pCmdBuffer,
     gpusize     streamOutFilledSizeVa,
@@ -1996,7 +2040,9 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 // =====================================================================================================================
 // Issues an indexed draw command. We must discard the draw if indexCount or instanceCount are zero. To avoid branching,
 // we will rely on the HW to discard the draw for us.
-template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable>
+template <bool IssueSqttMarkerEvent,
+          bool IsNggFastLaunch,
+          bool ViewInstancingEnable>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     ICmdBuffer* pCmdBuffer,
     uint32      firstIndex,
@@ -2742,20 +2788,13 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
                                         // fields below.
 
     // The screen scissor rect and the HTile base address need to be written regardless of GFXIP version.
-    size_t cmdDwords = (m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
-                                                         mmPA_SC_SCREEN_SCISSOR_BR,
-                                                         &pm4Commands.hdrPaScScreenScissor) +
-                        m_cmdUtil.BuildSetSeqContextRegs(mmDB_RENDER_OVERRIDE2,
+    size_t cmdDwords = (m_cmdUtil.BuildSetSeqContextRegs(mmDB_RENDER_OVERRIDE2,
                                                          mmDB_HTILE_DATA_BASE,
                                                          &pm4Commands.hdrDbRenderOverride2) +
                         m_cmdUtil.BuildSetOneContextReg(mmDB_RENDER_CONTROL, &pm4Commands.hdrDbRenderControl));
 
-    pm4Commands.paScScreenScissorTl.bits.TL_X = PaScScreenScissorMin;
-    pm4Commands.paScScreenScissorTl.bits.TL_Y = PaScScreenScissorMin;
-    pm4Commands.paScScreenScissorBr.bits.BR_X = PaScScreenScissorMax;
-    pm4Commands.paScScreenScissorBr.bits.BR_Y = PaScScreenScissorMax;
-    pm4Commands.dbHtileDataBase.u32All        = 0;
-    pm4Commands.dbRenderOverride2.u32All      = 0;
+    pm4Commands.dbHtileDataBase.u32All   = 0;
+    pm4Commands.dbRenderOverride2.u32All = 0;
 
     // If the dbRenderControl.DEPTH_CLEAR_ENABLE bit is not reset to 0 after performing a graphics fast depth clear
     // then any following draw call with pixel shader z-imports will have their z components clamped to the clear
@@ -2821,21 +2860,6 @@ uint32* UniversalCmdBuffer::WriteNullColorTargets(
 
         // Clear the bit since we've already added it to our PM4 image.
         newNullSlotMask &= ~(1 << slot);
-    }
-
-    // If no color targets are active, setup generic scissor registers for NULL color targets.
-    if (newColorTargetMask == 0)
-    {
-        auto*const pPm4Image = reinterpret_cast<GenericScissorReg*>(&pm4Commands[cmdDwords]);
-
-        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
-                                                      mmPA_SC_GENERIC_SCISSOR_BR,
-                                                      &pPm4Image->header);
-
-        pPm4Image->paScGenericScissorTl.u32All    = 0;
-        pPm4Image->paScGenericScissorBr.u32All    = 0;
-        pPm4Image->paScGenericScissorBr.bits.BR_X = ScissorMaxBR;
-        pPm4Image->paScGenericScissorBr.bits.BR_Y = ScissorMaxBR;
     }
 
     if (cmdDwords != 0)
@@ -3004,6 +3028,21 @@ Result UniversalCmdBuffer::AddPreamble()
     m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = (m_cachedSettings.disableDfsm) ? 1 : 0;
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_BINNER_CNTL_0, m_paScBinnerCntl0.u32All, pDeCmdSpace);
 
+    if (isNested == false)
+    {
+        // Initialize screen scissor value.
+        ScreenScissorReg* pScreenScissors = reinterpret_cast<ScreenScissorReg*>(pDeCmdSpace);
+        m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
+                                         mmPA_SC_SCREEN_SCISSOR_BR,
+                                         pScreenScissors);
+        pScreenScissors->paScScreenScissorTl.u32All    = 0;
+        pScreenScissors->paScScreenScissorBr.u32All    = 0;
+        pScreenScissors->paScScreenScissorBr.bits.BR_X = m_graphicsState.targetExtent.width;
+        pScreenScissors->paScScreenScissorBr.bits.BR_Y = m_graphicsState.targetExtent.height;
+
+        pDeCmdSpace += Util::NumBytesToNumDwords(sizeof(ScreenScissorReg));
+    }
+
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
     // Clients may not bind a PointLineRasterState until they intend to do wireframe rendering. This means that the
@@ -3028,7 +3067,7 @@ Result UniversalCmdBuffer::AddPostamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if (m_gfxCmdBufState.cpBltActive)
+    if (m_gfxCmdBufState.flags.cpBltActive)
     {
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
@@ -3089,7 +3128,7 @@ void UniversalCmdBuffer::WriteEventCmd(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.cpBltActive))
+    if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.flags.cpBltActive))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
@@ -3189,13 +3228,14 @@ CmdStream* UniversalCmdBuffer::GetCmdStreamByEngine(
 uint32* UniversalCmdBuffer::WaitOnCeCounter(
     uint32* pDeCmdSpace)
 {
-    if (m_state.flags.ceStreamDirty != 0)
+    if (m_state.pLastDumpCeRam != nullptr)
     {
+        auto*const pDumpCeRam = reinterpret_cast<PM4_CE_DUMP_CONST_RAM*>(m_state.pLastDumpCeRam);
+        pDumpCeRam->ordinal2  = m_state.lastDumpCeRamOrdinal2.u32All;
+
         pDeCmdSpace += m_cmdUtil.BuildWaitOnCeCounter((m_state.flags.ceInvalidateKcache != 0), pDeCmdSpace);
 
         m_state.flags.ceInvalidateKcache = 0;
-        m_state.flags.ceStreamDirty      = 0;
-        m_state.flags.deCounterDirty     = 1;
     }
 
     return pDeCmdSpace;
@@ -3206,11 +3246,11 @@ uint32* UniversalCmdBuffer::WaitOnCeCounter(
 uint32* UniversalCmdBuffer::IncrementDeCounter(
     uint32* pDeCmdSpace)
 {
-    if (m_state.flags.deCounterDirty != 0)
+    if (m_state.pLastDumpCeRam != nullptr)
     {
         pDeCmdSpace += m_cmdUtil.BuildIncrementDeCounter(pDeCmdSpace);
 
-        m_state.flags.deCounterDirty = 0;
+        m_state.pLastDumpCeRam = nullptr;
     }
 
     return pDeCmdSpace;
@@ -3284,15 +3324,18 @@ uint32* UniversalCmdBuffer::DumpUserDataTable(
     }
 
     const uint32 offsetInBytes = (sizeof(uint32) * offsetInDwords);
+
+    // Keep track of the latest DUMP_CONST_RAM packet before the upcoming draw or dispatch.  The last one before the
+    // draw or dispatch will be updated to set the increment_ce bit at draw-time.
+    m_state.pLastDumpCeRam                    = pCeCmdSpace;
+    m_state.lastDumpCeRamOrdinal2.bits.offset = (pTable->ceRamOffset + offsetInBytes);
+
     pCeCmdSpace += m_cmdUtil.BuildDumpConstRam((pTable->gpuVirtAddr + offsetInBytes),
                                                (pTable->ceRamOffset + offsetInBytes),
                                                dwordsNeeded,
                                                pCeCmdSpace);
 
-    // Mark that the CE data chunk in GPU memory is now fully up-to-date with CE RAM and that a CE RAM dump has
-    // occurred since the previous Draw or Dispatch.
     pTable->dirty = 0;
-    m_state.flags.ceStreamDirty = 1;
 
     return pCeCmdSpace;
 }
@@ -3576,7 +3619,6 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCeRam(
 {
     PAL_ASSERT((HasPipelineChanged  && (pPrevSignature != nullptr)) ||
                (!HasPipelineChanged && (pPrevSignature == nullptr)));
-
     constexpr uint32 StreamOutTableDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
     constexpr uint16 StreamOutMask        = (1 << 1);
     constexpr uint16 VertexBufMask        = (1 << 0);
@@ -3650,7 +3692,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCeRam(
     const uint16 spillThreshold = m_pSignatureGfx->spillThreshold;
     const uint16 spillsUserData = (spillThreshold != NoUserDataSpilling);
     // NOTE: Use of bitwise operators here is to reduce branchiness.
-    if (((srdTableDumpMask | spillsUserData | m_state.flags.ceStreamDirty) != 0))
+    if ((srdTableDumpMask | spillsUserData) != 0)
     {
         uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
 
@@ -3716,17 +3758,6 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCeRam(
             }
             pCeCmdSpace = DumpUserDataTable(&m_streamOut.state, 0, StreamOutTableDwords, pCeCmdSpace);
         } // if stream-out table needs dumping
-
-        // Step #7:
-        // If any of the above validation dumped CE RAM, or if a client dumped CE RAM since the previous Dispatch, the
-        // CE and DE counters must be synchronized before the Draw is issued.  Note that this can only be done here for
-        // non-NGG pipelines because NGG pipelines require an additional CE ring buffer for uploading the NGG constant
-        // buffer.
-        if (m_state.flags.ceStreamDirty)
-        {
-            pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
-        }
-
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
     } // needs CE workload
 
@@ -3894,16 +3925,6 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCpu(
         }
     } // if current pipeline spills user-data
 
-    // Step #5:
-    // Even though the spill table is not being managed using CE RAM, it is possible for the client to use CE RAM for
-    // its own purposes.  In this case, we still need to increment the CE RAM counter.
-    if (m_state.flags.ceStreamDirty)
-    {
-        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
-        pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
-        m_ceCmdStream.CommitCommands(pCeCmdSpace);
-    }
-
     // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this method,
     // so it is safe to clear these bits.
     memset(&m_graphicsState.gfxUserDataEntries.dirty[0], 0, sizeof(m_graphicsState.gfxUserDataEntries.dirty));
@@ -3929,8 +3950,7 @@ uint32* UniversalCmdBuffer::ValidateComputeUserDataCeRam(
 
     const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
     const uint16 spillsUserData = (spillThreshold != NoUserDataSpilling);
-    // NOTE: Use of bitwise operators here is to reduce branchiness.
-    if (((spillsUserData | m_state.flags.ceStreamDirty) != 0))
+    if (spillsUserData != 0)
     {
         uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
 
@@ -3973,14 +3993,6 @@ uint32* UniversalCmdBuffer::ValidateComputeUserDataCeRam(
                                                                      pDeCmdSpace);
             }
         } // if current pipeline spills user-data
-
-        // Step #5:
-        // If any of the above validation dumped CE RAM, or if a client dumped CE RAM since the previous Dispatch,
-        // the CE and DE must be synchronized before the Dispatch is issued.
-        if (m_state.flags.ceStreamDirty)
-        {
-            pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
-        }
 
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
     } // needs CE workload
@@ -4070,16 +4082,6 @@ uint32* UniversalCmdBuffer::ValidateComputeUserDataCpu(
         }
     } // if current pipeline spills user-data
 
-    // Step #4
-    // Even though the spill table is not being managed using CE RAM, it is possible for the client to use CE RAM for
-    // its own purposes.  In this case, we still need to increment the CE RAM counter.
-    if (m_state.flags.ceStreamDirty)
-    {
-        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
-        pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
-        m_ceCmdStream.CommitCommands(pCeCmdSpace);
-    }
-
     // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this method,
     // so it is safe to clear these bits.
     memset(&m_computeState.csUserDataEntries.dirty[0], 0, sizeof(m_computeState.csUserDataEntries.dirty));
@@ -4111,6 +4113,7 @@ template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
 void UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo)
 {
+
     if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
     {
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -4237,17 +4240,24 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     return pDeCmdSpace;
 }
 
-// =====================================================================================================================
-// This function updates the m_nggTable ring buffer that tracks the state necessary for an NGG pipeline to execute
-// Returns a pointer to the next entry in the DE cmd space.  This function can not write any context registers!
-uint32* UniversalCmdBuffer::UpdateNggRingData(
-    uint32*  pDeCmdSpace)
+// Helper structure to convert uint32 to a float.
+union Uint32ToFloat
 {
+    uint32 uValue;
+    float  fValue;
+};
+
+// =====================================================================================================================
+// This function updates the NGG culling data constant buffer which is needed for NGG culling operations to execute
+// correctly.
+// Returns a pointer to the next entry in the DE cmd space.  This function MUST NOT write any context registers!
+uint32* UniversalCmdBuffer::UpdateNggCullingDataBuffer(
+    uint32* pDeCmdSpace)
+{
+    PAL_ASSERT(m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped);
+
     // If nothing has changed, then there's no need to do anything...
-    if (m_nggState.flags.dirty.triangleRasterState ||
-        m_nggState.flags.dirty.viewports           ||
-        m_nggState.flags.dirty.inputAssemblyState  ||
-        m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
+    if ((m_nggState.flags.dirty.u8All != 0) || m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
     {
         constexpr uint32 NggStateDwords = (sizeof(Abi::PrimShaderCbLayout) / sizeof(uint32));
 
@@ -4264,13 +4274,24 @@ uint32* UniversalCmdBuffer::UpdateNggRingData(
                 pCeCmdSpace);
         }
 
-        if (m_nggState.flags.dirty.viewports)
+        if (m_nggState.flags.dirty.viewports || m_nggState.flags.dirty.msaaState)
         {
+            // For small-primitive filter culling with NGG, the shader needs the viewport scale to premultiply
+            // the number of samples into it.
+            Abi::PrimShaderVportCb vportCb = m_state.primShaderCbLayout.viewportStateCb;
+            Uint32ToFloat uintToFloat = {};
+            for (uint32 i = 0; i < m_graphicsState.viewportState.count; i++)
+            {
+                uintToFloat.uValue  = vportCb.vportControls[i].paClVportXscale;
+                uintToFloat.fValue *= (m_nggState.numSamples > 1) ? 16.0f : 1.0f;
+                vportCb.vportControls[i].paClVportXscale = uintToFloat.uValue;
+            }
+
             pCeCmdSpace = UploadToUserDataTable(
                 &m_nggTable.state,
                 (offsetof(Abi::PrimShaderCbLayout, viewportStateCb) / sizeof(uint32)),
-                (sizeof(m_state.primShaderCbLayout.viewportStateCb) / sizeof(uint32)),
-                reinterpret_cast<const uint32*>(&m_state.primShaderCbLayout.viewportStateCb),
+                (sizeof(vportCb) / sizeof(uint32)),
+                reinterpret_cast<const uint32*>(&vportCb),
                 NggStateDwords,
                 pCeCmdSpace);
         }
@@ -4292,32 +4313,36 @@ uint32* UniversalCmdBuffer::UpdateNggRingData(
         // It is not expected to enter this path unless we will be updating the NGG CE RAM data!
         PAL_ASSERT(m_nggTable.state.dirty != 0);
 
-        constexpr uint32 AlignmentInDwords = (256 / sizeof(uint32));
-        RelocateUserDataTable<AlignmentInDwords>(&m_nggTable.state, 0, NggStateDwords);
-        pCeCmdSpace = DumpUserDataTable(&m_nggTable.state, 0, NggStateDwords, pCeCmdSpace);
-
-        // If any validation about dumped from CE RAM to GPU memory, we need to add commands to synchronize the
-        // draw and constant engines before we issue the upcoming Draw.
-        if (m_state.flags.ceStreamDirty != 0)
-        {
-            pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
-        }
-
-        m_ceCmdStream.CommitCommands(pCeCmdSpace);
-
-        m_nggState.flags.dirty.u8All = 0;
-
 #if PAL_DBG_COMMAND_COMMENTS
         pDeCmdSpace += m_cmdUtil.BuildCommentString("NGG: ConstantBufferAddr", pDeCmdSpace);
 #endif
 
-        // The address of the constant buffer is stored in the GS shader address registers.
-        const gpusize baseAddr = Get256BAddrLo(m_nggTable.state.gpuVirtAddr);
-        pDeCmdSpace = m_deCmdStream.WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_GS,
-                                                      mmSPI_SHADER_PGM_HI_GS,
+        gpusize gpuVirtAddr = 0;
+        const uint16 nggRegAddr = m_pSignatureGfx->nggCullingDataAddr;
+        if (nggRegAddr == mmSPI_SHADER_PGM_LO_GS)
+        {
+            // The address of the constant buffer is stored in the GS shader address registers, which require a
+            // 256B aligned address.
+            constexpr uint32 AlignmentInDwords = (256 / sizeof(uint32));
+            RelocateUserDataTable<AlignmentInDwords>(&m_nggTable.state, 0, NggStateDwords);
+            gpuVirtAddr = Get256BAddrLo(m_nggTable.state.gpuVirtAddr);
+        }
+        else
+        {
+            RelocateUserDataTable<CacheLineDwords>(&m_nggTable.state, 0, NggStateDwords);
+            gpuVirtAddr = m_nggTable.state.gpuVirtAddr;
+        }
+
+        pDeCmdSpace = m_deCmdStream.WriteSetSeqShRegs(nggRegAddr,
+                                                      (nggRegAddr + 1),
                                                       ShaderGraphics,
-                                                      &baseAddr,
+                                                      &gpuVirtAddr,
                                                       pDeCmdSpace);
+        pCeCmdSpace = DumpUserDataTable(&m_nggTable.state, 0, NggStateDwords, pCeCmdSpace);
+
+        m_ceCmdStream.CommitCommands(pCeCmdSpace);
+
+        m_nggState.flags.dirty.u8All = 0;
     }
 
     return pDeCmdSpace;
@@ -4605,10 +4630,9 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                                                    drawInfo,
                                                                                    pDeCmdSpace);
 
-    if (IsNgg)
+    if (IsNgg && (m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped))
     {
-        // This function will not write any context registers
-        pDeCmdSpace = UpdateNggRingData(pDeCmdSpace);
+        pDeCmdSpace = UpdateNggCullingDataBuffer(pDeCmdSpace);
     }
 
     // Clear the dirty-state flags.
@@ -5939,8 +5963,8 @@ void UniversalCmdBuffer::CmdResolveQuery(
     gpusize           dstStride)
 {
     // Resolving a query is not supposed to honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
-    m_gfxCmdBufState.packetPredicate = 0;
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.RsrcProcMgr().CmdResolveQuery(this,
                                            static_cast<const QueryPool&>(queryPool),
@@ -5952,7 +5976,7 @@ void UniversalCmdBuffer::CmdResolveQuery(
                                            dstOffset,
                                            dstStride);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -6375,13 +6399,16 @@ void UniversalCmdBuffer::CmdDumpCeRam(
         m_state.flags.ceWaitOnDeCounterDiff = 0;
     }
 
+    // Keep track of the latest DUMP_CONST_RAM packet before the upcoming draw or dispatch.  The last one before the
+    // draw or dispatch will be updated to set the increment_ce bit at draw-time.
+    m_state.pLastDumpCeRam                    = pCeCmdSpace;
+    m_state.lastDumpCeRamOrdinal2.bits.offset = (ReservedCeRamBytes + ramOffset);
+
     pCeCmdSpace += m_cmdUtil.BuildDumpConstRam(dstGpuMemory.Desc().gpuVirtAddr + memOffset,
                                                (ReservedCeRamBytes + ramOffset),
                                                dwordSize,
                                                pCeCmdSpace);
     m_ceCmdStream.CommitCommands(pCeCmdSpace);
-
-    m_state.flags.ceStreamDirty = 1;
 }
 
 // =====================================================================================================================
@@ -6643,8 +6670,8 @@ void UniversalCmdBuffer::CmdSetPredication(
 {
     PAL_ASSERT((pQueryPool == nullptr) || (pGpuMemory == nullptr));
 
-    m_gfxCmdBufState.clientPredicate = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
-    m_gfxCmdBufState.packetPredicate = m_gfxCmdBufState.clientPredicate;
+    m_gfxCmdBufState.flags.clientPredicate = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
+    m_gfxCmdBufState.flags.packetPredicate = m_gfxCmdBufState.flags.clientPredicate;
 
     gpusize gpuVirtAddr = 0;
     if (pGpuMemory != nullptr)
@@ -6761,7 +6788,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         // Generate the indirect command buffer chunk(s) using RPM. Since we're wrapping the command generation and
         // execution inside a CmdIf, we want to disable normal predication for this blit.
         const uint32 packetPredicate = PacketPredicate();
-        m_gfxCmdBufState.packetPredicate = 0;
+        m_gfxCmdBufState.flags.packetPredicate = 0;
 
         m_device.RsrcProcMgr().CmdGenerateIndirectCmds(this,
                                                        PipelineState(bindPoint)->pPipeline,
@@ -6771,7 +6798,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
                                                        m_graphicsState.iaState.indexCount,
                                                        maximumCount);
 
-        m_gfxCmdBufState.packetPredicate = packetPredicate;
+        m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
@@ -6998,6 +7025,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_drawIndexReg              = cmdBuffer.m_drawIndexReg;
         m_nggState.startIndexReg    = cmdBuffer.m_nggState.startIndexReg;
         m_nggState.log2IndexSizeReg = cmdBuffer.m_nggState.log2IndexSizeReg;
+        m_nggState.numSamples       = cmdBuffer.m_nggState.numSamples;
 
         // Update the functions that are modified by nested command list
         m_pfnValidateUserDataGfx                   = cmdBuffer.m_pfnValidateUserDataGfx;
@@ -7048,12 +7076,12 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_nggState.flags.dirty.u8All                 |= cmdBuffer.m_nggState.flags.dirty.u8All;
 
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
-    m_gfxCmdBufState.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.gfxBltActive;
-    m_gfxCmdBufState.csBltActive               = cmdBuffer.m_gfxCmdBufState.csBltActive;
-    m_gfxCmdBufState.gfxWriteCachesDirty       = cmdBuffer.m_gfxCmdBufState.gfxWriteCachesDirty;
-    m_gfxCmdBufState.csWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.csWriteCachesDirty;
-    m_gfxCmdBufState.cpWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.cpWriteCachesDirty;
-    m_gfxCmdBufState.cpMemoryWriteL2CacheStale = cmdBuffer.m_gfxCmdBufState.cpMemoryWriteL2CacheStale;
+    m_gfxCmdBufState.flags.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.flags.gfxBltActive;
+    m_gfxCmdBufState.flags.csBltActive               = cmdBuffer.m_gfxCmdBufState.flags.csBltActive;
+    m_gfxCmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_gfxCmdBufState.flags.gfxWriteCachesDirty;
+    m_gfxCmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.flags.csWriteCachesDirty;
+    m_gfxCmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.flags.cpWriteCachesDirty;
+    m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale;
 
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the
@@ -7399,84 +7427,72 @@ uint32* UniversalCmdBuffer::BuildWriteViewId(
 }
 
 // =====================================================================================================================
-// Switch draw functions.
-void UniversalCmdBuffer::SwitchDrawFunctions(
-    bool viewInstancingEnable,
-    bool nggFastLuanch)
+// Switch draw functions - the actual assignment
+template <bool ViewInstancing, bool NggFastLaunch, bool IssueSqtt>
+void UniversalCmdBuffer::SwitchDrawFunctionsInternal()
+{
+    m_funcTable.pfnCmdDraw = CmdDraw<IssueSqtt, ViewInstancing>;
+    m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<IssueSqtt, ViewInstancing>;
+    m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<IssueSqtt, ViewInstancing>;
+    m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<IssueSqtt, NggFastLaunch, ViewInstancing>;
+    m_funcTable.pfnCmdDrawIndexedIndirectMulti =
+                    CmdDrawIndexedIndirectMulti<IssueSqtt, NggFastLaunch, ViewInstancing>;
+}
+
+// =====================================================================================================================
+// Switch draw functions - overloaded internal implementation for switching function params to template params
+template <bool NggFastLaunch, bool IssueSqtt>
+void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
+    bool viewInstancingEnable)
 {
     if (viewInstancingEnable)
     {
-        if (m_cachedSettings.issueSqttMarkerEvent)
-        {
-            m_funcTable.pfnCmdDraw              = CmdDraw<true, true>;
-            m_funcTable.pfnCmdDrawOpaque        = CmdDrawOpaque<true, true>;
-            m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<true, true>;
-
-            if (nggFastLuanch)
-            {
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<true, true, true>;
-                m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti<true, true, true>;
-            }
-            else
-            {
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<true, false, true>;
-                m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti<true, false, true>;
-            }
-        }
-        else
-        {
-            m_funcTable.pfnCmdDraw              = CmdDraw<false, true>;
-            m_funcTable.pfnCmdDrawOpaque        = CmdDrawOpaque<false, true>;
-            m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<false, true>;
-
-            if (nggFastLuanch)
-            {
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<false, true, true>;
-                m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti<false, true, true>;
-            }
-            else
-            {
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<false, false, true>;
-                m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti<false, false, true>;
-            }
-        }
+        SwitchDrawFunctionsInternal<true, NggFastLaunch, IssueSqtt>(
+            );
     }
     else
     {
-        if (m_cachedSettings.issueSqttMarkerEvent)
-        {
-            m_funcTable.pfnCmdDraw              = CmdDraw<true, false>;
-            m_funcTable.pfnCmdDrawOpaque        = CmdDrawOpaque<true, false>;
-            m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<true, false>;
+        SwitchDrawFunctionsInternal<false, NggFastLaunch, IssueSqtt>(
+            );
+    }
+}
 
-            if (nggFastLuanch)
-            {
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<true, true, false>;
-                m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti<true, true, false>;
-            }
-            else
-            {
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<true, false, false>;
-                m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti<true, false, false>;
-            }
-        }
-        else
-        {
-            m_funcTable.pfnCmdDraw              = CmdDraw<false, false>;
-            m_funcTable.pfnCmdDrawOpaque        = CmdDrawOpaque<false, false>;
-            m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<false, false>;
+// =====================================================================================================================
+// Switch draw functions - overloaded internal implementation for switching function params to template params
+template <bool IssueSqtt>
+void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
+    bool viewInstancingEnable,
+    bool nggFastLaunch)
+{
+    if (nggFastLaunch)
+    {
+        SwitchDrawFunctionsInternal<true, IssueSqtt>(
+            viewInstancingEnable);
+    }
+    else
+    {
+        SwitchDrawFunctionsInternal<false, IssueSqtt>(
+            viewInstancingEnable);
+    }
+}
 
-            if (nggFastLuanch)
-            {
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<false, true, false>;
-                m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti<false, true, false>;
-            }
-            else
-            {
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<false, false, false>;
-                m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti<false, false, false>;
-            }
-        }
+// =====================================================================================================================
+// Switch draw functions.
+void UniversalCmdBuffer::SwitchDrawFunctions(
+    bool viewInstancingEnable,
+    bool nggFastLaunch)
+{
+    if (m_cachedSettings.issueSqttMarkerEvent)
+    {
+        SwitchDrawFunctionsInternal<true>(
+            viewInstancingEnable,
+            nggFastLaunch);
+    }
+    else
+    {
+        SwitchDrawFunctionsInternal<false>(
+            viewInstancingEnable,
+            nggFastLaunch);
     }
 }
 
@@ -7494,7 +7510,7 @@ void UniversalCmdBuffer::CpCopyMemory(
     dmaDataInfo.srcSel      = src_sel__pfp_dma_data__src_addr_using_l2;
     dmaDataInfo.sync        = false;
     dmaDataInfo.usePfp      = false;
-    dmaDataInfo.predicate   = static_cast<Pm4Predicate>(GetGfxCmdBufState().packetPredicate);
+    dmaDataInfo.predicate   = static_cast<Pm4Predicate>(GetGfxCmdBufState().flags.packetPredicate);
     dmaDataInfo.dstAddr     = dstAddr;
     dmaDataInfo.srcAddr     = srcAddr;
     dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);
@@ -7505,34 +7521,6 @@ void UniversalCmdBuffer::CpCopyMemory(
 
     SetGfxCmdBufCpBltState(true);
     SetGfxCmdBufCpBltWriteCacheState(true);
-}
-
-// =====================================================================================================================
-// Compute the dcc control register value.
-uint32 UniversalCmdBuffer::GetDccControl(
-    uint32 bppMoreThan64
-    ) const
-{
-    regCB_DCC_CONTROL dccControl = {};
-
-    // Default enable DCC overwrite combiner
-    dccControl.bits.OVERWRITE_COMBINER_DISABLE = 0;
-
-    //  This will stop compression to one of the four "magic" clear colors.
-    const auto& settings = m_device.Settings();
-    if (IsGfx091xPlus(*(m_device.Parent())) && settings.forceRegularClearCode)
-    {
-        dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_AC01 = 1;
-    }
-
-    // Set-and-forget DCC register:
-    if (IsGfx9(*m_device.Parent()))
-    {
-        dccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
-        dccControl.bits.OVERWRITE_COMBINER_WATERMARK            = 4;
-    }
-
-    return dccControl.u32All;
 }
 
 } // Gfx9

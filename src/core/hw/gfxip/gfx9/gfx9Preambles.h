@@ -118,11 +118,18 @@ struct UniversalPreamblePm4Img
     PM4_PFP_SET_CONTEXT_REG         hdrVgtTessDistribution;
     regVGT_TESS_DISTRIBUTION        vgtTessDistribution;
 
+    PM4_PFP_SET_CONTEXT_REG         hdrDccControl;
+    regCB_DCC_CONTROL               cbDccControl;
+
     PM4_PFP_SET_CONTEXT_REG         hdrSmallPrimFilterCntl;
     regPA_SU_SMALL_PRIM_FILTER_CNTL paSuSmallPrimFilterCntl;
 
     PM4PFP_SET_CONTEXT_REG          hdrCoherDestBaseHi;
     regCOHER_DEST_BASE_HI_0         coherDestBaseHi;
+
+    PM4PFP_SET_CONTEXT_REG          hdrPaScGenericScissors;
+    regPA_SC_GENERIC_SCISSOR_TL     paScGenericScissorTl;
+    regPA_SC_GENERIC_SCISSOR_BR     paScGenericScissorBr;
 
     GdsRangeCompute                 gdsRangeCompute;
 

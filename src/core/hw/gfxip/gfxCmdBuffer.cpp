@@ -76,7 +76,7 @@ GfxCmdBuffer::GfxCmdBuffer(
         m_numActiveQueries[i] = 0;
     }
 
-    m_gfxCmdBufState.u32All = 0;
+    m_gfxCmdBufState.flags.u32All = 0;
 
 }
 
@@ -224,25 +224,25 @@ void GfxCmdBuffer::ResetState()
 {
     CmdBuffer::ResetState();
 
-    m_gfxCmdBufState.u32All           = 0;
-    m_gfxCmdBufState.prevCmdBufActive = 1;
+    m_gfxCmdBufState.flags.u32All           = 0;
+    m_gfxCmdBufState.flags.prevCmdBufActive = 1;
 
     // It's possible that another of our command buffers still has blts in flight, except for CP blts which must be
     // flushed in each command buffer postamble.
-    m_gfxCmdBufState.gfxBltActive        = 1;
-    m_gfxCmdBufState.gfxWriteCachesDirty = 1;
-    m_gfxCmdBufState.csBltActive         = 1;
-    m_gfxCmdBufState.csWriteCachesDirty  = 1;
+    m_gfxCmdBufState.flags.gfxBltActive        = 1;
+    m_gfxCmdBufState.flags.gfxWriteCachesDirty = 1;
+    m_gfxCmdBufState.flags.csBltActive         = 1;
+    m_gfxCmdBufState.flags.csWriteCachesDirty  = 1;
 
     // A previous, chained command buffer could have used a CP blt which may have accessed L2 or the memory directly.
     // By convention, our CP blts will only use L2 if the HW supports it so we only need to set one bit here.
     if (m_device.Parent()->ChipProperties().gfxLevel > GfxIpLevel::GfxIp6)
     {
-        m_gfxCmdBufState.cpWriteCachesDirty = 1;
+        m_gfxCmdBufState.flags.cpWriteCachesDirty = 1;
     }
     else
     {
-        m_gfxCmdBufState.cpMemoryWriteL2CacheStale = 1;
+        m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = 1;
     }
 
 }
@@ -330,15 +330,15 @@ HwPipePoint GfxCmdBuffer::OptimizeHwPipePostBlit() const
 
     // Check xxxBltActive states in order
     const GfxCmdBufferState cmdBufState = GetGfxCmdBufState();
-    if (cmdBufState.gfxBltActive)
+    if (cmdBufState.flags.gfxBltActive)
     {
         pipePoint = HwPipeBottom;
     }
-    else if (cmdBufState.csBltActive)
+    else if (cmdBufState.flags.csBltActive)
     {
         pipePoint = HwPipePostCs;
     }
-    else if (cmdBufState.cpBltActive)
+    else if (cmdBufState.flags.cpBltActive)
     {
         // Note that we set this to post index fetch, which is earlier in the pipeline than our CP blts, because the
         // barrier code will handle CP DMA syncronization for us. This pipe point is still necessary to catch cases
@@ -365,11 +365,11 @@ uint32 GfxCmdBuffer::ConvertToInternalPipelineStageMask(
 
         // Check xxxBltActive states in order.
         const GfxCmdBufferState cmdBufState = GetGfxCmdBufState();
-        if (cmdBufState.gfxBltActive)
+        if (cmdBufState.flags.gfxBltActive)
         {
             stageMask |= PipelineStageBottomOfPipe;
         }
-        else if (cmdBufState.csBltActive)
+        else if (cmdBufState.flags.csBltActive)
         {
             stageMask |= PipelineStageCs;
         }

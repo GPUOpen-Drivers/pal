@@ -70,6 +70,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.addr2Disable4kBSwizzleMode = 0x0;
     m_settings.addr2DisableXorTileMode = false;
     m_settings.overlayReportHDR = true;
+    m_settings.preferredPipelineUploadHeap = PipelineHeapDeferToClient;
     m_settings.forceHeapPerfToFixedValues = false;
     m_settings.cpuReadPerfForLocal = 1;
     m_settings.cpuWritePerfForLocal = 1;
@@ -140,6 +141,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.peerMemoryEnabled = true;
     m_settings.forcePresentViaGdi = false;
     m_settings.presentViaOglRuntime = true;
+
     m_settings.numSettings = g_palNumSettings;
 }
 
@@ -236,6 +238,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOverlayReportHDRStr,
                            Util::ValueType::Boolean,
                            &m_settings.overlayReportHDR,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pPreferredPipelineUploadHeapStr,
+                           Util::ValueType::Uint,
+                           &m_settings.preferredPipelineUploadHeap,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceHeapPerfToFixedValuesStr,
@@ -608,6 +615,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.overlayReportHDR);
     m_settingsInfoMap.Insert(2354711641, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.preferredPipelineUploadHeap;
+    info.valueSize = sizeof(m_settings.preferredPipelineUploadHeap);
+    m_settingsInfoMap.Insert(1170638299, info);
+
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.forceHeapPerfToFixedValues;
     info.valueSize = sizeof(m_settings.forceHeapPerfToFixedValues);
@@ -969,7 +981,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 4270971069;
+            component.settingsDataHash = 1166653033;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

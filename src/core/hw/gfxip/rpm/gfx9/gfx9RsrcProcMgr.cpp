@@ -1342,7 +1342,7 @@ void RsrcProcMgr::HwlFastColorClear(
     if (gfx9Image.GetFastClearEliminateMetaDataAddr(0) != 0)
     {
         const Pm4Predicate packetPredicate =
-            static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+            static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
         // Update the image's FCE meta-data.
         pCmdSpace = gfx9Image.UpdateFastClearEliminateMetaData(pCmdBuffer,
@@ -1360,7 +1360,7 @@ void RsrcProcMgr::HwlFastColorClear(
     Formats::PackRawClearColor(aspectFormat, swizzledColor, &packedColor[0]);
 
     const Pm4Predicate packetPredicate = static_cast<Pm4Predicate>(
-        pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     // Stash the clear color with the image so that it can be restored later.
     pCmdSpace = gfx9Image.UpdateColorClearMetaData(clearRange.startSubres.mipLevel,
@@ -1678,7 +1678,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                     metaDataClearFlags |= currentClearFlag;
 
                     const Pm4Predicate packetPredicate = static_cast<Pm4Predicate>(
-                        pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+                        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
                     uint32* pCmdSpace = pCmdStream->ReserveCommands();
                     pCmdSpace = gfx9Image.UpdateDepthClearMetaData(pRanges[idx],
@@ -1795,7 +1795,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                         FastDepthStencilClearCompute(pCmdBuffer,
                                                      gfx9Image,
                                                      pRanges[idx],
-                                                     pHtile->GetClearValue(m_pDevice, depth),
+                                                     pHtile->GetClearValue(depth),
                                                      clearFlags);
                     }
 
@@ -2154,7 +2154,7 @@ void RsrcProcMgr::InitHtile(
     const Pal::Device*     pParentDev = pParentImg->GetDevice();
     const ImageCreateInfo& createInfo = pParentImg->GetImageCreateInfo();
     const auto*            pHtile     = dstImage.GetHtile();
-    const uint32           initValue  = pHtile->GetInitialValue(*m_pDevice);
+    const uint32           initValue  = pHtile->GetInitialValue();
 
     // There shouldn't be any 3D images with HTile allocations.
     PAL_ASSERT(createInfo.imageType != ImageType::Tex3d);
@@ -2208,7 +2208,8 @@ void RsrcProcMgr::InitDepthClearMetaData(
     const uint32 metaDataInitFlags = (range.startSubres.aspect == ImageAspect::Depth) ?
                                      HtileAspectDepth : HtileAspectStencil;
 
-    const Pm4Predicate packetPredicate = static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+    const Pm4Predicate packetPredicate =
+        static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = dstImage.UpdateDepthClearMetaData(metaDataRange,
@@ -2240,7 +2241,8 @@ void RsrcProcMgr::InitColorClearMetaData(
 
     const uint32 packedColor[4] = {0, 0, 0, 0};
 
-    const Pm4Predicate packetPredicate = static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+    const Pm4Predicate packetPredicate =
+        static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = dstImage.UpdateColorClearMetaData(range.startSubres.mipLevel,
@@ -2719,7 +2721,7 @@ void RsrcProcMgr::DccDecompress(
         if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
         {
             const Pm4Predicate packetPredicate =
-                static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+                static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
             pCmdSpace = image.UpdateFastClearEliminateMetaData(pCmdBuffer, range, 0, packetPredicate, pCmdSpace);
             pCmdStream->CommitCommands(pCmdSpace);
@@ -2757,7 +2759,7 @@ bool RsrcProcMgr::FastClearEliminate(
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
         const Pm4Predicate packetPredicate =
-            static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+            static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
         pCmdSpace = image.UpdateFastClearEliminateMetaData(pCmdBuffer, range, 0, packetPredicate, pCmdSpace);
 
@@ -2988,7 +2990,7 @@ void RsrcProcMgr::FmaskDecompress(
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
         const Pm4Predicate packetPredicate =
-            static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+            static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
         pCmdSpace = image.UpdateFastClearEliminateMetaData(pCmdBuffer, range, 0, packetPredicate, pCmdSpace);
 
@@ -3418,7 +3420,8 @@ void Gfx9RsrcProcMgr::ClearDccCompute(
         dstImage.CpuProcessDccEq(clearRange, clearCode, clearPurpose);
     }
 
-    const Pm4Predicate packetPredicate = static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+    const Pm4Predicate packetPredicate =
+        static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     // Since we're using a compute shader we have to update the DCC state metadata manually.
     dstImage.UpdateDccStateMetaData(pCmdStream,
@@ -4857,7 +4860,7 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
                 Pow2Align(pDstSubresInfo->extentTexels.height, HtileTexelAlign)
                     / HtileTexelAlign,                                                       //dstMipLevelHtileDim.y
                 // start cb1[3]
-                pDstHtile->GetInitialValue(*m_pDevice) & htileMask,                          //zsDecompressedValue
+                pDstHtile->GetInitialValue() & htileMask,                                    //zsDecompressedValue
                 htileMask,                                                                   //htileMask
                 0u,                                                                          //Padding
                 0u,                                                                          //Padding

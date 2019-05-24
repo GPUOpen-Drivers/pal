@@ -349,6 +349,12 @@ public:
        return Result::ErrorUnavailable;
     }
 
+    virtual bool DidDelagSettingsChange() override
+    {
+       PAL_NOT_IMPLEMENTED();
+       return false;
+    }
+
     virtual bool DidTurboSyncSettingsChange() override
     {
        PAL_NOT_IMPLEMENTED();
@@ -758,6 +764,11 @@ protected:
         uint32* pNumScreen) override { return Result::ErrorUnavailable; }
 
     virtual Result OsLateInit() override;
+
+    virtual Result PerformOsInternalQueueInit() override
+    {
+        return Pal::Device::CreateInternalCopyQueues();
+    }
 
 private:
     virtual Result OsEarlyInit() override;

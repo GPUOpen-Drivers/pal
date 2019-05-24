@@ -171,6 +171,10 @@ Pal::Result MlaaUtil<Allocator>::SetupAuxImages(
                 imageInfo.flags.noMetadata       = 1;
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
+                imageInfo.metadataTcCompatMode   = Pal::MetadataTcCompatMode::Disabled;
+#endif
+
                 const size_t objectSize = m_pDevice->GetImageSize(imageInfo, &result);
 
                 if (result == Pal::Result::Success)

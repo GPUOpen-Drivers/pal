@@ -425,6 +425,54 @@
       "Description": "Determines if the developer mode overlay will report information about HDR mode."
     },
     {
+      "ValidValues": {
+        "IsEnum": true,
+        "IsExclusive": true,
+        "Values": [
+          {
+            "Name": "PipelineHeapLocal",
+            "Value": 0,
+            "Description": "Local CPU visible heap."
+          },
+          {
+            "Name": "PipelineHeapInvisible",
+            "Value": 1,
+            "Description": "Local CPU invisible heap."
+          },
+          {
+            "Name": "PipelineHeapGartUswc",
+            "Value": 2,
+            "Description": "GPU-accessible uncached system memory."
+          },
+          {
+            "Name": "PipelineHeapGartCacheable",
+            "Value": 3,
+            "Description": "GPU-accessible cached system memory."
+          },
+          {
+            "Name": "PipelineHeapDeferToClient",
+            "Value": 4,
+            "Description": "Heap type specified by client in pipeline createInfo."
+          }
+        ],
+        "Name": "PreferredPipelineUploadHeap",
+        "Description": "Heap preference for pipelines."
+      },
+      "Name": "PreferredPipelineUploadHeap",
+      "Tags": [
+        "General",
+        "Performance"
+      ],
+      "HashName": 1170638299,
+      "Defaults": {
+        "Default": "PipelineHeapDeferToClient"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "enum",
+      "VariableName": "preferredPipelineUploadHeap",
+      "Description": "Pipelines are uploaded for GPU access to the heap type preferred."
+    },
+    {
       "Name": "ForceHeapPerfToFixedValues",
       "Tags": [
         "Performance",
@@ -1891,6 +1939,7 @@
     "Profiling",
     "Bringup",
     "HeapPerf",
-    "Emulation"
+    "Emulation",
+    "RIS"
   ]
 }

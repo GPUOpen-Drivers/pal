@@ -59,14 +59,12 @@ Gfx9MaskRam::Gfx9MaskRam(
     m_pGfxDevice(static_cast<const Device*>(image.Parent()->GetDevice()->GetGfxDevice())),
     m_meta(m_pGfxDevice, 27, "meta"),
     m_pipe(m_pGfxDevice, 27, "pipe"),
-    m_metaEquationValid(false),
     m_metaDataWordSizeLog2(metaDataSizeLog2),
     m_dataOffset(m_pGfxDevice, 27, "dataOffset"),
-    // The size of the RB equation is really Log2(numPipes).  This is known to the device, but we dont' have a device
-    // available here.  :-(  Set it to zero for the time being and set the real size when we go to calculate the
-    // actual meta-data equation.
-    m_rb(m_pGfxDevice, 0, "rb"),
+    // The RB equation can't have more bits than we have RBs
+    m_rb(m_pGfxDevice, m_pGfxDevice->GetNumShaderEnginesLog2() + m_pGfxDevice->GetNumRbsPerSeLog2(), "rb"),
     m_firstUploadBit(firstUploadBit),
+    m_metaEquationValid(false),
     m_effectiveSamples(1), // assume single-sampled image
     m_rbAppendedWithPipeBits(0)
 {
@@ -729,10 +727,7 @@ void Gfx9MaskRam::CalcMetaEquation()
                           compFragLog2 + i);
         }
 
-        TrimMetaEquationSize();
-
-        // Determine how many sample bits are needed to process this equation.
-        m_effectiveSamples = m_meta.GetNumSamples();
+        FinalizeMetaEquation();
 
         m_meta.PrintEquation(pDevice);
 
@@ -742,15 +737,12 @@ void Gfx9MaskRam::CalcMetaEquation()
         // For some reason, the number of samples addressed by the equation sometimes differs from the number of
         // samples associated with the data-surface.  Still seems to work...
         PAL_ALERT (m_effectiveSamples != (1u << numSamplesLog2));
-
-        // Mark this equation as valid
-        m_metaEquationValid = true;
     }
 }
 
 // =====================================================================================================================
 // Set the meta equation size to the minimum required to support the actual size of the mask-ram
-void Gfx9MaskRam::TrimMetaEquationSize()
+void Gfx9MaskRam::FinalizeMetaEquation()
 {
     // Ok, we always calculate the meta-equation to be 32-bits long, but that's enough to address 4Gnibbles.  We
     // can trim this down to be no bigger than log2(mask-ram-size).  Do that here.  Remember that the address is
@@ -764,6 +756,12 @@ void Gfx9MaskRam::TrimMetaEquationSize()
     PAL_ASSERT(requiredNumEqBits <= m_meta.GetNumValidBits());
 
     m_meta.SetEquationSize(requiredNumEqBits, false);
+
+    // Determine how many sample bits are needed to process this equation.
+    m_effectiveSamples = m_meta.GetNumSamples();
+
+    // Mark this equation as valid
+    m_metaEquationValid = true;
 }
 
 // =====================================================================================================================
@@ -774,9 +772,6 @@ void Gfx9MaskRam::CalcRbEquation(
     const Pal::Device*      pDevice         = m_pGfxDevice->Parent();
     const Gfx9PalSettings&  settings        = GetGfx9Settings(*pDevice);
     const uint32            numTotalRbsLog2 = numSesLog2 + numRbsPerSeLog2;
-
-    // The RB equation can't have more bits than we have RBs
-    m_rb.SetEquationSize(numTotalRbsLog2);
 
     // We will only ever have an X and a Y component, but it's easier to just declare an array
     // of all possible meta-data component types
@@ -1094,6 +1089,22 @@ void Gfx9MaskRam::UploadEq(
 }
 
 // =====================================================================================================================
+void Gfx9MaskRam::CpuUploadEq(
+    void*  pCpuMem // Pointer to the base of the image memory that contains this mask ram object
+    ) const
+{
+    if (IsMetaEquationValid())
+    {
+        uint32*        pWriteMem       = reinterpret_cast<uint32*>(VoidPtrInc(pCpuMem, LowPart(m_eqGpuAccess.offset)));
+        const uint32*  pEquation       = m_meta.GetEquation(m_firstUploadBit);
+        const uint32   numUploadEqBits = m_meta.GetNumValidBits() - m_firstUploadBit;
+        const uint32   numUploadBytes  = MetaDataAddrCompNumTypes * numUploadEqBits * sizeof(uint32);
+
+        memcpy(pWriteMem, pEquation, numUploadBytes);
+    }
+}
+
+// =====================================================================================================================
 // Determines if the given Image object should use fast color clears.
 bool Gfx9MaskRam::SupportFastColorClear(
     const Pal::Device& device,
@@ -1148,11 +1159,11 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
         static const uint32 MinHtileWidth  = 8;
         static const uint32 MinHtileHeight = 8;
 
-        hTileUsage.dsMetadata = ((pParent->IsShared()           == false)         &&
-                                 (pParent->IsMetadataDisabled() == false)         &&
-                                 (settings.htileEnable          == true))         &&
-                                 (createInfo.extent.width       >= MinHtileWidth) &&
-                                 (createInfo.extent.height      >= MinHtileHeight);
+        hTileUsage.dsMetadata = ((pParent->IsShared()                   == false)         &&
+                                 (pParent->IsMetadataDisabledByClient() == false)         &&
+                                 (settings.htileEnable                  == true)          &&
+                                 (createInfo.extent.width               >= MinHtileWidth) &&
+                                 (createInfo.extent.height              >= MinHtileHeight));
 
     }
 
@@ -1440,8 +1451,7 @@ void Gfx9Htile::CalcMetaBlkSizeLog2(
 // =====================================================================================================================
 // Computes a value for updating the HTile buffer for a fast depth clear.
 uint32 Gfx9Htile::GetClearValue(
-    const Device*  pDevice,
-    float          depthValue
+    float  depthValue
     ) const
 {
     // Maximum 14-bit UINT value.
@@ -1587,9 +1597,7 @@ void Gfx9Htile::ComputeResummarizeData(
 
 // =====================================================================================================================
 // Computes the initial value of the htile which depends on whether or not tile stencil is disabled.
-uint32 Gfx9Htile::GetInitialValue(
-    const Device&  device
-    ) const
+uint32 Gfx9Htile::GetInitialValue() const
 {
     // These are the possible layouts of hTile memory:
 
@@ -1619,8 +1627,8 @@ uint32 Gfx9Htile::GetInitialValue(
     }
     else
     {
-
         initialValue = InitialValueDepthStencil;
+
     }
 
     return initialValue;
@@ -1926,7 +1934,8 @@ bool Gfx9Dcc::UseDccForImage(
     const auto              pPalSettings = pDevice->GetPublicSettings();
 
     // Assume that DCC is available; check for conditions where it won't work.
-    bool useDcc = true;
+    bool useDcc         = true;
+    bool mustDisableDcc = false;
 
     bool allMipsShaderWritable = pParent->IsShaderWritable();
 
@@ -1936,26 +1945,30 @@ bool Gfx9Dcc::UseDccForImage(
     const bool isDepthStencil     = pParent->IsDepthStencil();
     const bool isGfx9             = (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9);
 
-    if (pParent->IsMetadataDisabled())
+    if (pParent->IsMetadataDisabledByClient())
     {
         // Don't use DCC if the caller asked that we allocate no metadata.
         useDcc = false;
+        mustDisableDcc = true;
     }
     else if (pParent->GetDccFormatEncoding() == DccFormatEncoding::Incompatible)
     {
         // Don't use DCC if the caller can switch between view formats that are not DCC compatible with each other.
         useDcc = false;
+        mustDisableDcc = true;
     }
     else if (isDepthStencil || ((isNotARenderTarget || allMipsShaderWritable) && isGfx9))
     {
         // DCC does not make sense for non-render targets or for UAVs (all mips are shader writeable) in
         // gfx9. It also does not make sense for any depth/stencil image because they have Htile data.
         useDcc = false;
+        mustDisableDcc = true;
     }
     else if (isNotARenderTarget && (allMipsShaderWritable == false))
     {
         // DCC should always be off for a resource that is not a UAV and is not a render target.
         useDcc = false;
+        mustDisableDcc = true;
     }
     // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
     // preferred, the image will be readable by a shader.
@@ -1972,6 +1985,7 @@ bool Gfx9Dcc::UseDccForImage(
     {
         // DCC is never available for shared, presentable, or flippable images.
         useDcc = false;
+        mustDisableDcc = true;
     }
     else if (((createInfo.extent.width * createInfo.extent.height) <=
              (pPalSettings->hintDisableSmallSurfColorCompressionSize *
@@ -1999,6 +2013,7 @@ bool Gfx9Dcc::UseDccForImage(
         {
             // If the tile-mode is linear, then this surface has no chance of using DCC memory.
             useDcc = false;
+            mustDisableDcc = true;
         }
         else
         {
@@ -2012,6 +2027,7 @@ bool Gfx9Dcc::UseDccForImage(
             {
                 // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
                 useDcc = false;
+                mustDisableDcc = true;
             }
             else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccPrt) == false))
             {
@@ -2058,6 +2074,13 @@ bool Gfx9Dcc::UseDccForImage(
             //       these is not a problem on GFX9 (it was on GFX8).
         }
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
+    if ((mustDisableDcc == false) && (createInfo.metadataMode == MetadataMode::ForceEnabled))
+    {
+        useDcc = true;
+    }
+#endif
 
     return useDcc;
 }
@@ -2434,10 +2457,10 @@ bool Gfx9Cmask::UseCmaskForImage(
     {
         // Forcing CMask usage forces FMask usage, which is required for EQAA.
         useCmask = (pParent->IsEqaa() ||
-                    (pParent->IsRenderTarget() &&
-                    (pParent->IsShared() == false) &&
-                    (pParent->IsMetadataDisabled() == false) &&
-                    (pParent->GetImageCreateInfo().samples > 1)));
+                    (pParent->IsRenderTarget()                        &&
+                     (pParent->IsShared()                   == false) &&
+                     (pParent->IsMetadataDisabledByClient() == false) &&
+                     (pParent->GetImageCreateInfo().samples > 1)));
     }
 
     return useCmask;

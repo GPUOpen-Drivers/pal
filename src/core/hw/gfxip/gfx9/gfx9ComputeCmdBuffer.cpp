@@ -117,12 +117,12 @@ void ComputeCmdBuffer::CmdBarrier(
     CmdBuffer::CmdBarrier(barrierInfo);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
-    m_gfxCmdBufState.packetPredicate = 0;
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.Barrier(this, &m_cmdStream, barrierInfo);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -133,12 +133,12 @@ void ComputeCmdBuffer::CmdRelease(
     CmdBuffer::CmdRelease(releaseInfo, pGpuEvent);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
-    m_gfxCmdBufState.packetPredicate = 0;
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.BarrierRelease(this, &m_cmdStream, releaseInfo, pGpuEvent);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -150,12 +150,12 @@ void ComputeCmdBuffer::CmdAcquire(
     CmdBuffer::CmdAcquire(acquireInfo, gpuEventCount, ppGpuEvents);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
-    m_gfxCmdBufState.packetPredicate = 0;
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.BarrierAcquire(this, &m_cmdStream, acquireInfo, gpuEventCount, ppGpuEvents);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -165,12 +165,12 @@ void ComputeCmdBuffer::CmdReleaseThenAcquire(
     CmdBuffer::CmdReleaseThenAcquire(barrierInfo);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
-    m_gfxCmdBufState.packetPredicate = 0;
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     m_device.BarrierReleaseThenAcquire(this, &m_cmdStream, barrierInfo);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -194,7 +194,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
 
     pCmdSpace = pThis->ValidateDispatch(0uLL, x, y, z, pCmdSpace);
 
-    if (pThis->m_gfxCmdBufState.packetPredicate != 0)
+    if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchDirectSize, pCmdSpace);
     }
@@ -235,7 +235,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
     const gpusize gpuVirtAddr = (gpuMemory.Desc().gpuVirtAddr + offset);
     pCmdSpace = pThis->ValidateDispatch(gpuVirtAddr, 0, 0, 0, pCmdSpace);
 
-    if (pThis->m_gfxCmdBufState.packetPredicate != 0)
+    if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchIndirectMecSize, pCmdSpace);
     }
@@ -285,7 +285,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
                                                      starts,
                                                      pCmdSpace);
 
-    if (pThis->m_gfxCmdBufState.packetPredicate != 0)
+    if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchDirectSize, pCmdSpace);
     }
@@ -972,7 +972,7 @@ Result ComputeCmdBuffer::AddPostamble()
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    if (m_gfxCmdBufState.cpBltActive)
+    if (m_gfxCmdBufState.flags.cpBltActive)
     {
         // Stalls the CP MEC until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
@@ -1037,7 +1037,7 @@ void ComputeCmdBuffer::WriteEventCmd(
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.cpBltActive))
+    if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.flags.cpBltActive))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
@@ -1128,8 +1128,8 @@ void ComputeCmdBuffer::CmdSetPredication(
     PAL_ASSERT((predType == PredicateType::Boolean) && (pQueryPool == nullptr));
 
     // When gpuVirtAddr is 0, it means client is disabling/resetting predication
-    m_gfxCmdBufState.clientPredicate = (pGpuMemory != nullptr);
-    m_gfxCmdBufState.packetPredicate = m_gfxCmdBufState.clientPredicate;
+    m_gfxCmdBufState.flags.clientPredicate = (pGpuMemory != nullptr);
+    m_gfxCmdBufState.flags.packetPredicate = m_gfxCmdBufState.flags.clientPredicate;
 
     if (pGpuMemory != nullptr)
     {
@@ -1190,8 +1190,8 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
     // Generate the indirect command buffer chunk(s) using RPM. Since we're wrapping the command generation and
     // execution inside a CmdIf, we want to disable normal predication for this blit.
-    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
-    m_gfxCmdBufState.packetPredicate = 0;
+    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = 0;
 
     constexpr uint32 DummyIndexBufSize = 0; // Compute doesn't care about the index buffer size.
     m_device.RsrcProcMgr().CmdGenerateIndirectCmds(this,
@@ -1202,7 +1202,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
                                                    DummyIndexBufSize,
                                                    maximumCount);
 
-    m_gfxCmdBufState.packetPredicate = packetPredicate;
+    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
@@ -1429,7 +1429,7 @@ void ComputeCmdBuffer::CpCopyMemory(
     dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-    if (m_gfxCmdBufState.packetPredicate != 0)
+    if (m_gfxCmdBufState.flags.packetPredicate != 0)
     {
         pCmdSpace += m_cmdUtil.BuildCondExec(m_predGpuAddr, CmdUtil::DmaDataSizeDwords, pCmdSpace);
     }

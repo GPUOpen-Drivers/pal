@@ -70,6 +70,7 @@ ColorTargetView::ColorTargetView(
     // Note that buffew views have their VA ranges locked because they cannot have their memory rebound.
     m_flags.isBufferView = createInfo.flags.isBufferView;
     m_flags.viewVaLocked = (createInfo.flags.imageVaLocked | createInfo.flags.isBufferView);
+    m_swizzledFormat     = createInfo.swizzledFormat;
 
     if (m_flags.isBufferView == 0)
     {
@@ -194,15 +195,6 @@ void ColorTargetView::CommonBuildPm4Headers(
     Pm4ImgType* pPm4Img
     ) const
 {
-    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
-
-    size_t extraSpace = cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
-                                                       mmPA_SC_GENERIC_SCISSOR_BR,
-                                                       &pPm4Img->hdrPaScGenericScissor);
-
-    pPm4Img->spaceNeeded             += extraSpace;
-    pPm4Img->spaceNeededDecompressed += extraSpace;
-
     if (m_flags.hasDcc != 0)
     {
         // On GFX9, if we have DCC we also have fast clear metadata. This class assumes this will always be true.
@@ -213,6 +205,7 @@ void ColorTargetView::CommonBuildPm4Headers(
         //
         // NOTE: Just because we have DCC data doesn't mean that we're doing fast-clears. Writing this register
         // shouldn't hurt anything though. We do not know the GPU virtual address of the metadata until bind-time.
+        const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
         pPm4Img->spaceNeeded +=
             cmdUtil.BuildLoadContextRegsIndex<true>(0,
                                                     mmCB_COLOR0_CLEAR_WORD0,
@@ -254,12 +247,6 @@ void ColorTargetView::InitCommonBufferView(
     // From testing this is not the padded mip height/width, but the pixel height/width specified by the client.
     pPm4Img->cbColorAttrib2.bits.MIP0_HEIGHT = 0;
     pPm4Img->cbColorAttrib2.bits.MIP0_WIDTH  = (createInfo.bufferInfo.extent - 1);
-
-    pPm4Img->paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = true;
-    pPm4Img->paScGenericScissorTl.bits.TL_X = 0;
-    pPm4Img->paScGenericScissorTl.bits.TL_Y = 0;
-    pPm4Img->paScGenericScissorBr.bits.BR_X = createInfo.bufferInfo.extent;
-    pPm4Img->paScGenericScissorBr.bits.BR_Y = 1;
 
     pPm4Img->cbColorAttrib.bits.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
     pPm4Img->cbColorAttrib.bits.NUM_SAMPLES       = 0;
@@ -308,7 +295,6 @@ void ColorTargetView::InitCommonImageView(
     const ColorTargetViewCreateInfo&         createInfo,
     const ColorTargetViewInternalCreateInfo& internalInfo,
     const Extent3d&                          baseExtent,
-    const Extent3d&                          extent,
     Pm4ImgType*                              pPm4Img,
     regCB_COLOR0_INFO*                       pCbColorInfo,
     CbColorViewType*                         pCbColorView
@@ -318,12 +304,6 @@ void ColorTargetView::InitCommonImageView(
     const ImageCreateInfo&  imageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
     const ImageType         imageType       = m_pImage->GetOverrideImageType();
     const auto&             settings        = GetGfx9Settings(*pParentDevice);
-
-    pPm4Img->paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = 1;
-    pPm4Img->paScGenericScissorTl.bits.TL_X = 0;
-    pPm4Img->paScGenericScissorTl.bits.TL_Y = 0;
-    pPm4Img->paScGenericScissorBr.bits.BR_X = extent.width;
-    pPm4Img->paScGenericScissorBr.bits.BR_Y = extent.height;
 
     pPm4Img->cbColorAttrib.bits.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
     pPm4Img->cbColorAttrib.bits.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
@@ -490,6 +470,9 @@ void Gfx9ColorTargetView::InitRegisters(
 
         InitCommonBufferView(createInfo, &m_pm4Cmds, &m_pm4Cmds.cbColorView.gfx09);
 
+        m_extent.width  = createInfo.bufferInfo.extent;
+        m_extent.height = 1;
+
         m_pm4Cmds.cbColorAttrib.gfx09.MIP0_DEPTH    = 0; // what is this?
         m_pm4Cmds.cbColorAttrib.gfx09.COLOR_SW_MODE = SW_LINEAR;
         m_pm4Cmds.cbColorAttrib.gfx09.RESOURCE_TYPE = static_cast<uint32>(ImageType::Tex1d); // no HW enums
@@ -568,10 +551,12 @@ void Gfx9ColorTargetView::InitRegisters(
         InitCommonImageView(createInfo,
                             internalInfo,
                             baseExtent,
-                            extent,
                             &m_pm4Cmds,
                             &cbColorInfo,
                             &m_pm4Cmds.cbColorView.gfx09);
+
+        m_extent.width  = extent.width;
+        m_extent.height = extent.height;
 
         m_pm4Cmds.cbColorAttrib.gfx09.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;

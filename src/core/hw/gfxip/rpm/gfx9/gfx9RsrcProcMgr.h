@@ -32,12 +32,14 @@ namespace Pal
 
 class  GfxCmdBuffer;
 class  QueryPool;
+struct DepthStencilViewCreateInfo;
 
 namespace Gfx9
 {
 
 class      CmdUtil;
 class      Device;
+class      Gfx9Htile;
 class      Gfx9MaskRam;
 class      Image;
 struct     SyncReqs;

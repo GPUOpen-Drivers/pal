@@ -42,7 +42,7 @@ Result Fence::Init(
 OsExternalHandle Fence::ExportExternalHandle(
     const FenceExportInfo& exportInfo) const
 {
-    return -1;
+    return InvalidFd;
 }
 
 // =====================================================================================================================

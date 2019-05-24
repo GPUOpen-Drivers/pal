@@ -359,17 +359,20 @@ Result GraphicsPipeline::HwlInit(
         EarlyInit(metadata, registers, &loadInfo);
 
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
-        GraphicsPipelineUploader uploader(loadInfo.loadedCtxRegCount, loadInfo.loadedShRegCount);
+        GraphicsPipelineUploader uploader(m_pDevice, loadInfo.loadedCtxRegCount, loadInfo.loadedShRegCount);
         result = PerformRelocationsAndUploadToGpuMemory(
             abiProcessor,
             metadata,
-            &uploader,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
-            createInfo.flags.preferNonLocalHeap
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488)
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
+            (createInfo.flags.preferNonLocalHeap == 1) ? GpuHeapGartUswc : GpuHeapInvisible,
 #else
-            false
+            (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
 #endif
-        );
+#else
+            GpuHeapInvisible,
+#endif
+            &uploader);
 
         if (result == Result::Success)
         {
@@ -389,15 +392,18 @@ Result GraphicsPipeline::HwlInit(
             SetupCommonRegisters(createInfo, registers, &uploader);
             SetupNonShaderRegisters(createInfo, registers, &uploader);
 
-            uploader.End();
+            result = uploader.End();
 
-            hasher.Update(m_commands.set.context);
-            hasher.Update(m_commands.common);
-            hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextRegHash));
+            if (result == Result::Success)
+            {
+                hasher.Update(m_commands.set.context);
+                hasher.Update(m_commands.common);
+                hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextRegHash));
 
-            m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
+                m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
 
-            UpdateRingSizes(metadata);
+                UpdateRingSizes(metadata);
+            }
         }
     }
 

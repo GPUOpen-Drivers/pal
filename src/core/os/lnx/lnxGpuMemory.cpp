@@ -574,10 +574,12 @@ OsExternalHandle GpuMemory::ExportExternalHandle(
     // Driver do not need to maintain the share fd anymore.
     // another valid use case for this is to share image to XServer as pixmap.
     OsExternalHandle fd;
-    Result result = static_cast<Device*>(m_pDevice)->ExportBuffer(m_hSurface,
-                                            m_externalHandleType,
-                                            reinterpret_cast<uint32*>(&fd));
-    PAL_ASSERT(result == Result::Success);
+    {
+        Result result = static_cast<Device*>(m_pDevice)->ExportBuffer(m_hSurface,
+                                                m_externalHandleType,
+                                                reinterpret_cast<uint32*>(&fd));
+        PAL_ASSERT(result == Result::Success);
+    }
     return fd;
 }
 

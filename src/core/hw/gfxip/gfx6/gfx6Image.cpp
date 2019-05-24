@@ -1690,7 +1690,10 @@ bool Image::SupportsMetaDataTextureFetch(
     if ((m_device.GetPublicSettings()->tcCompatibleMetaData != 0) &&
         // TC compatibility is only important for Gfx8+
         (m_device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp8) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
+        // If the image requested TC compat off
+        (m_pParent->GetImageCreateInfo().metadataTcCompatMode != MetadataTcCompatMode::Disabled) &&
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
         // If the client has not given us a hint that the cost of decompress/expand blits is less important than
         // texture-fetch performance.
         (m_pParent->GetImageCreateInfo().metadataMode != MetadataMode::OptForTexFetchPerf) &&

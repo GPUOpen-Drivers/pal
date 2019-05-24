@@ -978,7 +978,7 @@ void RsrcProcMgr::HwlFastColorClear(
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
     const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-        pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     if (gfx6Image.HasCmaskData())
     {
@@ -1603,7 +1603,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                     metaDataClearFlags |= currentClearFlag;
 
                     const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-                        pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+                        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
                     uint32* pCmdSpace = pCmdStream->ReserveCommands();
                     pCmdSpace = gfx6Image.UpdateDepthClearMetaData(pRanges[idx],
@@ -2676,7 +2676,7 @@ void RsrcProcMgr::ClearDcc(
     }
 
     const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-        pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     // Since we're using a compute shader we have to update the DCC state metadata manually.
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
@@ -2750,7 +2750,8 @@ void RsrcProcMgr::InitDepthClearMetaData(
     const uint32 metaDataInitFlags = (range.startSubres.aspect == ImageAspect::Depth) ?
                                      HtileAspectDepth : HtileAspectStencil;
 
-    const PM4Predicate packetPredicate = static_cast<PM4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+    const PM4Predicate packetPredicate =
+        static_cast<PM4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = dstImage.UpdateDepthClearMetaData(metaDataRange,
@@ -2782,7 +2783,8 @@ void RsrcProcMgr::InitColorClearMetaData(
 
     const uint32 packedColor[4] = {0, 0, 0, 0};
 
-    const PM4Predicate packetPredicate = static_cast<PM4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+    const PM4Predicate packetPredicate =
+        static_cast<PM4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = dstImage.UpdateColorClearMetaData(range.startSubres.mipLevel,
@@ -2932,7 +2934,7 @@ void RsrcProcMgr::FastClearEliminate(
     if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
     {
         const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-            pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+            pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
         pCmdSpace = image.UpdateFastClearEliminateMetaData(range, 0, packetPredicate, pCmdSpace);
@@ -2962,7 +2964,7 @@ void RsrcProcMgr::FmaskDecompress(
     if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
     {
         const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-            pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+            pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
         pCmdSpace = image.UpdateFastClearEliminateMetaData(range, 0, packetPredicate, pCmdSpace);
@@ -3159,7 +3161,7 @@ void RsrcProcMgr::DccDecompress(
             if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
             {
                 const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-                    pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+                    pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
 
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace = image.UpdateFastClearEliminateMetaData(decompressRange, 0, packetPredicate, pCmdSpace);

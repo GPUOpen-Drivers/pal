@@ -1335,7 +1335,7 @@ void CmdBuffer::CmdUpdateMemory(
         pLogContext->KeyAndValue("dstOffset", dstOffset);
         pLogContext->KeyAndBeginList("data", false);
 
-        for (gpusize idx = 0; idx < dataSize; ++idx)
+        for (gpusize idx = 0; idx < NumBytesToNumDwords(static_cast<uint32>(dataSize)); ++idx)
         {
             pLogContext->Value(pData[idx]);
         }

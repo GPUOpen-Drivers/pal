@@ -73,6 +73,12 @@ DepthStencilView::DepthStencilView(
         m_flags.hTile = m_pImage->HasHtileData();
     }
 
+    m_hTileUsage.value = 0;
+    if (m_pImage->HasHtileData())
+    {
+        m_hTileUsage = m_pImage->GetHtile()->GetHtileUsage();
+    }
+
     m_flags.depth           = parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
     m_flags.stencil         = parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
     m_flags.readOnlyDepth   = createInfo.flags.readOnlyDepth;
@@ -128,7 +134,7 @@ void DepthStencilView::CommonBuildPm4Headers(
     Pm4ImgType* pPm4Img
     ) const
 {
-    if (m_flags.hTile != 0)
+    if (m_hTileUsage.dsMetadata != 0)
     {
         const CmdUtil& cmdUtil = m_device.CmdUtil();
 
@@ -170,6 +176,7 @@ void DepthStencilView::InitCommonImageView(
 
         // Tell the HW that HTILE metadata is present.
         pPm4Img->dbZInfo.bits.ZRANGE_PRECISION           = pHtile->ZRangePrecision();
+
         pPm4Img->dbZInfo.bits.TILE_SURFACE_ENABLE        = 1;
         pPm4Img->dbStencilInfo.bits.TILE_STENCIL_DISABLE = pHtile->TileStencilDisabled();
 
@@ -247,11 +254,8 @@ void DepthStencilView::InitCommonImageView(
         pDbRenderOverride->bits.DISABLE_TILE_RATE_TILES = 1;
     }
 
-    // Setup screen scissor registers.
-    pPm4Img->paScScreenScissorTl.bits.TL_X = PaScScreenScissorMin;
-    pPm4Img->paScScreenScissorTl.bits.TL_Y = PaScScreenScissorMin;
-    pPm4Img->paScScreenScissorBr.bits.BR_X = pDepthSubResInfo->extentTexels.width;
-    pPm4Img->paScScreenScissorBr.bits.BR_Y = pDepthSubResInfo->extentTexels.height;
+    m_extent.width  = pDepthSubResInfo->extentTexels.width;
+    m_extent.height = pDepthSubResInfo->extentTexels.height;
 
     pPm4Img->dbZInfo.bits.READ_SIZE          = settings.dbRequestSize;
     pPm4Img->dbZInfo.bits.NUM_SAMPLES        = Util::Log2(imageCreateInfo.samples);
@@ -306,37 +310,42 @@ void DepthStencilView::UpdateImageVa(
     if (boundMem.IsBound())
     {
 
+        uint32  zBase       = m_pImage->GetSubresource256BAddrSwizzled(m_depthSubresource);
+        uint32  stencilBase = m_pImage->GetSubresource256BAddrSwizzled(m_stencilSubresource);
+
         if (m_flags.hTile)
         {
-            // Program fast-clear metadata base address.
-            gpusize metaDataVirtAddr = m_pImage->FastClearMetaDataAddr(MipLevel());
-            PAL_ASSERT((metaDataVirtAddr & 0x3) == 0);
+            if (m_hTileUsage.dsMetadata != 0)
+            {
+                // Program fast-clear metadata base address.
+                gpusize metaDataVirtAddr = m_pImage->FastClearMetaDataAddr(MipLevel());
+                PAL_ASSERT((metaDataVirtAddr & 0x3) == 0);
 
-            pPm4Img->loadMetaDataIndex.bitfields2.mem_addr_lo = (LowPart(metaDataVirtAddr) >> 2);
-            pPm4Img->loadMetaDataIndex.mem_addr_hi            = HighPart(metaDataVirtAddr);
+                pPm4Img->loadMetaDataIndex.bitfields2.mem_addr_lo = (LowPart(metaDataVirtAddr) >> 2);
+                pPm4Img->loadMetaDataIndex.mem_addr_hi            = HighPart(metaDataVirtAddr);
+            }
 
             // Program HTile base address.
             pPm4Img->dbHtileDataBase.bits.BASE_256B = m_pImage->GetHtile256BAddr();
+
         }
 
         if (m_flags.depth)
         {
-            const uint32 gpuVirtAddr = m_pImage->GetSubresource256BAddrSwizzled(m_depthSubresource);
             PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_depthSubresource) == 0);
 
             // Program depth read and write bases
-            pPm4Img->dbZReadBase.u32All  = gpuVirtAddr;
-            pPm4Img->dbZWriteBase.u32All = gpuVirtAddr;
+            pPm4Img->dbZReadBase.u32All  = zBase;
+            pPm4Img->dbZWriteBase.u32All = zBase;
         }
 
         if (m_flags.stencil)
         {
-            const uint32 gpuVirtAddr = m_pImage->GetSubresource256BAddrSwizzled(m_stencilSubresource);
             PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_stencilSubresource) == 0);
 
             // Program stencil read and write bases
-            pPm4Img->dbStencilReadBase.u32All  = gpuVirtAddr;
-            pPm4Img->dbStencilWriteBase.u32All = gpuVirtAddr;
+            pPm4Img->dbStencilReadBase.u32All  = stencilBase;
+            pPm4Img->dbStencilWriteBase.u32All = stencilBase;
 
             // Copy the stencil base address into one of the CP's generic sync registers.
             pPm4Img->coherDestBase0.bits.DEST_BASE_256B = pPm4Img->dbStencilWriteBase.bits.BASE_256B;
@@ -420,7 +429,8 @@ uint32 DepthStencilView::CalcDecompressOnZPlanesValue(
     ZFormat  hwZFmt
     ) const
 {
-    const auto&  createInfo = m_pImage->Parent()->GetImageCreateInfo();
+    const Pal::Image*  pParent    = m_pImage->Parent();
+    const auto&        createInfo = pParent->GetImageCreateInfo();
 
     //   fmt  1xAA  2xAA   4xAA  8xAA
     //   Z16    4     2      2     2
@@ -561,9 +571,6 @@ void Gfx9DepthStencilView::BuildPm4Headers()
     spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_RENDER_CONTROL, &m_pm4Cmds.hdrDbRenderControl);
     spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,
                                                  &m_pm4Cmds.hdrPaSuPolyOffsetDbFmtCntl);
-    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
-                                                  mmPA_SC_SCREEN_SCISSOR_BR,
-                                                  &m_pm4Cmds.hdrPaScScreenScissor);
     spaceNeeded += cmdUtil.BuildSetOneContextReg(mmCOHER_DEST_BASE_0, &m_pm4Cmds.hdrCoherDestBase);
     spaceNeeded += CmdUtil::ContextRegRmwSizeDwords; // Header and value defined by InitRegisters()
 
