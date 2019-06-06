@@ -28,7 +28,8 @@
 #include <cstring>
 #include "protocols/systemProtocols.h"
 
-#define DRIVERCONTROL_SERVER_MIN_MAJOR_VERSION 1
+#define DRIVERCONTROL_SERVER_MIN_VERSION 1
+#define DRIVERCONTROL_SERVER_MAX_VERSION DRIVERCONTROL_PROTOCOL_VERSION
 
 namespace DevDriver
 {
@@ -70,7 +71,7 @@ namespace DevDriver
         };
 
         DriverControlServer::DriverControlServer(IMsgChannel* pMsgChannel)
-            : BaseProtocolServer(pMsgChannel, Protocol::DriverControl, DRIVERCONTROL_SERVER_MIN_MAJOR_VERSION, DRIVERCONTROL_PROTOCOL_MAJOR_VERSION)
+            : BaseProtocolServer(pMsgChannel, Protocol::DriverControl, DRIVERCONTROL_SERVER_MIN_VERSION, DRIVERCONTROL_SERVER_MAX_VERSION)
             , m_driverStatus(DriverStatus::PlatformInit)
             , m_driverResumedEvent(true)
             , m_numGpus(0)

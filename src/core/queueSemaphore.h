@@ -25,9 +25,11 @@
 
 #pragma once
 
+#if PAL_AMDGPU_BUILD
+#include "core/os/amdgpu/amdgpuHeaders.h"
+#endif
 #include "palQueueSemaphore.h"
 #include "palMutex.h"
-#include "core/os/lnx/lnxHeaders.h"
 
 namespace Pal
 {

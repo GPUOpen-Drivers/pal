@@ -267,7 +267,7 @@ class ProcMgr:
         fp.write("};\n\n")
 
     def GenerateClassDeclaration(self, fp, name):
-        fp.write("class Platform;")
+        fp.write("class Platform;\n")
         self.GenerateCommentLine(fp)
         fp.write("// the class is responsible to resolve all external symbols that required by the Dri3WindowSystem.")
         fp.write("\nclass " + name + "\n")

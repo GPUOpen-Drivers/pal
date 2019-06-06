@@ -53,10 +53,10 @@ void DepthStencilState::BuildPm4Headers()
     const CmdUtil& cmdUtil = m_device.CmdUtil();
 
     // 1st PM4 packet: sets the following context register: DB_DEPTH_CONTROL
-    m_pm4Commands.spaceNeeded = cmdUtil.BuildSetOneContextReg(mmDB_DEPTH_CONTROL, &m_pm4Commands.hdrDepthControl);
+    cmdUtil.BuildSetOneContextReg(mmDB_DEPTH_CONTROL, &m_pm4Commands.hdrDepthControl);
 
     // 2nd PM4 packet: sets the following context register: DB_STENCIL_CONTROL
-    m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_STENCIL_CONTROL, &m_pm4Commands.hdrStencilControl);
+    cmdUtil.BuildSetOneContextReg(mmDB_STENCIL_CONTROL, &m_pm4Commands.hdrStencilControl);
 }
 
 // =====================================================================================================================
@@ -151,17 +151,19 @@ uint32* DepthStencilState::WriteCommands(
     uint32*    pCmdSpace
     ) const
 {
+    constexpr uint32 Pm4SizeInDwords = (sizeof(DepthStencilStatePm4Img) / sizeof(uint32));
+
     // When the command stream is null, we are writing the commands for this state into a pre-allocated buffer that has
     // enough space for the commands.
     // When the command stream is non-null, we are writing the commands as part of a ICmdBuffer::CmdBind* call.
     if (pCmdStream == nullptr)
     {
-        memcpy(pCmdSpace, &m_pm4Commands, m_pm4Commands.spaceNeeded * sizeof(uint32));
-        pCmdSpace += m_pm4Commands.spaceNeeded;
+        memcpy(pCmdSpace, &m_pm4Commands, Pm4SizeInDwords * sizeof(uint32));
+        pCmdSpace += Pm4SizeInDwords;
     }
     else
     {
-        pCmdSpace = pCmdStream->WritePm4Image(m_pm4Commands.spaceNeeded, &m_pm4Commands, pCmdSpace);
+        pCmdSpace = pCmdStream->WritePm4Image(Pm4SizeInDwords, &m_pm4Commands, pCmdSpace);
     }
 
     return pCmdSpace;

@@ -180,8 +180,8 @@ if(UNIX)
     endif()
     target_include_directories(pal PRIVATE ${DK_XCB}/include)
 
-    target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/2d)
-    target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/drm)
+    target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/amdgpu/include/2d)
+    target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/amdgpu/include/drm)
 endif()
 
 # Other Includes
@@ -292,34 +292,34 @@ if(PAL_BUILD_CORE)
     if(PAL_AMDGPU_BUILD)
         message(STATUS "PAL build with amdgpu back-end enabled")
         target_sources(pal PRIVATE
-            core/os/lnx/lnxDevice.cpp
-            core/os/lnx/lnxTimestampFence.cpp
-            core/os/lnx/lnxSyncobjFence.cpp
-            core/os/lnx/lnxGpuMemory.cpp
-            core/os/lnx/lnxImage.cpp
-            core/os/lnx/lnxPlatform.cpp
-            core/os/lnx/lnxPresentScheduler.cpp
-            core/os/lnx/lnxPrivateScreen.cpp
-            core/os/lnx/lnxQueue.cpp
-            core/os/lnx/lnxQueueSemaphore.cpp
-            core/os/lnx/lnxSwapChain.cpp
-            core/os/lnx/drmLoader.cpp
-            core/os/lnx/lnxVamMgr.cpp
-            core/os/lnx/dri3/dri3WindowSystem.cpp
-            core/os/lnx/dri3/dri3Loader.cpp
-            core/os/lnx/display/displayWindowSystem.cpp
-            core/os/lnx/lnxWindowSystem.cpp
-            core/os/lnx/lnxScreen.cpp
+            core/os/amdgpu/amdgpuDevice.cpp
+            core/os/amdgpu/amdgpuGpuMemory.cpp
+            core/os/amdgpu/amdgpuImage.cpp
+            core/os/amdgpu/amdgpuPlatform.cpp
+            core/os/amdgpu/amdgpuPresentScheduler.cpp
+            core/os/amdgpu/amdgpuPrivateScreen.cpp
+            core/os/amdgpu/amdgpuQueue.cpp
+            core/os/amdgpu/amdgpuQueueSemaphore.cpp
+            core/os/amdgpu/amdgpuScreen.cpp
+            core/os/amdgpu/amdgpuSyncobjFence.cpp
+            core/os/amdgpu/amdgpuSwapChain.cpp
+            core/os/amdgpu/amdgpuTimestampFence.cpp
+            core/os/amdgpu/amdgpuWindowSystem.cpp
+            core/os/amdgpu/amdgpuVamMgr.cpp
+            core/os/amdgpu/display/displayWindowSystem.cpp
+            core/os/amdgpu/dri3/dri3WindowSystem.cpp
+            core/os/amdgpu/dri3/g_dri3Loader.cpp
+            core/os/amdgpu/g_drmLoader.cpp
         )
 
         if(PAL_BUILD_WAYLAND)
             message(STATUS "PAL build with Wayland enabled")
             find_package(Wayland)
-            target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/wayland)
+            target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/amdgpu/wayland)
             target_sources(pal PRIVATE
-                core/os/lnx/wayland/waylandWindowSystem.cpp
-                core/os/lnx/wayland/g_waylandLoader.cpp
-                core/os/lnx/wayland/mesa/wayland-drm-protocol.c
+                core/os/amdgpu/wayland/g_waylandLoader.cpp
+                core/os/amdgpu/wayland/waylandWindowSystem.cpp
+                core/os/amdgpu/wayland/mesa/wayland-drm-protocol.c
             )
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dwl_buffer_interface=pWlBufferInterface")
             target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM)

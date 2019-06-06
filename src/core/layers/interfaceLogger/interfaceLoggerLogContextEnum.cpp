@@ -73,6 +73,58 @@ void LogContext::Enum(
 
 // =====================================================================================================================
 void LogContext::Enum(
+    Developer::BarrierReason value)
+{
+    const char* pStr = nullptr;
+    if (value == Developer::BarrierReasonInvalid)
+    {
+        pStr = "BarrierReasonInvalid";
+    }
+    else if (value == Developer::BarrierReasonUnknown)
+    {
+        pStr = "BarrierReasonUnknown";
+    }
+    else if ((value >= Developer::BarrierReasonFirst) && (value < Developer::BarrierReasonInternalLastDefined))
+    {
+        const char*const StringTable[] =
+        {
+            "BarrierReasonPreComputeColorClear",
+            "BarrierReasonPostComputeColorClear",
+            "BarrierReasonPreComputeDepthStencilClear",
+            "BarrierReasonPostComputeDepthStencilClear",
+            "BarrierReasonMlaaResolveEdgeSync",
+            "BarrierReasonAqlWaitForParentKernel",
+            "BarrierReasonAqlWaitForChildrenKernels",
+            "BarrierReasonP2PBlitSync",
+            "BarrierReasonTimeGraphGrid",
+            "BarrierReasonTimeGraphGpuLine",
+            "BarrierReasonDebugOverlayText",
+            "BarrierReasonDebugOverlayGraph",
+            "BarrierReasonDevDriverOverlay",
+            "BarrierReasonDmaImgScanlineCopySync",
+            "BarrierReasonPostSqttTrace",
+            "BarrierReasonPrePerfDataCopy",
+            "BarrierReasonFlushL2CachedData",
+        };
+        static_assert((Developer::BarrierReasonInternalLastDefined - Developer::BarrierReasonFirst)
+                       == ArrayLen(StringTable),
+                      "Barrier reason strings need to be updated!");
+        pStr = StringTable[value - Developer::BarrierReasonFirst];
+    }
+
+    if (pStr != nullptr)
+    {
+        Value(pStr);
+    }
+    else
+    {
+        // We don't have a string for this reason (eg. client-defined)
+        Value(value);
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
     BinningOverride value)
 {
     const char*const StringTable[] =

@@ -41,12 +41,9 @@
 ***********************************************************************************************************************
 */
 
-#define TRANSFER_PROTOCOL_MAJOR_VERSION 2
-#define TRANSFER_PROTOCOL_MINOR_VERSION 0
+#define TRANSFER_PROTOCOL_VERSION 2
 
-#define TRANSFER_INTERFACE_VERSION ((TRANSFER_INTERFACE_MAJOR_VERSION << 16) | TRANSFER_INTERFACE_MINOR_VERSION)
-
-#define TRANSFER_PROTOCOL_MINIMUM_MAJOR_VERSION 1
+#define TRANSFER_PROTOCOL_MINIMUM_VERSION 1
 
 /*
 ***********************************************************************************************************************

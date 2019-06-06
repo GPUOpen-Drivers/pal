@@ -43,11 +43,11 @@ Result JsonWriter::End()
         m_lastResult = Bool2Result(m_rjWriter.IsComplete());
     }
 
-    Result jsonResult = m_lastResult;
+    const Result jsonResult = m_lastResult;
     // Note: It is important to call m_textStream.End() here. This NUL terminates the stream
     //       and makes it easier to debug partially written json - especially if the error is bad json usage.
     //       TextWriter::End() will behavior correctly on its own if there's already a TextWriter error.
-    Result textResult = m_textStream.End();
+    const Result textResult = m_textStream.End();
 
     // We can only return one error, so we need to prioritize these.
     // Json errors come from RapidJSON and represent programmer or OoM errors.
@@ -59,6 +59,13 @@ Result JsonWriter::End()
     {
         result = textResult;
     }
+
+    // Overwrite the last result with success to allow for subsequent uses of the writer.
+    m_lastResult = Result::Success;
+
+    // Reset the writer stream before finishing the response.
+    m_rjWriter.Reset(m_textStream);
+
     return result;
 }
 

@@ -33,28 +33,9 @@
 
 #include "gpuopen.h"
 
-#define SETTINGS_PROTOCOL_MAJOR_VERSION 2
-#define SETTINGS_PROTOCOL_MINOR_VERSION 0
+#define SETTINGS_PROTOCOL_VERSION 2
 
-#define SETTINGS_INTERFACE_VERSION ((GPUOPEN_INTERFACE_MAJOR_VERSION << 16) | GPUOPEN_INTERFACE_MINOR_VERSION)
-
-#define SETTINGS_PROTOCOL_MINIMUM_MAJOR_VERSION 1
-
-#ifndef SETTINGS_CLIENT_MIN_MAJOR_VERSION
-static_assert(false, "Client must define SETTINGS_CLIENT_MIN_MAJOR_VERSION.");
-#else
-static_assert((SETTINGS_CLIENT_MIN_MAJOR_VERSION >= SETTINGS_PROTOCOL_MINIMUM_MAJOR_VERSION) &&
-(SETTINGS_CLIENT_MIN_MAJOR_VERSION <= SETTINGS_PROTOCOL_MAJOR_VERSION),
-"The specified SETTINGS_CLIENT_MIN_MAJOR_VERSION is not supported.");
-#endif
-
-#ifndef SETTINGS_CLIENT_MAX_MAJOR_VERSION
-static_assert(false, "Client must define SETTINGS_CLIENT_MAX_MAJOR_VERSION.");
-#else
-static_assert((SETTINGS_CLIENT_MAX_MAJOR_VERSION >= SETTINGS_PROTOCOL_MINIMUM_MAJOR_VERSION) &&
-(SETTINGS_CLIENT_MAX_MAJOR_VERSION <= SETTINGS_PROTOCOL_MAJOR_VERSION),
-"The specified SETTINGS_CLIENT_MAX_MAJOR_VERSION is not supported.");
-#endif
+#define SETTINGS_PROTOCOL_MINIMUM_VERSION 1
 
 /*
 ***********************************************************************************************************************
@@ -67,8 +48,6 @@ static_assert((SETTINGS_CLIENT_MAX_MAJOR_VERSION >= SETTINGS_PROTOCOL_MINIMUM_MA
 
 #define SETTINGS_HEX_VERSION 2
 #define SETTINGS_INITIAL_VERSION 1
-
-#define SETTINGS_PROTOCOL_SUPPORTS(x) ((SETTINGS_CLIENT_MAX_MAJOR_VERSION >= x) && (x >= SETTINGS_CLIENT_MIN_MAJOR_VERSION))
 
 namespace DevDriver
 {
@@ -112,9 +91,7 @@ namespace DevDriver
             UnsignedInteger,
             Float,
             String,
-#if SETTINGS_PROTOCOL_SUPPORTS(SETTINGS_HEX_VERSION)
             Hex,
-#endif
             Count
         };
 
@@ -127,9 +104,7 @@ namespace DevDriver
                 bool boolValue;
                 int32 integerValue;
                 uint32 unsignedIntegerValue;
-#if SETTINGS_PROTOCOL_SUPPORTS(SETTINGS_HEX_VERSION)
                 uint32 hexValue;
-#endif
                 float floatValue;
                 char stringValue[kSmallStringSize];
             };

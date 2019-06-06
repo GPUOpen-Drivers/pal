@@ -26,15 +26,15 @@
 #include "protocols/loggingClient.h"
 #include "msgChannel.h"
 
-#define LOGGING_CLIENT_MIN_MAJOR_VERSION 2
-#define LOGGING_CLIENT_MAX_MAJOR_VERSION 3
+#define LOGGING_CLIENT_MIN_VERSION 2
+#define LOGGING_CLIENT_MAX_VERSION 3
 
 namespace DevDriver
 {
     namespace LoggingProtocol
     {
         LoggingClient::LoggingClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::Logging, LOGGING_CLIENT_MIN_MAJOR_VERSION, LOGGING_CLIENT_MAX_MAJOR_VERSION)
+            : BaseProtocolClient(pMsgChannel, Protocol::Logging, LOGGING_CLIENT_MIN_VERSION, LOGGING_CLIENT_MAX_VERSION)
 #if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
 #if DD_BUILD_32
             , _padding(0)

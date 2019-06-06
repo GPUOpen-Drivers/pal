@@ -400,21 +400,8 @@ namespace DevDriver
             return End();
         }
     private:
-        // Private copy construct. Allows internal usage, but prevents accidental duplication.
-        Vector(Vector& rhs)
-            : m_pData(m_data) // default initialize it to the default allocation
-            , m_size((size_t)0) // initialize it to zero
-            , m_capacity(defaultCapacity) // initialize the capacity to default
-            , m_allocCb(rhs.m_allocCb) // copy the allocator callback
-        {
-            // reserve enough size to copy all the other data into it
-            Reserve(rhs.m_size);
-            // copy all values
-            for (; m_size < rhs.m_size; m_size++)
-            {
-                m_pData[index] = rhs.m_pData[index];
-            }
-        }
+        // Disallow copy construct.
+        Vector(Vector& rhs) = delete;
 
         T m_data[defaultCapacity];
         T* m_pData;

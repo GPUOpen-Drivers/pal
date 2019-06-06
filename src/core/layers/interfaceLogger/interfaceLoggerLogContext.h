@@ -569,6 +569,7 @@ public:
 
     // These functions create a string value for a PAL interface enumeration.
     void Enum(AtomicOp value);
+    void Enum(Developer::BarrierReason value);
     void Enum(BinningOverride value);
     void Enum(Blend value);
     void Enum(BlendFunc value);
@@ -804,6 +805,7 @@ public:
     void KeyAndStruct(const char* pKey, const FenceOpenInfo& value)                       { Key(pKey); Struct(value); }
 
     void KeyAndEnum(const char* pKey, AtomicOp value)                     { Key(pKey); Enum(value); }
+    void KeyAndEnum(const char* pKey, Developer::BarrierReason value)     { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, BinningOverride value)              { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, Blend value)                        { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, BlendFunc value)                    { Key(pKey); Enum(value); }

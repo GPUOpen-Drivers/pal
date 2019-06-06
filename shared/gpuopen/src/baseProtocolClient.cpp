@@ -34,9 +34,7 @@ namespace DevDriver
         , m_minVersion(minVersion)
         , m_maxVersion(maxVersion)
         , m_pSession()
-        , m_connectResult(Result::Error)
         , m_state(ClientState::Disconnected)
-        , m_pendingOperationEvent(false)
     {
         DD_ASSERT(m_pMsgChannel != nullptr);
     }
@@ -44,6 +42,28 @@ namespace DevDriver
     bool BaseProtocolClient::IsConnected() const
     {
         return (m_state == ClientState::Connected);
+    }
+
+    bool BaseProtocolClient::QueryConnectionStatus()
+    {
+        bool isConnected = false;
+
+        if (!m_pSession.IsNull())
+        {
+            // We should always be in the connected state if we have a valid session pointer
+            DD_ASSERT(m_state == ClientState::Connected);
+
+            isConnected = (m_pSession->IsClosed() == false);
+
+            // If our underlying session object has closed while we were connected to it, then
+            // invoke the normal disconnect logic.
+            if (isConnected == false)
+            {
+                Disconnect();
+            }
+        }
+
+        return isConnected;
     }
 
     ClientId BaseProtocolClient::GetRemoteClientId() const
@@ -57,13 +77,7 @@ namespace DevDriver
 
     BaseProtocolClient::~BaseProtocolClient()
     {
-        if (!m_pSession.IsNull())
-        {
-            m_pSession->Close(Result::Success);
-            m_pSession.Clear();
-        }
-        // Reset the state to make sure all owned objects are released before destruction
-        ResetState();
+        Disconnect();
     }
 
     Version BaseProtocolClient::GetSessionVersion() const
@@ -82,76 +96,61 @@ namespace DevDriver
 
     void BaseProtocolClient::SessionEstablished(const SharedPointer<ISession>& pSession)
     {
+        DD_UNUSED(pSession);
 
-        // We should never be overwriting an existing session pointer here.
-        DD_ASSERT(m_pSession.IsNull());
-
-        m_state = ClientState::Connected;
-        m_connectResult = Result::Success;
-        m_pSession = pSession;
-
-        m_pendingOperationEvent.Signal();
+        // This should never be called
+        DD_ASSERT_ALWAYS();
     }
 
     void BaseProtocolClient::UpdateSession(const SharedPointer<ISession>& pSession)
     {
         DD_UNUSED(pSession);
 
-        // Do nothing by default
+        // This should never be called
+        DD_ASSERT_ALWAYS();
     }
 
     void BaseProtocolClient::SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason)
     {
-        const bool wasConnecting = (m_state == ClientState::Connecting);
-        DD_ASSERT(wasConnecting | (pSession == m_pSession));
-
-        DD_UNUSED(wasConnecting);
         DD_UNUSED(pSession);
+        DD_UNUSED(terminationReason);
 
-        m_state = ClientState::Disconnected;
-
-        // If the session was terminated and we were previously trying to make a connection, then we need to signal
-        // the connection finished event to unblock the connecting thread.
-        m_connectResult = terminationReason;
-        m_pendingOperationEvent.Signal();
-        m_pSession.Clear();
+        // This should never be called
+        DD_ASSERT_ALWAYS();
     }
 
-    Result BaseProtocolClient::Connect(ClientId clientId)
+    Result BaseProtocolClient::Connect(ClientId clientId, uint32 timeoutInMs)
     {
         Result result = Result::Error;
 
-        if (m_state == ClientState::Disconnected)
+        // Disconnect first in case we're currently connected to something.
+        Disconnect();
+
+        if (m_pMsgChannel != nullptr)
         {
-            // If a session terminates unexpectedly, we may end up with a valid session object
-            // Even in the disconnected state. This dead session object should be deleted. It can't
-            // be deleted immediately upon termination because other parts of the client code could
-            // still be using it.
-            m_pSession.Clear();
+            EstablishSessionInfo sessionInfo = {};
+            sessionInfo.protocol = m_protocol;
+            sessionInfo.minProtocolVersion = m_minVersion;
+            sessionInfo.maxProtocolVersion = m_maxVersion;
+            sessionInfo.remoteClientId = clientId;
 
-            ResetState();
-
-            DD_ASSERT(m_pMsgChannel != nullptr);
-
-            m_state = ClientState::Connecting;
-            m_pendingOperationEvent.Clear();
-
-            result = m_pMsgChannel->ConnectProtocolClient(this, clientId);
+            SharedPointer<ISession> pSession;
+            result = m_pMsgChannel->EstablishSessionForClient(&pSession, sessionInfo);
             if (result == Result::Success)
             {
-                // Only wait on the event if we successfully establish the session. If we fail to establish the
-                // session, the event will never be signaled.
-
-                // todo - implement more robust timeout system
-                m_pendingOperationEvent.Wait(kLogicFailureTimeout);
-                result = m_connectResult;
+                // Wait for the connection to complete
+                result = pSession->WaitForConnection(timeoutInMs);
             }
-            else
+
+            // If we successfully connect, store the pointer to the session so it doesn't get deleted.
+            if (result == Result::Success)
             {
-                // Restore the state to Disconnected if we fail to establish the session.
-                m_state = ClientState::Disconnected;
+                m_pSession = pSession;
+
+                m_state = ClientState::Connected;
             }
         }
+
         return result;
     }
 
@@ -159,14 +158,13 @@ namespace DevDriver
     {
         if (IsConnected())
         {
-            m_pendingOperationEvent.Clear();
-            m_pSession->Shutdown(Result::Success);
-            while (!m_pSession.IsNull())
-            {
-                // todo - implement more robust timeout system
-                m_pendingOperationEvent.Wait(kDefaultRetryTimeoutInMs);
-            }
+            // Drop the shared pointer to the current session. This will allow the session manager to clean up
+            // the session object.
+            m_pSession.Clear();
+
+            m_state = ClientState::Disconnected;
         }
+
         ResetState();
     }
 

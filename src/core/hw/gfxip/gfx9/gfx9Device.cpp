@@ -331,6 +331,11 @@ void Device::FinalizeChipProperties(
         break;
     }
 
+    pChipProperties->gfxip.numOffchipTessBuffers = settings.numOffchipLdsBuffers;
+
+    pChipProperties->gfxip.maxPrimgroupSize =
+        (settings.wdLoadBalancingMode != Gfx9WdLoadBalancingDisabled) ? 253 : 256;
+
     pChipProperties->gfxip.tessFactorBufferSizePerSe = settings.tessFactorBufferSizePerSe;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 500

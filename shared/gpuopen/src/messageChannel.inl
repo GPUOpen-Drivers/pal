@@ -30,7 +30,7 @@
 namespace DevDriver
 {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Thread function that calls the message channel update function until the
+    // Thread function that calls the message channel update function until the active flag becomes false
     template <class MsgTransport>
     void MessageChannel<MsgTransport>::MsgChannelReceiveFunc(void* pThreadParam)
     {
@@ -143,7 +143,7 @@ namespace DevDriver
 
             m_updateSemaphore.Signal();
 
-#if defined(DD_LINUX)
+#if defined(DD_PLATFORM_LINUX_UM)
             // we yield the thread after processing messages to let other threads grab the lock if the need to
             // this works around an issue where the message processing thread releases the lock then reacquires
             // it before a sleeping thread that is waiting on it can get it.
@@ -153,9 +153,11 @@ namespace DevDriver
     }
 
     template <class MsgTransport>
-    Result MessageChannel<MsgTransport>::ConnectProtocolClient(IProtocolClient* pClient, ClientId dstClientId)
+    Result MessageChannel<MsgTransport>::EstablishSessionForClient(
+        SharedPointer<ISession>*    ppSession,
+        const EstablishSessionInfo& sessionInfo)
     {
-        return (pClient != nullptr) ? m_sessionManager.EstablishSessionForClient(*pClient, dstClientId) : Result::Error;
+        return m_sessionManager.EstablishSessionForClient(ppSession, sessionInfo);
     }
 
     template <class MsgTransport>
@@ -364,8 +366,12 @@ namespace DevDriver
             m_lastActivityTimeMs = Platform::GetCurrentTimeInMs();
         }
 
-        if ((messageBuffer.header.protocolId == Protocol::Session) & (messageBuffer.header.dstClientId == m_clientId))
+        if (messageBuffer.header.protocolId == Protocol::Session)
         {
+            // We should never receive a session message that wasn't intended for us. If we do, it means there's a
+            // serious problem in one of the router implementations.
+            DD_ASSERT(messageBuffer.header.dstClientId == m_clientId);
+
             m_sessionManager.HandleReceivedSessionMessage(messageBuffer);
             handled = true;
         }
@@ -421,6 +427,24 @@ namespace DevDriver
                 case SystemMessage::ClientDisconnected:
                 {
                     m_sessionManager.HandleClientDisconnection(srcClientId);
+                    break;
+                }
+                case SystemMessage::Halted:
+                {
+                    // If the application has an event callback set up, forward the halted event and consider it handled.
+                    // If there's no callback handler set up, this event is placed into the receive queue along with any
+                    // other unhandled messages.
+                    if (m_createInfo.pfnEventCallback != nullptr)
+                    {
+                        BusEventClientHalted clientHalted = {};
+                        clientHalted.clientId = srcClientId;
+
+                        m_createInfo.pfnEventCallback(m_createInfo.pUserdata,
+                                                      BusEventType::ClientHalted,
+                                                      &clientHalted,
+                                                      sizeof(BusEventClientHalted));
+                        handled = true;
+                    }
                     break;
                 }
                 default:
@@ -564,6 +588,7 @@ namespace DevDriver
                 status = registerResult;
             }
         }
+
         if (status == Result::Success)
         {
             memset(&m_clientInfoResponse, 0, sizeof(m_clientInfoResponse));
@@ -606,51 +631,60 @@ namespace DevDriver
                 status = CreateMsgThread();
             }
         }
+
         return status;
     }
 
     template <class MsgTransport>
     Result MessageChannel<MsgTransport>::Unregister()
     {
-        if (m_createInfo.createUpdateThread)
+        Result result = Result::Error;
+
+        if (IsConnected())
         {
-            Result status = DestroyMsgThread();
+            if (m_createInfo.createUpdateThread)
+            {
+                Result status = DestroyMsgThread();
+                DD_ASSERT(status == Result::Success);
+                DD_UNUSED(status);
+            }
+
+            if (m_pURIServer != nullptr)
+            {
+                m_sessionManager.UnregisterProtocolServer(m_pURIServer);
+
+                DD_DELETE(m_pURIServer, m_allocCb);
+                m_pURIServer = nullptr;
+            }
+
+            // Destroy the transfer manager
+            m_transferManager.Destroy();
+
+            Result status = m_sessionManager.Destroy();
             DD_ASSERT(status == Result::Success);
             DD_UNUSED(status);
-        }
 
-        if (m_pURIServer != nullptr)
-        {
-            m_sessionManager.UnregisterProtocolServer(m_pURIServer);
-
-            DD_DELETE(m_pURIServer, m_allocCb);
-            m_pURIServer = nullptr;
-        }
-
-        // Destroy the transfer manager
-        m_transferManager.Destroy();
-
-        Result status = m_sessionManager.Destroy();
-        DD_ASSERT(status == Result::Success);
-        DD_UNUSED(status);
-
-        if (MsgTransport::RequiresClientRegistration())
-        {
-            if (m_clientId != kBroadcastClientId)
+            if (MsgTransport::RequiresClientRegistration())
             {
-                using namespace DevDriver::ClientManagementProtocol;
-                MessageBuffer disconnectMsgBuffer = {};
-                disconnectMsgBuffer.header.protocolId = Protocol::ClientManagement;
-                disconnectMsgBuffer.header.messageId =
-                    static_cast<MessageCode>(ManagementMessage::DisconnectNotification);
-                disconnectMsgBuffer.header.srcClientId = m_clientId;
-                disconnectMsgBuffer.header.dstClientId = kBroadcastClientId;
-                disconnectMsgBuffer.header.payloadSize = 0;
+                if (m_clientId != kBroadcastClientId)
+                {
+                    using namespace DevDriver::ClientManagementProtocol;
+                    MessageBuffer disconnectMsgBuffer = {};
+                    disconnectMsgBuffer.header.protocolId = Protocol::ClientManagement;
+                    disconnectMsgBuffer.header.messageId =
+                        static_cast<MessageCode>(ManagementMessage::DisconnectNotification);
+                    disconnectMsgBuffer.header.srcClientId = m_clientId;
+                    disconnectMsgBuffer.header.dstClientId = kBroadcastClientId;
+                    disconnectMsgBuffer.header.payloadSize = 0;
 
-                WriteTransportMessage(disconnectMsgBuffer);
+                    WriteTransportMessage(disconnectMsgBuffer);
+                }
             }
+
+            result = Disconnect();
         }
-        return Disconnect();
+
+        return result;
     }
 
     template <class MsgTransport>

@@ -1,0 +1,177 @@
+
+cmake_minimum_required(VERSION 3.5)
+
+# DevDriver.cmake adds project-specific options and warnings.
+# It does this while depending on the base AMD-wide configurations defined here.
+# Users of this file should only `include(DevDriver)`
+include(AMD)
+
+option(
+    DEVDRIVER_USE_CPP17 "Optionally build using the C++17 standard. If disabled, build as C++11"
+    OFF)
+option(
+    DEVDRIVER_FORCE_COLOR_OUPUT "Force colored diagnostic messages (Clang/gcc only)"
+    ON)
+string(CONCAT DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS_HELP_TEXT
+    "C++ static_asserts cannot format strings. "
+    "You can fake it with SFINAE template types, but it's rough. "
+    "This enables that alternate mode for some special assert macros."
+)
+option(DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS
+    ${DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS_HELP_TEXT}
+    OFF)
+unset(DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS_HELP_TEXT)
+
+# Configure compilation options depending on available CPU cores
+include(ProcessorCount)
+
+macro(apply_gpuopen_warnings _target)
+
+    if(DEVDRIVER_USE_CPP17)
+        message(STATUS "Using C++17 for ${_target}")
+
+        # WA: CMake supports C++17 since version 3.8
+        if (CMAKE_VERSION VERSION_LESS "3.8")
+
+            if (CMAKE_CXX_COMPILER_ID MATCHES "GCC|Clang")
+
+                # [GCC] C++ Standards Support in GCC
+                #   https://gcc.gnu.org/projects/cxx-status.html#cxx17
+                target_compile_options(${_target} PRIVATE -std=c++17) # Enable C++17 support.
+
+            elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+
+                # [MSVC] Specify Language Standard Version
+                #   https://docs.microsoft.com/en-us/cpp/build/reference/std-specify-language-standard-version
+                target_compile_options(${_target} PRIVATE /std:c++17) # Enable C++17 features.
+
+            else()
+                message(FATAL_ERROR "Using unknown compiler: ${CMAKE_CXX_COMPILER_ID}")
+            endif()
+
+        else()
+            target_compile_features(${_target} PRIVATE cxx_std_17)
+        endif()
+
+    else()
+        set_property(TARGET ${_target} PROPERTY CXX_STANDARD 11)
+    endif()
+
+    # Do not fallback to c++98 if the compiler does not support 11/17.
+    set_property(TARGET ${_target} PROPERTY CXX_STANDARD_REQUIRED TRUE)
+    # Do not use flags like `-std=gnu++11`, instead use `-std=c++11`.
+    set_property(TARGET ${_target} PROPERTY CXX_EXTENSIONS        FALSE)
+
+    # Make a DD_SHORT_FILE macro that includes a shorter, partial file path.
+    # The additional / is important to remove the last character from the path.
+    # Note that it does not matter if the OS uses / or \, because we are only
+    # saving the path size.
+    string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_PATH_SIZE)
+    target_compile_definitions(${_target} PUBLIC "DD_SHORT_FILE=(__FILE__+${SOURCE_PATH_SIZE})")
+
+    if (DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS)
+        target_compile_definitions(${_target} PUBLIC DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS)
+    endif()
+
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        # Apply special options for GCC 8.x+
+        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
+            target_compile_options(${_target} PRIVATE
+                # This warning triggers when you memcpy into or out of a "non trivial" type.
+                # The requirements for "trivial type" are hard - e.g. some user supplied constructors are enough to make
+                #   it not count.
+                #   Properly fixing this would require embracing more C++14 than we currently do. (e.g. `= default` ctors)
+                #   Read more here: https://msdn.microsoft.com/en-us/library/mt767760.aspx
+                #   This warning is new in gcc 8.x
+                -Wno-class-memaccess
+            )
+        # Apply special options for versions earlier than GCC 5.x
+        elseif (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+            target_compile_options(${_target} PRIVATE
+                # This warning triggers when we default initialize structures with the "StructType x = {};" syntax.
+                # It only triggers on GCC 4.8
+                -Wno-missing-field-initializers
+            )
+        endif()
+        if (DEVDRIVER_FORCE_COLOR_OUPUT)
+            # For details on customizing this, see the docs:
+            #   https://gcc.gnu.org/onlinedocs/gcc-5.2.0/gcc/Language-Independent-Options.html
+            target_compile_options(${_target} PRIVATE -fdiagnostics-color)
+        endif()
+     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        target_compile_options(${_target} PRIVATE
+            # No Clang-specific options yet
+        )
+        if (DEVDRIVER_FORCE_COLOR_OUPUT)
+            target_compile_options(${_target} PRIVATE -fcolor-diagnostics)
+        endif()
+#if DD_CLOSED_SOURCE
+    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+        target_compile_options(${_target} PRIVATE
+            # No AppleClang-specific options yet
+        )
+        if (DEVDRIVER_FORCE_COLOR_OUPUT)
+            target_compile_options(${_target} PRIVATE -fcolor-diagnostics)
+        endif()
+    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        target_compile_options(${_target} PRIVATE
+            /wd4996            # _CRT_SECURE_NO_WARNINGS
+            /wd4127            # conditional expression is constant
+            /wd4201            # nonstandard extension used : nameless struct/union
+            /wd4512            # assignment operator could not be generated
+            /we4296            # unsigned integer comparison is constant
+            /we5038            # initialization order
+            /diagnostics:caret # Format error messages with a "^"
+            /permissive-       # Enable stricter standards conformance
+        )
+
+        # Compile files in parallel
+        ProcessorCount(CoreCount)
+        target_compile_options(${_target} PRIVATE /MP${CoreCount})
+#endif
+    else()
+        message(FATAL_ERROR "Using unknown compiler: ${CMAKE_CXX_COMPILER_ID}")
+    endif()
+endmacro()
+
+#if DD_CLOSED_SOURCE
+## TODO: Update our CMakeLists.txt to use these instead
+#        Make sure these work
+
+function(devdriver_target name)
+
+    amd_target(${name} ${ARGN})
+    apply_gpuopen_warnings(${name})
+
+endfunction()
+
+function(devdriver_executable name)
+
+    amd_executable(${name} ${ARGN})
+    apply_gpuopen_warnings(${name})
+
+endfunction()
+
+function(devdriver_library name type)
+
+    amd_library(${name} ${type} ${ARGN})
+    apply_gpuopen_warnings(${name})
+
+endfunction()
+
+#if DD_CLOSED_SOURCE
+function(devdriver_km_library name type)
+
+    amd_km_library(${name} ${type} ${ARGN})
+    apply_gpuopen_warnings(${name})
+
+endfunction()
+#endif
+
+function(devdriver_um_library name type)
+
+    amd_um_library(${name} ${type} ${ARGN})
+    apply_gpuopen_warnings(${name})
+
+endfunction()
+#endif

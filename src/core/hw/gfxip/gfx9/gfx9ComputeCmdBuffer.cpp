@@ -136,7 +136,15 @@ void ComputeCmdBuffer::CmdRelease(
     const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
     m_gfxCmdBufState.flags.packetPredicate = 0;
 
-    m_device.BarrierRelease(this, &m_cmdStream, releaseInfo, pGpuEvent);
+    // Mark these as traditional barriers in RGP
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    m_device.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
+#else
+    m_device.DescribeBarrierStart(this, Developer::BarrierReasonUnknown, Developer::BarrierType::Release);
+#endif
+    Developer::BarrierOperations barrierOps = {};
+    m_device.BarrierRelease(this, &m_cmdStream, releaseInfo, pGpuEvent, &barrierOps);
+    m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
@@ -153,7 +161,15 @@ void ComputeCmdBuffer::CmdAcquire(
     const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
     m_gfxCmdBufState.flags.packetPredicate = 0;
 
-    m_device.BarrierAcquire(this, &m_cmdStream, acquireInfo, gpuEventCount, ppGpuEvents);
+    // Mark these as traditional barriers in RGP
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    m_device.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
+#else
+    m_device.DescribeBarrierStart(this, Developer::BarrierReasonUnknown, Developer::BarrierType::Acquire);
+#endif
+    Developer::BarrierOperations barrierOps = {};
+    m_device.BarrierAcquire(this, &m_cmdStream, acquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
+    m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
@@ -168,7 +184,15 @@ void ComputeCmdBuffer::CmdReleaseThenAcquire(
     const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
     m_gfxCmdBufState.flags.packetPredicate = 0;
 
-    m_device.BarrierReleaseThenAcquire(this, &m_cmdStream, barrierInfo);
+    // Mark these as traditional barriers in RGP
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    m_device.DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
+#else
+    m_device.DescribeBarrierStart(this, Developer::BarrierReasonUnknown, Developer::BarrierType::Full);
+#endif
+    Developer::BarrierOperations barrierOps = {};
+    m_device.BarrierReleaseThenAcquire(this, &m_cmdStream, barrierInfo, &barrierOps);
+    m_device.DescribeBarrierEnd(this, &barrierOps);
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }

@@ -800,7 +800,7 @@ Result Queue::PresentDirectInternal(
     {
         // We only want to add postprocessing when this is a non-internal present. Internal presents are expected to
         // have done so themselves.
-        if ((result == Result::Success) && isClientPresent)
+        if (((result == Result::Success) && isClientPresent) && (presentInfo.pSrcImage != nullptr))
         {
             result = SubmitPostprocessCmdBuffer(static_cast<Image&>(*presentInfo.pSrcImage));
         }

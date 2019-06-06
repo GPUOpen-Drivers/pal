@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6Image.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 
 namespace Pal
 {
@@ -74,10 +75,6 @@ struct DepthStencilViewPm4Img
 
     PM4CMDSETDATA                    hdrPaSuPolyOffsetDbFmtCntl;
     regPA_SU_POLY_OFFSET_DB_FMT_CNTL paSuPolyOffsetDbFmtCntl;
-
-    PM4CMDSETDATA                    hdrPaScScreenScissorTlBr;
-    regPA_SC_SCREEN_SCISSOR_TL       paScScreenScissorTl;
-    regPA_SC_SCREEN_SCISSOR_BR       paScScreenScissorBr;
 
     PM4CMDSETDATA                    hdrCoherDestBase0;
     regCOHER_DEST_BASE_0             coherDestBase0;
@@ -148,6 +145,8 @@ public:
     bool ReadOnlyDepth() const { return m_flags.readOnlyDepth; }
     bool ReadOnlyStencil() const { return m_flags.readOnlyStencil; }
 
+    TargetExtent2d GetExtent() const { return m_extent; }
+
 private:
     virtual ~DepthStencilView()
     {
@@ -193,6 +192,7 @@ private:
 
     const Device&      m_device;
     const Image*const  m_pImage;
+    TargetExtent2d     m_extent;
 
     SubresId  m_depthSubresource;   // Sub-resource associated with the Depth plane
     SubresId  m_stencilSubresource; // Sub-resource associated with the Stencil plane

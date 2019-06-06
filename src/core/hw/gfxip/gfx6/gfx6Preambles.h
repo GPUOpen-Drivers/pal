@@ -129,6 +129,10 @@ struct StateShadowPreamblePm4Img
 // Contains a subset of commands necessary to the universal preamble command stream.
 struct UniversalPreamblePm4Img
 {
+    PM4CMDSETDATA                 hdrPaScGenericScissorTlBr;
+    regPA_SC_GENERIC_SCISSOR_TL   paScGenericScissorTl;
+    regPA_SC_GENERIC_SCISSOR_BR   paScGenericScissorBr;
+
 #if !PAL_COMPUTE_GDS_OPT
     GdsRangeGraphics   gdsRangeGraphics;
 #endif

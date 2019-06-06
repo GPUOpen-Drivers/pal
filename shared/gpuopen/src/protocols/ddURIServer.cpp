@@ -32,8 +32,8 @@
 #include "ddURIRequestContext.h"
 #include "util/vector.h"
 
-#define URI_SERVER_MIN_MAJOR_VERSION URI_INITIAL_VERSION
-#define URI_SERVER_MAX_MAJOR_VERSION URI_POST_PROTOCOL_VERSION
+#define URI_SERVER_MIN_VERSION URI_INITIAL_VERSION
+#define URI_SERVER_MAX_VERSION URI_POST_PROTOCOL_VERSION
 
 namespace DevDriver
 {
@@ -386,7 +386,7 @@ namespace DevDriver
 
         // =====================================================================================================================
         URIServer::URIServer(IMsgChannel* pMsgChannel)
-            : BaseProtocolServer(pMsgChannel, Protocol::URI, URI_SERVER_MIN_MAJOR_VERSION, URI_SERVER_MAX_MAJOR_VERSION)
+            : BaseProtocolServer(pMsgChannel, Protocol::URI, URI_SERVER_MIN_VERSION, URI_SERVER_MAX_VERSION)
             , m_registeredServices(pMsgChannel->GetAllocCb())
         {
             DD_ASSERT(m_pMsgChannel != nullptr);

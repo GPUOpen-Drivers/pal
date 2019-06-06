@@ -37,38 +37,11 @@
 #include <cstring>
 #include <cstdio>
 
-#if !defined(NDEBUG) && !defined(DEVDRIVER_SHOW_SYMBOLS)
-#define DEVDRIVER_SHOW_SYMBOLS
-#endif
-
 using namespace DevDriver::SessionProtocol;
 using namespace DevDriver::Platform;
 
 namespace DevDriver
 {
-#if defined(DEVDRIVER_SHOW_SYMBOLS)
-    static_assert(static_cast<MessageCode>(SessionMessage::Unknown) == 0, "Unexpected SessionMessage::Unknown value.");
-    static_assert(static_cast<MessageCode>(SessionMessage::Syn) == 1, "Unexpected SessionMessage::Syn value.");
-    static_assert(static_cast<MessageCode>(SessionMessage::SynAck) == 2, "Unexpected SessionMessage::SynAck value.");
-    static_assert(static_cast<MessageCode>(SessionMessage::Fin) == 3, "Unexpected SessionMessage::Fin value.");
-    static_assert(static_cast<MessageCode>(SessionMessage::Data) == 4, "Unexpected SessionMessage::Data value.");
-    static_assert(static_cast<MessageCode>(SessionMessage::Ack) == 5, "Unexpected SessionMessage::Ack value.");
-    static_assert(static_cast<MessageCode>(SessionMessage::Rst) == 6, "Unexpected SessionMessage::Rst value.");
-    static_assert(static_cast<MessageCode>(SessionMessage::Count) == 7, "Unexpected SessionMessage::Count value.");
-/*
-    DD_STATIC_CONST const char* kMessageNames[static_cast<MessageCode>(SessionMessage::Count)] =
-    {
-        "Unknown",
-        "Syn",
-        "SynAck",
-        "Fin",
-        "Data",
-        "Ack",
-        "Rst",
-    };
-*/
-#endif
-
     // We break the SessionId value into two, 16 bit values. These variables make it easier to operate on the bitfield
     DD_STATIC_CONST uint32 kClientSessionIdSize = 16;
     DD_STATIC_CONST uint32 kClientSessionIdMask = (1 << kClientSessionIdSize) - 1;
@@ -91,21 +64,19 @@ namespace DevDriver
 
     // GetProtocolServer
     //
-    // Synchronizes the SessionManager and retrieves the specified protocol server
+    // Retrieves the specified protocol server
     IProtocolServer* SessionManager::GetProtocolServer(Protocol protocol)
     {
         // Look up the protocol in the hash map
-        Platform::LockGuard<Platform::Mutex> serverLock(m_serverMutex);
         return m_protocolServers.FindPointer(protocol);
     }
 
     // HasProtocolServer
     //
-    // Synchronizes the SessionManager and checks for the presence of the specified protocol server
+    // Checks for the presence of the specified protocol server
     bool SessionManager::HasProtocolServer(Protocol protocol)
     {
         // Look up the protocol in the hash map
-        Platform::LockGuard<Platform::Mutex> serverLock(m_serverMutex);
         return m_protocolServers.Contains(protocol);
     }
 
@@ -115,9 +86,7 @@ namespace DevDriver
         , m_lastSessionId(kInvalidSessionId)
         , m_sessionMutex()
         , m_sessions(allocCb)
-        , m_serverMutex()
         , m_protocolServers(allocCb)
-        , m_active(false)
         , m_allocCb(allocCb)
     {
     }
@@ -133,19 +102,19 @@ namespace DevDriver
     Result SessionManager::Init(IMsgChannel* pMessageChannel)
     {
         Result result = Result::Error;
-        if (m_active == false)
-        {
-            DD_ASSERT(pMessageChannel != nullptr);
 
+        if (pMessageChannel != nullptr)
+        {
             m_pMessageChannel = pMessageChannel;
             m_clientId = m_pMessageChannel->GetClientId();
-            m_active = true;
 
             // Generate a random initial SessionId to help minimize probability of collision
             Platform::Random rng;
             m_lastSessionId = rng.Generate();
+
             result = Result::Success;
         }
+
         return result;
     }
 
@@ -154,58 +123,117 @@ namespace DevDriver
     // Destroys the session manager object
     Result SessionManager::Destroy()
     {
-        if (m_active)
+        Result result = Result::Error;
+
+        if (m_pMessageChannel != nullptr)
         {
             DD_PRINT(LogLevel::Info, "[SessionManager] Shutting down active sessions...");
 
-            m_active = false;
-
-            // Close all active sessions.
             m_sessionMutex.Lock();
+
+            // Unregister any protocol servers that are still registered.
+            for (auto& serverPair : m_protocolServers)
+            {
+                const Protocol protocol = serverPair.key;
+
+                // Notify any associated server sessions.
+                for (auto& sessionPair : m_sessions)
+                {
+                    auto& pSession = sessionPair.value;
+
+                    if (pSession->IsServerSession() && (pSession->GetProtocol() == protocol))
+                    {
+                        pSession->HandleUnregisterProtocolServer(pSession, serverPair.value);
+                    }
+                }
+            }
+            m_protocolServers.Clear();
+
+            // Close all active client sessions.
             for (auto& pair : m_sessions)
             {
                 auto& pSession = pair.value;
-                DD_ASSERT(pSession.IsNull() == false);
-                pSession->Shutdown(Result::Success);
+
+                if (pSession->IsClientSession())
+                {
+                    pSession->Shutdown(Result::Success);
+                }
             }
 
             m_sessionMutex.Unlock();
 
-            // Wait for sessions to close.
+            result = Result::Success;
+
+            constexpr uint32 kShutdownTimeoutInMs = 5000;
+
+            const uint64 absTimeoutTime = (Platform::GetCurrentTimeInMs() + kShutdownTimeoutInMs);
+
+            // Wait for all sessions to close.
             while (m_sessions.Size() > 0)
             {
                 m_pMessageChannel->Update();
+
+                if (Platform::GetCurrentTimeInMs() >= absTimeoutTime)
+                {
+                    DD_ASSERT_REASON("[SessionManager] Shutdown timeout exceeded!");
+                    result = Result::Error;
+                    break;
+                }
             }
 
-            DD_PRINT(LogLevel::Info, "[SessionManager] All sessions closed");
+            if (result == Result::Success)
+            {
+                DD_PRINT(LogLevel::Info, "[SessionManager] All sessions closed");
+
+                m_pMessageChannel = nullptr;
+            }
         }
-        return Result::Success;
+
+        return result;
     }
 
-    Result SessionManager::EstablishSessionForClient(IProtocolClient& protocolClient,
-                                                     ClientId dstClientId)
+    Result SessionManager::EstablishSessionForClient(SharedPointer<ISession>*    ppSession,
+                                                     const EstablishSessionInfo& sessionInfo)
     {
         Result result = Result::Error;
 
-        SharedPointer<Session> pSession =
-            SharedPointer<Session>::Create(m_allocCb,
-                                           m_pMessageChannel);
-        if (!pSession.IsNull())
+        if (ppSession != nullptr)
         {
-            // Create a new sessionRef.
-            // Get a new sessionRef id for the sessionRef.
-            Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
+            // The shared pointer will automatically clean up the session object if anything below fails
+            SharedPointer<Session> pNewSession =
+                SharedPointer<Session>::Create(m_allocCb,
+                                               m_pMessageChannel,
+                                               SessionType::Client,
+                                               sessionInfo.protocol);
+            if (!pNewSession.IsNull())
+            {
+                // Create a new sessionRef.
+                // Get a new sessionRef id for the sessionRef.
+                Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
 
-            const SessionId sessionId = GetNewSessionId(kInvalidSessionId);
+                const SessionId sessionId = GetNewSessionId(kInvalidSessionId);
 
-            result = pSession->Connect(protocolClient,
-                                       dstClientId,
-                                       sessionId);
+                result = pNewSession->Connect(sessionInfo.remoteClientId,
+                                              sessionId,
+                                              sessionInfo.minProtocolVersion,
+                                              sessionInfo.maxProtocolVersion);
+                if (result == Result::Success)
+                {
+                    result = m_sessions.Create(sessionId, pNewSession);
+                    if (result != Result::Success)
+                    {
+                        pNewSession->Shutdown(Result::InsufficientMemory);
+                    }
+                }
+            }
+
+            // If everything goes well, return the session shared pointer.
             if (result == Result::Success)
             {
-                result = m_sessions.Create(sessionId, pSession);
+                *ppSession = pNewSession;
             }
         }
+
         return result;
     }
 
@@ -213,7 +241,10 @@ namespace DevDriver
     {
         // Make sure we're passed a valid server
         DD_ASSERT(pServer != nullptr);
-        Platform::LockGuard<Platform::Mutex> serverLock(m_serverMutex);
+
+        // Make sure we aren't in the middle of session processing
+        Platform::LockGuard<Platform::Mutex> lock(m_sessionMutex);
+
         return m_protocolServers.Create(pServer->GetProtocol(), pServer);
     }
 
@@ -224,29 +255,33 @@ namespace DevDriver
 
         Result result = Result::Error;
 
-        Platform::LockGuard<Platform::Mutex> serverLock(m_serverMutex);
-        Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
+        // Make sure we aren't in the middle of session processing
+        Platform::LockGuard<Platform::Mutex> lock(m_sessionMutex);
 
         const Protocol protocol = pServer->GetProtocol();
-        IProtocolServer* pFoundServer = m_protocolServers.FindPointer(protocol);
+        const bool hasServer = (m_protocolServers.FindPointer(protocol) != nullptr);
 
-        // Make sure we were previously registered.
-        if ((pFoundServer != nullptr) && (pFoundServer == pServer))
+        // Make sure we previously had a protocol server registered.
+        if (hasServer)
         {
+            // Notify all server sessions that rely on this protocol server.
             for (auto& pair : m_sessions)
             {
                 auto& pSession = pair.value;
-                // WARNING - this can cause sessionRef data to leak.
-                // We need a better way to clean up active sessions for protocol servers
-                DD_ASSERT(pSession.IsNull() == false);
-                pSession->CloseIfOwnedBy(pSession, pServer);
+
+                if (pSession->IsServerSession() && (pSession->GetProtocol() == protocol))
+                {
+                    pSession->HandleUnregisterProtocolServer(pSession, pServer);
+                }
             }
+
             result = m_protocolServers.Erase(protocol);
         }
         else
         {
             DD_ALERT_REASON("Attempted to unregister an unknown protocol server");
         }
+
         return result;
     }
 
@@ -258,7 +293,6 @@ namespace DevDriver
     // Lookup sessionRef for sessionRef ID, only returning a sessionRef if the sessionRef has not already been closed.
     SharedPointer<Session> SessionManager::FindOpenSession(SessionId sessionId)
     {
-        Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
         const auto sessionIter = m_sessions.Find(sessionId);
         if (sessionIter != m_sessions.End())
         {
@@ -290,6 +324,9 @@ namespace DevDriver
 
     void SessionManager::HandleReceivedSessionMessage(const MessageBuffer& messageBuffer)
     {
+        // Make sure we're the only code manipulating the sessions/protocol servers
+        Platform::LockGuard<Platform::Mutex> lock(m_sessionMutex);
+
         DD_ASSERT(messageBuffer.header.protocolId == Protocol::Session);
         DD_ASSERT(messageBuffer.header.dstClientId == m_clientId);
 
@@ -307,13 +344,11 @@ namespace DevDriver
                 const SynPayload* DD_RESTRICT pRequestPayload =
                     reinterpret_cast<const SynPayload*>(&messageBuffer.payload[0]);
 
-                // Look up the protocol in the hash map
-                Platform::LockGuard<Platform::Mutex> serverLock(m_serverMutex);
+                // Find the associated protocol server
                 IProtocolServer* pServer = m_protocolServers.FindPointer(pRequestPayload->protocol);
 
-                // If we have a protocol server registered for the requested protocol and we are accepting new
-                // connections
-                if (m_active && (pServer != nullptr))
+                // Handle the Syn packet if we have a protocol server registered for the requested protocol
+                if (pServer != nullptr)
                 {
                     reason = Result::VersionMismatch;
 
@@ -342,12 +377,14 @@ namespace DevDriver
                         reason = Result::Rejected;
 
                         // Create a new session object
-                        pSession = SharedPointer<Session>::Create(m_allocCb, m_pMessageChannel);
+                        pSession = SharedPointer<Session>::Create(m_allocCb,
+                                                                  m_pMessageChannel,
+                                                                  SessionType::Server,
+                                                                  pServer->GetProtocol());
                         if (!pSession.IsNull())
                         {
                             // Assuming we made it this far, generate a new session ID and bind the session to the
                             // protocol server
-                            Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
                             SessionId sessionId = GetNewSessionId(remoteSessionId);
                             Result result = pSession->BindToServer(*pServer,
                                                                   sourceClientId,
@@ -363,7 +400,7 @@ namespace DevDriver
                             // sessionRef pointer.
                             if ((result != Result::Success) || !pServer->AcceptSession(pSession))
                             {
-                                pSession->Close(Result::Rejected);
+                                pSession->Shutdown(Result::Rejected);
                                 pSession.Clear();
                             }
                         }
@@ -373,42 +410,39 @@ namespace DevDriver
             }
             case SessionMessage::SynAck:
             {
-                if (m_active)
-                {
-                    // Handle edge case where the Ack for the SynAck was lost. In this situation, we've already moved
-                    // into the established state but they have not. We do this first because we assume the Ack has
-                    // dropped, and it's likely that the sessionRef has already retransmitted the SynAck multiple times.
-                    Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
-                    auto sessionIter = m_sessions.Find(remoteSessionId);
+                // Handle edge case where the Ack for the SynAck was lost. In this situation, we've already moved
+                // into the established state but they have not. We do this first because we assume the Ack has
+                // dropped, and it's likely that the sessionRef has already retransmitted the SynAck multiple times.
+                auto sessionIter = m_sessions.Find(remoteSessionId);
 
-                    // If the lookup succeeded, set the sessionRef pointer to the correct sessionRef
+                // If the lookup succeeded, set the sessionRef pointer to the correct sessionRef
+                if (sessionIter != m_sessions.End())
+                {
+                    pSession = sessionIter->value;
+                }
+                // Otherwise we treat it as the initial transition, and look up the initial sessionRef ID that is
+                // in the payload.
+                else
+                {
+                    const SynAckPayload* DD_RESTRICT pPayload =
+                        reinterpret_cast<const SynAckPayload*>(&messageBuffer.payload[0]);
+                    sessionIter = m_sessions.Find(pPayload->initialSessionId);
+                    // If we found it, we need to initialize the sessionRef pointer, then remove the sessionRef
+                    // from the hashmap and reinsert it under the final sessionRef id. If this insertion fails
+                    // (most likely due to a collision) then we close the sessionRef and clear our pointer.
                     if (sessionIter != m_sessions.End())
                     {
                         pSession = sessionIter->value;
-                    }
-                    // Otherwise we treat it as the initial transition, and look up the initial sessionRef ID that is
-                    // in the payload.
-                    else
-                    {
-                        const SynAckPayload* DD_RESTRICT pPayload =
-                            reinterpret_cast<const SynAckPayload*>(&messageBuffer.payload[0]);
-                        sessionIter = m_sessions.Find(pPayload->initialSessionId);
-                        // If we found it, we need to initialize the sessionRef pointer, then remove the sessionRef
-                        // from the hashmap and reinsert it under the final sessionRef id. If this insertion fails
-                        // (most likely due to a collision) then we close the sessionRef and clear our pointer.
-                        if (sessionIter != m_sessions.End())
+                        m_sessions.Remove(sessionIter);
+                        if (m_sessions.Create(remoteSessionId, pSession) != Result::Success)
                         {
-                            pSession = sessionIter->value;
-                            m_sessions.Remove(sessionIter);
-                            if (m_sessions.Create(remoteSessionId, pSession) != Result::Success)
-                            {
-                                pSession->Shutdown(Result::Error);
-                                pSession.Clear();
-                                reason = Result::Error;
-                            }
+                            pSession->Shutdown(Result::Error);
+                            pSession.Clear();
+                            reason = Result::Error;
                         }
                     }
                 }
+
                 break;
             }
             case SessionMessage::Fin:
@@ -444,7 +478,6 @@ namespace DevDriver
             const SharedPointer<Session>& pSession = it->value;
             Session& sessionRef = *pSession.Get();
 
-            DD_ASSERT(m_active || sessionRef.GetSessionState() != SessionState::Established);
             sessionRef.Update(pSession);
 
             // Remove closing sessions.

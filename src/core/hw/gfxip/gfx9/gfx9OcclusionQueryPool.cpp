@@ -266,11 +266,14 @@ void OcclusionQueryPool::OptimizedReset(
         }
     }
 
+    // ComputeResults would check query counters value against reset value by CPU, using L2 might read stale data.
+    const auto dstSel = m_createInfo.flags.enableCpuAccess ? dst_sel__pfp_dma_data__dst_addr_using_das
+                                                           : dst_sel__pfp_dma_data__dst_addr_using_l2;
     if (Pal::Device::OcclusionQueryDmaLowerBound <= GetGpuResultSizeInBytes(queryCount))
     {
         // Execute the reset using the DMA copy optimization. Set everything except DMA size.
         DmaDataInfo dmaData = {};
-        dmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
+        dmaData.dstSel       = dstSel;
         dmaData.dstAddr      = gpuAddr;
         dmaData.dstAddrSpace = das__pfp_dma_data__memory;
         dmaData.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
@@ -368,7 +371,7 @@ void OcclusionQueryPool::OptimizedReset(
         {
             // DMA fill: issue a CPDMA packet to zero out the entire slot range.
             DmaDataInfo dmaData = {};
-            dmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
+            dmaData.dstSel       = dstSel;
             dmaData.dstAddr      = gpuAddr;
             dmaData.dstAddrSpace = das__pfp_dma_data__memory;
             dmaData.srcSel       = src_sel__pfp_dma_data__data;

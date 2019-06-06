@@ -68,8 +68,8 @@ URIRequestContext::URIRequestContext()
     : m_postInfo(),
       m_contextState(ContextState::WriterSelection),
       m_byteWriter(this, URIRequestContext::WriteBytes),
-      m_textWriter(this, URIRequestContext::WriteBytes),
-      m_jsonWriter(this, URIRequestContext::WriteBytes)
+      m_textWriter(this, URIRequestContext::WriteBytes)
+    , m_jsonWriter(this, URIRequestContext::WriteBytes)
 {
 }
 

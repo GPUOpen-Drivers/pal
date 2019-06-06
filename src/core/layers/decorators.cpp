@@ -438,6 +438,36 @@ Result DeviceDecorator::WaitForFences(
 }
 
 // =====================================================================================================================
+Result DeviceDecorator::WaitForSemaphores(
+        uint32                       semaphoreCount,
+        const IQueueSemaphore*const* ppSemaphores,
+        const uint64*                pValues,
+        uint32                       flags,
+        uint64                       timeout) const
+{
+    AutoBuffer<const IQueueSemaphore*, 16, PlatformDecorator> semaphores(semaphoreCount, GetPlatform());
+
+    Result result = Result::Success;
+
+    if (semaphores.Capacity() < semaphoreCount)
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+    else
+    {
+        for (uint32 i = 0; i < semaphoreCount; i++)
+        {
+            semaphores[i] = NextQueueSemaphore(ppSemaphores[i]);
+        }
+
+        result = m_pNextLayer->WaitForSemaphores(semaphoreCount, &semaphores[0], pValues, flags, timeout);
+    }
+
+    return result;
+
+}
+
+// =====================================================================================================================
 Result DeviceDecorator::GetSwapChainInfo(
     OsDisplayHandle      hDisplay,
     OsWindowHandle       hWindow,

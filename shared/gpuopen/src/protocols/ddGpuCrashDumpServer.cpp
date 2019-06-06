@@ -27,8 +27,8 @@
 #include "msgChannel.h"
 #include "ddTransferManager.h"
 
-#define GPUCRASHDUMP_SERVER_MIN_MAJOR_VERSION 1
-#define GPUCRASHDUMP_SERVER_MAX_MAJOR_VERSION 1
+#define GPUCRASHDUMP_SERVER_MIN_VERSION 1
+#define GPUCRASHDUMP_SERVER_MAX_VERSION 1
 
 namespace DevDriver
 {
@@ -53,7 +53,7 @@ namespace DevDriver
         };
 
         GpuCrashDumpServer::GpuCrashDumpServer(IMsgChannel* pMsgChannel)
-            : BaseProtocolServer(pMsgChannel, Protocol::GpuCrashDump, GPUCRASHDUMP_SERVER_MIN_MAJOR_VERSION, GPUCRASHDUMP_SERVER_MAX_MAJOR_VERSION)
+            : BaseProtocolServer(pMsgChannel, Protocol::GpuCrashDump, GPUCRASHDUMP_SERVER_MIN_VERSION, GPUCRASHDUMP_SERVER_MAX_VERSION)
             , m_pCrashDumpHandler(nullptr)
             , m_numSessions(0)
         {
@@ -89,6 +89,8 @@ namespace DevDriver
         {
             // Allocate session data for the newly established session
             GpuCrashDumpSession* pSessionData = DD_NEW(GpuCrashDumpSession, m_pMsgChannel->GetAllocCb())();
+            DD_ASSERT(pSessionData != nullptr);
+
             pSessionData->state               = SessionState::WaitForCrashDump;
             pSessionData->payload             = {};
             pSessionData->pUserdata           = nullptr;

@@ -421,6 +421,9 @@ enum class Result : int32
     /// Implicit fullscreen exclusive mode is not safe because the specified window size doesn't match the
     /// screen's current dimensions.
     ErrorIncompatibleWindowSize             = -(0x00000062),
+
+    /// A semaphore was used in WaitForSemaphores() without being signaled.
+    ErrorSemaphoreNeverSignaled             = -(0x00000063),
 };
 
 /// Length of date field used in BuildUniqueId

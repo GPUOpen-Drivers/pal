@@ -39,8 +39,6 @@
 #include "protocols/rgpClient.h"
 #include "protocols/etwClient.h"
 
-// The local transport implementation is only available on Windows.
-
 namespace DevDriver
 {
     DevDriverClient::DevDriverClient(const AllocCb&          allocCb,

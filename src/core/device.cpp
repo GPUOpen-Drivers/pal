@@ -479,7 +479,9 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.useGraphicsFastDepthStencilClear = false;
     m_publicSettings.forceLoadObjectFailure = false;
     m_publicSettings.distributionTessMode = DistributionTessDefault;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 507
     m_publicSettings.shaderCacheMode = ShaderCacheRuntimeOnly;
+#endif
     m_publicSettings.contextRollOptimizationFlags = 0;
     m_publicSettings.unboundDescriptorDebugSrdCount = 1;
     m_publicSettings.disableResourceProcessingManager = false;
@@ -507,7 +509,9 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.enableGpuEventMultiSlot = false;
     m_publicSettings.useAcqRelInterface = false;
 #endif
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 503
+    m_publicSettings.zeroUnboundDescDebugSrd = false;
+#endif
     return ret;
 }
 
@@ -1241,18 +1245,28 @@ void Device::InitPageFaultDebugSrd()
 
         if (result == Result::Success)
         {
-            BufferViewInfo bufferViewInfo = {};
-            bufferViewInfo.gpuAddr = 0xDEADBEEFDEADBEEF;
-            bufferViewInfo.range = UINT64_MAX;
-            bufferViewInfo.stride = 1;
-            bufferViewInfo.swizzledFormat = UndefinedSwizzledFormat;
-
-            for (uint32 srdIndex = 0; srdIndex < numDebugSrds; ++srdIndex)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 503
+            if (m_publicSettings.zeroUnboundDescDebugSrd == true)
             {
-                CreateUntypedBufferViewSrds(1, &bufferViewInfo, pData);
-                pData = VoidPtrInc(pData, maxSrdSize);
+                // Set null srds to avoid app bugs when reading from a null descriptor table.
+                memset(pData, 0, numDebugSrds * maxSrdSize);
             }
+            else
+#endif
+            {
+                BufferViewInfo bufferViewInfo = {};
 
+                bufferViewInfo.gpuAddr = 0xDEADBEEFDEADBEEF;
+                bufferViewInfo.range = UINT64_MAX;
+                bufferViewInfo.stride = 1;
+                bufferViewInfo.swizzledFormat = UndefinedSwizzledFormat;
+
+                for (uint32 srdIndex = 0; srdIndex < numDebugSrds; ++srdIndex)
+                {
+                    CreateUntypedBufferViewSrds(1, &bufferViewInfo, pData);
+                    pData = VoidPtrInc(pData, maxSrdSize);
+                }
+            }
             result = m_pageFaultDebugSrdMem.Unmap();
         }
 
@@ -2012,6 +2026,7 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.maxBufferViewStride = MaxMemoryViewStride;
         pInfo->gfxipProperties.gdsSize             = m_chipProperties.gfxip.gdsSize;
         pInfo->gfxipProperties.hardwareContexts    = m_chipProperties.gfxip.hardwareContexts;
+        pInfo->gfxipProperties.maxPrimgroupSize    = m_chipProperties.gfxip.maxPrimgroupSize;
 
         pInfo->gfxipProperties.performance.maxGpuClock     = static_cast<float>(m_chipProperties.maxEngineClock);
         pInfo->gfxipProperties.performance.aluPerClock     = static_cast<float>(m_chipProperties.alusPerClock);
@@ -2023,6 +2038,7 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.shaderCore.ldsSizePerCu           = m_chipProperties.gfxip.ldsSizePerCu;
         pInfo->gfxipProperties.shaderCore.ldsSizePerThreadGroup  = m_chipProperties.gfxip.ldsSizePerThreadGroup;
         pInfo->gfxipProperties.shaderCore.ldsGranularity         = m_chipProperties.gfxip.ldsGranularity;
+        pInfo->gfxipProperties.shaderCore.numOffchipTessBuffers  = m_chipProperties.gfxip.numOffchipTessBuffers;
         pInfo->gfxipProperties.shaderCore.offchipTessBufferSize  = m_chipProperties.gfxip.offChipTessBufferSize;
         pInfo->gfxipProperties.shaderCore.tessFactorBufSizePerSe = m_chipProperties.gfxip.tessFactorBufferSizePerSe;
         pInfo->gfxipProperties.shaderCore.tccSizeInBytes         = m_chipProperties.gfxip.tccSizeInBytes;

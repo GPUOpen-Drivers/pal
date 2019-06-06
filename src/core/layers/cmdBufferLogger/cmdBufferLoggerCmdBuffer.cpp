@@ -1779,6 +1779,81 @@ static const char* HwPipePointToString(
 }
 
 // =====================================================================================================================
+static const char* BarrierReasonToString(
+    uint32 reason)
+{
+    const char* pStr;
+
+    switch (reason)
+    {
+    case Developer::BarrierReasonInvalid:
+        pStr = "BarrierReasonInvalid";
+        break;
+    case Developer::BarrierReasonPreComputeColorClear:
+        pStr = "BarrierReasonPreComputeColorClear";
+        break;
+    case Developer::BarrierReasonPostComputeColorClear:
+        pStr = "BarrierReasonPostComputeColorClear";
+        break;
+    case Developer::BarrierReasonPreComputeDepthStencilClear:
+        pStr = "BarrierReasonPreComputeDepthStencilClear";
+        break;
+    case Developer::BarrierReasonPostComputeDepthStencilClear:
+        pStr = "BarrierReasonPostComputeDepthStencilClear";
+        break;
+    case Developer::BarrierReasonMlaaResolveEdgeSync:
+        pStr = "BarrierReasonMlaaResolveEdgeSync";
+        break;
+    case Developer::BarrierReasonAqlWaitForParentKernel:
+        pStr = "BarrierReasonAqlWaitForParentKernel";
+        break;
+    case Developer::BarrierReasonAqlWaitForChildrenKernels:
+        pStr = "BarrierReasonAqlWaitForChildrenKernels";
+        break;
+    case Developer::BarrierReasonP2PBlitSync:
+        pStr = "BarrierReasonP2PBlitSync";
+        break;
+    case Developer::BarrierReasonTimeGraphGrid:
+        pStr = "BarrierReasonTimeGraphGrid";
+        break;
+    case Developer::BarrierReasonTimeGraphGpuLine:
+        pStr = "BarrierReasonTimeGraphGpuLine";
+        break;
+    case Developer::BarrierReasonDebugOverlayText:
+        pStr = "BarrierReasonDebugOverlayText";
+        break;
+    case Developer::BarrierReasonDebugOverlayGraph:
+        pStr = "BarrierReasonDebugOverlayGraph";
+        break;
+    case Developer::BarrierReasonDevDriverOverlay:
+        pStr = "BarrierReasonDevDriverOverlay";
+        break;
+    case Developer::BarrierReasonDmaImgScanlineCopySync:
+        pStr = "BarrierReasonDmaImgScanlineCopySync";
+        break;
+    case Developer::BarrierReasonPostSqttTrace:
+        pStr = "BarrierReasonPostSqttTrace";
+        break;
+    case Developer::BarrierReasonPrePerfDataCopy:
+        pStr = "BarrierReasonPrePerfDataCopy";
+        break;
+    case Developer::BarrierReasonFlushL2CachedData:
+        pStr = "BarrierReasonFlushL2CachedData";
+        break;
+    case Developer::BarrierReasonUnknown:
+        pStr = "BarrierReasonUnknown";
+        break;
+    default:
+        // Eg. a client-defined reason
+        pStr = nullptr;
+        break;
+    }
+    static_assert(Developer::BarrierReasonInternalLastDefined - 1 == Developer::BarrierReasonFlushL2CachedData,
+                  "Barrier reason strings need to be updated!");
+    return pStr;
+}
+
+// =====================================================================================================================
 static void DumpMsaaQuadSamplePattern(
     CmdBuffer*                   pCmdBuffer,
     const MsaaQuadSamplePattern& quadSamplePattern,
@@ -1948,6 +2023,17 @@ static void CmdBarrierToString(
              "barrierInfo.pSplitBarrierGpuEvent = 0x%016" PRIXPTR, barrierInfo.pSplitBarrierGpuEvent);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
+    const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
+    if (pReasonStr != nullptr)
+    {
+        Snprintf(pString, StringLength, "barrierInfo.reason = %s", pReasonStr);
+    }
+    else
+    {
+        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X", barrierInfo.reason);
+    }
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
 
@@ -2051,10 +2137,17 @@ void CmdBuffer::DescribeBarrier(
 
     GetNextLayer()->CmdCommentString("PipelineStalls = {");
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    if (pData->operations.pipelineStalls.eopTsBottomOfPipe)
+    {
+        GetNextLayer()->CmdCommentString("\teopTsBottomOfPipe");
+    }
+#else
     if (pData->operations.pipelineStalls.waitOnEopTsBottomOfPipe)
     {
         GetNextLayer()->CmdCommentString("\twaitOnEopTsBottomOfPipe");
     }
+#endif
 
     if (pData->operations.pipelineStalls.vsPartialFlush)
     {
@@ -2079,6 +2172,21 @@ void CmdBuffer::DescribeBarrier(
     if (pData->operations.pipelineStalls.syncCpDma)
     {
         GetNextLayer()->CmdCommentString("\tsyncCpDma");
+    }
+
+    if (pData->operations.pipelineStalls.eosTsPsDone)
+    {
+        GetNextLayer()->CmdCommentString("\teosTsPsDone");
+    }
+
+    if (pData->operations.pipelineStalls.eosTsCsDone)
+    {
+        GetNextLayer()->CmdCommentString("\teosTsCsDone");
+    }
+
+    if (pData->operations.pipelineStalls.waitOnTs)
+    {
+        GetNextLayer()->CmdCommentString("\twaitOnTs");
     }
 
     GetNextLayer()->CmdCommentString("}");
@@ -2154,6 +2262,11 @@ void CmdBuffer::DescribeBarrier(
         GetNextLayer()->CmdCommentString("\tinvalTcc");
     }
 
+    if (pData->operations.caches.invalTccMetadata)
+    {
+        GetNextLayer()->CmdCommentString("\tinvalTccMetadata");
+    }
+
     if (pData->operations.caches.flushCb)
     {
         GetNextLayer()->CmdCommentString("\tflushCb");
@@ -2195,6 +2308,21 @@ void CmdBuffer::DescribeBarrier(
     }
 
     GetNextLayer()->CmdCommentString("}");
+
+    switch (pData->type)
+    {
+        case Developer::BarrierType::Full:
+            GetNextLayer()->CmdCommentString("Type = Full");
+            break;
+        case Developer::BarrierType::Release:
+            GetNextLayer()->CmdCommentString("Type = Release");
+            break;
+        case Developer::BarrierType::Acquire:
+            GetNextLayer()->CmdCommentString("Type = Acquire");
+            break;
+        default:
+            PAL_NEVER_CALLED();
+    }
 }
 
 // =====================================================================================================================
@@ -2354,6 +2482,19 @@ static void CmdReleaseToString(
         "pGpuEvent = 0x%016" PRIXPTR, pGpuEvent);
     pNextCmdBuffer->CmdCommentString(pString);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
+    if (pReasonStr != nullptr)
+    {
+        Snprintf(pString, StringLength, "barrierInfo.reason = %s", pReasonStr);
+    }
+    else
+    {
+        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X", barrierInfo.reason);
+    }
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+#endif
+
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
 
@@ -2394,6 +2535,19 @@ static void CmdAcquireToString(
             "pGpuEvent = 0x%016" PRIXPTR, ppGpuEvents[i]);
         pNextCmdBuffer->CmdCommentString(pString);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
+    if (pReasonStr != nullptr)
+    {
+        Snprintf(pString, StringLength, "barrierInfo.reason = %s", pReasonStr);
+    }
+    else
+    {
+        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X", barrierInfo.reason);
+    }
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+#endif
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -2436,6 +2590,19 @@ static void CmdAcquireReleaseToString(
     {
         ImageBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pImageBarriers[i], pString);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
+    if (pReasonStr != nullptr)
+    {
+        Snprintf(pString, StringLength, "barrierInfo.reason = %s", pReasonStr);
+    }
+    else
+    {
+        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X", barrierInfo.reason);
+    }
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+#endif
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -4362,7 +4529,7 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(
     IGpuEvent* pGpuEvent)
 {
-    return GetNextLayer()->AllocateAndBindGpuMemToEvent(pGpuEvent);
+    return GetNextLayer()->AllocateAndBindGpuMemToEvent(NextGpuEvent(pGpuEvent));
 }
 #endif
 

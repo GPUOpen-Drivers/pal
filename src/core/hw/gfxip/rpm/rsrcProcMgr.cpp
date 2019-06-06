@@ -4957,7 +4957,7 @@ void RsrcProcMgr::ResolveImageGraphics(
 
         pCmdBuffer->CmdSetViewports(viewportInfo);
         pCmdBuffer->CmdSetScissorRects(scissorInfo);
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 2, userData);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 2, userData);
 
         for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
         {
@@ -4971,12 +4971,12 @@ void RsrcProcMgr::ResolveImageGraphics(
                 pRegions[idx].dstSlice + slice
             };
 
-            // Create an embedded user-data table and bind it to user data 1. We only need one image view.
+            // Create an embedded user-data table and bind it to user data 0. We only need one image view.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
                                                                        SrdDwordAlignment(),
                                                                        SrdDwordAlignment(),
                                                                        PipelineBindPoint::Graphics,
-                                                                       1);
+                                                                       0);
 
             // Populate the table with an image view of the source image.
             ImageViewInfo     imageView = { };

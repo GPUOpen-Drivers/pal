@@ -78,6 +78,7 @@ namespace DevDriver
         DriverControlProtocol::DriverControlServer* GetDriverControlServer();
         RGPProtocol::RGPServer* GetRGPServer();
         SettingsURIService::SettingsService* GetSettingsService();
+        InfoURIService::InfoService* GetInfoService();
 
         bool ShouldShowOverlay();
 
@@ -94,6 +95,7 @@ namespace DevDriver
         ServerCreateInfo m_createInfo;
 
         SettingsURIService::SettingsService* m_pSettingsService;
+        InfoURIService::InfoService* m_pInfoService;
 
         template <Protocol protocol, class ...Args>
         inline Result RegisterProtocol(Args... args);

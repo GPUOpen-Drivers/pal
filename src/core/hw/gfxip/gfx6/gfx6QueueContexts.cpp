@@ -35,6 +35,7 @@
 #include "core/hw/gfxip/gfx6/gfx6UniversalEngine.h"
 #include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
 #include "core/hw/gfxip/gfx6/g_gfx6ShadowedRegistersInit.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 #include "palAssert.h"
 
 #include <limits.h>
@@ -1203,6 +1204,11 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
 
     const CmdUtil& cmdUtil  = m_pDevice->CmdUtil();
 
+    m_universalPreamble.spaceNeeded +=
+        cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
+                                       mmPA_SC_GENERIC_SCISSOR_BR,
+                                       &m_universalPreamble.hdrPaScGenericScissorTlBr);
+
     m_universalPreamble.spaceNeeded += (sizeof(GdsRangeCompute) / sizeof(uint32));
 #if !PAL_COMPUTE_GDS_OPT
     m_universalPreamble.spaceNeeded += GetGdsCounterRangeSize(false);
@@ -1320,6 +1326,12 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
 {
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+
+    m_universalPreamble.paScGenericScissorTl.u32All                     = 0;
+    m_universalPreamble.paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = 1;
+    m_universalPreamble.paScGenericScissorBr.u32All                     = 0;
+    m_universalPreamble.paScGenericScissorBr.bits.BR_X                  = ScissorMaxBR;
+    m_universalPreamble.paScGenericScissorBr.bits.BR_Y                  = ScissorMaxBR;
 
 #if !PAL_COMPUTE_GDS_OPT
     BuildGdsRangeGraphics(m_pDevice, m_queueId, &m_universalPreamble.gdsRangeGraphics);

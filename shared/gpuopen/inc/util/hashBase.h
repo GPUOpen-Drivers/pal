@@ -74,6 +74,9 @@ namespace DevDriver
         /// Returns number of entries in the container.
         size_t Size() const { return m_numEntries; }
 
+        /// Returns true if there are currently no entries in the container.
+        bool IsEmpty() const { return (m_numEntries == 0); }
+
         /// Empty the hash container without freeing the underlying allocations.
         void Reset()
         {
@@ -406,10 +409,15 @@ namespace DevDriver
                 if (pBucket == nullptr)
                 {
                     pBucket = AllocateBucket();
-                    DD_ASSERT(pBucket != nullptr);
-
-                    *ppBucket = pBucket;
                 }
+
+                if (pBucket == nullptr)
+                {
+                    DD_ALERT_REASON("Failed to allocate bucket");
+                    break;
+                }
+
+                *ppBucket = pBucket;
 
                 Bucket& currentBucket = *pBucket;
 

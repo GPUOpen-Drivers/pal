@@ -36,16 +36,6 @@
 #include "util/queue.h"
 #include "ddPlatform.h"
 
-#ifdef DEVDRIVER_LOG_CATEGORY_MASK
-#define LOGGING_CATEGORY_MASK static_cast<DevDriver::LoggingProtocol::LoggingCategory>(DEVDRIVER_LOG_CATEGORY_MASK)
-#else
-#if defined(NDEBUG)
-#define LOGGING_CATEGORY_MASK DevDriver::LoggingProtocol::kAllLoggingCategories
-#else
-#define LOGGING_CATEGORY_MASK DevDriver::LoggingProtocol::kAllLoggingCategories
-#endif
-#endif
-
 namespace DevDriver
 {
     namespace LoggingProtocol

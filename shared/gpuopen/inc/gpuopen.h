@@ -230,7 +230,39 @@ static_assert(false, "Error: unsupported compiler detected. Support is required 
 // Creates a structure with the specified alignment, and mark it as final to ensure it cannot be used as a parent class
 #define DD_NETWORK_STRUCT(name, alignment) struct DD_ALIGNAS(alignment) name final
 
-#define DD_CHECK_SIZE(x, size) static_assert(sizeof(x) == size_t(size), #x " size has changed unexpectedly")
+// This is disabled by default because (1) it's horribly hacky and (2) doesn't work very well in some compilers.
+#if DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS
+    #include <type_traits>
+
+    // Conditionally expose a `value` member using SFINAE and `std::enable_if`.
+    // For a more complete overview, see:
+    // [C++]
+    //      https://en.cppreference.com/w/cpp/types/enable_if
+    // tl:dr; If left != right, prints an error message that includes the template type.
+    //          We only do this because static_assert can't take format arguments.
+    template <size_t left, size_t right>
+    struct CheckEqualActualVsExpected
+    {
+        // If template arguments `left` and `right` are not equal, the `enable_if_t` type will fail to resolve, causing an error at the call-site.
+        // When the sizes are equal, this is a regular and boring struct with a single static member that's always `true`.
+        using Bool = typename std::enable_if_t<(left == right), bool>;
+        static constexpr Bool value = true;
+    };
+
+    // In our case, the call-site is in this macro. The error message will print the entire type that failed to resolve,
+    // e.g. CheckEqualActualVsExpected<12, 8> -- this means that the actual size was 12, but the expected size is 8.
+    // This has no effect if the sizes are equal: the template type here resolves and `value` evaluates as `true`, passing the static_assert.
+    #define DD_CHECK_SIZE(typeA, expectedSize) \
+        static_assert(                         \
+            CheckEqualActualVsExpected<        \
+                sizeof(typeA),                 \
+                (expectedSize)                 \
+            >::value,                          \
+            ""                                 \
+        );
+#else
+    #define DD_CHECK_SIZE(x, size) static_assert(sizeof(x) == size_t(size), "sizeof(" # x ") should be " # size " bytes but has changed recently")
+#endif
 
 #define DD_VERSION_SUPPORTS(x) (GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= x)
 
@@ -240,8 +272,8 @@ static_assert(false, "Error: unsupported compiler detected. Support is required 
 
 #define DD_SANITIZE_RESULT(x) ((x != Result::Success) ? Result::Error : x)
 
-#define DD_STRINGIFY(str) #str
-#define DD_STRINGIFY_(x) DD_STRINGIFY(x)
+#define _DD_STRINGIFY(str) #str
+#define DD_STRINGIFY(x) _DD_STRINGIFY(x)
 
 #if DD_CPLUSPLUS_SUPPORTS(CPP17)
 #define DD_NODISCARD [[nodiscard]]
@@ -341,6 +373,12 @@ namespace DevDriver
         SettingsUriInvalidSettingName = 2001,
         SettingsUriInvalidSettingValue = 2002,
         SettingsUriInvalidSettingValueSize = 2003,
+
+        //// Info URI Service ////
+        InfoUriSourceNameInvalid = 3000,
+        InfoUriSourceCallbackInvalid = 3001,
+        InfoUriSourceAlreadyRegistered = 3002,
+        InfoUriSourceWriteFailed = 3003,
     };
 
     ////////////////////////////
@@ -569,11 +607,8 @@ namespace DevDriver
     {
         TransportType::Local,
         0,
-#if defined(__APPLE__)
-        "/tmp/com.amd.AMD-Developer-Service"
-#else
+
         "\\\\.\\pipe\\AMD-Developer-Service"
-#endif
 
     };
 

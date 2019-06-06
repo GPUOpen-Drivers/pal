@@ -137,10 +137,6 @@ void ColorTargetView::BuildPm4Headers(
                                                   mmCB_COLOR0_FMASK_SLICE,
                                                   &m_pm4Cmds.hdrCbColorAttribToFmaskSlice);
 
-    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
-                                                  mmPA_SC_GENERIC_SCISSOR_BR,
-                                                  &m_pm4Cmds.hdrPaScGenericScissorTlBr);
-
     // NOTE: The register offset will be updated at bind-time to reflect the actual slot this view is being bound to.
     // NOTE: This register is an unused location on pre-VI ASICs; writing to it doesn't do anything.
     spaceNeeded += cmdUtil.BuildSetOneContextReg(mmCB_COLOR0_DCC_BASE__VI, &m_pm4Cmds.hdrCbColorDccBase);
@@ -233,11 +229,8 @@ void ColorTargetView::InitRegisters(
         m_pm4Cmds.cbColorAttrib.bits.NUM_SAMPLES       = 0;
         m_pm4Cmds.cbColorAttrib.bits.NUM_FRAGMENTS     = 0;
 
-        m_pm4Cmds.paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = true;
-        m_pm4Cmds.paScGenericScissorTl.bits.TL_X = 0;
-        m_pm4Cmds.paScGenericScissorTl.bits.TL_Y = 0;
-        m_pm4Cmds.paScGenericScissorBr.bits.BR_X = createInfo.bufferInfo.extent;
-        m_pm4Cmds.paScGenericScissorBr.bits.BR_Y = 1;
+        m_extent.width  = createInfo.bufferInfo.extent;
+        m_extent.height = 1;
     }
     else
     {
@@ -315,11 +308,8 @@ void ColorTargetView::InitRegisters(
         m_pm4Cmds.cbColorAttrib.bits.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
         m_pm4Cmds.cbColorAttrib.bits.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
 
-        m_pm4Cmds.paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = 1;
-        m_pm4Cmds.paScGenericScissorTl.bits.TL_X = 0;
-        m_pm4Cmds.paScGenericScissorTl.bits.TL_Y = 0;
-        m_pm4Cmds.paScGenericScissorBr.bits.BR_X = extent.width;
-        m_pm4Cmds.paScGenericScissorBr.bits.BR_Y = extent.height;
+        m_extent.width  = extent.width;
+        m_extent.height = extent.height;
     }
 
     const auto& parent     = *device.Parent();

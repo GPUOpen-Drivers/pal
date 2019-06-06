@@ -29,7 +29,7 @@
 ***********************************************************************************************************************
 */
 
-#include "../ddSocket.h"
+#include "ddSocket.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -85,12 +85,12 @@ namespace DevDriver
     // =====================================================================================================================
     // Constructs the socket this object encapsulates.
     Socket::Socket()
-        : m_osSocket(-1)
+        : m_address()
+        , m_addressSize(0)
+        , m_osSocket(-1)
         , m_isNonBlocking(false)
         , m_socketType(SocketType::Unknown)
         , m_hints()
-        , m_address()
-        , m_addressSize(0)
     {
     }
 
@@ -253,7 +253,7 @@ namespace DevDriver
             pAddr->sun_family = AF_UNIX;
             pAddr->sun_path[0] = '\0';
 
-#if defined(DD_LINUX)
+#if defined(DD_PLATFORM_LINUX_UM)
             if (pAddress != nullptr)
             {
                 // Start the path with a null byte to bind as an abstract socket.

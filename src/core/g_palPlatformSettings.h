@@ -88,104 +88,104 @@ struct PalPlatformSettings : public Pal::DriverSettings
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     struct {
-        bool                              infoEnabled;
-        bool                              warningEnabled;
-        bool                              errorEnabled;
-        bool                              ScEnabled;
-        bool                              eventPrintEnabled;
-        bool                              eventPrintCbEnabled;
+        bool                                        infoEnabled;
+        bool                                        warningEnabled;
+        bool                                        errorEnabled;
+        bool                                        ScEnabled;
+        bool                                        eventPrintEnabled;
+        bool                                        eventPrintCbEnabled;
     } dbgPrintConfig;
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    bool                              assertsEnabled;
+    bool                                        assertsEnabled;
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    bool                              alertsEnabled;
+    bool                                        alertsEnabled;
 #endif
 
-    bool                              debugOverlayEnabled;
+    bool                                        debugOverlayEnabled;
     struct {
-        bool                              visualConfirmEnabled;
-        bool                              timeGraphEnabled;
-        DebugOverlayLocation              overlayLocation;
-        char                              renderedByString[MaxMiscStrLen];
-        char                              miscellaneousDebugString[MaxMiscStrLen];
-        bool                              printFrameNumber;
+        bool                                        visualConfirmEnabled;
+        bool                                        timeGraphEnabled;
+        DebugOverlayLocation                        overlayLocation;
+        char                                        renderedByString[MaxMiscStrLen];
+        char                                        miscellaneousDebugString[MaxMiscStrLen];
+        bool                                        printFrameNumber;
     } debugOverlayConfig;
     struct {
-        TimeGraphColor                    gridLineColor;
-        TimeGraphColor                    cpuLineColor;
-        TimeGraphColor                    gpuLineColor;
+        TimeGraphColor                              gridLineColor;
+        TimeGraphColor                              cpuLineColor;
+        TimeGraphColor                              gpuLineColor;
     } timeGraphConfig;
     struct {
-        uint32                            maxBenchmarkTime;
-        bool                              usageLogEnable;
-        char                              usageLogDirectory[MaxPathStrLen];
-        char                              usageLogFilename[MaxPathStrLen];
-        bool                              logFrameStats;
-        char                              frameStatsLogDirectory[MaxPathStrLen];
-        uint32                            maxLoggedFrames;
+        uint32                                      maxBenchmarkTime;
+        bool                                        usageLogEnable;
+        char                                        usageLogDirectory[MaxPathStrLen];
+        char                                        usageLogFilename[MaxPathStrLen];
+        bool                                        logFrameStats;
+        char                                        frameStatsLogDirectory[MaxPathStrLen];
+        uint32                                      maxLoggedFrames;
     } overlayBenchmarkConfig;
     struct {
-        bool                              combineNonLocal;
-        bool                              reportCmdAllocator;
-        bool                              reportExternal;
-        bool                              reportInternal;
+        bool                                        combineNonLocal;
+        bool                                        reportCmdAllocator;
+        bool                                        reportExternal;
+        bool                                        reportInternal;
     } overlayMemoryInfoConfig;
-    GpuProfilerMode                   gpuProfilerMode;
-    size_t                            gpuProfilerTokenAllocatorSize;
+    GpuProfilerMode                             gpuProfilerMode;
+    size_t                                      gpuProfilerTokenAllocatorSize;
     struct {
-        char                              logDirectory[MaxPathStrLen];
-        uint32                            startFrame;
-        uint32                            frameCount;
-        bool                              recordPipelineStats;
-        bool                              breakSubmitBatches;
-        uint32                            traceModeMask;
+        char                                        logDirectory[MaxPathStrLen];
+        uint32                                      startFrame;
+        uint32                                      frameCount;
+        bool                                        recordPipelineStats;
+        bool                                        breakSubmitBatches;
+        uint32                                      traceModeMask;
     } gpuProfilerConfig;
     struct {
-        char                              globalPerfCounterConfigFile[MaxFileNameStrLen];
-        bool                              cacheFlushOnCounterCollection;
-        GpuProfilerGranularity            granularity;
+        char                                        globalPerfCounterConfigFile[MaxFileNameStrLen];
+        bool                                        cacheFlushOnCounterCollection;
+        GpuProfilerGranularity                      granularity;
     } gpuProfilerPerfCounterConfig;
     struct {
-        uint32                            tokenMask;
-        uint32                            seMask;
-        uint64                            pipelineHash;
-        uint64                            vsHashHi;
-        uint64                            vsHashLo;
-        uint64                            hsHashHi;
-        uint64                            hsHashLo;
-        uint64                            dsHashHi;
-        uint64                            dsHashLo;
-        uint64                            gsHashHi;
-        uint64                            gsHashLo;
-        uint64                            psHashHi;
-        uint64                            psHashLo;
-        uint64                            csHashHi;
-        uint64                            csHashLo;
-        uint32                            maxDraws;
-        bool                              addTtvHashes;
-        size_t                            bufferSize;
-        GpuProfilerStallMode              stallBehavior;
+        uint32                                      tokenMask;
+        uint32                                      seMask;
+        uint64                                      pipelineHash;
+        uint64                                      vsHashHi;
+        uint64                                      vsHashLo;
+        uint64                                      hsHashHi;
+        uint64                                      hsHashLo;
+        uint64                                      dsHashHi;
+        uint64                                      dsHashLo;
+        uint64                                      gsHashHi;
+        uint64                                      gsHashLo;
+        uint64                                      psHashHi;
+        uint64                                      psHashLo;
+        uint64                                      csHashHi;
+        uint64                                      csHashLo;
+        uint32                                      maxDraws;
+        bool                                        addTtvHashes;
+        size_t                                      bufferSize;
+        GpuProfilerStallMode                        stallBehavior;
     } gpuProfilerSqttConfig;
     struct {
-        char                              spmPerfCounterConfigFile[MaxFileNameStrLen];
-        uint32                            spmTraceInterval;
-        size_t                            spmBufferSize;
+        char                                        spmPerfCounterConfigFile[MaxFileNameStrLen];
+        uint32                                      spmTraceInterval;
+        size_t                                      spmBufferSize;
     } gpuProfilerSpmConfig;
-    bool                              cmdBufferLoggerEnabled;
+    bool                                        cmdBufferLoggerEnabled;
     struct {
-        uint32                            cmdBufferLoggerAnnotations;
-        uint32                            cmdBufferLoggerSingleStep;
+        uint32                                      cmdBufferLoggerAnnotations;
+        uint32                                      cmdBufferLoggerSingleStep;
     } cmdBufferLoggerConfig;
-    bool                              interfaceLoggerEnabled;
+    bool                                        interfaceLoggerEnabled;
     struct {
-        char                              logDirectory[MaxPathStrLen];
-        bool                              multithreaded;
-        uint32                            basePreset;
-        uint32                            elevatedPreset;
+        char                                        logDirectory[MaxPathStrLen];
+        bool                                        multithreaded;
+        uint32                                      basePreset;
+        uint32                                      elevatedPreset;
     } interfaceLoggerConfig;
 
 };

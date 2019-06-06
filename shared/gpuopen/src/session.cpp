@@ -31,16 +31,11 @@
 #include <cstring>
 #include <cstdio>
 
-#if !defined(NDEBUG) && !defined(DEVDRIVER_SHOW_SYMBOLS)
-#define DEVDRIVER_SHOW_SYMBOLS
-#endif
-
 using namespace DevDriver::SessionProtocol;
 using namespace DevDriver::Platform;
 
 namespace DevDriver
 {
-#if defined(DEVDRIVER_SHOW_SYMBOLS)
     static_assert(static_cast<uint32>(SessionState::Closed) == 0, "Unexpected SessionState::Closed value.");
     static_assert(static_cast<uint32>(SessionState::Listening) == 1, "Unexpected SessionState::Listening value.");
     static_assert(static_cast<uint32>(SessionState::SynSent) == 2, "Unexpected SessionState::SynSent value.");
@@ -53,6 +48,7 @@ namespace DevDriver
 
     DD_STATIC_CONST const char* kStateName[static_cast<uint32>(SessionState::Count)] =
     {
+#if defined(DEVDRIVER_SHOW_DEBUG_LABELS)
         "Closed",           // Closed
         "Listening",        // Listening
         "SynSent",          // SynSent
@@ -61,8 +57,8 @@ namespace DevDriver
         "FinWait1",         // FinWait1
         "Closing",          // Closing
         "FinWait2",         // FinWait2
-    };
 #endif
+    };
 
     DD_STATIC_CONST uint32 kMaxRetransmits = 5;
     DD_STATIC_CONST float kMovingAverageWindow = 2;
@@ -72,17 +68,21 @@ namespace DevDriver
     DD_STATIC_CONST float kMaxRetransmitDelay = 2000.0f;
     DD_STATIC_CONST uint32 kMaxUnacknowledgedThreshold = 5;
 
-    Session::Session(IMsgChannel* pMsgChannel) :
+    Session::Session(IMsgChannel* pMsgChannel, SessionType type, Protocol protocol) :
         m_pMsgChannel(pMsgChannel),
-        m_pProtocolOwner(nullptr),
+        m_protocol(protocol),
         m_pSessionUserdata(nullptr),
         m_clientId(pMsgChannel->GetClientId()),
         m_remoteClientId(kBroadcastClientId),
         m_sessionId(kInvalidSessionId),
         m_sessionState(SessionState::Closed),
+        m_callbackState(SessionCallbackState::None),
+        m_sessionType(type),
         m_sessionTerminationReason(Result::Success),
         m_protocolVersion(0),
-        m_sessionVersion(kSessionProtocolVersion)
+        m_minClientProtocolVersion(0),
+        m_sessionVersion(kSessionProtocolVersion),
+        m_connectionEvent(false)
     {
     }
 
@@ -124,9 +124,13 @@ namespace DevDriver
     {
         // transmit an ack based on the current max sequence received
         const Sequence& seq = m_receiveWindow.nextExpectedSequence;
+        const Sequence ackSequence = (seq - 1);
         m_receiveWindow.lastUnacknowledgedSequence = seq;
         m_receiveWindow.currentAvailableSize = CalculateCurrentWindowSize();
-        return SendControlMessage(SessionMessage::Ack, (seq - 1));
+
+        DD_PRINT(LogLevel::Debug, "Acking sequence number %u", ackSequence);
+
+        return SendControlMessage(SessionMessage::Ack, ackSequence);
     }
 
     Result Session::MarkMessagesAsAcknowledged(Sequence maxSequenceNumber)
@@ -323,8 +327,8 @@ namespace DevDriver
                     const Sequence seq = m_sendWindow.nextSequence;
                     ++m_sendWindow.nextSequence;
 
-                    DD_PRINT(LogLevel::Never, "Sending a message with sequence number %u", seq);
-                    DD_PRINT(LogLevel::Never, "Next sequence number %u", m_sendWindow.nextSequence);
+                    DD_PRINT(LogLevel::Debug, "Sending a message with sequence number %u", seq);
+                    DD_PRINT(LogLevel::Debug, "Next sequence number %u", m_sendWindow.nextSequence);
 
                     const Sequence index = seq % m_sendWindow.GetWindowSize();
 
@@ -363,9 +367,10 @@ namespace DevDriver
         return result;
     }
 
-    Result Session::Connect(IProtocolClient& owner,
-                            ClientId remoteClientId,
-                            SessionId sessionId)
+    Result Session::Connect(ClientId  remoteClientId,
+                            SessionId sessionId,
+                            Version   minProtocolVersion,
+                            Version   maxProtocolVersion)
     {
         Result result = Result::Error;
 
@@ -374,20 +379,23 @@ namespace DevDriver
         // 2) The remote client ID provided is not a broadcast client ID
         // 3) The session ID provided is not invalid
         // 4) The session is in the closed state
-        if ((owner.GetType() == SessionType::Client) &&
+        if ((m_sessionType == SessionType::Client) &&
             (remoteClientId != kBroadcastClientId) &&
             (sessionId != kInvalidSessionId) &&
             (m_sessionState == SessionState::Closed))
         {
-            m_pProtocolOwner = &owner;
             m_remoteClientId = remoteClientId;
             m_sessionId = sessionId;
 
+            // We need to hold on to this value so we can fall back to it if we end up
+            // connecting to a very old remote client.
+            m_minClientProtocolVersion = minProtocolVersion;
+
             // Write the payload data for a session request packet.
             SynPayload payload = {};
-            payload.protocol = m_pProtocolOwner->GetProtocol();
-            payload.minVersion = m_pProtocolOwner->GetMinVersion();
-            payload.maxVersion = m_pProtocolOwner->GetMaxVersion();
+            payload.protocol = m_protocol;
+            payload.minVersion = minProtocolVersion;
+            payload.maxVersion = maxProtocolVersion;
             payload.sessionVersion = m_sessionVersion;
             result = WriteMessageIntoSendWindow(SessionMessage::Syn, sizeof(SynPayload), &payload, kLogicFailureTimeout);
 
@@ -417,7 +425,6 @@ namespace DevDriver
             (sessionId != kInvalidSessionId) &&
             (m_sessionState == SessionState::Closed))
         {
-            m_pProtocolOwner = &owner;
             m_remoteClientId = remoteClientId;
             m_sessionVersion = Platform::Min(sessionVersion, kSessionProtocolVersion);
             m_protocolVersion = protocolVersion;
@@ -464,13 +471,38 @@ namespace DevDriver
             {
                 case SessionState::Established:
                 {
-                    if (m_pProtocolOwner != nullptr)
+                    switch (m_sessionType)
                     {
-                        m_pProtocolOwner->SessionEstablished(pSession);
-                    }
-                    else
-                    {
-                        Shutdown(Result::Error);
+                        case SessionType::Client:
+                        {
+                            // Signal our connection event now that a connection has been established.
+                            m_connectionEvent.Signal();
+                            break;
+                        }
+                        case SessionType::Server:
+                        {
+                            IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(m_protocol);
+
+                            // We should never end up in the established state here without a valid protocol server.
+                            // That would mean the protocol server unregistered without closing all the associated sessions.
+                            DD_ASSERT(pServer != nullptr);
+
+                            // Sanity check to make sure we haven't called any callbacks yet
+                            DD_ASSERT(m_callbackState == SessionCallbackState::None);
+
+                            pServer->SessionEstablished(pSession);
+
+                            m_callbackState = SessionCallbackState::EstablishedCalled;
+
+                            break;
+                        }
+                        default:
+                        {
+                            // Invalid session type
+                            DD_ASSERT_ALWAYS();
+
+                            break;
+                        }
                     }
                 }
                 break;
@@ -482,7 +514,7 @@ namespace DevDriver
 
     void Session::HandleSynMessage(const MessageBuffer& messageBuffer)
     {
-        DD_ASSERT(m_pProtocolOwner->GetType() == SessionType::Server);
+        DD_ASSERT(m_sessionType == SessionType::Server);
 
         const SessionId& remoteSessionId = messageBuffer.header.sessionId;
         const Sequence& receiveSequence = messageBuffer.header.sequence;
@@ -513,6 +545,8 @@ namespace DevDriver
 
     void Session::HandleSynAckMessage(const MessageBuffer& messageBuffer)
     {
+        DD_ASSERT(m_sessionType == SessionType::Client);
+
         switch (m_sessionState)
         {
             // These should not happen during normal operation, but in if they do we need to handle it
@@ -545,9 +579,10 @@ namespace DevDriver
             {
                 m_protocolVersion = pPayload->version;
             }
-            else if (m_pProtocolOwner != nullptr)
+            else
             {
-                m_protocolVersion = m_pProtocolOwner->GetMinVersion();
+                // Fall back to our minumum supported version from earlier if we're connecting to an old client.
+                m_protocolVersion = m_minClientProtocolVersion;
             }
 
             m_receiveWindow.nextUnreadSequence = messageBuffer.header.sequence + 1;
@@ -567,8 +602,12 @@ namespace DevDriver
 
     void Session::HandleFinMessage(const MessageBuffer& messageBuffer)
     {
+        DD_PRINT(LogLevel::Debug, "Received Fin message on session: %u with type: %u", m_sessionId, m_sessionType);
+
         if (m_sessionState < SessionState::Closing)
         {
+            DD_PRINT(LogLevel::Debug, "Fin message before closing");
+
             WriteMessageIntoReceiveWindow(messageBuffer);
             // Mark the session as terminated;
             SetState(SessionState::Closing);
@@ -576,6 +615,8 @@ namespace DevDriver
         }
         else if (m_sessionState == SessionState::FinWait2)
         {
+            DD_PRINT(LogLevel::Debug, "Fin message during fin wait");
+
             // if we've hit this point we received a Fin message while waiting on an ack for a Fin message.
             // Best thing we can do is send an acknowledgement and close the session immediately
             WriteMessageIntoReceiveWindow(messageBuffer);
@@ -599,7 +640,10 @@ namespace DevDriver
             break;
         }
         default:
+        {
+            DD_PRINT(LogLevel::Debug, "Dropping received data due to session state on session %u of type %u", m_sessionId, m_sessionType);
             break;
+        }
         }
 
         // Update the send window size
@@ -641,6 +685,63 @@ namespace DevDriver
         //}
 
         UpdateSendWindowSize(messageBuffer);
+    }
+
+    void Session::Update(const SharedPointer<Session>& pSession)
+    {
+        DD_ASSERT(pSession.Get() == this);
+
+        UpdateReceiveWindow();
+        UpdateSendWindow();
+        UpdateTimeout();
+
+        // Close the session if this is a client session type and we have the last reference to it.
+        if ((pSession.QueryReferenceCount() == 1) && (m_sessionType == SessionType::Client))
+        {
+            Shutdown(Result::Success);
+        }
+
+        // Update active sessions for non-clients
+        if (m_sessionType == SessionType::Server)
+        {
+            if (m_sessionState == SessionState::Established)
+            {
+                // We should never be calling update on a session that hasn't called its establish callback yet.
+                DD_ASSERT(m_callbackState == SessionCallbackState::EstablishedCalled);
+
+                IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(m_protocol);
+
+                // We should never end up with a session that has no associated protocol server here.
+                // That would mean that the protocol server was somehow unregistered without shutting down all associated
+                // sessions.
+                DD_ASSERT(pServer != nullptr);
+
+                pServer->UpdateSession(pSession);
+            }
+
+            if (m_sessionState == SessionState::Closed)
+            {
+                // If we've called the establish callback already and we haven't called the termination handler yet, we
+                // need to do it now before the session gets destroyed.
+                if (m_callbackState == SessionCallbackState::EstablishedCalled)
+                {
+                    DD_PRINT(LogLevel::Debug,
+                             "[Session] Session %u terminated - reason %u",
+                             m_sessionId,
+                             m_sessionTerminationReason);
+
+                    IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(m_protocol);
+
+                    // We should never end up with a session that has no associated protocol server here.
+                    // That would mean that the protocol server was somehow unregistered without calling the termination callback.
+                    DD_ASSERT(pServer != nullptr);
+
+                    pServer->SessionTerminated(pSession, m_sessionTerminationReason);
+
+                    m_callbackState = SessionCallbackState::TerminatedCalled;
+                }
+            }
+        }
     }
 
     WindowSize Session::CalculateCurrentWindowSize()
@@ -692,7 +793,7 @@ namespace DevDriver
             if (seq > m_receiveWindow.lastUnacknowledgedSequence)
             {
                 // if there is unacknowledged data in the receive window we need to acknowledge it
-                DD_PRINT(LogLevel::Never, "Acknowledging packets %u-%u", m_receiveWindow.lastUnacknowledgedSequence, (seq - 1));
+                DD_PRINT(LogLevel::Debug, "Acknowledging packets %u-%u", m_receiveWindow.lastUnacknowledgedSequence, (seq - 1));
                 SendAckMessage();
             }
         }
@@ -750,7 +851,7 @@ namespace DevDriver
                 // if we successfully retransmitted any packets we increment the retrans count
                 if (count > 0)
                 {
-                    DD_PRINT(LogLevel::Debug, "RETRANSMIT: retransmitted %u packets", count);
+                    DD_PRINT(LogLevel::Debug, "RETRANSMIT: retransmitted %u packets on session %u of type %u", count, m_sessionId, m_sessionType);
                     m_sendWindow.retransmitCount += 1;
                 }
             }
@@ -804,6 +905,7 @@ namespace DevDriver
         {
             if (WriteMessageIntoSendWindow(SessionMessage::Fin, 0, nullptr, kLogicFailureTimeout) == Result::Success)
             {
+                DD_PRINT(LogLevel::Debug, "Sent Fin message on session: %u with type: %u", m_sessionId, m_sessionType);
                 SetState(SessionState::FinWait2);
             }
         }
@@ -828,6 +930,58 @@ namespace DevDriver
                 }
             }
         }
+    }
+
+    void Session::Shutdown(Result reason)
+    {
+        m_sessionTerminationReason = reason;
+
+        switch (m_sessionState)
+        {
+        case SessionState::Closed:
+        case SessionState::FinWait1:
+        case SessionState::FinWait2:
+        case SessionState::Closing:
+            if (reason != Result::Success)
+            {
+                SetState(SessionState::Closed);
+            }
+            break;
+        case SessionState::Established:
+            if (reason == Result::Success)
+            {
+                // Send the request.
+                SetState(SessionState::FinWait1);
+            } else
+            {
+                SetState(SessionState::Closed);
+            }
+            break;
+        default:
+            SetState(SessionState::Closed);
+            break;
+        }
+    }
+
+    void Session::HandleUnregisterProtocolServer(SharedPointer<Session>& pSession, IProtocolServer* pServer)
+    {
+        // This should only be called on server sessions
+        DD_ASSERT(m_sessionType == SessionType::Server);
+
+        // The protocol type for the session and server should always match. Otherwise this is probably being called
+        // with the wrong server pointer.
+        DD_ASSERT(pServer->GetProtocol() == m_protocol);
+
+        if (m_callbackState == SessionCallbackState::EstablishedCalled)
+        {
+            // Execute the termination callback to allow for resource cleanup
+            pServer->SessionTerminated(pSession, Result::EndOfStream);
+
+            m_callbackState = SessionCallbackState::TerminatedCalled;
+        }
+
+        // Shut down the session so it can gracefully disconnect.
+        Shutdown(Result::Success);
     }
 
     Result Session::Send(uint32 payloadSizeInBytes, const void* pPayload, uint32 timeoutInMs)
@@ -895,60 +1049,13 @@ namespace DevDriver
         return result;
     }
 
-    void Session::Shutdown(Result reason)
-    {
-        m_sessionTerminationReason = reason;
-
-        switch (m_sessionState)
-        {
-        case SessionState::Closed:
-        case SessionState::FinWait1:
-        case SessionState::FinWait2:
-        case SessionState::Closing:
-            if (reason != Result::Success)
-            {
-                SetState(SessionState::Closed);
-            }
-            break;
-        case SessionState::Established:
-            if (reason == Result::Success)
-            {
-                // Send the request.
-                SetState(SessionState::FinWait1);
-            } else
-            {
-                SetState(SessionState::Closed);
-            }
-            break;
-        default:
-            SetState(SessionState::Closed);
-            break;
-        }
-    }
-
-    void Session::Close(Result reason)
-    {
-        Orphan();
-        Shutdown(reason);
-    }
-
-    void Session::Orphan()
-    {
-        // WARNING - this can leak memory as this will lead to SessionTerminate not being called
-        DD_ASSERT(m_pSessionUserdata == nullptr);
-        m_pProtocolOwner = nullptr;
-        m_pSessionUserdata = nullptr;
-    }
-
     inline void DevDriver::Session::SetState(SessionState newState)
     {
         if (m_sessionState != newState)
         {
-#if defined(DEVDRIVER_SHOW_SYMBOLS)
-            DD_PRINT(LogLevel::Debug, "[Session] Session %u transitioned states: %s -> %s",
+            DD_PRINT(LogLevel::Never, "[Session] Session %u transitioned states: %s -> %s",
                      GetSessionId(), kStateName[static_cast<uint32>(m_sessionState)],
                      kStateName[static_cast<uint32>(newState)]);
-#endif
             m_sessionState = newState;
         }
     }

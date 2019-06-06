@@ -335,7 +335,7 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerTokenAllocatorSizeStr,
-                           Util::ValueType::Uint,
+                           Util::ValueType::Uint64,
                            &m_settings.gpuProfilerTokenAllocatorSize,
                            InternalSettingScope::PrivatePalKey);
 
@@ -472,7 +472,7 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerSqttConfig_BufferSizeStr,
-                           Util::ValueType::Uint,
+                           Util::ValueType::Uint64,
                            &m_settings.gpuProfilerSqttConfig.bufferSize,
                            InternalSettingScope::PrivatePalKey);
 
@@ -493,7 +493,7 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerSpmConfig_SpmBufferSizeStr,
-                           Util::ValueType::Uint,
+                           Util::ValueType::Uint64,
                            &m_settings.gpuProfilerSpmConfig.spmBufferSize,
                            InternalSettingScope::PrivatePalKey);
 
@@ -719,7 +719,7 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gpuProfilerMode);
     m_settingsInfoMap.Insert(3490085415, info);
 
-    info.type      = SettingType::Uint;
+    info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerTokenAllocatorSize;
     info.valueSize = sizeof(m_settings.gpuProfilerTokenAllocatorSize);
     m_settingsInfoMap.Insert(2716183183, info);
@@ -854,7 +854,7 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.addTtvHashes);
     m_settingsInfoMap.Insert(2774444984, info);
 
-    info.type      = SettingType::Uint;
+    info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.bufferSize;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.bufferSize);
     m_settingsInfoMap.Insert(1277078724, info);
@@ -874,7 +874,7 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gpuProfilerSpmConfig.spmTraceInterval);
     m_settingsInfoMap.Insert(3756226799, info);
 
-    info.type      = SettingType::Uint;
+    info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSpmConfig.spmBufferSize;
     info.valueSize = sizeof(m_settings.gpuProfilerSpmConfig.spmBufferSize);
     m_settingsInfoMap.Insert(3798430118, info);

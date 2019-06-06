@@ -52,7 +52,12 @@ Result TextWriter::End()
         // Special "End of Writer" call
         m_lastResult = m_pfnWriter(m_pUserData, nullptr, 0);
     }
-    return m_lastResult;
+
+    // Overwrite the last result with success to allow for subsequent uses of the writer.
+    const Result result = m_lastResult;
+    m_lastResult = Result::Success;
+
+    return result;
 }
 
 //=====================================================================================================================

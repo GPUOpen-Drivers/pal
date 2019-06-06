@@ -726,8 +726,12 @@ void Device::IssueSyncs(
             syncReqs.cacheFlags &= ~CacheSyncFlushAndInvRb;
             eopEvent             = CACHE_FLUSH_AND_INV_TS_EVENT;
         }
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+        pOperations->pipelineStalls.eopTsBottomOfPipe       = 1;
+#else
         pOperations->pipelineStalls.waitOnEopTsBottomOfPipe = 1;
+#endif
+        pOperations->pipelineStalls.waitOnTs                = 1;
         pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(engineType,
                                                           eopEvent,
                                                           SelectTcCacheOp(&syncReqs.cacheFlags),
@@ -896,7 +900,7 @@ void Device::Barrier(
     // -----------------------------------------------------------------------------------------------------------------
     if (barrier.flags.splitBarrierLatePhase == 0)
     {
-        DescribeBarrierStart(pCmdBuf, barrier.reason);
+        DescribeBarrierStart(pCmdBuf, barrier.reason, Developer::BarrierType::Full);
 
         for (uint32 i = 0; i < barrier.transitionCount; i++)
         {
@@ -1357,8 +1361,9 @@ void Device::Barrier(
 // =====================================================================================================================
 // Call back to above layers before starting the barrier execution.
 void Device::DescribeBarrierStart(
-    GfxCmdBuffer* pCmdBuf,
-    uint32        reason
+    GfxCmdBuffer*          pCmdBuf,
+    uint32                 reason,
+    Developer::BarrierType type
     ) const
 {
     Developer::BarrierData barrierData = {};
@@ -1370,6 +1375,7 @@ void Device::DescribeBarrierStart(
                   "Invalid barrier reason codes are not allowed!");
 
     barrierData.reason = reason;
+    barrierData.type   = type;
 
     m_pParent->DeveloperCb(Developer::CallbackType::BarrierBegin, &barrierData);
 }

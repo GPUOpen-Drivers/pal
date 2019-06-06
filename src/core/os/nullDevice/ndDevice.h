@@ -118,6 +118,14 @@ public:
         void*                pPlacementAddr,
         IFence**             ppFence) const override;
 
+    // NOTE: Part of the public IDevice interface.
+    virtual Result WaitForSemaphores(
+        uint32                       semaphoreCount,
+        const IQueueSemaphore*const* ppSemaphores,
+        const uint64*                pValues,
+        uint32                       flags,
+        uint64                       timeout) const override;
+
     virtual Result CreateSwapChain(
         const SwapChainCreateInfo& createInfo,
         void*                      pPlacementAddr,
@@ -331,6 +339,8 @@ protected:
         const QueueCreateInfo& createInfo) const override;
 
     virtual Result PerformOsInternalQueueInit() override { return Result::Success; }
+
+    virtual bool ValidatePipelineUploadHeap(const GpuHeap& preferredHeap) const override { return false; }
 
 private:
     virtual Result EarlyInit(const HwIpLevels& ipLevels) override;

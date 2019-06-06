@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -61,34 +61,34 @@ namespace Platform
 
 } // namespace DevDriver
 
-#if   defined(__APPLE__) || defined(__linux__)
+#if   defined(DD_PLATFORM_LINUX_UM)
 #include "posix/ddPosixPlatform.h"
-#endif
-
-#if defined(__x86_64__) || defined(_M_X64)
-#define DD_ARCH_STRING "x86-64"
-#elif defined(__i386__) || defined(_M_IX86)
-#define DD_ARCH_STRING "x86"
 #else
-#define DD_ARCH_STRING "Unk"
-#endif
+    // Legacy system for Ati Make
+    #if   defined(__gnu_linux__)
+        #define DD_PLATFORM_LINUX_UM
+        #include <posix/ddPosixPlatform.h>
+    #else
+        #error "Unknown Platform - please configure your build system"
+    #endif
 
-#if   defined(DD_LINUX)
-#define DD_OS_STRING "Linux"
-#else
-#define DD_OS_STRING "Unknown"
+    #if __x86_64__
+        #define DD_CPU_BITS 64
+    #else
+        #define DD_CPU_BITS 32
+    #endif
 #endif
 
 #if !defined(DD_RESTRICT)
-#error "Restrict not defined by platform!"
+#error "DD_RESTRICT not defined by platform!"
 #endif
 
 #if !defined(DD_DEBUG_BREAK)
-#error "Debug break not defined by platform!"
+#error "DD_DEBUG_BREAK not defined by platform!"
 #endif
 
-#if !defined(DD_AXIOMATICALLY_CANNOT_HAPPEN)
-#error "Axiomatically-cannot-happen not defined by platform!"
+#if !defined(DD_ASSUME)
+#error "DD_ASSUME not defined by platform!"
 #endif
 
 #include "util/template.h"
@@ -118,22 +118,22 @@ namespace Platform
 #if !defined(DEVDRIVER_ASSERTS_ENABLE)
 
 #define DD_ALERT(statement)      DD_UNUSED(0)
-#define DD_ASSERT(statement)     DD_AXIOMATICALLY_CANNOT_HAPPEN(statement)
+#define DD_ASSERT(statement)     DD_UNUSED(0) // WA: Do not optimize code using DD_ASSERT(), by calling DD_ASSUME().
 #define DD_ASSERT_REASON(reason) DD_UNUSED(0)
 #define DD_ALERT_REASON(reason)  DD_UNUSED(0)
 
 #else
 
-#define DD_ALERT(statement)                                                                     \
+#define DD_ALERT(statement) do                                                                  \
 {                                                                                               \
     if (!(statement))                                                                           \
     {                                                                                           \
         DD_PRINT(DevDriver::LogLevel::Alert, "%s (%d): Alert triggered in %s: %s\n",            \
             __FILE__, __LINE__, __func__, DD_STRINGIFY(statement));                             \
     }                                                                                           \
-}
+} while (0)
 
-#define DD_ASSERT(statement)                                                                    \
+#define DD_ASSERT(statement) do                                                                 \
 {                                                                                               \
     if (!(statement))                                                                           \
     {                                                                                           \
@@ -141,20 +141,20 @@ namespace Platform
             __FILE__, __LINE__, __func__, DD_STRINGIFY(statement));                             \
         DD_ASSERT_DEBUG_BREAK();                                                                \
     }                                                                                           \
-}
+} while (0)
 
-#define DD_ALERT_REASON(reason)                                                     \
+#define DD_ALERT_REASON(reason) do                                                  \
 {                                                                                   \
     DD_PRINT(DevDriver::LogLevel::Alert, "%s (%d): Alert triggered in %s: %s\n",    \
         __FILE__, __LINE__, __func__, reason);                                      \
-}
+} while (0)
 
-#define DD_ASSERT_REASON(reason)                                                    \
+#define DD_ASSERT_REASON(reason) do                                                 \
 {                                                                                   \
     DD_PRINT(DevDriver::LogLevel::Error, "%s (%d): Assertion failed in %s: %s\n",   \
         __FILE__, __LINE__, __func__, reason);                                      \
     DD_ASSERT_DEBUG_BREAK();                                                        \
-}
+} while (0)
 
 #endif
 
@@ -174,7 +174,6 @@ namespace DevDriver
 {
     namespace Platform
     {
-
         template <typename T, DevDriver::uint32 Size>
         constexpr DevDriver::uint32 ArraySize(const T(&)[Size]) { return Size; }
 
@@ -433,7 +432,7 @@ namespace DevDriver
                      pFunc,
                      pExpr,
                      result);
-            DD_DEBUG_BREAK();
+            DD_ASSERT_DEBUG_BREAK();
         }
 #else
         DD_UNUSED(result);

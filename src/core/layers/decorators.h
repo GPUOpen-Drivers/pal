@@ -548,6 +548,13 @@ public:
         uint64              timeout
         ) const override;
 
+    virtual Result WaitForSemaphores(
+        uint32                       semaphoreCount,
+        const IQueueSemaphore*const* ppSemaphores,
+        const uint64*                pValues,
+        uint32                       flags,
+        uint64                       timeout) const override;
+
     virtual Result GetCalibratedTimestamps(
         CalibratedTimestamps* pCalibratedTimestamps) const override
         { return m_pNextLayer->GetCalibratedTimestamps(pCalibratedTimestamps); }

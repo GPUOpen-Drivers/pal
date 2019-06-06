@@ -33,6 +33,7 @@
 #include "messageChannel.h"
 #include "devDriverServer.h"
 #include "protocolServer.h"
+#include "protocols/ddInfoService.h"
 #include "protocols/ddSettingsService.h"
 #include "protocols/loggingServer.h"
 #include "protocols/settingsServer.h"
@@ -40,8 +41,7 @@
 #include "protocols/rgpServer.h"
 #include "protocols/typemap.h"
 
-// The local transport implementation is only available on Windows.
-#include "socketMsgTransport.h"
+    #include "socketMsgTransport.h"
 
 namespace DevDriver
 {
@@ -51,6 +51,7 @@ namespace DevDriver
         , m_allocCb(allocCb)
         , m_createInfo(createInfo)
         , m_pSettingsService(nullptr)
+        , m_pInfoService(nullptr)
     {
     }
 
@@ -135,13 +136,19 @@ namespace DevDriver
             m_pSettingsService = nullptr;
         }
 
+        if (m_pInfoService != nullptr)
+        {
+            DD_DELETE(m_pInfoService, m_allocCb);
+            m_pInfoService = nullptr;
+        }
+
         if (m_pMsgChannel != nullptr)
         {
+            DestroyProtocols();
+
             Result result = m_pMsgChannel->Unregister();
             DD_ASSERT(result == Result::Success);
             DD_UNUSED(result);
-
-            DestroyProtocols();
 
             DD_DELETE(m_pMsgChannel, m_allocCb);
             m_pMsgChannel = nullptr;
@@ -185,6 +192,11 @@ namespace DevDriver
         return m_pSettingsService;
     }
 
+    InfoURIService::InfoService* DevDriverServer::GetInfoService()
+    {
+        return m_pInfoService;
+    }
+
     Result DevDriverServer::InitializeProtocols()
     {
         Result result = Result::Success;
@@ -219,6 +231,20 @@ namespace DevDriver
         {
             result = RegisterProtocol<Protocol::RGP>();
         }
+
+        // Always create the Info service.
+        m_pInfoService = DD_NEW(InfoURIService::InfoService, m_allocCb)(m_allocCb);
+        if (m_pInfoService != nullptr)
+        {
+            result = m_pMsgChannel->RegisterService(m_pInfoService);
+        }
+        else
+        {
+            // Something bad happened, we're probably out of memory
+            result = Result::InsufficientMemory;
+            DD_ASSERT_ALWAYS();
+        }
+
         return result;
     }
 

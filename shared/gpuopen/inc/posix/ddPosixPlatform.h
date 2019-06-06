@@ -41,37 +41,65 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__APPLE__)
-#include <dispatch/dispatch.h>
-#define DD_DARWIN
-#elif defined(__linux__)
-#include <semaphore.h>
-#define DD_LINUX
+#if defined(DD_PLATFORM_LINUX_UM)
+    #include <semaphore.h>
 #else
-static_assert(false, "Unknown platform detected")
+    static_assert(false, "Unknown platform detected")
 #endif
 
 #define DD_RESTRICT __restrict__
 
 #define DD_DEBUG_BREAK() raise(SIGTRAP)
 
-// Don't use this macro. Use DD_ASSERT instead.
+// The DD_ASSUME() macro passes to a C++ compiler a boolean expression,
+// which is assumed to be an *absolute truth*, without any checking.
 //
-// This macro tells the compiler to take a boolean expression as absolute truth.
-// Branches or operations can be deleted in optimization passes if you use this on
-// something that's true *most* of the time, but not *all* of it.
+// Note that, C++ optimizer will use input expression to generate faster code,
+// because calling DD_ASSUME() on expressions which are not *always* true
+// is undefined behavior.
 //
-// Observe this example: https://godbolt.org/z/3Asevh
-// The programmer accidentally creates conflicting conditions in `square()`.
-// As a a result, the entire square function is deleted and so are any code blocks
-// that call it.
+// This macro can be used to inform the compiler about preconditions
+// that your code assumes, but cannot validate.
 //
-// Be very careful.
-#if defined(__clang__)
-#define DD_AXIOMATICALLY_CANNOT_HAPPEN(expr) __builtin_assume(expr)
-#else
-#define DD_AXIOMATICALLY_CANNOT_HAPPEN(expr) ((expr) ? DD_UNUSED(0) : __builtin_unreachable())
-#endif
+// ## Example Use Case - Generators
+//
+// A generator represents a potentially stateless object,
+// which computes a series of values lazily (on demand).
+// Dereferencing an iterator of a generator triggers a computation,
+// which will produce the next value - that means after reading it once, it's gone.
+// Because generator can be stateless,
+// its iterator has to model an input iterator (it cannot model a forward iterator).
+//
+// This means precondition of get_val() cannot be checked,
+// otherwise generated value will be lost!
+//
+//     float get_val (generator<float>::iterator it)
+//     {
+//         DD_ASSUME(valid(it)); // Do not call DD_ASSERT(valid(it)) here!
+//         return *it;
+//     }
+//
+// In this case calling DD_ASSUME() is correct and desirable.
+// The code is written in such a way, that if the precondition is not met,
+// we have a crash, so it makes sense to generate code assuming callers
+// are not violating get_val()'s contract.
+//
+// For scenarios where one *can* validate this assumption,
+// it is recommended to use DD_ASSERT(), because DD_ASSERT() will
+// do that validation in a Debug build and behave like DD_ASSUME() in Release build.
+//
+// [GCC] __builtin_unreachable()
+//  ~ https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html
+//
+// [C++] Contracts: expects, ensures, assert, axiom
+//  ~ https://en.cppreference.com/w/cpp/language/attributes/contract
+#define DD_ASSUME(expression) do \
+{                                \
+    if (!(expression))           \
+    {                            \
+        __builtin_unreachable(); \
+    }                            \
+} while (0)
 
 namespace DevDriver
 {
@@ -103,7 +131,7 @@ namespace DevDriver
 
         typedef pthread_mutex_t MutexStorage;
 
-#if defined(DD_LINUX)
+#if defined(DD_PLATFORM_LINUX_UM)
         typedef sem_t SemaphoreStorage;
         typedef drand48_data RandomStorage;
 #endif

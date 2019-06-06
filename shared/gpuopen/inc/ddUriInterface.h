@@ -33,7 +33,6 @@
 
 #include "gpuopen.h"
 #include "ddPlatform.h"
-#include "util/sharedptr.h"
 
 namespace DevDriver
 {

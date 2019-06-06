@@ -49,6 +49,9 @@ namespace DevDriver
             void SessionEstablished(const SharedPointer<ISession>& pSession) override;
             void UpdateSession(const SharedPointer<ISession>& pSession) override;
             void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override;
+
+            // Returns true if ETW is supported on the system.
+            static bool QueryETWSupported();
         private:
         };
     }
