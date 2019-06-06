@@ -34,7 +34,9 @@
 #include "palSysUtil.h"
 #include "palTextWriterImpl.h"
 
-#include "core/os/lnx/lnxHeaders.h"
+#if PAL_AMDGPU_BUILD
+#include "core/os/amdgpu/amdgpuHeaders.h"
+#endif
 
 using namespace Util;
 
@@ -129,8 +131,6 @@ void TextWriter::WriteVisualConfirm(
     constexpr uint32 NumSpacing     = 5;
 
     Util::Snprintf(&overlayText[textLines][0], BufSize, "Presenting GPU: ");
-
-    constexpr uint32 MaxLdaChainLength = MAX_MULTIVPU_ADAPTERS;
 
     for (uint32 index = 0; index < MaxLdaChainLength; index++)
     {

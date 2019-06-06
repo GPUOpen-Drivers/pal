@@ -77,7 +77,8 @@ namespace DevDriver
         Result Receive(MessageBuffer& message, uint32 timeoutInMs) override final;
         Result Forward(const MessageBuffer& messageBuffer) override final;
 
-        Result ConnectProtocolClient(IProtocolClient* pProtocolClient, ClientId dstClientId) override final;
+        Result EstablishSessionForClient(SharedPointer<ISession>*    ppSession,
+                                         const EstablishSessionInfo& sessionInfo) override final;
         Result RegisterProtocolServer(IProtocolServer* pServer) override final;
         Result UnregisterProtocolServer(IProtocolServer* pServer) override final;
         IProtocolServer* GetProtocolServer(Protocol protocol) override final;
@@ -149,6 +150,8 @@ namespace DevDriver
         bool HandleMessageReceived(const MessageBuffer& messageBuffer);
 
         Result SendSystem(ClientId dstClientId, SystemProtocol::SystemMessage message, const ClientMetadata& metadata);
+
+        bool IsConnected() const { return (m_clientId != kBroadcastClientId); }
 
 #ifdef DEVDRIVER_ENABLE_PACKET_LOSS
         // Returns true if a packet should be dropped. Used for testing.

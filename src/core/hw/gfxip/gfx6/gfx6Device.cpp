@@ -426,6 +426,8 @@ void Device::FinalizeChipProperties(
         break;
     }
 
+    pChipProperties->gfxip.numOffchipTessBuffers     = settings.numOffchipLdsBuffers;
+    pChipProperties->gfxip.maxPrimgroupSize          = 256;
     pChipProperties->gfxip.tessFactorBufferSizePerSe = settings.tessFactorBufferSizePerSe;
 }
 

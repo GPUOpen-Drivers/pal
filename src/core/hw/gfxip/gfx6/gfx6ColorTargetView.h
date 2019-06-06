@@ -26,6 +26,7 @@
 #include "palColorTargetView.h"
 #include "core/hw/gfxip/gfx6/gfx6Image.h"
 #include "core/hw/gfxip/gfx6/gfx6MaskRam.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 
 namespace Pal
 {
@@ -60,10 +61,6 @@ struct ColorTargetViewPm4Img
     regCB_COLOR0_CMASK_SLICE      cbColorCmaskSlice;
     regCB_COLOR0_FMASK            cbColorFmask;
     regCB_COLOR0_FMASK_SLICE      cbColorFmaskSlice;
-
-    PM4CMDSETDATA                 hdrPaScGenericScissorTlBr;
-    regPA_SC_GENERIC_SCISSOR_TL   paScGenericScissorTl;
-    regPA_SC_GENERIC_SCISSOR_BR   paScGenericScissorBr;
 
     // This doesn't need to be last because it's safe to write it on pre-VI hardware.
     PM4CMDSETDATA                 hdrCbColorDccBase;
@@ -121,6 +118,8 @@ public:
 
     bool IsDccEnabled(ImageLayout imageLayout) const;
 
+    TargetExtent2d GetExtent() const { return m_extent; }
+
 private:
     virtual ~ColorTargetView()
     {
@@ -160,8 +159,9 @@ private:
     } m_flags;
 
     // If this is an image view, these members give the bound image and its base subresource.
-    const Image* m_pImage;
-    SubresId     m_subresource;
+    const Image*   m_pImage;
+    SubresId       m_subresource;
+    TargetExtent2d m_extent;
 
     ColorLayoutToState  m_layoutToState;
 

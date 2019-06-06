@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -29,17 +29,25 @@ project(GPUOPEN CXX)
 # Put ZERO_CHECK, INSTALL, etc default targets in a separate folder in VS solutions
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# Include project-wide and AMD-wide CMake options
+include(DevDriver)
+
 if(NOT DEFINED GPUOPEN_LIB_NAME)
     set(GPUOPEN_LIB_NAME gpuopen CACHE STRING "Name of generated gpuopen lib")
 endif()
 
 ### Create GpuOpen Library #############################################################################################
-add_library(${GPUOPEN_LIB_NAME} STATIC)
+
+    amd_um_library(${GPUOPEN_LIB_NAME} STATIC)
 
 # Install the library into "${CMAKE_INSTALL_PREFIX}/lib"
 install(TARGETS ${GPUOPEN_LIB_NAME} DESTINATION lib)
 
 ### Cached Project Options #############################################################################################
+
+option(DEVDRIVER_SHOW_DEBUG_LABELS "Show debug labels in various log outputs?" ON)
 
 set(DEVDRIVER_LOG_LEVEL ${DEVDRIVER_LOG_LEVEL} CACHE STRING "Developer driver mode log level? [0-4]")
 
@@ -56,95 +64,14 @@ if(NOT DEFINED GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION)
 endif()
 message(STATUS "Building gpuopen lib as ${GPUOPEN_LIB_NAME} GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION}")
 
-# Warning Options ######################################################################################################
-macro(apply_gpuopen_warnings _target)
-    option(
-        DEVDRIVER_USE_CPP17 "Optionally build using the C++17 standard. If disabled, it builds as C++11"
-        OFF)
-    option(
-        DEVDRIVER_FORCE_COLOR_OUPUT "Force colored diagnostic messages (Clang/gcc only)"
-        OFF)
-
-    if(DEVDRIVER_USE_CPP17)
-        message(STATUS "Using C++17 for ${_target}")
-        set_property(TARGET ${_target} PROPERTY CXX_STANDARD 17)
-    else()
-        set_property(TARGET ${_target} PROPERTY CXX_STANDARD 11)
-    endif()
-    # Do not fallback to c++98 if the compiler does not support 11/17.
-    set_property(TARGET ${_target} PROPERTY CXX_STANDARD_REQUIRED TRUE)
-    # Do not use flags like `-std=gnu++11`, instead use `-std=c++11`.
-    set_property(TARGET ${_target} PROPERTY CXX_EXTENSIONS        FALSE)
-
-    # Apply GNU/Clang compatible warnings
-    if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        target_compile_options(${_target} PRIVATE -Wall -Wextra -Werror)
-    endif()
-
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        # Apply special options for GCC 8.x+
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
-            target_compile_options(${_target} PRIVATE
-                # This warning triggers when you memcpy into or out of a "non trivial" type.
-                # The requirements for "trivial type" are hard - e.g. some user supplied constructors are enough to make
-                #   it not count.
-                #   Properly fixing this would require embracing more C++14 than we currently do. (e.g. `= default` ctors)
-                #   Read more here: https://msdn.microsoft.com/en-us/library/mt767760.aspx
-                #   This warning is new in gcc 8.x
-                -Wno-class-memaccess
-            )
-        # Apply special options for versions earlier than GCC 5.x
-        elseif (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
-            target_compile_options(${_target} PRIVATE
-                # This warning triggers when we default initialize structures with the "StructType x = {};" syntax.
-                # It only triggers on GCC 4.8
-                -Wno-missing-field-initializers
-            )
-        endif()
-        if (DEVDRIVER_FORCE_COLOR_OUPUT)
-            # For details on customizing this, see the docs:
-            #   https://gcc.gnu.org/onlinedocs/gcc-5.2.0/gcc/Language-Independent-Options.html
-            target_compile_options(${_target} PRIVATE -fdiagnostics-color)
-        endif()
-     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-        target_compile_options(${_target} PRIVATE
-            # No Clang-specific options yet
-        )
-        if (DEVDRIVER_FORCE_COLOR_OUPUT)
-            target_compile_options(${_target} PRIVATE -fcolor-diagnostics)
-        endif()
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-        target_compile_options(${_target} PRIVATE
-            # No AppleClang-specific options yet
-        )
-        if (DEVDRIVER_FORCE_COLOR_OUPUT)
-            target_compile_options(${_target} PRIVATE -fcolor-diagnostics)
-        endif()
-    else()
-        message(FATAL_ERROR "Using unknown compiler: ${CMAKE_CXX_COMPILER_ID}")
-    endif()
-endmacro()
-
 # Apply the standard gpuopen warnings to the library.
 apply_gpuopen_warnings(${GPUOPEN_LIB_NAME})
 
 ### Compiler Options ###################################################################################################
-
-set_target_properties(${GPUOPEN_LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 if(UNIX)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
     target_link_libraries(${GPUOPEN_LIB_NAME} Threads::Threads)
-
-    if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|(Apple)?Clang)$")
-        target_compile_options(${GPUOPEN_LIB_NAME} PRIVATE
-            -fno-exceptions
-            -fno-rtti
-        )
-    else()
-        message(FATAL_ERROR "Using unknown compiler.")
-    endif()
 endif()
 
 ### Build Defines ######################################################################################################
@@ -179,6 +106,11 @@ if(DEVDRIVER_LOG_LEVEL)
     target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DEVDRIVER_LOG_LEVEL=${DEVDRIVER_LOG_LEVEL})
 endif()
 
+if(DEVDRIVER_SHOW_DEBUG_LABELS)
+    target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE $<$<CONFIG:Debug>:         DEVDRIVER_SHOW_DEBUG_LABELS>
+                                                           $<$<CONFIG:RelWithDebInfo>:DEVDRIVER_SHOW_DEBUG_LABELS>)
+endif()
+
 # Indicate target architecture bits
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(TARGET_ARCHITECTURE_BITS "64")
@@ -187,6 +119,7 @@ elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
 else()
     message(FATAL_ERROR "Unsupported target architecture - pointers must be 4 or 8 bytes, not ${CMAKE_SIZEOF_VOID_P}")
 endif()
+target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE "DD_CPU_BITS=${TARGET_ARCHITECTURE_BITS}")
 
 ### Include Directories ################################################################################################
 target_include_directories(${GPUOPEN_LIB_NAME} PUBLIC inc)
@@ -200,18 +133,19 @@ target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     src/session.cpp
     src/sessionManager.cpp
     src/messageChannel.inl
+    src/messageChannel.cpp
     src/baseProtocolServer.cpp
     src/baseProtocolClient.cpp
     src/ddTransferManager.cpp
+    src/ddClientURIService.cpp
     src/ddURIRequestContext.cpp
+    ## Protocols
     src/protocols/ddTransferServer.cpp
     src/protocols/ddTransferClient.cpp
-    src/ddClientURIService.cpp
     src/protocols/ddURIServer.cpp
-    src/protocols/ddSettingsService.cpp
-    src/protocols/ddPipelineUriService.cpp
+    ## Utility functions and classes
     src/util/ddTextWriter.cpp
-    src/util/ddJsonWriter.cpp
+    src/util/ddMemory.cpp
 )
 
 # If the client doesn't specify, default to building internal metrohash library
@@ -234,11 +168,28 @@ endif()
 target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE ${METROHASH_PATH})
 
 ### RapidJson ###
-target_include_directories(${GPUOPEN_LIB_NAME} PUBLIC "inc/imported/rapidjson/include")
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+        src/util/ddJsonWriter.cpp
+    )
+    target_include_directories(${GPUOPEN_LIB_NAME} PUBLIC "inc/imported/rapidjson/include")
 
 ### Platform ###
-if(UNIX)
+
+    target_compile_definitions(${GPUOPEN_LIB_NAME}
+        PUBLIC
+            "-DDD_PLATFORM_STRING=\"${CMAKE_SYSTEM_NAME} User Mode\""
+    )
+
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+
+    target_compile_definitions(${GPUOPEN_LIB_NAME}
+        PUBLIC
+            "DD_PLATFORM_LINUX_UM=(1)"
+            "DD_PLATFORM_IS_UM=(1)")
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/posix/ddPosixPlatform.cpp)
+
+else()
+    message(FATAL_ERROR "Unrecognized platform: ${CMAKE_SYSTEM_NAME} - cannot build platform abstraction")
 endif()
 
 ### Local Transport ###
@@ -248,6 +199,7 @@ if(UNIX)
         src/posix/ddPosixSocket.cpp
         src/socketMsgTransport.cpp
     )
+
 endif()
 
 ### Helper Classes ###
@@ -278,12 +230,13 @@ endif()
 
 ### Standard Listener Protocols ###
 if(GPUOPEN_BUILD_STANDARD_LISTENER_PROTOCOLS)
-    set(GPUOPEN_BUILD_PROTOCOL_ETW_SERVER ON)
+    set(GPUOPEN_BUILD_PROTOCOL_LOGGING_SERVER ON)
 endif()
 
 ### Listener Components ###
 if(GPUOPEN_BUILD_LISTENER_CORE)
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+        src/listener.cpp
         listener/listenerCore.cpp
         listener/routerCore.cpp
         listener/transportThread.cpp
@@ -347,13 +300,16 @@ if(GPUOPEN_BUILD_PROTOCOL_URI_CLIENT)
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/ddURIClient.cpp)
 endif()
 
-### ETW Protocol ###
+################
+### Services ###
+################
 
-if(GPUOPEN_BUILD_PROTOCOL_ETW_CLIENT)
-    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/etwClient.cpp)
-endif()
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+        src/protocols/ddSettingsService.cpp
+        src/protocols/ddPipelineUriService.cpp
+        src/protocols/ddInfoService.cpp
+    )
 
-### Visual Studio Filters ##############################################################################################
 # Find Headers Helper ##############################################################################
 macro(target_find_headers _target)
     get_target_property(${_target}_INCLUDES_DIRS ${_target} INCLUDE_DIRECTORIES)
@@ -372,23 +328,5 @@ macro(target_find_headers _target)
     endif()
 endmacro()
 
-# Source Groups Helper #############################################################################
-# This helper creates source groups for generators that support them. This is primarily MSVC and
-# XCode, but there are other generators that support IDE project files.
-#
-# Note: this only adds files that have been added to the target's SOURCES property. To add headers
-# to this list, be sure that you call target_find_headers before you call target_source_groups.
-macro(target_source_groups _target)
-    get_target_property(${_target}_SOURCES ${_target} SOURCES)
-    foreach(_source IN ITEMS ${${_target}_SOURCES})
-        set(_source ${_source})
-        get_filename_component(_source_path "${_source}" ABSOLUTE)
-        file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")
-        get_filename_component(_source_path_rel "${_source_path_rel}" DIRECTORY)
-        string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
-        source_group("${_group_path}" FILES "${_source}")
-    endforeach()
-endmacro()
-
 target_find_headers(${GPUOPEN_LIB_NAME})
-target_source_groups(${GPUOPEN_LIB_NAME})
+

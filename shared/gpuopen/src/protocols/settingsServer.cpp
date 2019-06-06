@@ -27,6 +27,9 @@
 #include "msgChannel.h"
 #include <cstring>
 
+#define SETTINGS_SERVER_MIN_VERSION 1
+#define SETTINGS_SERVER_MAX_VERSION 2
+
 namespace DevDriver
 {
     namespace SettingsProtocol
@@ -51,7 +54,7 @@ namespace DevDriver
         };
 
         SettingsServer::SettingsServer(IMsgChannel* pMsgChannel)
-            : BaseProtocolServer(pMsgChannel, Protocol::Settings, SETTINGS_CLIENT_MIN_MAJOR_VERSION, SETTINGS_CLIENT_MAX_MAJOR_VERSION)
+            : BaseProtocolServer(pMsgChannel, Protocol::Settings, SETTINGS_SERVER_MIN_VERSION, SETTINGS_SERVER_MAX_VERSION)
             , m_settings(pMsgChannel->GetAllocCb())
             , m_categories(pMsgChannel->GetAllocCb())
         {
@@ -81,8 +84,12 @@ namespace DevDriver
 
             // Allocate session data for the newly established session
             SettingsSession* pSessionData = DD_NEW(SettingsSession, m_pMsgChannel->GetAllocCb())();
+            // WA: Force MSVC's static analyzer to ignore unhandled OOM.
+            DD_ASSUME(pSessionData != nullptr);
+
             pSessionData->state = SessionState::ReceivePayload;
             pSessionData->payload = {};
+
             pSession->SetUserData(pSessionData);
         }
 
@@ -147,12 +154,10 @@ namespace DevDriver
                             {
                                 pSessionData->payload.querySettingResponse.success = true;
                                 memcpy(&pSessionData->payload.querySettingResponse.setting, &m_settings[settingIndex], sizeof(Setting));
-#if SETTINGS_PROTOCOL_SUPPORTS(SETTINGS_HEX_VERSION)
                                 if ((pSession->GetVersion() < SETTINGS_HEX_VERSION) & (pSessionData->payload.querySettingResponse.setting.type == SettingType::Hex))
                                 {
                                     pSessionData->payload.querySettingResponse.setting.type = SettingType::UnsignedInteger;
                                 }
-#endif
                             }
                             UnlockData();
 
@@ -254,12 +259,10 @@ namespace DevDriver
                         {
                             LockData();
                             memcpy(&pSessionData->payload.querySettingsDataResponse.setting, &m_settings[0], sizeof(Setting));
-#if SETTINGS_PROTOCOL_SUPPORTS(SETTINGS_HEX_VERSION)
                             if ((pSession->GetVersion() < SETTINGS_HEX_VERSION) & (pSessionData->payload.querySettingResponse.setting.type == SettingType::Hex))
                             {
                                 pSessionData->payload.querySettingsDataResponse.setting.type = SettingType::UnsignedInteger;
                             }
-#endif
                             UnlockData();
                         }
                     }
@@ -280,12 +283,10 @@ namespace DevDriver
                             {
                                 LockData();
                                 memcpy(&pSessionData->payload.querySettingsDataResponse.setting, &m_settings[pSessionData->itemIndex], sizeof(Setting));
-#if SETTINGS_PROTOCOL_SUPPORTS(SETTINGS_HEX_VERSION)
                                 if ((pSession->GetVersion() < SETTINGS_HEX_VERSION) & (pSessionData->payload.querySettingResponse.setting.type == SettingType::Hex))
                                 {
                                     pSessionData->payload.querySettingsDataResponse.setting.type = SettingType::UnsignedInteger;
                                 }
-#endif
                                 UnlockData();
                             }
                             else

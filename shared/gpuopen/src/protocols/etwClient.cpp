@@ -153,5 +153,10 @@ namespace DevDriver
             }
             return result;
         }
+
+        void ETWClient::ResetState()
+        {
+            m_sessionState = SessionState::Idle;
+        }
     }
 } // DevDriver

@@ -408,22 +408,25 @@ public:
     void Barrier(GfxCmdBuffer* pCmdBuf, CmdStream* pCmdStream, const BarrierInfo& barrier) const;
 
     void BarrierRelease(
-        GfxCmdBuffer*             pCmdBuf,
-        CmdStream*                pCmdStream,
-        const AcquireReleaseInfo& barrierReleaseInfo,
-        const IGpuEvent*          pGpuEvent) const;
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        const AcquireReleaseInfo&     barrierReleaseInfo,
+        const IGpuEvent*              pGpuEvent,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void BarrierAcquire(
-        GfxCmdBuffer*             pCmdBuf,
-        CmdStream*                pCmdStream,
-        const AcquireReleaseInfo& barrierAcquireInfo,
-        uint32                    gpuEventCount,
-        const IGpuEvent*const*    ppGpuEvents) const;
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        const AcquireReleaseInfo&     barrierAcquireInfo,
+        uint32                        gpuEventCount,
+        const IGpuEvent*const*        ppGpuEvents,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void BarrierReleaseThenAcquire(
-        GfxCmdBuffer*             pCmdBuf,
-        CmdStream*                pCmdStream,
-        const AcquireReleaseInfo& barrierInfo) const;
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        const AcquireReleaseInfo&     barrierInfo,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void FillCacheOperations(const SyncReqs& syncReqs, Developer::BarrierOperations* pOperations) const;
 
@@ -455,7 +458,8 @@ public:
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const ImgBarrier&             imgBarrier,
-        HwLayoutTransition            transition) const;
+        HwLayoutTransition            transition,
+        Developer::BarrierOperations* pBarrierOps) const;
     void AcqRelDepthStencilTransition(
         GfxCmdBuffer*                 pCmdBuf,
         const ImgBarrier&             imgBarrier,
@@ -464,7 +468,10 @@ public:
         GfxCmdBuffer*                 pCmdBuf,
         const BarrierTransition*      pTransition,
         Developer::BarrierOperations* pOperations) const;
-    void DescribeBarrierStart(GfxCmdBuffer* pCmdBuf, uint32 reason) const;
+    void DescribeBarrierStart(
+        GfxCmdBuffer*                 pCmdBuf,
+        uint32                        reason,
+        Developer::BarrierType        type) const;
     void DescribeBarrierEnd(GfxCmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
 
     uint32 GetMaxFragsLog2() const         { return GetGbAddrConfig().bits.MAX_COMPRESSED_FRAGS; }
@@ -591,10 +598,11 @@ private:
         uint32*             pAccessMask) const;
 
     void IssueBlt(
-        GfxCmdBuffer*      pCmdBuf,
-        CmdStream*         pCmdStream,
-        const ImgBarrier*  pImgBarrier,
-        HwLayoutTransition transition) const;
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        const ImgBarrier*             pImgBarrier,
+        HwLayoutTransition            transition,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     bool AcqRelInitMaskRam(
         GfxCmdBuffer*      pCmdBuf,
@@ -603,46 +611,51 @@ private:
         HwLayoutTransition transition) const;
 
     size_t BuildReleaseSyncPackets(
-        EngineType engineType,
-        uint32     stageMask,
-        uint32     accessMask,
-        bool       flushLlc,
-        gpusize    gpuEventStartVa,
-        void*      pBuffer) const;
+        EngineType                    engineType,
+        uint32                        stageMask,
+        uint32                        accessMask,
+        bool                          flushLlc,
+        gpusize                       gpuEventStartVa,
+        void*                         pBuffer,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     size_t BuildAcquireSyncPackets(
-        EngineType engineType,
-        uint32     stageMask,
-        uint32     accessMask,
-        bool       invalidateLlc,
-        gpusize    baseAddress,
-        gpusize    sizeBytes,
-        void*      pBuffer) const;
+        EngineType                    engineType,
+        uint32                        stageMask,
+        uint32                        accessMask,
+        bool                          invalidateLlc,
+        gpusize                       baseAddress,
+        gpusize                       sizeBytes,
+        void*                         pBuffer,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueReleaseSync(
-        GfxCmdBuffer*    pCmdBuf,
-        CmdStream*       pCmdStream,
-        uint32           stageMask,
-        uint32           accessMask,
-        bool             flushLlc,
-        const IGpuEvent* pGpuEvent) const;
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        uint32                        stageMask,
+        uint32                        accessMask,
+        bool                          flushLlc,
+        const IGpuEvent*              pGpuEvent,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueAcquireSync(
-        GfxCmdBuffer*          pCmdBuf,
-        CmdStream*             pCmdStream,
-        uint32                 stageMask,
-        uint32                 accessMask,
-        bool                   invalidateLlc,
-        gpusize                rangeStartAddr,
-        gpusize                rangeSize,
-        uint32                 gpuEventCount,
-        const IGpuEvent*const* ppGpuEvents) const;
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        uint32                        stageMask,
+        uint32                        accessMask,
+        bool                          invalidateLlc,
+        gpusize                       rangeStartAddr,
+        gpusize                       rangeSize,
+        uint32                        gpuEventCount,
+        const IGpuEvent*const*        ppGpuEvents,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     uint32 Gfx9BuildReleaseCoherCntl(
-        uint32                accessMask,
-        bool                  flushTcc,
-        uint32                vgtEventCount,
-        const VGT_EVENT_TYPE* pVgtEvents) const;
+        uint32                        accessMask,
+        bool                          flushTcc,
+        uint32                        vgtEventCount,
+        const VGT_EVENT_TYPE*         pVgtEvents,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     bool WaRefreshTccToAlignMetadata(
         const ImgBarrier& imgBarrier,

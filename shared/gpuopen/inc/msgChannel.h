@@ -41,7 +41,9 @@
 
 namespace DevDriver
 {
+    class IMsgChannel;
     class IService;
+    class ISession;
 
     namespace TransferProtocol
     {
@@ -53,18 +55,59 @@ namespace DevDriver
     DD_STATIC_CONST uint32 kDefaultUpdateTimeoutInMs = 15;
     DD_STATIC_CONST uint32 kFindClientTimeout        = 500;
 
+    // Enumeration of events that can occur on the message bus.
+    enum class BusEventType : uint32
+    {
+        Unknown = 0,
+        ClientHalted
+    };
+
+    /// Event data structure for the ClientHalted bus event
+    struct BusEventClientHalted
+    {
+        ClientId clientId; /// Id of the client that is currently halted
+    };
+
+    // Callback function used to handle bus events
+    typedef void (*BusEventCallback)(void* pUserdata, BusEventType type, const void* pEventData, size_t eventDataSize);
+
     // Struct of information required to initialize an IMsgChannel instance
     struct MessageChannelCreateInfo
     {
-        StatusFlags initialFlags;                           // Initial client status flags.
-        Component   componentType;                          // Type of component the message channel represents.
-        bool        createUpdateThread;                     // Create a background processing thread for the message
-                                                            // channel. This should only be set to false if the
-                                                            // owning object is able to call IMsgChannel::Update()
-                                                            // at least once per frame.
-        char        clientDescription[kMaxStringLength];    // Description of the client provided to other clients on
-                                                            // the message bus.
+        StatusFlags      initialFlags;                        // Initial client status flags.
+        Component        componentType;                       // Type of component the message channel represents.
+        bool             createUpdateThread;                  // Create a background processing thread for the message
+                                                              // channel. This should only be set to false if the
+                                                              // owning object is able to call IMsgChannel::Update()
+                                                              // at least once per frame.
+        char             clientDescription[kMaxStringLength]; // Description of the client provided to other clients on
+                                                              // the message bus.
+        BusEventCallback pfnEventCallback;                    // Message bus event callback function
+        void*            pUserdata;                           // Message bus event callback userdata
     };
+
+    // Information required to establish a new session
+    struct EstablishSessionInfo
+    {
+        Protocol protocol;
+        Version  minProtocolVersion;
+        Version  maxProtocolVersion;
+        ClientId remoteClientId;
+    };
+
+    // "Temporary" structure to pack all create info without breaking back-compat
+    struct MessageChannelCreateInfo2
+    {
+        MessageChannelCreateInfo channelInfo;
+        HostInfo                 hostInfo;
+        AllocCb                  allocCb;
+    };
+
+    // Create a new message channel object
+    Result CreateMessageChannel(const MessageChannelCreateInfo2& createInfo, IMsgChannel** ppMessageChannel);
+
+    // Tests for the presence of a connection using the specified parameters
+    Result QueryConnectionAvailable(const HostInfo& hostInfo, uint32 timeoutInMs);
 
     class IMsgChannel
     {
@@ -91,8 +134,10 @@ namespace DevDriver
         virtual Result UnregisterProtocolServer(IProtocolServer* pServer) = 0;
         virtual IProtocolServer* GetProtocolServer(Protocol protocol) = 0;
 
-        // Initiates a connection using the provided protocol client to the specified destionation client id
-        virtual Result ConnectProtocolClient(IProtocolClient* pProtocolClient, ClientId dstClientId) = 0;
+        // Initiates a connection to the specified destination client id
+        // Returns the intermediate session via ppSession
+        virtual Result EstablishSessionForClient(SharedPointer<ISession>*    ppSession,
+                                                 const EstablishSessionInfo& sessionInfo) = 0;
 
         // Register or Unregister an IService object
         virtual Result RegisterService(IService* pService) = 0;

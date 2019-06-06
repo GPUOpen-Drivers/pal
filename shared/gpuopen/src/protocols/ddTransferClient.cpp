@@ -26,8 +26,8 @@
 #include "protocols/ddTransferClient.h"
 #include <cstring>
 
-#define TRANSFER_CLIENT_MIN_MAJOR_VERSION 1
-#define TRANSFER_CLIENT_MAX_MAJOR_VERSION 2
+#define TRANSFER_CLIENT_MIN_VERSION 1
+#define TRANSFER_CLIENT_MAX_VERSION 2
 
 namespace DevDriver
 {
@@ -37,8 +37,8 @@ namespace DevDriver
         TransferClient::TransferClient(IMsgChannel* pMsgChannel)
             : BaseProtocolClient(pMsgChannel,
                                  Protocol::Transfer,
-                                 TRANSFER_CLIENT_MIN_MAJOR_VERSION,
-                                 TRANSFER_CLIENT_MAX_MAJOR_VERSION)
+                                 TRANSFER_CLIENT_MIN_VERSION,
+                                 TRANSFER_CLIENT_MAX_VERSION)
         {
             memset(&m_transferContext, 0, sizeof(m_transferContext));
         }

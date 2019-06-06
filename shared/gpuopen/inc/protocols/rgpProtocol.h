@@ -35,12 +35,9 @@
 
 #include "gpuopen.h"
 
-#define RGP_PROTOCOL_MAJOR_VERSION 9
-#define RGP_PROTOCOL_MINOR_VERSION 0
+#define RGP_PROTOCOL_VERSION 9
 
-#define RGP_INTERFACE_VERSION ((RGP_INTERFACE_MAJOR_VERSION << 16) | RGP_INTERFACE_MINOR_VERSION)
-
-#define RGP_PROTOCOL_MINIMUM_MAJOR_VERSION 2
+#define RGP_PROTOCOL_MINIMUM_VERSION 2
 
 /*
 ***********************************************************************************************************************

@@ -39,7 +39,6 @@
 #include <time.h>
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
-// Make sure our timeout definition matches the Windows value.
 static_assert(DevDriver::kInfiniteTimeout == ~(0u), "Infinite Timeout value does not match OS definition!");
 #endif
 
@@ -163,7 +162,7 @@ namespace DevDriver
 
             if (result == Result::Success)
             {
-#if defined(__linux__)
+#if defined(DD_PLATFORM_LINUX_UM)
                 const int ret = pthread_timedjoin_np(m_thread.hThread, nullptr, &timeout);
 #else
                 // TODO: pthread_timedjoin_np is a GNU extension and is not available on non-GNU platforms.
@@ -281,7 +280,7 @@ namespace DevDriver
             DD_ASSERT(result == 0);
         }
 
-#if defined(DD_LINUX)
+#if defined(DD_PLATFORM_LINUX_UM)
         Semaphore::Semaphore(uint32 initialCount, uint32 maxCount)
         {
             // linux doesn't enforce a max. Beware.
@@ -414,7 +413,7 @@ namespace DevDriver
             return result;
         }
 
-#if defined(DD_LINUX)
+#if defined(DD_PLATFORM_LINUX_UM)
         Random::Random()
         {
             timespec timeValue = {};
@@ -479,7 +478,7 @@ namespace DevDriver
         void GetProcessName(char* buffer, size_t bufferSize)
         {
             DD_ASSERT(buffer != nullptr);
-#if defined(DD_LINUX)
+#if defined(DD_PLATFORM_LINUX_UM)
             const char* pProcessName = program_invocation_short_name;
 #else
             const char* pProcessName = getprogname();

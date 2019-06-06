@@ -2975,7 +2975,7 @@ uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
     // Use KMD's default value if we have it, otherwise fall back to the hard-coded default.
     if (m_chipProps.gfx9.overrideDefaultSpiConfigCntl != 0)
     {
-        spiConfigCntl.u32All = m_chipProps.gfx9.overrideDefaultSpiConfigCntl;
+        spiConfigCntl.u32All = m_chipProps.gfx9.spiConfigCntl;
     }
     else if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {

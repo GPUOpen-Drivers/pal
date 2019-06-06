@@ -137,6 +137,11 @@ namespace DevDriver
         class SettingsService;
     }
 
+    namespace InfoURIService
+    {
+        class InfoService;
+    }
+
     template <>
     struct ProtocolServerMap<Protocol::ETW>
     {

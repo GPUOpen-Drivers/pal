@@ -274,9 +274,6 @@ namespace DevDriver
         {
         };
 
-// If we are building with MSVC we want to use the compiler intrinsics here. This is primarily because building with
-// the /kernel precludes the use of the C++ type traits library. For all other compilers we simply implement this
-// using the standard C++ library.
         // Struct whose ::Value member is equal to true if you can cast from T to U, and false otherwise.
         template <class T, class U>
         struct IsConvertible : BoolType<std::is_convertible<T, U>::value>

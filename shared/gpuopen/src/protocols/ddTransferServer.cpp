@@ -27,8 +27,8 @@
 #include "ddTransferManager.h"
 #include "msgChannel.h"
 
-#define TRANSFER_SERVER_MIN_MAJOR_VERSION 1
-#define TRANSFER_SERVER_MAX_MAJOR_VERSION 2
+#define TRANSFER_SERVER_MIN_VERSION 1
+#define TRANSFER_SERVER_MAX_VERSION 2
 
 namespace DevDriver
 {
@@ -466,7 +466,7 @@ namespace DevDriver
 
         // =====================================================================================================================
         TransferServer::TransferServer(IMsgChannel* pMsgChannel, TransferManager* pTransferManager)
-            : BaseProtocolServer(pMsgChannel, Protocol::Transfer, TRANSFER_SERVER_MIN_MAJOR_VERSION, TRANSFER_SERVER_MAX_MAJOR_VERSION)
+            : BaseProtocolServer(pMsgChannel, Protocol::Transfer, TRANSFER_SERVER_MIN_VERSION, TRANSFER_SERVER_MAX_VERSION)
             , m_pTransferManager(pTransferManager)
         {
             DD_ASSERT(m_pMsgChannel != nullptr);

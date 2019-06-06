@@ -119,6 +119,14 @@ constexpr uint32 MaxShaderEngines       = 32;
 /// Maximum number of supported subunits each Shader Engine splits into (SH or SA, depending on generation)
 constexpr uint32 MaxShaderArraysPerSe   = 2;
 
+/// Defines host flags for Semaphore/Fence Array wait
+enum HostWaitFlags : uint32
+{
+    HostWaitAny                = 0x1,  ///< if set this bit, return after any signle semaphore/fence in the array has
+                                       ///< completed. if not set, wait for completion of all semaphores/fences in the
+                                       ///< array before returning.
+};
+
 /// Specifies what type of GPU a particular IDevice is (i.e., discrete vs. integrated).
 enum class GpuType : uint32
 {
@@ -327,14 +335,15 @@ constexpr uint32 SwizzleEquationMaxBits = 20;   ///< Swizzle equations will cons
 constexpr uint8  InvalidSwizzleEqIndex  = 0xFF; ///< Indicates an invalid swizzle equation index in the equation table.
 constexpr uint8  LinearSwizzleEqIndex   = 0xFE; ///< An invalid eq. index indicating a row-major, linear memory layout.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 507
 /// Supported shader cache modes
 enum ShaderCacheMode : uint32
 {
     ShaderCacheDisabled = 0,
     ShaderCacheRuntimeOnly = 1,
     ShaderCacheOnDisk = 2,
-
 };
+#endif
 
 /// Texture fetch meta-data capabilities bitfield definition, used with tcCompatibleMetaData setting
 enum TexFetchMetaDataCaps : uint32
@@ -346,7 +355,6 @@ enum TexFetchMetaDataCaps : uint32
     TexFetchMetaDataCapsMsaaDepth = 0x00000010,
     TexFetchMetaDataCapsAllowStencil = 0x00000020,
     TexFetchMetaDataCapsAllowZ16 = 0x00000040,
-
 };
 
 /// Catalyst AI setting enums
@@ -355,7 +363,6 @@ enum CatalystAiSettings : uint32
     CatalystAiDisable = 0,
     CatalystAiEnable = 1,
     CatalystAiMaximum = 2,
-
 };
 
 /// Texture Filter optimization enum values
@@ -364,7 +371,6 @@ enum TextureFilterOptimizationSettings : uint32
     TextureFilterOptimizationsDisabled = 0,
     TextureFilterOptimizationsEnabled = 1,
     TextureFilterOptimizationsAggressive = 2,
-
 };
 
 /// Distribution Tess Mode enum values
@@ -376,7 +382,6 @@ enum DistributionTessMode : uint32
     DistributionTessDonut = 3,
     DistributionTessTrapezoid = 4,
     DistributionTessTrapezoidOnly = 5,
-
 };
 
 /// Defines the context roll optimization flags
@@ -384,7 +389,6 @@ enum ContextRollOptimizationFlags : uint32
 {
     OptFlagNone = 0x00000000,
     PadParamCacheSpace = 0x00000001,
-
 };
 
 /// Enum defining the different scopes (i.e. registry locations) where settings values are stored
@@ -396,7 +400,6 @@ enum InternalSettingScope : uint32
     PrivatePalGfx6Key = 0x3,
     PrivatePalGfx9Key = 0x4,
     PublicCatalystKey = 0x5,
-
 };
 
 /// Enum defining override states for feature settings.
@@ -428,10 +431,12 @@ struct PalPublicSettings
     ///  distributed to different VGTs. Falls back to donut mode if HW does not support this mode. 5: Trapezoid only -
     ///  Distribution turned off if HW does not support this mode.
     uint32 distributionTessMode;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 507
     ///  Controls whether the Device shader cache should be used to try to avoid redundant shader compiles 0: Shader
     ///  Cache is disabled. 1: Shader Cache is enabled for runtime use only. 2: Shader Cache is enabled with on-disk file
     ///  backing.
     ShaderCacheMode shaderCacheMode;
+#endif
     ///  Flags that control PAL optimizations to reduce context rolls. 0: Optimization disabled. 1: Pad parameter cache
     ///  space. Sets VS export count and PS interpolant number to per-command buffer maximum value. Reduces context rolls at
     ///  the expense of parameter cache space.
@@ -518,6 +523,11 @@ struct PalPublicSettings
     /// Enable multiple slots instead of single DWORD slot for GPU event. This will enable anywhere that can utilize
     /// multiple event slots for optimization or function purpose, such as AcqRelBarrier interface.
     bool enableGpuEventMultiSlot;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 503
+    ///  Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of
+    ///  pagefaulting. Used to workaround incorrect app behavior.
+    bool zeroUnboundDescDebugSrd;
 #endif
 };
 
@@ -924,6 +934,7 @@ struct DeviceProperties
         uint32 hardwareContexts;    ///< Number of distinct state contexts available for graphics workloads.  Mostly
                                     ///  irrelevant to clients, but may be useful to tools.
         uint32 ceRamSize;           ///< Maximum on-chip CE RAM size in bytes.
+        uint32 maxPrimgroupSize;    ///< Maximum primitive group size.
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
         uint32 gl2UncachedCpuCoherency; ///< If supportGl2Uncached is set, then this is a bitmask of all
@@ -1005,7 +1016,9 @@ struct DeviceProperties
                 uint32 placeholder7                             : 1; ///< Placeholder, do not use
 #endif
                 uint32 supportOutOfOrderPrimitives              : 1; ///< HW supports higher throughput for out of order
-                uint32 reserved                                 : 4; ///< Reserved for future use.
+
+                uint32 placeholder8                             : 1; ///< Placeholder, do not use
+                uint32 reserved                                 : 3; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1083,6 +1096,8 @@ struct DeviceProperties
             uint32 ldsGranularity;          ///< Local Data Store allocation granularity expressed in bytes.
             uint32 gsPrimBufferDepth;       ///< Hardware configuration for the GS prim buffer depth.
             uint32 gsVgtTableDepth;         ///< Hardware configuration for the GS VGT table depth.
+            uint32 numOffchipTessBuffers;   ///< Number of offchip buffers that are used for offchip tessellation to
+                                            ///  pass data between shader stages.
             uint32 offchipTessBufferSize;   ///< Size of each buffer used for passing data between shader stages when
                                             ///  tessellation passes data using off-chip memory.
             uint32 tessFactorBufSizePerSe;  ///< Size of GPU's the tessellatio-factor buffer, per shader engine.
@@ -2648,7 +2663,7 @@ public:
     /// @param [in] ppFences   Array of fences to be waited on.
     /// @param [in] waitAll    If true, wait for completion of all fences in the array before returning; if false,
     ///                        return after any single fence in the array has completed.
-    /// @param [in] timeout    This method will return after this many nanoseconds even if the fences do not complete.
+    /// @param [in] timeoutNs  This method will return after this many nanoseconds even if the fences do not complete.
     ///
     /// @returns Success if the specified fences have been reached, or Timeout if the fences have not been reached but
     ///          the specified timeout time has elapsed.  Otherwise, one of the following errors may be returned:
@@ -2663,7 +2678,35 @@ public:
         uint32              fenceCount,
         const IFence*const* ppFences,
         bool                waitAll,
-        uint64              timeout) const = 0;
+        uint64              timeoutNs) const = 0;
+
+    /// Stalls the current thread until one or all of the specified Semaphores have been reached by the device.
+    ///
+    /// Using a zero timeout value returns immediately and can be used to determine the status of a set of semaphores
+    /// without stalling.
+    ///
+    /// @param [in] semaphoreCount Number of semaphores to wait for (i.e., size of the ppFences array).
+    /// @param [in] ppSemaphores   Array of semaphores to be waited on.
+    /// @param [in] pValues        Array of semaphores's value to be waited on.
+    /// @param [in] flags          Combination of zero or more @ref HostWaitFlags values describing the behavior of this
+    ///                            wait operation. See @ref HostWaitFlags for more details.
+    /// @param [in] timeoutNs      This method will return after this many nanoseconds even if the semaphores do not
+    ///                            complete.
+    ///
+    /// @returns Success if the specified semaphores have been reached, or Timeout if the semaphores have not been
+    ///          reached but the specified timeout time has elapsed.  Otherwise, one of the following errors may be
+    ///          returned:
+    ///          + ErrorInvalidPointer if:
+    ///              - ppSemaphores is null.
+    ///              - Any member of the ppSemaphores array is null.
+    ///          + ErrorInvalidValue if:
+    ///              - semaphoreCount is zero.
+    virtual Result WaitForSemaphores(
+        uint32                       semaphoreCount,
+        const IQueueSemaphore*const* ppSemaphores,
+        const uint64*                pValues,
+        uint32                       flags,
+        uint64                       timeoutNs) const = 0;
 
     /// Correlates a GPU timestamp with the corresponding CPU timestamps, for tighter CPU/GPU timeline synchronization
     ///

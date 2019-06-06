@@ -137,14 +137,16 @@ namespace DevDriver
 
         virtual Result Send(uint32 payloadSizeInBytes, const void* pPayload, uint32 timeoutInMs) = 0;
         virtual Result Receive(uint32 payloadSizeInBytes, void *pPayload, uint32 *pBytesReceived, uint32 timeoutInMs) = 0;
-        virtual void Shutdown(Result reason) = 0;
-        virtual void Close(Result reason) = 0;
+        virtual Result WaitForConnection(uint32 timeoutInMs) = 0;
 
-        virtual void* SetUserData(void *) = 0;
+        virtual bool IsClosed() const = 0;
+
+        virtual void* SetUserData(void* pUserdata) = 0;
         virtual void* GetUserData() const = 0;
         virtual SessionId GetSessionId() const = 0;
         virtual ClientId GetDestinationClientId() const = 0;
         virtual Version GetVersion() const = 0;
+        virtual Protocol GetProtocol() const = 0;
 
         // Helper functions for working with SizedPayloadContainers and managing back-compat.
         Result SendPayload(const SizedPayloadContainer& payload, uint32 timeoutInMs)

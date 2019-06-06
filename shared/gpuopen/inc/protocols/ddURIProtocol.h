@@ -41,12 +41,9 @@
 ***********************************************************************************************************************
 */
 
-#define URI_PROTOCOL_MAJOR_VERSION 3
-#define URI_PROTOCOL_MINOR_VERSION 0
+#define URI_PROTOCOL_VERSION 3
 
-#define URI_INTERFACE_VERSION ((URI_INTERFACE_MAJOR_VERSION << 16) | URI_INTERFACE_MINOR_VERSION)
-
-#define URI_PROTOCOL_MINIMUM_MAJOR_VERSION 1
+#define URI_PROTOCOL_MINIMUM_VERSION 1
 
 /*
 ***********************************************************************************************************************

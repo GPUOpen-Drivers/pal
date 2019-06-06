@@ -29,8 +29,8 @@
 
 #include "util/queue.h"
 
-#define RGP_SERVER_MIN_MAJOR_VERSION 2
-#define RGP_SERVER_MAX_MAJOR_VERSION 9
+#define RGP_SERVER_MIN_VERSION 2
+#define RGP_SERVER_MAX_VERSION 9
 
 namespace DevDriver
 {
@@ -65,7 +65,7 @@ namespace DevDriver
         };
 
         RGPServer::RGPServer(IMsgChannel* pMsgChannel)
-            : BaseProtocolServer(pMsgChannel, Protocol::RGP, RGP_SERVER_MIN_MAJOR_VERSION, RGP_SERVER_MAX_MAJOR_VERSION)
+            : BaseProtocolServer(pMsgChannel, Protocol::RGP, RGP_SERVER_MIN_VERSION, RGP_SERVER_MAX_VERSION)
             , m_traceStatus(TraceStatus::Idle)
             , m_pCurrentSessionData(nullptr)
             , m_profilingStatus(ProfilingStatus::NotAvailable)
@@ -96,6 +96,9 @@ namespace DevDriver
 
             // Allocate session data for the newly established session
             RGPSession* pSessionData = DD_NEW(RGPSession, m_pMsgChannel->GetAllocCb())(m_pMsgChannel->GetAllocCb());
+            // WA: Force MSVC's static analyzer to ignore unhandled OOM.
+            DD_ASSUME(pSessionData != nullptr);
+
             pSessionData->state = SessionState::ReceivePayload;
             memset(&pSessionData->payload, 0, sizeof(RGPPayload));
 

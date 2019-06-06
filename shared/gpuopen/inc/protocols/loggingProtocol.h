@@ -28,12 +28,9 @@
 #include "gpuopen.h"
 #include <cstring>
 
-#define LOGGING_PROTOCOL_MAJOR_VERSION 3
-#define LOGGING_PROTOCOL_MINOR_VERSION 0
+#define LOGGING_PROTOCOL_VERSION 3
 
-#define LOGGING_INTERFACE_VERSION ((LOGGING_INTERFACE_MAJOR_VERSION << 16) | LOGGING_INTERFACE_MINOR_VERSION)
-
-#define LOGGING_PROTOCOL_MINIMUM_MAJOR_VERSION 1
+#define LOGGING_PROTOCOL_MINIMUM_VERSION 1
 
 /*
 ***********************************************************************************************************************

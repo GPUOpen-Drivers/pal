@@ -96,12 +96,15 @@ namespace DevDriver
     private:
         using OsSocketType = int;
 
+        // When using Unix Domain sockets, we need to save the address to close the socket properly.
+        char         m_address[kMaxStringLength];
+        size_t       m_addressSize;
+
         OsSocketType m_osSocket;
         bool         m_isNonBlocking;
         SocketType   m_socketType;
         addrinfo     m_hints;
-        char         m_address[kMaxStringLength];
-        size_t       m_addressSize;
+
         Result InitAsClient(OsSocketType socket, const char* pAddress, uint32 port, bool isNonBlocking);
     };
 

@@ -56,6 +56,14 @@ namespace DevDriver
         Count
     };
 
+    enum struct SessionCallbackState
+    {
+        None = 0,
+        EstablishedCalled,
+        TerminatedCalled,
+        Count
+    };
+
     DD_STATIC_CONST WindowSize kDefaultWindowSize = 128;
     DD_STATIC_CONST float kInitialRoundTripTimeInMs = 50.0f;
 
@@ -65,11 +73,12 @@ namespace DevDriver
         ///
         /// Internal interface for SessionManager
         ///
-        Session(IMsgChannel* pMsgChannel);
+        Session(IMsgChannel* pMsgChannel, SessionType type, Protocol protocol);
 
-        Result Connect(IProtocolClient& owner,
-                       ClientId remoteClientId,
-                       SessionId sessionId);
+        Result Connect(ClientId  remoteClientId,
+                       SessionId sessionId,
+                       Version   minProtocolVersion,
+                       Version   maxProtocolVersion);
 
         Result BindToServer(IProtocolServer& owner,
                            ClientId remoteClientId,
@@ -84,18 +93,8 @@ namespace DevDriver
             return m_sessionState;
         }
 
-        void CloseIfOwnedBy(SharedPointer<Session>& pSession, IProtocolSession* pOwner)
-        {
-            if (pOwner == m_pProtocolOwner)
-            {
-                if (m_pProtocolOwner != nullptr)
-                {
-                    m_pProtocolOwner->SessionTerminated(pSession, Result::EndOfStream);
-                    Orphan();
-                }
-                Shutdown(Result::Success);
-            }
-        }
+        bool IsClientSession() const { return (m_sessionType == SessionType::Client); }
+        bool IsServerSession() const { return (m_sessionType == SessionType::Server); }
 
         bool IsSessionOpenAndMatches(ClientId remoteClientId, SessionId sessionId)
         {
@@ -104,38 +103,11 @@ namespace DevDriver
                     (m_sessionState != SessionState::Closed));
         }
 
-        void Update(const SharedPointer<Session>& pSession)
-        {
-            DD_ASSERT(pSession.Get() == this);
+        void Update(const SharedPointer<Session>& pSession);
 
-            UpdateReceiveWindow();
-            UpdateSendWindow();
-            UpdateTimeout();
+        void Shutdown(Result reason);
 
-            // Update active sessions for non-clients
-            if (m_sessionState >= SessionState::Established)
-            {
-                if (m_pProtocolOwner != nullptr)
-                {
-                    m_pProtocolOwner->UpdateSession(pSession);
-                }
-                else
-                {
-                    Shutdown(Result::Error);
-                }
-            }
-
-            if (m_sessionState == SessionState::Closed)
-            {
-                DD_PRINT(LogLevel::Debug, "[Session] Session %u terminated - reason %u", m_sessionId, m_sessionTerminationReason);
-
-                if (m_pProtocolOwner != nullptr)
-                {
-                    m_pProtocolOwner->SessionTerminated(pSession, m_sessionTerminationReason);
-                    Orphan();
-                }
-            }
-        }
+        void HandleUnregisterProtocolServer(SharedPointer<Session>& pSession, IProtocolServer* pServer);
 
         ///
         /// Public ISession interface implementation
@@ -143,15 +115,23 @@ namespace DevDriver
 
         Result Send(uint32 payloadSizeInBytes, const void* pPayload, uint32 timeoutInMs) override final;
         Result Receive(uint32 payloadSizeInBytes, void* pPayload, uint32* pBytesReceived, uint32 timeoutInMs) override final;
-        void   Shutdown(Result reason) override final;
-        void   Close(Result reason) override final;
+
+        Result WaitForConnection(uint32 timeoutInMs) override final
+        {
+            return m_connectionEvent.Wait(timeoutInMs);
+        }
+
+        bool IsClosed() const override final
+        {
+            return (m_sessionState == SessionState::Closed);
+        }
 
         void* SetUserData(void* pUserData) override final
         {
             return Platform::Exchange(m_pSessionUserdata, pUserData);
         }
 
-        void *GetUserData() const override final
+        void* GetUserData() const override final
         {
             return m_pSessionUserdata;
         }
@@ -169,6 +149,11 @@ namespace DevDriver
         Version GetVersion() const override final
         {
             return m_protocolVersion;
+        }
+
+        Protocol GetProtocol() const override final
+        {
+            return m_protocol;
         }
 
     private:
@@ -194,8 +179,6 @@ namespace DevDriver
         WindowSize CalculateCurrentWindowSize();
         bool IsSendWindowEmpty();
         void UpdateSendWindowSize(const MessageBuffer& messageBuffer);
-
-        void Orphan();
 
         inline void SetState(SessionState newState);
 
@@ -275,14 +258,18 @@ namespace DevDriver
         TransmitWindow<kDefaultWindowSize>  m_sendWindow;
         ReceiveWindow<kDefaultWindowSize>   m_receiveWindow;
         IMsgChannel* const                  m_pMsgChannel;
-        IProtocolSession*                   m_pProtocolOwner;
+        Protocol                            m_protocol;
         void*                               m_pSessionUserdata;
         const ClientId                      m_clientId;
         ClientId                            m_remoteClientId;
         SessionId                           m_sessionId;
         SessionState                        m_sessionState;
+        SessionCallbackState                m_callbackState;
+        SessionType                         m_sessionType;
         Result                              m_sessionTerminationReason;
         Version                             m_protocolVersion;
+        Version                             m_minClientProtocolVersion;
         SessionProtocol::SessionVersion     m_sessionVersion;
+        Platform::Event                     m_connectionEvent;
     };
 } // DevDriver

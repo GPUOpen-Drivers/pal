@@ -47,8 +47,6 @@ struct DepthStencilStatePm4Img
 
     PM4_PFP_SET_CONTEXT_REG     hdrStencilControl;  // 2nd PM4 set context reg packet
     regDB_STENCIL_CONTROL       dbStencilControl;   // More controls for stencil test.
-
-    size_t                      spaceNeeded;
 };
 
 // =====================================================================================================================

@@ -539,6 +539,7 @@ struct GpuChipProperties
 
     uint32   vceUcodeVersion;                   // VCE Video encode firmware version
     uint32   uvdUcodeVersion;                   // UVD Video encode firmware version
+    uint32   vcnUcodeVersion;                   // VCN Video encode firmware version
 
     uint32   vceFwVersionMajor;                 // VCE Video encode firmware major version
     uint32   vceFwVersionMinor;                 // VCE Video encode firmware minor version
@@ -546,6 +547,10 @@ struct GpuChipProperties
     uint32   uvdEncodeFwInterfaceVersionMajor;  // UVD Video encode firmware interface major version
     uint32   uvdEncodeFwInterfaceVersionMinor;  // UVD Video encode firmware interface minor version
     uint32   uvdFwVersionSubMinor;              // UVD firmware sub-minor version
+
+    uint32   vcnEncodeFwInterfaceVersionMajor;  // VCN Video encode firmware interface major version
+    uint32   vcnEncodeFwInterfaceVersionMinor;  // VCN Video encode firmware interface minor version
+    uint32   vcnFwVersionSubMinor;              // VCN Video firmware sub-minor version (revision)
 
     struct
     {
@@ -592,9 +597,11 @@ struct GpuChipProperties
         uint32 ldsSizePerThreadGroup;                // Maximum LDS size available per thread group in bytes.
         uint32 ldsSizePerCu;                         // Maximum LDS size available per CU in KB.
         uint32 ldsGranularity;                       // LDS allocation granularity in bytes.
+        uint32 numOffchipTessBuffers;
         uint32 offChipTessBufferSize;                // Size of each off-chip tessellation buffer in bytes.
         uint32 tessFactorBufferSizePerSe;            // Size of the tessellation-factor buffer per SE, in bytes.
         uint32 ceRamSize;                            // Maximum on-chip CE RAM size in bytes.
+        uint32 maxPrimgroupSize;
         uint32 tccSizeInBytes;                       // Total size in bytes of TCC (L2) in the device.
         uint32 tcpSizeInBytes;                       // Size in bytes of one TCP (L1). There is one TCP per CU.
         uint32 maxLateAllocVsLimit;                  // Maximum number of VS waves that can be in flight without
@@ -789,7 +796,8 @@ struct GpuChipProperties
                 uint32 eccProtectedGprs                         :  1; // Are VGPR's ECC-protected?
                 uint32 overrideDefaultSpiConfigCntl             :  1; // KMD provides default value for SPI_CONFIG_CNTL.
                 uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
-                uint32 reserved                                 :  3;
+                uint32 placeholder3                             :  1;
+                uint32 reserved                                 :  2;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block

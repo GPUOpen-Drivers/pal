@@ -118,11 +118,14 @@ void SettingsLoader::ValidateSettings(
 
     if (m_settings.binningMaxAllocCountLegacy == 0)
     {
-        // The recommended value for MAX_ALLOC_COUNT is min(128, PC size in the number of cache lines/(2*2*NUM_SE)).
-        // The first 2 is to account for the register doubling the value and second 2 is to allow for at least 2
-        // batches to ping-pong.
-        m_settings.binningMaxAllocCountLegacy =
-            Min(128u, gfx9Props.parameterCacheLines / (4u * gfx9Props.numShaderEngines));
+        if (IsGfx9(*m_pDevice))
+        {
+            // The recommended value for MAX_ALLOC_COUNT is min(128, PC size in the number of cache lines/(2*2*NUM_SE)).
+            // The first 2 is to account for the register doubling the value and second 2 is to allow for at least 2
+            // batches to ping-pong.
+            m_settings.binningMaxAllocCountLegacy =
+                Min(128u, gfx9Props.parameterCacheLines / (4u * gfx9Props.numShaderEngines));
+        }
     }
 
     if (m_settings.binningMaxAllocCountNggOnChip == 0)
@@ -294,8 +297,7 @@ void SettingsLoader::OverrideDefaults(
         // Metadata is not pipe aligned once we get down to the mip chain within the tail
         m_settings.waitOnMetadataMipTail = true;
 
-        // Set this to 1 in Gfx9 to enable CU soft group for VS/PS by default.
-        m_settings.numVsWavesSoftGroupedPerCu = 1;
+        // Set this to 1 in Gfx9 to enable CU soft group for PS by default. VS soft group is turned off by default.
         m_settings.numPsWavesSoftGroupedPerCu = 1;
 
         if (IsVega10(device) || IsRaven(device))

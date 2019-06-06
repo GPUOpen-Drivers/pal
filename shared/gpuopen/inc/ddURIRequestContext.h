@@ -31,6 +31,8 @@
 #pragma once
 #include <ddUriInterface.h>
 
+#include <util/sharedptr.h>
+
 #include "util/ddByteWriter.h"
 #include "util/ddTextWriter.h"
 #include "util/ddJsonWriter.h"

@@ -31,17 +31,44 @@
 
 #pragma once
 
-#include "template.h"
 #include <new>
+#include <ddPlatform.h>
+#include <util/template.h>
+
+// Allocates memory using an AllocCb.
+// This overload is declared noexcept, and will correctly handle AllocCb::pfnAlloc() returning NULL.
+void* operator new(
+    size_t                    size,
+    const DevDriver::AllocCb& allocCb,
+    size_t                    align,
+    bool                      zero,
+    const char*               pFilename,
+    int                       lineNumber,
+    const char*               pFunction
+) noexcept;
+
+// Overload of operator delete that matches the previously declared operator new.
+// The compiler can call this version automatically in the case of exceptions thrown in the Constructor
+// ... even though we turn them off?
+// Compilers are fussy.
+void operator delete(
+    void*                     pObject,
+    const DevDriver::AllocCb& allocCb,
+    size_t                    align,
+    bool                      zero,
+    const char*               pFilename,
+    int                       lineNumber,
+    const char*               pFunction
+) noexcept;
 
 #define DD_CACHE_LINE_BYTES 64
 #define DD_DEFAULT_ALIGNMENT alignof(void*)
 
-#define DD_MALLOC(size, alignment, allocCb) allocCb.pfnAlloc(allocCb.pUserdata, size, Platform::Max(DD_DEFAULT_ALIGNMENT, alignment), false)
-#define DD_CALLOC(size, alignment, allocCb) allocCb.pfnAlloc(allocCb.pUserdata, size, Platform::Max(DD_DEFAULT_ALIGNMENT, alignment), true)
+#define DD_MALLOC(size, alignment, allocCb) allocCb.pfnAlloc(allocCb.pUserdata, size, DevDriver::Platform::Max(DD_DEFAULT_ALIGNMENT, alignment), false)
+#define DD_CALLOC(size, alignment, allocCb) allocCb.pfnAlloc(allocCb.pUserdata, size, DevDriver::Platform::Max(DD_DEFAULT_ALIGNMENT, alignment), true)
 #define DD_FREE(memory, allocCb) allocCb.pfnFree(allocCb.pUserdata, memory)
 
-#define DD_NEW(className, allocCb) new(DD_MALLOC(sizeof(className), alignof(className), allocCb)) className
+#define DD_NEW(className, allocCb) new(allocCb, alignof(className), true, __FILE__, __LINE__, __FUNCTION__) className
 #define DD_DELETE(memory, allocCb) DevDriver::Platform::Destructor(memory); DD_FREE(memory, allocCb)
 
 #define DD_NEW_ARRAY(className, numElements, allocCb) DevDriver::Platform::NewArray<className>(numElements, allocCb)

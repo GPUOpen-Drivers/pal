@@ -101,8 +101,8 @@ namespace DevDriver
                     // Write the client description
                     pResponse->Write("\nClient Description: %s", clientInfo.clientDescription);
 
-                    // Write the client operating system
-                    pResponse->Write("\nClient Operating System: %s", DD_OS_STRING " " DD_ARCH_STRING);
+                    // Write the client platform
+                    pResponse->Write("\nClient Platform: " DD_PLATFORM_STRING " %d-bit", DD_CPU_BITS);
 
                     // Only print protocols + status flags in debug builds for now.
 #if !defined(NDEBUG)

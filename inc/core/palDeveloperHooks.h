@@ -115,8 +115,13 @@ struct BarrierOperations
     {
         struct
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 504
             uint16 waitOnEopTsBottomOfPipe        : 1;  ///< This barrier is a wait on end-of-pipe timestamp waiting on
                                                         ///  the bottom of pipe.
+#else
+            uint16 eopTsBottomOfPipe              : 1;  ///< Issue an end-of-pipe event that can be waited on.
+                                                        ///  When combined with waitOnTs, makes a full pipeline stall.
+#endif
             uint16 vsPartialFlush                 : 1;  ///< Stall at ME, waiting for all prior VS waves to complete.
             uint16 psPartialFlush                 : 1;  ///< Stall at ME, waiting for all prior PS waves to complete.
             uint16 csPartialFlush                 : 1;  ///< Stall at ME, waiting for all prior CS waves to complete.
@@ -124,7 +129,12 @@ struct BarrierOperations
                                                         ///  flushed/invalidated are specified in the caches bitfield.
             uint16 syncCpDma                      : 1;  ///< Issue dummy cpDma command to confirm all prior cpDmas have
                                                         ///  completed.
-            uint16 reserved                       : 10; ///< Reserved for future use.
+            uint16 eosTsPsDone                    : 1;  ///< Issue an end-of-pixel-shader event that can be waited on.
+            uint16 eosTsCsDone                    : 1;  ///< Issue an end-of-compute-shader event that can be waited on
+            uint16 waitOnTs                       : 1;  ///< Wait on an timestamp event (EOP or EOS) at the ME.
+                                                        ///  Which event is not necesarily specified here, though any
+                                                        ///  that are specified here would be waited on.
+            uint16 reserved                       : 7;  ///< Reserved for future use.
         };
 
         uint16 u16All;  ///< Unsigned integer containing all the values.
@@ -156,20 +166,21 @@ struct BarrierOperations
     {
         struct
         {
-            uint16 invalTcp        : 1; ///< Invalidate L1 vector caches.
-            uint16 invalSqI$       : 1; ///< Invalidate the SQ instruction caches.
-            uint16 invalSqK$       : 1; ///< Invalidate the SQ constant caches (L1 scalar caches).
-            uint16 flushTcc        : 1; ///< Flush L2 cache.
-            uint16 invalTcc        : 1; ///< Invalidate L2 cache.
-            uint16 flushCb         : 1; ///< Flush CB caches.
-            uint16 invalCb         : 1; ///< Invalidate CB caches.
-            uint16 flushDb         : 1; ///< Flush DB caches.
-            uint16 invalDb         : 1; ///< Invalidate DB caches.
-            uint16 invalCbMetadata : 1; ///< Invalidate CB meta-data cache.
-            uint16 flushCbMetadata : 1; ///< Flush CB meta-data cache.
-            uint16 invalDbMetadata : 1; ///< Invalidate DB meta-data cache.
-            uint16 flushDbMetadata : 1; ///< Flush DB meta-data cache.
-            uint16 reserved        : 3; ///< Reserved for future use.
+            uint16 invalTcp         : 1; ///< Invalidate vector caches.
+            uint16 invalSqI$        : 1; ///< Invalidate the SQ instruction caches.
+            uint16 invalSqK$        : 1; ///< Invalidate the SQ constant caches (scalar caches).
+            uint16 flushTcc         : 1; ///< Flush L2 cache.
+            uint16 invalTcc         : 1; ///< Invalidate L2 cache.
+            uint16 flushCb          : 1; ///< Flush CB caches.
+            uint16 invalCb          : 1; ///< Invalidate CB caches.
+            uint16 flushDb          : 1; ///< Flush DB caches.
+            uint16 invalDb          : 1; ///< Invalidate DB caches.
+            uint16 invalCbMetadata  : 1; ///< Invalidate CB meta-data cache.
+            uint16 flushCbMetadata  : 1; ///< Flush CB meta-data cache.
+            uint16 invalDbMetadata  : 1; ///< Invalidate DB meta-data cache.
+            uint16 flushDbMetadata  : 1; ///< Flush DB meta-data cache.
+            uint16 invalTccMetadata : 1; ///< Invalidate TCC meta-data cache.
+            uint16 reserved         : 2; ///< Reserved for future use.
         };
 
         uint16 u16All; ///< Unsigned integer containing all the values.
@@ -210,12 +221,20 @@ enum BarrierReason : uint32
     BarrierReasonPrePerfDataCopy,                           ///< Barrier issued to wait for perf data to become
                                                             ///  available for copy
     BarrierReasonFlushL2CachedData,                         ///< Barrier issued to flush L2 cached data to main memory
-
+    BarrierReasonInternalLastDefined,                       ///< Only used for asserts.
     BarrierReasonUnknown = 0xFFFFFFFF,                      ///< Unknown barrier reason
 
     /// Backwards compatibility reasons
     BarrierReasonPreSyncClear  = BarrierReasonPreComputeColorClear,
     BarrierReasonPostSyncClear = BarrierReasonPostComputeColorClear
+};
+
+/// Style of barrier
+enum class BarrierType : uint32
+{
+    Full,    ///< A traditional blocking barrier.
+    Release, ///< A pipelined barrier that flushes caches and starts transitions.
+    Acquire, ///< A barrier that waits on previous 'Release' barriers.
 };
 
 /// Information for barrier executions.
@@ -225,7 +244,8 @@ struct BarrierData
     BarrierTransition transition;    ///< The particular transition that is currently executing.
     bool              hasTransition; ///< Whether or not the transition structure is populated.
     BarrierOperations operations;    ///< Detailed cache and pipeline operations performed during this barrier execution
-    uint32            reason;        ///< Reason that the barrier was invoked.
+    uint32            reason;        ///< Reason that the barrier was invoked. Only filled at BarrierStart.
+    BarrierType       type;          ///< What style of barrier this is. Only filled at BarrierStart.
 };
 
 /// Enumeration describing the different types of tile mode dimensions

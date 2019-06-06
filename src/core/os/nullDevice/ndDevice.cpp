@@ -31,7 +31,9 @@
 #include "palFormatInfo.h"
 #include "palSysMemory.h"
 
-#include "core/os/lnx/lnxHeaders.h"
+#if PAL_AMDGPU_BUILD
+#include "core/os/amdgpu/amdgpuHeaders.h"
+#endif
 
 #include <limits.h>
 #include "core/hw/amdgpu_asic.h"
@@ -405,6 +407,18 @@ Result Device::OpenFence(
     (*ppFence) = pFence;
 
     return result;
+}
+
+// =====================================================================================================================
+// Call to wait for multiple semaphores
+Result Device::WaitForSemaphores(
+    uint32                       semaphoreCount,
+    const IQueueSemaphore*const* ppSemaphores,
+    const uint64*                pValues,
+    uint32                       flags,
+    uint64                       timeout) const
+{
+    return Result::Unsupported;
 }
 
 // =====================================================================================================================

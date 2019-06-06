@@ -27,13 +27,16 @@
 #include "msgChannel.h"
 #include <cstring>
 
+#define SETTINGS_CLIENT_MIN_VERSION 1
+#define SETTINGS_CLIENT_MAX_VERSION 2
+
 namespace DevDriver
 {
     namespace SettingsProtocol
     {
 
         SettingsClient::SettingsClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::Settings, SETTINGS_CLIENT_MIN_MAJOR_VERSION, SETTINGS_CLIENT_MAX_MAJOR_VERSION)
+            : BaseProtocolClient(pMsgChannel, Protocol::Settings, SETTINGS_CLIENT_MIN_VERSION, SETTINGS_CLIENT_MAX_VERSION)
 
         {
         }

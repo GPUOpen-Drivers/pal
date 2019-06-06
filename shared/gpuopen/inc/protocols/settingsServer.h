@@ -31,9 +31,6 @@
 
 #pragma once
 
-#define SETTINGS_CLIENT_MIN_MAJOR_VERSION 1
-#define SETTINGS_CLIENT_MAX_MAJOR_VERSION 2
-
 #include "settingsProtocol.h"
 #include "baseProtocolServer.h"
 #include "util/vector.h"

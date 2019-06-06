@@ -746,6 +746,7 @@ void CmdBuffer::CmdBarrier(
     InsertTokenArray(barrierInfo.ppTargets, barrierInfo.rangeCheckedTargetWaitCount);
     InsertTokenArray(barrierInfo.pTransitions, barrierInfo.transitionCount);
     InsertToken(barrierInfo.pSplitBarrierGpuEvent);
+    InsertToken(barrierInfo.reason);
 }
 
 // =====================================================================================================================
@@ -762,6 +763,7 @@ void CmdBuffer::ReplayCmdBarrier(
     barrierInfo.rangeCheckedTargetWaitCount = ReadTokenArray(&barrierInfo.ppTargets);
     barrierInfo.transitionCount             = ReadTokenArray(&barrierInfo.pTransitions);
     barrierInfo.pSplitBarrierGpuEvent       = ReadTokenVal<const IGpuEvent*>();
+    barrierInfo.reason                      = ReadTokenVal<uint32>();
 
     pTgtCmdBuffer->ResetBarrierString();
 
@@ -807,6 +809,9 @@ void CmdBuffer::CmdRelease(
     InsertToken(releaseInfo.dstGlobalAccessMask);
     InsertTokenArray(releaseInfo.pMemoryBarriers, releaseInfo.memoryBarrierCount);
     InsertTokenArray(releaseInfo.pImageBarriers, releaseInfo.imageBarrierCount);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    InsertToken(releaseInfo.reason);
+#endif
 
     InsertToken(pGpuEvent);
 }
@@ -824,6 +829,9 @@ void CmdBuffer::ReplayCmdRelease(
     releaseInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.memoryBarrierCount  = ReadTokenArray(&releaseInfo.pMemoryBarriers);
     releaseInfo.imageBarrierCount   = ReadTokenArray(&releaseInfo.pImageBarriers);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    releaseInfo.reason              = ReadTokenVal<uint32>();
+#endif
 
     auto pGpuEvent = ReadTokenVal<IGpuEvent*>();
 
@@ -890,6 +898,9 @@ void CmdBuffer::CmdAcquire(
     InsertToken(acquireInfo.dstGlobalAccessMask);
     InsertTokenArray(acquireInfo.pMemoryBarriers, acquireInfo.memoryBarrierCount);
     InsertTokenArray(acquireInfo.pImageBarriers, acquireInfo.imageBarrierCount);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    InsertToken(acquireInfo.reason);
+#endif
 
     InsertTokenArray(ppGpuEvents, gpuEventCount);
 }
@@ -907,6 +918,9 @@ void CmdBuffer::ReplayCmdAcquire(
     acquireInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.memoryBarrierCount  = ReadTokenArray(&acquireInfo.pMemoryBarriers);
     acquireInfo.imageBarrierCount   = ReadTokenArray(&acquireInfo.pImageBarriers);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    acquireInfo.reason              = ReadTokenVal<uint32>();
+#endif
 
     IGpuEvent** ppGpuEvents   = nullptr;
     uint32      gpuEventCount = ReadTokenArray(&ppGpuEvents);
@@ -972,6 +986,9 @@ void CmdBuffer::CmdReleaseThenAcquire(
     InsertToken(barrierInfo.dstGlobalAccessMask);
     InsertTokenArray(barrierInfo.pMemoryBarriers, barrierInfo.memoryBarrierCount);
     InsertTokenArray(barrierInfo.pImageBarriers, barrierInfo.imageBarrierCount);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    InsertToken(barrierInfo.reason);
+#endif
 }
 
 // =====================================================================================================================
@@ -987,6 +1004,9 @@ void CmdBuffer::ReplayCmdReleaseThenAcquire(
     barrierInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     barrierInfo.memoryBarrierCount  = ReadTokenArray(&barrierInfo.pMemoryBarriers);
     barrierInfo.imageBarrierCount   = ReadTokenArray(&barrierInfo.pImageBarriers);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    barrierInfo.reason              = ReadTokenVal<uint32>();
+#endif
 
     pTgtCmdBuffer->ResetBarrierString();
 
@@ -2861,7 +2881,7 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(
     IGpuEvent* pGpuEvent)
 {
-    return NextLayer()->AllocateAndBindGpuMemToEvent(pGpuEvent);
+    return NextLayer()->AllocateAndBindGpuMemToEvent(NextGpuEvent(pGpuEvent));
 }
 #endif
 
@@ -4075,15 +4095,19 @@ void TargetCmdBuffer::UpdateCommentString(
 
         const char* PipelineStallsStrings[] =
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+            "EOP TS Bottom of Pipe",
+#else
             "Wait on EOP TS Bottom of Pipe",
+#endif
             "VS Partial Flush",
             "PS Partial Flush",
             "CS Partial Flush",
             "PFP Sync ME",
             "Sync CPDMA",
-            "Reserved",
-            "Reserved",
-            "Reserved",
+            "EOS TS PS Done",
+            "EOS TS CS Done",
+            "Wait on EOS/EOP TS",
             "Reserved",
             "Reserved",
             "Reserved",
@@ -4114,9 +4138,9 @@ void TargetCmdBuffer::UpdateCommentString(
 
         const char* CachesStrings[] =
         {
-            "Invalidate TCP (L1 vector caches)",
+            "Invalidate TCP (vector caches)",
             "Invalidate SQI$ (SQ instruction caches)",
-            "Invalidate SQK$ (SQ constant caches - L1 scalar caches)",
+            "Invalidate SQK$ (SQ constant caches - scalar caches)",
             "Flush TCC (L2)",
             "Invalidate TCC (L2)",
             "Flush CB",
@@ -4127,7 +4151,7 @@ void TargetCmdBuffer::UpdateCommentString(
             "Flush CB Metadata",
             "Invalidate DB Metadata",
             "Flush DB Metadata",
-            "Reserved",
+            "Invalidate TCC Metadata (L2)",
             "Reserved",
             "Reserved",
         };

@@ -2801,7 +2801,7 @@ Result CmdBuffer::AllocateAndBindGpuMemToEvent(
     IGpuEvent* pGpuEvent)
 {
     // This function is not logged because it doesn't modify the command buffer.
-    return GetNextLayer()->AllocateAndBindGpuMemToEvent(pGpuEvent);
+    return GetNextLayer()->AllocateAndBindGpuMemToEvent(NextGpuEvent(pGpuEvent));
 }
 #endif
 

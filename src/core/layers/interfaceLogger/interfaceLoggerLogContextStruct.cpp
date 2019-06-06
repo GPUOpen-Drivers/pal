@@ -123,8 +123,10 @@ void LogContext::Struct(
 
         EndMap();
     }
-
     EndList();
+
+    KeyAndEnum("reason", static_cast<Developer::BarrierReason>(value.reason));
+
     EndMap();
 }
 
@@ -203,8 +205,12 @@ void LogContext::Struct(
 
         EndMap();
     }
-
     EndList();
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    KeyAndEnum("reason", static_cast<Developer::BarrierReason>(value.reason));
+#endif
+
     EndMap();
 }
 

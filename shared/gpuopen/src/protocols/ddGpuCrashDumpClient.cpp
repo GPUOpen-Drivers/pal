@@ -27,15 +27,15 @@
 #include "ddTransferManager.h"
 #include "msgChannel.h"
 
-#define GPUCRASHDUMP_CLIENT_MIN_MAJOR_VERSION 1
-#define GPUCRASHDUMP_CLIENT_MAX_MAJOR_VERSION 1
+#define GPUCRASHDUMP_CLIENT_MIN_VERSION 1
+#define GPUCRASHDUMP_CLIENT_MAX_VERSION 1
 
 namespace DevDriver
 {
     namespace GpuCrashDumpProtocol
     {
         GpuCrashDumpClient::GpuCrashDumpClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::GpuCrashDump, GPUCRASHDUMP_CLIENT_MIN_MAJOR_VERSION, GPUCRASHDUMP_CLIENT_MAX_MAJOR_VERSION)
+            : BaseProtocolClient(pMsgChannel, Protocol::GpuCrashDump, GPUCRASHDUMP_CLIENT_MIN_VERSION, GPUCRASHDUMP_CLIENT_MAX_VERSION)
             , m_pCrashDump(nullptr)
             , m_crashDumpSize(0)
             , m_crashDumpBytesSent(0)

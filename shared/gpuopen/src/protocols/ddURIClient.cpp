@@ -29,8 +29,8 @@
 #include "msgChannel.h"
 #include "ddTransferManager.h"
 
-#define URI_CLIENT_MIN_MAJOR_VERSION URI_INITIAL_VERSION
-#define URI_CLIENT_MAX_MAJOR_VERSION URI_POST_PROTOCOL_VERSION
+#define URI_CLIENT_MIN_VERSION URI_INITIAL_VERSION
+#define URI_CLIENT_MAX_VERSION URI_POST_PROTOCOL_VERSION
 
 namespace DevDriver
 {
@@ -51,7 +51,7 @@ namespace DevDriver
 
         // =====================================================================================================================
         URIClient::URIClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::URI, URI_CLIENT_MIN_MAJOR_VERSION, URI_CLIENT_MAX_MAJOR_VERSION)
+            : BaseProtocolClient(pMsgChannel, Protocol::URI, URI_CLIENT_MIN_VERSION, URI_CLIENT_MAX_VERSION)
         {
             memset(&m_context, 0, sizeof(m_context));
         }

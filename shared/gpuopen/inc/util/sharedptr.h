@@ -120,6 +120,12 @@ namespace DevDriver
                 return result;
             }
 
+            // Returns the reference count of the container
+            int32 QueryReferenceCount(void) const
+            {
+                return m_refCount;
+            }
+
             // Retrieve the allocator callbacks so it can be destroyed
             const AllocCb& GetAllocCb() const { return m_allocCb; }
         private:
@@ -241,6 +247,12 @@ namespace DevDriver
         T* Get() const
         {
             return static_cast<T* const>(m_pObject);
+        }
+
+        // Returns the reference count for the container
+        int32 QueryReferenceCount() const
+        {
+            return m_pContainer->QueryReferenceCount();
         }
 
         // Create a SharedPointer using the provided allocator callbacks and arguments

@@ -58,7 +58,7 @@ namespace DevDriver
         Result Destroy();
 
         // Creates a session with the specified remote client, using the provided protocol client.
-        Result EstablishSessionForClient(IProtocolClient& protocolClient, ClientId dstClientId);
+        Result EstablishSessionForClient(SharedPointer<ISession>* ppSession, const EstablishSessionInfo& sessionInfo);
 
         // Process a session message.
         void HandleReceivedSessionMessage(const MessageBuffer& messageBuffer);
@@ -121,11 +121,8 @@ namespace DevDriver
         Platform::Mutex  m_sessionMutex;    // Mutex to synchronize session object access.
         SessionHashMap   m_sessions;        // Hash map containing currently active sessions.
 
-        Platform::Mutex  m_serverMutex;     // Mutex to synchronize access to protocol servers.
         ServerHashMap    m_protocolServers; // Hash map containing protocol servers.
 
-        bool             m_active;          // Flag used to indicate whether the client accepts or rejects
-                                            // new sessions.
         AllocCb          m_allocCb;         // Allocator callbacks.
     };
 

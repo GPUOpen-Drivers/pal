@@ -28,8 +28,8 @@
 #include <cstring>
 #include <cstdio>
 
-#define LOGGING_SERVER_MIN_MAJOR_VERSION 2
-#define LOGGING_SERVER_MAX_MAJOR_VERSION 3
+#define LOGGING_SERVER_MIN_VERSION 2
+#define LOGGING_SERVER_MAX_VERSION 3
 
 namespace DevDriver
 {
@@ -43,7 +43,7 @@ namespace DevDriver
         static_assert(kSystemCategoryOffset == 1, "System category offset has changed unexpectedly");
 
         LoggingServer::LoggingServer(IMsgChannel* pMsgChannel)
-            : BaseProtocolServer(pMsgChannel, Protocol::Logging, LOGGING_SERVER_MIN_MAJOR_VERSION, LOGGING_SERVER_MAX_MAJOR_VERSION)
+            : BaseProtocolServer(pMsgChannel, Protocol::Logging, LOGGING_SERVER_MIN_VERSION, LOGGING_SERVER_MAX_VERSION)
             , m_categories()
             , m_activeSessions(pMsgChannel->GetAllocCb())
             , m_numCategories(0)
@@ -83,8 +83,12 @@ namespace DevDriver
         void LoggingServer::SessionEstablished(const SharedPointer<ISession>& pSession)
         {
             DD_UNUSED(pSession);
+
             // Allocate session data for the newly established session
-            LoggingSession *pSessionData = DD_NEW(LoggingSession, m_pMsgChannel->GetAllocCb())(m_pMsgChannel->GetAllocCb(), pSession);
+            LoggingSession* pSessionData = DD_NEW(LoggingSession, m_pMsgChannel->GetAllocCb())(m_pMsgChannel->GetAllocCb(), pSession);
+            // WA: Force MSVC's static analyzer to ignore unhandled OOM.
+            DD_ASSUME(pSessionData != nullptr);
+
             pSessionData->state = SessionState::ReceivePayload;
             pSessionData->loggingEnabled = false;
             memset(&pSessionData->scratchPayload, 0, sizeof(pSessionData->scratchPayload));
@@ -362,6 +366,9 @@ namespace DevDriver
             if (pLoggingSession != nullptr)
             {
                 LockData();
+
+                // We should always have at least one session in this list on termination. (This session)
+                DD_ASSERT(m_activeSessions.IsEmpty() == false);
 
                 m_activeSessions.Remove(pLoggingSession);
 

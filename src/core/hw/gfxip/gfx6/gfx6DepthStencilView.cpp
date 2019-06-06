@@ -130,10 +130,6 @@ void DepthStencilView::BuildPm4Headers()
     spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,
                                                  &m_pm4Cmds.hdrPaSuPolyOffsetDbFmtCntl);
 
-    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
-                                                  mmPA_SC_SCREEN_SCISSOR_BR,
-                                                  &m_pm4Cmds.hdrPaScScreenScissorTlBr);
-
     spaceNeeded += cmdUtil.BuildSetOneContextReg(mmCOHER_DEST_BASE_0, &m_pm4Cmds.hdrCoherDestBase0);
     spaceNeeded += cmdUtil.GetContextRegRmwSize(); // Header and value defined by InitRegisters()
 
@@ -333,11 +329,8 @@ void DepthStencilView::InitRegisters(
         m_pm4Cmds.paSuPolyOffsetDbFmtCntl.u32All = 0;
     }
 
-    // Setup screen scissor registers.
-    m_pm4Cmds.paScScreenScissorTl.bits.TL_X = PaScScreenScissorMin;
-    m_pm4Cmds.paScScreenScissorTl.bits.TL_Y = PaScScreenScissorMin;
-    m_pm4Cmds.paScScreenScissorBr.bits.BR_X = pDepthSubResInfo->extentTexels.width;
-    m_pm4Cmds.paScScreenScissorBr.bits.BR_Y = pDepthSubResInfo->extentTexels.height;
+    m_extent.width  = pDepthSubResInfo->extentTexels.width;
+    m_extent.height = pDepthSubResInfo->extentTexels.height;
 
     // Setup DB_RENDER_OVERRIDE fields
     DB_RENDER_OVERRIDE dbRenderOverride;

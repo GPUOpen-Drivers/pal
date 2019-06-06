@@ -1161,11 +1161,14 @@ void UniversalCmdBuffer::CmdBindTargets(
 {
     constexpr uint32 AllColorTargetSlotMask = 255; // Mask of all color target slots.
 
+    TargetExtent2d surfaceExtent = { MaxScissorExtent, MaxScissorExtent }; // Default to fully open
+
     // Bind all color targets.
     uint32 newColorTargetMask = 0;
     for (uint32 slot = 0; slot < params.colorTargetCount; slot++)
     {
         const auto*const pNewView = static_cast<const ColorTargetView*>(params.colorTargets[slot].pColorTargetView);
+        bool             validViewFound = false;
 
         if (pNewView != nullptr)
         {
@@ -1176,6 +1179,12 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                   pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
 
+            if (validViewFound == false)
+            {
+                // For MRT case, extents must match across all MRTs.
+                surfaceExtent = pNewView->GetExtent();
+            }
+
             if (m_device.WaMiscDccOverwriteComb())
             {
                 m_workaroundState.ClearDccOverwriteCombinerDisable(slot);
@@ -1183,6 +1192,8 @@ void UniversalCmdBuffer::CmdBindTargets(
 
             // Each set bit means the corresponding color target slot is being bound to a valid target.
             newColorTargetMask |= (1 << slot);
+
+            validViewFound = true;
         }
     }
 
@@ -1213,6 +1224,10 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                    &m_deCmdStream,
                                                    pDeCmdSpace);
 
+        TargetExtent2d depthViewExtent = pNewDepthView->GetExtent();
+        surfaceExtent.width  = Util::Min(surfaceExtent.width,  depthViewExtent.width);
+        surfaceExtent.height = Util::Min(surfaceExtent.height, depthViewExtent.height);
+
         // Re-write the ZRANGE_PRECISION value for the waTcCompatZRange workaround. We must include the COND_EXEC which
         // checks the metadata because we don't know the last fast clear value here.
         pDeCmdSpace = pNewDepthView->UpdateZRangePrecision(true, &m_deCmdStream, pDeCmdSpace);
@@ -1220,6 +1235,23 @@ void UniversalCmdBuffer::CmdBindTargets(
     else
     {
         pDeCmdSpace = WriteNullDepthTarget(pDeCmdSpace);
+    }
+
+    if (surfaceExtent.value != m_graphicsState.targetExtent.value)
+    {
+        // Set scissor owned by the target.
+        ScreenScissorReg* pScreenScissors = reinterpret_cast<ScreenScissorReg*>(pDeCmdSpace);
+        m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
+                                         mmPA_SC_SCREEN_SCISSOR_BR,
+                                         pScreenScissors);
+        pScreenScissors->paScScreenScissorTl.u32All    = 0;
+        pScreenScissors->paScScreenScissorBr.u32All    = 0;
+        pScreenScissors->paScScreenScissorBr.bits.BR_X = surfaceExtent.width;
+        pScreenScissors->paScScreenScissorBr.bits.BR_Y = surfaceExtent.height;
+
+        pDeCmdSpace += Util::NumBytesToNumDwords(sizeof(ScreenScissorReg));
+
+        m_graphicsState.targetExtent.value = surfaceExtent.value;
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -2513,9 +2545,6 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     const size_t cmdDwords = (m_cmdUtil.BuildSetSeqContextRegs(mmDB_Z_INFO,
                                                                mmDB_STENCIL_WRITE_BASE,
                                                                &pm4Commands.hdrDbZInfo) +
-                              m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
-                                                               mmPA_SC_SCREEN_SCISSOR_BR,
-                                                               &pm4Commands.hdrPaScScreenScissorTlBr) +
                               m_cmdUtil.BuildSetOneContextReg(mmDB_HTILE_DATA_BASE,
                                                               &pm4Commands.hdrDbHtileDataBase) +
                               m_cmdUtil.BuildSetOneContextReg(mmDB_RENDER_CONTROL,
@@ -2527,13 +2556,7 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     pm4Commands.dbStencilReadBase.u32All  = 0;
     pm4Commands.dbZWriteBase.u32All       = 0;
     pm4Commands.dbStencilWriteBase.u32All = 0;
-
-    pm4Commands.paScScreenScissorTl.bits.TL_X = PaScScreenScissorMin;
-    pm4Commands.paScScreenScissorTl.bits.TL_Y = PaScScreenScissorMin;
-    pm4Commands.paScScreenScissorBr.bits.BR_X = PaScScreenScissorMax;
-    pm4Commands.paScScreenScissorBr.bits.BR_Y = PaScScreenScissorMax;
-
-    pm4Commands.dbHtileDataBase.u32All = 0;
+    pm4Commands.dbHtileDataBase.u32All    = 0;
 
     // If the dbRenderControl.DEPTH_CLEAR_ENABLE bit is not reset to 0 after performing a graphics fast depth clear
     // then any following draw call with pixel shader z-imports will have their z components clamped to the clear
@@ -2576,21 +2599,6 @@ uint32* UniversalCmdBuffer::WriteNullColorTargets(
 
         // Clear the bit since we've already added it to our PM4 image.
         newNullSlotMask &= ~(1 << slot);
-    }
-
-    // If no color targets are active, setup generic scissor registers for NULL color targets.
-    if (newColorTargetMask == 0)
-    {
-        auto*const pPm4Image = reinterpret_cast<GenericScissorReg*>(&pm4Commands[cmdDwords]);
-
-        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
-                                                      mmPA_SC_GENERIC_SCISSOR_BR,
-                                                      &pPm4Image->header);
-
-        pPm4Image->paScGenericScissorTl.u32All    = 0;
-        pPm4Image->paScGenericScissorBr.u32All    = 0;
-        pPm4Image->paScGenericScissorBr.bits.BR_X = ScissorMaxBR;
-        pPm4Image->paScGenericScissorBr.bits.BR_Y = ScissorMaxBR;
     }
 
     if (cmdDwords != 0)
@@ -2710,7 +2718,21 @@ Result UniversalCmdBuffer::AddPreamble()
                                                                &ZeroStencilRefMasks[0],
                                                                pDeCmdSpace);
         }
+    }
 
+    if (IsNested() == false)
+    {
+        // Initialize screen scissor value.
+        ScreenScissorReg* pScreenScissors = reinterpret_cast<ScreenScissorReg*>(pDeCmdSpace);
+        m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
+                                         mmPA_SC_SCREEN_SCISSOR_BR,
+                                         pScreenScissors);
+        pScreenScissors->paScScreenScissorTl.u32All    = 0;
+        pScreenScissors->paScScreenScissorBr.u32All    = 0;
+        pScreenScissors->paScScreenScissorBr.bits.BR_X = m_graphicsState.targetExtent.width;
+        pScreenScissors->paScScreenScissorBr.bits.BR_Y = m_graphicsState.targetExtent.height;
+
+        pDeCmdSpace += Util::NumBytesToNumDwords(sizeof(ScreenScissorReg));
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);

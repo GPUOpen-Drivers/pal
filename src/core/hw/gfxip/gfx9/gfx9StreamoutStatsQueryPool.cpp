@@ -293,9 +293,12 @@ void StreamoutStatsQueryPool::OptimizedReset(
     }
     PAL_ALERT(result != Result::Success);
 
+    // ComputeResults would check query counters value against reset value by CPU, using L2 might read stale data.
+    const auto dstSel = m_createInfo.flags.enableCpuAccess ? dst_sel__pfp_dma_data__dst_addr_using_das
+                                                           : dst_sel__pfp_dma_data__dst_addr_using_l2;
     // Issue a CPDMA packet to zero out the memory associated with all the slots we're going to reset.
     DmaDataInfo dmaData  = {};
-    dmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
+    dmaData.dstSel       = dstSel;
     dmaData.dstAddr      = gpuAddr;
     dmaData.dstAddrSpace = das__pfp_dma_data__memory;
     dmaData.srcSel       = src_sel__pfp_dma_data__data;

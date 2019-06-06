@@ -34,12 +34,9 @@
 #include "gpuopen.h"
 #include "systemProtocols.h"
 
-#define GPUCRASHDUMP_PROTOCOL_MAJOR_VERSION 1
-#define GPUCRASHDUMP_PROTOCOL_MINOR_VERSION 0
+#define GPUCRASHDUMP_PROTOCOL_VERSION 1
 
-#define GPUCRASHDUMP_INTERFACE_VERSION ((GPUCRASHDUMP_INTERFACE_MAJOR_VERSION << 16) | GPUCRASHDUMP_INTERFACE_MINOR_VERSION)
-
-#define GPUCRASHDUMP_PROTOCOL_MINIMUM_MAJOR_VERSION 1
+#define GPUCRASHDUMP_PROTOCOL_MINIMUM_VERSION 1
 
 /*
 ***********************************************************************************************************************

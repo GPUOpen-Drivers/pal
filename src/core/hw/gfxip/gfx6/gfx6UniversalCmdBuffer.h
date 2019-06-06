@@ -90,10 +90,6 @@ struct NullDepthStencilPm4Img
     regDB_Z_WRITE_BASE         dbZWriteBase;
     regDB_STENCIL_WRITE_BASE   dbStencilWriteBase;
 
-    PM4CMDSETDATA              hdrPaScScreenScissorTlBr;
-    regPA_SC_SCREEN_SCISSOR_TL paScScreenScissorTl;
-    regPA_SC_SCREEN_SCISSOR_BR paScScreenScissorBr;
-
     PM4CMDSETDATA              hdrDbHtileDataBase;
     regDB_HTILE_DATA_BASE      dbHtileDataBase;
 
@@ -163,14 +159,14 @@ struct ColorInfoReg
     regCB_COLOR0_INFO cbColorInfo;
 };
 
-struct GenericScissorReg
+struct ScreenScissorReg
 {
-    PM4CMDSETDATA               header;
-    regPA_SC_GENERIC_SCISSOR_TL paScGenericScissorTl;
-    regPA_SC_GENERIC_SCISSOR_BR paScGenericScissorBr;
+    PM4CMDSETDATA              hdrPaScScreenScissors;
+    regPA_SC_SCREEN_SCISSOR_TL paScScreenScissorTl;
+    regPA_SC_SCREEN_SCISSOR_BR paScScreenScissorBr;
 };
 
-constexpr size_t MaxNullColorTargetPm4ImgSize = sizeof(ColorInfoReg) * MaxColorTargets + sizeof(GenericScissorReg);
+constexpr size_t MaxNullColorTargetPm4ImgSize = sizeof(ColorInfoReg) * MaxColorTargets;
 
 struct BlendConstReg
 {

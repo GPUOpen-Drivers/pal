@@ -28,8 +28,8 @@
 
 #include <string.h>
 
-#define RGP_CLIENT_MIN_MAJOR_VERSION 2
-#define RGP_CLIENT_MAX_MAJOR_VERSION 9
+#define RGP_CLIENT_MIN_VERSION 2
+#define RGP_CLIENT_MAX_VERSION 9
 
 namespace DevDriver
 {
@@ -74,7 +74,7 @@ namespace DevDriver
         }
 
         RGPClient::RGPClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::RGP, RGP_CLIENT_MIN_MAJOR_VERSION, RGP_CLIENT_MAX_MAJOR_VERSION)
+            : BaseProtocolClient(pMsgChannel, Protocol::RGP, RGP_CLIENT_MIN_VERSION, RGP_CLIENT_MAX_VERSION)
         {
             memset(&m_traceContext, 0, sizeof(m_traceContext));
 #if DD_VERSION_SUPPORTS(GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION)

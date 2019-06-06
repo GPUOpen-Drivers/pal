@@ -28,7 +28,9 @@
 
 #include "util/queue.h"
 #include "util/vector.h"
-#include "../win/ddWinEtwServerSession.h"
+#include "win/ddWinEtwServerSession.h"
+
+#include "ddPlatform.h"
 
 #include <thread>
 
@@ -59,15 +61,26 @@ namespace DevDriver
         void ETWServer::SessionEstablished(const SharedPointer<ISession>& pSession)
         {
             // Allocate session data for the newly established session
-            ETWSession *newSession = DD_NEW(ETWSession, m_pMsgChannel->GetAllocCb())(pSession, m_pMsgChannel->GetAllocCb());
-            pSession->SetUserData(newSession);
+            ETWSession *pSessionObject = DD_NEW(ETWSession, m_pMsgChannel->GetAllocCb())(pSession, m_pMsgChannel->GetAllocCb());
+            if (pSessionObject != nullptr)
+            {
+                // Starting with RS5, we need to constantly listen for ETW events for AssociateContext events.
+                DD_UNHANDLED_RESULT(pSessionObject->BeginTrace(kAssocationContextProcessId));
+                pSession->SetUserData(pSessionObject);
+            }
+            else
+            {
+                DD_ASSERT_REASON("Out of memory - DD_NEW returned NULL.");
+            }
         }
 
         void ETWServer::UpdateSession(const SharedPointer<ISession>& pSession)
         {
             ETWSession* pSessionObject = reinterpret_cast<ETWSession*>(pSession->GetUserData());
             if (pSessionObject != nullptr)
+            {
                 pSessionObject->UpdateSession();
+            }
         }
 
         void ETWServer::SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason)
@@ -77,8 +90,14 @@ namespace DevDriver
 
             if (pSessionObject != nullptr)
             {
+                DD_UNHANDLED_RESULT(pSessionObject->EndTrace());
                 DD_DELETE(pSessionObject, m_pMsgChannel->GetAllocCb());
             }
+        }
+
+        bool ETWServer::QueryETWSupported()
+        {
+            return TraceSession::QueryETWSupport();
         }
     } // ETWProtocol
 } // DevDriver

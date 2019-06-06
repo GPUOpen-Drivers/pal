@@ -228,7 +228,8 @@ enum PipelineStageFlag : uint32
     PipelineStageColorTarget       = 0x00000400,
     PipelineStageCs                = 0x00000800,
     PipelineStageBlt               = 0x00001000,
-    PipelineStageBottomOfPipe      = 0x00002000
+    PipelineStageBottomOfPipe      = 0x00002000,
+    PipelineStageAllStages         = 0x00003FFF
 };
 
 /// Bitmask values that can be ORed together to specify all potential usages of an image at a point in time.  Such a
@@ -848,6 +849,11 @@ struct AcquireReleaseInfo
     uint32               imageBarrierCount;   ///< Number of entries in pImageBarriers.
     const ImgBarrier*    pImageBarriers;      ///  Describes memory dependencies and image layout transitions required
                                               ///  for a subresource range of a particular IImage object.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+    uint32 reason;                            ///< The reason that the barrier was invoked.
+                                              ///  See @ref Developer::BarrierReason for internal reason codes, though
+                                              ///  clients may define their own as well
+#endif
 };
 
 /// Specifies parameters for a copy from one range of a source GPU memory allocation to a range of the same size in a

@@ -40,7 +40,6 @@ namespace DevDriver
     enum class ClientState : uint32
     {
         Disconnected = 0,
-        Connecting,
         Connected
     };
 
@@ -56,9 +55,10 @@ namespace DevDriver
         Version GetMaxVersion() const override final { return m_maxVersion; };
 
         // connection management/tracking
-        Result Connect(ClientId clientId) override final;
+        Result Connect(ClientId clientId, uint32 timeoutInMs = kDefaultConnectionTimeoutInMs) override final;
         void Disconnect() override final;
         bool IsConnected() const override final;
+        bool QueryConnectionStatus() override final;
 
         // properties that are only valid in a connected session
         ClientId GetRemoteClientId() const override final;
@@ -84,6 +84,7 @@ namespace DevDriver
 
         DD_STATIC_CONST uint32 kDefaultRetryTimeoutInMs = 50;
         DD_STATIC_CONST uint32 kDefaultCommunicationTimeoutInMs = 5000;
+        DD_STATIC_CONST uint32 kDefaultConnectionTimeoutInMs = 1000;
 
         // Attempts to receive a payload into a fixed size buffer.
         // Returns the result and the size of the payload if it was received successfully.
@@ -177,9 +178,7 @@ namespace DevDriver
         }
 
     private:
-        Result m_connectResult;
         ClientState m_state;
-        Platform::Event m_pendingOperationEvent;
     };
 
 } // DevDriver

@@ -72,6 +72,9 @@ struct ColorGamut
     uint32   minLuminance;               ///< Minimum luminance; in units of 0.0001 (1/10,000) Cd/m2.
     uint32   maxLuminance;               ///< Maximum luminance; in units of 0.0001 (1/10,000) Cd/m2.
     uint32   avgLuminance;               ///< Average luminance; in units of 0.0001 (1/10,000) Cd/m2.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 506
+    uint32   maxContentLightLevel;       ///< Maximum luminance level of the entire content clip
+#endif
 };
 
 /// Specifies color space and transfer functions as reported by the display panel EDID interface.

@@ -49,7 +49,7 @@ struct PipelineHash
         uint32 dwords[4];
         uint64 qwords[2];
         // There is no dqword member because:
-        //      1) msvc doesn't expose an `unsigned __int128` (note: gcc and clang do)
+        //      1) An `unsigned __int128` isn't standard yet (note: gcc and clang support it)
         //      2) It would force our alignment requirement up to 16 bytes from 8 bytes.
         //         This would make PipelineRecordHeader 32 bytes and padded, instead of 24 and packed.
     };
