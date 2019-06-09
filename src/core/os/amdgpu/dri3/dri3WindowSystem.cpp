@@ -1117,6 +1117,99 @@ Result Dri3WindowSystem::GetOutputFromConnector(
 }
 
 // =====================================================================================================================
+// Find an usable crtc for a given output. If the output has an active crtc, we use that. Otherwise we pick one
+// whose possible output list contains the given output.
+Result Dri3WindowSystem::FindCrtcForOutput(
+    OsDisplayHandle hDisplay,
+    Device*         pDevice,
+    uint32          randrOutput,
+    uint32          rootWindow,
+    uint32*         pRandrCrtc)
+{
+    Result                 result      = Result::Success;
+    const Dri3LoaderFuncs& dri3Procs   = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
+    xcb_connection_t*const pConnection = dri3Procs.pfnXGetXCBConnection(static_cast<Display*>(hDisplay));
+
+    *pRandrCrtc = 0;
+
+    xcb_randr_get_screen_resources_cookie_t scrResCookie =
+        dri3Procs.pfnXcbRandrGetScreenResources(pConnection, rootWindow);
+
+    xcb_randr_get_screen_resources_reply_t* pScrResReply =
+        dri3Procs.pfnXcbRandrGetScreenResourcesReply(pConnection, scrResCookie, NULL);
+
+    if (pScrResReply == nullptr)
+    {
+        result = Result::ErrorInitializationFailed;
+    }
+
+    if (result == Result::Success)
+    {
+        xcb_randr_crtc_t* pCrtc      = dri3Procs.pfnXcbRandrGetScreenResourcesCrtcs(pScrResReply);
+        uint32            activeCrtc = 0;
+        uint32            freeCrtc   = 0;
+        for (int i = 0; i < pScrResReply->num_crtcs; i++)
+        {
+            xcb_randr_get_crtc_info_cookie_t crtcInfoCookie =
+                dri3Procs.pfnXcbRandrGetCrtcInfo(pConnection, pCrtc[i], pScrResReply->timestamp);
+            xcb_randr_get_crtc_info_reply_t* pCrtcInfoReply =
+                dri3Procs.pfnXcbRandrGetCrtcInfoReply(pConnection, crtcInfoCookie, NULL);
+            if (pCrtcInfoReply == nullptr)
+            {
+                continue;
+            }
+
+            xcb_randr_output_t* pOutput =
+                dri3Procs.pfnXcbRandrGetCrtcInfoOutputs(pCrtcInfoReply);
+            if (pCrtcInfoReply->mode && (pCrtcInfoReply->num_outputs == 1) && (pOutput[0] == randrOutput))
+            {
+                // this crtc is currently in use by randrOutput
+                activeCrtc = pCrtc[i];
+                free(pCrtcInfoReply);
+                break;
+            }
+
+            if (!pCrtcInfoReply->mode)
+            {
+                // this crtc is free, check if it can output to randrOutput.
+                // even if this crtc is usable, we don't break the outer loop immediately, since there
+                // might still be an active crtc we haven't seen.
+                xcb_randr_output_t* pPossibleOutput =
+                    dri3Procs.pfnXcbRandrGetCrtcInfoPossible(pCrtcInfoReply);
+                for (int j = 0; j < pCrtcInfoReply->num_possible_outputs; j++)
+                {
+                    if (pPossibleOutput[j] == randrOutput)
+                    {
+                        freeCrtc = pCrtc[i];
+                        break;
+                    }
+                }
+            }
+            free(pCrtcInfoReply);
+        }
+
+        free(pScrResReply);
+
+        if (activeCrtc != 0)
+        {
+            *pRandrCrtc = activeCrtc;
+        }
+        else
+        {
+            if (freeCrtc != 0)
+            {
+                *pRandrCrtc = freeCrtc;
+            }
+            else
+            {
+                result = Result::ErrorInitializationFailed;
+            }
+        }
+    }
+    return result;
+}
+
+// =====================================================================================================================
 // Acquires exclusive access to the display.
 Result Dri3WindowSystem::AcquireScreenAccess(
     OsDisplayHandle hDisplay,
@@ -1177,20 +1270,7 @@ Result Dri3WindowSystem::AcquireScreenAccess(
 
     if (result == Result::Success)
     {
-        xcb_randr_get_output_info_cookie_t outputInfoCookie =
-            dri3Procs.pfnXcbRandrGetOutputInfo(pConnection, randrOutput, XCB_CURRENT_TIME);
-        xcb_randr_get_output_info_reply_t* pOutputInfoReply =
-            dri3Procs.pfnXcbRandrGetOutputInfoReply(pConnection, outputInfoCookie, NULL);
-
-        if (pOutputInfoReply)
-        {
-            randrCrtc = pOutputInfoReply->crtc;
-            free(pOutputInfoReply);
-        }
-        else
-        {
-            result = Result::ErrorInitializationFailed;
-        }
+        result = FindCrtcForOutput(hDisplay, pDevice, randrOutput, rootWindow, &randrCrtc);
     }
 
     if (result == Result::Success)
