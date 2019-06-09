@@ -175,6 +175,13 @@ private:
         uint32          randrOutput,
         uint32*         pRootWindow);
 
+    static Result FindCrtcForOutput(
+        OsDisplayHandle hDisplay,
+        Device*         pDevice,
+        uint32          randrOutput,
+        uint32          rootWindow,
+        uint32*         randrCrtc);
+
     const Device&          m_device;
     const Dri3Loader&      m_dri3Loader;
 #if defined(PAL_DEBUG_PRINTS)

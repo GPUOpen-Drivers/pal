@@ -1113,6 +1113,82 @@ xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResourcesOutputs(
     return pRet;
 }
 
+
+// =====================================================================================================================
+xcb_randr_crtc_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResourcesCrtcs(
+    const xcb_randr_get_screen_resources_reply_t*  pScrResReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_crtc_t* pRet = m_pFuncs->pfnXcbRandrGetScreenResourcesCrtcs(pScrResReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetScreenResourcesCrtcs,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetScreenResourcesCrtcs(%p)\n",
+        pScrResReply);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+
+// =====================================================================================================================
+xcb_randr_get_crtc_info_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfo(
+    xcb_connection_t*  pConnection,
+    xcb_randr_crtc_t   output,
+    xcb_timestamp_t    configTimestamp
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_crtc_info_cookie_t ret = m_pFuncs->pfnXcbRandrGetCrtcInfo(pConnection,
+                                                                            output,
+                                                                            configTimestamp);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetCrtcInfo,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetCrtcInfo(%p, %x, %x)\n",
+        pConnection,
+        output,
+        configTimestamp);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+
+// =====================================================================================================================
+xcb_randr_get_crtc_info_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfoReply(
+    xcb_connection_t*                 pConnection,
+    xcb_randr_get_crtc_info_cookie_t  cookie,
+    xcb_generic_error_t               **ppError
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_crtc_info_reply_t* pRet = m_pFuncs->pfnXcbRandrGetCrtcInfoReply(pConnection,
+                                                                                  cookie,
+                                                                                  **ppError);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetCrtcInfoReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetCrtcInfoReply(%p, %p, %x)\n",
+        pConnection,
+        &cookie,
+        **ppError);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+
 // =====================================================================================================================
 xcb_randr_get_output_info_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputInfo(
     xcb_connection_t*   pConnection,
@@ -1164,6 +1240,49 @@ xcb_randr_get_output_info_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputInf
 
     return pRet;
 }
+
+
+// =====================================================================================================================
+xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfoOutputs(
+    xcb_randr_get_crtc_info_reply_t  *pCrtcInfoReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_output_t* pRet = m_pFuncs->pfnXcbRandrGetCrtcInfoOutputs(*pCrtcInfoReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetCrtcInfoOutputs,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetCrtcInfoOutputs(%x)\n",
+        *pCrtcInfoReply);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+
+// =====================================================================================================================
+xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfoPossible(
+    xcb_randr_get_crtc_info_reply_t  *pCrtcInfoReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_output_t* pRet = m_pFuncs->pfnXcbRandrGetCrtcInfoPossible(*pCrtcInfoReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetCrtcInfoPossible,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetCrtcInfoPossible(%x)\n",
+        *pCrtcInfoReply);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
 
 // =====================================================================================================================
 xcb_randr_get_output_property_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputProperty(
@@ -2020,12 +2139,27 @@ Result Dri3Loader::Init(
             m_funcs.pfnXcbRandrGetScreenResourcesOutputs = reinterpret_cast<XcbRandrGetScreenResourcesOutputs>(dlsym(
                         m_libraryHandles[LibXcbRandr],
                         "xcb_randr_get_screen_resources_outputs"));
+            m_funcs.pfnXcbRandrGetScreenResourcesCrtcs = reinterpret_cast<XcbRandrGetScreenResourcesCrtcs>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_screen_resources_crtcs"));
+            m_funcs.pfnXcbRandrGetCrtcInfo = reinterpret_cast<XcbRandrGetCrtcInfo>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_crtc_info"));
+            m_funcs.pfnXcbRandrGetCrtcInfoReply = reinterpret_cast<XcbRandrGetCrtcInfoReply>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_crtc_info_reply"));
             m_funcs.pfnXcbRandrGetOutputInfo = reinterpret_cast<XcbRandrGetOutputInfo>(dlsym(
                         m_libraryHandles[LibXcbRandr],
                         "xcb_randr_get_output_info"));
             m_funcs.pfnXcbRandrGetOutputInfoReply = reinterpret_cast<XcbRandrGetOutputInfoReply>(dlsym(
                         m_libraryHandles[LibXcbRandr],
                         "xcb_randr_get_output_info_reply"));
+            m_funcs.pfnXcbRandrGetCrtcInfoOutputs = reinterpret_cast<XcbRandrGetCrtcInfoOutputs>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_crtc_info_outputs"));
+            m_funcs.pfnXcbRandrGetCrtcInfoPossible = reinterpret_cast<XcbRandrGetCrtcInfoPossible>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_crtc_info_possible"));
             m_funcs.pfnXcbRandrGetOutputProperty = reinterpret_cast<XcbRandrGetOutputProperty>(dlsym(
                         m_libraryHandles[LibXcbRandr],
                         "xcb_randr_get_output_property"));

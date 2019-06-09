@@ -264,6 +264,19 @@ typedef xcb_randr_get_screen_resources_reply_t* (*XcbRandrGetScreenResourcesRepl
 typedef xcb_randr_output_t* (*XcbRandrGetScreenResourcesOutputs)(
             const xcb_randr_get_screen_resources_reply_t*     pScrResReply);
 
+typedef xcb_randr_crtc_t* (*XcbRandrGetScreenResourcesCrtcs)(
+            const xcb_randr_get_screen_resources_reply_t*     pScrResReply);
+
+typedef xcb_randr_get_crtc_info_cookie_t (*XcbRandrGetCrtcInfo)(
+            xcb_connection_t*     pConnection,
+            xcb_randr_crtc_t      output,
+            xcb_timestamp_t       configTimestamp);
+
+typedef xcb_randr_get_crtc_info_reply_t* (*XcbRandrGetCrtcInfoReply)(
+            xcb_connection_t*                 pConnection,
+            xcb_randr_get_crtc_info_cookie_t  cookie,
+            xcb_generic_error_t               **ppError);
+
 typedef xcb_randr_get_output_info_cookie_t (*XcbRandrGetOutputInfo)(
             xcb_connection_t*     pConnection,
             xcb_randr_output_t    output,
@@ -273,6 +286,12 @@ typedef xcb_randr_get_output_info_reply_t* (*XcbRandrGetOutputInfoReply)(
             xcb_connection_t*                     pConnection,
             xcb_randr_get_output_info_cookie_t    cookie,
             xcb_generic_error_t **                ppError);
+
+typedef xcb_randr_output_t* (*XcbRandrGetCrtcInfoOutputs)(
+            xcb_randr_get_crtc_info_reply_t   *pCrtcInfoReply);
+
+typedef xcb_randr_output_t* (*XcbRandrGetCrtcInfoPossible)(
+            xcb_randr_get_crtc_info_reply_t   *pCrtcInfoReply);
 
 typedef xcb_randr_get_output_property_cookie_t (*XcbRandrGetOutputProperty)(
             xcb_connection_t*     pConnection,
@@ -677,6 +696,24 @@ struct Dri3LoaderFuncs
         return (pfnXcbRandrGetScreenResourcesOutputs != nullptr);
     }
 
+    XcbRandrGetScreenResourcesCrtcs       pfnXcbRandrGetScreenResourcesCrtcs;
+    bool pfnXcbRandrGetScreenResourcesCrtcsisValid() const
+    {
+        return (pfnXcbRandrGetScreenResourcesCrtcs != nullptr);
+    }
+
+    XcbRandrGetCrtcInfo                   pfnXcbRandrGetCrtcInfo;
+    bool pfnXcbRandrGetCrtcInfoisValid() const
+    {
+        return (pfnXcbRandrGetCrtcInfo != nullptr);
+    }
+
+    XcbRandrGetCrtcInfoReply              pfnXcbRandrGetCrtcInfoReply;
+    bool pfnXcbRandrGetCrtcInfoReplyisValid() const
+    {
+        return (pfnXcbRandrGetCrtcInfoReply != nullptr);
+    }
+
     XcbRandrGetOutputInfo                 pfnXcbRandrGetOutputInfo;
     bool pfnXcbRandrGetOutputInfoisValid() const
     {
@@ -687,6 +724,18 @@ struct Dri3LoaderFuncs
     bool pfnXcbRandrGetOutputInfoReplyisValid() const
     {
         return (pfnXcbRandrGetOutputInfoReply != nullptr);
+    }
+
+    XcbRandrGetCrtcInfoOutputs            pfnXcbRandrGetCrtcInfoOutputs;
+    bool pfnXcbRandrGetCrtcInfoOutputsisValid() const
+    {
+        return (pfnXcbRandrGetCrtcInfoOutputs != nullptr);
+    }
+
+    XcbRandrGetCrtcInfoPossible           pfnXcbRandrGetCrtcInfoPossible;
+    bool pfnXcbRandrGetCrtcInfoPossibleisValid() const
+    {
+        return (pfnXcbRandrGetCrtcInfoPossible != nullptr);
     }
 
     XcbRandrGetOutputProperty             pfnXcbRandrGetOutputProperty;
@@ -1241,6 +1290,34 @@ public:
         return (m_pFuncs->pfnXcbRandrGetScreenResourcesOutputs != nullptr);
     }
 
+    xcb_randr_crtc_t* pfnXcbRandrGetScreenResourcesCrtcs(
+            const xcb_randr_get_screen_resources_reply_t*     pScrResReply) const;
+
+    bool pfnXcbRandrGetScreenResourcesCrtcsisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetScreenResourcesCrtcs != nullptr);
+    }
+
+    xcb_randr_get_crtc_info_cookie_t pfnXcbRandrGetCrtcInfo(
+            xcb_connection_t*     pConnection,
+            xcb_randr_crtc_t      output,
+            xcb_timestamp_t       configTimestamp) const;
+
+    bool pfnXcbRandrGetCrtcInfoisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetCrtcInfo != nullptr);
+    }
+
+    xcb_randr_get_crtc_info_reply_t* pfnXcbRandrGetCrtcInfoReply(
+            xcb_connection_t*                 pConnection,
+            xcb_randr_get_crtc_info_cookie_t  cookie,
+            xcb_generic_error_t               **ppError) const;
+
+    bool pfnXcbRandrGetCrtcInfoReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetCrtcInfoReply != nullptr);
+    }
+
     xcb_randr_get_output_info_cookie_t pfnXcbRandrGetOutputInfo(
             xcb_connection_t*     pConnection,
             xcb_randr_output_t    output,
@@ -1259,6 +1336,22 @@ public:
     bool pfnXcbRandrGetOutputInfoReplyisValid() const
     {
         return (m_pFuncs->pfnXcbRandrGetOutputInfoReply != nullptr);
+    }
+
+    xcb_randr_output_t* pfnXcbRandrGetCrtcInfoOutputs(
+            xcb_randr_get_crtc_info_reply_t   *pCrtcInfoReply) const;
+
+    bool pfnXcbRandrGetCrtcInfoOutputsisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetCrtcInfoOutputs != nullptr);
+    }
+
+    xcb_randr_output_t* pfnXcbRandrGetCrtcInfoPossible(
+            xcb_randr_get_crtc_info_reply_t   *pCrtcInfoReply) const;
+
+    bool pfnXcbRandrGetCrtcInfoPossibleisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetCrtcInfoPossible != nullptr);
     }
 
     xcb_randr_get_output_property_cookie_t pfnXcbRandrGetOutputProperty(
