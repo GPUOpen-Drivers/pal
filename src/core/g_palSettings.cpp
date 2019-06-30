@@ -22,13 +22,15 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// When changes are needed, modify the tools generating this module in the tools\generate directory OR settings.cfg
+// When changes are needed, modify the tools generating this module in the tools\generate directory OR
+// settings_platform.json
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -87,6 +89,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.gpuReadPerfForGartCacheable = 1;
     m_settings.gpuWritePerfForGartCacheable = 1;
     m_settings.allocationListReusable = true;
+    m_settings.cmdStreamReadOnly = false;
     m_settings.fenceTimeoutOverrideInSec = 0;
     m_settings.force64kPageGranularity = false;
     m_settings.updateOneGpuVirtualAddress = false;
@@ -253,6 +256,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllocationListReusableStr,
                            Util::ValueType::Boolean,
                            &m_settings.allocationListReusable,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdStreamReadOnlyStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.cmdStreamReadOnly,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pFenceTimeoutOverrideStr,
@@ -700,6 +708,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.allocationListReusable);
     m_settingsInfoMap.Insert(1727036994, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.cmdStreamReadOnly;
+    info.valueSize = sizeof(m_settings.cmdStreamReadOnly);
+    m_settingsInfoMap.Insert(3519117785, info);
+
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.fenceTimeoutOverrideInSec;
     info.valueSize = sizeof(m_settings.fenceTimeoutOverrideInSec);
@@ -773,42 +786,42 @@ void SettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.pipelineLogConfig.logInternal;
     info.valueSize = sizeof(m_settings.pipelineLogConfig.logInternal);
-    m_settingsInfoMap.Insert(1161296785, info);
+    m_settingsInfoMap.Insert(2166447132, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.pipelineLogConfig.logExternal;
     info.valueSize = sizeof(m_settings.pipelineLogConfig.logExternal);
-    m_settingsInfoMap.Insert(80714519, info);
+    m_settingsInfoMap.Insert(938415030, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.pipelineLogConfig.logShadersSeparately;
     info.valueSize = sizeof(m_settings.pipelineLogConfig.logShadersSeparately);
-    m_settingsInfoMap.Insert(2954641676, info);
+    m_settingsInfoMap.Insert(3953734167, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.pipelineLogConfig.logDuplicatePipelines;
     info.valueSize = sizeof(m_settings.pipelineLogConfig.logDuplicatePipelines);
-    m_settingsInfoMap.Insert(2579830276, info);
+    m_settingsInfoMap.Insert(3347217685, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.pipelineLogConfig.embedPipelineDisassembly;
     info.valueSize = sizeof(m_settings.pipelineLogConfig.embedPipelineDisassembly);
-    m_settingsInfoMap.Insert(3586402143, info);
+    m_settingsInfoMap.Insert(3171399776, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.pipelineLogConfig.pipelineTypeFilter;
     info.valueSize = sizeof(m_settings.pipelineLogConfig.pipelineTypeFilter);
-    m_settingsInfoMap.Insert(1911443886, info);
+    m_settingsInfoMap.Insert(1737304845, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.pipelineLogConfig.logPipelineHash;
     info.valueSize = sizeof(m_settings.pipelineLogConfig.logPipelineHash);
-    m_settingsInfoMap.Insert(3585556466, info);
+    m_settingsInfoMap.Insert(3357782487, info);
 
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.pipelineLogConfig.pipelineLogDirectory;
     info.valueSize = sizeof(m_settings.pipelineLogConfig.pipelineLogDirectory);
-    m_settingsInfoMap.Insert(3768253245, info);
+    m_settingsInfoMap.Insert(162583946, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdStreamReserveLimit;
@@ -848,7 +861,7 @@ void SettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdBufForceCpuUpdatePath;
     info.valueSize = sizeof(m_settings.cmdBufForceCpuUpdatePath);
-    m_settingsInfoMap.Insert(382911281, info);
+    m_settingsInfoMap.Insert(3282911281, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdBufForceOneTimeSubmit;
@@ -903,7 +916,7 @@ void SettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.pipelinePrefetchEnable;
     info.valueSize = sizeof(m_settings.pipelinePrefetchEnable);
-    m_settingsInfoMap.Insert(3661325567, info);
+    m_settingsInfoMap.Insert(3800985923, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.shaderPrefetchClampSize;
@@ -981,7 +994,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 1166653033;
+            component.settingsDataHash = 1373690091;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

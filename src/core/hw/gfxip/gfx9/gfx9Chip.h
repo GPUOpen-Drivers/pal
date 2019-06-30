@@ -181,10 +181,10 @@ enum HwShaderStage : uint32
 constexpr uint32 NumUserDataRegisters = 32;
 
 // Starting user-data register index where the low 32 address bits of the global internal table pointer
-// (shader ring SRD's, etc.) is written.
+// (shader ring SRDs, etc.) is written.
 constexpr uint16 InternalTblStartReg  = 0;
 // Starting user-data register indexes where the low 32 address bits of the constant buffer table pointer
-// (internal CB's, link-constant buf's) for the shader(s) are written.
+// (internal CBs) for the shader(s) are written.
 constexpr uint16 ConstBufTblStartReg = (InternalTblStartReg + 1);
 
 // User-data register where some shaders' LDS size requirement (for on-chip GS support) is written.

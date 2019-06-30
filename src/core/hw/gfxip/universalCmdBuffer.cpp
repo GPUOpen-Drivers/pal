@@ -254,6 +254,8 @@ void UniversalCmdBuffer::ResetState()
         m_graphicsState.targetExtent.width  = USHRT_MAX;
         m_graphicsState.targetExtent.height = USHRT_MAX;
     }
+
+    m_graphicsState.clipRectsState.clipRule = DefaultClipRectsRule;
 }
 
 // =====================================================================================================================
@@ -684,6 +686,11 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     if (graphics.leakFlags.nonValidationBits.globalScissorState != 0)
     {
         m_graphicsState.globalScissorState = graphics.globalScissorState;
+    }
+
+    if (graphics.leakFlags.nonValidationBits.clipRectsState != 0)
+    {
+        m_graphicsState.clipRectsState = graphics.clipRectsState;
     }
 
     m_graphicsState.viewInstanceMask = graphics.viewInstanceMask;

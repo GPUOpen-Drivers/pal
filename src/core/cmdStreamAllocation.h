@@ -39,6 +39,7 @@ namespace Pal
 {
 // Forward declarations
 class CmdStreamChunk;
+class CmdAllocator;
 class Device;
 class Platform;
 
@@ -143,7 +144,7 @@ public:
     void FinalizeCommands();
     void Reset(bool resetRefCount);
 
-    void InitRootBusyTracker();
+    Result InitRootBusyTracker(CmdAllocator* pAllocator);
     void UpdateRootInfo(CmdStreamChunk* pRootChunk);
 
     void AddCommandStreamReference();

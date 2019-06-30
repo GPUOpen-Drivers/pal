@@ -1329,8 +1329,8 @@ uint32 GraphicsPipeline::CalcMaxLateAllocLimit(
     uint32                 scratchEn,
     uint32                 targetLateAllocLimit)
 {
-    const auto pPalSettings = device.Parent()->GetPublicSettings();
-    const auto gfx9Settings = device.Settings();
+    const auto* pPalSettings = device.Parent()->GetPublicSettings();
+    const auto& gfx9Settings = device.Settings();
 
     regSPI_SHADER_PGM_RSRC2_PS spiShaderPgmRsrc2Ps = { };
     spiShaderPgmRsrc2Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_PS);

@@ -141,7 +141,7 @@ using RegisterVector = Util::SparseVector<
 // them unusable from the client. The registers PAL reserves are:
 //
 // [0]  - For the global internal resource table (shader rings, offchip LDS buffers, etc.)
-// [1]  - For the constant buffer table (link-constant buffers, internal constant buffers, etc.)
+// [1]  - For the constant buffer table (internal constant buffers, etc.)
 // [12] - For the per-Draw vertex offset
 // [13] - For the per-Draw instance offset
 // [14] - For the per-Queue GDS partition information
@@ -151,10 +151,10 @@ using RegisterVector = Util::SparseVector<
 constexpr uint32 NumUserDataRegisters = 16;
 
 // Starting user-data register index where the low 32 address bits of the global internal table pointer
-// (shader ring SRD's, etc.) is written.
+// (shader ring SRDs, etc.) is written.
 constexpr uint32 InternalTblStartReg = 0;
 // Starting user-data register index where the low 32 address bits of the constant buffer table pointer
-// (internal CB's, link-constant buf's) is written.
+// (internal CBs) is written.
 constexpr uint32 ConstBufTblStartReg = (InternalTblStartReg + 1);
 
 // User-data register where some shaders' LDS size requirement (for on-chip GS support) is written.

@@ -378,6 +378,21 @@ struct NggState
     uint16 log2IndexSizeReg;    // Register where the Log2(sizeof(indexType)) is written
 };
 
+// Register state for a clip rectangle's left top and right bottom parameters.
+struct ClipRectsStateReg
+{
+    regPA_SC_CLIPRECT_0_TL    paScClipRectTl;
+    regPA_SC_CLIPRECT_0_BR    paScClipRectBr;
+};
+
+// Command for setting up clip rects
+struct ClipRectsPm4Img
+{
+    PM4_PFP_SET_CONTEXT_REG header;
+    regPA_SC_CLIPRECT_RULE  paScClipRectRule;
+    ClipRectsStateReg       rects[MaxClipRects];
+};
+
 // =====================================================================================================================
 // GFX9 universal command buffer class: implements GFX9 specific functionality for the UniversalCmdBuffer class.
 class UniversalCmdBuffer : public Pal::UniversalCmdBuffer
@@ -415,6 +430,9 @@ public:
     virtual void CmdSetUserClipPlanes(uint32               firstPlane,
                                       uint32               planeCount,
                                       const UserClipPlane* pPlanes) override;
+    virtual void CmdSetClipRects(uint16      clipRule,
+                                 uint32      rectCount,
+                                 const Rect* pRectList) override;
     virtual void CmdFlglSync() override;
     virtual void CmdFlglEnable() override;
     virtual void CmdFlglDisable() override;
@@ -646,6 +664,7 @@ public:
         uint32            mask,
         CompareFunc       compareFunc) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
     virtual void CmdSetHiSCompareState0(
         CompareFunc compFunc,
         uint32      compMask,
@@ -657,6 +676,13 @@ public:
         uint32      compMask,
         uint32      compValue,
         bool        enable) override;
+#endif
+
+    virtual void CmdUpdateHiSPretests(
+        const IImage*      pImage,
+        const HiSPretests& pretests,
+        uint32             firstMip,
+        uint32             numMips) override;
 
     virtual void CmdSetPredication(
         IQueryPool*         pQueryPool,

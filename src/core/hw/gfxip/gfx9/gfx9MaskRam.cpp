@@ -727,9 +727,9 @@ void Gfx9MaskRam::CalcMetaEquation()
                           compFragLog2 + i);
         }
 
-        FinalizeMetaEquation();
-
-        m_meta.PrintEquation(pDevice);
+        // Ok, we always calculate the meta-equation to be 32-bits long, but that's enough to address 4Gnibbles.
+        // Trim this down to be no bigger than log2(mask-ram-size)
+        FinalizeMetaEquation(TotalSize());
 
         // After meta equation calculation is done extract meta equation parameter information
         m_meta.GenerateMetaEqParamConst(m_image, maxFragsLog2, m_firstUploadBit, &m_metaEqParam);
@@ -742,13 +742,12 @@ void Gfx9MaskRam::CalcMetaEquation()
 
 // =====================================================================================================================
 // Set the meta equation size to the minimum required to support the actual size of the mask-ram
-void Gfx9MaskRam::FinalizeMetaEquation()
+void Gfx9MaskRam::FinalizeMetaEquation(
+    gpusize  addressableSizeBytes)
 {
-    // Ok, we always calculate the meta-equation to be 32-bits long, but that's enough to address 4Gnibbles.  We
-    // can trim this down to be no bigger than log2(mask-ram-size).  Do that here.  Remember that the address is
-    // actually a nibble-address at this point, so multiply the actual mask-ram-size by two to convert from bytes
-    // to nibbles.
-    const uint32  requiredNumEqBits = Log2(Pow2Pad(TotalSize() * 2));
+    // The address is actually a nibble-address at this point, so multiply the maximum addressible size
+    // by two to convert from bytes to nibbles.
+    const uint32  requiredNumEqBits = Log2(Pow2Pad(addressableSizeBytes * 2));
 
     // The idea here is to *shrink* the equation to the number of bits required to actually address the meta-data
     // surface.  If the "SetEquationSize" call would instead *increase* the size of the equation, then something
@@ -756,6 +755,8 @@ void Gfx9MaskRam::FinalizeMetaEquation()
     PAL_ASSERT(requiredNumEqBits <= m_meta.GetNumValidBits());
 
     m_meta.SetEquationSize(requiredNumEqBits, false);
+
+    m_meta.PrintEquation(m_pGfxDevice->Parent());
 
     // Determine how many sample bits are needed to process this equation.
     m_effectiveSamples = m_meta.GetNumSamples();
@@ -1483,9 +1484,9 @@ uint32 Gfx9Htile::GetClearValue(
         constexpr uint32 Delta = 0;
         const uint32 zRange    = ((zMax << 6) | Delta);
 
-        // SResults 0 & 1 are set based on the stencil compare state, which are not set-up by RPM. Set these to zero
-        // for fast-clear.
-        constexpr uint32 SResults = 0;
+        // SResults 0 & 1 are set based on the stencil compare state.
+        // For fast-clear, the default value of sr0 and sr1 are both 0x3.
+        constexpr uint32 SResults = 0xf;
 
         htileValue = ( ((zRange   & 0xFFFFF) << 12) |
                        ((SMem     &     0x3) <<  8) |
@@ -1540,10 +1541,7 @@ uint32 Gfx9Htile::GetAspectMask(
 // Computes a mask and value for updating the HTile buffer for a "fast" resummarize operation. The "fast" resummarize is
 // quicker than a normal resummarize, but less precise because we are updating HTile to indicate the full zRange is
 // included in each tile.
-void Gfx9Htile::ComputeResummarizeData(
-    uint32* pHtileData,
-    uint32* pHtileMask
-    ) const
+uint32 Gfx9Htile::ComputeResummarizeData() const
 {
     constexpr uint32 Uint14Max = 0x3FFF; // Maximum value of a 14bit integer.
 
@@ -1554,6 +1552,8 @@ void Gfx9Htile::ComputeResummarizeData(
     // The depth buffer was expanded at some point prior to this being executed, so we need to set the HTile's zMask
     // to indicate that no z planes are stored (each depth value is directly stored in the surface).
     constexpr uint32 ZMask = 15;
+
+    uint32 htileData = 0;
 
     if (TileStencilDisabled() == false)
     {
@@ -1572,12 +1572,17 @@ void Gfx9Htile::ComputeResummarizeData(
         // spec, the delta code in our case would be 0x3F (all 6 bits set).
         constexpr uint32 Delta  = 0x3F;
         constexpr uint32 ZRange = ((ZMax << 6) | Delta);
+        // We set SMem to 0x3 to indicate the stencil buffer was expanded.
+        constexpr uint32 SMem   = 0x3;
+        // In case of resummarize, we set both sr0 and sr1 to 0x3, which means both may_pass bit and may_fail bit.
+        constexpr uint32 SR1    = 0x3;
+        constexpr uint32 SR0    = 0x3;
 
-        (*pHtileData) = ( ((ZRange & 0xFFFFF) << 12) |
-                          ((ZMask  &     0xF) <<  0) );
-
-        // Only update the HTile bits used to encode depth compression.
-        (*pHtileMask) = Gfx9HtileDepthMask;
+        htileData = ( ((ZRange & 0xFFFFF) << 12) |
+                      ((ZMask  &     0xF) <<  0) |
+                      ((SMem   &     0x3) <<  8) |
+                      ((SR1    &     0x3) <<  6) |
+                      ((SR0    &     0x3) <<  4));
     }
     else
     {
@@ -1586,13 +1591,11 @@ void Gfx9Htile::ComputeResummarizeData(
         // +---------+---------+-------+
         // |  Max Z  |  Min Z  | ZMask |
 
-        (*pHtileData) = ( ((ZMax  & Uint14Max) << 18) |
-                          ((ZMin  & Uint14Max) <<  4) |
-                          ((ZMask &       0xF) <<  0) );
-
-        // Always update the entire HTile for depth-only Images.
-        (*pHtileMask) = UINT_MAX;
+        htileData = ( ((ZMax  & Uint14Max) << 18) |
+                      ((ZMin  & Uint14Max) <<  4) |
+                      ((ZMask &       0xF) <<  0) );
     }
+    return htileData;
 }
 
 // =====================================================================================================================
@@ -1616,8 +1619,13 @@ uint32 Gfx9Htile::GetInitialValue() const
     // Initial values for a fully decompressed/expanded htile
     constexpr uint32 ZMaskExpanded            = 0xf;
     constexpr uint32 SMemExpanded             = 0x3;
-    constexpr uint32 InitialValueDepthOnly    = (ZMaskExpanded << 0);
-    constexpr uint32 InitialValueDepthStencil = (SMemExpanded << 8) | (ZMaskExpanded << 0);
+    constexpr uint32 SR1                      = 0x3;
+    constexpr uint32 SR0                      = 0x3;
+    constexpr uint32 InitialValueDepthOnly    = (ZMaskExpanded  << 0);
+    constexpr uint32 InitialValueDepthStencil = ((SMemExpanded  << 8) |
+                                                 (SR1           << 6) |
+                                                 (SR0           << 4) |
+                                                 (ZMaskExpanded << 0));
 
     uint32 initialValue;
 

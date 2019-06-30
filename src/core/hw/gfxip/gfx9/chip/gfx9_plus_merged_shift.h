@@ -6114,6 +6114,7 @@ constexpr unsigned int VGT_DRAW_INITIATOR__SOURCE_SELECT__SHIFT = 0x00000000;
 constexpr unsigned int VGT_DRAW_INITIATOR__SPRITE_EN_R6XX__SHIFT = 0x00000004;
 constexpr unsigned int VGT_DRAW_INITIATOR__USE_OPAQUE__SHIFT    = 0x00000006;
 constexpr unsigned int VGT_DRAW_INIT_FIFO_DEPTH__DRAW_INIT_FIFO_DEPTH__SHIFT = 0x00000000;
+constexpr unsigned int VGT_DRAW_PAYLOAD_CNTL__EN_REG_RT_INDEX__SHIFT = 0x00000001;
 constexpr unsigned int VGT_ENHANCE__MISC__SHIFT                 = 0x00000000;
 constexpr unsigned int VGT_ESGS_RING_ITEMSIZE__ITEMSIZE__SHIFT  = 0x00000000;
 constexpr unsigned int VGT_ES_PER_GS__ES_PER_GS__SHIFT          = 0x00000000;

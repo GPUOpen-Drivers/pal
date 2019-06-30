@@ -5979,6 +5979,7 @@ constexpr unsigned int VGT_DRAW_INITIATOR__SOURCE_SELECT_MASK   = 0x00000003L;
 constexpr unsigned int VGT_DRAW_INITIATOR__SPRITE_EN_R6XX_MASK  = 0x00000010L;
 constexpr unsigned int VGT_DRAW_INITIATOR__USE_OPAQUE_MASK      = 0x00000040L;
 constexpr unsigned int VGT_DRAW_INIT_FIFO_DEPTH__DRAW_INIT_FIFO_DEPTH_MASK = 0x0000003fL;
+constexpr unsigned int VGT_DRAW_PAYLOAD_CNTL__EN_REG_RT_INDEX_MASK = 0x00000002L;
 constexpr unsigned int VGT_ENHANCE__MISC_MASK                   = 0xffffffffL;
 constexpr unsigned int VGT_ESGS_RING_ITEMSIZE__ITEMSIZE_MASK    = 0x00007fffL;
 constexpr unsigned int VGT_ES_PER_GS__ES_PER_GS_MASK            = 0x000007ffL;

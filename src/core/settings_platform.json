@@ -9,14 +9,12 @@
       "Tags": [
         "Debug Print"
       ],
-      "HashName": 3420605593,
       "Scope": "PrivatePalKey",
       "Type": "struct",
       "VariableName": "dbgPrintConfig",
       "Structure": [
         {
           "Description": "Enables debug print messages in the Info category [DbgPrintCatInfoMsg].",
-          "HashName": 3336086055,
           "Defaults": {
             "Default": false
           },
@@ -26,7 +24,6 @@
         },
         {
           "Description": "Enables debug print messages in the Warning category [DbgPrintCatWarnMsg].",
-          "HashName": 3827375483,
           "Defaults": {
             "Default": false
           },
@@ -36,7 +33,6 @@
         },
         {
           "Description": "Enables debug print messages in the Error category [DbgPrintCatErrorMsg].",
-          "HashName": 1444311189,
           "Defaults": {
             "Default": false
           },
@@ -46,7 +42,6 @@
         },
         {
           "Description": "Enables debug print messages in the SC category [DbgPrintCatScMsg].",
-          "HashName": 695309361,
           "Defaults": {
             "Default": false
           },
@@ -56,7 +51,6 @@
         },
         {
           "Description": "Enables debug print messages in the Event Print category [DbgPrintCatEventPrintMsg].",
-          "HashName": 721345714,
           "Defaults": {
             "Default": false
           },
@@ -66,7 +60,6 @@
         },
         {
           "Description": "Enables debug print messages in the Event Print Callback category [DbgPrintCatEventPrintCallbackMsg].",
-          "HashName": 4220374213,
           "Defaults": {
             "Default": false
           },
@@ -82,7 +75,6 @@
       "Tags": [
         "Asserts and Alerts"
       ],
-      "HashName": 1110605001,
       "Defaults": {
         "Default": false
       },
@@ -96,7 +88,6 @@
       "Tags": [
         "Asserts and Alerts"
       ],
-      "HashName": 3333004859,
       "Defaults": {
         "Default": false
       },
@@ -110,7 +101,6 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "HashName": 3362163801,
       "Defaults": {
         "Default": false
       },
@@ -124,7 +114,6 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "HashName": 4215443526,
       "DependsOn": {
         "Settings": [
           {
@@ -141,7 +130,6 @@
       "Structure": [
         {
           "Description": "Writes debug overlay information to the screen.",
-          "HashName": 1116165338,
           "Defaults": {
             "Default": true
           },
@@ -151,7 +139,6 @@
         },
         {
           "Description": "Draws the timegraph to the screen.",
-          "HashName": 2485887783,
           "Defaults": {
             "Default": false
           },
@@ -187,7 +174,6 @@
             "Name": "DebugOverlayLocation"
           },
           "Name": "DebugOverlayLocation",
-          "HashName": 248899441,
           "Defaults": {
             "Default": "DebugOverlayLowerLeft"
           },
@@ -197,7 +183,6 @@
         },
         {
           "Description": "Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)",
-          "HashName": 3965817458,
           "Defaults": {
             "Default": ""
           },
@@ -208,7 +193,6 @@
         },
         {
           "Description": "Debug information that the client or tester might want reported.",
-          "HashName": 1845251913,
           "Defaults": {
             "Default": ""
           },
@@ -219,13 +203,21 @@
         },
         {
           "Description": "Output current frame number in the debug overlay.",
-          "HashName": 3798504442,
           "Defaults": {
             "Default": false
           },
           "Type": "bool",
           "VariableName": "printFrameNumber",
           "Name": "PrintFrameNumber"
+        },
+        {
+          "Description": "Use DebugOverlay on CmdColorSpaceConversionCopy.",
+          "Defaults": {
+            "Default": false
+          },
+          "Type": "bool",
+          "VariableName": "useDebugOverlayOnColorSpaceConversionCopy",
+          "Name": "UseDebugOverlayOnColorSpaceConversionCopy"
         }
       ],
       "Description": "Controls what information is displayed on the Debug Overlay."
@@ -235,7 +227,6 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "HashName": 4101550198,
       "DependsOn": {
         "Settings": [
           {
@@ -298,7 +289,6 @@
             "Name": "TimeGraphColor"
           },
           "Name": "GridLineColor",
-          "HashName": 2774338144,
           "Defaults": {
             "Default": "RedColor"
           },
@@ -353,7 +343,6 @@
             "Name": "TimeGraphColor"
           },
           "Name": "CpuLineColor",
-          "HashName": 3593358936,
           "Defaults": {
             "Default": "YellowColor"
           },
@@ -408,7 +397,6 @@
             "Name": "TimeGraphColor"
           },
           "Name": "GpuLineColor",
-          "HashName": 683848132,
           "Defaults": {
             "Default": "GreenColor"
           },
@@ -424,7 +412,6 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "HashName": 1270852940,
       "DependsOn": {
         "Settings": [
           {
@@ -441,7 +428,6 @@
       "Structure": [
         {
           "Description": "End benchmark after specified number of seconds.  The benchmark can still be ended early by hitting F11.  A value of 0 will allow the benchmark to run forever.",
-          "HashName": 1613865845,
           "Defaults": {
             "Default": 0
           },
@@ -451,7 +437,6 @@
         },
         {
           "Description": "Whether or not a log entry of PAL usage will be generated to disk.",
-          "HashName": 1439000029,
           "Defaults": {
             "Default": false
           },
@@ -461,7 +446,6 @@
         },
         {
           "Description": "Relative directory where usage logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "HashName": 3345515589,
           "Flags": {
             "IsPath": true
           },
@@ -477,7 +461,6 @@
         },
         {
           "Description": "Filename and extension of the usage log.",
-          "HashName": 570887899,
           "Defaults": {
             "Default": "PalUsageLog.txt"
           },
@@ -488,7 +471,6 @@
         },
         {
           "Description": "Log frame time and average FPS during benchmark session to files. Only enabled when DebugVisualDisplay is enabled.",
-          "HashName": 2989332685,
           "Defaults": {
             "Default": false
           },
@@ -498,7 +480,6 @@
         },
         {
           "Description": "Relative directory where frame statistic logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "HashName": 1128423400,
           "Flags": {
             "IsPath": true
           },
@@ -514,7 +495,6 @@
         },
         {
           "Description": "Max mumber of frame time samples that can be logged in a benchmark session.",
-          "HashName": 1247452473,
           "Defaults": {
             "Default": 65536
           },
@@ -530,7 +510,6 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "HashName": 1508271022,
       "DependsOn": {
         "Settings": [
           {
@@ -547,7 +526,6 @@
       "Structure": [
         {
           "Description": "If the total memory allocated from the two non-local heaps should be shown in a single line.",
-          "HashName": 1412889158,
           "Defaults": {
             "Default": true
           },
@@ -557,7 +535,6 @@
         },
         {
           "Description": "Determines if the overlay will report information about CmdAllocator allocations.",
-          "HashName": 819062876,
           "Defaults": {
             "Default": true
           },
@@ -567,7 +544,6 @@
         },
         {
           "Description": "Determines if the overlay will report information about external allocations.",
-          "HashName": 1211449330,
           "Defaults": {
             "Default": true
           },
@@ -577,7 +553,6 @@
         },
         {
           "Description": "Determines if the overlay will report information about internal allocations.",
-          "HashName": 373898840,
           "Defaults": {
             "Default": true
           },
@@ -618,7 +593,6 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "HashName": 3490085415,
       "Defaults": {
         "Default": "GpuProfilerDisabled"
       },
@@ -632,7 +606,6 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "HashName": 2716183183,
       "DependsOn": {
         "Settings": [
           {
@@ -657,7 +630,6 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "HashName": 1361464226,
       "DependsOn": {
         "Settings": [
           {
@@ -675,7 +647,6 @@
       "Structure": [
         {
           "Description": "Relative directory where GPU profiler logs are written. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "HashName": 1786197374,
           "Flags": {
             "IsPath": true
           },
@@ -691,7 +662,6 @@
         },
         {
           "Description": "Frame number to begin performance data collection. Currently Gpu Profiler doesn't support profiling frame 0",
-          "HashName": 3281941262,
           "Defaults": {
             "Default": 0
           },
@@ -701,7 +671,6 @@
         },
         {
           "Description": "Number of frames to enable performance data collection.",
-          "HashName": 3899735123,
           "Defaults": {
             "Default": 0
           },
@@ -711,7 +680,6 @@
         },
         {
           "Description": "Enable recording of pipeline stats for each operation on the compute or universal queue. Enabling this may adversely affect quality of the GPU timing data.  Not supported for frame-granularity captures.",
-          "HashName": 3225763835,
           "Defaults": {
             "Default": false
           },
@@ -721,13 +689,21 @@
         },
         {
           "Description": "Split up IQueue::Submit() calls so that the PAL core is called once per command buffer in the batch.  This can significantly reduce the GPU memory overhead of the profiler, but may have a slight impact on results.",
-          "HashName": 3699637222,
           "Defaults": {
             "Default": false
           },
           "Type": "bool",
           "VariableName": "breakSubmitBatches",
           "Name": "BreakSubmitBatches"
+        },
+        {
+          "Description": "Controls whether file names and text logs will contain full pipeline hashes or just the stable hash.",
+          "Defaults": {
+            "Default": false
+          },
+          "Type": "bool",
+          "VariableName": "useFullPipelineHash",
+          "Name": "UseFullPipelineHash"
         },
         {
           "ValidValues": {
@@ -752,7 +728,6 @@
             "Name": "GpuProfilerTraceModeFlags"
           },
           "Name": "TraceModeMask",
-          "HashName": 2733188403,
           "Defaults": {
             "Default": 0
           },
@@ -772,7 +747,6 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "HashName": 3485507659,
       "DependsOn": {
         "Settings": [
           {
@@ -789,7 +763,6 @@
       "Structure": [
         {
           "Description": "File path specifying where the global performance counter config file can be found.  This file should have one line per counter to capture in the form \"Block ID Instance Name\". Block can be one of the following: CB, CPC, CPF, CPG, DB, DMA, GDS, GRBM, GRBM_SE, IA, MC, PA, RLC, SC, SPI, SQ, SRBM, SX, TA, TCA, TCC, TCP, TCS, TD, VGT, WD. ID should correspond to the specific counter of interest for the specified Block, these can be selected by reading the performance counter select register for that block. Instance can be the block instance ordinal of interest. It can also be the enum EACH which means every instance of the block is of interest. Also It can be ALL, which has the same meaning as EACH, but the results of every instance will be accumlated. Name will be the header of the column in the .csv file (limited to 127 characters).  A \"#\" can be inserted as the first character in a line to force that line to be ignored.  Gathering performance counters has a huge performance impact; consider disabling TDRs on Windows.",
-          "HashName": 2182449032,
           "Flags": {
             "IsFile": true
           },
@@ -803,7 +776,6 @@
         },
         {
           "Description": "Insert cache flush and invalidate events before and after every range of commands where performance counters are collected.",
-          "HashName": 1201772335,
           "Defaults": {
             "Default": false
           },
@@ -834,7 +806,6 @@
             "Name": "GpuProfilerGranularity"
           },
           "Name": "Granularity",
-          "HashName": 3414628368,
           "Defaults": {
             "Default": "GpuProfilerGranularityDraw"
           },
@@ -850,7 +821,6 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "HashName": 3046844658,
       "DependsOn": {
         "Settings": [
           {
@@ -868,7 +838,6 @@
       "Structure": [
         {
           "Name": "TokenMask",
-          "HashName": 1136095484,
           "Flags": {
             "IsHex": true
           },
@@ -905,7 +874,6 @@
             ]
           },
           "Name": "SEMask",
-          "HashName": 4066555951,
           "Flags": {
             "IsBitmask": true,
             "IsHex": true
@@ -919,7 +887,6 @@
         },
         {
           "Description": "Pipeline compiler hash to enable SQ thread traces for. If this is zero, thread traces will be enabled for all pipelines.  This filtering only applies to draw or cmdbuf profiling granularity.",
-          "HashName": 3932789981,
           "Flags": {
             "IsHex": true
           },
@@ -932,7 +899,6 @@
         },
         {
           "Name": "VsHashHi",
-          "HashName": 3163259987,
           "Flags": {
             "IsHex": true
           },
@@ -945,7 +911,6 @@
         },
         {
           "Name": "VsHashLo",
-          "HashName": 3801397889,
           "Flags": {
             "IsHex": true
           },
@@ -958,7 +923,6 @@
         },
         {
           "Name": "HsHashHi",
-          "HashName": 1390489601,
           "Flags": {
             "IsHex": true
           },
@@ -971,7 +935,6 @@
         },
         {
           "Name": "HsHashLo",
-          "HashName": 886572651,
           "Flags": {
             "IsHex": true
           },
@@ -984,7 +947,6 @@
         },
         {
           "Name": "DsHashHi",
-          "HashName": 3315456133,
           "Flags": {
             "IsHex": true
           },
@@ -997,7 +959,6 @@
         },
         {
           "Name": "DsHashLo",
-          "HashName": 3752365775,
           "Flags": {
             "IsHex": true
           },
@@ -1010,7 +971,6 @@
         },
         {
           "Name": "GsHashHi",
-          "HashName": 1775931482,
           "Flags": {
             "IsHex": true
           },
@@ -1023,7 +983,6 @@
         },
         {
           "Name": "GsHashLo",
-          "HashName": 1137690412,
           "Flags": {
             "IsHex": true
           },
@@ -1036,7 +995,6 @@
         },
         {
           "Name": "PsHashHi",
-          "HashName": 1805758793,
           "Flags": {
             "IsHex": true
           },
@@ -1049,7 +1007,6 @@
         },
         {
           "Name": "PsHashLo",
-          "HashName": 1301841843,
           "Flags": {
             "IsHex": true
           },
@@ -1062,7 +1019,6 @@
         },
         {
           "Name": "CsHashHi",
-          "HashName": 1629297294,
           "Flags": {
             "IsHex": true
           },
@@ -1075,7 +1031,6 @@
         },
         {
           "Name": "CsHashLo",
-          "HashName": 1663440912,
           "Flags": {
             "IsHex": true
           },
@@ -1088,7 +1043,6 @@
         },
         {
           "Name": "MaxDraws",
-          "HashName": 3208735818,
           "Flags": {
             "IsHex": true
           },
@@ -1101,7 +1055,6 @@
         },
         {
           "Name": "AddTtvHashes",
-          "HashName": 2774444984,
           "Defaults": {
             "Default": false
           },
@@ -1111,7 +1064,6 @@
         },
         {
           "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.",
-          "HashName": 1277078724,
           "Defaults": {
             "Default": 1048576
           },
@@ -1141,7 +1093,6 @@
             ]
           },
           "Name": "StallBehavior",
-          "HashName": 1063331229,
           "Defaults": {
             "Default": "GpuProfilerStallAlways"
           },
@@ -1157,7 +1108,6 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "HashName": 3153542192,
       "DependsOn": {
         "Settings": [
           {
@@ -1175,7 +1125,6 @@
       "Structure": [
         {
           "Description": "File path specifying where the global performance counter config file can be found.  This file should have one line per counter to capture in the form \"Block ID Instance Name\". Block can be one of the following: CB, CPC, CPF, CPG, DB, DMA, GDS, GRBM, GRBM_SE, IA, MC, PA, RLC, SC, SPI, SQ, SRBM, SX, TA, TCA, TCC, TCP, TCS, TD, VGT, WD.  ID should correspond counter of interest for the specified Block, these can be selected by reading the performance to the specific counter select register for that block. Instance can be the block instance ordinal of interest. It can also be the enum EACH which means every instance of the block is of interest. Also It can be ALL, which has the same meaning as EACH, but the results of every instance will be accumlated. Name will be the header of the column in the .csv file (limited to 127 characters).  A \"#\" can be inserted as the first character in a line to force that line to be ignored.  Gathering performance counters has a huge performance impact; consider disabling TDRs on Windows. WARNING: Page fault will occur when attempting spm traces on GFX9 HW, unless RLC_SPM_VMID is set in the RLC_SPM_MC_CNTL register. KMD has to set this register. This register can be set manually (debug VMID: 0xb, RequestDebugVmid=true) for testing. Also, the sample delay register values need to be set for correct streaming counter data.",
-          "HashName": 1274479618,
           "Flags": {
             "IsFile": true
           },
@@ -1198,7 +1147,6 @@
             ]
           },
           "Name": "SpmTraceInterval",
-          "HashName": 3756226799,
           "Defaults": {
             "Default": 4096
           },
@@ -1208,7 +1156,6 @@
         },
         {
           "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.",
-          "HashName": 3798430118,
           "Defaults": {
             "Default": 1048576
           },
@@ -1224,7 +1171,6 @@
       "Tags": [
         "CmdBuffer Logger"
       ],
-      "HashName": 1206982834,
       "Defaults": {
         "Default": false
       },
@@ -1238,7 +1184,6 @@
       "Tags": [
         "CmdBuffer Logger"
       ],
-      "HashName": 3303697259,
       "DependsOn": {
         "Settings": [
           {
@@ -1298,7 +1243,6 @@
           "Tags": [
             "CmdBuffer Logger"
           ],
-          "HashName": 1084594400,
           "Flags": {
             "IsHex": true,
             "IsBitmask": true
@@ -1360,7 +1304,6 @@
           "Tags": [
             "CmdBuffer Logger"
           ],
-          "HashName": 1570291248,
           "Flags": {
             "IsHex": true,
             "IsBitmask": true
@@ -1381,7 +1324,6 @@
       "Tags": [
         "Interface Logger"
       ],
-      "HashName": 2678054117,
       "Defaults": {
         "Default": false
       },
@@ -1395,7 +1337,6 @@
       "Tags": [
         "Interface Logger"
       ],
-      "HashName": 2996145826,
       "DependsOn": {
         "Settings": [
           {
@@ -1412,7 +1353,6 @@
       "Structure": [
         {
           "Description": "Relative directory where the interface logger writes its logs. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "HashName": 885284478,
           "Flags": {
             "IsPath": true
           },
@@ -1428,7 +1368,6 @@
         },
         {
           "Description": "Each thread will write into its own log file, avoiding taking a global lock.",
-          "HashName": 800910225,
           "Defaults": {
             "Default": false
           },
@@ -1466,7 +1405,6 @@
             ]
           },
           "Name": "BasePreset",
-          "HashName": 2924533825,
           "Flags": {
             "IsHex": true,
             "IsBitmask": true
@@ -1508,7 +1446,6 @@
             ]
           },
           "Name": "ElevatedPreset",
-          "HashName": 4040226650,
           "Flags": {
             "IsHex": true,
             "IsBitmask": true

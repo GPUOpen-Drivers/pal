@@ -180,6 +180,7 @@ Device::Device(
                                           FastUserDataStartReg;
     }
     memset(const_cast<uint32*>(&m_msaaHistogram[0]), 0, sizeof(m_msaaHistogram));
+
 }
 
 // =====================================================================================================================
@@ -2798,6 +2799,8 @@ void InitializeGpuChipProperties(
 
     // GFX9 ASICs support texture quilting on single-sample surfaces.
     pInfo->imageProperties.flags.supportsSingleSampleQuilting = 1;
+
+    pInfo->imageProperties.flags.supportsAqbsStereoMode = 1;
 
     pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Linear)]           = true;
     pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Optimal)]          = true;

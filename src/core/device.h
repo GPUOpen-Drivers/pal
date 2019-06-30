@@ -33,6 +33,7 @@
 #include "core/addrMgr/addrMgr.h"
 #include "palDevice.h"
 #include "palDeque.h"
+#include "palEvent.h"
 #include "palInlineFuncs.h"
 #include "palIntrusiveList.h"
 #include "palMutex.h"
@@ -1759,9 +1760,6 @@ protected:
 
     uint32 GetDeviceIndex() const
         { return m_deviceIndex; }
-
-    // Used to call into the OS layer to optionally perform any internal queue creation.
-    virtual Result PerformOsInternalQueueInit() = 0;
 
     // Helpers for creating queues for PAL internal use.
     Result CreateInternalCopyQueues();

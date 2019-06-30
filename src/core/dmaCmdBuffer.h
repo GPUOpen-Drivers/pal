@@ -103,14 +103,14 @@ public:
 
     virtual void CmdRelease(
         const AcquireReleaseInfo& releaseInfo,
-        const IGpuEvent*          pGpuEvent) override {}
+        const IGpuEvent*          pGpuEvent) override;
 
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
-        const IGpuEvent*const*    ppGpuEvents) override {}
+        const IGpuEvent*const*    ppGpuEvents) override;
 
-    virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override {}
+    virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 
     virtual void CmdCopyMemory(
         const IGpuMemory&       srcGpuMemory,
@@ -239,6 +239,12 @@ protected:
     virtual void WriteCopyImageTiledToTiledCmdScanlineCopy(const DmaImageCopyInfo& imageCopyInfo);
 
     void AllocateEmbeddedT2tMemory();
+
+    bool HandleImageTransition(
+        const IImage* pImage,
+        ImageLayout   oldLayout,
+        ImageLayout   newLayout,
+        SubresRange   subresRange);
 
     virtual DmaMemImageCopyMethod GetMemImageCopyMethod(
         bool                         linearImg,

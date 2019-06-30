@@ -558,6 +558,14 @@ void Pm4Optimizer::HandlePm4LoadRegIndex(
 }
 
 // =====================================================================================================================
+// This function must be defined in the cpp file because it calls a template function that is defined in this file.
+void Pm4Optimizer::HandleLoadContextRegsIndex(
+     const PM4PFP_LOAD_CONTEXT_REG_INDEX& loadData)
+{
+    HandlePm4LoadRegIndex<PM4PFP_LOAD_CONTEXT_REG_INDEX>(loadData, &m_cntxRegs[0]);
+}
+
+// =====================================================================================================================
 // Handle an occurrence of a PM4 SET SH REG OFFSET packet: there's no optimization we can do on these, but we need to
 // invalidate the state of the affected register(s) because this packet will set them to unknowable values.
 void Pm4Optimizer::HandlePm4SetShRegOffset(const PM4PFP_SET_SH_REG_OFFSET& setShRegOffset)

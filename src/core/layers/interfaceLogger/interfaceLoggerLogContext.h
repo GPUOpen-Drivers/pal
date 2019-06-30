@@ -183,8 +183,12 @@ enum class InterfaceFunc : uint32
     CmdBufferDestroy,
     CmdBufferCopyImageToPackedPixelImage,
     CmdBufferCmdSetViewInstanceMask,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
     CmdSetHiSCompareState0,
     CmdSetHiSCompareState1,
+#endif
+    CmdUpdateHiSPretests,
+    CmdBufferCmdSetClipRects,
     ColorBlendStateDestroy,
     DepthStencilStateDestroy,
     DeviceCommitSettingsAndInit,
@@ -489,6 +493,7 @@ public:
     void Struct(const GpuMemoryOpenInfo& value);
     void Struct(const GpuMemoryRef& value);
     void Struct(const GraphicsPipelineCreateInfo& value);
+    void Struct(const HiSPretests& value);
     void Struct(const ImageCopyRegion& value);
     void Struct(ImageCreateFlags value);
     void Struct(const ImageCreateInfo& value);
@@ -726,6 +731,7 @@ public:
     void KeyAndStruct(const char* pKey, const GpuMemoryOpenInfo& value)                   { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const GpuMemoryRef& value)                        { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const GraphicsPipelineCreateInfo& value)          { Key(pKey); Struct(value); }
+    void KeyAndStruct(const char* pKey, const HiSPretests& value)                         { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const ImageCopyRegion& value)                     { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, ImageCreateFlags value)                           { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const ImageCreateInfo& value)                     { Key(pKey); Struct(value); }

@@ -48,6 +48,13 @@ struct Gfx9FastDepthClearMetaData
     regDB_DEPTH_CLEAR    dbDepthClear;      // Depth clear value
 };
 
+// Represents an "image" of the HiSPretests metadata used by Depth/Stencil Images.
+struct Gfx9HiSPretestsMetaData
+{
+    regDB_SRESULTS_COMPARE_STATE0 dbSResultCompare0;
+    regDB_SRESULTS_COMPARE_STATE1 dbSResultCompare1;
+};
+
 // A structure that defines the dimensions of a "block", either meta blocks or compressed blocks
 struct Gfx9MaskRamBlockSize
 {
@@ -147,8 +154,8 @@ protected:
     virtual uint32          GetNumSamplesLog2() const = 0;
     virtual AddrSwizzleMode GetSwizzleMode() const;
     bool                    IsThick() const;
-    uint32                  AdjustPipeBankXorForSwizzle( uint32  pipeBankXor) const;
-    void                    FinalizeMetaEquation();
+    uint32                  AdjustPipeBankXorForSwizzle(uint32  pipeBankXor) const;
+    void                    FinalizeMetaEquation(gpusize  addressableSizeBytes);
 
     // Of the three types of mask-ram surfaces (hTile, dcc and cMask), only DCC is really associated with
     // a color image.  hTile is associated with depth, and cMask is the meta surface for fMask, so, for
@@ -208,9 +215,7 @@ public:
     uint32 GetAspectMask(
         uint32   aspectFlags) const;
 
-    void ComputeResummarizeData(
-        uint32*            pHtileValue,
-        uint32*            pHtileMask) const;
+    uint32 ComputeResummarizeData() const;
 
     uint32 GetInitialValue() const;
 

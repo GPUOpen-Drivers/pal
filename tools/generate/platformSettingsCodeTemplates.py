@@ -27,86 +27,97 @@ import os
 CopyrightFilePath = os.path.dirname(os.path.realpath(__file__)) + "/../pal-copyright-template.txt"
 FileHeaderCopyright = open(CopyrightFilePath, 'r').read()
 
-FileHeaderWarning = "\
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n\
-//\n\
-// WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!\n\
-//\n\
-// This code has been generated automatically. Do not hand-modify this code.\n\
-//\n\
-// When changes are needed, modify the tools generating this module in the tools\\generate directory OR settings.cfg\n\
-//\n\
-// WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!\n\
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n\
-\n"
+FileHeaderWarning = """
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\
+//
+// WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
+//
+// This code has been generated automatically. Do not hand-modify this code.
+//
+// When changes are needed, modify the tools generating this module in the tools\\generate directory OR the
+// appropriate settings_*.json file
+//
+// WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+"""
 
 CopyrightAndWarning = FileHeaderCopyright + FileHeaderWarning
 
-HeaderFileDoxComment = "\n\
-/**\n\
-***************************************************************************************************\n\
-* @file  %FileName%\n\
-* @brief auto-generated file.\n\
-*        Contains the definition for the PAL settings struct and enums for initialization.\n\
-***************************************************************************************************\n\
-*/\n\
-#pragma once\n"
+HeaderFileDoxComment = """
+/**
+***************************************************************************************************
+* @file  %FileName%
+* @brief auto-generated file.
+*        Contains the definition for the PAL settings struct and enums for initialization.
+***************************************************************************************************
+*/
+#pragma once
+"""
 
-NamespaceStart = "\nnamespace Pal\n{\n"
+NamespaceStart = """
+namespace Pal
+{
+"""
 HwlNamespaceStart = ""
 HwlNamespaceEnd   = ""
-NamespaceEnd   = "\n} // Pal"
+NamespaceEnd   = """
+} // Pal"""
 
-HeaderIncludes = "\n\
-#include \"pal.h\"\n\
-#include \"palSettingsLoader.h\"\n"
+HeaderIncludes = """
+#include \"pal.h\"
+#include \"palSettingsLoader.h\"
+"""
 
-CppIncludes = "#include \"core/platform.h\"\n\
-#include \"core/device.h\"\n\
-#include \"core/platformSettingsLoader.h\"\n"
+CppIncludes = """#include \"core/platform.h\"
+#include \"core/device.h\"
+#include \"core/platformSettingsLoader.h\"
+"""
 
 IncludeDir = "core/"
 HwlIncludeDir = ""
 
 PrefixName = ""
 
-DevDriverIncludes = "\n\
-#include \"devDriverServer.h\"\n\
-#include \"protocols/ddSettingsService.h\"\n\
-\n\
-using namespace DevDriver::SettingsURIService;\n\
-\n"
+DevDriverIncludes = """
+#include \"devDriverServer.h\"
+#include \"protocols/ddSettingsService.h\"
 
-Enum = "\n\
-enum %EnumName% : %EnumDataType%\n\
-{\n\
-%EnumData%\n\
-};\n"
+using namespace DevDriver::SettingsURIService;
+
+"""
+
+Enum = """
+enum %EnumName% : %EnumDataType%
+{
+%EnumData%
+};
+"""
 
 SettingStructName = "%UpperCamelComponentName%Settings"
-StructDef = "\n\
-/// Pal auto-generated settings struct\n\
-struct %SettingStructName% : public Pal::DriverSettings\n\
-{\n\
-%SettingDefs%\
-};\n"
+StructDef = """
+/// Pal auto-generated settings struct
+struct %SettingStructName% : public Pal::DriverSettings
+{
+%SettingDefs%};
+"""
 
 SettingDef = "    %SettingType%    %SettingVarName%%ArrayLength%;\n"
-SettingStructDef = "\
-    struct {\n\
-%StructSettingFields%\
-    } %StructSettingName%;\n"
+SettingStructDef = """    struct {
+%StructSettingFields%    } %StructSettingName%;
+"""
 
 SettingStr = "static const char* %SettingStrName% = %SettingString%;\n"
 
-SetupDefaultsFunc = "\n\
-// =====================================================================================================================\n\
-// Initializes the settings structure to default values.\n\
-void %ClassName%::SetupDefaults()\n\
-{\n\
-    // set setting variables to their default values...\n\
-%SetDefaultsCode%\n\
-}\n"
+SetupDefaultsFunc = """
+// =====================================================================================================================
+// Initializes the settings structure to default values.
+void %ClassName%::SetupDefaults()
+{
+    // set setting variables to their default values...
+%SetDefaultsCode%
+}
+"""
 
 IfMinMax = "#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= %MinVersion% && PAL_CLIENT_INTERFACE_MAJOR_VERSION <= %MaxVersion%\n"
 IfMin    = "#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= %MinVersion%\n"
@@ -123,85 +134,93 @@ SetArrayDefault = "    memset(m_settings.%SettingVarName%, 0, %SettingSize%);\n\
 WinIfDef = "defined(_WIN32)\n"
 LnxIfDef = "(__unix__)\n"
 
-ReadSettingsFunc = "\n\
-// =====================================================================================================================\n\
-%ReadSettingsDesc%\
-void %ClassName%::%ReadSettingsName%(Pal::Device* pDevice)\n\
-{\n\
-#if PAL_ENABLE_PRINTS_ASSERTS\n\
-    // First setup the debug print and assert settings\n\
-    ReadAssertAndPrintSettings(pDevice);\n\
-#endif\n\
-\n\
-    // read from the OS adapter for each individual setting\n\
-%ReadSettingsCode%\n\
-}\n"
+ReadSettingsFunc = """
+// =====================================================================================================================
+%ReadSettingsDesc%
+void %ClassName%::%ReadSettingsName%(Pal::Device* pDevice)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // First setup the debug print and assert settings
+    ReadAssertAndPrintSettings(pDevice);
+#endif
+
+    // read from the OS adapter for each individual setting
+%ReadSettingsCode%
+}
+"""
 
 PalReadSettingClass = "pDevice"
-ReadSetting = "    %ReadSettingClass%->ReadSetting(%SettingStrName%,\n\
-                           %SettingRegistryType%,\n\
-                           &m_settings.%SettingVarName%%OsiSettingType%);\n\n"
-ReadSettingStr = "    %ReadSettingClass%->ReadSetting(%SettingStrName%,\n\
-                           %SettingRegistryType%,\n\
-                           &m_settings.%SettingVarName%%OsiSettingType%,\n\
-                           %StringLength%);\n\n"
-PalOsiSettingType = ",\n                           InternalSettingScope::%OsiSettingType%"
+ReadSetting = """    %ReadSettingClass%->ReadSetting(%SettingStrName%,
+                           %SettingRegistryType%,
+                           &m_settings.%SettingVarName%%OsiSettingType%);
+"""
+ReadSettingStr = """    %ReadSettingClass%->ReadSetting(%SettingStrName%,
+                           %SettingRegistryType%,
+                           &m_settings.%SettingVarName%%OsiSettingType%,
+                           %StringLength%);
+"""
+PalOsiSettingType = """,
+                           InternalSettingScope::%OsiSettingType%"""
 
 SettingHashListName = "g_%LowerCamelComponentName%SettingHashList"
 SettingNumSettingsName = "g_%LowerCamelComponentName%NumSettings"
-SettingHashList = "\n\
-static const uint32 %SettingNumSettingsName% = %NumSettings%;\n\
-static const SettingNameHash %SettingHashListName%[] = {\n\
-%SettingHashList%\
-};\n"
+SettingHashList = """
+static const uint32 %SettingNumSettingsName% = %NumSettings%;
+static const SettingNameHash %SettingHashListName%[] = {
+%SettingHashList%};
+"""
 
-InitSettingsInfoFunc = "\n\
-// =====================================================================================================================\n\
-// Initializes the SettingInfo hash map and array of setting hashes.\n\
-void %ClassName%::InitSettingsInfo()\n\
-{\n\
-    SettingInfo info = {};\n\
-%InitSettingInfoCode%\n\
-}\n"
+InitSettingsInfoFunc = """
+// =====================================================================================================================
+// Initializes the SettingInfo hash map and array of setting hashes.
+void %ClassName%::InitSettingsInfo()
+{
+    SettingInfo info = {};
+%InitSettingInfoCode%
+}
+"""
 
-InitSettingInfo = "\n\
-    info.type      = %DevDriverType%;\n\
-    info.pValuePtr = &m_settings.%SettingVarName%;\n\
-    info.valueSize = sizeof(m_settings.%SettingVarName%);\n\
-    m_settingsInfoMap.Insert(%HashName%, info);\n"
+InitSettingInfo = """
+    info.type      = %DevDriverType%;
+    info.pValuePtr = &m_settings.%SettingVarName%;
+    info.valueSize = sizeof(m_settings.%SettingVarName%);
+    m_settingsInfoMap.Insert(%HashName%, info);
+"""
 
-JsonDataArray = "\n\
-static const uint8 %JsonDataArrayName%[] = {\n\
-%JsonArrayData%\n\
-};  // %JsonDataArrayName%[]\n"
+JsonDataArray = """
+static const uint8 %JsonDataArrayName%[] = {
+%JsonArrayData%
+};  // %JsonDataArrayName%[]
+"""
 
-DevDriverRegisterFunc = "\n\
-// =====================================================================================================================\n\
-// Registers the core settings with the Developer Driver settings service.\n\
-void %ClassName%::DevDriverRegister()\n\
-{\n\
+DevDriverRegisterFunc = """
+// =====================================================================================================================
+// Registers the core settings with the Developer Driver settings service.
+void %ClassName%::DevDriverRegister()
+{
     PAL_ASSERT(m_pPlatform != nullptr);\
-    auto* pDevDriverServer = m_pPlatform->GetDevDriverServer();\n\
-    if (pDevDriverServer != nullptr)\n\
-    {\n\
-        auto* pSettingsService = pDevDriverServer->GetSettingsService();\n\
-        if (pSettingsService != nullptr)\n\
-        {\n\
-            RegisteredComponent component = {};\n\
-            strncpy(&component.componentName[0], m_pComponentName, kMaxComponentNameStrLen);\n\
-            component.pPrivateData = static_cast<void*>(this);\n\
-            component.pSettingsHashes = &%SettingHashListName%[0];\n\
-            component.numSettings = %SettingNumSettingsName%;\n\
-            component.pfnGetValue = ISettingsLoader::GetValue;\n\
-            component.pfnSetValue = ISettingsLoader::SetValue;\n\
-            component.pSettingsData = &%JsonDataArrayName%[0];\n\
-            component.settingsDataSize = sizeof(%JsonDataArrayName%);\n\
-            component.settingsDataHash = %SettingsDataHash%;\n\
-            component.settingsDataHeader.isEncoded = %IsJsonEncoded%;\n\
-            component.settingsDataHeader.magicBufferId = %MagicBufferId%;\n\
-            component.settingsDataHeader.magicBufferOffset = %MagicBufferOffset%;\n\
-\n\
-            pSettingsService->RegisterComponent(component);\n\
-        }\n\
-    }\n\
-}\n"
+    auto* pDevDriverServer = m_pPlatform->GetDevDriverServer();
+    if (pDevDriverServer != nullptr)
+    {
+        auto* pSettingsService = pDevDriverServer->GetSettingsService();
+        if (pSettingsService != nullptr)
+        {
+            RegisteredComponent component = {};
+            strncpy(&component.componentName[0], m_pComponentName, kMaxComponentNameStrLen);
+            component.pPrivateData = static_cast<void*>(this);
+            component.pSettingsHashes = &%SettingHashListName%[0];
+            component.numSettings = %SettingNumSettingsName%;
+            component.pfnGetValue = ISettingsLoader::GetValue;
+            component.pfnSetValue = ISettingsLoader::SetValue;
+            component.pSettingsData = &%JsonDataArrayName%[0];
+            component.settingsDataSize = sizeof(%JsonDataArrayName%);
+            component.settingsDataHash = %SettingsDataHash%;
+            component.settingsDataHeader.isEncoded = %IsJsonEncoded%;
+            component.settingsDataHeader.magicBufferId = %MagicBufferId%;
+            component.settingsDataHeader.magicBufferOffset = %MagicBufferOffset%;
+
+            pSettingsService->RegisterComponent(component);
+        }
+    }
+}
+"""

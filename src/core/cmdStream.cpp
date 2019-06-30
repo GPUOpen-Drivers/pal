@@ -341,7 +341,11 @@ CmdStreamChunk* CmdStream::GetNextChunk(
     else if (m_pCmdAllocator->TrackBusyChunks())
     {
         // This is the first chunk in the list so we have to initialize the busy tracker
-        pChunk->InitRootBusyTracker();
+        const Result result = pChunk->InitRootBusyTracker(m_pCmdAllocator);
+        if (result != Result::Success)
+        {
+            m_status = result;
+        }
     }
 
     // And just add this chunk to the end of our list.

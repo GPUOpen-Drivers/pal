@@ -330,41 +330,43 @@ if(PAL_BUILD_CORE)
     elseif(PAL_DX_BUILD OR PAL_KMT_BUILD)
         if(PAL_DX_BUILD)
             message(STATUS "PAL build with WDDM DX back-end enabled")
-            target_sources(pal PRIVATE core/os/win/dxPlatform.cpp)
+            target_sources(pal PRIVATE core/os/wddm/dxPlatform.cpp)
         elseif(PAL_KMT_BUILD)
             message(STATUS "PAL build with WDDM KMT back-end enabled")
-            target_sources(pal PRIVATE core/os/win/kmtPlatform.cpp)
+            target_sources(pal PRIVATE
+                core/os/wddm/kmtPlatform.cpp
+                core/os/wddm/wddmOglPresent.cpp
+            )
         endif()
 
         target_sources(pal PRIVATE
-            core/os/win/winDevice.cpp
-            core/os/win/winFence.cpp
-            core/os/win/winFlgl.cpp
-            core/os/win/winGpuMemory.cpp
-            core/os/win/winImage.cpp
-            core/os/win/winOglPresent.cpp
-            core/os/win/winLdaChain.cpp
-            core/os/win/winPlatform.cpp
-            core/os/win/winPresentScheduler.cpp
-            core/os/win/winPresentTechniqueBlit.cpp
-            core/os/win/winPresentTechniqueEmu.cpp
-            core/os/win/winPresentTechniqueFlip.cpp
-            core/os/win/winPresentTechniqueGdi.cpp
-            core/os/win/winPrivateScreen.cpp
-            core/os/win/winQueue.cpp
-            core/os/win/winQueueSemaphore.cpp
-            core/os/win/winRegistry.cpp
-            core/os/win/winScreen.cpp
-            core/os/win/winSwapChain.cpp
-            core/os/win/winTimerQueue.cpp
-            core/os/win/wddm1/wddm1Device.cpp
-            core/os/win/wddm1/wddm1GpuMemory.cpp
-            core/os/win/wddm1/wddm1Queue.cpp
-            core/os/win/wddm1/wddm1VamMgr.cpp
-            core/os/win/wddm2/wddm2Device.cpp
-            core/os/win/wddm2/wddm2GpuMemory.cpp
-            core/os/win/wddm2/wddm2HwsQueue.cpp
-            core/os/win/wddm2/wddm2Queue.cpp
+            core/os/wddm/wddmDevice.cpp
+            core/os/wddm/wddmFence.cpp
+            core/os/wddm/wddmFlgl.cpp
+            core/os/wddm/wddmGpuMemory.cpp
+            core/os/wddm/wddmImage.cpp
+            core/os/wddm/wddmLdaChain.cpp
+            core/os/wddm/wddmPlatform.cpp
+            core/os/wddm/wddmPresentScheduler.cpp
+            core/os/wddm/wddmPresentTechniqueBlit.cpp
+            core/os/wddm/wddmPresentTechniqueEmu.cpp
+            core/os/wddm/wddmPresentTechniqueFlip.cpp
+            core/os/wddm/wddmPresentTechniqueGdi.cpp
+            core/os/wddm/wddmPrivateScreen.cpp
+            core/os/wddm/wddmQueue.cpp
+            core/os/wddm/wddmQueueSemaphore.cpp
+            core/os/wddm/wddmRegistry.cpp
+            core/os/wddm/wddmScreen.cpp
+            core/os/wddm/wddmSwapChain.cpp
+            core/os/wddm/wddmTimerQueue.cpp
+            core/os/wddm/wddm1/wddm1Device.cpp
+            core/os/wddm/wddm1/wddm1GpuMemory.cpp
+            core/os/wddm/wddm1/wddm1Queue.cpp
+            core/os/wddm/wddm1/wddm1VamMgr.cpp
+            core/os/wddm/wddm2/wddm2Device.cpp
+            core/os/wddm/wddm2/wddm2GpuMemory.cpp
+            core/os/wddm/wddm2/wddm2HwsQueue.cpp
+            core/os/wddm/wddm2/wddm2Queue.cpp
         )
     endif()
 #endif
@@ -667,6 +669,7 @@ if(UNIX)
         util/lnx/lnxConditionVariable.cpp
         util/lnx/lnxEvent.cpp
         util/lnx/lnxFileMap.cpp
+        util/lnx/lnxLibrary.cpp
         util/lnx/lnxMutex.cpp
         util/lnx/lnxSemaphore.cpp
         util/lnx/lnxSysMemory.cpp

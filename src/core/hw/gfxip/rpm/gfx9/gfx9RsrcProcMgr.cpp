@@ -891,6 +891,7 @@ bool RsrcProcMgr::InitMaskRam(
     if (pCmdBuffer->IsGraphicsSupported() &&
         (dstImage.HasDccStateMetaData()         ||
          dstImage.HasFastClearMetaData()        ||
+         dstImage.HasHiSPretestsMetaData()      ||
          dstImage.HasWaTcCompatZRangeMetaData() ||
          dstImage.HasFastClearEliminateMetaData()))
     {
@@ -957,7 +958,7 @@ bool RsrcProcMgr::InitMaskRam(
         }
     }
 
-    if (dstImage.HasFastClearMetaData() && fullRangeInitMask == 0)
+    if (dstImage.HasFastClearMetaData() && (fullRangeInitMask == 0))
     {
         if (dstImage.HasDsMetadata())
         {
@@ -972,6 +973,13 @@ bool RsrcProcMgr::InitMaskRam(
             // Initialize the clear value of color just as the way of depth/stencil.
             InitColorClearMetaData(pCmdBuffer, pCmdStream, dstImage, range);
         }
+    }
+
+    if (dstImage.HasHiSPretestsMetaData() &&
+        (fullRangeInitMask == 0) &&
+        (range.startSubres.aspect == ImageAspect::Stencil))
+    {
+        ClearHiSPretestsMetaData(pCmdBuffer, pCmdStream, dstImage, range);
     }
 
     // Temporary we don't provide a fullrange path for htile lookup table build, only if we consider a cpu path in
@@ -1796,7 +1804,8 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                      gfx9Image,
                                                      pRanges[idx],
                                                      pHtile->GetClearValue(depth),
-                                                     clearFlags);
+                                                     clearFlags,
+                                                     stencil);
                     }
 
                     isRangeProcessed[idx] = true;
@@ -2142,40 +2151,41 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
 }
 
 // =====================================================================================================================
-// Use the compute engine to initialize hTile memory that corresponds to the specified clearRange
-void RsrcProcMgr::InitHtile(
+// Builds PM4 commands into the command buffer which will initialize the value of HiSPretests meta data.
+void RsrcProcMgr::ClearHiSPretestsMetaData(
     GfxCmdBuffer*      pCmdBuffer,
     Pal::CmdStream*    pCmdStream,
     const Image&       dstImage,
-    const SubresRange& clearRange
+    const SubresRange& range
     ) const
 {
-    const Pal::Image*      pParentImg = dstImage.Parent();
-    const Pal::Device*     pParentDev = pParentImg->GetDevice();
-    const ImageCreateInfo& createInfo = pParentImg->GetImageCreateInfo();
-    const auto*            pHtile     = dstImage.GetHtile();
-    const uint32           initValue  = pHtile->GetInitialValue();
+    PAL_ASSERT(pCmdStream != nullptr);
 
-    // There shouldn't be any 3D images with HTile allocations.
-    PAL_ASSERT(createInfo.imageType != ImageType::Tex3d);
-    PAL_ASSERT(pCmdBuffer->IsComputeSupported());
+    const ImageCreateInfo& createInfo = dstImage.Parent()->GetImageCreateInfo();
 
-    if (clearRange.startSubres.aspect == ImageAspect::Depth)
-    {
-        FastDepthStencilClearCompute(pCmdBuffer,
-                                        dstImage,
-                                        clearRange,
-                                        initValue,
-                                        HtileAspectDepth);
-    }
-    else if ((clearRange.startSubres.aspect == ImageAspect::Stencil) && (pHtile->TileStencilDisabled() == false))
-    {
-        FastDepthStencilClearCompute(pCmdBuffer,
-                                        dstImage,
-                                        clearRange,
-                                        initValue,
-                                        HtileAspectStencil);
-    }
+    // Not sure if the metaDataRange.startSubres.arraySlice has to be zero as it is in depthClearMetadata.
+    PAL_ALERT(range.numSlices < createInfo.arraySize);
+
+    SubresRange metaDataRange;
+    metaDataRange.startSubres.aspect     = range.startSubres.aspect;
+    metaDataRange.startSubres.mipLevel   = range.startSubres.mipLevel;
+    metaDataRange.startSubres.arraySlice = 0;
+    metaDataRange.numMips                = range.numMips;
+    metaDataRange.numSlices              = createInfo.arraySize;
+
+    const Pm4Predicate packetPredicate   = static_cast<Pm4Predicate>(
+                                            pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+
+    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+    HiSPretests defaultHiSPretests = {};
+    pCmdSpace = dstImage.UpdateHiSPretestsMetaData(
+                         metaDataRange,
+                         defaultHiSPretests,
+                         packetPredicate,
+                         pCmdSpace);
+
+    pCmdStream->CommitCommands(pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -2343,6 +2353,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     // Select a depth/stencil state object for this clear:
     if (clearDepth && clearStencil)
@@ -4631,9 +4642,9 @@ const Pal::ComputePipeline* Gfx9RsrcProcMgr::GetCmdGenerationPipeline(
 }
 
 // =====================================================================================================================
-// Performs a "fast" depth resummarize operation by updating the depth Image's HTile buffer to represent a fully open
-// HiZ range.
-void Gfx9RsrcProcMgr::HwlExpandHtileHiZRange(
+// Performs a "fast" depth and stencil resummarize operation by updating the Image's HTile buffer to represent a fully
+// open HiZ range and set ZMask and SMem to expanded state.
+void Gfx9RsrcProcMgr::HwlResummarizeHtileCompute(
     GfxCmdBuffer*      pCmdBuffer,
     const GfxImage&    image,
     const SubresRange& range
@@ -4644,15 +4655,17 @@ void Gfx9RsrcProcMgr::HwlExpandHtileHiZRange(
     const Gfx9Htile*const pHtile = gfx9Image.GetHtile();
     PAL_ASSERT(pHtile != nullptr);
 
-    uint32 htileValue = 0;
-    uint32 htileMask  = 0;
-    pHtile->ComputeResummarizeData(&htileValue, &htileMask);
+    const uint32 hTileValue  = pHtile->ComputeResummarizeData();
+    const ImageAspect aspect = range.startSubres.aspect;
+    PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
+    const uint32 clearFlags  = (aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil;
+    const uint32 hTileMask   = pHtile->GetAspectMask(clearFlags);
 
     ExecuteHtileEquation(pCmdBuffer,
                          gfx9Image,
                          range,
-                         htileValue,
-                         htileMask);
+                         hTileValue,
+                         hTileMask);
 }
 
 // =====================================================================================================================
@@ -4900,7 +4913,8 @@ void Gfx9RsrcProcMgr::FastDepthStencilClearCompute(
     const Image&       dstImage,
     const SubresRange& range,
     uint32             htileValue,
-    uint32             clearMask   // bitmask of HtileAspectMask enumerations
+    uint32             clearMask,   // bitmask of HtileAspectMask enumerations
+    uint8              stencil
     ) const
 {
     const Pal::Image*      pPalImage    = dstImage.Parent();
@@ -5133,6 +5147,49 @@ void Gfx9RsrcProcMgr::InitCmask(
     else
     {
         image.CpuProcessCmaskEq(initRange, Gfx9Cmask::InitialValue);
+    }
+}
+
+// =====================================================================================================================
+// Use the compute engine to initialize hTile memory that corresponds to the specified clearRange
+void Gfx9RsrcProcMgr::InitHtile(
+    GfxCmdBuffer*      pCmdBuffer,
+    Pal::CmdStream*    pCmdStream,
+    const Image&       dstImage,
+    const SubresRange& clearRange
+    ) const
+{
+    const Pal::Image*      pParentImg = dstImage.Parent();
+    const Pal::Device*     pParentDev = pParentImg->GetDevice();
+    const ImageCreateInfo& createInfo = pParentImg->GetImageCreateInfo();
+    const auto*            pHtile     = dstImage.GetHtile();
+    const uint32           initValue  = pHtile->GetInitialValue();
+
+    // There shouldn't be any 3D images with HTile allocations.
+    PAL_ASSERT(createInfo.imageType != ImageType::Tex3d);
+    PAL_ASSERT(pCmdBuffer->IsComputeSupported());
+
+    if (clearRange.startSubres.aspect == ImageAspect::Depth)
+    {
+        // We pass a dummy stencil value as the last parameter.
+        // The dummy stencil value won't be used in TheGfx9RsrcProcMgr::FastDepthStencilClearCompute.
+        FastDepthStencilClearCompute(pCmdBuffer,
+                                     dstImage,
+                                     clearRange,
+                                     initValue,
+                                     HtileAspectDepth,
+                                     0);
+    }
+    else if ((clearRange.startSubres.aspect == ImageAspect::Stencil) && (pHtile->TileStencilDisabled() == false))
+    {
+        // We pass a dummy stencil value as the last parameter.
+        // The dummy stencil value won't be used in TheGfx9RsrcProcMgr::FastDepthStencilClearCompute.
+        FastDepthStencilClearCompute(pCmdBuffer,
+                                     dstImage,
+                                     clearRange,
+                                     initValue,
+                                     HtileAspectStencil,
+                                     0);
     }
 }
 

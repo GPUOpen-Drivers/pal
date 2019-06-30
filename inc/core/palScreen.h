@@ -75,6 +75,9 @@ struct ColorGamut
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 506
     uint32   maxContentLightLevel;       ///< Maximum luminance level of the entire content clip
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 512
+    uint32   maxFrameAverageLightLevel;  ///< Maximum frame average light level of the entire content clip
+#endif
 };
 
 /// Specifies color space and transfer functions as reported by the display panel EDID interface.

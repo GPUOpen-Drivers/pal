@@ -311,7 +311,7 @@ Result Device::GetMemoryChunk(
     {
         GpuMemoryCreateInfo createInfo = {};
         createInfo.size           = GetPlatform()->PlatformSettings().shaderDbgConfig.shaderDbgChunkSize;
-        createInfo.alignment      = m_deviceProperties.gpuMemoryProperties.realMemAllocGranularity;
+        createInfo.alignment      = 0;
         createInfo.vaRange        = VaRange::Default;
         createInfo.heaps[0]       = GpuHeapLocal;
         createInfo.heaps[1]       = GpuHeapGartUswc;

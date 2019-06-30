@@ -1294,6 +1294,64 @@ struct StencilRefMaskParams
     } flags;               ///< Flags to indicate which of the stencil state values are being updated.
 };
 
+/// HiS always exposes two pretests.
+constexpr uint32 NumHiSPretests = 2;
+
+/// Hierarchical stencil (HiS) allows work to be discarded by the stencil test at tile rate in certain cases.
+/// In order to use HiS, the client will define a set of pretests that will be performed whenever a particular stencil
+/// buffer is written.  The stencil image will track the results of the pretest for each 8x8 tile, keeping a record of
+/// whether any pixel in the tile "may-pass" or "may-fail" the specified pretest.  When stencil testing is enabled,
+/// the hardware may be able to discard whole tiles early based on what it can glean from the HiS pretest states.
+///
+/// Each stencil image has two pretest slots per mip level.  Pretest slots are reset when an initialization barrier
+/// targets their mip level on the stencil aspect.  The client can then pass this struct to @ref CmdUpdateHiSPretests
+/// to bind one or more valid pretests.  It is legal to bind a pretest over a reset slot at any point.
+///
+/// @warning Except in special cases, it is illegal to bind a pretest on top of an existing pretest.
+///
+/// It is only legal to bind a new pretest on top of an existing pretest if:
+/// 1. All array slices within the given mip have been reset using an initialization barrier.
+/// 2. The client guarantees that they will rewrite all stencil values in all array slices within the given mip
+///    before the next draw with stencil testing enabled by doing either:
+///      a. One or more calls to @ref CmdClearDepthStencil.
+///      b. One or more draws with the stencil test disabled and stencil writes enabled.
+///
+/// Once pretests are selected via @ref CmdUpdateHiSPretests the client should keep track of which tests were enabled
+/// on each stencil image and provide them to every call to @ref CmdClearDepthStencil.  This is optional but PAL will
+/// not be able to generate HiS optimized clears unless it is given the current pretests.
+///
+/// @warning The pretests provided to @ref CmdUpdateHiSPretests are applied to all mips of all subresource ranges.
+///          If the client varies pretests between mips they must guarantee that the given pretests were bound to all
+///          mips in the given subresource ranges.
+///
+/// This feature works best if the future stencil test behavior is known, either directly told via an API extension
+/// or via an app profile in the client layer. For example, if the application 1) clears stencil, 2) does a pass to
+/// write stencil, 3) then does a final pass that masks rendering based on the stencil value being > 0, ideally we
+/// would choose a pretest of func=Greater, mask=0xFF, and value=0 so that #2 would update the stencil image with
+/// per-tile data that lets #3 be accelerated at maximum effeciency.
+///
+/// In absence of app-specific knowledge, the following algorithm may be a good generic approach:
+/// 1. When the stencil image is cleared, set pretest #0 to func=Equal, mask=0xFF, and value set to the clear value.
+/// 2. On the first draw with stencil writes enabled, set pretest #1 with the mask set to the app's current stencil
+///    mask, and
+///      a. If the stencil op is INC or DEC, set func=GreaterEqual and value the same as in #1.
+///      b. If the stencil op is REPLACE, set func=Equal and set value to the app's current stencil ref value.
+///
+/// Note that HiS can only be beneficial for GPU performance so clients that do not want to implement app profiles or
+/// generic heuristics should at least hard-code both tests to something simple.
+struct HiSPretests
+{
+    struct
+    {
+        CompareFunc func;    ///< This function is used to compare the pretest value with the image's stencil value.
+                             ///  The expression is evaluated with the pretest value as the left-hand operand and the
+                             ///  image's stencil value as the right-hand operand.
+        uint8       mask;    ///< This value is ANDed with both stencil values before evaluating the comparison.
+        uint8       value;   ///< The pretest value, used as the left-hand operand in the comparison.
+        bool        isValid; ///< True if this pretest contains valid information.  Set to false to skip this test.
+    } test[NumHiSPretests];  ///< The set of pretest slots.
+};
+
 /// Specifies coordinates for setting up single user clip plane.
 /// @see ICmdBuffer::CmdSetUserClipPlanes
 struct UserClipPlane
@@ -1828,6 +1886,20 @@ public:
         uint32               firstPlane,
         uint32               planeCount,
         const UserClipPlane* pPlanes) = 0;
+
+    /// Sets clip rects, should only be called on universal command buffers.
+    ///
+    /// @param [in] clipRule  16-bit clip rule bits are used to determine if pixel shall be discarded or retained.
+    ///                       For each pixel, a 4-bit index is computed based on which clip rects the pixel is
+    ///                       inside (bitN represents rectN). Then uses this index to check the corresponding bit
+    ///                       in clip rule for this pixel - 0 for discarded, 1 for retained.
+    /// @param [in] rectCount The count of rectangles in rect list. This must be less than or equal to
+    ///                       MaxClipRects (4).
+    /// @param [in] pRectList Pointer to the rect list.
+    virtual void CmdSetClipRects(
+        uint16      clipRule,
+        uint32      rectCount,
+        const Rect* pRectList) = 0;
 
     /// Sets user defined MSAA quad-pixel sample pattern, should only be called on universal command buffers
     /// This should be called before clearing, rendering, barriering and resolving of MSAA DepthStencil image.
@@ -3247,6 +3319,7 @@ public:
         uint32                       maximumCount,
         gpusize                      countGpuAddr) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
     /// Sets the hierarchical stencil compare state (slot 0).
     ///
     /// Hierarchical stencil (Hi-S) allows work to be discarded by the stencil test at tile rate in certain cases.
@@ -3310,6 +3383,22 @@ public:
         uint32      compMask,
         uint32      compValue,
         bool        enable) = 0;
+#endif
+
+    /// Updates one or more HiS pretests bound to the given stencil image within a range of mip levels.
+    /// See @ref HiSPretests for a summary of HiS.
+    ///
+    /// @warning Improper use of pretests can cause corruption.  Please see @ref HiSPretests for more information.
+    ///
+    /// @param [in] image    The stencil image that will receive the new pretest(s).
+    /// @param [in] pretests The new pretest(s).
+    /// @param [in] firstMip The beginning of the mip range which will receive the new pretest(s).
+    /// @param [in] numMips  The number of mips in the mip range which will receive the new pretest(s).
+    virtual void CmdUpdateHiSPretests(
+        const IImage*      pImage,
+        const HiSPretests& pretests,
+        uint32             firstMip,
+        uint32             numMips) = 0;
 
     /// Inserts a string embedded inside a NOP packet with a signature that is recognized by tools and can be printed
     /// inside a command buffer disassembly. Note that this is a real NOP that willl really be submitted to the GPU

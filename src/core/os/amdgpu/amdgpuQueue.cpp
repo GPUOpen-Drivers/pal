@@ -1183,8 +1183,8 @@ Result Queue::AppendResourceToList(
                 const uint8 offsetBits = static_cast<uint8>(pGpuMemory->PriorityOffset()) / 2;
 
                 static_assert(
-                    (static_cast<uint32_t>(Pal::GpuMemPriority::Count) == 6) &&
-                     static_cast<uint32_t>(Pal::GpuMemPriorityOffset::Count) == 8,
+                    (static_cast<uint32>(Pal::GpuMemPriority::Count) == 6) &&
+                     static_cast<uint32>(Pal::GpuMemPriorityOffset::Count) == 8,
                     "Pal GpuMemPriority or GpuMemPriorityOffset values changed. Consider to update strategy to convert"
                     "Pal GpuMemPriority and GpuMemPriorityOffset to lnx resource priority");
                 m_pResourcePriorityList[m_numResourcesInList] =
@@ -1299,7 +1299,7 @@ Result Queue::SubmitIbsRaw(
         {
             chunkArray[i].chunk_id = AMDGPU_CHUNK_ID_IB;
             chunkArray[i].length_dw = sizeof(struct drm_amdgpu_cs_chunk_ib) / 4;
-            chunkArray[i].chunk_data  = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&chunkDataArray[i]));
+            chunkArray[i].chunk_data  = static_cast<uint64>(reinterpret_cast<uintptr_t>(&chunkDataArray[i]));
             chunkDataArray[i].ib_data._pad = 0;
             chunkDataArray[i].ib_data.va_start = m_ibs[i].ib_mc_address;
             chunkDataArray[i].ib_data.ib_bytes = m_ibs[i].size * 4;
@@ -1327,7 +1327,7 @@ Result Queue::SubmitIbsRaw(
                 chunkArray[currentChunk].chunk_id   = AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT;
                 chunkArray[currentChunk].length_dw  = waitCount * sizeof(struct drm_amdgpu_cs_chunk_syncobj) / 4;
                 chunkArray[currentChunk].chunk_data =
-                    static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&pWaitChunkArray[0]));
+                    static_cast<uint64>(reinterpret_cast<uintptr_t>(&pWaitChunkArray[0]));
 
                 uint32 waitListSize = m_waitSemList.NumElements();
                 uint32 index        = 0;
@@ -1362,7 +1362,7 @@ Result Queue::SubmitIbsRaw(
                 chunkArray[currentChunk].chunk_id   = AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_SIGNAL;
                 chunkArray[currentChunk].length_dw  = signalCount * sizeof(struct drm_amdgpu_cs_chunk_syncobj) / 4;
                 chunkArray[currentChunk].chunk_data =
-                    static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&pSignalChunkArray[0]));
+                    static_cast<uint64>(reinterpret_cast<uintptr_t>(&pSignalChunkArray[0]));
 
                 for (uint32 i = 0; i < internalSubmitInfo.signalSemaphoreCount; i++)
                 {
@@ -1395,7 +1395,7 @@ Result Queue::SubmitIbsRaw(
                 chunkArray[currentChunk].chunk_id   = AMDGPU_CHUNK_ID_SYNCOBJ_IN;
                 chunkArray[currentChunk].length_dw  = waitCount * sizeof(struct drm_amdgpu_cs_chunk_sem) / 4;
                 chunkArray[currentChunk].chunk_data =
-                    static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&pWaitChunkArray[0]));
+                    static_cast<uint64>(reinterpret_cast<uintptr_t>(&pWaitChunkArray[0]));
 
                 uint32 waitListSize = m_waitSemList.NumElements();
                 uint32 index        = 0;
@@ -1421,7 +1421,7 @@ Result Queue::SubmitIbsRaw(
                 chunkArray[currentChunk].chunk_id   = AMDGPU_CHUNK_ID_SYNCOBJ_OUT;
                 chunkArray[currentChunk].length_dw  = signalCount * sizeof(struct drm_amdgpu_cs_chunk_sem) / 4;
                 chunkArray[currentChunk].chunk_data =
-                    static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&pSignalChunkArray[0]));
+                    static_cast<uint64>(reinterpret_cast<uintptr_t>(&pSignalChunkArray[0]));
 
                 for (uint32 i = 0; i < internalSubmitInfo.signalSemaphoreCount; i++)
                 {

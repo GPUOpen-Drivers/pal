@@ -77,7 +77,8 @@ struct GpuMemoryInternalCreateInfo
             uint32 accessedPhysically :  1; // GPU memory will be accessed physically (physical engine like MM video).
             uint32 pageFaultDebugSrd  :  1; // GPU memory will be used for PageFaultDebugSrd feature.
             uint32 placeholder1       :  1; // Reserved. Set to 0.
-            uint32 reserved           : 14;
+            uint32 gpuReadOnly        :  1; // Indicates the memory is read-only on the GPU
+            uint32 reserved           : 13;
         };
         uint32 u32All;
     } flags;
@@ -154,7 +155,8 @@ union GpuMemoryFlags
         uint32 restrictedAccess         :  1; // GPU memory is restricted shared access resource
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
         uint32 placeholder1             :  1; // Placeholder.
-        uint32 reserved                 : 27;
+        uint32 gpuReadOnly              :  1; // GPU memory is read only.
+        uint32 reserved                 : 26;
     };
     uint64  u64All;
 };
@@ -252,6 +254,7 @@ public:
     bool IsMapppedToPeerMemory() const { return (m_flags.mapppedToPeerMemory      != 0); }
     bool IsSvmAlloc()            const { return (m_desc.flags.isSvmAlloc          != 0); }
     bool IsExecutable()          const { return (m_desc.flags.isExecutable        != 0); }
+    bool IsReadOnlyOnGpu()       const { return (m_flags.gpuReadOnly              != 0); }
     bool IsAccessedPhysically()  const { return (m_flags.accessedPhysically       != 0); }
     void SetAccessedPhysically() { m_flags.accessedPhysically = 1; }
     void SetSurfaceBusAddr(gpusize surfaceBusAddr) { m_desc.surfaceBusAddr = surfaceBusAddr; }

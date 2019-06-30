@@ -25,7 +25,7 @@
 
 #pragma once
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 39
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 40
 
 #define GPUOPEN_INTERFACE_MINOR_VERSION 0
 
@@ -48,6 +48,8 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 40.0    | Moves DriverStatus enum out of DriverControlProtocol and into gpuopen.h, and renames several             |
+*|         | DriverControlProtocol functions.                                                                         |
 *| 39.0    | Simplified the LoggingClient interface to remove the internal pending message requirement.               |
 *|         | Removed kInfiniteTimeout and replaced its uses with kLogicFailureTimeout.                                |
 *|         | Decoupled RGP trace parameters from trace execution.                                                     |
@@ -153,6 +155,7 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 */
 
+#define GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION                                40
 #define GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION                              39
 #define GPUOPEN_SIMPLER_LOGGING_VERSION                                       39
 #define GPUOPEN_LISTENER_HOSTNAME_VERSION                                     38
@@ -344,6 +347,7 @@ namespace DevDriver
     // Common result codes
     enum struct Result : uint32
     {
+        //// Generic Result Code  ////
         Success = 0,
         Error = 1,
         NotReady = 2,
@@ -393,6 +397,21 @@ namespace DevDriver
         Always,
         Count,
         Never = 0xFF
+    };
+
+    ////////////////////////////
+    // Driver states
+    enum struct DriverStatus : uint32
+    {
+        Running = 0,
+        Paused,
+        HaltedOnDeviceInit,
+        EarlyDeviceInit,
+        LateDeviceInit,
+        PlatformInit,
+        HaltedOnPlatformInit,
+        HaltedPostDeviceInit,
+        Count
     };
 
     ////////////////////////////

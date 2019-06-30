@@ -86,6 +86,7 @@ public:
         { HandlePm4LoadReg(loadData, &m_shRegs[0]); }
     void HandleLoadContextRegs(const PM4_PFP_LOAD_CONTEXT_REG& loadData)
         { HandlePm4LoadReg(loadData, &m_cntxRegs[0]); }
+    void HandleLoadContextRegsIndex(const PM4PFP_LOAD_CONTEXT_REG_INDEX& loadData);
 
     // This generic function can be called by just about any step in the command stream building scheme. It can account
     // for cond exec packets assuming that the cond exec block is contained within pSrcCmds.

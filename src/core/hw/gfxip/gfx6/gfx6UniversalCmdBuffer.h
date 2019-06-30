@@ -307,6 +307,21 @@ struct LoadDataIndexPm4Img
     size_t                  spaceNeeded;
 };
 
+// Register state for a clip rectangle's left top and right bottom parameters.
+struct ClipRectsStateReg
+{
+    regPA_SC_CLIPRECT_0_TL    paScClipRectTl;
+    regPA_SC_CLIPRECT_0_BR    paScClipRectBr;
+};
+
+// Command for setting up clip rects
+struct ClipRectsPm4Img
+{
+    PM4CMDSETDATA           header;
+    regPA_SC_CLIPRECT_RULE  paScClipRectRule;
+    ClipRectsStateReg       rects[MaxClipRects];
+};
+
 // =====================================================================================================================
 // GFX6 universal command buffer class: implements GFX6 specific functionality for the UniversalCmdBuffer class.
 class UniversalCmdBuffer : public Pal::UniversalCmdBuffer
@@ -345,6 +360,9 @@ public:
     virtual void CmdSetUserClipPlanes(uint32               firstPlane,
                                       uint32               planeCount,
                                       const UserClipPlane* pPlanes) override;
+    virtual void CmdSetClipRects(uint16      clipRule,
+                                 uint32      rectCount,
+                                 const Rect* pRectList) override;
     virtual void CmdFlglSync() override;
     virtual void CmdFlglEnable() override;
     virtual void CmdFlglDisable() override;
@@ -616,6 +634,7 @@ public:
         SwizzledFormat format,
         uint32         targetIndex) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
     virtual void CmdSetHiSCompareState0(
         CompareFunc compFunc,
         uint32      compMask,
@@ -627,6 +646,13 @@ public:
         uint32      compMask,
         uint32      compValue,
         bool        enable) override;
+#endif
+
+    virtual void CmdUpdateHiSPretests(
+        const IImage*      pImage,
+        const HiSPretests& pretests,
+        uint32             firstMip,
+        uint32             numMips) override;
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 

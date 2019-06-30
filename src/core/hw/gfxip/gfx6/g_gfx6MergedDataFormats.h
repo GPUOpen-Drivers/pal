@@ -343,7 +343,7 @@ constexpr MergedFormatPropertiesTable Gfx6MergedFormatPropertiesTable =
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X32Y32_Float
         { IrXsTrTw,                       None                           }, // ChNumFormat::X32Y32Z32_Uint
         { IrXsTrTw,                       None                           }, // ChNumFormat::X32Y32Z32_Sint
-        { IrXsIflIfmmTrTw,                None                           }, // ChNumFormat::X32Y32Z32_Float
+        { IrXsIfmmTrTw,                   None                           }, // ChNumFormat::X32Y32Z32_Float
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X32Y32Z32W32_Uint
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X32Y32Z32W32_Sint
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X32Y32Z32W32_Float
@@ -6455,7 +6455,7 @@ constexpr MergedFormatPropertiesTable Gfx7MergedFormatPropertiesTable =
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X32Y32_Float
         { IrXsTrTw,                       None                           }, // ChNumFormat::X32Y32Z32_Uint
         { IrXsTrTw,                       None                           }, // ChNumFormat::X32Y32Z32_Sint
-        { IrXsIflIfmmTrTw,                None                           }, // ChNumFormat::X32Y32Z32_Float
+        { IrXsIfmmTrTw,                   None                           }, // ChNumFormat::X32Y32Z32_Float
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X32Y32Z32W32_Uint
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X32Y32Z32W32_Sint
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X32Y32Z32W32_Float
@@ -12567,7 +12567,7 @@ constexpr MergedFormatPropertiesTable Gfx8MergedFormatPropertiesTable =
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X32Y32_Float
         { IrXsTrTw,                       None                           }, // ChNumFormat::X32Y32Z32_Uint
         { IrXsTrTw,                       None                           }, // ChNumFormat::X32Y32Z32_Sint
-        { IrXsIflIfmmTrTw,                None                           }, // ChNumFormat::X32Y32Z32_Float
+        { IrXsIfmmTrTw,                   None                           }, // ChNumFormat::X32Y32Z32_Float
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X32Y32Z32W32_Uint
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X32Y32Z32W32_Sint
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X32Y32Z32W32_Float
@@ -18679,7 +18679,7 @@ constexpr MergedFormatPropertiesTable Gfx8_1MergedFormatPropertiesTable =
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X32Y32_Float
         { IrXsTrTw,                       None                           }, // ChNumFormat::X32Y32Z32_Uint
         { IrXsTrTw,                       None                           }, // ChNumFormat::X32Y32Z32_Sint
-        { IrXsIflIfmmTrTw,                None                           }, // ChNumFormat::X32Y32Z32_Float
+        { IrXsIfmmTrTw,                   None                           }, // ChNumFormat::X32Y32Z32_Float
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X32Y32Z32W32_Uint
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X32Y32Z32W32_Sint
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X32Y32Z32W32_Float

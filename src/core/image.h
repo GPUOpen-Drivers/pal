@@ -176,6 +176,7 @@ struct SubResourceInfo
     Extent3d       extentElements;       // Width, height, and depth in elements (e.g., blocks for BC formats).
     Extent3d       actualExtentTexels;   // Padded width, height, and depth in units of texels.
     Extent3d       actualExtentElements; // Padded width, height, and depth in elements (e.g., blocks for BC formats).
+    uint32         actualArraySize;      // Padded array size. (possibly pow2-padded for GFX6-8).
 
     // Information about how the subresource is laid out in memory.
     gpusize        size;                 // Size of the subresource in bytes.

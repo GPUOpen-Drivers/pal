@@ -121,8 +121,6 @@ void PipelineChunkVsPs::EarlyInit(
         ++(pInfo->interpolatorCount);
     }
 
-    PAL_ASSERT(pInfo->interpolatorCount >= 1);
-
     const Gfx6PalSettings& settings = m_device.Settings();
     if (settings.enableLoadIndexForObjectBinds != false)
     {
@@ -448,10 +446,14 @@ void PipelineChunkVsPs::BuildPm4Headers(
                                                                      mmSPI_PS_INPUT_ADDR,
                                                                      &m_commands.context.hdrPsIn);
 
-    PAL_ASSERT((interpolatorCount > 0) && (interpolatorCount <= MaxPsInputSemantics));
-    m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
-                                                                    (mmSPI_PS_INPUT_CNTL_0 + interpolatorCount - 1),
-                                                                    &m_commands.context.hdrPsInputs);
+    if (interpolatorCount > 0)
+    {
+        PAL_ASSERT(interpolatorCount <= MaxPsInputSemantics);
+        m_commands.context.spaceNeeded +=
+            cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
+                                           (mmSPI_PS_INPUT_CNTL_0 + interpolatorCount - 1),
+                                           &m_commands.context.hdrPsInputs);
+    }
 
     m_commands.streamOut.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmVGT_STRMOUT_CONFIG,
                                                                       mmVGT_STRMOUT_BUFFER_CONFIG,

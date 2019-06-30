@@ -98,9 +98,9 @@ void MsaaState::BuildPm4Headers()
     // MSAA state is responsible for all the fields except for COVERAGE_TO_SHADER_SELECT, which is owned
     // by the pipeline, MSAA_NUM_SAMPLES, which requires input from the pipeline, and MAX_SAMPLE_DIST_MASK which is
     // set by CmdBuffer.
-    constexpr uint32 aaConfigMask  = static_cast<uint32>(~(PA_SC_AA_CONFIG__COVERAGE_TO_SHADER_SELECT_MASK |
-                                                           PA_SC_AA_CONFIG__MSAA_NUM_SAMPLES_MASK |
-                                                           PA_SC_AA_CONFIG__MAX_SAMPLE_DIST_MASK));
+    uint32 aaConfigMask = static_cast<uint32>(~(PA_SC_AA_CONFIG__COVERAGE_TO_SHADER_SELECT_MASK |
+                                                PA_SC_AA_CONFIG__MSAA_NUM_SAMPLES_MASK |
+                                                PA_SC_AA_CONFIG__MAX_SAMPLE_DIST_MASK));
 
     m_pm4Image.spaceNeeded += cmdUtil.BuildContextRegRmw(
                                 mmPA_SC_AA_CONFIG,

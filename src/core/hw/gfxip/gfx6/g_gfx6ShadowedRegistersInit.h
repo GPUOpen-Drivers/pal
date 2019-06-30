@@ -44,7 +44,10 @@ namespace Gfx6
 // =====================================================================================================================
 // Initialize several structures with the ClearState values, the Set registers are the same as ContextShadowRange.
 void InitializeContextRegistersGfx6(
-    CmdStream* pCmdStream)
+    CmdStream*     pCmdStream,
+    uint32         numRegPairs,
+    const uint32*  pRegOffsets,
+    const uint32*  pRegValues)
 {
     constexpr uint32 DbRenderControlGfx6[] = {
         0x0       ,
@@ -85,9 +88,16 @@ void InitializeContextRegistersGfx6(
     constexpr uint32 PaScWindowOffsetGfx6[] = {
         0x0       ,
         0x80000000,
-        0x40004000
-    };
-    constexpr uint32 PaScEdgeruleGfx6[] = {
+        0x40004000,
+        0xffff    ,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
         0xaa99aaaa,
         0x0       ,
         0xffffffff,
@@ -639,8 +649,7 @@ void InitializeContextRegistersGfx6(
     };
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_RENDER_CONTROL,mmTA_BC_BASE_ADDR_HI__CI__VI, DbRenderControlGfx6,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_WINDOW_OFFSET,mmPA_SC_WINDOW_SCISSOR_BR, PaScWindowOffsetGfx6,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_EDGERULE,mmPA_SC_RASTER_CONFIG_1__CI__VI, PaScEdgeruleGfx6,pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_WINDOW_OFFSET,mmPA_SC_RASTER_CONFIG_1__CI__VI, PaScWindowOffsetGfx6,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCOHER_DEST_BASE_2,mmCOHER_DEST_BASE_3, CoherDestBase2Gfx6,pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
@@ -663,12 +672,22 @@ void InitializeContextRegistersGfx6(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_MAX_VERT_OUT,mmVGT_STRMOUT_BUFFER_CONFIG, VgtGsMaxVertOutGfx6,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,mmCB_COLOR7_DCC_BASE__VI, PaScCentroidPriority0Gfx6,pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
+
+    for (uint32  regIdx = 0; regIdx < numRegPairs; regIdx++)
+    {
+        pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(pRegOffsets[regIdx], pRegValues[regIdx], pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
 }
 
 // =====================================================================================================================
 // Initialize several structures with the ClearState values, the Set registers are the same as ContextShadowRange.
 void InitializeContextRegistersGfx7(
-    CmdStream* pCmdStream)
+    CmdStream*     pCmdStream,
+    uint32         numRegPairs,
+    const uint32*  pRegOffsets,
+    const uint32*  pRegValues)
 {
     constexpr uint32 DbRenderControlGfx7[] = {
         0x0       ,
@@ -709,9 +728,16 @@ void InitializeContextRegistersGfx7(
     constexpr uint32 PaScWindowOffsetGfx7[] = {
         0x0       ,
         0x80000000,
-        0x40004000
-    };
-    constexpr uint32 PaScEdgeruleGfx7[] = {
+        0x40004000,
+        0xffff    ,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
         0xaa99aaaa,
         0x0       ,
         0xffffffff,
@@ -1263,8 +1289,7 @@ void InitializeContextRegistersGfx7(
     };
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_RENDER_CONTROL,mmTA_BC_BASE_ADDR_HI__CI__VI, DbRenderControlGfx7,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_WINDOW_OFFSET,mmPA_SC_WINDOW_SCISSOR_BR, PaScWindowOffsetGfx7,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_EDGERULE,mmPA_SC_RASTER_CONFIG_1__CI__VI, PaScEdgeruleGfx7,pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_WINDOW_OFFSET,mmPA_SC_RASTER_CONFIG_1__CI__VI, PaScWindowOffsetGfx7,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCOHER_DEST_BASE_2,mmCOHER_DEST_BASE_3, CoherDestBase2Gfx7,pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
@@ -1287,12 +1312,22 @@ void InitializeContextRegistersGfx7(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_MAX_VERT_OUT,mmVGT_STRMOUT_BUFFER_CONFIG, VgtGsMaxVertOutGfx7,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,mmCB_COLOR7_DCC_BASE__VI, PaScCentroidPriority0Gfx7,pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
+
+    for (uint32  regIdx = 0; regIdx < numRegPairs; regIdx++)
+    {
+        pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(pRegOffsets[regIdx], pRegValues[regIdx], pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
 }
 
 // =====================================================================================================================
 // Initialize several structures with the ClearState values, the Set registers are the same as ContextShadowRange.
 void InitializeContextRegistersGfx8(
-    CmdStream* pCmdStream)
+    CmdStream*     pCmdStream,
+    uint32         numRegPairs,
+    const uint32*  pRegOffsets,
+    const uint32*  pRegValues)
 {
     constexpr uint32 DbRenderControlGfx8[] = {
         0x0       ,
@@ -1333,9 +1368,16 @@ void InitializeContextRegistersGfx8(
     constexpr uint32 PaScWindowOffsetGfx8[] = {
         0x0       ,
         0x80000000,
-        0x40004000
-    };
-    constexpr uint32 PaScEdgeruleGfx8[] = {
+        0x40004000,
+        0xffff    ,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
         0xaa99aaaa,
         0x0       ,
         0xffffffff,
@@ -1887,8 +1929,7 @@ void InitializeContextRegistersGfx8(
     };
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_RENDER_CONTROL,mmTA_BC_BASE_ADDR_HI__CI__VI, DbRenderControlGfx8,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_WINDOW_OFFSET,mmPA_SC_WINDOW_SCISSOR_BR, PaScWindowOffsetGfx8,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_EDGERULE,mmPA_SC_RASTER_CONFIG_1__CI__VI, PaScEdgeruleGfx8,pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_WINDOW_OFFSET,mmPA_SC_RASTER_CONFIG_1__CI__VI, PaScWindowOffsetGfx8,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCOHER_DEST_BASE_2,mmCOHER_DEST_BASE_3, CoherDestBase2Gfx8,pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
@@ -1911,6 +1952,13 @@ void InitializeContextRegistersGfx8(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_MAX_VERT_OUT,mmVGT_STRMOUT_BUFFER_CONFIG, VgtGsMaxVertOutGfx8,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,mmCB_COLOR7_DCC_BASE__VI, PaScCentroidPriority0Gfx8,pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
+
+    for (uint32  regIdx = 0; regIdx < numRegPairs; regIdx++)
+    {
+        pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(pRegOffsets[regIdx], pRegValues[regIdx], pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
 }
 
 } // Gfx6

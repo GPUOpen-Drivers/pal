@@ -566,11 +566,14 @@ void PipelineChunkVsPs::BuildPm4Headers(
     m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_PRIMITIVEID_EN,
                                                                     &m_commands.context.hdrVgtPrimitiveIdEn);
 
-    PAL_ASSERT((loadInfo.interpolatorCount > 0) && (loadInfo.interpolatorCount <= MaxPsInputSemantics));
-    m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(
-            mmSPI_PS_INPUT_CNTL_0,
-            (mmSPI_PS_INPUT_CNTL_0 + loadInfo.interpolatorCount - 1),
-            &m_commands.context.hdrSpiPsInputCntl);
+    if (loadInfo.interpolatorCount > 0)
+    {
+        PAL_ASSERT(loadInfo.interpolatorCount <= MaxPsInputSemantics);
+        m_commands.context.spaceNeeded +=
+            cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
+                                           (mmSPI_PS_INPUT_CNTL_0 + loadInfo.interpolatorCount - 1),
+                                           &m_commands.context.hdrSpiPsInputCntl);
+    }
 
     m_commands.streamOut.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmVGT_STRMOUT_CONFIG,
                                                                       mmVGT_STRMOUT_BUFFER_CONFIG,

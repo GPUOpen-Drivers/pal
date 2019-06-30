@@ -202,7 +202,8 @@ protected:
         const Image&       dstImage,
         const SubresRange& range,
         uint32             htileValue,
-        uint32             clearMask) const = 0;
+        uint32             clearMask,
+        uint8              stencil) const = 0;
 
     void FastDepthStencilClearComputeCommon(
         GfxCmdBuffer*      pCmdBuffer,
@@ -321,11 +322,17 @@ private:
         const Image&       image,
         const SubresRange& range) const = 0;
 
-    void InitHtile(
+    virtual void InitHtile(
         GfxCmdBuffer*      pCmdBuffer,
         Pal::CmdStream*    pCmdStream,
         const Image&       dstImage,
-        const SubresRange& clearRange) const;
+        const SubresRange& clearRange) const = 0;
+
+    void ClearHiSPretestsMetaData(
+        GfxCmdBuffer*      pCmdBuffer,
+        Pal::CmdStream*    pCmdStream,
+        const Image&       dstImage,
+        const SubresRange& range) const;
 
     void InitDepthClearMetaData(
         GfxCmdBuffer*      pCmdBuffer,
@@ -405,7 +412,7 @@ public:
     explicit Gfx9RsrcProcMgr(Device* pDevice) : Pal::Gfx9::RsrcProcMgr(pDevice) {}
     virtual ~Gfx9RsrcProcMgr() {}
 
-    void HwlExpandHtileHiZRange(
+    void HwlResummarizeHtileCompute(
         GfxCmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const override;
@@ -425,7 +432,8 @@ protected:
         const Image&       dstImage,
         const SubresRange& range,
         uint32             htileValue,
-        uint32             clearMask) const override;
+        uint32             clearMask,
+        uint8              stencil) const override;
 
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
         const Pal::IndirectCmdGenerator& generator,
@@ -446,6 +454,12 @@ protected:
         Pal::CmdStream*    pCmdStream,
         const Image&       image,
         const SubresRange& range) const override;
+
+    void InitHtile(
+        GfxCmdBuffer*      pCmdBuffer,
+        Pal::CmdStream*    pCmdStream,
+        const Image&       dstImage,
+        const SubresRange& clearRange) const override;
 
 private:
     void ClearHtileAllBytes(

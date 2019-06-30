@@ -552,15 +552,15 @@ public:
         uint64           timeout) const;
 
     Result WaitForSyncobjFences(
-        uint32_t*            pFences,
+        uint32*              pFences,
         uint32               fenceCount,
         uint64               timeout,
         uint32               flags,
         uint32*              pFirstSignaled) const;
 
     Result ResetSyncObject(
-        const uint32_t*      pFences,
-        uint32_t             fenceCount) const;
+        const uint32* pFences,
+        uint32        fenceCount) const;
 
     bool IsInitialSignaledSyncobjSemaphoreSupported() const
         { return m_syncobjSupportState.initialSignaledSyncobjSemaphore == 1; }
@@ -783,11 +783,6 @@ protected:
         uint32* pNumScreen) override { return Result::ErrorUnavailable; }
 
     virtual Result OsLateInit() override;
-
-    virtual Result PerformOsInternalQueueInit() override
-    {
-        return Pal::Device::CreateInternalCopyQueues();
-    }
 
 private:
     virtual Result OsEarlyInit() override;

@@ -441,6 +441,7 @@ public:
         uint32 stateFlags) override;
     virtual void CmdRestoreComputeState(
         uint32 stateFlags) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
     virtual void CmdSetHiSCompareState0(
         CompareFunc compFunc,
         uint32      compMask,
@@ -451,6 +452,12 @@ public:
         uint32      compMask,
         uint32      compValue,
         bool        enable) override;
+#endif
+    virtual void CmdUpdateHiSPretests(
+        const IImage*      pImage,
+        const HiSPretests& pretests,
+        uint32             firstMip,
+        uint32             numMips) override;
     virtual void CmdFlglSync() override;
     virtual void CmdFlglEnable() override;
     virtual void CmdFlglDisable() override;
@@ -460,6 +467,10 @@ public:
         uint32               firstPlane,
         uint32               planeCount,
         const UserClipPlane* pPlanes) override;
+    virtual void CmdSetClipRects(
+        uint16      clipRule,
+        uint32      rectCount,
+        const Rect* pRectList) override;
     virtual void CmdStartGpuProfilerLogging() override;
     virtual void CmdStopGpuProfilerLogging() override;
 
@@ -708,10 +719,14 @@ private:
     void ReplayCmdRestoreComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCommentString(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserClipPlanes(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSetClipRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdXdmaWaitFlipPending(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyImageToPackedPixelImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
     void ReplayCmdSetHiSCompareState0(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetHiSCompareState1(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+#endif
+    void ReplayCmdUpdateHiSPretests(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdFlglSync(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdFlglEnable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdFlglDisable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

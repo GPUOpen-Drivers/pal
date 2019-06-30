@@ -52,6 +52,8 @@ namespace DevDriver
             void*                       pUserdata;
         };
 
+        enum class SessionState;
+
         class DriverControlServer : public BaseProtocolServer
         {
         public:
@@ -60,26 +62,31 @@ namespace DevDriver
 
             void Finalize() override;
 
-            void StartDeviceInit();
-
+            // Session handling functions
             bool AcceptSession(const SharedPointer<ISession>& pSession) override;
             void SessionEstablished(const SharedPointer<ISession>& pSession) override;
             void UpdateSession(const SharedPointer<ISession>& pSession) override;
             void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override;
 
-            void WaitForDriverResume();
-
-            bool IsDriverInitialized() const;
-            void FinishDriverInitialization();
-
-            DriverStatus QueryDriverStatus();
-
+            // Driver state functions
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
+            // These functions just pass through to the new renamed variants to preserve backward compatibility
+            void WaitForDriverResume()        { DriverTick(); }
+            void StartDeviceInit()            { StartEarlyDeviceInit(); }
+            void FinishDriverInitialization() { FinishDeviceInit(); }
+#endif
+            void StartEarlyDeviceInit();
+            void StartLateDeviceInit();
+            void FinishDeviceInit();
             void PauseDriver();
             void ResumeDriver();
+            void DriverTick();
 
+            // Other public functions
+            bool IsDriverInitialized() const;
+            DriverStatus QueryDriverStatus();
             void SetNumGpus(uint32 numGpus);
             void SetDeviceClockCallback(const DeviceClockCallbackInfo& deviceClockCallbackInfo);
-
             uint32 GetNumGpus();
             DeviceClockMode GetDeviceClockMode(uint32 gpuIndex);
 
@@ -87,7 +94,28 @@ namespace DevDriver
             void LockData();
             void UnlockData();
 
-            void HandleDriverHalt(uint64 timeoutInMs);
+            // Private driver state functions
+            void AdvanceDriverInitState();
+            void WaitForResume();
+            bool DiscoverHaltRequests();
+            void HandleDriverHalt();
+            bool IsHalted() const
+            {
+                return ((m_driverStatus == DriverStatus::HaltedOnPlatformInit) ||
+                        (m_driverStatus == DriverStatus::HaltedOnDeviceInit)   ||
+                        (m_driverStatus == DriverStatus::HaltedPostDeviceInit));
+            }
+
+            // Protocol message handlers
+            SessionState HandlePauseDriverRequest(SizedPayloadContainer& container);
+            SessionState HandleResumeDriverRequest(SizedPayloadContainer& container);
+            SessionState HandleQueryDeviceClockModeRequest(SizedPayloadContainer& container);
+            SessionState HandleSetDeviceClockModeRequest(SizedPayloadContainer& container);
+            SessionState HandleQueryDeviceClockRequest(SizedPayloadContainer& container);
+            SessionState HandleQueryMaxDeviceClockRequest(SizedPayloadContainer& container);
+            SessionState HandleQueryNumGpusRequest(SizedPayloadContainer& container);
+            SessionState HandleQueryDriverStatusRequest(SizedPayloadContainer& container, const Version sessionVersion);
+            SessionState HandleStepDriverRequest(SizedPayloadContainer& container);
 
             Platform::Mutex m_mutex;
             DriverStatus m_driverStatus;

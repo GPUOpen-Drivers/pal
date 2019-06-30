@@ -173,6 +173,10 @@ CmdAllocator::CmdAllocator(
         if (i == CommandDataAlloc)
         {
             m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.flags.udmaBuffer = 1;
+            // Command chunks are never written from the gpu, except for the busy tracker fence.
+            // We can set read-only if the busy-tracker is disabled or forced read-only (moves the tracker to a RW page)
+            m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.flags.gpuReadOnly =
+                m_pDevice->Settings().cmdStreamReadOnly;
         }
         else if ((i == EmbeddedDataAlloc) || (i == GpuScratchMemAlloc))
         {

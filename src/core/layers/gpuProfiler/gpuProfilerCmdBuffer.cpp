@@ -31,8 +31,8 @@
 #include "palAutoBuffer.h"
 #include "palGpaSession.h"
 
-// These includes are required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a
-// copy of the data in it for the tokenization.
+// This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
+// data in it for the tokenization.
 
 using namespace Util;
 
@@ -3085,6 +3085,7 @@ void CmdBuffer::ReplayCmdEndWhile(
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &m_loopLogItem);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
 // =====================================================================================================================
 void CmdBuffer::CmdSetHiSCompareState0(
     CompareFunc compFunc,
@@ -3138,6 +3139,34 @@ void CmdBuffer::ReplayCmdSetHiSCompareState1(
     const bool        enable    = ReadTokenVal<bool>();
 
     pTgtCmdBuffer->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
+}
+#endif
+
+// =====================================================================================================================
+void CmdBuffer::CmdUpdateHiSPretests(
+    const IImage*      pImage,
+    const HiSPretests& pretests,
+    uint32             firstMip,
+    uint32             numMips)
+{
+    InsertToken(CmdBufCallId::CmdUpdateHiSPretests);
+    InsertToken(pImage);
+    InsertToken(pretests);
+    InsertToken(firstMip);
+    InsertToken(numMips);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdUpdateHiSPretests(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const IImage*     pImage   = ReadTokenVal<IImage*>();
+    const HiSPretests pretests = ReadTokenVal<HiSPretests>();
+    uint32            firstMip = ReadTokenVal<uint32>();
+    uint32            numMips  = ReadTokenVal<uint32>();
+
+    pTgtCmdBuffer->CmdUpdateHiSPretests(pImage, pretests, firstMip, numMips);
 }
 
 // =====================================================================================================================
@@ -3382,6 +3411,29 @@ void CmdBuffer::ReplayCmdSetUserClipPlanes(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetClipRects(
+    uint16      clipRule,
+    uint32      rectCount,
+    const Rect* pRectList)
+{
+    InsertToken(CmdBufCallId::CmdSetClipRects);
+    InsertToken(clipRule);
+    InsertTokenArray(pRectList, rectCount);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetClipRects(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const Rect* pRectList = nullptr;
+    auto        clipRule  = ReadTokenVal<uint16>();
+    auto        rectCount = ReadTokenArray(&pRectList);
+
+    pTgtCmdBuffer->CmdSetClipRects(clipRule, rectCount, pRectList);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdStartGpuProfilerLogging()
 {
     InsertToken(CmdBufCallId::CmdStartGpuProfilerLogging);
@@ -3549,8 +3601,12 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdStartGpuProfilerLogging,
         &CmdBuffer::ReplayCmdStopGpuProfilerLogging,
         &CmdBuffer::ReplayCmdSetViewInstanceMask,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
         &CmdBuffer::ReplayCmdSetHiSCompareState0,
         &CmdBuffer::ReplayCmdSetHiSCompareState1,
+#endif
+        &CmdBuffer::ReplayCmdUpdateHiSPretests,
+        &CmdBuffer::ReplayCmdSetClipRects,
     };
 
     static_assert(ArrayLen(ReplayFuncTbl) == static_cast<size_t>(CmdBufCallId::Count),

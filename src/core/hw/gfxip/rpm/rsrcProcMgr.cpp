@@ -457,7 +457,10 @@ void RsrcProcMgr::CopyColorImageGraphics(
     uint32                 flags
     ) const
 {
-    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     // Get some useful information about the image.
     const auto& dstSubResInfo = dstImage.SubresourceInfo(dstImage.GetBaseSubResource());
@@ -512,6 +515,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -713,7 +717,10 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     uint32                 flags
     ) const
 {
-    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     const auto& device        = *m_pDevice->Parent();
     const auto& texOptLevel   = device.TexOptLevel();
@@ -763,6 +770,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -1713,6 +1721,15 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
         SwizzledFormat    viewFormat = image.SubresourceInfo(copyRegion.imageSubres)->format;
         const ImageTiling srcTiling  = (isImageDst) ? ImageTiling::Linear : imgCreateInfo.tiling;
 
+        // Our copy shaders and hardware treat sRGB and UNORM nearly identically, the only difference being that the
+        // hardware modifies sRGB data when reading it and can't write it, which will make it hard to do a raw copy.
+        // We can avoid that problem by simply forcing sRGB to UNORM.
+        if (Formats::IsSrgb(viewFormat.format))
+        {
+            viewFormat.format = Formats::ConvertToUnorm(viewFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(viewFormat.format) == false);
+        }
+
         if (image.GetGfxImage()->IsFormatReplaceable(copyRegion.imageSubres, imageLayout, isImageDst) ||
             (m_pDevice->Parent()->SupportsMemoryViewRead(viewFormat.format, srcTiling) == false))
         {
@@ -1729,15 +1746,13 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
                 copyRegion.imageOffset.x     *= texelScale;
                 copyRegion.imageExtent.width *= texelScale;
             }
-        }
-
-        // Our copy shaders and hardware treat sRGB and UNORM nearly identically, the only difference being that the
-        // hardware modifies sRGB data when reading it and can't write it, which will make it hard to do a raw copy.
-        // We can avoid that problem by simply forcing sRGB to UNORM.
-        if (Formats::IsSrgb(viewFormat.format))
-        {
-            viewFormat.format = Formats::ConvertToUnorm(viewFormat.format);
-            PAL_ASSERT(Formats::IsUndefined(viewFormat.format) == false);
+            // If the format is not supported by the buffer SRD (checked with SupportsMemoryViewRead() above)
+            // and the compression state check above (i.e., IsFormatReplaceable()) returns false, the
+            // format is still replaced but a corruption may occur. The corruption can occur if the format
+            // replacement results in a change in the color channel width and the resource is compressed.
+            // Cover this with an assert for now.
+            PAL_ASSERT(image.GetGfxImage()->IsFormatReplaceable(copyRegion.imageSubres, imageLayout, isImageDst)
+                       == true);
         }
 
         // Make sure our view format supports reads and writes.
@@ -2026,7 +2041,10 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     ScaledCopyInternalFlags flags
     ) const
 {
-    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     // Get some useful information about the image.
     const auto* pSrcImage                 = static_cast<const Image*>(copyInfo.pSrcImage);
@@ -2088,6 +2106,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     if (copyInfo.flags.srcAlpha)
     {
@@ -2404,7 +2423,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         for (uint32 sliceOffset = 0; sliceOffset < numSlices; ++sliceOffset)
         {
             const Extent3d& srcExtent = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->extentTexels;
-            const float src3dSlice    = (1.f * sliceOffset) / srcExtent.depth;
+            const float src3dSlice    = (1.f * sliceOffset + zOffset) / numSlices;
             const float src2dSlice    = static_cast<const float>(sliceOffset);
             const uint32 srcSlice     = isTex3d
                                         ? reinterpret_cast<const uint32&>(src3dSlice)
@@ -3347,6 +3366,7 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     if ((flag.depth != 0) && (flag.stencil != 0))
@@ -3544,6 +3564,7 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     for (uint32 colorIndex = 0; colorIndex < colorTargetCount; ++colorIndex)
     {
@@ -3853,6 +3874,7 @@ void RsrcProcMgr::SlowClearGraphics(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -3930,7 +3952,10 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
     ColorTargetViewCreateInfo* pColorViewInfo,
     BindTargetParams*          pBindTargetsInfo) const
 {
-    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     const auto& createInfo = dstImage.GetImageCreateInfo();
     const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
@@ -4814,7 +4839,10 @@ void RsrcProcMgr::ResolveImageGraphics(
     const ImageResolveRegion* pRegions
     ) const
 {
-    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     const auto& device        = *m_pDevice->Parent();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
@@ -4865,6 +4893,7 @@ void RsrcProcMgr::ResolveImageGraphics(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
@@ -5211,27 +5240,23 @@ void RsrcProcMgr::ResolveImageCompute(
 
     if (dstImage.GetGfxImage()->HasHtileData())
     {
-        bool performedHiZExpand = false;
+        bool performedResummarizeHtileCompute = false;
         for (uint32 i = 0; i < regionCount; ++i)
         {
-            // Only perform expand htile HiZ range if the destination aspect is depth.
-            if (pRegions[i].dstAspect == ImageAspect::Depth)
-            {
-                const ImageResolveRegion& curRegion = pRegions[i];
-                SubresRange subresRange = {};
-                subresRange.startSubres.aspect = curRegion.dstAspect;
-                subresRange.startSubres.mipLevel = curRegion.dstMipLevel;
-                subresRange.startSubres.arraySlice = curRegion.dstSlice;
-                subresRange.numMips = 1;
-                subresRange.numSlices = curRegion.numSlices;
-                HwlExpandHtileHiZRange(pCmdBuffer, *dstImage.GetGfxImage(), subresRange);
+            const ImageResolveRegion& curRegion = pRegions[i];
+            SubresRange subresRange = {};
+            subresRange.startSubres.aspect = curRegion.dstAspect;
+            subresRange.startSubres.mipLevel = curRegion.dstMipLevel;
+            subresRange.startSubres.arraySlice = curRegion.dstSlice;
+            subresRange.numMips = 1;
+            subresRange.numSlices = curRegion.numSlices;
+            HwlResummarizeHtileCompute(pCmdBuffer, *dstImage.GetGfxImage(), subresRange);
 
-                performedHiZExpand = true;
-            }
+            performedResummarizeHtileCompute = true;
         }
 
-        // Add the barrier if a HiZ expand was performed.
-        if (performedHiZExpand)
+        // Add the barrier if a ResummarizeHtileCompute was performed.
+        if (performedResummarizeHtileCompute)
         {
             // There is a potential problem here because the htile is shared between
             // the depth and stencil aspects, but the APIs manage the state of those
@@ -5492,7 +5517,10 @@ void RsrcProcMgr::ExpandDepthStencil(
     ) const
 {
     PAL_ASSERT(image.IsDepthStencil());
-    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
     const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
@@ -5566,6 +5594,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
@@ -5650,7 +5679,10 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     ) const
 {
     PAL_ASSERT(image.IsDepthStencil());
-    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
     const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
@@ -5722,6 +5754,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
@@ -5809,7 +5842,10 @@ void RsrcProcMgr::GenericColorBlit(
     ) const
 {
     PAL_ASSERT(dstImage.IsRenderTarget());
-    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     const auto& imageCreateInfo = dstImage.GetImageCreateInfo();
     const bool  is3dImage       = (imageCreateInfo.imageType == ImageType::Tex3d);
@@ -5901,6 +5937,7 @@ void RsrcProcMgr::GenericColorBlit(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
@@ -6030,7 +6067,10 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     const ImageResolveRegion* pRegions
     ) const
 {
-    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
@@ -6089,6 +6129,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     const GraphicsPipeline* pPipelinePrevious      = nullptr;
     const GraphicsPipeline* pPipelineByImageFormat =
@@ -6233,7 +6274,9 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
 {
     PAL_ASSERT(srcImage.IsDepthStencil() && dstImage.IsDepthStencil());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
-    PAL_ASSERT(pCmdBuffer->IsNested() == false); ///< Don't expect GFX Blts on Nested.
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
@@ -6291,6 +6334,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     // Each region needs to be resolved individually.
     for (uint32 idx = 0; idx < regionCount; ++idx)

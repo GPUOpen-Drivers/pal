@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -343,7 +343,7 @@ constexpr MergedFormatPropertiesTable Gfx9MergedFormatPropertiesTable =
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X32Y32_Float
         { IrXsIfmmTrTw,                   None                           }, // ChNumFormat::X32Y32Z32_Uint
         { IrXsIfmmTrTw,                   None                           }, // ChNumFormat::X32Y32Z32_Sint
-        { IrXsIflIfmmTrTw,                None                           }, // ChNumFormat::X32Y32Z32_Float
+        { IrXsIfmmTrTw,                   None                           }, // ChNumFormat::X32Y32Z32_Float
         { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X32Y32Z32W32_Uint
         { IrXsIwXdIfmmTrTwCX,             IrXsIwXdIfmmTrTwCMX            }, // ChNumFormat::X32Y32Z32W32_Sint
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X32Y32Z32W32_Float

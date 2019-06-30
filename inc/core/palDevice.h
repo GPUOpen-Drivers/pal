@@ -529,6 +529,19 @@ struct PalPublicSettings
     ///  pagefaulting. Used to workaround incorrect app behavior.
     bool zeroUnboundDescDebugSrd;
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 514
+    /// Prevents PAL from uploading any of its internal and client pipelines to the local invisible heap. Default is set
+    /// to false.
+    /// Note: Currently pipeline residency can be controlled by three interfaces:
+    /// 1. Platform create info flag disableInternalResidencyOpts disables all (internal and external) pipelines from
+    ///    being uploaded to local invisible memory. This is the highest level setting. Other settings are ignored.
+    /// 2. The setting below which is used to disable pipeline uploads on a per-device basis.
+    /// 3. Per-pipeline setting : pipeline create info field overrideGpuHeap and the enumeration preferredHeapType
+    ///    allows client to choose destination heap on a per-pipeline basis. This is the lowest level setting. If any
+    ///    of the above mentioned flags are set then a heap preferrence of type local invisible memory is considered
+    ///    invalid and we fall back to local visible heap.
+    bool disablePipelineUploadToLocalInvis;
+#endif
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.

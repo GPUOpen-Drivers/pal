@@ -66,9 +66,9 @@ struct HdrMetadataInfoFrame
     uint16 chromaticityWhitePointY;
 
     uint16 maxLuminance;
-    uint16 maxFramAverageLightLevel;
     uint16 minLuminance;
     uint16 maxContentLightLevel;
+    uint16 maxFrameAverageLightLevel;
 };
 
 struct HdrOutputMetadata

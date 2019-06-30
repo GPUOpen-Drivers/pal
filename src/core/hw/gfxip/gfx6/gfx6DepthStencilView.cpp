@@ -487,10 +487,26 @@ uint32* DepthStencilView::WriteCommands(
     }
 
     const size_t spaceNeeded = ((depthState == DepthStencilCompressed) || (stencilState == DepthStencilCompressed))
-        ? m_pm4Cmds.spaceNeeded : m_pm4Cmds.spaceNeededDecompressed;
+                                ? m_pm4Cmds.spaceNeeded : m_pm4Cmds.spaceNeededDecompressed;
 
     PAL_ASSERT(pCmdStream != nullptr);
-    return pCmdStream->WritePm4Image(spaceNeeded, pPm4Commands, pCmdSpace);
+    pCmdSpace = pCmdStream->WritePm4Image(spaceNeeded, pPm4Commands, pCmdSpace);
+
+    // During the client is binding depth stencil target, we load the pretests meta data, which we expect is
+    // initialized by ClearHiSPretestsMetaData and later set by CmdUpdateHiSPretests, into a paired of DB
+    // context registers which are used to store the HiStencil pretests.
+    if (m_pImage->HasHiSPretestsMetaData())
+    {
+        const gpusize metaDataVirtAddr = m_pImage->HiSPretestsMetaDataAddr(MipLevel());
+        PAL_ASSERT((metaDataVirtAddr & 0x3) == 0);
+
+        constexpr uint32 StartRegAddrHiS = mmDB_SRESULTS_COMPARE_STATE0;
+        constexpr uint32 RegCountHiS     = (mmDB_SRESULTS_COMPARE_STATE1 - mmDB_SRESULTS_COMPARE_STATE0 + 1);
+
+        pCmdSpace = pCmdStream->WriteLoadSeqContextRegs(StartRegAddrHiS, RegCountHiS, metaDataVirtAddr, pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

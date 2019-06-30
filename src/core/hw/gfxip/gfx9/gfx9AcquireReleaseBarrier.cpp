@@ -424,8 +424,8 @@ void Device::AcqRelDepthStencilTransition(
     {
         const auto& gfx9Image = static_cast<const Image&>(*image.GetGfxImage());
 
-        // CS blit to open-up the HiZ range.
-        RsrcProcMgr().HwlExpandHtileHiZRange(pCmdBuf, gfx9Image, imgBarrier.subresRange);
+        // CS blit to resummarize Htile.
+        RsrcProcMgr().HwlResummarizeHtileCompute(pCmdBuf, gfx9Image, imgBarrier.subresRange);
     }
     else
     {

@@ -263,7 +263,6 @@ void SettingsLoader::ValidateSettings(
         {
             pPalSettings->dccBitsPerPixelThreshold = 0;
         }
-
     }
 
     m_state = SettingsLoaderState::Final;

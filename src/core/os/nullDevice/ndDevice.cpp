@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "core/hw/amdgpu_asic.h"
 #include "core/os/nullDevice/ndDevice.h"
 #include "core/os/nullDevice/ndFence.h"
 #include "core/os/nullDevice/ndGpuMemory.h"
@@ -36,7 +37,6 @@
 #endif
 
 #include <limits.h>
-#include "core/hw/amdgpu_asic.h"
 
 using namespace Util;
 

@@ -59,5 +59,71 @@ Result CmdBuffer::Begin(
     return m_pNextLayer->Begin(NextCmdBufferBuildInfo(info));
 }
 
+// =====================================================================================================================
+void CmdBuffer::CmdColorSpaceConversionCopy(
+    const IImage&                     srcImage,
+    ImageLayout                       srcImageLayout,
+    const IImage&                     dstImage,
+    ImageLayout                       dstImageLayout,
+    uint32                            regionCount,
+    const ColorSpaceConversionRegion* pRegions,
+    TexFilter                         filter,
+    const ColorSpaceConversionTable&  cscTable)
+{
+    const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
+
+    // Draw the debug overlay before color conversion.
+    if (settings.debugOverlayConfig.useDebugOverlayOnColorSpaceConversionCopy == true)
+    {
+        // Only an image supports visual confirm.
+        if (Device::DetermineDbgOverlaySupport(m_queueType))
+        {
+            // Issue a barrier to ensure the text written via CS is complete and flushed out of L2.
+            BarrierInfo barrier = {};
+            barrier.waitPoint = HwPipePreCs;
+
+            const HwPipePoint postCs = HwPipePostCs;
+            barrier.pipePointWaitCount = 1;
+            barrier.pPipePoints = &postCs;
+
+            BarrierTransition transition = {};
+            transition.srcCacheMask = CoherShader;
+            transition.dstCacheMask = CoherShader;
+
+            barrier.transitionCount = 1;
+            barrier.pTransitions = &transition;
+
+            m_device.GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(srcImage),
+                this,
+                ExpectedPresentMode::Unknown);
+
+            barrier.reason = Developer::BarrierReasonDebugOverlayText;
+
+            CmdBarrier(barrier);
+        }
+
+        auto*const pFpsMgr = static_cast<Platform*>(m_device.GetPlatform())->GetFpsMgr();
+
+        pFpsMgr->IncrementFrameCount();
+
+        // Call UpdateFps and UpdateBenchmark now instead of at presentation time.
+        pFpsMgr->UpdateFps();
+        pFpsMgr->UpdateGpuFps();
+        pFpsMgr->UpdateBenchmark();
+
+        Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
+        pPlatform->ResetGpuWork();
+    }
+
+    m_pNextLayer->CmdColorSpaceConversionCopy(*NextImage(&srcImage),
+        srcImageLayout,
+        *NextImage(&dstImage),
+        dstImageLayout,
+        regionCount,
+        pRegions,
+        filter,
+        cscTable);
+}
+
 } // DbgOverlay
 } // Pal

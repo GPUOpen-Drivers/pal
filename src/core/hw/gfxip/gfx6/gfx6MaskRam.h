@@ -44,6 +44,13 @@ struct Gfx6FastDepthClearMetaData
     regDB_DEPTH_CLEAR    dbDepthClear;      // Depth clear value
 };
 
+// Represents an "image" of the HiSPretests metadata used by Depth/Stencil Images.
+struct Gfx6HiSPretestsMetaData
+{
+    regDB_SRESULTS_COMPARE_STATE0 dbSResultCompare0;
+    regDB_SRESULTS_COMPARE_STATE1 dbSResultCompare1;
+};
+
 // Contains the Mask RAM information for a single mipmap level of an Image.
 struct MaskRamInfo
 {
@@ -123,6 +130,7 @@ public:
         uint32*            pHtileMask) const;
 
     void ComputeResummarizeData(
+        uint32             aspectMask,
         uint32*            pHtileValue,
         uint32*            pHtileMask) const;
 

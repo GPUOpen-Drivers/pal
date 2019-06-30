@@ -61,12 +61,10 @@
 #include <sys/utsname.h>
 
 using namespace Util;
+using namespace Pal::AddrMgr1;
 
 namespace Pal
 {
-
-using namespace AddrMgr1;
-
 namespace Amdgpu
 {
 
@@ -292,6 +290,10 @@ static Result OpenAndInitializeDrmDevice(
                                              pCpVersion) != 0)
         {
             result = Result::ErrorInitializationFailed;
+        }
+        else
+        {
+            procs.pfnDrmSetClientCap(primaryFd, DRM_CLIENT_CAP_ATOMIC, 1);
         }
     }
 
@@ -1162,8 +1164,9 @@ Result Device::InitMemQueueInfo()
     m_memoryProperties.spaceMappedPerPde = (256ull * 1024ull * 1024ull);
     m_memoryProperties.numPtbsPerGroup   = 1;
 
-    uint64_t startVa = 0;
-    uint64_t endVa = 0;
+    uint64 startVa = 0;
+    uint64 endVa   = 0;
+
     if (m_drmProcs.pfnAmdgpuQueryPrivateApertureisValid() &&
        (m_drmProcs.pfnAmdgpuQueryPrivateAperture(m_hDevice, &startVa, &endVa) == 0))
     {
@@ -2604,7 +2607,7 @@ Result Device::WaitForSemaphores(
 // =====================================================================================================================
 // Call amdgpu to wait for multiple fences (fence based on Sync Object)
 Result Device::WaitForSyncobjFences(
-    uint32_t*            pFences,
+    uint32*              pFences,
     uint32               fenceCount,
     uint64               timeout,
     uint32               flags,
@@ -2630,8 +2633,8 @@ Result Device::WaitForSyncobjFences(
 // =====================================================================================================================
 // Call amdgpu to reset syncobj fences
 Result Device::ResetSyncObject(
-    const uint32_t*      pFences,
-    uint32_t             fenceCount
+    const uint32* pFences,
+    uint32        fenceCount
     ) const
 {
     Result result = Result::Success;
@@ -3231,7 +3234,7 @@ void Device::CheckSyncObjectSupportStatus()
 {
     Result status = Result::Success;
     bool isDrmCapWithSyncobj = false;
-    uint64_t supported = 0;
+    uint64 supported = 0;
     Platform* pLnxPlatform = static_cast<Platform*>(m_pPlatform);
 
     m_syncobjSupportState.flags = 0;
@@ -3289,11 +3292,15 @@ void Device::CheckSyncObjectSupportStatus()
         }
         if (IsDrmVersionOrGreater(3,32))
         {
-            uint64_t cap = 0;
+            uint64 cap = 0;
 
             if (m_drmProcs.pfnDrmGetCap(m_fileDescriptor, DRM_CAP_SYNCOBJ_TIMELINE, &cap) == 0)
             {
-                m_syncobjSupportState.timelineSemaphore = (cap == 1);
+                m_syncobjSupportState.timelineSemaphore = ((cap == 1)       &&
+                    m_drmProcs.pfnAmdgpuCsSyncobjTransferisValid()          &&
+                    m_drmProcs.pfnAmdgpuCsSyncobjQueryisValid()             &&
+                    m_drmProcs.pfnAmdgpuCsSyncobjTimelineWaitisValid()      &&
+                    m_drmProcs.pfnAmdgpuCsSyncobjTimelineSignalisValid());
             }
         }
     }
@@ -4714,11 +4721,18 @@ Result Device::CreateGpuMemoryFromExternalShare(
     // Require that create info is provided because we'll need it either way unlike the interface where it is optional.
     PAL_ASSERT(pCreateInfo != nullptr);
 
-    PAL_ASSERT(m_memoryProperties.realMemAllocGranularity == 4096);
+    PAL_ASSERT((sharedInfo.info.phys_alignment % 4096) == 0);
+    PAL_ASSERT((sharedInfo.info.alloc_size     % 4096) == 0);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
+    pCreateInfo->alignment = static_cast<gpusize>(sharedInfo.info.phys_alignment);
+    pCreateInfo->size      = sharedInfo.info.alloc_size;
+#else
     pCreateInfo->alignment = Max(static_cast<gpusize>(sharedInfo.info.phys_alignment),
                                  m_memoryProperties.realMemAllocGranularity);
     pCreateInfo->size      = Pow2Align(sharedInfo.info.alloc_size, pCreateInfo->alignment);
+#endif
+
     pCreateInfo->vaRange   = VaRange::Default;
     pCreateInfo->priority  = GpuMemPriority::High;
 
@@ -5198,9 +5212,33 @@ static PAL_INLINE Result GetHdrStaticMetadataFromCea(
                             pHdrMetaData->metadata.metadataType = HDMI_STATIC_METADATA_TYPE1;
                         }
 
-                        pHdrMetaData->metadata.maxLuminance             = (length >= 4) ? pCeaData[i + 4] : 0;
-                        pHdrMetaData->metadata.maxFramAverageLightLevel = (length >= 5) ? pCeaData[i + 5] : 0;
-                        pHdrMetaData->metadata.minLuminance             = (length >= 6) ? pCeaData[i + 6] : 0;
+                        uint8 codeValue = (length >= 4) ? pCeaData[i + 4] : 0;
+
+                        if (codeValue > 0)
+                        {
+                            pHdrMetaData->metadata.maxLuminance = 50 * pow(2, codeValue/32.0);
+                        }
+                        else
+                        {
+                            // When there is no desired max luminance in EDID, set maxLuminance 0 to indicate
+                            // max luminance is unknown.
+                            pHdrMetaData->metadata.maxLuminance = 0;
+                        }
+
+                        codeValue = (length >= 5) ? pCeaData[i + 5] : 0;
+
+                        if (codeValue > 0)
+                        {
+                            pHdrMetaData->metadata.maxFrameAverageLightLevel = 50 * pow(2, codeValue/32.0);
+                        }
+                        else
+                        {
+                            pHdrMetaData->metadata.maxFrameAverageLightLevel = 0;
+                        }
+
+                        codeValue                           = (length >= 6) ? pCeaData[i + 6] : 0;
+                        pHdrMetaData->metadata.minLuminance = pHdrMetaData->metadata.maxLuminance *
+                                                              (pow(codeValue/255.0, 2) / 100) * 10000;
 
                         foundMetadata = true;
 
@@ -5329,7 +5367,7 @@ Result Device::SetHdrMetaData(
         result = Result::ErrorOutOfMemory;
     }
 
-    for (uint32 i = 0; (result == Result::Success) && (i < pProps->count_props); i++)
+    for (uint32 i = 0; (result == Result::Success) && (i < pProps->count_props) && (!maxBpcSet || !metaDataSet); i++)
     {
         uint32             propId    = pProps->props[i];
         uint64             propValue = pProps->prop_values[i];
@@ -5343,20 +5381,16 @@ Result Device::SetHdrMetaData(
 
         if (strcmp(pProp->name, "max bpc") == 0)
         {
-            result = CheckResult(m_drmProcs.pfnDrmModeAtomicAddProperty(pAtomicRequest,
-                                                                        connectorId,
-                                                                        propId,
-                                                                        10),
-                                 Result::ErrorInvalidValue);
+            result = (m_drmProcs.pfnDrmModeAtomicAddProperty(pAtomicRequest, connectorId, propId, 10) < 0) ?
+                        Result::ErrorInvalidValue : Result::Success;
+
             maxBpcSet = true;
         }
         else if (strcmp(pProp->name, "HDR_OUTPUT_METADATA") == 0)
         {
-            result = CheckResult(m_drmProcs.pfnDrmModeAtomicAddProperty(pAtomicRequest,
-                                                                        connectorId,
-                                                                        propId,
-                                                                        blobId),
-                                 Result::ErrorInvalidValue);
+            result = (m_drmProcs.pfnDrmModeAtomicAddProperty(pAtomicRequest, connectorId, propId, blobId) < 0) ?
+                         Result::ErrorInvalidValue : Result::Success;;
+
             metaDataSet = true;
         }
 
@@ -5367,7 +5401,7 @@ Result Device::SetHdrMetaData(
     {
         result = CheckResult(m_drmProcs.pfnDrmModeAtomicCommit(m_primaryFileDescriptor,
                                                                pAtomicRequest,
-                                                               0,
+                                                               DRM_MODE_ATOMIC_ALLOW_MODESET,
                                                                nullptr),
                              Result::ErrorInvalidValue);
     }
@@ -5376,7 +5410,15 @@ Result Device::SetHdrMetaData(
         result = Result::ErrorUnavailable;
     }
 
-    m_drmProcs.pfnDrmModeAtomicFree(pAtomicRequest);
+    if (blobId > 0)
+    {
+        m_drmProcs.pfnDrmModeDestroyPropertyBlob(m_primaryFileDescriptor, blobId);
+    }
+
+    if (pAtomicRequest != nullptr)
+    {
+        m_drmProcs.pfnDrmModeAtomicFree(pAtomicRequest);
+    }
 
     return result;
 }

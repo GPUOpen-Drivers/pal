@@ -48,6 +48,8 @@ GfxImage::GfxImage(
     m_pImageInfo(pImageInfo),
     m_fastClearMetaDataOffset(0),
     m_fastClearMetaDataSizePerMip(0),
+    m_hiSPretestsMetaDataOffset(0),
+    m_hiSPretestsMetaDataSizePerMip(0),
     m_hasSeenNonTcCompatClearColor(false),
     m_pNumSkippedFceCounter(nullptr)
 {
@@ -148,6 +150,61 @@ void GfxImage::InitFastClearMetaData(
 
     // Update the layout information against the fast-clear metadata.
     UpdateMetaDataHeaderLayout(pGpuMemLayout, m_fastClearMetaDataOffset, Alignment);
+}
+
+// =====================================================================================================================
+// Returns the GPU virtual address of the HiSPretests metadata for the specified mip level.
+gpusize GfxImage::HiSPretestsMetaDataAddr(
+    uint32 mipLevel
+    ) const
+{
+    PAL_ASSERT(HasHiSPretestsMetaData());
+
+    return Parent()->GetBoundGpuMemory().GpuVirtAddr() +
+           m_hiSPretestsMetaDataOffset +
+           (m_hiSPretestsMetaDataSizePerMip * mipLevel);
+}
+
+// =====================================================================================================================
+// Returns the offset relative to the bound GPU memory of the HiSPretests metadata for the specified mip level.
+gpusize GfxImage::HiSPretestsMetaDataOffset(
+    uint32 mipLevel
+    ) const
+{
+    PAL_ASSERT(HasHiSPretestsMetaData());
+
+    return Parent()->GetBoundGpuMemory().Offset() +
+           m_hiSPretestsMetaDataOffset +
+           (m_hiSPretestsMetaDataSizePerMip * mipLevel);
+}
+
+// =====================================================================================================================
+// Returns the GPU memory size of the HiSPretests metadata for the specified num mips.
+gpusize GfxImage::HiSPretestsMetaDataSize(
+    uint32 numMips
+    ) const
+{
+    PAL_ASSERT(HasHiSPretestsMetaData());
+
+    return (m_hiSPretestsMetaDataSizePerMip * numMips);
+}
+
+// =====================================================================================================================
+// Initializes the size and GPU offset for this Image's HiSPretests metadata.
+void GfxImage::InitHiSPretestsMetaData(
+    ImageMemoryLayout* pGpuMemLayout,
+    gpusize*           pGpuMemSize,
+    size_t             sizePerMipLevel,
+    gpusize            alignment)
+{
+    m_hiSPretestsMetaDataOffset     = Pow2Align(*pGpuMemSize, alignment);
+    m_hiSPretestsMetaDataSizePerMip = sizePerMipLevel;
+
+    *pGpuMemSize = (m_hiSPretestsMetaDataOffset +
+                   (m_hiSPretestsMetaDataSizePerMip * m_createInfo.mipLevels));
+
+    // Update the layout information against the HiStencil metadata.
+    UpdateMetaDataHeaderLayout(pGpuMemLayout, m_hiSPretestsMetaDataOffset, alignment);
 }
 
 // =====================================================================================================================

@@ -48254,6 +48254,27 @@ union VGT_DRAW_INIT_FIFO_DEPTH {
     float        f32All;
 };
 
+union VGT_DRAW_PAYLOAD_CNTL {
+    struct {
+        unsigned int                                                              :  1;
+        unsigned int EN_REG_RT_INDEX                                              :  1;
+        unsigned int                                                              : 30;
+    } bits, bitfields;
+    struct {
+        unsigned int                                                              :  1;
+        unsigned int                                                              : 31;
+    } most;
+    struct {
+        unsigned int                                                              :  2;
+        unsigned int                                                              :  2;
+        unsigned int                                                              : 28;
+    } gfx09;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union VGT_ENHANCE {
     struct {
         unsigned int MISC                                                         : 32;
@@ -48728,6 +48749,17 @@ union VGT_IMMED_DATA {
     struct {
         unsigned int DATA                                                         : 32;
     } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union VGT_INDEX_PAYLOAD_CNTL {
+    struct {
+        unsigned int COMPOUND_INDEX_EN                                            :  1;
+        unsigned int                                                              : 31;
+    } most;
 
     unsigned int u32All;
     signed int   i32All;

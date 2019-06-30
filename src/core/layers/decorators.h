@@ -1965,6 +1965,12 @@ public:
         const UserClipPlane* pPlanes) override
         { m_pNextLayer->CmdSetUserClipPlanes(firstPlane, planeCount, pPlanes); }
 
+    virtual void CmdSetClipRects(
+        uint16      clipRule,
+        uint32      rectCount,
+        const Rect* pRectList) override
+        { m_pNextLayer->CmdSetClipRects(clipRule, rectCount, pRectList); }
+
     virtual void CmdFlglSync() override
         { m_pNextLayer->CmdFlglSync(); }
 
@@ -1986,6 +1992,7 @@ public:
     virtual void CmdSetViewInstanceMask(uint32 mask) override
         { m_pNextLayer->CmdSetViewInstanceMask(mask); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
     virtual void CmdSetHiSCompareState0(
         CompareFunc compFunc,
         uint32      compMask,
@@ -2002,6 +2009,16 @@ public:
         bool        enable) override
     {
         m_pNextLayer->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
+    }
+#endif
+
+    virtual void CmdUpdateHiSPretests(
+        const IImage*      pImage,
+        const HiSPretests& pretests,
+        uint32             firstMip,
+        uint32             numMips) override
+    {
+        m_pNextLayer->CmdUpdateHiSPretests(NextImage(pImage), pretests, firstMip, numMips);
     }
 
     // Part of the IDestroyable public interface.

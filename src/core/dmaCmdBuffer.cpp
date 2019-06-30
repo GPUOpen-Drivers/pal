@@ -225,6 +225,63 @@ Result DmaCmdBuffer::Reset(
 }
 
 // =====================================================================================================================
+// Do any work needed for a single image within a barrier. In practice, this only handles metadata init.
+//
+// Returns true if any work was done.
+bool DmaCmdBuffer::HandleImageTransition(
+    const IImage* pImage,
+    ImageLayout    oldLayout,
+    ImageLayout    newLayout,
+    SubresRange    subresRange)
+{
+    PAL_ASSERT(pImage != nullptr);
+
+    bool didTransition = false;
+
+    // At least one usage must be specified for the old and new layouts.
+    PAL_ASSERT((oldLayout.usages != 0) && (newLayout.usages != 0));
+
+    // With the exception of a transition out of the uninitialized state, at least one queue type must be valid
+    // for every layout.
+
+    PAL_ASSERT(((oldLayout.usages == LayoutUninitializedTarget) ||
+                (oldLayout.engines != 0)) &&
+                (newLayout.engines != 0));
+
+    // DMA supports metadata initialization transitions via GfxImage's InitMetadataFill function.
+    if (TestAnyFlagSet(oldLayout.usages, LayoutUninitializedTarget))
+    {
+        const auto*  pPalImage = static_cast<const Pal::Image*>(pImage);
+
+        // If the image is uninitialized, no other usages should be set.
+        PAL_ASSERT(TestAnyFlagSet(oldLayout.usages, ~LayoutUninitializedTarget) == false);
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+        const auto& engineProps  = m_pDevice->EngineProperties().perEngine[EngineTypeDma];
+        const bool  isWholeImage = pPalImage->IsFullSubResRange(subresRange);
+
+        // DMA must support this barrier transition.
+        PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
+
+        // By default, the entire image must be initialized in one go. Per-subres support can be requested using
+        // an image flag as long as the queue supports it.
+        const auto& createInfo = pImage->GetImageCreateInfo();
+        PAL_ASSERT(isWholeImage || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
+                                    (createInfo.flags.perSubresInit == 1)));
+#endif
+
+        const auto*const pGfxImage = pPalImage->GetGfxImage();
+
+        if (pGfxImage != nullptr)
+        {
+            pGfxImage->InitMetadataFill(this, subresRange);
+            didTransition = true;
+        }
+    }
+    return didTransition;
+}
+
+// =====================================================================================================================
 // Inserts a barrier in the current command stream that can stall GPU execution, flush/invalidate caches, or decompress
 // images before further, dependent work can continue in this command buffer.
 //
@@ -240,7 +297,7 @@ void DmaCmdBuffer::CmdBarrier(
         imageTypeRequiresCopyOverlapHazardSyncs = true;
     }
 
-    bool initRequested = false;
+    bool didTransition = false;
 
     for (uint32 i = 0; i < barrier.transitionCount; i++)
     {
@@ -248,50 +305,13 @@ void DmaCmdBuffer::CmdBarrier(
 
         if (imageInfo.pImage != nullptr)
         {
-            // At least one usage must be specified for the old and new layouts.
-            PAL_ASSERT((imageInfo.oldLayout.usages != 0) && (imageInfo.newLayout.usages != 0));
+            const uint32 imageType = static_cast<uint32>(imageInfo.pImage->GetImageCreateInfo().imageType);
+            imageTypeRequiresCopyOverlapHazardSyncs |= (TestAnyFlagSet(m_copyOverlapHazardSyncs, (1 << imageType)));
 
-            // With the exception of a transition out of the uninitialized state, at least one queue type must be valid
-            // for every layout.
-
-            PAL_ASSERT(((imageInfo.oldLayout.usages == LayoutUninitializedTarget) ||
-                        (imageInfo.oldLayout.engines != 0)) &&
-                        (imageInfo.newLayout.engines != 0));
-
-            const auto& createInfo = imageInfo.pImage->GetImageCreateInfo();
-            imageTypeRequiresCopyOverlapHazardSyncs |= (TestAnyFlagSet(
-                m_copyOverlapHazardSyncs,
-                (1 << static_cast<uint32>(createInfo.imageType))));
-
-            // DMA supports metadata initialization transitions via GfxImage's InitMetadataFill function.
-            if (TestAnyFlagSet(imageInfo.oldLayout.usages, LayoutUninitializedTarget))
-            {
-                const auto*  pImage = static_cast<const Pal::Image*>(imageInfo.pImage);
-
-                // If the image is uninitialized, no other usages should be set.
-                PAL_ASSERT(TestAnyFlagSet(imageInfo.oldLayout.usages, ~LayoutUninitializedTarget) == false);
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-                const auto& engineProps  = m_pDevice->EngineProperties().perEngine[EngineTypeDma];
-                const bool  isWholeImage = pImage->IsFullSubResRange(imageInfo.subresRange);
-
-                // DMA must support this barrier transition.
-                PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
-
-                // By default, the entire image must be initialized in one go. Per-subres support can be requested using
-                // an image flag as long as the queue supports it.
-                PAL_ASSERT(isWholeImage || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
-                                            (createInfo.flags.perSubresInit == 1)));
-#endif
-
-                const auto*const pGfxImage = pImage->GetGfxImage();
-
-                if (pGfxImage != nullptr)
-                {
-                    pGfxImage->InitMetadataFill(this, imageInfo.subresRange);
-                    initRequested = true;
-                }
-            }
+            didTransition |= HandleImageTransition(imageInfo.pImage,
+                                                   imageInfo.oldLayout,
+                                                   imageInfo.newLayout,
+                                                   imageInfo.subresRange);
         }
     }
 
@@ -313,8 +333,101 @@ void DmaCmdBuffer::CmdBarrier(
 
     m_cmdStream.CommitCommands(pCmdSpace);
 
-    // If an initialization BLT occurred, an additional fence command is necessary to synchronize read/write hazards.
-    if (imageTypeRequiresCopyOverlapHazardSyncs && initRequested)
+    // If a BLT occurred, an additional fence command is necessary to synchronize read/write hazards.
+    if (imageTypeRequiresCopyOverlapHazardSyncs && didTransition)
+    {
+        pCmdSpace = m_cmdStream.ReserveCommands();
+        pCmdSpace = WriteNops(pCmdSpace, 1);
+        m_cmdStream.CommitCommands(pCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+// Inserts a barrier in the current command stream that can pipeline a stall in GPU execution, flush/invalidate caches,
+// or decompress images before further, dependent work can continue in this command buffer.
+//
+// There's no real benefit to splitting up barriers on the DMA engine. Ergo, this is a thin wrapper over full barriers.
+void DmaCmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    PAL_NOT_TESTED();
+    CmdReleaseThenAcquire(releaseInfo);
+    if (pGpuEvent != nullptr)
+    {
+        CmdSetEvent(*pGpuEvent, HwPipeBottom);
+    }
+}
+
+// =====================================================================================================================
+// Inserts a barrier in the current command stream that can wait on a pipelined stall, flush/invalidate caches,
+// or decompress images before further, dependent work can continue in this command buffer.
+//
+// There's no real benefit to splitting up barriers on the DMA engine. Ergo, this is a thin wrapper over full barriers.
+void DmaCmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent*const*    ppGpuEvents)
+{
+    PAL_NOT_TESTED();
+    if (gpuEventCount != 0)
+    {
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+        for (uint32 idx = 0; idx < gpuEventCount; idx++)
+        {
+            pCmdSpace = WriteWaitEventSet(static_cast<const GpuEvent&>(*ppGpuEvents[idx]), pCmdSpace);
+        }
+        m_cmdStream.CommitCommands(pCmdSpace);
+    }
+    CmdReleaseThenAcquire(acquireInfo);
+}
+
+// =====================================================================================================================
+// Inserts a barrier in the current command stream that can stall GPU execution, flush/invalidate caches, or decompress
+// images before further, dependent work can continue in this command buffer.
+//
+//
+// Note: the DMA engines execute strictly in order and don't use any caches so most barrier operations are meaningless.
+void DmaCmdBuffer::CmdReleaseThenAcquire(
+    const AcquireReleaseInfo& barrierInfo)
+{
+    bool imageTypeRequiresCopyOverlapHazardSyncs = false;
+    if (m_copyOverlapHazardSyncs == ((1 << static_cast<uint32>(ImageType::Count)) - 1))
+    {
+        imageTypeRequiresCopyOverlapHazardSyncs = true;
+    }
+
+    bool didTransition = false;
+
+    for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+    {
+        const auto& imageInfo = barrierInfo.pImageBarriers[i];
+
+        if (imageInfo.pImage != nullptr)
+        {
+            const uint32 imageType = static_cast<uint32>(imageInfo.pImage->GetImageCreateInfo().imageType);
+            imageTypeRequiresCopyOverlapHazardSyncs |= (TestAnyFlagSet(m_copyOverlapHazardSyncs, (1 << imageType)));
+
+            didTransition |= HandleImageTransition(imageInfo.pImage,
+                                                   imageInfo.oldLayout,
+                                                   imageInfo.newLayout,
+                                                   imageInfo.subresRange);
+        }
+    }
+
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+
+    // For certain versions of SDMA, some copy/write execution happens asynchronously and the driver is responsible
+    // for synchronizing hazards when such copies overlap by inserting a NOP packet, which acts as a fence command.
+    if (imageTypeRequiresCopyOverlapHazardSyncs && (barrierInfo.srcStageMask != 0))
+    {
+        pCmdSpace = WriteNops(pCmdSpace, 1);
+    }
+
+    m_cmdStream.CommitCommands(pCmdSpace);
+
+    // If a BLT occurred, an additional fence command is necessary to synchronize read/write hazards.
+    if (imageTypeRequiresCopyOverlapHazardSyncs && didTransition)
     {
         pCmdSpace = m_cmdStream.ReserveCommands();
         pCmdSpace = WriteNops(pCmdSpace, 1);

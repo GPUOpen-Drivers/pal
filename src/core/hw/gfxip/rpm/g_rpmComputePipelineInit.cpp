@@ -111,14 +111,9 @@ Result CreateRpmComputePipelines(
 
 #if PAL_BUILD_GFX9
     case AsicRevision::Vega10:
+    case AsicRevision::Vega12:
     case AsicRevision::Raven:
         pTable = rpmComputeBinaryTableVega10;
-        break;
-#endif
-
-#if PAL_BUILD_GFX9
-    case AsicRevision::Vega12:
-        pTable = rpmComputeBinaryTableVega12;
         break;
 #endif
 
@@ -374,6 +369,18 @@ Result CreateRpmComputePipelines(
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::HtileCopyAndFixUp, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::HtileSR4xUpdate, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::HtileSRUpdate, pDevice, pTable, pPipelineMem);
     }
 
     if (result == Result::Success)

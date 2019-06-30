@@ -94,6 +94,11 @@ public:
     template <bool pm4OptImmediate>
     uint32* WriteSetSeqContextRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);
     uint32* WriteSetSeqContextRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);
+
+    template <bool pm4OptImmediate>
+    uint32* WriteLoadSeqContextRegs(uint32 startRegAddr, uint32 regCount, gpusize dataVirtAddr, uint32* pCmdSpace);
+    uint32* WriteLoadSeqContextRegs(uint32 startRegAddr, uint32 regCount, gpusize dataVirtAddr, uint32* pCmdSpace);
+
     uint32* WriteSetSeqShRegs(
         uint32        startRegAddr,
         uint32        endRegAddr,

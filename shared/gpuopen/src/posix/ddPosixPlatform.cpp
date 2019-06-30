@@ -66,14 +66,14 @@ namespace DevDriver
         /////////////////////////////////////////////////////
         // Local routines.....
         //
-        void DebugPrint(LogLevel lvl, const char* format, ...)
+        void DebugPrint(LogLevel lvl, const char* pFormat, ...)
         {
             DD_UNUSED(lvl);
 
             va_list args;
-            va_start(args, format);
+            va_start(args, pFormat);
             char buffer[1024];
-            vsnprintf(buffer,sizeof(buffer), format, args);
+            Platform::Vsnprintf(buffer, sizeof(buffer), pFormat, args);
             va_end(args);
 
 #ifdef DEVDRIVER_PRINT_TO_CONSOLE
@@ -106,24 +106,6 @@ namespace DevDriver
         // Thread routines.....
         //
 
-        void* PlatformThreadShim(void* pThreadParameter)
-        {
-            DD_ASSERT(pThreadParameter != nullptr);
-            const ThreadStorage* pThread = reinterpret_cast<const ThreadStorage *>(pThreadParameter);
-            pThread->pFnFunction(pThread->pParameter);
-            return nullptr;
-        }
-
-        Thread::Thread() : m_thread() {};
-
-        Thread::~Thread()
-        {
-            if (IsJoinable())
-            {
-                DD_ASSERT_REASON("Thread object left scope without joining");
-            }
-        };
-
         Result Thread::Start(ThreadFunction pFnThreadFunc, void* pThreadParameter)
         {
             Result result = Result::Error;
@@ -131,18 +113,18 @@ namespace DevDriver
             // Check if this thread handle has already been initialized.
             // pthread_t types act as opaque, and do not work portably when compared directly.
             // To get around this, we use the threadFunc pointer instead, since it is never allowed to be NULL.
-            if ((m_thread.pFnFunction == nullptr) && (pFnThreadFunc != nullptr))
+            if ((pFnFunction == nullptr) && (pFnThreadFunc != nullptr))
             {
-                m_thread.pParameter  = pThreadParameter;
-                m_thread.pFnFunction = pFnThreadFunc;
+                pParameter  = pThreadParameter;
+                pFnFunction = pFnThreadFunc;
 
-                if (pthread_create(&m_thread.hThread, nullptr, &PlatformThreadShim, &m_thread) == 0)
+                if (pthread_create(&hThread, nullptr, &Thread::ThreadShim, this) == 0)
                 {
                     result = Result::Success;
                 }
                 else
                 {
-                    memset(&m_thread, 0, sizeof(ThreadStorage));
+                    Reset();
                 }
 
                 DD_ALERT(result != Result::Error);
@@ -152,48 +134,40 @@ namespace DevDriver
 
         Result Thread::Join(uint32 timeoutInMs)
         {
-            Result result = IsJoinable() ? Result::Success : Result::Error;
+            Result result = Result::Error;
 
-            timespec timeout = {};
-            if (result == Result::Success)
+            if (IsJoinable())
             {
-                result = GetAbsTime(timeoutInMs, &timeout);
+                // Wait for the thread to signal that it has exited.
+                result = onExit.Wait(timeoutInMs);
+            }
+            else
+            {
+                DD_ALERT_REASON("Join()ing a thread that's not joinable");
             }
 
             if (result == Result::Success)
             {
-#if defined(DD_PLATFORM_LINUX_UM)
-                const int ret = pthread_timedjoin_np(m_thread.hThread, nullptr, &timeout);
-#else
-                // TODO: pthread_timedjoin_np is a GNU extension and is not available on non-GNU platforms.
-                // This behavior is not equivalent to pthread_timedjoin_np and this will block forever if
-                // the thread never exits. This will be corrected in a later change.
-                const int ret = pthread_join(m_thread.hThread, nullptr);
-#endif
-                switch (ret)
+                // The thread exited normally, so we can join here and not worry about timing out.
+                const int ret = pthread_join(hThread, nullptr);
+                if (ret == 0)
                 {
-                    case 0:
-                        memset(&m_thread, 0, sizeof(ThreadStorage));
-                        result = Result::Success;
-                        break;
-                    case ETIMEDOUT:
-                        result = Result::NotReady;
-                        break;
-                    default:
-                        // See:
-                        //      man 3 pthread_join
-                        //      man 3 pthread_timedjoin_np
-                        // Expected errors you might see here if something went wrong:
-                        //      EDEADLK
-                        //            A deadlock was detected (e.g., two threads tried to join with
-                        //            each other); or thread specifies the calling thread.
-                        //      EINVAL thread is not a joinable thread.
-                        //      EINVAL Another thread is already waiting to join with this thread.
-                        //      EINVAL abstime value is invalid (tv_sec is less than 0 or tv_nsec is greater than 1e9).
-                        //      ESRCH  No thread with the ID thread could be found.
-                        DD_PRINT(LogLevel::Debug, "pthread_timedjoin_np() failed with 0x%x", ret);
-                        result = Result::Error;
-                        break;
+                    Reset();
+                    result = Result::Success;
+                }
+                else
+                {
+                    // See:
+                    //      man 3 pthread_join
+                    // Expected errors you might see here if something went wrong:
+                    //      EDEADLK
+                    //            A deadlock was detected (e.g., two threads tried to join with
+                    //            each other); or thread specifies the calling thread.
+                    //      EINVAL thread is not a joinable thread.
+                    //      EINVAL Another thread is already waiting to join with this thread.
+                    //      ESRCH  No thread with the ID thread could be found.
+                    DD_PRINT(LogLevel::Debug, "pthread_join() failed with 0x%x", ret);
+                    result = Result::Error;
                 }
             }
 
@@ -205,7 +179,7 @@ namespace DevDriver
         {
             // pthread_t types act as opaque, and do not work portably when compared directly.
             // To get around this, we use the threadFunc pointer instead, since it is never allowed to be NULL.
-            return (m_thread.pFnFunction != nullptr);
+            return (pFnFunction != nullptr);
         }
 
         /////////////////////////////////////////////////////
@@ -423,32 +397,9 @@ namespace DevDriver
 
             // Use the current time to generate a random seed. Has to be 64 bit because seed48_r expects to get
             // unsigned short seed[3] as a parameter.
-            uint64 seed = static_cast<uint64>(timeValue.tv_sec * 1000000000 + timeValue.tv_nsec);
-
-            // Seed our internal state
-            seed48_r(reinterpret_cast<unsigned short*>(&seed), &m_randState);
+            m_prevState = static_cast<uint64>(timeValue.tv_sec * 1000000000 + timeValue.tv_nsec);
         }
-
-        Random::~Random()
-        {
-        }
-
-        uint32 Random::Generate()
-        {
-            long int value;
-            // generate a random number
-            const int result = mrand48_r(&m_randState, &value);
-            DD_UNUSED(result);
-            DD_ASSERT(result >= 0);
-            // return the result, downcast to a uint32 if necessary
-            return static_cast<uint32>(value);
-        }
-
 #endif
-        uint32 Random::Max()
-        {
-            return -1;
-        }
 
         ProcessId GetProcessId()
         {
@@ -478,7 +429,7 @@ namespace DevDriver
         void GetProcessName(char* buffer, size_t bufferSize)
         {
             DD_ASSERT(buffer != nullptr);
-#if defined(DD_PLATFORM_LINUX_UM)
+#if DD_PLATFORM_IS_GNU
             const char* pProcessName = program_invocation_short_name;
 #else
             const char* pProcessName = getprogname();
@@ -512,19 +463,11 @@ namespace DevDriver
             strcat(pDst, pSrc);
         }
 
-        void Snprintf(char* pDst, size_t dstSize, const char* format, ...)
+        int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args)
         {
-            va_list args;
-            va_start(args, format);
-            vsnprintf(pDst, dstSize, format, args);
+            const int32 ret = vsnprintf(pDst, dstSize, format, args);
             pDst[dstSize - 1] = '\0';
-            va_end(args);
-        }
-
-        void Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args)
-        {
-            vsnprintf(pDst, dstSize, format, args);
-            pDst[dstSize - 1] = '\0';
+            return ret;
         }
     }
 }

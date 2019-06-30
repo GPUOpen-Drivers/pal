@@ -2015,9 +2015,9 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
 }
 
 // =====================================================================================================================
-// Performs a "fast" depth resummarize operation by updating the depth Image's HTile buffer to represent a fully open
-// HiZ range.
-void RsrcProcMgr::HwlExpandHtileHiZRange(
+// Performs a "fast" depth and stencil resummarize operation by updating the Image's HTile buffer to represent a fully
+// open HiZ range and set ZMask and SMem to expanded state.
+void RsrcProcMgr::HwlResummarizeHtileCompute(
     GfxCmdBuffer*      pCmdBuffer,
     const GfxImage&    image,
     const SubresRange& range
@@ -2029,9 +2029,12 @@ void RsrcProcMgr::HwlExpandHtileHiZRange(
     const Gfx6Htile*const pBaseHtile = gfx6Image.GetHtile(range.startSubres);
     PAL_ASSERT(pBaseHtile != nullptr);
 
-    uint32 htileValue = 0;
-    uint32 htileMask  = 0;
-    pBaseHtile->ComputeResummarizeData(&htileValue, &htileMask);
+    uint32 htileValue   = 0;
+    uint32 htileMask    = 0;
+    const ImageAspect aspect  = range.startSubres.aspect;
+    PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
+    const uint32 aspectMask = (aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil;
+    pBaseHtile->ComputeResummarizeData(aspectMask, &htileValue, &htileMask);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function assumes that all mip levels must use the same Htile value and mask.
@@ -2043,7 +2046,7 @@ void RsrcProcMgr::HwlExpandHtileHiZRange(
 
         uint32 nextHtileValue = 0;
         uint32 nextHtileMask  = 0;
-        pNextHtile->ComputeResummarizeData(&nextHtileValue, &nextHtileMask);
+        pNextHtile->ComputeResummarizeData(aspectMask, &nextHtileValue, &nextHtileMask);
         PAL_ASSERT((htileValue == nextHtileValue) && (htileMask == nextHtileMask));
     }
 #endif
@@ -2156,16 +2159,24 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
     // Determine which pipeline to use for this clear.
-    const ComputePipeline* pPipeline = GetLinearHtileClearPipeline(m_pDevice->Settings().dbPerTileExpClearEnable,
-                                                                   pBaseHtile->TileStencilDisabled(),
-                                                                   htileMask);
-
-    if (pPipeline != nullptr)
+    const ComputePipeline* pPipeline = nullptr;
+    if (m_pDevice->Settings().dbPerTileExpClearEnable)
     {
-        // Bind the pipeline.
+        // If Exp/Clear is enabled, fast clears require using a special Exp/Clear shader. One such shader exists for
+        // depth/stencil Images and for depth-only Images.
+        if (pBaseHtile->TileStencilDisabled() == false)
+        {
+            pPipeline = GetPipeline(RpmComputePipeline::FastDepthStExpClear);
+        }
+        else
+        {
+            pPipeline = GetPipeline(RpmComputePipeline::FastDepthExpClear);
+        }
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 #else
+        // Bind the pipeline.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
 #endif
 
@@ -2180,8 +2191,8 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
         for (uint32 mip = range.startSubres.mipLevel; mip <= lastMip; ++mip)
         {
             GpuMemory* pGpuMemory = nullptr;
-            gpusize    offset     = 0;
-            gpusize    dataSize   = 0;
+            gpusize    offset = 0;
+            gpusize    dataSize = 0;
 
             dstImage.GetHtileBufferInfo(mip,
                                         range.startSubres.arraySlice,
@@ -2191,10 +2202,10 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
                                         &offset,
                                         &dataSize);
 
-            BufferViewInfo htileBufferView = {};
-            htileBufferView.gpuAddr        = pGpuMemory->Desc().gpuVirtAddr + offset;
-            htileBufferView.range          = dataSize;
-            htileBufferView.stride         = sizeof(uint32);
+            BufferViewInfo htileBufferView         = {};
+            htileBufferView.gpuAddr                = pGpuMemory->Desc().gpuVirtAddr + offset;
+            htileBufferView.range                  = dataSize;
+            htileBufferView.stride                 = sizeof(uint32);
             htileBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
             htileBufferView.swizzledFormat.swizzle =
                 { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
@@ -2205,13 +2216,156 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
             pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &srd.word0.u32All);
 
             // Issue a dispatch with one thread per HTile DWORD.
-            const uint32 htileDwords  = static_cast<uint32>(htileBufferView.range / sizeof(uint32));
+            const uint32 htileDwords = static_cast<uint32>(htileBufferView.range / sizeof(uint32));
             const uint32 threadGroups = RpmUtil::MinThreadGroups(htileDwords, pPipeline->ThreadsPerGroup());
             pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
         }
     }
-    else
+    else if (pBaseHtile->TileStencilDisabled() == false)
     {
+        if (pBaseHtile->GetHtileContents() == HtileContents::DepthOnly)
+        {
+            //Though there's stencil fields in htile layout, stencil fields is always not in use.
+            ClearHtile(pCmdBuffer, dstImage, range, htileValue);
+        }
+        else if (TestAllFlagsSet(clearMask, HtileAspectStencil) && dstImage.HasHiSPretestsMetaData())
+        {
+            // This branch handles Stencil only or Depth stencil clear.
+            // In case of stencil only or D+S, we have to update SR0/1 fields based on given fast
+            // clear stencil value and HiS pretests meta data stored in the image.
+            // For each mipmap level: create a temporary buffer object bound to the location in video memory where
+            // that mip's HTile buffer resides. Then, issue a dispatch to update the HTile contents to reflect
+            // the fast-cleared state.
+            const uint32 lastMip = range.startSubres.mipLevel + range.numMips - 1;
+            for (uint32 mip = range.startSubres.mipLevel; mip <= lastMip; ++mip)
+            {
+                BufferViewInfo htileBufferView = {};
+
+                GpuMemory* pGpuMemory = nullptr;
+                gpusize    offset     = 0;
+                gpusize    dataSize   = 0;
+
+                dstImage.GetHtileBufferInfo(
+                    mip,
+                    range.startSubres.arraySlice,
+                    range.numSlices,
+                    HtileBufferUsage::Clear,
+                    &pGpuMemory,
+                    &offset,
+                    &dataSize);
+
+                htileBufferView.gpuAddr        = pGpuMemory->Desc().gpuVirtAddr + offset;
+                htileBufferView.range          = dataSize;
+                htileBufferView.stride         = 1;
+                htileBufferView.swizzledFormat = UndefinedSwizzledFormat;
+
+                BufferSrd htileSurfSrd = {};
+                m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &htileBufferView, &htileSurfSrd);
+
+                PAL_ASSERT((dataSize % 4) == 0);
+                const uint32 htileDwords = static_cast<uint32>(dataSize / sizeof(uint32));
+                uint32 threads = 0;
+                if ((htileDwords % 4) == 0)
+                {
+                    pPipeline = GetPipeline(RpmComputePipeline::HtileSR4xUpdate);
+                    threads = htileDwords / 4;
+                }
+                else
+                {
+                    pPipeline = GetPipeline(RpmComputePipeline::HtileSRUpdate);
+                    threads = htileDwords;
+                }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+                pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
+                pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
+
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &htileSurfSrd.word0.u32All);
+
+                const uint32 constData[] =
+                {
+                    htileValue,           // The htile value written to the htile surf.
+                    htileMask,            // It determines which aspect of htileValue will be used.
+                    stencil,              // fast clear stencil value
+                    0u                    // padding
+                };
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4, 4, constData);
+
+                BufferSrd metadataSrd = {};
+                BufferViewInfo metadataView = {  };
+                metadataView.gpuAddr        = dstImage.HiSPretestsMetaDataAddr(mip);
+                // HiStencil meta data size for one mip.
+                metadataView.range          = dstImage.HiSPretestsMetaDataSize(1);
+                metadataView.stride         = 1;
+                metadataView.swizzledFormat = UndefinedSwizzledFormat;
+                m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &metadataView, &metadataSrd);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 8, 4, &metadataSrd.word0.u32All);
+
+                uint32 threadGroups = RpmUtil::MinThreadGroups(threads, pPipeline->ThreadsPerGroup());
+                pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+            }
+        }
+        // Depth only clear if there's HiStencil meta data. Otherwise, this branch will handle any clear.
+        else
+        {
+            pPipeline = GetPipeline(RpmComputePipeline::FastDepthClear);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
+            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
+
+            // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
+            const uint32 htileUserData[2] = { htileValue & htileMask, ~htileMask };
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4, 2, htileUserData);
+
+            // For each mipmap level: create a temporary buffer object bound to the location in video memory where
+            // that mip's HTile buffer resides. Then, issue a dispatch to update the HTile contents to reflect
+            // the fast-cleared state.
+            const uint32 lastMip = range.startSubres.mipLevel + range.numMips - 1;
+            for (uint32 mip = range.startSubres.mipLevel; mip <= lastMip; ++mip)
+            {
+                GpuMemory* pGpuMemory = nullptr;
+                gpusize    offset = 0;
+                gpusize    dataSize = 0;
+
+                dstImage.GetHtileBufferInfo(
+                    mip,
+                    range.startSubres.arraySlice,
+                    range.numSlices,
+                    HtileBufferUsage::Clear,
+                    &pGpuMemory,
+                    &offset,
+                    &dataSize);
+
+                BufferViewInfo htileBufferView = {};
+                htileBufferView.gpuAddr = pGpuMemory->Desc().gpuVirtAddr + offset;
+                htileBufferView.range = dataSize;
+                htileBufferView.stride = sizeof(uint32);
+                htileBufferView.swizzledFormat.format = ChNumFormat::X32_Uint;
+                htileBufferView.swizzledFormat.swizzle =
+                { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+                BufferSrd srd = { };
+                m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &htileBufferView, &srd);
+
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &srd.word0.u32All);
+
+                // Issue a dispatch with one thread per HTile DWORD.
+                const uint32 htileDwords = static_cast<uint32>(htileBufferView.range / sizeof(uint32));
+                const uint32 threadGroups = RpmUtil::MinThreadGroups(htileDwords, pPipeline->ThreadsPerGroup());
+                pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+            }
+        }
+    }
+    else // For case that the htile is of depth only format.
+    {
+        // In case that clear mask is of stencil only, we should not issue this clearHtile.
+        // However, that case will not happen for sure as Image::IsFastDepthStencilClearSupported
+        // return false for that case.
         ClearHtile(pCmdBuffer, dstImage, range, htileValue);
     }
 
@@ -2344,6 +2498,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
+    pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
 
     // Select a depth/stencil state object for this clear:
     if (clearDepth && clearStencil)
@@ -2489,6 +2644,7 @@ void RsrcProcMgr::InitMaskRam(
     if (pCmdBuffer->IsGraphicsSupported() &&
         (dstImage.HasDccStateMetaData()         ||
          dstImage.HasFastClearMetaData()        ||
+         dstImage.HasHiSPretestsMetaData()      ||
          dstImage.HasWaTcCompatZRangeMetaData() ||
          dstImage.HasFastClearEliminateMetaData()))
     {
@@ -2554,6 +2710,11 @@ void RsrcProcMgr::InitMaskRam(
             // Initialize the clear value of color just as the way of depth/stencil.
             InitColorClearMetaData(pCmdBuffer, pCmdStream, dstImage, range);
         }
+    }
+
+    if (dstImage.HasHiSPretestsMetaData() && (range.startSubres.aspect == ImageAspect::Stencil))
+    {
+        ClearHiSPretestsMetaData(pCmdBuffer, pCmdStream, dstImage, range);
     }
 
     // Restore the command buffer's state.
@@ -2718,6 +2879,44 @@ void RsrcProcMgr::ClearHtile(
 
         CmdFillMemory(pCmdBuffer, false, *pGpuMemory, dstOffset, fillSize, clearValue);
     }
+}
+
+// =====================================================================================================================
+// Builds PM4 commands into the command buffer which will initialize the value of HiSPretests meta data.
+void RsrcProcMgr::ClearHiSPretestsMetaData(
+    GfxCmdBuffer*      pCmdBuffer,
+    Pal::CmdStream*    pCmdStream,
+    const Image&       dstImage,
+    const SubresRange& range
+    ) const
+{
+    PAL_ASSERT(pCmdStream != nullptr);
+
+    const ImageCreateInfo& createInfo = dstImage.Parent()->GetImageCreateInfo();
+
+    PAL_ALERT(range.numSlices < createInfo.arraySize);
+
+    SubresRange metaDataRange = {};
+    metaDataRange.startSubres.aspect     = range.startSubres.aspect;
+    metaDataRange.startSubres.mipLevel   = range.startSubres.mipLevel;
+    metaDataRange.startSubres.arraySlice = 0;
+    metaDataRange.numMips                = range.numMips;
+    metaDataRange.numSlices              = createInfo.arraySize;
+
+    const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
+                                        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+
+    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+    // The hardware expects regDB_SRESULTS_COMPARE_STATE0/1 to be zero if HiS is disabled.
+    HiSPretests defaultHiSPretests = {};
+    pCmdSpace = dstImage.UpdateHiSPretestsMetaData(
+                         metaDataRange,
+                         defaultHiSPretests,
+                         packetPredicate,
+                         pCmdSpace);
+
+    pCmdStream->CommitCommands(pCmdSpace);
 }
 
 // =====================================================================================================================

@@ -38,6 +38,16 @@ trailComment = "  //< "
 comment = "// "
 newline = "\n"
 
+def fnv1a(str):
+    fnv_prime = 0x01000193;
+    hval      = 0x811c9dc5;
+    uint32Max = 2 ** 32;
+
+    for c in str:
+        hval = hval ^ ord(c);
+        hval = (hval * fnv_prime) % uint32Max;
+    return hval
+
 def loadJsonStr(jsonStr):
     settingsData = json.loads(jsonStr)
 
@@ -68,6 +78,20 @@ def loadJsonStr(jsonStr):
             tag = tags[i]
             if isinstance(tag, dict):
                 tags[i] = tag['Name']
+
+    # The HashName field is required by the tool, we calculate it here as an fnv1a hash of the Name field
+    # for each setting.
+    for setting in settingsData["Settings"]:
+        if "HashName" in setting:
+            print("Setting {} already has a HashName field defined".format(setting["Name"]))
+        else:
+            setting["HashName"] = fnv1a(setting["Name"])
+        if "Structure" in setting:
+            for field in setting["Structure"]:
+                if "HashName" in field:
+                    print("Setting {}.{} already has a HashName field defined".format(setting["Name"], field["Name"]))
+                else:
+                    field["HashName"] = fnv1a(setting["Name"]+"."+field["Name"])
 
     return settingsData
 
@@ -160,16 +184,6 @@ def assertExit(condition, msg):
 def errorExit(msg):
     print("ERROR: " + msg)
     sys.exit(1)
-
-def fnv1a(str):
-    fnv_prime = 0x01000193;
-    hval      = 0x811c9dc5;
-    uint32Max = 2 ** 32;
-
-    for c in str:
-        hval = hval ^ ord(c);
-        hval = (hval * fnv_prime) % uint32Max;
-    return hval
 
 # The hash name is an fnv1a hash of the first 64 bytes of the magic buffer
 def genMagicBufferHash(magicBuffer):
@@ -435,8 +449,10 @@ for setting in settingsData["Settings"]:
             endifCount += 1
 
         while endifCount > 0:
-            endDefTmp += codeTemplates.EndIf + newline
+            endDefTmp += codeTemplates.EndIf
             endifCount -= 1
+
+        endDefTmp += newline
     else:
         if "OrBuildTypes" in setting:
             numOrBuildTypes = len(setting["OrBuildTypes"])
@@ -661,6 +677,8 @@ for setting in settingsData["Settings"]:
 
             readSettingsCode += ifDefTmp
             readSettingsCode += readSettingTmp
+            if not endDefTmp:
+                readSettingsCode += newline
             readSettingsCode += endDefTmp
 
         for data in rereadSettingData:
@@ -668,6 +686,8 @@ for setting in settingsData["Settings"]:
 
             rereadSettingsCode += ifDefTmp
             rereadSettingsCode += readSettingTmp
+            if not endDefTmp:
+                rereadSettingsCode += newline
             rereadSettingsCode += endDefTmp
 
     ###################################################################################################################
@@ -738,10 +758,21 @@ jsonUintData = ""
 isEncoded = "false"
 magicBufferHash = 0
 settingsDataHash = 0
+
+# Before we convert the settings JSON to a byte array, we will strip out unnecessary whitespace and the keys
+# that are not used by the tool.
+removedKeyList = [ "VariableName", "Scope", "Preprocessor", "BuildTypes", "OrBuildTypes" ]
+for setting in settingsData:
+    for key in removedKeyList:
+        if key in setting: setting.pop(key)
+
+# Dump to a compact string
+jsonDataArrayStr = json.dumps(settingsData)
+
 if args.magicBufferFilename == "":
     paddedUints = []
-    for i in range(0, len(settingsJsonStr)):
-        paddedUints.append(str(ord(settingsJsonStr[i])))
+    for i in range(0, len(jsonDataArrayStr)):
+        paddedUints.append(str(ord(jsonDataArrayStr[i])))
 
     jsonUintStr = ", ".join(paddedUints)
     wrapper = textwrap.TextWrapper()
@@ -757,9 +788,9 @@ else:
     magicBuffer = magicBufferFile.read().split(', ')
     magicBufferFile.close()
     magicBufferHash = genMagicBufferHash(magicBuffer)
-    for i in range(0, len(settingsJsonStr)):
+    for i in range(0, len(jsonDataArrayStr)):
         magicBufferIdx = i % len(magicBuffer)
-        paddedUints.append(str(ord(settingsJsonStr[i])^int(magicBuffer[magicBufferIdx])))
+        paddedUints.append(str(ord(jsonDataArrayStr[i])^int(magicBuffer[magicBufferIdx])))
 
     paddedJsonStr = ", ".join(paddedUints)
     wrapper = textwrap.TextWrapper()
@@ -789,7 +820,7 @@ if args.genRegistryCode:
     readSettings = codeTemplates.ReadSettingsFunc.replace("%ClassName%", args.className)
     readSettings = readSettings.replace("%ReadSettingsName%", "ReadSettings")
     readSettings = readSettings.replace("%ReadSettingsDesc%",
-                                        "// Reads the setting from the OS adapter and sets the structure value when the setting values are found.\n")
+                                        "// Reads the setting from the OS adapter and sets the structure value when the setting values are found.")
     readSettings = readSettings.replace("%SettingStructName%", settingStructName)
     readSettings = readSettings.replace("%ReadSettingsCode%", readSettingsCode)
 
@@ -799,7 +830,7 @@ if args.genRegistryCode:
         rereadSettings = rereadSettings.replace("%ReadSettingsName%", "RereadSettings")
         rereadSettings = rereadSettings.replace("%ReadSettingsDesc%",
                                                 "// Reads the setting from the OS adapter and sets the structure value when the setting values are found.\n"
-                                                "// This is expected to be done after the component has perform overrides of any defaults.\n")
+                                                "// This is expected to be done after the component has perform overrides of any defaults.")
         rereadSettings = rereadSettings.replace("%SettingStructName%", settingStructName)
         rereadSettings = rereadSettings.replace("%ReadSettingsCode%", rereadSettingsCode)
 

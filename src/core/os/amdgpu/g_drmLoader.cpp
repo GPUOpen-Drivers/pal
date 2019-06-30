@@ -2219,6 +2219,32 @@ int32 DrmLoaderFuncsProxy::pfnDrmGetCap(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnDrmSetClientCap(
+    int     fd,
+    uint64  capability,
+    uint64  value
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnDrmSetClientCap(fd,
+                                             capability,
+                                             value);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmSetClientCap,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmSetClientCap(%x, %lx, %lx)\n",
+        fd,
+        capability,
+        value);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnDrmSyncobjCreate(
     int      fd,
     uint32   flags,
@@ -2747,9 +2773,9 @@ void DrmLoaderFuncsProxy::pfnDrmModeFreeProperty(
 
 // =====================================================================================================================
 drmModeObjectPropertiesPtr DrmLoaderFuncsProxy::pfnDrmModeObjectGetProperties(
-    int       fd,
-    uint32_t  object_id,
-    uint32_t  object_type
+    int     fd,
+    uint32  object_id,
+    uint32  object_type
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
@@ -2773,8 +2799,8 @@ drmModeObjectPropertiesPtr DrmLoaderFuncsProxy::pfnDrmModeObjectGetProperties(
 
 // =====================================================================================================================
 drmModePropertyBlobPtr DrmLoaderFuncsProxy::pfnDrmModeGetPropertyBlob(
-    int       fd,
-    uint32_t  blob_id
+    int     fd,
+    uint32  blob_id
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
@@ -2850,7 +2876,7 @@ void DrmLoaderFuncsProxy::pfnDrmModeAtomicFree(
 int DrmLoaderFuncsProxy::pfnDrmModeAtomicCommit(
     int                  fd,
     drmModeAtomicReqPtr  req,
-    uint32_t             flags,
+    uint32               flags,
     void*                user_data
     ) const
 {
@@ -2880,7 +2906,7 @@ int DrmLoaderFuncsProxy::pfnDrmModeCreatePropertyBlob(
     int          fd,
     const void*  data,
     size_t       length,
-    uint32_t*    id
+    uint32*      id
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
@@ -2905,11 +2931,34 @@ int DrmLoaderFuncsProxy::pfnDrmModeCreatePropertyBlob(
 }
 
 // =====================================================================================================================
+int DrmLoaderFuncsProxy::pfnDrmModeDestroyPropertyBlob(
+    int     fd,
+    uint32  id
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnDrmModeDestroyPropertyBlob(fd,
+                                                      id);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeDestroyPropertyBlob,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeDestroyPropertyBlob(%x, %x)\n",
+        fd,
+        id);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int DrmLoaderFuncsProxy::pfnDrmModeAtomicAddProperty(
     drmModeAtomicReqPtr  req,
-    uint32_t             object_id,
-    uint32_t             property_id,
-    uint64_t             value
+    uint32               object_id,
+    uint32               property_id,
+    uint64               value
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
@@ -3235,6 +3284,9 @@ Result DrmLoader::Init(
             m_funcs.pfnDrmGetCap = reinterpret_cast<DrmGetCap>(dlsym(
                         m_libraryHandles[LibDrm],
                         "drmGetCap"));
+            m_funcs.pfnDrmSetClientCap = reinterpret_cast<DrmSetClientCap>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmSetClientCap"));
             m_funcs.pfnDrmSyncobjCreate = reinterpret_cast<DrmSyncobjCreate>(dlsym(
                         m_libraryHandles[LibDrm],
                         "drmSyncobjCreate"));
@@ -3319,6 +3371,9 @@ Result DrmLoader::Init(
             m_funcs.pfnDrmModeCreatePropertyBlob = reinterpret_cast<DrmModeCreatePropertyBlob>(dlsym(
                         m_libraryHandles[LibDrm],
                         "drmModeCreatePropertyBlob"));
+            m_funcs.pfnDrmModeDestroyPropertyBlob = reinterpret_cast<DrmModeDestroyPropertyBlob>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModeDestroyPropertyBlob"));
             m_funcs.pfnDrmModeAtomicAddProperty = reinterpret_cast<DrmModeAtomicAddProperty>(dlsym(
                         m_libraryHandles[LibDrm],
                         "drmModeAtomicAddProperty"));

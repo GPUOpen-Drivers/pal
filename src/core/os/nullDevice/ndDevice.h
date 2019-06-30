@@ -338,8 +338,6 @@ protected:
     virtual size_t QueueObjectSize(
         const QueueCreateInfo& createInfo) const override;
 
-    virtual Result PerformOsInternalQueueInit() override { return Result::Success; }
-
     virtual bool ValidatePipelineUploadHeap(const GpuHeap& preferredHeap) const override { return false; }
 
 private:

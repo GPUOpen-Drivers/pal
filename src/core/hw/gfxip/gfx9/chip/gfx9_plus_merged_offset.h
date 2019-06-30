@@ -1636,6 +1636,7 @@ constexpr unsigned int mmVGT_DMA_REQ_FIFO_DEPTH                 = 0x222E;
 constexpr unsigned int mmVGT_DMA_SIZE                           = 0xA29D;
 constexpr unsigned int mmVGT_DRAW_INITIATOR                     = 0xA1FC;
 constexpr unsigned int mmVGT_DRAW_INIT_FIFO_DEPTH               = 0x222F;
+constexpr unsigned int mmVGT_DRAW_PAYLOAD_CNTL                  = 0xA2A6;
 constexpr unsigned int mmVGT_ENHANCE                            = 0xA294;
 constexpr unsigned int mmVGT_ESGS_RING_ITEMSIZE                 = 0xA2AB;
 constexpr unsigned int mmVGT_ES_PER_GS                          = 0xA296;

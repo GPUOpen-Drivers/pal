@@ -1317,11 +1317,15 @@ Result Image::CreatePrivateScreenImageMemoryObject(
     GpuMemoryRequirements memReqs = { };
     pImg->GetGpuMemoryRequirements(&memReqs);
 
-    const gpusize allocGranularity = pDevice->MemoryProperties().realMemAllocGranularity;
-
     GpuMemoryCreateInfo createInfo = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
+    createInfo.size      = memReqs.size;
+    createInfo.alignment = memReqs.alignment;
+#else
+    const gpusize allocGranularity = pDevice->MemoryProperties().realMemAllocGranularity;
     createInfo.size      = Pow2Align(memReqs.size, allocGranularity);
     createInfo.alignment = Pow2Align(memReqs.alignment, allocGranularity);
+#endif
     createInfo.vaRange   = VaRange::Default;
     createInfo.priority  = GpuMemPriority::VeryHigh;
     createInfo.heapCount = memReqs.heapCount;

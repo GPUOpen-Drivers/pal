@@ -113,7 +113,7 @@ public:
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const;
 
-    virtual void HwlExpandHtileHiZRange(
+    virtual void HwlResummarizeHtileCompute(
         GfxCmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const override;
@@ -272,6 +272,12 @@ private:
         const Image&       dstImage,
         const SubresRange& clearRange,
         uint32             clearValue) const;
+
+    void ClearHiSPretestsMetaData(
+        GfxCmdBuffer*      pCmdBuffer,
+        Pal::CmdStream*    pCmdStream,
+        const Image&       dstImage,
+        const SubresRange& range) const;
 
     void InitDepthClearMetaData(
         GfxCmdBuffer*      pCmdBuffer,

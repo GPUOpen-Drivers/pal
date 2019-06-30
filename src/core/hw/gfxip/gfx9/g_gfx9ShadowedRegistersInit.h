@@ -85,11 +85,6 @@ void InitializeContextRegistersGfx9(
         0x0       ,
         0x0
     };
-    constexpr uint32 PaScWindowOffsetGfx9[] = {
-        0x0       ,
-        0x80000000,
-        0x40004000
-    };
     constexpr uint32 CoherDestBaseHi0Gfx9[] = {
         0x0       ,
         0x0       ,
@@ -98,7 +93,19 @@ void InitializeContextRegistersGfx9(
         0x0       ,
         0x0
     };
-    constexpr uint32 PaScEdgeruleGfx9[] = {
+    constexpr uint32 PaScWindowOffsetGfx9[] = {
+        0x0       ,
+        0x80000000,
+        0x40004000,
+        0xffff    ,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
         0xaa99aaaa,
         0x0       ,
         0xffffffff,
@@ -666,9 +673,8 @@ void InitializeContextRegistersGfx9(
     };
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_RENDER_CONTROL,mmTA_BC_BASE_ADDR_HI, DbRenderControlGfx9,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_WINDOW_OFFSET,mmPA_SC_WINDOW_SCISSOR_BR, PaScWindowOffsetGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCOHER_DEST_BASE_HI_0,mmCOHER_DEST_BASE_3, CoherDestBaseHi0Gfx9,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_EDGERULE,mmPA_SC_TILE_STEERING_OVERRIDE, PaScEdgeruleGfx9,pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_WINDOW_OFFSET,mmPA_SC_TILE_STEERING_OVERRIDE, PaScWindowOffsetGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09::mmPA_SC_RIGHT_VERT_GRID,Gfx09::mmPA_SC_FOV_WINDOW_TB, PaScRightVertGridGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_MULTI_PRIM_IB_RESET_INDX,mmVGT_MULTI_PRIM_IB_RESET_INDX, VgtMultiPrimIbResetIndxGfx9,pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);

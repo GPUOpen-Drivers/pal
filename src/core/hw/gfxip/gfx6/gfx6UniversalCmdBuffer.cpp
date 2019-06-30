@@ -5140,6 +5140,20 @@ void UniversalCmdBuffer::SetGraphicsState(
     {
         CmdSetGlobalScissor(newGraphicsState.globalScissorState);
     }
+
+    const auto& restoreClipRects = newGraphicsState.clipRectsState;
+    const auto& currentClipRects = m_graphicsState.clipRectsState;
+
+    if ((restoreClipRects.clipRule != currentClipRects.clipRule)   ||
+        (restoreClipRects.rectCount != currentClipRects.rectCount) ||
+        (memcmp(&restoreClipRects.rectList[0],
+                &currentClipRects.rectList[0],
+                restoreClipRects.rectCount * sizeof(Rect))))
+    {
+        CmdSetClipRects(newGraphicsState.clipRectsState.clipRule,
+                        newGraphicsState.clipRectsState.rectCount,
+                        newGraphicsState.clipRectsState.rectList);
+    }
 }
 
 // =====================================================================================================================
@@ -5988,6 +6002,45 @@ uint32* UniversalCmdBuffer::BuildSetUserClipPlane(
 }
 
 // =====================================================================================================================
+// Sets clip rects.
+void UniversalCmdBuffer::CmdSetClipRects(
+    uint16      clipRule,
+    uint32      rectCount,
+    const Rect* pRectList)
+{
+    PAL_ASSERT(rectCount <= MaxClipRects);
+
+    ClipRectsPm4Img pm4Image = {};
+
+    constexpr uint32 RegStride   = mmPA_SC_CLIPRECT_1_TL - mmPA_SC_CLIPRECT_0_TL;
+    const uint32     regStart    = mmPA_SC_CLIPRECT_RULE;
+    const uint32     regEnd      = mmPA_SC_CLIPRECT_RULE + rectCount * RegStride;
+    const size_t     totalDwords = m_cmdUtil.BuildSetSeqContextRegs(regStart, regEnd, &pm4Image.header);
+
+    pm4Image.paScClipRectRule.bits.CLIP_RULE = clipRule;
+
+    for (uint32 i = 0; i < rectCount; i++)
+    {
+        pm4Image.rects[i].paScClipRectTl.bits.TL_X = pRectList[i].offset.x;
+        pm4Image.rects[i].paScClipRectTl.bits.TL_Y = pRectList[i].offset.y;
+        pm4Image.rects[i].paScClipRectBr.bits.BR_X = pRectList[i].offset.x + pRectList[i].extent.width;
+        pm4Image.rects[i].paScClipRectBr.bits.BR_Y = pRectList[i].offset.y + pRectList[i].extent.height;
+    }
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace = m_deCmdStream.WritePm4Image(totalDwords, &pm4Image, pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+    m_graphicsState.clipRectsState.clipRule  = clipRule;
+    m_graphicsState.clipRectsState.rectCount = rectCount;
+    for (uint32 i = 0; i < rectCount; i++)
+    {
+        m_graphicsState.clipRectsState.rectList[i] = pRectList[i];
+    }
+    m_graphicsState.dirtyFlags.nonValidationBits.clipRectsState = 1;
+}
+
+// =====================================================================================================================
 void UniversalCmdBuffer::CmdXdmaWaitFlipPending()
 {
     const bool isGfx7plus = m_device.Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp7;
@@ -6047,6 +6100,7 @@ void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdSetHiSCompareState0(
     CompareFunc compFunc,
@@ -6089,6 +6143,63 @@ void UniversalCmdBuffer::CmdSetHiSCompareState1(
         m_deCmdStream.WriteSetOneContextReg(mmDB_SRESULTS_COMPARE_STATE1, dbSResultCompare.u32All, pDeCmdSpace);
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+#endif
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdUpdateHiSPretests(
+    const IImage*      pImage,
+    const HiSPretests& pretests,
+    uint32             firstMip,
+    uint32             numMips)
+{
+    const Image* pGfx6Image = static_cast<const Image*>(static_cast<const Pal::Image*>(pImage)->GetGfxImage());
+
+    if (pGfx6Image->HasHiSPretestsMetaData())
+    {
+        SubresRange range = { };
+        range.startSubres = { ImageAspect::Stencil, firstMip, 0 };
+        range.numMips     = numMips;
+        range.numSlices   = pImage->GetImageCreateInfo().arraySize;
+
+        const PM4Predicate packetPredicate = PacketPredicate();
+
+        uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+        pCmdSpace = pGfx6Image->UpdateHiSPretestsMetaData(range, pretests, packetPredicate, pCmdSpace);
+
+        if (m_graphicsState.bindTargets.depthTarget.pDepthStencilView != nullptr)
+        {
+            const DepthStencilView* const pView =
+                static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
+
+            // If the bound image matches the cleared image, we update DB_SRESULTS_COMPARE_STATE0/1 immediately.
+            if ((pView->GetImage() == pGfx6Image) &&
+                (pView->MipLevel() >= range.startSubres.mipLevel) &&
+                (pView->MipLevel() <  range.startSubres.mipLevel + range.numMips))
+            {
+                Gfx6HiSPretestsMetaData pretestsMetaData = {};
+
+                pretestsMetaData.dbSResultCompare0.bitfields.COMPAREFUNC0  =
+                    DepthStencilState::HwStencilCompare(pretests.test[0].func);
+                pretestsMetaData.dbSResultCompare0.bitfields.COMPAREMASK0  = pretests.test[0].mask;
+                pretestsMetaData.dbSResultCompare0.bitfields.COMPAREVALUE0 = pretests.test[0].value;
+                pretestsMetaData.dbSResultCompare0.bitfields.ENABLE0       = pretests.test[0].isValid;
+
+                pretestsMetaData.dbSResultCompare1.bitfields.COMPAREFUNC1  =
+                    DepthStencilState::HwStencilCompare(pretests.test[1].func);
+                pretestsMetaData.dbSResultCompare1.bitfields.COMPAREMASK1  = pretests.test[1].mask;
+                pretestsMetaData.dbSResultCompare1.bitfields.COMPAREVALUE1 = pretests.test[1].value;
+                pretestsMetaData.dbSResultCompare1.bitfields.ENABLE1       = pretests.test[1].isValid;
+
+                pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_SRESULTS_COMPARE_STATE0,
+                                                                 mmDB_SRESULTS_COMPARE_STATE1,
+                                                                 &pretestsMetaData,
+                                                                 pCmdSpace);
+            }
+        }
+
+        m_deCmdStream.CommitCommands(pCmdSpace);
+    }
 }
 
 // =====================================================================================================================

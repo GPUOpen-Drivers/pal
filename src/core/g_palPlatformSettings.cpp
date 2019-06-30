@@ -22,13 +22,14 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// When changes are needed, modify the tools generating this module in the tools\generate directory OR settings.cfg
+// When changes are needed, modify the tools generating this module in the tools\generate directory OR the
+// appropriate settings_*.json file
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,6 +80,7 @@ void PlatformSettingsLoader::SetupDefaults()
     memset(m_settings.debugOverlayConfig.miscellaneousDebugString, 0, 61);
     strncpy(m_settings.debugOverlayConfig.miscellaneousDebugString, "", 61);
     m_settings.debugOverlayConfig.printFrameNumber = false;
+    m_settings.debugOverlayConfig.useDebugOverlayOnColorSpaceConversionCopy = false;
     m_settings.timeGraphConfig.gridLineColor = RedColor;
     m_settings.timeGraphConfig.cpuLineColor = YellowColor;
     m_settings.timeGraphConfig.gpuLineColor = GreenColor;
@@ -104,6 +106,7 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.gpuProfilerConfig.frameCount = 0;
     m_settings.gpuProfilerConfig.recordPipelineStats = false;
     m_settings.gpuProfilerConfig.breakSubmitBatches = false;
+    m_settings.gpuProfilerConfig.useFullPipelineHash = false;
     m_settings.gpuProfilerConfig.traceModeMask = 0x0;
     memset(m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile, 0, 256);
     strncpy(m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile, "", 256);
@@ -160,7 +163,6 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            Util::ValueType::Boolean,
                            &m_settings.dbgPrintConfig.infoEnabled,
                            InternalSettingScope::PrivatePalKey);
-
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -168,7 +170,6 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            Util::ValueType::Boolean,
                            &m_settings.dbgPrintConfig.warningEnabled,
                            InternalSettingScope::PrivatePalKey);
-
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -176,7 +177,6 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            Util::ValueType::Boolean,
                            &m_settings.dbgPrintConfig.errorEnabled,
                            InternalSettingScope::PrivatePalKey);
-
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -184,7 +184,6 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            Util::ValueType::Boolean,
                            &m_settings.dbgPrintConfig.ScEnabled,
                            InternalSettingScope::PrivatePalKey);
-
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -192,7 +191,6 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            Util::ValueType::Boolean,
                            &m_settings.dbgPrintConfig.eventPrintEnabled,
                            InternalSettingScope::PrivatePalKey);
-
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -200,7 +198,6 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            Util::ValueType::Boolean,
                            &m_settings.dbgPrintConfig.eventPrintCbEnabled,
                            InternalSettingScope::PrivatePalKey);
-
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -208,7 +205,6 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            Util::ValueType::Boolean,
                            &m_settings.assertsEnabled,
                            InternalSettingScope::PrivatePalKey);
-
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -216,7 +212,6 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            Util::ValueType::Boolean,
                            &m_settings.alertsEnabled,
                            InternalSettingScope::PrivatePalKey);
-
 #endif
 
     pDevice->ReadSetting(pDebugOverlayEnabledStr,
@@ -254,6 +249,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pDebugOverlayConfig_PrintFrameNumberStr,
                            Util::ValueType::Boolean,
                            &m_settings.debugOverlayConfig.printFrameNumber,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pDebugOverlayConfig_UseDebugOverlayOnColorSpaceConversionCopyStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.debugOverlayConfig.useDebugOverlayOnColorSpaceConversionCopy,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pTimeGraphConfig_GridLineColorStr,
@@ -363,6 +363,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pGpuProfilerConfig_BreakSubmitBatchesStr,
                            Util::ValueType::Boolean,
                            &m_settings.gpuProfilerConfig.breakSubmitBatches,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerConfig_UseFullPipelineHashStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.gpuProfilerConfig.useFullPipelineHash,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerConfig_TraceModeMaskStr,
@@ -550,7 +555,7 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.dbgPrintConfig.infoEnabled;
     info.valueSize = sizeof(m_settings.dbgPrintConfig.infoEnabled);
-    m_settingsInfoMap.Insert(3336086055, info);
+    m_settingsInfoMap.Insert(87264462, info);
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -558,7 +563,7 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.dbgPrintConfig.warningEnabled;
     info.valueSize = sizeof(m_settings.dbgPrintConfig.warningEnabled);
-    m_settingsInfoMap.Insert(3827375483, info);
+    m_settingsInfoMap.Insert(3111217572, info);
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -566,7 +571,7 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.dbgPrintConfig.errorEnabled;
     info.valueSize = sizeof(m_settings.dbgPrintConfig.errorEnabled);
-    m_settingsInfoMap.Insert(1444311189, info);
+    m_settingsInfoMap.Insert(1058771018, info);
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -574,7 +579,7 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.dbgPrintConfig.ScEnabled;
     info.valueSize = sizeof(m_settings.dbgPrintConfig.ScEnabled);
-    m_settingsInfoMap.Insert(695309361, info);
+    m_settingsInfoMap.Insert(2827996440, info);
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -582,7 +587,7 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.dbgPrintConfig.eventPrintEnabled;
     info.valueSize = sizeof(m_settings.dbgPrintConfig.eventPrintEnabled);
-    m_settingsInfoMap.Insert(721345714, info);
+    m_settingsInfoMap.Insert(4283850211, info);
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -590,7 +595,7 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.dbgPrintConfig.eventPrintCbEnabled;
     info.valueSize = sizeof(m_settings.dbgPrintConfig.eventPrintCbEnabled);
-    m_settingsInfoMap.Insert(4220374213, info);
+    m_settingsInfoMap.Insert(74653004, info);
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -617,102 +622,107 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.debugOverlayConfig.visualConfirmEnabled;
     info.valueSize = sizeof(m_settings.debugOverlayConfig.visualConfirmEnabled);
-    m_settingsInfoMap.Insert(1116165338, info);
+    m_settingsInfoMap.Insert(1802476957, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.debugOverlayConfig.timeGraphEnabled;
     info.valueSize = sizeof(m_settings.debugOverlayConfig.timeGraphEnabled);
-    m_settingsInfoMap.Insert(2485887783, info);
+    m_settingsInfoMap.Insert(2933558408, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.debugOverlayConfig.overlayLocation;
     info.valueSize = sizeof(m_settings.debugOverlayConfig.overlayLocation);
-    m_settingsInfoMap.Insert(248899441, info);
+    m_settingsInfoMap.Insert(3045745206, info);
 
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.debugOverlayConfig.renderedByString;
     info.valueSize = sizeof(m_settings.debugOverlayConfig.renderedByString);
-    m_settingsInfoMap.Insert(3965817458, info);
+    m_settingsInfoMap.Insert(3912270641, info);
 
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.debugOverlayConfig.miscellaneousDebugString;
     info.valueSize = sizeof(m_settings.debugOverlayConfig.miscellaneousDebugString);
-    m_settingsInfoMap.Insert(1845251913, info);
+    m_settingsInfoMap.Insert(1196026490, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.debugOverlayConfig.printFrameNumber;
     info.valueSize = sizeof(m_settings.debugOverlayConfig.printFrameNumber);
-    m_settingsInfoMap.Insert(3798504442, info);
+    m_settingsInfoMap.Insert(2763643877, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.debugOverlayConfig.useDebugOverlayOnColorSpaceConversionCopy;
+    info.valueSize = sizeof(m_settings.debugOverlayConfig.useDebugOverlayOnColorSpaceConversionCopy);
+    m_settingsInfoMap.Insert(1533629425, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.timeGraphConfig.gridLineColor;
     info.valueSize = sizeof(m_settings.timeGraphConfig.gridLineColor);
-    m_settingsInfoMap.Insert(2774338144, info);
+    m_settingsInfoMap.Insert(3989097989, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.timeGraphConfig.cpuLineColor;
     info.valueSize = sizeof(m_settings.timeGraphConfig.cpuLineColor);
-    m_settingsInfoMap.Insert(3593358936, info);
+    m_settingsInfoMap.Insert(689918007, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.timeGraphConfig.gpuLineColor;
     info.valueSize = sizeof(m_settings.timeGraphConfig.gpuLineColor);
-    m_settingsInfoMap.Insert(683848132, info);
+    m_settingsInfoMap.Insert(2929386323, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.overlayBenchmarkConfig.maxBenchmarkTime;
     info.valueSize = sizeof(m_settings.overlayBenchmarkConfig.maxBenchmarkTime);
-    m_settingsInfoMap.Insert(1613865845, info);
+    m_settingsInfoMap.Insert(480313510, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.overlayBenchmarkConfig.usageLogEnable;
     info.valueSize = sizeof(m_settings.overlayBenchmarkConfig.usageLogEnable);
-    m_settingsInfoMap.Insert(1439000029, info);
+    m_settingsInfoMap.Insert(3176801238, info);
 
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.overlayBenchmarkConfig.usageLogDirectory;
     info.valueSize = sizeof(m_settings.overlayBenchmarkConfig.usageLogDirectory);
-    m_settingsInfoMap.Insert(3345515589, info);
+    m_settingsInfoMap.Insert(219820144, info);
 
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.overlayBenchmarkConfig.usageLogFilename;
     info.valueSize = sizeof(m_settings.overlayBenchmarkConfig.usageLogFilename);
-    m_settingsInfoMap.Insert(570887899, info);
+    m_settingsInfoMap.Insert(2551463600, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.overlayBenchmarkConfig.logFrameStats;
     info.valueSize = sizeof(m_settings.overlayBenchmarkConfig.logFrameStats);
-    m_settingsInfoMap.Insert(2989332685, info);
+    m_settingsInfoMap.Insert(266798632, info);
 
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.overlayBenchmarkConfig.frameStatsLogDirectory;
     info.valueSize = sizeof(m_settings.overlayBenchmarkConfig.frameStatsLogDirectory);
-    m_settingsInfoMap.Insert(1128423400, info);
+    m_settingsInfoMap.Insert(3945706803, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.overlayBenchmarkConfig.maxLoggedFrames;
     info.valueSize = sizeof(m_settings.overlayBenchmarkConfig.maxLoggedFrames);
-    m_settingsInfoMap.Insert(1247452473, info);
+    m_settingsInfoMap.Insert(3387883484, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.overlayMemoryInfoConfig.combineNonLocal;
     info.valueSize = sizeof(m_settings.overlayMemoryInfoConfig.combineNonLocal);
-    m_settingsInfoMap.Insert(1412889158, info);
+    m_settingsInfoMap.Insert(452099995, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.overlayMemoryInfoConfig.reportCmdAllocator;
     info.valueSize = sizeof(m_settings.overlayMemoryInfoConfig.reportCmdAllocator);
-    m_settingsInfoMap.Insert(819062876, info);
+    m_settingsInfoMap.Insert(2545297707, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.overlayMemoryInfoConfig.reportExternal;
     info.valueSize = sizeof(m_settings.overlayMemoryInfoConfig.reportExternal);
-    m_settingsInfoMap.Insert(1211449330, info);
+    m_settingsInfoMap.Insert(1692103889, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.overlayMemoryInfoConfig.reportInternal;
     info.valueSize = sizeof(m_settings.overlayMemoryInfoConfig.reportInternal);
-    m_settingsInfoMap.Insert(373898840, info);
+    m_settingsInfoMap.Insert(1276999751, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerMode;
@@ -727,157 +737,162 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.gpuProfilerConfig.logDirectory;
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.logDirectory);
-    m_settingsInfoMap.Insert(1786197374, info);
+    m_settingsInfoMap.Insert(602986973, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerConfig.startFrame;
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.startFrame);
-    m_settingsInfoMap.Insert(3281941262, info);
+    m_settingsInfoMap.Insert(17496565, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerConfig.frameCount;
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.frameCount);
-    m_settingsInfoMap.Insert(3899735123, info);
+    m_settingsInfoMap.Insert(3630548216, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gpuProfilerConfig.recordPipelineStats;
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.recordPipelineStats);
-    m_settingsInfoMap.Insert(3225763835, info);
+    m_settingsInfoMap.Insert(1092484338, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gpuProfilerConfig.breakSubmitBatches;
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.breakSubmitBatches);
-    m_settingsInfoMap.Insert(3699637222, info);
+    m_settingsInfoMap.Insert(2743656777, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.gpuProfilerConfig.useFullPipelineHash;
+    info.valueSize = sizeof(m_settings.gpuProfilerConfig.useFullPipelineHash);
+    m_settingsInfoMap.Insert(3204367348, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerConfig.traceModeMask;
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.traceModeMask);
-    m_settingsInfoMap.Insert(2733188403, info);
+    m_settingsInfoMap.Insert(2717664970, info);
 
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile;
     info.valueSize = sizeof(m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile);
-    m_settingsInfoMap.Insert(2182449032, info);
+    m_settingsInfoMap.Insert(1666123781, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection;
     info.valueSize = sizeof(m_settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection);
-    m_settingsInfoMap.Insert(1201772335, info);
+    m_settingsInfoMap.Insert(3543519762, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerPerfCounterConfig.granularity;
     info.valueSize = sizeof(m_settings.gpuProfilerPerfCounterConfig.granularity);
-    m_settingsInfoMap.Insert(3414628368, info);
+    m_settingsInfoMap.Insert(3380953453, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.tokenMask;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.tokenMask);
-    m_settingsInfoMap.Insert(1136095484, info);
+    m_settingsInfoMap.Insert(258959117, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.seMask;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.seMask);
-    m_settingsInfoMap.Insert(4066555951, info);
+    m_settingsInfoMap.Insert(113814584, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.pipelineHash;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.pipelineHash);
-    m_settingsInfoMap.Insert(3932789981, info);
+    m_settingsInfoMap.Insert(562315366, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.vsHashHi;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.vsHashHi);
-    m_settingsInfoMap.Insert(3163259987, info);
+    m_settingsInfoMap.Insert(3546147188, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.vsHashLo;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.vsHashLo);
-    m_settingsInfoMap.Insert(3801397889, info);
+    m_settingsInfoMap.Insert(2975119762, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.hsHashHi;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.hsHashHi);
-    m_settingsInfoMap.Insert(1390489601, info);
+    m_settingsInfoMap.Insert(3728558198, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.hsHashLo;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.hsHashLo);
-    m_settingsInfoMap.Insert(886572651, info);
+    m_settingsInfoMap.Insert(3225818008, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.dsHashHi;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.dsHashHi);
-    m_settingsInfoMap.Insert(3315456133, info);
+    m_settingsInfoMap.Insert(2656705114, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.dsHashLo;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.dsHashLo);
-    m_settingsInfoMap.Insert(3752365775, info);
+    m_settingsInfoMap.Insert(2018464044, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.gsHashHi;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.gsHashHi);
-    m_settingsInfoMap.Insert(1775931482, info);
+    m_settingsInfoMap.Insert(4196229765, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.gsHashLo;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.gsHashLo);
-    m_settingsInfoMap.Insert(1137690412, info);
+    m_settingsInfoMap.Insert(338172111, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.psHashHi;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.psHashHi);
-    m_settingsInfoMap.Insert(1805758793, info);
+    m_settingsInfoMap.Insert(1306425790, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.psHashLo;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.psHashLo);
-    m_settingsInfoMap.Insert(1301841843, info);
+    m_settingsInfoMap.Insert(1340672576, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.csHashHi;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.csHashHi);
-    m_settingsInfoMap.Insert(1629297294, info);
+    m_settingsInfoMap.Insert(2590676505, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.csHashLo;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.csHashLo);
-    m_settingsInfoMap.Insert(1663440912, info);
+    m_settingsInfoMap.Insert(3160424003, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.maxDraws;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.maxDraws);
-    m_settingsInfoMap.Insert(3208735818, info);
+    m_settingsInfoMap.Insert(2938324269, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.addTtvHashes;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.addTtvHashes);
-    m_settingsInfoMap.Insert(2774444984, info);
+    m_settingsInfoMap.Insert(121855179, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.bufferSize;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.bufferSize);
-    m_settingsInfoMap.Insert(1277078724, info);
+    m_settingsInfoMap.Insert(3633385103, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.stallBehavior;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.stallBehavior);
-    m_settingsInfoMap.Insert(1063331229, info);
+    m_settingsInfoMap.Insert(1808881616, info);
 
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.gpuProfilerSpmConfig.spmPerfCounterConfigFile;
     info.valueSize = sizeof(m_settings.gpuProfilerSpmConfig.spmPerfCounterConfigFile);
-    m_settingsInfoMap.Insert(1274479618, info);
+    m_settingsInfoMap.Insert(1162192613, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerSpmConfig.spmTraceInterval;
     info.valueSize = sizeof(m_settings.gpuProfilerSpmConfig.spmTraceInterval);
-    m_settingsInfoMap.Insert(3756226799, info);
+    m_settingsInfoMap.Insert(3291932008, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSpmConfig.spmBufferSize;
     info.valueSize = sizeof(m_settings.gpuProfilerSpmConfig.spmBufferSize);
-    m_settingsInfoMap.Insert(3798430118, info);
+    m_settingsInfoMap.Insert(1857600927, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.cmdBufferLoggerEnabled;
@@ -887,12 +902,12 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations;
     info.valueSize = sizeof(m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations);
-    m_settingsInfoMap.Insert(1084594400, info);
+    m_settingsInfoMap.Insert(462141291, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
     info.valueSize = sizeof(m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep);
-    m_settingsInfoMap.Insert(1570291248, info);
+    m_settingsInfoMap.Insert(2784236609, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.interfaceLoggerEnabled;
@@ -902,22 +917,22 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.interfaceLoggerConfig.logDirectory;
     info.valueSize = sizeof(m_settings.interfaceLoggerConfig.logDirectory);
-    m_settingsInfoMap.Insert(885284478, info);
+    m_settingsInfoMap.Insert(3997041373, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.interfaceLoggerConfig.multithreaded;
     info.valueSize = sizeof(m_settings.interfaceLoggerConfig.multithreaded);
-    m_settingsInfoMap.Insert(800910225, info);
+    m_settingsInfoMap.Insert(4177532476, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.interfaceLoggerConfig.basePreset;
     info.valueSize = sizeof(m_settings.interfaceLoggerConfig.basePreset);
-    m_settingsInfoMap.Insert(2924533825, info);
+    m_settingsInfoMap.Insert(3886684530, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.interfaceLoggerConfig.elevatedPreset;
     info.valueSize = sizeof(m_settings.interfaceLoggerConfig.elevatedPreset);
-    m_settingsInfoMap.Insert(4040226650, info);
+    m_settingsInfoMap.Insert(3991423149, info);
 
 }
 
@@ -940,7 +955,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 2888708906;
+            component.settingsDataHash = 3529244322;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

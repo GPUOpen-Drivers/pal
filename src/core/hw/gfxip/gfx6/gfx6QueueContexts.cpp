@@ -820,7 +820,7 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         const auto& chipProps = m_pDevice->Parent()->ChipProperties();
         if (chipProps.gfxLevel >= GfxIpLevel::GfxIp8)
         {
-            InitializeContextRegistersGfx8(&cmdStream);
+            InitializeContextRegistersGfx8(&cmdStream, 0, nullptr, nullptr);
         }
         else
         {

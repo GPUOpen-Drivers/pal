@@ -95,6 +95,7 @@ struct SharedMetadataInfo
     gpusize             dccStateMetaDataOffset;
     gpusize             fastClearMetaDataOffset;
     gpusize             fastClearEliminateMetaDataOffset;
+    gpusize             hisPretestMetaDataOffset; // Offset for HiSPrest meta data.
     gpusize             htileLookupTableOffset;
     uint64              resourceId; // This id is a unique name for the cross-process shared memory used to pass extra
                                     // information. Currently it's composed by the image object pointer and process id.
@@ -138,6 +139,11 @@ public:
     gpusize FastClearMetaDataAddr(uint32 mipLevel) const;
     gpusize FastClearMetaDataOffset(uint32 mipLevel) const;
     gpusize FastClearMetaDataSize(uint32 numMips) const;
+
+    bool HasHiSPretestsMetaData() const { return m_hiSPretestsMetaDataOffset != 0; }
+    gpusize HiSPretestsMetaDataAddr(uint32 mipLevel) const;
+    gpusize HiSPretestsMetaDataOffset(uint32 mipLevel) const;
+    gpusize HiSPretestsMetaDataSize(uint32 numMips) const;
 
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const = 0;
 
@@ -230,6 +236,12 @@ protected:
         size_t             sizePerMipLevel,
         gpusize            alignment);
 
+    void InitHiSPretestsMetaData(
+        ImageMemoryLayout* pGpuMemLayout,
+        gpusize*           pGpuMemSize,
+        size_t             sizePerMipLevel,
+        gpusize            alignment);
+
     void UpdateClearMethod(
         SubResourceInfo* pSubResInfoList,
         ImageAspect      aspect,
@@ -243,8 +255,11 @@ protected:
     const ImageCreateInfo& m_createInfo;
     ImageInfo*const        m_pImageInfo;
 
-    gpusize  m_fastClearMetaDataOffset;      // Offset to beginning of fast-clear metadata
+    gpusize  m_fastClearMetaDataOffset;      // Offset to beginning of fast-clear metadata.
     gpusize  m_fastClearMetaDataSizePerMip;  // Size of fast-clear metadata per mip level.
+
+    gpusize m_hiSPretestsMetaDataOffset;     // Offset to beginning of HiSPretest metadata
+    gpusize m_hiSPretestsMetaDataSizePerMip; // Size of HiSPretest metadata per mip level.
 
     bool   m_hasSeenNonTcCompatClearColor;  // True if this image has been cleared with non TC-compatible color.
 

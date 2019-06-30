@@ -57,6 +57,13 @@ Screen::Screen(
 // =====================================================================================================================
 void Screen::Destroy()
 {
+    // Restore to SDR
+
+    m_userColorGamut.metadataType          = HDMI_STATIC_METADATA_TYPE1;
+    m_userColorGamut.metadata.eotf         = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
+    m_userColorGamut.metadata.metadataType = HDMI_STATIC_METADATA_TYPE1;
+
+    static_cast<Device*>(m_pDevice)->SetHdrMetaData(m_connectorId, &m_userColorGamut);
 }
 
 // =====================================================================================================================
@@ -154,7 +161,7 @@ Result Screen::GetFormats(
     {
         const uint32 returnedFormat = Util::Min(*pFormatCount, formatCount);
 
-        for (uint32_t i = 0; i < returnedFormat; i++)
+        for (uint32 i = 0; i < returnedFormat; i++)
         {
             if (i < baseFormatCount)
             {
@@ -187,20 +194,25 @@ Result Screen::GetColorCapabilities(
 
     if (m_nativeColorGamut.metadata.eotf != HDMI_EOTF_TRADITIONAL_GAMMA_SDR)
     {
-        pCapabilities->nativeColorGamut.chromaticityRedX        = m_nativeColorGamut.metadata.chromaticityRedX;
-        pCapabilities->nativeColorGamut.chromaticityRedY        = m_nativeColorGamut.metadata.chromaticityRedY;
-        pCapabilities->nativeColorGamut.chromaticityGreenX      = m_nativeColorGamut.metadata.chromaticityGreenX;
-        pCapabilities->nativeColorGamut.chromaticityGreenY      = m_nativeColorGamut.metadata.chromaticityGreenY;
-        pCapabilities->nativeColorGamut.chromaticityBlueX       = m_nativeColorGamut.metadata.chromaticityBlueX;
-        pCapabilities->nativeColorGamut.chromaticityBlueY       = m_nativeColorGamut.metadata.chromaticityBlueY;
-        pCapabilities->nativeColorGamut.chromaticityWhitePointX = m_nativeColorGamut.metadata.chromaticityWhitePointX;
-        pCapabilities->nativeColorGamut.chromaticityWhitePointY = m_nativeColorGamut.metadata.chromaticityWhitePointY;
-        pCapabilities->nativeColorGamut.minLuminance            = m_nativeColorGamut.metadata.minLuminance;
-        pCapabilities->nativeColorGamut.avgLuminance            = m_nativeColorGamut.metadata.maxFramAverageLightLevel;
-        pCapabilities->nativeColorGamut.maxLuminance            = m_nativeColorGamut.metadata.maxLuminance;
+        pCapabilities->nativeColorGamut.chromaticityRedX         = m_nativeColorGamut.metadata.chromaticityRedX;
+        pCapabilities->nativeColorGamut.chromaticityRedY         = m_nativeColorGamut.metadata.chromaticityRedY;
+        pCapabilities->nativeColorGamut.chromaticityGreenX       = m_nativeColorGamut.metadata.chromaticityGreenX;
+        pCapabilities->nativeColorGamut.chromaticityGreenY       = m_nativeColorGamut.metadata.chromaticityGreenY;
+        pCapabilities->nativeColorGamut.chromaticityBlueX        = m_nativeColorGamut.metadata.chromaticityBlueX;
+        pCapabilities->nativeColorGamut.chromaticityBlueY        = m_nativeColorGamut.metadata.chromaticityBlueY;
+        pCapabilities->nativeColorGamut.chromaticityWhitePointX  = m_nativeColorGamut.metadata.chromaticityWhitePointX;
+        pCapabilities->nativeColorGamut.chromaticityWhitePointY  = m_nativeColorGamut.metadata.chromaticityWhitePointY;
+        pCapabilities->nativeColorGamut.minLuminance             = m_nativeColorGamut.metadata.minLuminance;
+        pCapabilities->nativeColorGamut.maxLuminance             = m_nativeColorGamut.metadata.maxLuminance;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 506
-        pCapabilities->nativeColorGamut.maxContentLightLevel    = m_nativeColorGamut.metadata.maxContentLightLevel;
+        pCapabilities->nativeColorGamut.maxContentLightLevel     = m_nativeColorGamut.metadata.maxContentLightLevel;
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 512
+        pCapabilities->nativeColorGamut.maxFrameAverageLightLevel =
+            m_nativeColorGamut.metadata.maxFrameAverageLightLevel;
+#endif
+
         pCapabilities->dolbyVisionSupported     = false; // Doesn't support yet.
         pCapabilities->freeSyncHdrSupported     = false; // Doesn't support yet.
         pCapabilities->freeSyncBacklightSupport = false; // Doesn't support yet.
@@ -238,11 +250,20 @@ Result Screen::SetColorConfiguration(
     m_userColorGamut.metadata.chromaticityWhitePointX  = pColorConfig->userDefinedColorGamut.chromaticityWhitePointX;
     m_userColorGamut.metadata.chromaticityWhitePointY  = pColorConfig->userDefinedColorGamut.chromaticityWhitePointY;
     m_userColorGamut.metadata.minLuminance             = pColorConfig->userDefinedColorGamut.minLuminance;
-    m_userColorGamut.metadata.maxFramAverageLightLevel = pColorConfig->userDefinedColorGamut.avgLuminance;
     m_userColorGamut.metadata.maxLuminance             = pColorConfig->userDefinedColorGamut.maxLuminance;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 506
     m_userColorGamut.metadata.maxContentLightLevel     = pColorConfig->userDefinedColorGamut.maxContentLightLevel;
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 512
+    m_userColorGamut.metadata.maxFrameAverageLightLevel =
+        pColorConfig->userDefinedColorGamut.maxFrameAverageLightLevel;
+#endif
+
+    // Only static metadata is supported so far
+    m_userColorGamut.metadataType          = HDMI_STATIC_METADATA_TYPE1;
+    m_userColorGamut.metadata.eotf         = HDMI_EOTF_SMPTE_ST2084;
+    m_userColorGamut.metadata.metadataType = HDMI_STATIC_METADATA_TYPE1;
 
     result = static_cast<Device*>(m_pDevice)->SetHdrMetaData(m_connectorId, &m_userColorGamut);
 

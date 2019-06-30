@@ -364,14 +364,16 @@ namespace DevDriver
         pProtocolServer->Finalize();
     }
 
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
     void DevDriverServer::StartDeviceInit()
     {
         auto* pDriverControl = GetDriverControlServer();
         if (pDriverControl != nullptr)
         {
-            pDriverControl->StartDeviceInit();
+            pDriverControl->StartEarlyDeviceInit();
         }
     }
+#endif
 
     bool DevDriverServer::ShouldShowOverlay()
     {

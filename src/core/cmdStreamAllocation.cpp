@@ -402,27 +402,55 @@ void CmdStreamChunk::ResetBusyTracker()
 
 // =====================================================================================================================
 // Initializes the busy tracker attributes. This should only be called on root chunks.
-void CmdStreamChunk::InitRootBusyTracker()
+Result CmdStreamChunk::InitRootBusyTracker(
+    CmdAllocator* pAllocator
+)
 {
+    Result result = Result::Success;
     if (m_allocation.UsesSystemMemory() == false)
     {
-        // This chunk will become the root chunk for a CmdStream. Allocate a busy tracker for this and future chunks to
-        // share. Note that we allocate a 64-bit tracker but access it as a 32-bit counter because some engines only
-        // support 32-bit counters while others only support 64-bit counters. This means we assume a 32-bit counter
-        // will never wrap so that the high 32-bits can be ignored.
         constexpr uint32 TrackerAlignDwords = 2;
-        m_reservedDataOffset = Pow2AlignDown((m_reservedDataOffset - TrackerAlignDwords), TrackerAlignDwords);
+        constexpr uint32 TrackerAlignBytes  = TrackerAlignDwords * sizeof(uint32);
+        uint32* pWriteAddr = nullptr;
+        if (m_allocation.GpuMemory()->GetDevice()->Settings().cmdStreamReadOnly == false)
+        {
+            // This chunk will become the root chunk for a CmdStream. Allocate a busy tracker for this and future chunks
+            // to share. Note that we allocate a 64-bit tracker but access it as a 32-bit counter because some engines
+            // only support 32-bit counters while others only support 64-bit counters. This means we assume a 32-bit
+            // counter will never wrap so that the high 32-bits can be ignored.
+            m_reservedDataOffset = Pow2AlignDown((m_reservedDataOffset - TrackerAlignDwords), TrackerAlignDwords);
 
-        // Store the final GPU and CPU addresses for the busy tracker.
-        m_busyTracker.doneCountGpuAddr = (GpuVirtAddr() + m_reservedDataOffset * sizeof(uint32));
-        m_busyTracker.pDoneCount = (m_pCpuAddr + m_reservedDataOffset);
+            // Store the final GPU and CPU addresses for the busy tracker.
+            m_busyTracker.doneCountGpuAddr = (GpuVirtAddr() + m_reservedDataOffset * sizeof(uint32));
+            m_busyTracker.pDoneCount = (m_pCpuAddr + m_reservedDataOffset);
+            pWriteAddr = m_pWriteAddr + m_reservedDataOffset;
+        }
+        else
+        {
+            // The root chunk is read-only, so we need a separate RW allocation to track the status of this one.
+            CmdStreamChunk* pTrackerChunk = nullptr;
+            result = pAllocator->GetNewChunk(EmbeddedDataAlloc, false, &pTrackerChunk);
+            if (result != Result::Success)
+            {
+                PAL_ASSERT_ALWAYS();
+                // Use a dummy chunk to still mostly work in an OOM situation.
+                pTrackerChunk = pAllocator->GetDummyChunk();
+            }
+            PAL_ASSERT(pTrackerChunk != nullptr);
+            PAL_ASSERT(IsPow2Aligned(pTrackerChunk->GpuVirtAddr(), TrackerAlignBytes));
+
+            m_busyTracker.doneCountGpuAddr = pTrackerChunk->GpuVirtAddr();
+            m_busyTracker.pDoneCount       = pTrackerChunk->GetRmwCpuAddr();
+            pWriteAddr                     = pTrackerChunk->GetRmwWriteAddr();
+        }
 
         // Initialize both CPU addresses (mapped CPU address and the staging buffer). The value in the staging
         // buffer will be copied into the mapped buffer on Finalize but it's a good idea to initialize both so that
         // we can call IsIdleOnGpu before calling Finalize without invoking undefined behavior.
         *m_busyTracker.pDoneCount = 0;
-        *(m_pWriteAddr + m_reservedDataOffset) = 0;
+        *pWriteAddr = 0;
     }
+    return result;
 }
 
 // =====================================================================================================================

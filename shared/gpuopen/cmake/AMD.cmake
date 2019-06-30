@@ -1,11 +1,33 @@
 
+##
+ #######################################################################################################################
+ #
+ #  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ #
+ #  Permission is hereby granted, free of charge, to any person obtaining a copy
+ #  of this software and associated documentation files (the "Software"), to deal
+ #  in the Software without restriction, including without limitation the rights
+ #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ #  copies of the Software, and to permit persons to whom the Software is
+ #  furnished to do so, subject to the following conditions:
+ #
+ #  The above copyright notice and this permission notice shall be included in all
+ #  copies or substantial portions of the Software.
+ #
+ #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ #  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ #  SOFTWARE.
+ #
+ #######################################################################################################################
+
 cmake_minimum_required(VERSION 3.5)
 
 function(amd_target name)
 
-#if DD_CLOSED_SOURCE
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
-#endif
         # [GCC] Exceptions
         #   https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_exceptions.html
         #
@@ -26,20 +48,6 @@ function(amd_target name)
             -Wextra  # Enable extra warnings that are not enabled by -Wall.
             -Werror) # Turn warnings into errors.
 
-#if DD_CLOSED_SOURCE
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-
-        # [MSVC] Warning Level
-        #    https://docs.microsoft.com/en-us/cpp/build/reference/compiler-option-warning-level
-        target_compile_options(${name} PRIVATE
-            /W4  # Enable warning level 4.
-            /WX) # Treat warnings as errors.
-
-    else()
-        message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER_ID} is not supported!")
-    endif()
-#endif
-
 endfunction()
 
 function(amd_executable name)
@@ -48,20 +56,6 @@ function(amd_executable name)
     amd_target    (${name})
 
 endfunction()
-
-#if DD_CLOSED_SOURCE
-function(amd_km_library name type)
-
-    # TODO: Explain that this is temporary
-    if(NOT DEFINED WDK_ROOT)
-        find_package(WDK REQUIRED)
-    endif()
-
-    wdk_add_library(${name} ${type} ${ARGN} "")
-    amd_target (${name})
-
-endfunction()
-#endif
 
 function(amd_um_library name type)
 

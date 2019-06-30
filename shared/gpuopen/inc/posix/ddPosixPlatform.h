@@ -133,19 +133,9 @@ namespace DevDriver
 
 #if defined(DD_PLATFORM_LINUX_UM)
         typedef sem_t SemaphoreStorage;
-        typedef drand48_data RandomStorage;
 #endif
 
-        struct ThreadStorage
-        {
-            ThreadFunction pFnFunction;
-            void*          pParameter;
-            pthread_t      hThread;
-
-            ThreadStorage()
-            {
-                memset(this, 0, sizeof(*this));
-            }
-        };
+        typedef pthread_t ThreadHandle;
+        typedef void*     ThreadReturnType;
     }
 }

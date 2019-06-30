@@ -466,6 +466,11 @@ typedef int32 (*DrmGetCap)(
             uint64    capability,
             uint64*   pValue);
 
+typedef int32 (*DrmSetClientCap)(
+            int       fd,
+            uint64    capability,
+            uint64    value);
+
 typedef int32 (*DrmSyncobjCreate)(
             int       fd,
             uint32    flags,
@@ -570,12 +575,12 @@ typedef void (*DrmModeFreeProperty)(
 
 typedef drmModeObjectPropertiesPtr (*DrmModeObjectGetProperties)(
             int       fd,
-            uint32_t  object_id,
-            uint32_t  object_type);
+            uint32    object_id,
+            uint32    object_type);
 
 typedef drmModePropertyBlobPtr (*DrmModeGetPropertyBlob)(
             int       fd,
-            uint32_t  blob_id);
+            uint32    blob_id);
 
 typedef void (*DrmModeFreePropertyBlob)(
             drmModePropertyBlobPtr    ptr);
@@ -588,20 +593,24 @@ typedef void (*DrmModeAtomicFree)(
 typedef int (*DrmModeAtomicCommit)(
             int                   fd,
             drmModeAtomicReqPtr   req,
-            uint32_t              flags,
+            uint32                flags,
             void*                 user_data);
 
 typedef int (*DrmModeCreatePropertyBlob)(
             int           fd,
             const void*   data,
             size_t        length,
-            uint32_t*     id);
+            uint32*       id);
+
+typedef int (*DrmModeDestroyPropertyBlob)(
+            int       fd,
+            uint32    id);
 
 typedef int (*DrmModeAtomicAddProperty)(
             drmModeAtomicReqPtr   req,
-            uint32_t              object_id,
-            uint32_t              property_id,
-            uint64_t              value);
+            uint32                object_id,
+            uint32                property_id,
+            uint64                value);
 
 enum DrmLoaderLibraries : uint32
 {
@@ -1104,6 +1113,12 @@ struct DrmLoaderFuncs
         return (pfnDrmGetCap != nullptr);
     }
 
+    DrmSetClientCap                   pfnDrmSetClientCap;
+    bool pfnDrmSetClientCapisValid() const
+    {
+        return (pfnDrmSetClientCap != nullptr);
+    }
+
     DrmSyncobjCreate                  pfnDrmSyncobjCreate;
     bool pfnDrmSyncobjCreateisValid() const
     {
@@ -1270,6 +1285,12 @@ struct DrmLoaderFuncs
     bool pfnDrmModeCreatePropertyBlobisValid() const
     {
         return (pfnDrmModeCreatePropertyBlob != nullptr);
+    }
+
+    DrmModeDestroyPropertyBlob        pfnDrmModeDestroyPropertyBlob;
+    bool pfnDrmModeDestroyPropertyBlobisValid() const
+    {
+        return (pfnDrmModeDestroyPropertyBlob != nullptr);
     }
 
     DrmModeAtomicAddProperty          pfnDrmModeAtomicAddProperty;
@@ -2125,6 +2146,16 @@ public:
         return (m_pFuncs->pfnDrmGetCap != nullptr);
     }
 
+    int32 pfnDrmSetClientCap(
+            int       fd,
+            uint64    capability,
+            uint64    value) const;
+
+    bool pfnDrmSetClientCapisValid() const
+    {
+        return (m_pFuncs->pfnDrmSetClientCap != nullptr);
+    }
+
     int32 pfnDrmSyncobjCreate(
             int       fd,
             uint32    flags,
@@ -2334,8 +2365,8 @@ public:
 
     drmModeObjectPropertiesPtr pfnDrmModeObjectGetProperties(
             int       fd,
-            uint32_t  object_id,
-            uint32_t  object_type) const;
+            uint32    object_id,
+            uint32    object_type) const;
 
     bool pfnDrmModeObjectGetPropertiesisValid() const
     {
@@ -2344,7 +2375,7 @@ public:
 
     drmModePropertyBlobPtr pfnDrmModeGetPropertyBlob(
             int       fd,
-            uint32_t  blob_id) const;
+            uint32    blob_id) const;
 
     bool pfnDrmModeGetPropertyBlobisValid() const
     {
@@ -2372,7 +2403,7 @@ public:
     int pfnDrmModeAtomicCommit(
             int                   fd,
             drmModeAtomicReqPtr   req,
-            uint32_t              flags,
+            uint32                flags,
             void*                 user_data) const;
 
     bool pfnDrmModeAtomicCommitisValid() const
@@ -2384,18 +2415,27 @@ public:
             int           fd,
             const void*   data,
             size_t        length,
-            uint32_t*     id) const;
+            uint32*       id) const;
 
     bool pfnDrmModeCreatePropertyBlobisValid() const
     {
         return (m_pFuncs->pfnDrmModeCreatePropertyBlob != nullptr);
     }
 
+    int pfnDrmModeDestroyPropertyBlob(
+            int       fd,
+            uint32    id) const;
+
+    bool pfnDrmModeDestroyPropertyBlobisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeDestroyPropertyBlob != nullptr);
+    }
+
     int pfnDrmModeAtomicAddProperty(
             drmModeAtomicReqPtr   req,
-            uint32_t              object_id,
-            uint32_t              property_id,
-            uint64_t              value) const;
+            uint32                object_id,
+            uint32                property_id,
+            uint64                value) const;
 
     bool pfnDrmModeAtomicAddPropertyisValid() const
     {

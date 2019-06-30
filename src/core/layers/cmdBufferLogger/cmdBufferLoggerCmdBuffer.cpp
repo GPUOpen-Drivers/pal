@@ -30,8 +30,8 @@
 #include "core/g_palPlatformSettings.h"
 #include <cinttypes>
 
-// These includes are required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a
-// copy of the data in it for the tokenization.
+// This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
+// data in it for the tokenization.
 
 using namespace Util;
 
@@ -923,11 +923,14 @@ Result CmdBuffer::Init()
         if (result == Result::Success)
         {
             result = Result::ErrorOutOfMemory;
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
+            createInfo.size               = sizeof(CmdBufferTimestampData);
+            createInfo.alignment          = sizeof(uint64);
+#else
             const Pal::gpusize allocGranularity = deviceProps.gpuMemoryProperties.virtualMemAllocGranularity;
-
             createInfo.size               = Util::Pow2Align(sizeof(CmdBufferTimestampData), allocGranularity);
             createInfo.alignment          = Util::Pow2Align(sizeof(uint64), allocGranularity);
+#endif
             createInfo.vaRange            = VaRange::Default;
             createInfo.priority           = GpuMemPriority::VeryLow;
             createInfo.heapCount          = 1;
@@ -4663,6 +4666,7 @@ void CmdBuffer::CmdEndWhile()
     GetNextLayer()->CmdEndWhile();
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
 // =====================================================================================================================
 void CmdBuffer::CmdSetHiSCompareState0(
     CompareFunc compFunc,
@@ -4695,6 +4699,48 @@ void CmdBuffer::CmdSetHiSCompareState1(
     }
 
     GetNextLayer()->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
+}
+#endif
+
+// =====================================================================================================================
+static void CmdUpdateHiSPretestsToString(
+    CmdBuffer*         pCmdBuffer,
+    const HiSPretests& pretests,
+    uint32             firstMip,
+    uint32             numMips)
+{
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    Snprintf(pString, StringLength, "HiSPretest0: (Comp : %u), (Mask : 0x%X), (Value : 0x%X), (Valid : %u)",
+               pretests.test[0].func, pretests.test[0].mask, pretests.test[0].value, pretests.test[0].isValid);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "HiSPretest1: (Comp : %u), (Mask : 0x%X), (Value : 0x%X), (Valid : %u)",
+        pretests.test[1].func, pretests.test[1].mask, pretests.test[1].value, pretests.test[1].isValid);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "First Mip: %u, numMips: %u",
+                firstMip, numMips);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdUpdateHiSPretests(
+    const IImage*      pImage,
+    const HiSPretests& pretests,
+    uint32             firstMip,
+    uint32             numMips)
+{
+    if (m_annotations.logMiscellaneous)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdUpdateHiSPretests));
+
+        CmdUpdateHiSPretestsToString(this, pretests, firstMip, numMips);
+    }
+    GetNextLayer()->CmdUpdateHiSPretests(pImage, pretests, firstMip, numMips);
 }
 
 // =====================================================================================================================
@@ -4880,6 +4926,22 @@ void CmdBuffer::CmdSetUserClipPlanes(
     }
 
     GetNextLayer()->CmdSetUserClipPlanes(firstPlane, planeCount, pPlanes);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetClipRects(
+    uint16      clipRule,
+    uint32      rectCount,
+    const Rect* pRectList)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetClipRects));
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdSetClipRects(clipRule, rectCount, pRectList);
 }
 
 // =====================================================================================================================

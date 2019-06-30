@@ -32,7 +32,13 @@
 #include "ddPlatform.h"
 #include "messageChannel.h"
 
-#if DD_PLATFORM_IS_UM
+    // In the future, this will be provided by the build system directly. Doing that will cause a lot of code changes,
+    // so this is being done temporarily as a way to ease the transition.
+    #define DD_PLATFORM_POSIX_UM DD_PLATFORM_LINUX_UM
+
+#define DD_SUPPORT_SOCKET_TRANSPORT ((DD_PLATFORM_WINDOWS_UM && DEVDRIVER_BUILD_REMOTE_TRANSPORT) || (DD_PLATFORM_POSIX_UM))
+
+#if DD_SUPPORT_SOCKET_TRANSPORT
     #include "socketMsgTransport.h"
 #endif
 
@@ -44,11 +50,13 @@ namespace DevDriver
     {
         Result result = Result::Unavailable;
 
-#if   DD_PLATFORM_IS_UM
+#if   DD_PLATFORM_POSIX_UM
         if ((hostInfo.type == TransportType::Remote) |
             (hostInfo.type == TransportType::Local))
         {
+#if DD_SUPPORT_SOCKET_TRANSPORT
             result = SocketMsgTransport::TestConnection(hostInfo, timeoutInMs);
+#endif
         }
 #endif
         else
@@ -76,14 +84,16 @@ namespace DevDriver
             DD_ASSERT(createInfo.allocCb.pfnAlloc != nullptr);
             DD_ASSERT(createInfo.allocCb.pfnFree != nullptr);
 
-#if   DD_PLATFORM_IS_UM
+#if   DD_PLATFORM_POSIX_UM
             if ((createInfo.hostInfo.type == TransportType::Remote) |
                 (createInfo.hostInfo.type == TransportType::Local))
             {
+#if DD_SUPPORT_SOCKET_TRANSPORT
                 using MsgChannelSocket = MessageChannel<SocketMsgTransport>;
                 pMsgChannel = DD_NEW(MsgChannelSocket, createInfo.allocCb)(createInfo.allocCb,
                     createInfo.channelInfo,
                     createInfo.hostInfo);
+#endif
             }
 #endif
             else

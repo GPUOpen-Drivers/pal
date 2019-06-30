@@ -710,6 +710,7 @@ Result AddrMgr1::ComputeSubResourceInfo(
         pSubResInfo->actualExtentElements.width  = surfInfoOut.pitch;
         pSubResInfo->actualExtentElements.height = surfInfoOut.height;
         pSubResInfo->actualExtentElements.depth  = pSubResInfo->actualExtentTexels.depth;
+        pSubResInfo->actualArraySize             = (surfInfoIn.flags.volume != 0) ? 1 : surfInfoOut.depth;
 
         pSubResInfo->blockSize.width  = surfInfoOut.blockWidth;
         pSubResInfo->blockSize.height = surfInfoOut.blockHeight;

@@ -31,6 +31,7 @@
 #include "core/hw/gfxip/gfx9/gfx9FormatInfo.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "core/hw/gfxip/gfx9/gfx9DepthStencilState.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
 #include "palMath.h"
 
@@ -380,11 +381,12 @@ Result Image::Finalize(
     PAL_ASSERT((htileUsage.value == 0) || ((useDcc == false) && (useCmask == false)));
 
     // Also determine if we need any metadata for these mask RAM objects.
-    bool needsFastColorClearMetaData = false;
-    bool needsFastDepthClearMetaData = false;
-    bool needsDccStateMetaData       = false;
-    bool needsHtileLookupTable       = false;
+    bool needsFastColorClearMetaData   = false;
+    bool needsFastDepthClearMetaData   = false;
+    bool needsDccStateMetaData         = false;
+    bool needsHtileLookupTable         = false;
     bool needsWaTcCompatZRangeMetaData = false;
+    bool needsHiSPretestsMetaData      = false;
 
     // Initialize Htile:
     if (htileUsage.value != 0)
@@ -450,6 +452,9 @@ Result Image::Finalize(
                 }
 
                 needsFastDepthClearMetaData = true;
+
+                needsHiSPretestsMetaData = useSharedMetadata ? (sharedMetadata.hisPretestMetaDataOffset != 0)
+                                           : ((htileUsage.dsMetadata != 0) && supportsStencil);
 
                 // It's possible for the metadata allocation to require more alignment than the base allocation. Bump
                 // up the required alignment of the app-provided allocation if necessary.
@@ -674,6 +679,21 @@ Result Image::Finalize(
             else
             {
                 InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx9FastDepthClearMetaData), sizeof(uint32));
+            }
+        }
+
+        // Set up the GPU offset for the HiSPretests metadata
+        if (needsHiSPretestsMetaData && GetGfx9Settings(m_device).hiStencilEnable)
+        {
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.hisPretestMetaDataOffset;
+                InitHiSPretestsMetaData(pGpuMemLayout, &forcedOffset, sizeof(Gfx9HiSPretestsMetaData), sizeof(uint32));
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                InitHiSPretestsMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx9HiSPretestsMetaData), sizeof(uint32));
             }
         }
 
@@ -1543,6 +1563,15 @@ bool Image::IsFastDepthStencilClearSupported(
             // on any of the queue types enabled by the current layout.  This is only possible on universal queues.
             isFastClearSupported &= (layout.engines == LayoutUniversalEngine);
         }
+
+        // The client is clearing stencil aspect while the htile is of depth only format.
+        // In this case, we should not do fast clear.
+        if ((subResource.aspect == ImageAspect::Stencil)
+            && HasHtileData()
+            && GetHtile()->TileStencilDisabled())
+        {
+            isFastClearSupported = false;
+        }
     }
 
     return isFastClearSupported;
@@ -2035,6 +2064,58 @@ gpusize Image::GetWaTcCompatZRangeMetaDataAddr(
 {
     return (Parent()->GetBoundGpuMemory().GpuVirtAddr() + m_waTcCompatZRangeMetaDataOffset +
             (m_waTcCompatZRangeMetaDataSizePerMip * mipLevel));
+}
+
+// =====================================================================================================================
+// Builds PM4 commands into the command buffer which will update this Image's meta-data to reflect the updated
+// HiSPretests values. Returns the next unused DWORD in pCmdSpace.
+uint32* Image::UpdateHiSPretestsMetaData(
+    const SubresRange& range,
+    const HiSPretests& pretests,
+    Pm4Predicate       predicate,
+    uint32*            pCmdSpace
+    ) const
+{
+    PAL_ASSERT(HasHiSPretestsMetaData());
+
+    PAL_ASSERT((range.startSubres.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize));
+
+    Gfx9HiSPretestsMetaData pretestsMetaData = {};
+
+    pretestsMetaData.dbSResultCompare0.bitfields.COMPAREFUNC0  =
+                                                 DepthStencilState::HwStencilCompare(pretests.test[0].func);
+    pretestsMetaData.dbSResultCompare0.bitfields.COMPAREMASK0  = pretests.test[0].mask;
+    pretestsMetaData.dbSResultCompare0.bitfields.COMPAREVALUE0 = pretests.test[0].value;
+    pretestsMetaData.dbSResultCompare0.bitfields.ENABLE0       = pretests.test[0].isValid;
+
+    pretestsMetaData.dbSResultCompare1.bitfields.COMPAREFUNC1  =
+                                                 DepthStencilState::HwStencilCompare(pretests.test[1].func);
+    pretestsMetaData.dbSResultCompare1.bitfields.COMPAREMASK1  = pretests.test[1].mask;
+    pretestsMetaData.dbSResultCompare1.bitfields.COMPAREVALUE1 = pretests.test[1].value;
+    pretestsMetaData.dbSResultCompare1.bitfields.ENABLE1       = pretests.test[1].isValid;
+
+    // Base GPU virtual address of the Image's HiSPretests metadata.
+    const gpusize gpuVirtAddr     = HiSPretestsMetaDataAddr(range.startSubres.mipLevel);
+    const uint32* pSrcData        = reinterpret_cast<uint32*>(&pretestsMetaData.dbSResultCompare0);
+    constexpr size_t DwordsToCopy = sizeof(pretestsMetaData) / sizeof(uint32);
+
+    PAL_ASSERT(gpuVirtAddr != 0);
+
+    const CmdUtil& cmdUtil = static_cast<const Device*>(m_device.GetGfxDevice())->CmdUtil();
+
+    WriteDataInfo writeData = {};
+    writeData.engineType    = EngineTypeUniversal;
+    writeData.dstAddr       = gpuVirtAddr;
+    writeData.engineSel     = engine_sel__pfp_write_data__prefetch_parser;
+    writeData.dstSel        = dst_sel__pfp_write_data__memory;
+    writeData.predicate     = predicate;
+
+    return pCmdSpace + cmdUtil.BuildWriteDataPeriodic(writeData,
+                                                      DwordsToCopy,
+                                                      range.numMips,
+                                                      pSrcData,
+                                                      pCmdSpace);
+
 }
 
 // =====================================================================================================================
@@ -2664,6 +2745,14 @@ void Image::InitMetadataFill(
                                   FastClearMetaDataSize(range.numMips),
                                   0);
     }
+
+    if (HasHiSPretestsMetaData() && (range.startSubres.aspect == ImageAspect::Stencil))
+    {
+        pCmdBuffer->CmdFillMemory(gpuMemObj,
+                                  HiSPretestsMetaDataOffset(range.startSubres.mipLevel),
+                                  HiSPretestsMetaDataSize(range.numMips),
+                                  0);
+    }
 }
 
 // =====================================================================================================================
@@ -2902,6 +2991,7 @@ void Image::GetSharedMetadataInfo(
 
     pMetadataInfo->dccStateMetaDataOffset           = m_dccStateMetaDataOffset;
     pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset;
+    pMetadataInfo->hisPretestMetaDataOffset         = m_hiSPretestsMetaDataOffset;
     pMetadataInfo->fastClearEliminateMetaDataOffset = m_fastClearEliminateMetaDataOffset;
     pMetadataInfo->htileLookupTableOffset           = m_metaDataLookupTableOffsets[0];
 }

@@ -232,7 +232,7 @@ public:
         const SubresRange&   range
     ) const;
 
-    virtual void HwlExpandHtileHiZRange(
+    virtual void HwlResummarizeHtileCompute(
         GfxCmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const = 0;

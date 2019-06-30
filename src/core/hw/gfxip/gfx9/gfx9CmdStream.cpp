@@ -647,6 +647,68 @@ uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
 }
 
 // =====================================================================================================================
+// Builds a PM4 packet to load a single group of consecutive context registers from an indirect video memory offset.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <bool pm4OptImmediate>
+uint32* CmdStream::WriteLoadSeqContextRegs(
+    uint32      startRegAddr,
+    uint32      regCount,
+    gpusize     dataVirtAddr,
+    uint32*     pCmdSpace)
+{
+    PAL_ASSERT(m_flags.optModeImmediate == pm4OptImmediate);
+
+    // In gfx9+, PM4PFP_LOAD_CONTEXT_REG_INDEX is always supported.
+    const size_t packetSizeDwords = m_cmdUtil.BuildLoadContextRegsIndex<true>(
+                                    dataVirtAddr,
+                                    startRegAddr,
+                                    regCount,
+                                    pCmdSpace);
+    if (pm4OptImmediate)
+    {
+        m_pPm4Optimizer->HandleLoadContextRegsIndex(
+                reinterpret_cast<const PM4PFP_LOAD_CONTEXT_REG_INDEX&>(*pCmdSpace));
+    }
+    pCmdSpace += packetSizeDwords;
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteLoadSeqContextRegs<true>(
+    uint32      startRegAddr,
+    uint32      regCount,
+    gpusize     dataVirtAddr,
+    uint32*     pCmdSpace);
+template
+uint32* CmdStream::WriteLoadSeqContextRegs<false>(
+    uint32      startRegAddr,
+    uint32      regCount,
+    gpusize     dataVirtAddr,
+    uint32*     pCmdSpace);
+
+// =====================================================================================================================
+// Wrapper for the real WriteLoadSeqContextRegs() for when the caller doesn't know if the immediate mode pm4 optimizer
+// is enabled.
+uint32* CmdStream::WriteLoadSeqContextRegs(
+    uint32      startRegAddr,
+    uint32      regCount,
+    gpusize     dataVirtAddr,
+    uint32*     pCmdSpace)
+{
+    if (m_flags.optModeImmediate == 1)
+    {
+        pCmdSpace = WriteLoadSeqContextRegs<true>(startRegAddr, regCount, dataVirtAddr, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteLoadSeqContextRegs<false>(startRegAddr, regCount, dataVirtAddr, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
 // Builds a PM4 packet to set the given registers unless the PM4 optimizer indicates that it is redundant.
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 template <bool pm4OptImmediate>

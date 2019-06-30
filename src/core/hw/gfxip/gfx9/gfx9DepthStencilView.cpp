@@ -310,8 +310,10 @@ void DepthStencilView::UpdateImageVa(
     if (boundMem.IsBound())
     {
 
-        uint32  zBase       = m_pImage->GetSubresource256BAddrSwizzled(m_depthSubresource);
-        uint32  stencilBase = m_pImage->GetSubresource256BAddrSwizzled(m_stencilSubresource);
+        uint32  zReadBase        = m_pImage->GetSubresource256BAddrSwizzled(m_depthSubresource);
+        uint32  zWriteBase       = zReadBase;
+        uint32  stencilReadBase  = m_pImage->GetSubresource256BAddrSwizzled(m_stencilSubresource);
+        uint32  stencilWriteBase = stencilReadBase;
 
         if (m_flags.hTile)
         {
@@ -335,8 +337,8 @@ void DepthStencilView::UpdateImageVa(
             PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_depthSubresource) == 0);
 
             // Program depth read and write bases
-            pPm4Img->dbZReadBase.u32All  = zBase;
-            pPm4Img->dbZWriteBase.u32All = zBase;
+            pPm4Img->dbZReadBase.u32All  = zReadBase;
+            pPm4Img->dbZWriteBase.u32All = zWriteBase;
         }
 
         if (m_flags.stencil)
@@ -344,8 +346,8 @@ void DepthStencilView::UpdateImageVa(
             PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_stencilSubresource) == 0);
 
             // Program stencil read and write bases
-            pPm4Img->dbStencilReadBase.u32All  = stencilBase;
-            pPm4Img->dbStencilWriteBase.u32All = stencilBase;
+            pPm4Img->dbStencilReadBase.u32All  = stencilReadBase;
+            pPm4Img->dbStencilWriteBase.u32All = stencilWriteBase;
 
             // Copy the stencil base address into one of the CP's generic sync registers.
             pPm4Img->coherDestBase0.bits.DEST_BASE_256B = pPm4Img->dbStencilWriteBase.bits.BASE_256B;
@@ -382,7 +384,8 @@ uint32* DepthStencilView::WriteCommandsInternal(
 
         // For decompressed rendering to an Image, we need to override the values of DB_DEPTH_CONTROL and
         // DB_RENDER_OVERRIDE, depending on the compression states for depth and stencil.
-        if (m_flags.dbRenderControlLocked == 0)
+        if ((m_flags.dbRenderControlLocked == 0)
+           )
         {
             patchedPm4Commands.dbRenderControl.bits.DEPTH_COMPRESS_DISABLE   = (depthState   != DepthStencilCompressed);
             patchedPm4Commands.dbRenderControl.bits.STENCIL_COMPRESS_DISABLE = (stencilState != DepthStencilCompressed);
@@ -420,7 +423,23 @@ uint32* DepthStencilView::WriteCommandsInternal(
         ? pm4Img.spaceNeeded : pm4Img.spaceNeededDecompressed;
 
     PAL_ASSERT(pCmdStream != nullptr);
-    return pCmdStream->WritePm4Image(spaceNeeded, pPm4Commands, pCmdSpace);
+    pCmdSpace = pCmdStream->WritePm4Image(spaceNeeded, pPm4Commands, pCmdSpace);
+
+    // During the client is binding depth stencil target, we load the pretests meta data, which we expect is
+    // initialized by ClearHiSPretestsMetaData and later set by CmdUpdateHiSPretests, into a paired of DB
+    // context registers which are used to store the HiStencil pretests.
+    if (m_pImage->HasHiSPretestsMetaData())
+    {
+        const gpusize metaDataVirtAddr = m_pImage->HiSPretestsMetaDataAddr(MipLevel());
+        PAL_ASSERT((metaDataVirtAddr & 0x3) == 0);
+        pCmdSpace = pCmdStream->WriteLoadSeqContextRegs(
+                                mmDB_SRESULTS_COMPARE_STATE0,
+                                (mmDB_SRESULTS_COMPARE_STATE1 - mmDB_SRESULTS_COMPARE_STATE0 + 1),
+                                metaDataVirtAddr,
+                                pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

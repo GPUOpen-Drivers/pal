@@ -139,6 +139,7 @@ target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     src/ddTransferManager.cpp
     src/ddClientURIService.cpp
     src/ddURIRequestContext.cpp
+    src/ddPlatform.cpp
     ## Protocols
     src/protocols/ddTransferServer.cpp
     src/protocols/ddTransferClient.cpp
@@ -185,7 +186,8 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     target_compile_definitions(${GPUOPEN_LIB_NAME}
         PUBLIC
             "DD_PLATFORM_LINUX_UM=(1)"
-            "DD_PLATFORM_IS_UM=(1)")
+            "DD_PLATFORM_IS_UM=(1)"
+            "DD_PLATFORM_IS_GNU=(1)")
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/posix/ddPosixPlatform.cpp)
 
 else()

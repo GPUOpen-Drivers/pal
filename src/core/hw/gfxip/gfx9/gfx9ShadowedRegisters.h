@@ -95,16 +95,12 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (mmTA_BC_BASE_ADDR_HI - mmDB_RENDER_CONTROL + 1),
     },
     {
-        (mmPA_SC_WINDOW_OFFSET - CONTEXT_SPACE_START),                          // 0xA080 - 0xA082
-        (mmPA_SC_WINDOW_SCISSOR_BR - mmPA_SC_WINDOW_OFFSET + 1),
-    },
-    {
         (mmCOHER_DEST_BASE_HI_0 - CONTEXT_SPACE_START),                         // 0xA07A - 0xA07F
         (mmCOHER_DEST_BASE_3 - mmCOHER_DEST_BASE_HI_0 + 1),
     },
     {
-        (mmPA_SC_EDGERULE - CONTEXT_SPACE_START),                               // 0xA08C - 0xA0D7
-        (mmPA_SC_TILE_STEERING_OVERRIDE - mmPA_SC_EDGERULE + 1),
+        (mmPA_SC_WINDOW_OFFSET - CONTEXT_SPACE_START),                          // 0xA080 - 0xA0D7
+        (mmPA_SC_TILE_STEERING_OVERRIDE - mmPA_SC_WINDOW_OFFSET + 1),
     },
     {
         (Gfx09::mmPA_SC_RIGHT_VERT_GRID - CONTEXT_SPACE_START),                 // 0xA0E8 - 0xA0EC

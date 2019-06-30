@@ -190,16 +190,19 @@ Result Image::CreatePresentableImage(
 void Image::UpdateMetaDataInfo(
     IGpuMemory* pGpuMemory)
 {
-    Amdgpu::Device*const    pAmdgpuDevice = static_cast<Amdgpu::Device*>(m_pDevice);
-    Amdgpu::GpuMemory*const pAmdgpuGpuMem = static_cast<Amdgpu::GpuMemory*>(pGpuMemory);
+    if (pGpuMemory != nullptr)
+    {
+        auto*const pAmdgpuDevice = static_cast<Amdgpu::Device*>(m_pDevice);
+        auto*const pAmdgpuGpuMem = static_cast<Amdgpu::GpuMemory*>(pGpuMemory);
 
-    if (pAmdgpuGpuMem->IsInterprocess())
-    {
-        pAmdgpuDevice->UpdateMetaData(pAmdgpuGpuMem->SurfaceHandle(), *this);
-    }
-    else if (pAmdgpuGpuMem->IsExternal())
-    {
-        pAmdgpuDevice->UpdateImageInfo(pAmdgpuGpuMem->SurfaceHandle(), this);
+        if (pAmdgpuGpuMem->IsInterprocess())
+        {
+            pAmdgpuDevice->UpdateMetaData(pAmdgpuGpuMem->SurfaceHandle(), *this);
+        }
+        else if (pAmdgpuGpuMem->IsExternal())
+        {
+            pAmdgpuDevice->UpdateImageInfo(pAmdgpuGpuMem->SurfaceHandle(), this);
+        }
     }
 }
 
@@ -212,10 +215,12 @@ Result Image::UpdateExternalImageInfo(
     Pal::Image*                          pImage)
 {
     Result result = Result::Success;
+
     auto*const pAmdgpuImage     = static_cast<Amdgpu::Image*>(pImage);
     auto*const pAmdgpuGpuMemory = static_cast<Amdgpu::GpuMemory*>(pGpuMemory);
     auto*const pSwapChain       = static_cast<Amdgpu::SwapChain*>(createInfo.pSwapChain);
     auto*const pWindowSystem    = pSwapChain->GetWindowSystem();
+
     Pal::GpuMemoryExportInfo exportInfo = {};
     const int32 sharedBufferFd  = static_cast<int32>(pAmdgpuGpuMemory->ExportExternalHandle(exportInfo));
 
@@ -246,14 +251,18 @@ Result Image::CreatePresentableMemoryObject(
     GpuMemoryRequirements memReqs = {};
     pImage->GetGpuMemoryRequirements(&memReqs);
 
-    const gpusize allocGranularity = pDevice->MemoryProperties().realMemAllocGranularity;
-
     GpuMemoryCreateInfo createInfo = {};
     createInfo.flags.flippable    = pImage->IsFlippable();
     createInfo.flags.stereo       = pImage->GetInternalCreateInfo().flags.stereo;
     createInfo.flags.peerWritable = presentableImageCreateInfo.flags.peerWritable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
+    createInfo.size               = memReqs.size;
+    createInfo.alignment          = memReqs.alignment;
+#else
+    const gpusize allocGranularity = pDevice->MemoryProperties().realMemAllocGranularity;
     createInfo.size               = Pow2Align(memReqs.size, allocGranularity);
     createInfo.alignment          = Pow2Align(memReqs.alignment, allocGranularity);
+#endif
     createInfo.vaRange            = VaRange::Default;
     createInfo.priority           = GpuMemPriority::VeryHigh;
     createInfo.heapCount          = 0;
@@ -444,6 +453,9 @@ Result Image::CreateExternalSharedImage(
             pUmdSharedMetadata->fast_clear_value_offset;
         internalCreateInfo.sharedMetadata.fastClearEliminateMetaDataOffset =
             pUmdSharedMetadata->fce_state_offset;
+
+        // The offset here will be updated once change of amdgpu_shared_metadata_info is done.
+        internalCreateInfo.sharedMetadata.hisPretestMetaDataOffset = 0;
 
         if (pUmdSharedMetadata->dcc_offset != 0)
         {

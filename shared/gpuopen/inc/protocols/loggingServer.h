@@ -30,6 +30,7 @@
 */
 
 #pragma once
+
 #include "baseProtocolServer.h"
 #include "loggingProtocol.h"
 #include "util/vector.h"

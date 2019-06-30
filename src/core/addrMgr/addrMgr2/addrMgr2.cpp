@@ -170,8 +170,9 @@ Result AddrMgr2::InitSubresourcesForImage(
     for (uint32 plane = 0; plane < imageInfo.numPlanes; ++plane)
     {
         // Base subresource for the current plane:
-        SubResourceInfo*const pBaseSubRes   = (pSubResInfoList + (plane * subResourcesPerPlane));
-        TileInfo*const        pBaseTileInfo = NonConstTileInfo(pSubResTileInfoList, (plane * subResourcesPerPlane));
+        SubResourceInfo*const pBaseSubRes    = (pSubResInfoList + (plane * subResourcesPerPlane));
+        TileInfo*const        pBaseTileInfo  = NonConstTileInfo(pSubResTileInfoList, (plane * subResourcesPerPlane));
+        ADDR_QBSTEREOINFO     addrStereoInfo = { };
 
         ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT surfSettingOut = { };
         surfSettingOut.size = sizeof(surfSettingOut);
@@ -184,12 +185,24 @@ Result AddrMgr2::InitSubresourcesForImage(
         result = ComputePlaneSwizzleMode<false>(pImage, pBaseSubRes, &surfSettingOut);
         if (result == Result::Success)
         {
+            surfInfoOut.pStereoInfo = &addrStereoInfo;
+
             // Use AddrLib to compute the padded and aligned dimensions of the entire mip-chain.
             result = ComputeAlignedPlaneDimensions(pImage,
                                                    pBaseSubRes,
                                                    pBaseTileInfo,
                                                    surfSettingOut.swizzleMode,
                                                    &surfInfoOut);
+        }
+
+        if (createInfo.flags.stereo == 1)
+        {
+            const uint32 tileSwizzleRight = surfInfoOut.pStereoInfo->rightSwizzle << 8;
+
+            pGpuMemLayout->stereoLineOffset       = surfInfoOut.pStereoInfo->eyeHeight;
+            pSubResInfoList->extentTexels.height += pGpuMemLayout->stereoLineOffset;
+            pSubResInfoList->stereoLineOffset     = pGpuMemLayout->stereoLineOffset;
+            pSubResInfoList->stereoOffset         = (surfInfoOut.pStereoInfo->rightOffset | tileSwizzleRight);
         }
 
         if (result == Result::Success)
@@ -493,6 +506,8 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     flags.needEquation = ((GetAddrResourceType(&image) != ADDR_RSRC_TEX_1D) &&
                           ((createInfo.flags.needSwizzleEqs != 0) ||
                            (createInfo.tiling != ImageTiling::Linear))) ? 1 : 0;
+
+    flags.qbStereo = createInfo.flags.stereo;
 
     return flags;
 }
@@ -877,6 +892,7 @@ Result AddrMgr2::InitSubresourceInfo(
     // The depth values are always equal.
     pSubResInfo->extentElements.depth     = pSubResInfo->extentTexels.depth;
     pSubResInfo->actualExtentTexels.depth = pSubResInfo->actualExtentElements.depth;
+    pSubResInfo->actualArraySize          = createInfo.arraySize;
 
     // Finish with the subresource's memory layout data.
     pSubResInfo->baseAlign = surfaceInfo.baseAlign;
@@ -893,6 +909,11 @@ Result AddrMgr2::InitSubresourceInfo(
                         ((createInfo.imageType == ImageType::Tex3d)
                             ? GetNumAddrLib3dSlices(pImage, surfaceSetting, surfaceInfo)
                             : 1);
+
+    if (pImage->GetImageCreateInfo().flags.stereo == 1)
+    {
+        pSubResInfo->size = surfaceInfo.surfSize;
+    }
 
     // Compute the exact row pitch in bytes. This math must be done in terms of elements instead of texels
     // because some formats (e.g., R32G32B32) have pitches that are not multiples of their texel size.

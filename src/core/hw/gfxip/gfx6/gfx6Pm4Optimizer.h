@@ -76,6 +76,8 @@ public:
     // based on the packet's contents.
     void HandleLoadShRegs(const PM4CMDLOADDATA& loadData) { HandlePm4LoadReg(loadData, &m_shRegs[0]); }
     void HandleLoadContextRegs(const PM4CMDLOADDATA& loadData) { HandlePm4LoadReg(loadData, &m_cntxRegs[0]); }
+    void HandleLoadContextRegsIndex(const PM4CMDLOADDATAINDEX& loadDataIndex)
+         { HandlePm4LoadRegIndex(loadDataIndex, &m_cntxRegs[0]); }
 
     // This generic function can be called by just about any step in the command stream building scheme. It can account
     // for cond exec packets assuming that the cond exec block is contained within pSrcCmds.

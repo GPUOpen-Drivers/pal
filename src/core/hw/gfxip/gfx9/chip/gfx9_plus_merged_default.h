@@ -2435,6 +2435,7 @@ namespace Gfx09
     constexpr unsigned int mmVGT_DMA_CONTROL_DEFAULT                = 0x4000FF;
     constexpr unsigned int mmVGT_DMA_INDEX_TYPE_DEFAULT             = 0x054D;
     constexpr unsigned int mmVGT_DRAW_INITIATOR_DEFAULT             = 0xC00001CD;
+    constexpr unsigned int mmVGT_DRAW_PAYLOAD_CNTL_DEFAULT          = 0x000D;
     constexpr unsigned int mmVGT_FIFO_DEPTHS_DEFAULT                = 0x80DCDC0;
     constexpr unsigned int mmVGT_GS_INSTANCE_CNT_DEFAULT            = 0x01CD;
     constexpr unsigned int mmVGT_GS_MAX_PRIMS_PER_SUBGROUP_DEFAULT  = 0x0000;

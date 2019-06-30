@@ -598,6 +598,39 @@ void CmdBuffer::CmdSetUserClipPlanes(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetClipRects(
+    uint16      clipRule,
+    uint32      rectCount,
+    const Rect* pRectList)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetClipRects;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdSetClipRects(clipRule, rectCount, pRectList);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("clipRule", clipRule);
+        pLogContext->KeyAndValue("rectCount", rectCount);
+        pLogContext->KeyAndBeginList("Rectangles", false);
+
+        for (uint32 idx = 0; idx < rectCount; ++idx)
+        {
+            pLogContext->Struct(pRectList[idx]);
+        }
+
+        pLogContext->EndList();
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdSetMsaaQuadSamplePattern(
     uint32                       numSamplesPerPixel,
     const MsaaQuadSamplePattern& quadSamplePattern)
@@ -2509,6 +2542,7 @@ void CmdBuffer::CmdWaitBusAddressableMemoryMarker(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
 // =====================================================================================================================
 void CmdBuffer::CmdSetHiSCompareState0(
     CompareFunc compFunc,
@@ -2567,6 +2601,36 @@ void CmdBuffer::CmdSetHiSCompareState1(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 
+}
+#endif
+
+// =====================================================================================================================
+void CmdBuffer::CmdUpdateHiSPretests(
+    const IImage*      pImage,
+    const HiSPretests& pretests,
+    uint32             firstMip,
+    uint32             numMips)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId = InterfaceFunc::CmdUpdateHiSPretests;
+    funcInfo.objectId = m_objectId;
+    funcInfo.preCallTime = m_pPlatform->GetTime();
+    m_pNextLayer->CmdUpdateHiSPretests(NextImage(pImage), pretests, firstMip, numMips);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndObject("image", pImage);
+        pLogContext->KeyAndStruct("pretests", pretests);
+        pLogContext->KeyAndValue("firstMip", firstMip);
+        pLogContext->KeyAndValue("numMips", numMips);
+
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
 }
 
 // =====================================================================================================================

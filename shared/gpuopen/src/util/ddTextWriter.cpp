@@ -106,16 +106,38 @@ void TextWriter::Write(const char* pFormat, ...)
     constexpr uint32 bufferSize = 1024;
     char buffer[bufferSize];
 
+    // Ensure this buffer is null terminated (just in case!)
+    buffer[0] = '\0';
+
     if (CanWrite())
     {
         va_list formatArgs;
         va_start(formatArgs, pFormat);
-        // TODO: Make TextWriter::Write(const char*, ...) use the heap if the formatted string would be too long.
-        // We should check how large our string will need to be, so that we can spill onto the heap if we have to.
-        // We currently do not because of limitations in our snprintf wrapper.
-        Platform::Vsnprintf(buffer, bufferSize, pFormat, formatArgs);
+        const int32 formattedLength = Platform::Vsnprintf(buffer, bufferSize, pFormat, formatArgs);
         va_end(formatArgs);
 
+        // Snprintf and variants report the size that they *want* to print, not what they actually did.
+        if (formattedLength >= 1024)
+        {
+            // TODO: Make TextWriter::Write(const char*, ...) use the heap if the formatted string would be too long.
+            //       TextWriter needs an allocCb first.
+            DD_PRINT(
+                LogLevel::Error,
+                "formatted Write() required more space than was available. sizeof(buffer)=%zu, formattedLength=%d, pFormat=\"%s\"",
+                sizeof(buffer),
+                formattedLength,
+                pFormat);
+        }
+        else if (formattedLength < 0)
+        {
+            DD_PRINT(
+                LogLevel::Error,
+                "vnsprintf encountered an error: vsnprintf returned %d, pFormat=\"%s\"",
+                formattedLength,
+                pFormat);
+        }
+
+        // For now unconditionally write out the buffer
         WriteText(buffer, sizeof(buffer));
     }
 }

@@ -22,13 +22,15 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// When changes are needed, modify the tools generating this module in the tools\generate directory OR settings.cfg
+// When changes are needed, modify the tools generating this module in the tools\generate directory OR
+// settings_platform.json
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -168,6 +170,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.samplerAnisoBias = 0;
     m_settings.samplerSecAnisoBias = 0;
     m_settings.waRestrictMetaDataUseInMipTail = false;
+
     m_settings.waLogicOpDisablesOverwriteCombiner = false;
     m_settings.waRotatedSwizzleDisablesOverwriteCombiner = false;
 
@@ -1557,7 +1560,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3647432205;
+            component.settingsDataHash = 1850194206;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

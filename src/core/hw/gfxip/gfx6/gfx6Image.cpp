@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6FormatInfo.h"
 #include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
+#include "core/hw/gfxip/gfx6/gfx6DepthStencilState.h"
 #include "core/platform.h"
 #include "palMath.h"
 #include "palMetroHash.h"
@@ -337,6 +338,7 @@ Result Image::Finalize(
     bool needsFastDepthClearMetaData   = false;
     bool needsDccStateMetaData         = false;
     bool needsWaTcCompatZRangeMetaData = false;
+    bool needsHiSPretestsMetaData      = false;
 
     // Start out by assuming we can decompress any TC-compatible subresource using compute Queues. This may be
     // overridden later.
@@ -617,6 +619,9 @@ Result Image::Finalize(
 
                     needsFastDepthClearMetaData = true;
 
+                    needsHiSPretestsMetaData = useSharedMetadata ? (sharedMetadata.hisPretestMetaDataOffset != 0)
+                                               : supportsStencil;
+
                     *pGpuMemSize = useSharedMetadata ? Max(memOffset, *pGpuMemSize) : memOffset;
 
                     // It's possible for the metadata allocation to require more alignment than the base allocation.
@@ -759,6 +764,21 @@ Result Image::Finalize(
             else
             {
                 InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx6FastDepthClearMetaData), sizeof(uint32));
+            }
+        }
+
+        // Set up the GPU offset for the HiSPretests metadata
+        if (needsHiSPretestsMetaData && GetGfx6Settings(m_device).hiStencilEnable)
+        {
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.hisPretestMetaDataOffset;
+                InitHiSPretestsMetaData(pGpuMemLayout, &forcedOffset, sizeof(Gfx6HiSPretestsMetaData), sizeof(uint32));
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                InitHiSPretestsMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx6HiSPretestsMetaData), sizeof(uint32));
             }
         }
 
@@ -1393,6 +1413,56 @@ AddrTileType Image::GetSubResourceTileType(
 {
     const AddrMgr1::TileInfo*const pTileInfo = AddrMgr1::GetTileInfo(Parent(), subresource);
     return AddrMgr1::AddrTileTypeFromHwMicroTileMode(pTileInfo->tileType);
+}
+
+// =====================================================================================================================
+// Builds PM4 commands into the command buffer which will update this Image's meta-data to reflect the updated
+// HiSPretests values. Returns the next unused DWORD in pCmdSpace.
+uint32* Image::UpdateHiSPretestsMetaData(
+    const SubresRange& range,
+    const HiSPretests& pretests,
+    PM4Predicate       predicate,
+    uint32*            pCmdSpace
+    ) const
+{
+    PAL_ASSERT(HasHiSPretestsMetaData());
+
+    PAL_ASSERT((range.startSubres.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize));
+
+    Gfx6HiSPretestsMetaData pretestsMetaData = {};
+
+    pretestsMetaData.dbSResultCompare0.bitfields.COMPAREFUNC0  =
+                                DepthStencilState::HwStencilCompare(pretests.test[0].func);
+    pretestsMetaData.dbSResultCompare0.bitfields.COMPAREMASK0  = pretests.test[0].mask;
+    pretestsMetaData.dbSResultCompare0.bitfields.COMPAREVALUE0 = pretests.test[0].value;
+    pretestsMetaData.dbSResultCompare0.bitfields.ENABLE0       = pretests.test[0].isValid;
+
+    pretestsMetaData.dbSResultCompare1.bitfields.COMPAREFUNC1  =
+                                DepthStencilState::HwStencilCompare(pretests.test[1].func);
+    pretestsMetaData.dbSResultCompare1.bitfields.COMPAREMASK1  = pretests.test[1].mask;
+    pretestsMetaData.dbSResultCompare1.bitfields.COMPAREVALUE1 = pretests.test[1].value;
+    pretestsMetaData.dbSResultCompare1.bitfields.ENABLE1       = pretests.test[1].isValid;
+
+    // Base GPU virtual address of the Image's HiSPretests metadata.
+    const gpusize gpuVirtAddr     = HiSPretestsMetaDataAddr(range.startSubres.mipLevel);
+    const uint32* pSrcData        = reinterpret_cast<uint32*>(&pretestsMetaData.dbSResultCompare0);
+    constexpr size_t DwordsToCopy = sizeof(pretestsMetaData) / sizeof(uint32);
+
+    PAL_ASSERT(gpuVirtAddr != 0);
+
+    const CmdUtil& cmdUtil = static_cast<const Device*>(m_device.GetGfxDevice())->CmdUtil();
+
+    WriteDataInfo writeData = {};
+    writeData.dstAddr       = gpuVirtAddr;
+    writeData.engineSel     = WRITE_DATA_ENGINE_PFP;
+    writeData.dstSel        = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+    writeData.predicate     = predicate;
+
+    return pCmdSpace + cmdUtil.BuildWriteDataPeriodic(writeData,
+                                                      DwordsToCopy,
+                                                      range.numMips,
+                                                      pSrcData,
+                                                      pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -2034,6 +2104,16 @@ bool Image::IsFastDepthStencilClearSupported(
         // If we are doing a non TC compatible htile fast clear, we need to be able to execute a DB decompress
         // on any of the queue types enabled by the current layout.  This is only possible on universal queues.
         isFastClearSupported &= (layout.engines == LayoutUniversalEngine);
+    }
+
+    // The client is clearing stencil aspect while the htile is of depth only format.
+    // In this case, we should not do fast clear.
+    // The range here covers all slices of one mip.
+    if ((subResource.aspect == ImageAspect::Stencil)
+        && HasHtileData()
+        && GetHtile(range.startSubres)->TileStencilDisabled())
+    {
+        isFastClearSupported = false;
     }
 
     return isFastClearSupported;
@@ -2895,6 +2975,14 @@ void Image::InitMetadataFill(
                                   0);
     }
 
+    if (HasHiSPretestsMetaData() && (range.startSubres.aspect == ImageAspect::Stencil))
+    {
+        pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
+                                  HiSPretestsMetaDataOffset(range.startSubres.mipLevel),
+                                  HiSPretestsMetaDataSize(range.numMips),
+                                  0);
+    }
+
     if ((pCmdBuffer->GetEngineType() != EngineTypeDma) && hasMetadata)
     {
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -2945,6 +3033,7 @@ void Image::GetSharedMetadataInfo(
 
     pMetadataInfo->dccStateMetaDataOffset           = m_dccStateMetaDataOffset;
     pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset;
+    pMetadataInfo->hisPretestMetaDataOffset         = m_hiSPretestsMetaDataOffset;
     pMetadataInfo->fastClearEliminateMetaDataOffset = m_fastClearEliminateMetaDataOffset;
 }
 

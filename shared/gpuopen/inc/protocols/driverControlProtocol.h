@@ -35,7 +35,8 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
-*|  4.0    | Added HaltedOnPostDeviceInit state.                                                                    |
+*|  5.0    | Cleaned up the driver facing interface.                                                                  |
+*|  4.0    | Added HaltedOnPostDeviceInit state.                                                                      |
 *|  3.0    | Added QueryClientInfoRequest support.                                                                    |
 *|  2.1    | Added initialization time step functionality.                                                            |
 *|  2.0    | Added initialization time driver status values and a terminate driver command.                           |
@@ -43,6 +44,7 @@
 ***********************************************************************************************************************
 */
 
+#define DRIVERCONTROL_DRIVER_INTERFACE_CLEANUP_VERSION 5
 #define DRIVERCONTROL_HALTEDPOSTDEVICEINIT_VERSION 4
 #define DRIVERCONTROL_QUERYCLIENTINFO_VERSION 3
 #define DRIVERCONTROL_INITIALIZATION_STATUS_VERSION 2
@@ -97,18 +99,9 @@ namespace DevDriver
             Count
         };
 
-        enum struct DriverStatus : uint32
-        {
-            Running = 0,
-            Paused,
-            HaltedOnDeviceInit,
-            EarlyDeviceInit,
-            LateDeviceInit,
-            PlatformInit,
-            HaltedOnPlatformInit,
-            HaltedPostDeviceInit,
-            Count
-        };
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
+        typedef DevDriver::DriverStatus DriverStatus;
+#endif
 
         ///////////////////////
         // DriverControl Payloads

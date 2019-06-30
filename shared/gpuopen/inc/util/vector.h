@@ -298,6 +298,7 @@ namespace DevDriver
                 const size_t newCapacity = Platform::Pow2Pad(Platform::Max(newSize, (size_t)1));
                 const size_t allocSize = sizeof(T) * newCapacity;
                 T* pData = static_cast<T*>(DD_MALLOC(allocSize, alignof(T), m_allocCb));
+
                 DD_ASSERT(pData != nullptr);
 
                 // If the struct is not a POD, then we need to construct objects

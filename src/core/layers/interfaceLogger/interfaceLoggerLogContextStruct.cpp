@@ -1418,6 +1418,27 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    const HiSPretests& value)
+{
+    BeginMap(false);
+
+    KeyAndBeginList("test", false);
+    for (uint32 idx = 0; idx < NumHiSPretests; ++idx)
+    {
+       BeginMap(false);
+       KeyAndEnum("compFunc", value.test[idx].func);
+       KeyAndValue("compMask", value.test[idx].mask);
+       KeyAndValue("compValue", value.test[idx].value);
+       KeyAndValue("enable", value.test[idx].isValid);
+       EndMap();
+     }
+    EndList();
+
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     const ImageCopyRegion& value)
 {
     BeginMap(false);

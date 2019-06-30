@@ -64,12 +64,8 @@ const RegisterRange ContextShadowRange[] =
         (mmTA_BC_BASE_ADDR_HI__CI__VI - mmDB_RENDER_CONTROL + 1),
     },
     {
-        (mmPA_SC_WINDOW_OFFSET - CONTEXT_SPACE_START),                          // 0xA080 - 0xA082
-        (mmPA_SC_WINDOW_SCISSOR_BR - mmPA_SC_WINDOW_OFFSET + 1),
-    },
-    {
-        (mmPA_SC_EDGERULE - CONTEXT_SPACE_START),                               // 0xA08C - 0xA0D5
-        (mmPA_SC_RASTER_CONFIG_1__CI__VI - mmPA_SC_EDGERULE + 1),
+        (mmPA_SC_WINDOW_OFFSET - CONTEXT_SPACE_START),                          // 0xA080 - 0xA0D5
+        (mmPA_SC_RASTER_CONFIG_1__CI__VI - mmPA_SC_WINDOW_OFFSET + 1),
     },
     {
         (mmCOHER_DEST_BASE_2 - CONTEXT_SPACE_START),                            // 0xA07E - 0xA07F
@@ -151,12 +147,8 @@ const RegisterRange ContextShadowRangeRbReconfig[] =
         (mmTA_BC_BASE_ADDR_HI__CI__VI - mmDB_RENDER_CONTROL + 1),
     },
     {
-        (mmPA_SC_WINDOW_OFFSET - CONTEXT_SPACE_START),                          // 0xA080 - 0xA082
-        (mmPA_SC_WINDOW_SCISSOR_BR - mmPA_SC_WINDOW_OFFSET + 1),
-    },
-    {
-        (mmPA_SC_EDGERULE - CONTEXT_SPACE_START),                               // 0xA08C - 0xA0D3
-        (mmPA_SC_VPORT_ZMAX_15 - mmPA_SC_EDGERULE + 1),
+        (mmPA_SC_WINDOW_OFFSET - CONTEXT_SPACE_START),                          // 0xA080 - 0xA0D3
+        (mmPA_SC_VPORT_ZMAX_15 - mmPA_SC_WINDOW_OFFSET + 1),
     },
     {
         (mmPA_SC_RASTER_CONFIG_1__CI__VI - CONTEXT_SPACE_START),                // 0xA0D5 - 0xA0D5

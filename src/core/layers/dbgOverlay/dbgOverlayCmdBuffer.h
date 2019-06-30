@@ -48,6 +48,16 @@ public:
 
     virtual Result Begin(const CmdBufferBuildInfo& info) override;
 
+    virtual void CmdColorSpaceConversionCopy(
+        const IImage&                     srcImage,
+        ImageLayout                       srcImageLayout,
+        const IImage&                     dstImage,
+        ImageLayout                       dstImageLayout,
+        uint32                            regionCount,
+        const ColorSpaceConversionRegion* pRegions,
+        TexFilter                         filter,
+        const ColorSpaceConversionTable&  cscTable) override;
+
 private:
     const Device&   m_device;
     const QueueType m_queueType;

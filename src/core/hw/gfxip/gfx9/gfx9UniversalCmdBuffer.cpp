@@ -5335,6 +5335,7 @@ bool UniversalCmdBuffer::NeedsToValidateScissorRects(
                              dirtyFlags.nonValidationBits.depthBoundsState     ||
                              dirtyFlags.nonValidationBits.pointLineRasterState ||
                              dirtyFlags.nonValidationBits.stencilRefMaskState  ||
+                             dirtyFlags.nonValidationBits.clipRectsState       ||
                              pipelineFlags.borderColorPaletteDirty             ||
                              pipelineFlags.pipelineDirty)));
     }
@@ -6142,7 +6143,7 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
 bool UniversalCmdBuffer::ForceWdSwitchOnEop(
     const GraphicsPipeline& pipeline,
     const ValidateDrawInfo& drawInfo
-    ) const
+) const
 {
     // We need switch on EOP if primitive restart is enabled or if our primitive topology cannot be split between IAs.
     // The topologies that meet this requirement are below (currently PAL only supports triangle strip w/ adjacency
@@ -6151,21 +6152,27 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
     //    - Line loop (DI_PT_LINELOOP)
     //    - Triangle fan (DI_PT_TRIFAN)
     //    - Triangle strip w/ adjacency (DI_PT_TRISTRIP_ADJ)
-    // The following primitive types support 4x primitive rate with reset index:
+    // The following primitive types support 4x primitive rate with reset index (except for gfx9):
     //    - Point list
     //    - Line strip
     //    - Triangle strip
     // add draw opaque.
 
-    const PrimitiveTopology primTopology            = m_graphicsState.inputAssemblyState.topology;
+    const PrimitiveTopology primTopology = m_graphicsState.inputAssemblyState.topology;
     const bool              primitiveRestartEnabled = m_graphicsState.inputAssemblyState.primitiveRestartEnable;
+    bool                    restartPrimsCheck = (primTopology != PrimitiveTopology::PointList) &&
+                                                (primTopology != PrimitiveTopology::LineStrip) &&
+                                                (primTopology != PrimitiveTopology::TriangleStrip);
+
+    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+    {
+        // Disable 4x primrate for all primitives when reset index is enabled on gfx9 devices.
+        restartPrimsCheck = true;
+    }
 
     bool switchOnEop = ((primTopology == PrimitiveTopology::TriangleStripAdj) ||
                         (primTopology == PrimitiveTopology::TriangleFan) ||
-                        (primitiveRestartEnabled &&
-                         ((primTopology != PrimitiveTopology::PointList) &&
-                          (primTopology != PrimitiveTopology::LineStrip) &&
-                          (primTopology != PrimitiveTopology::TriangleStrip))) ||
+                        (primitiveRestartEnabled && restartPrimsCheck) ||
                         drawInfo.useOpaque);
 
     if ((switchOnEop == false) && m_cachedSettings.disableWdLoadBalancing)
@@ -6349,6 +6356,20 @@ void UniversalCmdBuffer::SetGraphicsState(
         (restoreGlobalScissor.extent.height != currentGlobalScissor.extent.height))
     {
         CmdSetGlobalScissor(newGraphicsState.globalScissorState);
+    }
+
+    const auto& restoreClipRects = newGraphicsState.clipRectsState;
+    const auto& currentClipRects = m_graphicsState.clipRectsState;
+
+    if ((restoreClipRects.clipRule != currentClipRects.clipRule)   ||
+        (restoreClipRects.rectCount != currentClipRects.rectCount) ||
+        (memcmp(&restoreClipRects.rectList[0],
+                &currentClipRects.rectList[0],
+                restoreClipRects.rectCount * sizeof(Rect))))
+    {
+        CmdSetClipRects(newGraphicsState.clipRectsState.clipRule,
+                        newGraphicsState.clipRectsState.rectCount,
+                        newGraphicsState.clipRectsState.rectList);
     }
 }
 
@@ -6634,6 +6655,7 @@ void UniversalCmdBuffer::CmdWaitBusAddressableMemoryMarker(
     m_deCmdStream.CommitCommands(pCmdSpace);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdSetHiSCompareState0(
     CompareFunc compFunc,
@@ -6676,6 +6698,66 @@ void UniversalCmdBuffer::CmdSetHiSCompareState1(
         m_deCmdStream.WriteSetOneContextReg(mmDB_SRESULTS_COMPARE_STATE1, dbSResultCompare.u32All, pDeCmdSpace);
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+#endif
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdUpdateHiSPretests(
+    const IImage*      pImage,
+    const HiSPretests& pretests,
+    uint32             firstMip,
+    uint32             numMips)
+{
+    Image* pGfx9Image = static_cast<Image*>(static_cast<const Pal::Image*>(pImage)->GetGfxImage());
+
+    if (pGfx9Image->HasHiSPretestsMetaData())
+    {
+        SubresRange range = { };
+        range.startSubres = { ImageAspect::Stencil, firstMip, 0 };
+        range.numMips     = numMips;
+        range.numSlices   = pImage->GetImageCreateInfo().arraySize;
+
+        const Pm4Predicate packetPredicate = PacketPredicate();
+
+        uint32* pCmdSpace                  = m_deCmdStream.ReserveCommands();
+
+        pCmdSpace = pGfx9Image->UpdateHiSPretestsMetaData(range, pretests, packetPredicate, pCmdSpace);
+
+        if (m_graphicsState.bindTargets.depthTarget.pDepthStencilView != nullptr)
+        {
+            const DepthStencilView* const pView =
+                static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
+
+            // If the bound image matches the cleared image, we update DB_SRESULTS_COMPARE_STATE0/1 immediately.
+            if ((pView->GetImage() == pGfx9Image) &&
+                (pView->MipLevel() >= range.startSubres.mipLevel) &&
+                (pView->MipLevel() < range.startSubres.mipLevel + range.numMips))
+            {
+                Gfx9HiSPretestsMetaData pretestsMetaData = {};
+
+                pretestsMetaData.dbSResultCompare0.bitfields.COMPAREFUNC0  =
+                    DepthStencilState::HwStencilCompare(pretests.test[0].func);
+                pretestsMetaData.dbSResultCompare0.bitfields.COMPAREMASK0  = pretests.test[0].mask;
+                pretestsMetaData.dbSResultCompare0.bitfields.COMPAREVALUE0 = pretests.test[0].value;
+                pretestsMetaData.dbSResultCompare0.bitfields.ENABLE0       = pretests.test[0].isValid;
+
+                pretestsMetaData.dbSResultCompare1.bitfields.COMPAREFUNC1  =
+                    DepthStencilState::HwStencilCompare(pretests.test[1].func);
+                pretestsMetaData.dbSResultCompare1.bitfields.COMPAREMASK1  = pretests.test[1].mask;
+                pretestsMetaData.dbSResultCompare1.bitfields.COMPAREVALUE1 = pretests.test[1].value;
+                pretestsMetaData.dbSResultCompare1.bitfields.ENABLE1       = pretests.test[1].isValid;
+
+                pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_SRESULTS_COMPARE_STATE0,
+                                                                 mmDB_SRESULTS_COMPARE_STATE1,
+                                                                 &pretestsMetaData,
+                                                                 pCmdSpace);
+
+            }
+        }
+
+        m_deCmdStream.CommitCommands(pCmdSpace);
+    }
+
 }
 
 // =====================================================================================================================
@@ -7248,6 +7330,45 @@ uint32* UniversalCmdBuffer::BuildSetUserClipPlane(
     }
 
     return pCmdSpace + totalDwords;
+}
+
+// =====================================================================================================================
+// Sets clip rects.
+void UniversalCmdBuffer::CmdSetClipRects(
+    uint16      clipRule,
+    uint32      rectCount,
+    const Rect* pRectList)
+{
+    PAL_ASSERT(rectCount <= MaxClipRects);
+
+    ClipRectsPm4Img pm4Image = {};
+
+    constexpr uint32 RegStride   = mmPA_SC_CLIPRECT_1_TL - mmPA_SC_CLIPRECT_0_TL;
+    const uint32     regStart    = mmPA_SC_CLIPRECT_RULE;
+    const uint32     regEnd      = mmPA_SC_CLIPRECT_RULE + rectCount * RegStride;
+    const size_t     totalDwords = m_cmdUtil.BuildSetSeqContextRegs(regStart, regEnd, &pm4Image.header);
+
+    pm4Image.paScClipRectRule.bits.CLIP_RULE = clipRule;
+
+    for (uint32 i = 0; i < rectCount; i++)
+    {
+        pm4Image.rects[i].paScClipRectTl.bits.TL_X = pRectList[i].offset.x;
+        pm4Image.rects[i].paScClipRectTl.bits.TL_Y = pRectList[i].offset.y;
+        pm4Image.rects[i].paScClipRectBr.bits.BR_X = pRectList[i].offset.x + pRectList[i].extent.width;
+        pm4Image.rects[i].paScClipRectBr.bits.BR_Y = pRectList[i].offset.y + pRectList[i].extent.height;
+    }
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace = m_deCmdStream.WritePm4Image(totalDwords, &pm4Image, pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+    m_graphicsState.clipRectsState.clipRule  = clipRule;
+    m_graphicsState.clipRectsState.rectCount = rectCount;
+    for (uint32 i = 0; i < rectCount; i++)
+    {
+        m_graphicsState.clipRectsState.rectList[i] = pRectList[i];
+    }
+    m_graphicsState.dirtyFlags.nonValidationBits.clipRectsState = 1;
 }
 
 // =====================================================================================================================

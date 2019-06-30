@@ -167,6 +167,7 @@ Result URIRequestContext::BeginJsonResponse(IStructuredWriter** ppWriter)
     Result result = Result::UriInvalidParameters;
     if (ppWriter != nullptr)
     {
+
         if (m_contextState == ContextState::WriterSelection)
         {
             m_contextState = ContextState::JsonWriterSelected;
@@ -178,6 +179,8 @@ Result URIRequestContext::BeginJsonResponse(IStructuredWriter** ppWriter)
         {
             result = Result::Rejected;
         }
+
     }
+
     return result;
 }

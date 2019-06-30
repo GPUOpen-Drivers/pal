@@ -228,6 +228,11 @@ public:
 
     uint32 GetHtile256BAddr() const;
 
+    uint32* UpdateHiSPretestsMetaData(
+        const SubresRange& range,
+        const HiSPretests& pretests,
+        Pm4Predicate       predicate,
+        uint32*            pCmdSpace) const;
     uint32* UpdateDepthClearMetaData(
         const SubresRange&  range,
         uint32              writeMask,

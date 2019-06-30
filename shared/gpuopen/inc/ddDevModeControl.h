@@ -30,38 +30,79 @@
 */
 #pragma once
 
-#include "gpuopen.h"
+#include <gpuopen.h>
+#include <ddPlatform.h>
 
 namespace DevDriver
 {
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Generate an authentication token for the data using the salt provided
+// Currently this generates a CRC32 of the data using a slightly mangled salt
+inline uint32 GenerateAuthToken(uint32 salt, const void* pData, uint32 length)
+{
+    return CRC32(pData, length, salt ^ ~kMessageVersion);
+}
+
+///////////////////////
+// Typedef for the Router Prefix type
+typedef uint32 RouterPrefix;
+
 enum struct DevModeCmd: uint32
 {
     Unknown = 0,                // Illegal command
-    Ping    = 1,                // Ping to check that the kernel module is still there
 
-    // Unimplemented commands
-    RegisterClient,             //
-    UnregisterClient,           //
+    RegisterClient,             // Register a new client on the bus
+    UnregisterClient,           // Unregister an existing client from the bus
 
-    RegisterRouter,             //
-    UnregisterRouter,           //
+    RegisterRouter,             // Register a new router on the bus
+    UnregisterRouter,           // Unregister an existing router from the bus
 
-    EnableDeveloperMode,        //
-    DisableDeveloperMode,       //
+    EnableDeveloperMode,        // Attempts to enable developer mode on the bus
+    DisableDeveloperMode,       // Attempts to disable developer mode on the bus
 
-    QueryCapabilities,          //
-    QueryDeveloperModeStatus,   //
+    QueryCapabilities,          // Queries the capabilities of the bus
+    QueryDeveloperModeStatus,   // Queries the current developer mode configuration
 
     Count,
+};
+
+/// DevMode Request Header
+/// All DevMode command types have this header at the beginning of the struct.
+DD_NETWORK_STRUCT(DevModeResponseHeader, 4)
+{
+    DevModeCmd cmd       = DevModeCmd::Unknown; /// The devmode command to be executed
+    Result     result    = Result::Error;       /// The result of the devmode command execution
+
+    uint32     reserved0 = 0;                   /// Reserved for future use (Program to zero)
+    uint32     reserved1 = 0;                   /// Reserved for future use (Program to zero)
+
+    static constexpr DevModeResponseHeader FromCmd(DevModeCmd devModeCmd)
+    {
+        DevModeResponseHeader header;
+        header.cmd = devModeCmd;
+
+        return header;
+    }
+};
+
+DD_CHECK_SIZE(DevModeResponseHeader, 16);
+
+enum struct DevModeBusType: uint32
+{
+    Unknown = 0, // Unknown
+
+    Auto,        // Automatic selection
+    UserMode,    // Request a user mode bus
+    KernelMode,  // Request a kernel mode bus
+
+    Count
 };
 
 static inline const char* DevModeCmdToHumanString(DevModeCmd cmd)
 {
     switch(cmd)
     {
-        case DevModeCmd::Unknown:                  return "Unknown";
-        case DevModeCmd::Ping:                     return "Ping";
-
         case DevModeCmd::RegisterClient:           return "RegisterClient";
         case DevModeCmd::UnregisterClient:         return "UnregisterClient";
 
@@ -78,94 +119,25 @@ static inline const char* DevModeCmdToHumanString(DevModeCmd cmd)
     }
 }
 
-// Common header that all devmode cmd output types embed.
-struct DevModeCmdOutputHeader
+///////////////////////
+// Developer Mode Status Flags
+union DeveloperModeFlags
 {
-    // Result of executing the command, or a description of why it wasn't executed.
-    Result cmdResult = Result::Error;
-
-    // The total byte count written out by the devmode.
-    uint64 bytesWritten = 0;
-};
-
-struct DevModeCmdPingInput
-{
-    uint32 pingValue = 0;
-};
-
-struct DevModeCmdPingOutput
-{
-    DevModeCmdOutputHeader header    = {};
-    uint32                 pongValue = 0;
-};
-
-/// Configuration for creating a IDevModeDevice
-struct DevModeDeviceCreateInfo
-{
-    union
-    {
-        struct
-        {
-            uint32 enableTestDriver : 1;  /// Load a testing driver in usermode instead of the platform default.
-                                          /// If this is not supported, CreateDevModeDevice() will return an error.
-            uint64 reserved         : 63; /// Program to zero.
-        };
-        uint64 value;
+    struct {
+        uint32 enableEmbeddedClient : 1;  // Enable the embedded client
+        uint32 enableTdrLogging     : 1;  // Enable TDR Logging
+                                          // This only is used if the embedded client is available
+        uint32 reserved             : 30; // Reserved for future use
     } flags;
+    uint32 u32All;
 };
 
-/// Abstract interface to platform-specific interface to a utility driver.
-class IDevModeDevice
+///////////////////////
+// Developer Mode Initialization Settings
+DD_NETWORK_STRUCT(DeveloperModeSettings, 4)
 {
-public:
-    IDevModeDevice() {}
-    virtual ~IDevModeDevice() {}
-
-    DD_NODISCARD
-    virtual Result Destroy() = 0;
-
-    /// Platform-agnostic call into the devmode device.
-    ///
-    /// Prefer calling the typed-wrapper instead of this whenever possible.
-    DD_NODISCARD
-    virtual Result MakeDevModeRequest(
-        DevModeCmd cmd,
-        size_t     inputSize,
-        void*      pInput,
-        size_t     outputSize,
-        void*      pOutput
-    ) = 0;
-
-    /// Platform-agnostic call into the devmode device.
-    ///
-    /// This is a convience overload to prevent errors with Input and Output types.
-    template <typename Input, typename Output>
-    DD_NODISCARD
-    Result MakeDevModeRequest(
-        DevModeCmd cmd,
-        Input*     pInput,
-        Output*    pOutput
-    )
-    {
-        // TODO: Any other invariants that we want here?
-        static_assert(
-            (offsetof(Output, header) == 0) && (sizeof(pOutput->header) == sizeof(DevModeCmdOutputHeader)),
-            "Output types MUST embed a DevModeCmdOutputHeader named \"header\" at offset 0."
-        );
-        return MakeDevModeRequest(
-            cmd,
-            sizeof(*pInput),
-            pInput,
-            sizeof(*pOutput),
-            pOutput
-        );
-    }
+    RouterPrefix       routerPrefix; // Routing prefix to be assigned by the router
+    DeveloperModeFlags features;     // Developer Mode initialization flags
 };
-
-// Create the appropriate platform-dependent device.
-Result CreateDevModeDevice(
-    const DevModeDeviceCreateInfo& createInfo,
-    IDevModeDevice** ppOutDevice
-);
 
 }

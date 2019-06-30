@@ -308,12 +308,16 @@ Pal::Result MlaaUtil<Allocator>::CreateImageMemoryObject(
     Pal::GpuMemoryRequirements memReqs = {};
     pImage->GetGpuMemoryRequirements(&memReqs);
 
-    const Pal::gpusize allocGranularity = m_deviceProps.gpuMemoryProperties.realMemAllocGranularity;
-
     // Translate the memory requirements into a GpuMemory create info.
     Pal::GpuMemoryCreateInfo createInfo = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
+    createInfo.size      = memReqs.size;
+    createInfo.alignment = memReqs.alignment;
+#else
+    const Pal::gpusize allocGranularity = m_deviceProps.gpuMemoryProperties.realMemAllocGranularity;
     createInfo.size      = Util::Pow2Align(memReqs.size, allocGranularity);
     createInfo.alignment = Util::Pow2Align(memReqs.alignment, allocGranularity);
+#endif
     createInfo.vaRange   = Pal::VaRange::Default;
     createInfo.priority  = Pal::GpuMemPriority::Normal;
     createInfo.heapCount = memReqs.heapCount;

@@ -265,6 +265,7 @@ Device::Device(
     memset(&m_cacheFilePath,      0, sizeof(m_cacheFilePath));
     memset(&m_debugFilePath,      0, sizeof(m_debugFilePath));
     memset(&m_referencedGpuMemBytes[0], 0, sizeof(m_referencedGpuMemBytes));
+    memset(&m_hwsInfo, 0, sizeof(m_hwsInfo));
 }
 
 // =====================================================================================================================
@@ -511,6 +512,9 @@ Result Device::SetupPublicSettingDefaults()
 #endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 503
     m_publicSettings.zeroUnboundDescDebugSrd = false;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 514
+    m_publicSettings.disablePipelineUploadToLocalInvis = false;
 #endif
     return ret;
 }
@@ -1423,11 +1427,6 @@ Result Device::Finalize(
             if (result == Result::Success)
             {
                 result = CreateDummyCommandStreams();
-            }
-
-            if (result == Result::Success)
-            {
-                result = PerformOsInternalQueueInit();
             }
 
 #if PAL_BUILD_GFX
@@ -4338,7 +4337,7 @@ void Device::ApplyDevOverlay(
     {
         Util::Snprintf(overlayTextBuffer,
                        OverlayTextBufferSize,
-                       "HDR %s - Colorspace Format: %u",
+                       "HDR: %s - Colorspace Format: %u",
                        UsingHdrColorspaceFormat() ? "Enabled" : "Disabled",
                        m_hdrColorspaceFormat);
 
@@ -4583,11 +4582,15 @@ Result Device::CreateInternalQueue(
 // Creates a DMA queue and fence which are meant for uploading pipeline binaries to local invisible heap.
 Result Device::CreateInternalCopyQueues()
 {
+    const uint32 numEnginesAvailable = EngineProperties().perEngine[EngineTypeDma].numAvailable;
+    PAL_ASSERT(numEnginesAvailable > 0);
+
     Result result                   = Result::Success;
     QueueCreateInfo queueCreateInfo = { };
     queueCreateInfo.queueType       = QueueType::QueueTypeDma;
     queueCreateInfo.engineType      = EngineType::EngineTypeDma;
     queueCreateInfo.priority        = QueuePriority::Low;
+    queueCreateInfo.engineIndex     = numEnginesAvailable - 1;
 
     result = CreateInternalQueue(queueCreateInfo, &m_pInternalCopyQueue);
     PAL_ASSERT(result == Result::Success);
@@ -4606,9 +4609,16 @@ Result Device::InternalDmaSubmit(
     // Obtain a queue to submit commands to upload this pipeline.
     m_copyQueuesLock.Lock();
 
-    PAL_ASSERT(m_pInternalCopyQueue != nullptr);
+    if (m_pInternalCopyQueue == nullptr)
+    {
+        // We don't have an internal copy queue yet because this is the first time this is called, so create a queue.
+        result = CreateInternalCopyQueues();
+    }
 
-    result = m_pInternalCopyQueue->SubmitInternal(submitInfo, false);
+    if (result == Result::Success)
+    {
+        result = m_pInternalCopyQueue->SubmitInternal(submitInfo, false);
+    }
 
     if (result == Result::Success)
     {
@@ -4628,8 +4638,18 @@ bool Device::ValidatePipelineUploadHeap(
     const GpuHeap& preferredHeap
     ) const
 {
-    // No global restrictions based on the heap type
     bool  valid = true;
+
+    if (preferredHeap == GpuHeap::GpuHeapInvisible)
+    {
+        // Disable pipeline upload to local invisible memory if clients have chosen to disable internal residency
+        // optimizations. Other heap types don't have any restrictions.
+        valid = (m_pPlatform->InternalResidencyOptsDisabled() == false)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 514
+                 && (m_publicSettings.disablePipelineUploadToLocalInvis == false)
+#endif
+            ;
+    }
 
     return valid;
 }

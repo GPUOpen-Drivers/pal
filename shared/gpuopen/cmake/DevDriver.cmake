@@ -1,4 +1,29 @@
 
+##
+ #######################################################################################################################
+ #
+ #  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ #
+ #  Permission is hereby granted, free of charge, to any person obtaining a copy
+ #  of this software and associated documentation files (the "Software"), to deal
+ #  in the Software without restriction, including without limitation the rights
+ #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ #  copies of the Software, and to permit persons to whom the Software is
+ #  furnished to do so, subject to the following conditions:
+ #
+ #  The above copyright notice and this permission notice shall be included in all
+ #  copies or substantial portions of the Software.
+ #
+ #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ #  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ #  SOFTWARE.
+ #
+ #######################################################################################################################
+
 cmake_minimum_required(VERSION 3.5)
 
 # DevDriver.cmake adds project-specific options and warnings.
@@ -105,73 +130,8 @@ macro(apply_gpuopen_warnings _target)
         if (DEVDRIVER_FORCE_COLOR_OUPUT)
             target_compile_options(${_target} PRIVATE -fcolor-diagnostics)
         endif()
-#if DD_CLOSED_SOURCE
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-        target_compile_options(${_target} PRIVATE
-            # No AppleClang-specific options yet
-        )
-        if (DEVDRIVER_FORCE_COLOR_OUPUT)
-            target_compile_options(${_target} PRIVATE -fcolor-diagnostics)
-        endif()
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        target_compile_options(${_target} PRIVATE
-            /wd4996            # _CRT_SECURE_NO_WARNINGS
-            /wd4127            # conditional expression is constant
-            /wd4201            # nonstandard extension used : nameless struct/union
-            /wd4512            # assignment operator could not be generated
-            /we4296            # unsigned integer comparison is constant
-            /we5038            # initialization order
-            /diagnostics:caret # Format error messages with a "^"
-            /permissive-       # Enable stricter standards conformance
-        )
-
-        # Compile files in parallel
-        ProcessorCount(CoreCount)
-        target_compile_options(${_target} PRIVATE /MP${CoreCount})
-#endif
     else()
         message(FATAL_ERROR "Using unknown compiler: ${CMAKE_CXX_COMPILER_ID}")
     endif()
 endmacro()
 
-#if DD_CLOSED_SOURCE
-## TODO: Update our CMakeLists.txt to use these instead
-#        Make sure these work
-
-function(devdriver_target name)
-
-    amd_target(${name} ${ARGN})
-    apply_gpuopen_warnings(${name})
-
-endfunction()
-
-function(devdriver_executable name)
-
-    amd_executable(${name} ${ARGN})
-    apply_gpuopen_warnings(${name})
-
-endfunction()
-
-function(devdriver_library name type)
-
-    amd_library(${name} ${type} ${ARGN})
-    apply_gpuopen_warnings(${name})
-
-endfunction()
-
-#if DD_CLOSED_SOURCE
-function(devdriver_km_library name type)
-
-    amd_km_library(${name} ${type} ${ARGN})
-    apply_gpuopen_warnings(${name})
-
-endfunction()
-#endif
-
-function(devdriver_um_library name type)
-
-    amd_um_library(${name} ${type} ${ARGN})
-    apply_gpuopen_warnings(${name})
-
-endfunction()
-#endif

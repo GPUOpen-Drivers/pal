@@ -2051,6 +2051,7 @@ Result PerfExperiment::BuildGrbmGfxIndex(
         seIndex       = (globalInstance / blockInfo.numInstances) / m_chipProps.gfx9.numShaderArrays;
         saIndex       = (globalInstance / blockInfo.numInstances) % m_chipProps.gfx9.numShaderArrays;
         instanceIndex = globalInstance % blockInfo.numInstances;
+
     }
 
     if (seIndex >= m_chipProps.gfx9.numShaderEngines)
@@ -2576,32 +2577,38 @@ uint32* PerfExperiment::WriteSelectRegisters(
                     {
                         if (select.pModules[idx].inUse != 0)
                         {
-                            // All generic blocks store their registers in the "perfcounter" arrays except for
-                            // SDMA which has unique registers for each instance.
-                            const PerfCounterRegAddrPerModule& regAddr = (block == static_cast<uint32>(GpuBlock::Dma))
-                                                                ? m_counterInfo.sdmaRegAddr[instance][idx]
-                                                                : m_counterInfo.block[block].regAddr.perfcounter[idx];
+                            const PerfCounterRegAddrPerModule* pRegAddr = nullptr;
+
+                            if (block == static_cast<uint32>(GpuBlock::Dma))
+                            {
+                                // SDMA has unique registers for each instance.
+                                pRegAddr = &m_counterInfo.sdmaRegAddr[instance][idx];
+                            }
+                            else
+                            {
+                                pRegAddr = &m_counterInfo.block[block].regAddr.perfcounter[idx];
+                            }
 
                             if (select.pModules[idx].type == SelectType::Perfmon)
                             {
                                 // The perfmon registers come in SELECT/SELECT1 pairs.
-                                PAL_ASSERT((regAddr.selectOrCfg != 0) &&
-                                           (regAddr.select1 != 0));
+                                PAL_ASSERT((pRegAddr->selectOrCfg != 0) &&
+                                           (pRegAddr->select1 != 0));
 
-                                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.selectOrCfg,
+                                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(pRegAddr->selectOrCfg,
                                                                               select.pModules[idx].perfmon.sel0.u32All,
                                                                               pCmdSpace);
 
-                                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.select1,
+                                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(pRegAddr->select1,
                                                                               select.pModules[idx].perfmon.sel1.u32All,
                                                                               pCmdSpace);
                             }
                             else
                             {
                                 // Both legacy module types use one register so we can use the same code here.
-                                PAL_ASSERT(regAddr.selectOrCfg != 0);
+                                PAL_ASSERT(pRegAddr->selectOrCfg != 0);
 
-                                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.selectOrCfg,
+                                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(pRegAddr->selectOrCfg,
                                                                               select.pModules[idx].legacySel.u32All,
                                                                               pCmdSpace);
                             }
@@ -2862,15 +2869,21 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
                                                               pCmdSpace);
             }
 
-            // All generic blocks store their registers in the "perfcounter" arrays except for SDMA which has unique
-            // registers for each instance.
-            const PerfCounterRegAddrPerModule& regAddr = (block == static_cast<uint32>(GpuBlock::Dma))
-                                                ? m_counterInfo.sdmaRegAddr[instance][mapping.counterId]
-                                                : m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId];
+            const PerfCounterRegAddrPerModule* pRegAddr = nullptr;
+
+            if (block == static_cast<uint32>(GpuBlock::Dma))
+            {
+                // SDMA has unique registers for each instance.
+                pRegAddr = &m_counterInfo.sdmaRegAddr[instance][mapping.counterId];
+            }
+            else
+            {
+                pRegAddr = &m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId];
+            }
 
             // Copy the counter value out to memory.
-            pCmdSpace = WriteCopy64BitCounter(regAddr.lo,
-                                              regAddr.hi,
+            pCmdSpace = WriteCopy64BitCounter(pRegAddr->lo,
+                                              pRegAddr->hi,
                                               destBaseAddr + mapping.offset,
                                               pCmdStream,
                                               pCmdSpace);

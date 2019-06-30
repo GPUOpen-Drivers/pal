@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -22,42 +22,41 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-
+/**
+***********************************************************************************************************************
+* @file  ddIoCtlDevice.h
+* @brief Abstract interface to control the developer mode message bus
+***********************************************************************************************************************
+*/
 #pragma once
 
-#include "core/os/amdgpu/amdgpuQueue.h"
-#include "core/os/amdgpu/amdgpuGpuMemory.h"
+#include <gpuopen.h>
+#include <ddPlatform.h>
 
-namespace Pal
-{
-namespace Amdgpu
+namespace DevDriver
 {
 
-class Device;
-class AndroidDevice;
-
-// =====================================================================================================================
-// Android  flavor of the Queue class: to override the SignalNativeFence function
-class AndroidQueue : public Queue
+/// Abstract interface to control the developer mode message bus
+class IIoCtlDevice
 {
 public:
+    virtual ~IIoCtlDevice() {}
 
-    AndroidQueue(
-        AndroidDevice*                pDevice,
-        const QueueCreateInfo&        createInfo);
+    DD_NODISCARD
+    virtual Result Initialize() = 0;
 
-    virtual ~AndroidQueue() {}
+    virtual void Destroy() = 0;
 
-    virtual Result SignalNativeFence(
-        uint32                   waitSemaphoreCount,
-        IQueueSemaphore**        pPalWaitSemaphores,
-        int*                     pNativeFenceFd) override;
+    /// Executes an IoCtl command on the device
+    DD_NODISCARD
+    virtual Result IoCtl(
+        uint32 ioCtlCode,
+        size_t bufferSize,
+        void*  pBuffer
+    ) = 0;
 
-private:
-
-    PAL_DISALLOW_DEFAULT_CTOR(AndroidQueue);
-    PAL_DISALLOW_COPY_AND_ASSIGN(AndroidQueue);
+protected:
+    IIoCtlDevice() {}
 };
 
-} // Amdgpu
-} // Pal
+}

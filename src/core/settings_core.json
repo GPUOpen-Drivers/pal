@@ -9,7 +9,6 @@
       "Tags": [
         "Public CCC Options"
       ],
-      "HashName": 4265240458,
       "Defaults": {
         "Default": 1
       },
@@ -23,7 +22,6 @@
       "Tags": [
         "Public CCC Options"
       ],
-      "HashName": 1901986348,
       "Defaults": {
         "Default": 1
       },
@@ -51,7 +49,6 @@
         "General",
         "Performance"
       ],
-      "HashName": 2987947496,
       "Defaults": {
         "Default": true
       },
@@ -65,7 +62,6 @@
       "Tags": [
         "General"
       ],
-      "HashName": 2467045849,
       "Defaults": {
         "Default": 0
       },
@@ -80,7 +76,6 @@
         "General",
         "Performance"
       ],
-      "HashName": 1580739202,
       "Defaults": {
         "Default": false
       },
@@ -96,7 +91,6 @@
         "Debug",
         "Profiling"
       ],
-      "HashName": 359792145,
       "Defaults": {
         "Default": false
       },
@@ -112,7 +106,6 @@
         "Debug",
         "Profiling"
       ],
-      "HashName": 2936106678,
       "Defaults": {
         "Default": false
       },
@@ -144,7 +137,6 @@
         "General",
         "Performance"
       ],
-      "HashName": 501901000,
       "Defaults": {
         "Default": 0
       },
@@ -182,7 +174,6 @@
         "General",
         "Debug"
       ],
-      "HashName": 3299864138,
       "Defaults": {
         "Default": "IfhModeDisabled"
       },
@@ -198,7 +189,6 @@
         "Debug",
         "SafeSetting"
       ],
-      "HashName": 2665794079,
       "Flags": {
         "IsHex": true
       },
@@ -269,7 +259,6 @@
         "General",
         "Performance"
       ],
-      "HashName": 440136999,
       "Defaults": {
         "Default": "TossPointNone"
       },
@@ -283,7 +272,6 @@
       "Tags": [
         "General"
       ],
-      "HashName": 1212684339,
       "Defaults": {
         "Default": false
       },
@@ -299,7 +287,6 @@
         "Debug",
         "Resource Settings"
       ],
-      "HashName": 4239167273,
       "Defaults": {
         "Default": false
       },
@@ -314,7 +301,6 @@
         "General",
         "SafeSetting"
       ],
-      "HashName": 2972919517,
       "Flags": {
         "IsHex": true
       },
@@ -333,7 +319,6 @@
         "Debug",
         "SafeSetting"
       ],
-      "HashName": 2657420565,
       "Defaults": {
         "Default": false
       },
@@ -380,7 +365,6 @@
         "General",
         "Resource Settings"
       ],
-      "HashName": 2252676842,
       "Flags": {
         "IsHex": true,
         "IsBitmask": true
@@ -399,7 +383,6 @@
         "General",
         "Resource Settings"
       ],
-      "HashName": 576052426,
       "Defaults": {
         "Default": false
       },
@@ -415,7 +398,6 @@
         "DevMode",
         "HDR"
       ],
-      "HashName": 2354711641,
       "Defaults": {
         "Default": true
       },
@@ -463,7 +445,6 @@
         "General",
         "Performance"
       ],
-      "HashName": 1170638299,
       "Defaults": {
         "Default": "PipelineHeapDeferToClient"
       },
@@ -479,7 +460,6 @@
         "Bringup",
         "HeapPerf"
       ],
-      "HashName": 2415703124,
       "Defaults": {
         "Default": false
       },
@@ -494,7 +474,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 1067711036,
       "Defaults": {
         "Default": 1
       },
@@ -508,7 +487,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 2730570157,
       "Defaults": {
         "Default": 1
       },
@@ -522,7 +500,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 2638610736,
       "Defaults": {
         "Default": 1
       },
@@ -536,7 +513,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 2013287873,
       "Defaults": {
         "Default": 1
       },
@@ -550,7 +526,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 3386043224,
       "Defaults": {
         "Default": 1
       },
@@ -564,7 +539,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 2595291601,
       "Defaults": {
         "Default": 1
       },
@@ -578,7 +552,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 4095131286,
       "Defaults": {
         "Default": 1
       },
@@ -592,7 +565,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 664236849,
       "Defaults": {
         "Default": 1
       },
@@ -606,7 +578,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 3761700869,
       "Defaults": {
         "Default": 1
       },
@@ -620,7 +591,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 2574159802,
       "Defaults": {
         "Default": 1
       },
@@ -634,7 +604,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 2869172375,
       "Defaults": {
         "Default": 1
       },
@@ -648,7 +617,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 959708118,
       "Defaults": {
         "Default": 1
       },
@@ -662,7 +630,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 2062750395,
       "Defaults": {
         "Default": 1
       },
@@ -676,7 +643,6 @@
         "Performance",
         "HeapPerf"
       ],
-      "HashName": 1621029738,
       "Defaults": {
         "Default": 1
       },
@@ -689,7 +655,6 @@
       "Tags": [
         "Performance"
       ],
-      "HashName": 1727036994,
       "Defaults": {
         "Default": true
       },
@@ -704,12 +669,29 @@
       "Description": "Re-use allocation list across submissions in Linux. This will improve CPU performance of command buffer submission, but will potentially cause GPU memory de-allocation to be delayed."
     },
     {
+      "Name": "CmdStreamReadOnly",
+      "Tags": [
+        "Command Buffer"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "DependsOn": {
+        "OS": [
+          "Windows"
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "cmdStreamReadOnly",
+      "Description": "Always make command stream memory read-only on the GPU. Normally, busy-tracked allocations are RW, this forces the busy tracker data into a separate RW page. Currently only works on WDDM2"
+    },
+    {
       "Name": "FenceTimeoutOverride",
       "Tags": [
         "Performance",
         "Emulation"
       ],
-      "HashName": 970172817,
       "Defaults": {
         "Default": 0
       },
@@ -726,7 +708,6 @@
       "Defaults": {
         "Default": false
       },
-      "HashName": 1833432496,
       "Scope": "PrivatePalKey",
       "Type": "bool",
       "VariableName": "force64kPageGranularity",
@@ -739,7 +720,6 @@
         "SafeSetting",
         "Debug"
       ],
-      "HashName": 4178383571,
       "Defaults": {
         "Default": false
       },
@@ -753,7 +733,6 @@
       "Tags": [
         "Performance"
       ],
-      "HashName": 198913068,
       "Defaults": {
         "Default": false
       },
@@ -767,7 +746,6 @@
       "Tags": [
         "Performance"
       ],
-      "HashName": 1287715858,
       "Defaults": {
         "Default": false
       },
@@ -804,7 +782,6 @@
       "Tags": [
         "Performance"
       ],
-      "HashName": 1718264096,
       "Defaults": {
         "Default": "VmAlwaysValidDefaultEnable"
       },
@@ -818,7 +795,6 @@
       "Tags": [
         "Performance"
       ],
-      "HashName": 830933859,
       "Defaults": {
         "Default": false
       },
@@ -860,7 +836,6 @@
       "Tags": [
         "Printing and Logging"
       ],
-      "HashName": 3607991033,
       "Defaults": {
         "Default": "CmdBufDumpModeDisabled"
       },
@@ -897,7 +872,6 @@
       "Tags": [
         "Printing and Logging"
       ],
-      "HashName": 1905164977,
       "Defaults": {
         "Default": "CmdBufDumpFormatText"
       },
@@ -922,7 +896,6 @@
       "Tags": [
         "Printing and Logging"
       ],
-      "HashName": 3293295025,
       "Flags": {
         "IsPath": true
       },
@@ -953,7 +926,6 @@
       "Tags": [
         "Printing and Logging"
       ],
-      "HashName": 1639305458,
       "Defaults": {
         "Default": 0
       },
@@ -978,7 +950,6 @@
       "Tags": [
         "Printing and Logging"
       ],
-      "HashName": 4221961293,
       "Defaults": {
         "Default": 0
       },
@@ -1010,7 +981,6 @@
       "Tags": [
         "Printing and Logging"
       ],
-      "HashName": 2222002517,
       "Defaults": {
         "Default": false
       },
@@ -1029,7 +999,6 @@
       "Tags": [
         "Printing and Logging"
       ],
-      "HashName": 835791563,
       "Defaults": {
         "Default": false
       },
@@ -1048,7 +1017,6 @@
       "Tags": [
         "Printing and Logging"
       ],
-      "HashName": 2587845825,
       "DependsOn": {
         "BuildType": [
           "dbg"
@@ -1068,7 +1036,6 @@
       "Structure": [
         {
           "Description": "Contols logging of internally generated pipelines (i.e. RPM pipelines, etc",
-          "HashName": 1161296785,
           "Defaults": {
             "Default": false
           },
@@ -1078,7 +1045,6 @@
         },
         {
           "Description": "Contols logging of externally generated pipelines (i.e. the application's pipelines",
-          "HashName": 80714519,
           "Defaults": {
             "Default": false
           },
@@ -1088,7 +1054,6 @@
         },
         {
           "Description": "If true, each shader in a pipeline will be logged to a separate file on disk. Otherwise the whole pipeline is placed in a single file",
-          "HashName": 2954641676,
           "Defaults": {
             "Default": false
           },
@@ -1098,7 +1063,6 @@
         },
         {
           "Description": "If true, duplicate pipelines will be dumped to a file with a numeric suffix attached to the filename to distinguish each copy of the pipeline.",
-          "HashName": 2579830276,
           "Defaults": {
             "Default": true
           },
@@ -1108,7 +1072,6 @@
         },
         {
           "Description": "If true, disassembly information will be embedded into compiled ELF binaries.",
-          "HashName": 3586402143,
           "Defaults": {
             "Default": false
           },
@@ -1154,7 +1117,6 @@
             "Name": "PipelineLogFilters"
           },
           "Name": "PipelineTypeFilter",
-          "HashName": 1911443886,
           "Flags": {
             "IsHex": true,
             "IsBitmask": true
@@ -1168,7 +1130,6 @@
         },
         {
           "Name": "LogPipelineHash",
-          "HashName": 3585556466,
           "Flags": {
             "IsHex": true
           },
@@ -1181,7 +1142,6 @@
         },
         {
           "Description": "Relative directory where pipeline information logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent. Each unique pipeline is in a separate file within that directory. The log name is based on a hash of the pipeline's create info and which shader stages are active.",
-          "HashName": 3768253245,
           "Flags": {
             "IsPath": true
           },
@@ -1203,7 +1163,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 3843913604,
       "Defaults": {
         "Default": 256
       },
@@ -1217,7 +1176,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 3927521274,
       "Defaults": {
         "Default": false
       },
@@ -1236,7 +1194,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 3661455441,
       "Defaults": {
         "Default": 4294967295
       },
@@ -1261,7 +1218,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 169161685,
       "Defaults": {
         "Default": false
       },
@@ -1275,7 +1231,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 1461164706,
       "Defaults": {
         "Default": false
       },
@@ -1312,7 +1267,6 @@
         "Command Buffer",
         "Performance"
       ],
-      "HashName": 1018895288,
       "Defaults": {
         "Default": "Pm4OptDefaultEnable"
       },
@@ -1343,7 +1297,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 2490816619,
       "Defaults": {
         "Default": "Pm4OptModeImmediate"
       },
@@ -1390,7 +1343,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 382911281,
       "Defaults": {
         "Default": "CmdBufForceCpuUpdatePathDefault"
       },
@@ -1426,7 +1378,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 909934676,
       "Defaults": {
         "Default": "CmdBufForceOneTimeSubmitDefault"
       },
@@ -1461,7 +1412,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 3640527208,
       "Defaults": {
         "Default": "CmdBufPreemptModeEnable"
       },
@@ -1487,7 +1437,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 3413911781,
       "Defaults": {
         "Default": false
       },
@@ -1501,7 +1450,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 148412311,
       "Defaults": {
         "Default": false
       },
@@ -1515,7 +1463,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 3890704045,
       "Defaults": {
         "Default": true
       },
@@ -1559,7 +1506,6 @@
       "Tags": [
         "Command Buffer"
       ],
-      "HashName": 3054810609,
       "Defaults": {
         "Default": 0
       },
@@ -1604,7 +1550,6 @@
       "Tags": [
         "Resource Settings"
       ],
-      "HashName": 1146877010,
       "Flags": {
         "IsHex": true
       },
@@ -1621,7 +1566,6 @@
       "Tags": [
         "Resource Settings"
       ],
-      "HashName": 2751785051,
       "Defaults": {
         "Default": false
       },
@@ -1641,7 +1585,6 @@
       "Tags": [
         "Resource Settings"
       ],
-      "HashName": 3408333164,
       "Defaults": {
         "Default": false
       },
@@ -1691,7 +1634,6 @@
       "Tags": [
         "Resource Settings"
       ],
-      "HashName": 1836557167,
       "Flags": {
         "IsHex": true
       },
@@ -1708,7 +1650,6 @@
       "Tags": [
         "Prefetching (L2 Cache Warming)"
       ],
-      "HashName": 3661325567,
       "Defaults": {
         "Default": true
       },
@@ -1722,7 +1663,6 @@
       "Tags": [
         "Prefetching (L2 Cache Warming)"
       ],
-      "HashName": 2406290039,
       "Defaults": {
         "Default": 0
       },
@@ -1736,7 +1676,6 @@
       "Tags": [
         "Shader Options"
       ],
-      "HashName": 1008439776,
       "Defaults": {
         "Default": 0
       },
@@ -1750,7 +1689,6 @@
       "Tags": [
         "Shader Options"
       ],
-      "HashName": 2116546305,
       "Defaults": {
         "Default": 0
       },
@@ -1764,7 +1702,6 @@
       "Tags": [
         "Shader Options"
       ],
-      "HashName": 1284517999,
       "Defaults": {
         "Default": 0
       },
@@ -1779,7 +1716,6 @@
         "Scratch",
         "Performance"
       ],
-      "HashName": 784528758,
       "Defaults": {
         "Default": 268435456
       },
@@ -1795,7 +1731,6 @@
         "General",
         "Debug"
       ],
-      "HashName": 3517626664,
       "Flags": {
         "IsHex": true
       },
@@ -1823,7 +1758,6 @@
       "Tags": [
         "MGPU"
       ],
-      "HashName": 1872169717,
       "Defaults": {
         "Default": true
       },
@@ -1837,7 +1771,6 @@
       "Tags": [
         "MGPU"
       ],
-      "HashName": 1177937299,
       "Defaults": {
         "Default": true
       },
@@ -1851,7 +1784,6 @@
       "Tags": [
         "MGPU"
       ],
-      "HashName": 259362511,
       "Defaults": {
         "Default": true
       },
@@ -1865,7 +1797,6 @@
       "Tags": [
         "WSI"
       ],
-      "HashName": 2607871653,
       "Defaults": {
         "Default": false
       },
@@ -1884,7 +1815,6 @@
       "Tags": [
         "WSI"
       ],
-      "HashName": 2466363770,
       "Defaults": {
         "Default": true
       },

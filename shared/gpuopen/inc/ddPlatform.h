@@ -65,7 +65,7 @@ namespace Platform
 #include "posix/ddPosixPlatform.h"
 #else
     // Legacy system for Ati Make
-    #if   defined(__gnu_linux__)
+    #if   defined(__linux__)
         #define DD_PLATFORM_LINUX_UM
         #include <posix/ddPosixPlatform.h>
     #else
@@ -91,9 +91,14 @@ namespace Platform
 #error "DD_ASSUME not defined by platform!"
 #endif
 
+// This only exists for 32bit Windows to specificy callbacks as __stdcall.
+#if !defined(DD_APIENTRY)
+    #define DD_APIENTRY
+#endif
+
 #include "util/template.h"
 #include "util/memory.h"
-#include <cstdarg>
+#include <stdarg.h>
 
 // TODO: remove this and make kDebugLogLevel DD_STATIC_CONST when we use a version of visual studio that supports it
 #ifdef DEVDRIVER_LOG_LEVEL
@@ -174,8 +179,8 @@ namespace DevDriver
 {
     namespace Platform
     {
-        template <typename T, DevDriver::uint32 Size>
-        constexpr DevDriver::uint32 ArraySize(const T(&)[Size]) { return Size; }
+        template <typename T, size_t Size>
+        constexpr size_t ArraySize(const T(&)[Size]) { return Size; }
 
         void DebugPrint(LogLevel lvl, const char* format, ...);
 
@@ -186,19 +191,9 @@ namespace DevDriver
         int32 AtomicAdd(Atomic *variable, int32 num);
         int32 AtomicSubtract(Atomic *variable, int32 num);
 
-        class Thread
-        {
-        public:
-            Thread();
-            ~Thread();
-            Result Start(ThreadFunction pFnThreadFunc, void* pThreadParameter);
-            Result Join(uint32 timeoutInMs = kNoWait);
-
-            bool IsJoinable() const;
-
-        private:
-            ThreadStorage m_thread;
-        };
+        // A generic AllocCb that defers allocation to Platform::AllocateMemory()
+        // Suitable for memory allocation if you don't care about it.
+        extern AllocCb GenericAllocCb;
 
         void* AllocateMemory(size_t size, size_t alignment, bool zero);
         void FreeMemory(void* pMemory);
@@ -250,16 +245,84 @@ namespace DevDriver
             EventStorage m_event;
         };
 
+        class Thread
+        {
+        public:
+            Thread() {}
+            ~Thread();
+            Result Start(ThreadFunction pFnThreadFunc, void* pThreadParameter);
+            Result Join(uint32 timeoutInMs = kNoWait);
+
+            bool IsJoinable() const;
+
+        private:
+            static ThreadReturnType DD_APIENTRY ThreadShim(void* pShimParam);
+
+            // Reset our object to a default state
+            void Reset()
+            {
+                pFnFunction = nullptr;
+                pParameter  = nullptr;
+                hThread     = 0;
+
+                onExit.Clear();
+            }
+
+            ThreadFunction pFnFunction = nullptr;
+            void*          pParameter  = nullptr;
+            ThreadHandle   hThread     = 0;
+            Event          onExit      = Event(false); // Start unsignaled
+        };
+
         class Random
         {
         public:
+            static constexpr uint64 kModulus    = (uint64(1) << 48);
+            static constexpr uint64 kMultiplier = 0X5DEECE66Dull;
+            static constexpr uint16 kIncrement  = 0xB;
+
             Random();
-            ~Random();
+            Random(uint64 seed)
+            {
+                Reseed(seed);
+            }
+            ~Random() {}
+
+#if !DD_VERSION_SUPPORTS(GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION)
+            static int32 Max()
+            {
+                return int32(1) << 31; // Just needs to be nonzero, tbh
+            }
+#endif
+
             uint32 Generate();
-            static uint32 Max();
+            void Reseed(uint64 seed);
+        private:
+            uint64 m_prevState = 0;
+
+            // Sanity checks.
+            static_assert(0 < kModulus,           "Invalid modulus");
+            static_assert(0 < kMultiplier,        "Invalid multiplier");
+            static_assert(kMultiplier < kModulus, "Invalid multiplier");
+            static_assert(kIncrement < kModulus,  "Invalid increment");
+        };
+
+        class AtomicLockGuard
+        {
+        public:
+            explicit AtomicLockGuard(AtomicLock &lock)
+                : m_lock(lock)
+            {
+                m_lock.Lock();
+            };
+
+            ~AtomicLockGuard()
+            {
+                m_lock.Unlock();
+            };
 
         private:
-            RandomStorage m_randState;
+            AtomicLock &m_lock;
         };
 
         ProcessId GetProcessId();
@@ -278,8 +341,8 @@ namespace DevDriver
 
         void Strcat(char* pDst, const char* pSrc, size_t dstSize);
 
-        void Snprintf(char* pDst, size_t dstSize, const char* format, ...);
-        void Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args);
+        int32 Snprintf(char* pDst, size_t dstSize, const char* format, ...);
+        int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args);
     }
 
 #ifndef DD_PRINT_FUNC
@@ -425,7 +488,7 @@ namespace DevDriver
 #if defined(DEVDRIVER_ASSERTS_ENABLE)
         if (result != Result::Success)
         {
-            DD_PRINT(::DevDriver::LogLevel::Error,
+            DD_PRINT(DevDriver::LogLevel::Error,
                      "%s (%d): Unchecked Result in %s: \"%s\" == 0x%X\n",
                      pFile,
                      lineNumber,
@@ -441,5 +504,52 @@ namespace DevDriver
         DD_UNUSED(lineNumber);
         DD_UNUSED(pFunc);
 #endif
+    }
+
+    /// Convert a `DevDriver::Result` into a human recognizable string.
+    static inline const char* ResultToString(Result result)
+    {
+        switch (result)
+        {
+            //// Generic Result Code  ////
+            case Result::Success:            return "Success";
+            case Result::Error:              return "Error";
+            case Result::NotReady:           return "NotReady";
+            case Result::VersionMismatch:    return "VersionMismatch";
+            case Result::Unavailable:        return "Unavailable";
+            case Result::Rejected:           return "Rejected";
+            case Result::EndOfStream:        return "EndOfStream";
+            case Result::Aborted:            return "Aborted";
+            case Result::InsufficientMemory: return "InsufficientMemory";
+            case Result::InvalidParameter:   return "InvalidParameter";
+
+            //// URI PROTOCOL  ////
+            case Result::UriServiceRegistrationError:  return "UriServiceRegistrationError";
+            case Result::UriStringParseError:          return "UriStringParseError";
+            case Result::UriInvalidParameters:         return "UriInvalidParameters";
+            case Result::UriInvalidPostDataBlock:      return "UriInvalidPostDataBlock";
+            case Result::UriInvalidPostDataSize:       return "UriInvalidPostDataSize";
+            case Result::UriFailedToAcquirePostBlock:  return "UriFailedToAcquirePostBlock";
+            case Result::UriFailedToOpenResponseBlock: return "UriFailedToOpenResponseBlock";
+            case Result::UriRequestFailed:             return "UriRequestFailed";
+            case Result::UriPendingRequestError:       return "UriPendingRequestError";
+            case Result::UriInvalidChar:               return "UriInvalidChar";
+            case Result::UriInvalidJson:               return "UriInvalidJson";
+
+            //// Settings URI Service  ////
+            case Result::SettingsUriInvalidComponent:        return "SettingsUriInvalidComponent";
+            case Result::SettingsUriInvalidSettingName:      return "SettingsUriInvalidSettingName";
+            case Result::SettingsUriInvalidSettingValue:     return "SettingsUriInvalidSettingValue";
+            case Result::SettingsUriInvalidSettingValueSize: return "SettingsUriInvalidSettingValueSize";
+
+            //// Info URI Service ////
+            case Result::InfoUriSourceNameInvalid:       return "InfoUriSourceNameInvalid";
+            case Result::InfoUriSourceCallbackInvalid:   return "InfoUriSourceCallbackInvalid";
+            case Result::InfoUriSourceAlreadyRegistered: return "InfoUriSourceAlreadyRegistered";
+            case Result::InfoUriSourceWriteFailed:       return "InfoUriSourceWriteFailed";
+        }
+
+        DD_PRINT(LogLevel::Alert, "Result code %u is not handled", static_cast<uint32>(result));
+        return "Unrecognized DevDriver::Result";
     }
 }

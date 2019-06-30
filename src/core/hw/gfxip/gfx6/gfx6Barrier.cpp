@@ -319,8 +319,8 @@ void Device::DepthStencilExpandHiZRange(
     pOperations->layoutTransitions.htileHiZRangeExpand = 1;
     DescribeBarrier(pCmdBuf, pOperations, &transition);
 
-    // CS blit to open-up the HiZ range.
-    RsrcProcMgr().HwlExpandHtileHiZRange(pCmdBuf, gfx6Image, subresRange);
+    // CS blit to resummarize htile.
+    RsrcProcMgr().HwlResummarizeHtileCompute(pCmdBuf, gfx6Image, subresRange);
 
     // We need to wait for the compute shader to finish and also invalidate the texture cache before
     // any further depth rendering can be done to this Image.

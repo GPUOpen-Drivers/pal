@@ -202,22 +202,41 @@ void Queue::OpenSqttFile(
     File*          pFile,
     const LogItem& logItem)
 {
+    const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
+
     // CRC Info
     constexpr uint32 CrcInfoSize = 256;
-    char crcInfo[CrcInfoSize];
-    memset(crcInfo, 0, CrcInfoSize);
+    char             crcInfo[CrcInfoSize] = {};
+    size_t           crcPos = 0;
 
     if (logItem.type == CmdBufferCall)
     {
+        bool addPipelineHash = false;
+
         if (logItem.cmdBufCall.flags.draw == 1)
         {
-            Snprintf(crcInfo, CrcInfoSize, "_DRAW_PIPELINE%.16I64x",
-                     logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable);
+            crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_DRAW");
+            addPipelineHash = true;
         }
         else if (logItem.cmdBufCall.flags.dispatch == 1)
         {
-            Snprintf(crcInfo, CrcInfoSize, "_DISPATCH_PIPELINE%.16I64x",
-                     logItem.cmdBufCall.dispatch.pipelineInfo.internalPipelineHash.stable);
+            crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_DISPATCH");
+            addPipelineHash = true;
+        }
+
+        if (addPipelineHash)
+        {
+            if (settings.gpuProfilerConfig.useFullPipelineHash)
+            {
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x-%.16I64x",
+                                   logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable,
+                                   logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.unique);
+            }
+            else
+            {
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x",
+                                   logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable);
+            }
         }
     }
 
@@ -258,22 +277,41 @@ void Queue::OpenSpmFile(
     Util::File*    pFile,
     const LogItem& logItem)
 {
+    const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
+
     // CRC Info
     constexpr uint32 CrcInfoSize = 256;
-    char crcInfo[CrcInfoSize];
-    memset(crcInfo, 0, CrcInfoSize);
+    char             crcInfo[CrcInfoSize] = {};
+    size_t           crcPos = 0;
 
     if (logItem.type == CmdBufferCall)
     {
+        bool addPipelineHash = false;
+
         if (logItem.cmdBufCall.flags.draw == 1)
         {
-            Snprintf(crcInfo, CrcInfoSize, "_DRAW_PIPELINE%.16I64x",
-                     logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable);
+            crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_DRAW");
+            addPipelineHash = true;
         }
         else if (logItem.cmdBufCall.flags.dispatch == 1)
         {
-            Snprintf(crcInfo, CrcInfoSize, "_DISPATCH_PIPELINE%.16I64x",
-                     logItem.cmdBufCall.dispatch.pipelineInfo.internalPipelineHash.stable);
+            crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_DISPATCH");
+            addPipelineHash = true;
+        }
+
+        if (addPipelineHash)
+        {
+            if (settings.gpuProfilerConfig.useFullPipelineHash)
+            {
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x-%.16I64x",
+                                   logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable,
+                                   logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.unique);
+            }
+            else
+            {
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x",
+                                   logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable);
+            }
         }
     }
 
@@ -389,6 +427,7 @@ void Queue::OutputCmdBufCallToFile(
     constexpr uint32 GsIdx = static_cast<uint32>(ShaderType::Geometry);
     constexpr uint32 PsIdx = static_cast<uint32>(ShaderType::Pixel);
 
+    const auto& settings   = m_pDevice->GetPlatform()->PlatformSettings();
     const auto& cmdBufItem = logItem.cmdBufCall;
 
     m_logFile.Printf(",%d,%s%s,",
@@ -399,33 +438,41 @@ void Queue::OutputCmdBufCallToFile(
     OutputTimestampsToFile(logItem);
 
     // Print any draw/dispatch specific info (shader hashes, etc.).
-    if (cmdBufItem.flags.draw)
+    if (cmdBufItem.flags.draw || cmdBufItem.flags.dispatch)
     {
-        m_logFile.Printf("0x%016llx,0x%016llx,0x%016llx%016llx,0x%016llx%016llx,0x%016llx%016llx,"
-                         "0x%016llx%016llx,0x%016llx%016llx,%u,%u,,",
+        m_logFile.Printf("0x%016llx,0x%016llx",
                          cmdBufItem.draw.apiPsoHash,
-                         cmdBufItem.draw.pipelineInfo.internalPipelineHash.stable,
-                         cmdBufItem.draw.pipelineInfo.shader[VsIdx].hash.upper,
-                         cmdBufItem.draw.pipelineInfo.shader[VsIdx].hash.lower,
-                         cmdBufItem.draw.pipelineInfo.shader[HsIdx].hash.upper,
-                         cmdBufItem.draw.pipelineInfo.shader[HsIdx].hash.lower,
-                         cmdBufItem.draw.pipelineInfo.shader[DsIdx].hash.upper,
-                         cmdBufItem.draw.pipelineInfo.shader[DsIdx].hash.lower,
-                         cmdBufItem.draw.pipelineInfo.shader[GsIdx].hash.upper,
-                         cmdBufItem.draw.pipelineInfo.shader[GsIdx].hash.lower,
-                         cmdBufItem.draw.pipelineInfo.shader[PsIdx].hash.upper,
-                         cmdBufItem.draw.pipelineInfo.shader[PsIdx].hash.lower,
-                         cmdBufItem.draw.vertexCount,
-                         cmdBufItem.draw.instanceCount);
-    }
-    else if (cmdBufItem.flags.dispatch)
-    {
-        m_logFile.Printf("0x%016llx,0x%016llx,0x%016llx%016llx,,,,,%u,,,",
-                         cmdBufItem.dispatch.apiPsoHash,
-                         cmdBufItem.dispatch.pipelineInfo.internalPipelineHash.stable,
-                         cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.upper,
-                         cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.lower,
-                         cmdBufItem.dispatch.threadGroupCount);
+                         cmdBufItem.draw.pipelineInfo.internalPipelineHash.stable);
+
+        if (settings.gpuProfilerConfig.useFullPipelineHash)
+        {
+            m_logFile.Printf("-0x%016llx", cmdBufItem.draw.pipelineInfo.internalPipelineHash.unique);
+        }
+
+        if (cmdBufItem.flags.draw)
+        {
+            m_logFile.Printf(",0x%016llx%016llx,0x%016llx%016llx,0x%016llx%016llx,"
+                             "0x%016llx%016llx,0x%016llx%016llx,%u,%u,,",
+                             cmdBufItem.draw.pipelineInfo.shader[VsIdx].hash.upper,
+                             cmdBufItem.draw.pipelineInfo.shader[VsIdx].hash.lower,
+                             cmdBufItem.draw.pipelineInfo.shader[HsIdx].hash.upper,
+                             cmdBufItem.draw.pipelineInfo.shader[HsIdx].hash.lower,
+                             cmdBufItem.draw.pipelineInfo.shader[DsIdx].hash.upper,
+                             cmdBufItem.draw.pipelineInfo.shader[DsIdx].hash.lower,
+                             cmdBufItem.draw.pipelineInfo.shader[GsIdx].hash.upper,
+                             cmdBufItem.draw.pipelineInfo.shader[GsIdx].hash.lower,
+                             cmdBufItem.draw.pipelineInfo.shader[PsIdx].hash.upper,
+                             cmdBufItem.draw.pipelineInfo.shader[PsIdx].hash.lower,
+                             cmdBufItem.draw.vertexCount,
+                             cmdBufItem.draw.instanceCount);
+        }
+        else
+        {
+            m_logFile.Printf(",0x%016llx%016llx,,,,,%u,,,",
+                             cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.upper,
+                             cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.lower,
+                             cmdBufItem.dispatch.threadGroupCount);
+        }
     }
     else if (cmdBufItem.flags.barrier)
     {

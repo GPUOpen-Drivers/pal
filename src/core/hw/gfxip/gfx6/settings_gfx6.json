@@ -24,7 +24,6 @@
       "Tags": [
         "General"
       ],
-      "HashName": 2416072074,
       "Defaults": {
         "Default": true
       },
@@ -54,7 +53,6 @@
         "General",
         "Gfx6"
       ],
-      "HashName": 2945629691,
       "Defaults": {
         "Default": "CpDmaAlignmentDefault"
       },
@@ -69,7 +67,6 @@
         "General",
         "Gfx6"
       ],
-      "HashName": 3825276041,
       "Defaults": {
         "Default": false
       },
@@ -84,7 +81,6 @@
         "General",
         "Gfx6"
       ],
-      "HashName": 1419797586,
       "Defaults": {
         "Default": false
       },
@@ -99,7 +95,6 @@
         "General",
         "Gfx6"
       ],
-      "HashName": 3761151579,
       "Defaults": {
         "Default": 1
       },
@@ -128,7 +123,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3402504325,
       "Defaults": {
         "Default": 128
       },
@@ -143,7 +137,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1334465030,
       "Defaults": {
         "Default": true
       },
@@ -158,7 +151,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 4066308367,
       "Defaults": {
         "Default": 32
       },
@@ -173,7 +165,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3763031297,
       "Defaults": {
         "Default": 128
       },
@@ -196,7 +187,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 2488885191,
       "Defaults": {
         "Default": 32
       },
@@ -211,7 +201,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1070254748,
       "Defaults": {
         "Default": 32
       },
@@ -226,7 +215,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1102013901,
       "Defaults": {
         "Default": false
       },
@@ -241,7 +229,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3217804174,
       "Defaults": {
         "Default": 4
       },
@@ -256,7 +243,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1946161867,
       "Defaults": {
         "Default": false
       },
@@ -271,7 +257,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 987247393,
       "Defaults": {
         "Default": 16
       },
@@ -286,7 +271,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1448769209,
       "Defaults": {
         "Default": false
       },
@@ -301,7 +285,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 2295262967,
       "Defaults": {
         "Default": false
       },
@@ -316,7 +299,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1712293842,
       "Defaults": {
         "Default": false
       },
@@ -331,7 +313,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1924559864,
       "Defaults": {
         "Default": true
       },
@@ -346,7 +327,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3112016659,
       "Defaults": {
         "Default": 4096
       },
@@ -373,7 +353,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 2972449453,
       "Defaults": {
         "Default": 0
       },
@@ -388,7 +367,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3272504111,
       "Defaults": {
         "Default": 64.0
       },
@@ -420,7 +398,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 2699532302,
       "Defaults": {
         "Default": 0
       },
@@ -453,7 +430,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 4150915470,
       "Defaults": {
         "Default": 508
       },
@@ -468,7 +444,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3365086421,
       "Defaults": {
         "Default": true
       },
@@ -496,7 +471,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3832811323,
       "Defaults": {
         "Default": 4
       },
@@ -511,7 +485,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3548610473,
       "Defaults": {
         "Default": 4.0
       },
@@ -526,7 +499,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1952167388,
       "Defaults": {
         "Default": false
       },
@@ -541,7 +513,6 @@
         "Shader Options",
         "Gfx6"
       ],
-      "HashName": 2396748146,
       "Defaults": {
         "Default": false
       },
@@ -556,7 +527,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1219961810,
       "Defaults": {
         "Default": 4294967295
       },
@@ -574,7 +544,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1411431225,
       "Defaults": {
         "Default": 4294967295
       },
@@ -592,7 +561,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3021103171,
       "Defaults": {
         "Default": 4294967295
       },
@@ -610,7 +578,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 989310036,
       "Defaults": {
         "Default": 4294967295
       },
@@ -628,7 +595,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1509811598,
       "Defaults": {
         "Default": 4294967295
       },
@@ -646,7 +612,6 @@
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3382331351,
       "Defaults": {
         "Default": 4294967295
       },
@@ -677,7 +642,6 @@
         "Compute Pipelines",
         "Gfx6"
       ],
-      "HashName": 4216700794,
       "Defaults": {
         "Default": 0
       },
@@ -705,7 +669,6 @@
         "Compute Pipelines",
         "Gfx6"
       ],
-      "HashName": 346110079,
       "Defaults": {
         "Default": 0
       },
@@ -740,7 +703,6 @@
         "Compute Pipelines",
         "Gfx6"
       ],
-      "HashName": 3574730191,
       "Defaults": {
         "Default": "CsSimdDestCntlDefault"
       },
@@ -755,7 +717,6 @@
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 958470227,
       "Defaults": {
         "Default": false
       },
@@ -770,7 +731,6 @@
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 2986992899,
       "Defaults": {
         "Default": false
       },
@@ -785,7 +745,6 @@
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 286847775,
       "Defaults": {
         "Default": true
       },
@@ -800,7 +759,6 @@
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 3696903510,
       "Defaults": {
         "Default": 0
       },
@@ -815,7 +773,6 @@
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 1521283108,
       "Defaults": {
         "Default": 0
       },
@@ -830,7 +787,6 @@
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 4085812096,
       "Defaults": {
         "Default": 0
       },
@@ -845,7 +801,6 @@
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 2654965201,
       "Defaults": {
         "Default": 0
       },
@@ -860,7 +815,6 @@
         "Color Targets",
         "Gfx6"
       ],
-      "HashName": 1938040824,
       "Defaults": {
         "Default": true
       },
@@ -875,7 +829,6 @@
         "Color Targets",
         "Gfx6"
       ],
-      "HashName": 655987862,
       "Defaults": {
         "Default": true
       },
@@ -890,7 +843,6 @@
         "Color Targets",
         "Gfx6"
       ],
-      "HashName": 1936153062,
       "Defaults": {
         "Default": true
       },
@@ -905,7 +857,6 @@
         "Color Targets",
         "Gfx6"
       ],
-      "HashName": 3560979294,
       "Defaults": {
         "Default": true
       },
@@ -920,7 +871,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 2379988876,
       "Defaults": {
         "Default": true
       },
@@ -935,7 +885,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 3404166969,
       "Defaults": {
         "Default": true
       },
@@ -960,7 +909,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 3041432192,
       "Defaults": {
         "Default": true
       },
@@ -985,7 +933,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 3857035179,
       "Defaults": {
         "Default": false
       },
@@ -1010,7 +957,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 2946289999,
       "Defaults": {
         "Default": false
       },
@@ -1035,7 +981,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 4030437501,
       "Defaults": {
         "Default": false
       },
@@ -1060,7 +1005,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 399713165,
       "Defaults": {
         "Default": false
       },
@@ -1085,7 +1029,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 950148604,
       "Defaults": {
         "Default": true
       },
@@ -1110,7 +1053,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 37862373,
       "Defaults": {
         "Default": true
       },
@@ -1147,7 +1089,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 2835145461,
       "Defaults": {
         "Default": 0
       },
@@ -1165,7 +1106,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 1221993759,
       "Defaults": {
         "Default": 1
       },
@@ -1183,7 +1123,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 4057416918,
       "Defaults": {
         "Default": false
       },
@@ -1198,7 +1137,6 @@
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 250077184,
       "Defaults": {
         "Default": true
       },
@@ -1213,7 +1151,6 @@
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 392471174,
       "Defaults": {
         "Default": false
       },
@@ -1254,7 +1191,6 @@
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 4262839798,
       "Defaults": {
         "Default": "OffchipLdsBufferSize8192"
       },
@@ -1269,7 +1205,6 @@
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 1551275668,
       "Defaults": {
         "Default": false
       },
@@ -1310,7 +1245,6 @@
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 4194624623,
       "Defaults": {
         "Default": "OutOfOrderPrimSafe"
       },
@@ -1334,7 +1268,6 @@
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 2921949520,
       "Defaults": {
         "Default": 7
       },
@@ -1358,7 +1291,6 @@
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 3033759533,
       "Defaults": {
         "Default": 8192
       },
@@ -1373,7 +1305,6 @@
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 4034461831,
       "Defaults": {
         "Default": true
       },
@@ -1388,7 +1319,6 @@
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 1659075697,
       "Defaults": {
         "Default": 64
       },
@@ -1403,7 +1333,6 @@
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 307437762,
       "Defaults": {
         "Default": 64
       },
@@ -1418,7 +1347,6 @@
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 1901956459,
       "Defaults": {
         "Default": false
       },
@@ -1433,7 +1361,6 @@
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 3445840960,
       "Defaults": {
         "Default": 8
       },
@@ -1448,7 +1375,6 @@
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 891881186,
       "Defaults": {
         "Default": 8
       },
@@ -1463,7 +1389,6 @@
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 674984646,
       "Defaults": {
         "Default": 8
       },
@@ -1524,7 +1449,6 @@
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 4029518654,
       "Flags": {
         "IsBitmask": true,
         "IsHex": true
@@ -1568,7 +1492,6 @@
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 2887583419,
       "Flags": {
         "IsBitmask": true,
         "IsHex": true
@@ -1587,7 +1510,6 @@
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 2122164302,
       "Defaults": {
         "Default": true
       },
@@ -1623,7 +1545,6 @@
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 3864495440,
       "Flags": {
         "IsBitmask": true
       },
@@ -1657,7 +1578,6 @@
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 999816292,
       "Flags": {
         "IsBitmask": true,
         "IsHex": true
@@ -1676,7 +1596,6 @@
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 3804096310,
       "Defaults": {
         "Default": false
       },
@@ -1690,7 +1609,6 @@
       "Tags": [
         "Hardware Workarounds"
       ],
-      "HashName": 203570314,
       "Defaults": {
         "Default": false
       },

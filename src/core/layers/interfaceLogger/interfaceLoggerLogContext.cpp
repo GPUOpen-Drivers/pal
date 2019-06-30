@@ -208,8 +208,12 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferDestroy,                                          InterfaceObject::CmdBuffer,            "Destroy"                                 },
     { InterfaceFunc::CmdBufferCopyImageToPackedPixelImage,                      InterfaceObject::CmdBuffer,            "CmdBufferCopyImageToPackedPixelImage"    },
     { InterfaceFunc::CmdBufferCmdSetViewInstanceMask,                           InterfaceObject::CmdBuffer,            "CmdSetViewInstanceMask"                  },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
     { InterfaceFunc::CmdSetHiSCompareState0,                                    InterfaceObject::CmdBuffer,            "CmdSetHiSCompareState0"                  },
     { InterfaceFunc::CmdSetHiSCompareState1,                                    InterfaceObject::CmdBuffer,            "CmdSetHiSCompareState1"                  },
+#endif
+    { InterfaceFunc::CmdUpdateHiSPretests,                                      InterfaceObject::CmdBuffer,            "CmdUpdateHiSPretests"                    },
+    { InterfaceFunc::CmdBufferCmdSetClipRects,                                  InterfaceObject::CmdBuffer,            "CmdSetClipRects"                         },
     { InterfaceFunc::ColorBlendStateDestroy,                                    InterfaceObject::ColorBlendState,      "Destroy"                                 },
     { InterfaceFunc::DepthStencilStateDestroy,                                  InterfaceObject::DepthStencilState,    "Destroy"                                 },
     { InterfaceFunc::DeviceCommitSettingsAndInit,                               InterfaceObject::Device,               "CommitSettingsAndInit"                   },

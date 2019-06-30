@@ -129,6 +129,7 @@ Result GpuMemory::ValidateCreateInfo(
     const gpusize allocGranularity = createInfo.flags.virtualAlloc ? memProps.virtualMemAllocGranularity
                                                                    : memProps.realMemAllocGranularity;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 516
     if ((result == Result::Success) && ((createInfo.alignment % allocGranularity) != 0))
     {
         // Requested alignment must be zero or a multiple of the relevant allocation granularity!
@@ -140,6 +141,7 @@ Result GpuMemory::ValidateCreateInfo(
         // The requested allocation size doesn't match the allocation granularity requirements!
         result = Result::ErrorInvalidMemorySize;
     }
+#endif
 
     if ((result == Result::Success) && createInfo.flags.shareable && (nonLocalOnly == false))
     {
@@ -360,6 +362,7 @@ Result GpuMemory::Init(
     m_flags.isUserQueue          = internalInfo.flags.userQueue;
     m_flags.isTimestamp          = internalInfo.flags.timestamp;
     m_flags.accessedPhysically   = internalInfo.flags.accessedPhysically;
+    m_flags.gpuReadOnly          = internalInfo.flags.gpuReadOnly;
 
     if (IsClient() == false)
     {
@@ -386,8 +389,32 @@ Result GpuMemory::Init(
     // always resident.
     PAL_ALERT((IsAlwaysResident() == false) && (internalInfo.pPagingFence != nullptr));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
+    const gpusize allocGranularity   = (IsVirtual() == false) ?
+        m_pDevice->MemoryProperties().realMemAllocGranularity :
+        m_pDevice->MemoryProperties().virtualMemAllocGranularity;
+
+    // If this is not an external object, align size and base alignment to allocGranularity.
+    // If no alignment value was provided, use the allocation granularity.
+    if ((createInfo.flags.sdiExternal == 0) && (createInfo.flags.externalOpened == 0))
+    {
+        m_desc.size      = Pow2Align(createInfo.size, allocGranularity);
+        m_desc.alignment = ((createInfo.alignment != 0) ?
+                            Pow2Align(createInfo.alignment, allocGranularity) :
+                            allocGranularity);
+
+        PAL_ASSERT((createInfo.alignment == 0) || ((m_desc.alignment % createInfo.alignment) == 0));
+    }
+    else
+    {
+        m_desc.size      = createInfo.size;
+        m_desc.alignment = ((createInfo.alignment != 0) ? createInfo.alignment : allocGranularity);
+    }
+#else
     m_desc.size      = createInfo.size;
     m_desc.alignment = createInfo.alignment;
+#endif
+
     m_vaPartition    = m_pDevice->ChooseVaPartition(createInfo.vaRange, (createInfo.flags.virtualAlloc != 0));
     m_priority       = createInfo.priority;
     m_priorityOffset = createInfo.priorityOffset;
@@ -405,6 +432,10 @@ Result GpuMemory::Init(
         m_desc.size = Pow2Align(m_desc.size, pageSize) + pageSize;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
+    if (IsVirtual() == false)
+    {
+#else
     gpusize allocGranularity = 0;
 
     if (IsVirtual())
@@ -414,6 +445,7 @@ Result GpuMemory::Init(
     else
     {
         allocGranularity = m_pDevice->MemoryProperties().realMemAllocGranularity;
+#endif
 
         // NOTE: Assume that the heap selection is both local-only and nonlocal-only temporarily. When we scan the
         // heap selections below, this paradoxical assumption will be corrected.
@@ -465,6 +497,7 @@ Result GpuMemory::Init(
 
     m_desc.preferredHeap = m_heaps[0];
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 516
     // Requested alignment must be a multiple of the relevant allocation granularity! If no alignment value was
     // provided, use the allocation granularity.
     if (m_desc.alignment == 0)
@@ -481,6 +514,7 @@ Result GpuMemory::Init(
             m_desc.alignment = Pow2Align(m_desc.alignment, allocGranularity);
         }
     }
+#endif
 
     Result result = Result::Success;
 
@@ -547,7 +581,12 @@ Result GpuMemory::Init(
                 (createInfo.flags.sdiExternal == 0))
             {
 #if !defined(PAL_BUILD_BRANCH) || (PAL_BUILD_BRANCH >= 1740)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 516
+                // Check requested size so that we avoid padding out twice!
+                if (createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes)
+#else
                 if (m_desc.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForAlignmentInBytes)
+#endif
                 {
                     const gpusize largePageSize = m_pDevice->MemoryProperties().largePageSupport.largePageSizeInBytes;
 

@@ -79,7 +79,8 @@ union GraphicsStateFlags
                 uint16 pointLineRasterState      : 1;
                 uint16 stencilRefMaskState       : 1;
                 uint16 globalScissorState        : 1;
-                uint16 reservedNonValidationBits : 8;
+                uint16 clipRectsState            : 1;
+                uint16 reservedNonValidationBits : 7;
             };
 
             uint16 u16All;
@@ -102,6 +103,12 @@ union TargetExtent2d
 };
 
 constexpr uint32 MaxScissorExtent = 16384;
+
+// The Max rectangle number that is allowed for clip rects.
+constexpr uint32 MaxClipRects = 4;
+
+// The default value of clip rule which means no clip rectangles.
+constexpr uint16 DefaultClipRectsRule = 0xFFFF;
 
 // Represents the graphics state which is currently active within the command buffer.
 struct GraphicsState
@@ -155,6 +162,13 @@ struct GraphicsState
     };
 
     InheritedStateParams inheritedState; // States provided to nested command buffer from primary command buffer.
+
+    struct
+    {
+        uint16 clipRule;
+        uint32 rectCount;
+        Rect   rectList[MaxClipRects];
+    } clipRectsState; // (CmdSetClipRects)
 
     GraphicsStateFlags   dirtyFlags;
     GraphicsStateFlags   leakFlags;      // Graphics state which a nested command buffer "leaks" back to its caller.

@@ -715,6 +715,11 @@ public:
         uint32               planeCount,
         const UserClipPlane* pPlanes) override { PAL_NEVER_CALLED(); }
 
+    virtual void CmdSetClipRects(
+        uint16      clipRule,
+        uint32      rectCount,
+        const Rect* pRectList) override { PAL_NEVER_CALLED(); }
+
     virtual void CmdStartGpuProfilerLogging() override  { PAL_NEVER_CALLED(); }
 
     virtual void CmdStopGpuProfilerLogging() override  { PAL_NEVER_CALLED(); }
@@ -737,6 +742,7 @@ public:
 
     virtual void CmdXdmaWaitFlipPending() override { PAL_NEVER_CALLED(); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
     virtual void CmdSetHiSCompareState0(
         CompareFunc compFunc,
         uint32      compMask,
@@ -748,6 +754,13 @@ public:
         uint32      compMask,
         uint32      compValue,
         bool        enable) override { PAL_NEVER_CALLED(); }
+#endif
+
+    virtual void CmdUpdateHiSPretests(
+       const IImage*      pImage,
+       const HiSPretests& pretests,
+       uint32             firstMip,
+       uint32             numMips) override { PAL_NEVER_CALLED(); }
 
     // Maximum length of a filename allowed for command buffer dumps
     static constexpr uint32 MaxFilenameLength = 32;

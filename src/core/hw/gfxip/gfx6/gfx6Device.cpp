@@ -1658,7 +1658,11 @@ static PAL_INLINE uint32 ComputeImageViewDepth(
     }
     else if (viewInfo.viewType == ImageViewType::TexCube)
     {
-        depth = ((imageCreateInfo.arraySize / NumCubemapFaces) - 1);
+        // Cube is special as the array size is divided by 6. If an array of 9-slice with mipmap is viewed as cube,
+        // AddrLib does a power-of-two pad in number of slices so the padded array size is 16. If 9 is still used here,
+        // HW would read (0 + 1) * 6 then power-of-two pad 6 to 8 which results wrong slices for mip levels.
+        // Note that 3D and array still work because HW always does the power-of-two pad.
+        depth = ((subresInfo.actualArraySize / NumCubemapFaces) - 1);
     }
     else
     {

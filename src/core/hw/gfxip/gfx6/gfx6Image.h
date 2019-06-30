@@ -287,6 +287,11 @@ public:
         uint8              stencilValue,
         PM4Predicate       predicate,
         uint32*            pCmdSpace) const;
+    uint32* UpdateHiSPretestsMetaData(
+        const SubresRange& range,
+        const HiSPretests& pretests,
+        PM4Predicate       predicate,
+        uint32*            pCmdSpace) const;
     uint32* UpdateWaTcCompatZRangeMetaData(
         const SubresRange& range,
         float              depthValue,

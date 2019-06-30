@@ -305,7 +305,7 @@ struct GpuMemoryDesc
             uint32 isExecutable :  1;  ///< GPU memory is used for execution. Valid only when IOMMUv2 is supported
             uint32 isExternPhys :  1;  ///< GPU memory is External Physical memory
             uint32 placeholder0         :   1; ///< Reserved for future memory flag
-            uint32 reserved             :  25; ///< Reserved for future use
+            uint32 reserved             :  24; ///< Reserved for future use
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.
     } flags;                        ///< GPU memory desc flags.
@@ -402,13 +402,11 @@ struct GpuMemoryExportInfo
  * functions to return an error code, the create/open functions may not validate their arguments.
  *
  *
- * First, a memory object's GPU VA and size must both be aligned to certain device specific values.  Additional aligment
- * restrictions may be imposed by other PAL objects that will use the memory (e.g., IGpuMemoryBindable) or by the
- * client.  PAL requires that:
- * + Real and pinned GPU memory must be aligned to realMemAllocGranularity in DeviceProperties.
- * + Virtual GPU memory must be aligned to virtualMemAllocGranularity in DeviceProperties.
+ * With the exception of external memory objects being opened, PAL will adjust size and base alignments as necessary
+ * to meet device requirements. Typically this means going out to OS page boundaries. The client is no longer required
+*  to query device requirements and align for PAL.
  *
- * Note that the device alignment requirements apply equally to GPU VAs and sizes.  However, other kinds of alignment
+ * Note that the device alignment requirements apply equally to GPU VAs.  However, other kinds of alignment
  * restrictions (e.g., IGpuMemoryBindable's requirements) may only apply to one of those two properties.  When creating
  * GPU memory objects the client must be careful to set the "alignment" field to the alignment of the GPU VA.
  *

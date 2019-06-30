@@ -3455,6 +3455,7 @@ typedef union VGT_DMA_REQ_FIFO_DEPTH                             regVGT_DMA_REQ_
 typedef union VGT_DMA_SIZE                                       regVGT_DMA_SIZE;
 typedef union VGT_DRAW_INITIATOR                                 regVGT_DRAW_INITIATOR;
 typedef union VGT_DRAW_INIT_FIFO_DEPTH                           regVGT_DRAW_INIT_FIFO_DEPTH;
+typedef union VGT_DRAW_PAYLOAD_CNTL                              regVGT_DRAW_PAYLOAD_CNTL;
 typedef union VGT_ENHANCE                                        regVGT_ENHANCE;
 typedef union VGT_ESGS_RING_ITEMSIZE                             regVGT_ESGS_RING_ITEMSIZE;
 typedef union VGT_ES_PER_GS                                      regVGT_ES_PER_GS;
@@ -3493,6 +3494,7 @@ typedef union VGT_HOS_MIN_TESS_LEVEL                             regVGT_HOS_MIN_
 typedef union VGT_HOS_REUSE_DEPTH                                regVGT_HOS_REUSE_DEPTH;
 typedef union VGT_HS_OFFCHIP_PARAM                               regVGT_HS_OFFCHIP_PARAM;
 typedef union VGT_IMMED_DATA                                     regVGT_IMMED_DATA;
+typedef union VGT_INDEX_PAYLOAD_CNTL                             regVGT_INDEX_PAYLOAD_CNTL;
 typedef union VGT_INDEX_TYPE                                     regVGT_INDEX_TYPE;
 typedef union VGT_INDX_OFFSET                                    regVGT_INDX_OFFSET;
 typedef union VGT_INSTANCE_BASE_ID                               regVGT_INSTANCE_BASE_ID;
