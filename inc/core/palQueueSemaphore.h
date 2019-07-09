@@ -89,7 +89,15 @@ struct ExternalQueueSemaphoreOpenInfo
             uint32 isReference        :  1;   ///< If set, then the opened semaphore will reference the same sync
                                               ///< object in the kernel.  Otherwise, the object is copied to the
                                               ///< new Semaphore.
-            uint32 reserved           : 29;   ///< Resevered for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 517
+            /// This queue semaphore is a timeline semaphore. Timeline semaphores have a 64-bit unsigned integer payload
+            /// which gets monotonically increased with each Signal operation. A wait on a timeline semaphore blocks the
+            /// waiter until the specified payload value has been signaled.
+            uint32 timeline          :  1;
+            uint32 reserved          : 28;  ///< Reserved for future use.
+#else
+            uint32 reserved          : 29;  ///< Reserved for future use.
+#endif
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;                            ///< External queue semaphore open flags.

@@ -882,7 +882,6 @@ constexpr unsigned int CB_TARGET_MASK__TARGET5_ENABLE_MASK      = 0x00f00000L;
 constexpr unsigned int CB_TARGET_MASK__TARGET6_ENABLE_MASK      = 0x0f000000L;
 constexpr unsigned int CB_TARGET_MASK__TARGET7_ENABLE_MASK      = 0xf0000000L;
 constexpr unsigned int CC_RB_BACKEND_DISABLE__BACKEND_DISABLE_MASK = 0x00ff0000L;
-constexpr unsigned int CC_RB_BACKEND_DISABLE__WRITE_DIS_MASK    = 0x00000001L;
 constexpr unsigned int CC_RB_DAISY_CHAIN__RB_0_MASK             = 0x0000000fL;
 constexpr unsigned int CC_RB_DAISY_CHAIN__RB_1_MASK             = 0x000000f0L;
 constexpr unsigned int CC_RB_DAISY_CHAIN__RB_2_MASK             = 0x00000f00L;
@@ -895,7 +894,6 @@ constexpr unsigned int CC_RB_REDUNDANCY__EN_REDUNDANCY0_MASK    = 0x00001000L;
 constexpr unsigned int CC_RB_REDUNDANCY__EN_REDUNDANCY1_MASK    = 0x00100000L;
 constexpr unsigned int CC_RB_REDUNDANCY__FAILED_RB0_MASK        = 0x00000f00L;
 constexpr unsigned int CC_RB_REDUNDANCY__FAILED_RB1_MASK        = 0x000f0000L;
-constexpr unsigned int CC_RB_REDUNDANCY__WRITE_DIS_MASK         = 0x00000001L;
 constexpr unsigned int COHER_DEST_BASE_0__DEST_BASE_256B_MASK   = 0xffffffffL;
 constexpr unsigned int COHER_DEST_BASE_1__DEST_BASE_256B_MASK   = 0xffffffffL;
 constexpr unsigned int COHER_DEST_BASE_2__DEST_BASE_256B_MASK   = 0xffffffffL;
@@ -1129,7 +1127,6 @@ constexpr unsigned int CP_DFY_CNTL__ENABLE_MASK                 = 0x80000000L;
 constexpr unsigned int CP_DFY_CNTL__LFSR_RESET_MASK             = 0x10000000L;
 constexpr unsigned int CP_DFY_CNTL__MODE_MASK                   = 0x60000000L;
 constexpr unsigned int CP_DFY_CNTL__TPI_SDP_SEL_MASK            = 0x04000000L;
-constexpr unsigned int CP_DFY_CNTL__WRITE_DIS_MASK              = 0x08000000L;
 constexpr unsigned int CP_DFY_DATA_0__DATA_MASK                 = 0xffffffffL;
 constexpr unsigned int CP_DFY_DATA_1__DATA_MASK                 = 0xffffffffL;
 constexpr unsigned int CP_DFY_DATA_2__DATA_MASK                 = 0xffffffffL;
@@ -11664,10 +11661,6 @@ namespace Vg10_Vg12_Rv1x
 
 namespace Vg12
 {
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__ALL_CLK_ON_OVERRIDE_MASK = 0x00000080L;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__GRP5_CG_OFF_HYST_MASK = 0x0000003fL;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__GRP5_CG_OVERRIDE_MASK = 0x00000040L;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__SPI_SH_CLK_CONTROL_MASK = 0x00000100L;
     constexpr unsigned int DB_DEBUG4__DB_EXTRA_DEBUG4_MASK          = 0x3ff80000L;
     constexpr unsigned int DB_DEBUG4__DISABLE_8PPC_OBJPRIMID_WHEN_NO_SHADER_EXPORTS_MASK = 0x40000000L;
     constexpr unsigned int GC_CAC_CNTL__CAC_FORCE_DISABLE_MASK      = 0x00000001L;
@@ -11727,7 +11720,6 @@ namespace Vg12
     constexpr unsigned int PA_STEREO_CNTL__STEREO_MODE_MASK         = 0x0000001eL;
     constexpr unsigned int PA_STEREO_CNTL__VP_ID_MODE_MASK          = 0x00001c00L;
     constexpr unsigned int PA_STEREO_CNTL__VP_ID_OFFSET_MASK        = 0x0001e000L;
-    constexpr unsigned int RefOverflow__Data_MASK                   = 0xffffffffL;
     constexpr unsigned int VML2_MEM_ECC_CNTL__DED_COUNT_MASK        = 0x00c00000L;
     constexpr unsigned int VML2_MEM_ECC_CNTL__DSM_IRRITATOR_DATA_MASK = 0x0000c000L;
     constexpr unsigned int VML2_MEM_ECC_CNTL__ENABLE_ERROR_INJECT_MASK = 0x00060000L;
@@ -11758,10 +11750,6 @@ namespace Vg20
     constexpr unsigned int alloc_DEBUG_DATA__GDS_DEBUG_REG5_write_dis_MASK = 0x00000001L;
     constexpr unsigned int alloc_DEBUG_DATA__Reserved0_MASK         = 0x000000e0L;
     constexpr unsigned int alloc_DEBUG_DATA__Reserved1_MASK         = 0xffc00000L;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__ALL_CLK_ON_OVERRIDE_MASK = 0x00000080L;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__GRP5_CG_OFF_HYST_MASK = 0x0000003fL;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__GRP5_CG_OVERRIDE_MASK = 0x00000040L;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__SPI_SH_CLK_CONTROL_MASK = 0x00000100L;
     constexpr unsigned int CP_ECC_DMA_FIRST_OCCURRENCE__CLIENT_MASK = 0x000000f0L;
     constexpr unsigned int CP_ECC_DMA_FIRST_OCCURRENCE__INTERFACE_MASK = 0x00000003L;
     constexpr unsigned int CP_ECC_DMA_FIRST_OCCURRENCE__ME_MASK     = 0x00000300L;

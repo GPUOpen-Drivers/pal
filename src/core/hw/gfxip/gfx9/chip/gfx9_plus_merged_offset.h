@@ -2977,7 +2977,6 @@ namespace Vg10
 
 namespace Vg12
 {
-    constexpr unsigned int mmCGTX_SPI_DEBUG_CLK_CTRL                = 0xF07F;
     constexpr unsigned int mmGC_CAC_INDEX_AUTO_INCR_EN              = 0x3286;
     constexpr unsigned int mmGC_CAC_IND_DATA                        = 0x329D;
     constexpr unsigned int mmGC_CAC_IND_INDEX                       = 0x329C;
@@ -2989,14 +2988,12 @@ namespace Vg12
     constexpr unsigned int mmPA_SC_ENHANCE_2                        = 0x22DC;
     constexpr unsigned int mmPA_STATE_STEREO_X                      = 0xC2B5;
     constexpr unsigned int mmPA_STEREO_CNTL                         = 0xA210;
-    constexpr unsigned int mmRefOverflow                            = 0x1405C;
     constexpr unsigned int mmVML2_MEM_ECC_CNTL                      = 0x2860;
     constexpr unsigned int mmVML2_WALKER_MEM_ECC_CNTL               = 0x2861;
 } // namespace Vg12
 
 namespace Vg20
 {
-    constexpr unsigned int mmCGTX_SPI_DEBUG_CLK_CTRL                = 0xF07F;
     constexpr unsigned int mmCP_ECC_DMA_FIRST_OCCURRENCE            = 0x307A;
     constexpr unsigned int mmCP_EDC_FUE_CNTL                        = 0x319D;
     constexpr unsigned int mmGC_CAC_INDEX_AUTO_INCR_EN              = 0x3286;

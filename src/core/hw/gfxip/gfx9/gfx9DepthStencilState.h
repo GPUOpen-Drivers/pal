@@ -75,12 +75,10 @@ protected:
     virtual ~DepthStencilState() {}
 
 private:
-    void BuildPm4Headers();
+    void BuildPm4Headers(const Device& device);
 
     static CompareFrag HwDepthCompare(CompareFunc func);
     static ::StencilOp HwStencilOp(StencilOp stencilOp);
-
-    const Device&            m_device;
 
     // Image of PM4 commands needed to write this object to hardware.
     DepthStencilStatePm4Img  m_pm4Commands;

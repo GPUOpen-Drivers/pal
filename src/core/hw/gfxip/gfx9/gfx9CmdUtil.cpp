@@ -41,9 +41,9 @@ namespace Gfx9
 static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
 {
     event_index__me_event_write__other,                                 // Reserved_0x00,
-    event_index__me_event_write__sample_streamoutstat,                  // SAMPLE_STREAMOUTSTATS1,
-    event_index__me_event_write__sample_streamoutstat,                  // SAMPLE_STREAMOUTSTATS2,
-    event_index__me_event_write__sample_streamoutstat,                  // SAMPLE_STREAMOUTSTATS3,
+    event_index__me_event_write__sample_streamoutstats,                 // SAMPLE_STREAMOUTSTATS1,
+    event_index__me_event_write__sample_streamoutstats,                 // SAMPLE_STREAMOUTSTATS2,
+    event_index__me_event_write__sample_streamoutstats,                 // SAMPLE_STREAMOUTSTATS3,
     event_index__me_event_write__other,                                 // CACHE_FLUSH_TS,
     event_index__me_event_write__other,                                 // CONTEXT_DONE,
     event_index__me_event_write__other,                                 // CACHE_FLUSH,
@@ -70,9 +70,9 @@ static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
     event_index__me_event_write__other,                                 // PERFCOUNTER_SAMPLE,
     event_index__me_event_write__other,                                 // Available_0x1c,
     event_index__me_event_write__other,                                 // Available_0x1d,
-    event_index__me_event_write__sample_pipelinestats,                  // SAMPLE_PIPELINESTAT,
+    event_index__me_event_write__sample_pipelinestat,                   // SAMPLE_PIPELINESTAT,
     event_index__me_event_write__other,                                 // SO_VGTSTREAMOUT_FLUSH,
-    event_index__me_event_write__sample_streamoutstat,                  // SAMPLE_STREAMOUTSTATS,
+    event_index__me_event_write__sample_streamoutstats,                 // SAMPLE_STREAMOUTSTATS,
     event_index__me_event_write__other,                                 // RESET_VTX_CNT,
     event_index__me_event_write__other,                                 // BLOCK_CONTEXT_DONE,
     event_index__me_event_write__other,                                 // CS_CONTEXT_DONE,
@@ -1123,17 +1123,20 @@ size_t CmdUtil::BuildDrawIndexIndirect(
     uint32       startInstLoc,  // Register VS expects to read startInstLoc from.
     uint32       startIndexLoc, // Register VS expects to read startIndexLoc from.
     Pm4Predicate predicate,
-    void*        pBuffer)       // [out] Build the PM4 packet in this buffer.
+    void*        pBuffer        // [out] Build the PM4 packet in this buffer.
+    ) const
 {
     PAL_ASSERT(startIndexLoc == 0);
 
     // Draw argument offset in the buffer has to be 4-byte aligned.
     PAL_ASSERT(IsPow2Aligned(offset, 4));
 
-    constexpr uint32 PacketSize = (sizeof(PM4PFP_DRAW_INDEX_INDIRECT) / sizeof(uint32));
-    auto*const       pPacket    = static_cast<PM4PFP_DRAW_INDEX_INDIRECT*>(pBuffer);
+    constexpr size_t DrawIndexIndirectPacketSize = sizeof(PM4PFP_DRAW_INDEX_INDIRECT) / sizeof(uint32);
+    size_t packetSize = DrawIndexIndirectPacketSize;
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_INDIRECT, PacketSize, false, ShaderGraphics, predicate);
+    auto*const pPacket = static_cast<PM4PFP_DRAW_INDEX_INDIRECT*>(pBuffer);
+    pPacket->header.u32All =
+        Type3Header(IT_DRAW_INDEX_INDIRECT, DrawIndexIndirectPacketSize, false, ShaderGraphics, predicate);
     pPacket->data_offset               = LowPart(offset);
     pPacket->ordinal3                  = 0;
     pPacket->bitfields3.base_vtx_loc   = baseVtxLoc - PERSISTENT_SPACE_START;
@@ -1152,7 +1155,7 @@ size_t CmdUtil::BuildDrawIndexIndirect(
     drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
 
     pPacket->draw_initiator = drawInitiator.u32All;
-    return PacketSize;
+    return packetSize;
 }
 
 // =====================================================================================================================
@@ -1168,17 +1171,20 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     uint32       count,         // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
     gpusize      countGpuAddr,  // GPU address containing the count.
     Pm4Predicate predicate,
-    void*        pBuffer)       // [out] Build the PM4 packet in this buffer.
+    void*        pBuffer        // [out] Build the PM4 packet in this buffer.
+    ) const
 {
     PAL_ASSERT(startIndexLoc == 0);
 
     // Draw argument offset in the buffer has to be 4-byte aligned.
     PAL_ASSERT(IsPow2Aligned(offset, 4));
 
-    constexpr uint32 PacketSize = (sizeof(PM4_PFP_DRAW_INDEX_INDIRECT_MULTI) / sizeof(uint32));
-    auto*const       pPacket    = static_cast<PM4_PFP_DRAW_INDEX_INDIRECT_MULTI*>(pBuffer);
+    constexpr size_t DrawIndexIndirectMultiPacketSize = sizeof(PM4_PFP_DRAW_INDEX_INDIRECT_MULTI) / sizeof(uint32);
+    size_t packetSize = DrawIndexIndirectMultiPacketSize;
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_INDIRECT_MULTI, PacketSize, false, ShaderGraphics, predicate);
+    auto*const pPacket = static_cast<PM4_PFP_DRAW_INDEX_INDIRECT_MULTI*>(pBuffer);
+    pPacket->header.u32All =
+        Type3Header(IT_DRAW_INDEX_INDIRECT_MULTI, DrawIndexIndirectMultiPacketSize, false, ShaderGraphics, predicate);
     pPacket->data_offset               = LowPart(offset);
     pPacket->ordinal3                  = 0;
     pPacket->bitfields3.base_vtx_loc   = baseVtxLoc - PERSISTENT_SPACE_START;
@@ -1194,8 +1200,8 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     }
     if (startIndexLoc != UserDataNotMapped)
     {
-        pPacket->bitfields5.start_index_enable = 1;
-        pPacket->bitfields3.start_indx_loc     = startIndexLoc - PERSISTENT_SPACE_START;
+        pPacket->bitfields5.start_indx_enable = 1;
+        pPacket->bitfields3.start_indx_loc    = startIndexLoc - PERSISTENT_SPACE_START;
     }
 
     if (countGpuAddr != 0)
@@ -1218,7 +1224,7 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
 
     pPacket->draw_initiator = drawInitiator.u32All;
-    return PacketSize;
+    return packetSize;
 }
 
 // =====================================================================================================================
@@ -1315,11 +1321,6 @@ size_t CmdUtil::BuildDmaData(
         "MEC and PFP src sel dma_data enumerations don't match!");
 
     static_assert((sizeof(PM4PFP_DMA_DATA) == sizeof(PM4ME_DMA_DATA)),
-                  "PFP, ME and MEC versions of the DMA_DATA packet are not the same size!");
-
-    // MEC (compute) version of this packet is defined with an extra dword for alignment requirements.  According to
-    // CP it will be removed.  GFX version should be safe on all engines
-    static_assert((sizeof(PM4PFP_DMA_DATA) != sizeof(PM4MEC_DMA_DATA)),
                   "PFP, ME and MEC versions of the DMA_DATA packet are not the same size!");
 
     // The "byte_count" field only has 26 bits (numBytes must be less than 64MB).
@@ -1433,8 +1434,8 @@ size_t CmdUtil::BuildNonSampleEventWrite(
           static_cast<uint32>(event_index__me_event_write__other))                  &&
          (static_cast<uint32>(event_index__mec_event_write__cs_partial_flush)       ==
           static_cast<uint32>(event_index__me_event_write__cs_vs_ps_partial_flush)) &&
-         (static_cast<uint32>(event_index__mec_event_write__sample_pipelinestats)   ==
-          static_cast<uint32>(event_index__me_event_write__sample_pipelinestats))),
+         (static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)   ==
+          static_cast<uint32>(event_index__me_event_write__sample_pipelinestat))),
         "event index enumerations don't match between gfx and compute!");
 
     // Make sure the supplied VGT event is legal.
@@ -1447,10 +1448,10 @@ size_t CmdUtil::BuildNonSampleEventWrite(
                (static_cast<uint32>(VgtEventIndex[vgtEvent])                         ==
                 static_cast<uint32>(event_index__mec_event_write__cs_partial_flush)) ||
                (static_cast<uint32>(VgtEventIndex[vgtEvent])                         ==
-                static_cast<uint32>(event_index__mec_event_write__sample_pipelinestats)));
+                static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)));
 
     // If this trips, the caller needs to use the BuildSampleEventWrite() routine instead.
-    PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstat);
+    PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstats);
 
     // Don't use sizeof(PM4ME_EVENT_WRITE) here!  The official packet definition contains extra dwords
     // for functionality that is only required for "sample" type events.
@@ -1494,8 +1495,8 @@ size_t CmdUtil::BuildSampleEventWrite(
           static_cast<uint32>(event_index__me_event_write__other))                  &&
          (static_cast<uint32>(event_index__mec_event_write__cs_partial_flush)       ==
           static_cast<uint32>(event_index__me_event_write__cs_vs_ps_partial_flush)) &&
-         (static_cast<uint32>(event_index__mec_event_write__sample_pipelinestats)   ==
-          static_cast<uint32>(event_index__me_event_write__sample_pipelinestats))),
+         (static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)   ==
+          static_cast<uint32>(event_index__me_event_write__sample_pipelinestat))),
         "event index enumerations don't match between gfx and compute!");
 
     // Make sure the supplied VGT event is legal.
@@ -1512,13 +1513,13 @@ size_t CmdUtil::BuildSampleEventWrite(
                (vgtEvent == ZPASS_DONE));
 
     PAL_ASSERT((VgtEventIndex[vgtEvent] == event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump) ||
-               (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestats)                  ||
-               (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstat));
+               (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)                  ||
+               (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats));
 
     // Event-write packets destined for the compute queue can only use some events.
     PAL_ASSERT((engineType != EngineTypeCompute) ||
                (static_cast<uint32>(VgtEventIndex[vgtEvent]) ==
-                static_cast<uint32>(event_index__mec_event_write__sample_pipelinestats)));
+                static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)));
 
     constexpr uint32 PacketSize = (sizeof(PM4_ME_EVENT_WRITE) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_ME_EVENT_WRITE*>(pBuffer);
@@ -1528,7 +1529,7 @@ size_t CmdUtil::BuildSampleEventWrite(
     pPacket->bitfields2.event_type  = vgtEvent;
     pPacket->bitfields2.event_index = VgtEventIndex[vgtEvent];
     pPacket->ordinal3               = LowPart(gpuAddr);
-    PAL_ASSERT(pPacket->bitfields3.reserved1 == 0);
+    PAL_ASSERT(pPacket->bitfields3a.reserved1 == 0);
     pPacket->address_hi             = HighPart(gpuAddr);
 
     return PacketSize;
@@ -2378,7 +2379,7 @@ size_t CmdUtil::BuildReleaseMemInternal(
     // This won't send an interrupt but will wait for write confirm before writing the data to memory.
     pPacket->bitfields3.int_sel    = (releaseMemInfo.dataSel == data_sel__mec_release_mem__none)
                                         ? int_sel__mec_release_mem__none
-                                        : int_sel__mec_release_mem__send_data_after_write_confirm;
+                                        : int_sel__mec_release_mem__send_data_and_write_confirm;
 
     // Make sure our dstAddr is properly aligned.  The alignment differs based on how much data is being written
     if (releaseMemInfo.dataSel == data_sel__mec_release_mem__store_gds_data_to_memory)
@@ -2513,8 +2514,6 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
                     static_cast<uint32>(data_sel__mec_release_mem__send_64_bit_data))          &&
                    (static_cast<uint32>(data_sel__me_release_mem__send_gpu_clock_counter)      ==
                     static_cast<uint32>(data_sel__mec_release_mem__send_gpu_clock_counter))    &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_cp_perfcounter_hi_lo)   ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_cp_perfcounter_hi_lo)) &&
                    (static_cast<uint32>(data_sel__me_release_mem__store_gds_data_to_memory)    ==
                     static_cast<uint32>(data_sel__mec_release_mem__store_gds_data_to_memory))),
                   "RELEASE_MEM data sel enumerations don't match between ME and MEC!");

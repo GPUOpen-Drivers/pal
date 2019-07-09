@@ -986,9 +986,7 @@ struct DeviceProperties
                                                                      ///  filtering operates on only one channel at
                                                                      ///  a time.
                 uint32 supportRgpTraces                         : 1; ///< Hardware supports RGP traces.
-                uint32 placeholder0                             : 1; ///< Reserved for future hardware.
-
-                uint32 placeholder1                             : 1; ///< Reserved for future hardware.
+                uint32 placeholder1                             : 5; ///< Reserved for future hardware.
 
                 uint32 placeholder2                             : 1; ///< Reserved for future hardware.
 
@@ -997,11 +995,7 @@ struct DeviceProperties
                                                                      ///  submissions. The client cannot assume that
                                                                      ///  timestamps will increase monotonically across
                                                                      ///  command buffer submissions.
-                uint32 placeholder3                             : 1; ///< Reserved for future hardware.
                 uint32 support1xMsaaSampleLocations             : 1; ///< HW supports 1xMSAA custom quad sample patterns
-                uint32 placeholder4                             : 1; ///< Placeholder, do not use
-
-                uint32 placeholder5                             : 1; ///< Placeholder, do not use
 
                 /// Indicates that the GFX IP hardware (and PAL) support state inheritance for nested command buffers.
                 /// If true, nested command buffers inherit most API state from the calling root command buffer until
@@ -1019,18 +1013,18 @@ struct DeviceProperties
                                                                      ///  Note: Only supported if
                                                                      ///  @ref supportReleaseAcquireInterface is supported.
 #else
-                uint32 placeholder6                             : 2; ///< Placeholder, do not use
+                uint32 placeholder3                             : 2; ///< Placeholder, do not use
 #endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
                 uint32 supportGl2Uncached                       : 1; ///< Indicates support for the allocation of GPU L2
                                                                      ///  un-cached memory. @see gl2UncachedCpuCoherency
 #else
-                uint32 placeholder7                             : 1; ///< Placeholder, do not use
+                uint32 placeholder4                             : 1; ///< Placeholder, do not use
 #endif
                 uint32 supportOutOfOrderPrimitives              : 1; ///< HW supports higher throughput for out of order
 
-                uint32 placeholder8                             : 1; ///< Placeholder, do not use
+                uint32 placeholder5                             : 1; ///< Placeholder, do not use
                 uint32 reserved                                 : 3; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
@@ -3794,6 +3788,7 @@ public:
         const MsaaStateCreateInfo& createInfo,
         void*                      pPlacementAddr,
         IMsaaState**               ppMsaaState) const = 0;
+
     /// Determines the amount of system memory required for a color blend state object.  An allocation of this amount of
     /// memory must be provided in the pPlacementAddr parameter of CreateColorBlendState().
     ///

@@ -990,6 +990,13 @@ void LogContext::Struct(
         Value("crossProcess");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 517
+    if (value.flags.timeline)
+    {
+        Value("timeline");
+    }
+#endif
+
     EndList();
     EndMap();
 }
@@ -2363,6 +2370,13 @@ void LogContext::Struct(
     {
         Value("shareable");
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 458
+    if (value.flags.timeline)
+    {
+        Value("timeline");
+    }
+#endif
 
     EndList();
     KeyAndValue("maxCount", value.maxCount);

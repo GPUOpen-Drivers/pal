@@ -382,14 +382,14 @@ public:
         uint32       indexOffset,
         Pm4Predicate predicate,
         void*        pBuffer);
-    static size_t BuildDrawIndexIndirect(
+    size_t BuildDrawIndexIndirect(
         gpusize      offset,
         uint32       baseVtxLoc,
         uint32       startInstLoc,
         uint32       startIndexLoc,
         Pm4Predicate predicate,
-        void*        pBuffer);
-    static size_t BuildDrawIndexIndirectMulti(
+        void*        pBuffer) const;
+    size_t BuildDrawIndexIndirectMulti(
         gpusize      offset,
         uint32       baseVtxLoc,
         uint32       startInstLoc,
@@ -399,7 +399,7 @@ public:
         uint32       count,
         gpusize      countGpuAddr,
         Pm4Predicate predicate,
-        void*        pBuffer);
+        void*        pBuffer) const;
     static size_t BuildDrawIndirectMulti(
         gpusize      offset,
         uint32       baseVtxLoc,

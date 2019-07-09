@@ -111,6 +111,8 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     m_flags.dccDecompress    = internalInfo.flags.dccDecompress;
     m_flags.resolveFixedFunc = internalInfo.flags.resolveFixedFunc;
 
+    m_binningOverride = createInfo.rsState.binningOverride;
+
     m_flags.lateAllocVsLimit = createInfo.useLateAllocVsLimit;
     m_lateAllocVsLimit       = createInfo.lateAllocVsLimit;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
@@ -167,7 +169,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
     hasher.Update(m_viewInstancingDesc);
-
 #endif
 
     AbiProcessor abiProcessor(m_pDevice->GetPlatform());

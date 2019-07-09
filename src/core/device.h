@@ -1210,6 +1210,7 @@ public:
         return (m_pGfxDevice == nullptr) ? Result::ErrorUnavailable :
                 m_pGfxDevice->CreateMsaaState(createInfo, pPlacementAddr, ppMsaaState);
     }
+
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetColorBlendStateSize(
         const ColorBlendStateCreateInfo& createInfo,

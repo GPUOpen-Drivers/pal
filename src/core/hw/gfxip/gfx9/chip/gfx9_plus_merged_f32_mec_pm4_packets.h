@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -800,8 +800,6 @@ typedef struct PM4_MEC_DMA_DATA
         uint32_t                               ordinal7;
     };
 
-    uint32_t                                  reserved6;
-
 } PM4MEC_DMA_DATA, *PPM4MEC_DMA_DATA;
 
 //--------------------DMA_DATA_FILL_MULTI--------------------
@@ -866,7 +864,7 @@ typedef struct PM4_MEC_DMA_DATA_FILL_MULTI
 //--------------------EVENT_WRITE--------------------
 enum MEC_EVENT_WRITE_event_index_enum {
     event_index__mec_event_write__other                                    =  0,
-    event_index__mec_event_write__sample_pipelinestats                     =  2,
+    event_index__mec_event_write__sample_pipelinestat                      =  2,
     event_index__mec_event_write__cs_partial_flush                         =  4,
 };
 
@@ -1176,7 +1174,7 @@ enum MEC_RELEASE_MEM_data_sel_enum {
     data_sel__mec_release_mem__send_32_bit_low                             =  1,
     data_sel__mec_release_mem__send_64_bit_data                            =  2,
     data_sel__mec_release_mem__send_gpu_clock_counter                      =  3,
-    data_sel__mec_release_mem__send_cp_perfcounter_hi_lo                   =  4,
+    data_sel__mec_release_mem__send_system_clock_counter                   =  4,
     data_sel__mec_release_mem__store_gds_data_to_memory                    =  5,
 };
 
@@ -1196,7 +1194,7 @@ enum MEC_RELEASE_MEM_int_sel_enum {
     int_sel__mec_release_mem__none                                         =  0,
     int_sel__mec_release_mem__send_interrupt_only                          =  1,
     int_sel__mec_release_mem__send_interrupt_after_write_confirm           =  2,
-    int_sel__mec_release_mem__send_data_after_write_confirm                =  3,
+    int_sel__mec_release_mem__send_data_and_write_confirm                  =  3,
     int_sel__mec_release_mem__unconditionally_send_int_ctxid               =  4,
     int_sel__mec_release_mem__conditionally_send_int_ctxid_based_on_32_bit_compare =  5,
     int_sel__mec_release_mem__conditionally_send_int_ctxid_based_on_64_bit_compare =  6,
@@ -1472,9 +1470,7 @@ typedef struct PM4_MEC_WAIT_ON_CE_COUNTER
         {
             uint32_t                   cond_acquire_mem : 1;
             uint32_t                         force_sync : 1;
-            uint32_t                          reserved1 : 25;
-            uint32_t                       mem_volatile : 1;
-            uint32_t                          reserved2 : 4;
+            uint32_t                          reserved1 : 30;
         } bitfields2;
         uint32_t                               ordinal2;
     };
@@ -1567,7 +1563,8 @@ typedef struct PM4_MEC_WAIT_REG_MEM
         struct
         {
             uint32_t                      poll_interval : 16;
-            uint32_t                          reserved1 : 16;
+            uint32_t                          reserved1 : 15;
+            uint32_t          optimize_ace_offload_mode : 1;
         } bitfields7;
         uint32_t                               ordinal7;
     };
@@ -1664,7 +1661,8 @@ typedef struct PM4_MEC_WAIT_REG_MEM64
         struct
         {
             uint32_t                      poll_interval : 16;
-            uint32_t                          reserved1 : 16;
+            uint32_t                          reserved1 : 15;
+            uint32_t          optimize_ace_offload_mode : 1;
         } bitfields9;
         uint32_t                               ordinal9;
     };

@@ -42,6 +42,7 @@ class Engine;
 class Image;
 class Platform;
 class QueueContext;
+class GpuMemory;
 
 // On some hardware layers, particular Queue types may need to bundle several "special" command streams with each
 // client submission to guarantee the state of the GPU is consistent across multiple submissions. These constants
@@ -362,7 +363,7 @@ private:
 
     Result CreateTrackedCmdBuffer(TrackedCmdBuffer** ppTrackedCmdBuffer);
     void   DestroyTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer);
-    Result SubmitTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer);
+    Result SubmitTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer, const GpuMemory* pWrittenPrimary);
 
     // Each Queue needs a QueueContext to apply any hardware-specific pre- or post-processing before Submit().
     QueueContext*     m_pQueueContext;

@@ -2891,6 +2891,9 @@ typedef struct _ADDR2_COMPUTE_CMASKINFO_INPUT
     UINT_32             unalignedWidth;     ///< Color surface original width
     UINT_32             unalignedHeight;    ///< Color surface original height
     UINT_32             numSlices;          ///< Number of slices of color buffer
+    UINT_32             numMipLevels;       ///< Number of mip levels
+    UINT_32             firstMipIdInTail;   ///< The id of first mip in tail, if no mip is in tail,
+                                            ///  it should be number of mip levels
 } ADDR2_COMPUTE_CMASK_INFO_INPUT;
 
 /**
@@ -2916,7 +2919,9 @@ typedef struct _ADDR2_COMPUTE_CMASK_INFO_OUTPUT
     UINT_32    metaBlkWidth;  ///< Meta block width
     UINT_32    metaBlkHeight; ///< Meta block height
 
-    UINT_32    metaBlkNumPerSlice; ///< Number of metablock within one slice
+    UINT_32    metaBlkNumPerSlice;  ///< Number of metablock within one slice
+
+    ADDR2_META_MIP_INFO* pMipInfo;  ///< CMASK mip information
 } ADDR2_COMPUTE_CMASK_INFO_OUTPUT;
 
 /**

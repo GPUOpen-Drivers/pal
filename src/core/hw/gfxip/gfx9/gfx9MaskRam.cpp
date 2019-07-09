@@ -1492,7 +1492,6 @@ uint32 Gfx9Htile::GetClearValue(
                        ((SMem     &     0x3) <<  8) |
                        ((SResults &     0xF) <<  4) |
                        ((ZMask    &     0xF) <<  0) );
-
     }
     else
     {

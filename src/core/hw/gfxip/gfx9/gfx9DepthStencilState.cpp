@@ -36,21 +36,21 @@ namespace Gfx9
 DepthStencilState::DepthStencilState(
     const Device& device)
     :
-    Pal::DepthStencilState(*device.Parent()),
-    m_device(device)
+    Pal::DepthStencilState(*device.Parent())
 {
     memset(&m_pm4Commands, 0, sizeof(m_pm4Commands));
     memset(&m_flags, 0, sizeof(m_flags));
 
-    BuildPm4Headers();
+    BuildPm4Headers(device);
 }
 
 // =====================================================================================================================
 // Builds the packet headers for the various PM4 images associated with this State Object.
 // Register values and packet payloads are computed elsewhere.
-void DepthStencilState::BuildPm4Headers()
+void DepthStencilState::BuildPm4Headers(
+    const Device& device)
 {
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
+    const CmdUtil& cmdUtil = device.CmdUtil();
 
     // 1st PM4 packet: sets the following context register: DB_DEPTH_CONTROL
     cmdUtil.BuildSetOneContextReg(mmDB_DEPTH_CONTROL, &m_pm4Commands.hdrDepthControl);

@@ -57,9 +57,8 @@ union GraphicsStateFlags
                 uint16 queryState             : 1; // Gfx6 & Gfx9
                 uint16 colorTargetView        : 1; // Gfx9 only
                 uint16 depthStencilView       : 1; // Gfx9 only
-                uint16 reservedForFutureHw    : 1;
                 uint16 reservedForFutureHw1   : 2;
-                uint16 reservedValidationBits : 2;
+                uint16 reservedValidationBits : 3;
             };
 
             uint16 u16All;

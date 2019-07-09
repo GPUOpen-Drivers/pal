@@ -2391,16 +2391,16 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
                     if ((IsNggFastLaunch == false) ||
                         (pParentDev->EngineProperties().cpUcodeVersion > UcodeVersionNggIndexedIndirectDraw))
                     {
-                        pDeCmdSpace += CmdUtil::BuildDrawIndexIndirectMulti(offset,
-                                                                            vtxOffsetReg,
-                                                                            instOffsetReg,
-                                                                            pThis->m_drawIndexReg,
-                                                                            indexOffsetReg,
-                                                                            stride,
-                                                                            maximumCount,
-                                                                            countGpuAddr,
-                                                                            pThis->PacketPredicate(),
-                                                                            pDeCmdSpace);
+                        pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexIndirectMulti(offset,
+                                                                                    vtxOffsetReg,
+                                                                                    instOffsetReg,
+                                                                                    pThis->m_drawIndexReg,
+                                                                                    indexOffsetReg,
+                                                                                    stride,
+                                                                                    maximumCount,
+                                                                                    countGpuAddr,
+                                                                                    pThis->PacketPredicate(),
+                                                                                    pDeCmdSpace);
                     }
                 }
             }
@@ -2412,16 +2412,16 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
             if ((IsNggFastLaunch == false) ||
                 (pThis->m_device.Parent()->EngineProperties().cpUcodeVersion > UcodeVersionNggIndexedIndirectDraw))
             {
-                pDeCmdSpace += CmdUtil::BuildDrawIndexIndirectMulti(offset,
-                                                                    vtxOffsetReg,
-                                                                    instOffsetReg,
-                                                                    pThis->m_drawIndexReg,
-                                                                    indexOffsetReg,
-                                                                    stride,
-                                                                    maximumCount,
-                                                                    countGpuAddr,
-                                                                    pThis->PacketPredicate(),
-                                                                    pDeCmdSpace);
+                pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexIndirectMulti(offset,
+                                                                            vtxOffsetReg,
+                                                                            instOffsetReg,
+                                                                            pThis->m_drawIndexReg,
+                                                                            indexOffsetReg,
+                                                                            stride,
+                                                                            maximumCount,
+                                                                            countGpuAddr,
+                                                                            pThis->PacketPredicate(),
+                                                                            pDeCmdSpace);
             }
         }
     }
@@ -4613,7 +4613,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         {
             m_enabledPbb = shouldEnablePbb;
             pDeCmdSpace  = ValidateBinSizes<Pm4OptImmediate>(*pPipeline, pBlendState, disableDfsm, pDeCmdSpace);
-
         }
     }
 

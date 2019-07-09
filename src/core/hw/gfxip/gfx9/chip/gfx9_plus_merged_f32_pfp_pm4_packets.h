@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -995,9 +995,10 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT
         struct
         {
             uint32_t                     start_inst_loc : 16;
-            uint32_t                          reserved1 : 12;
+            uint32_t                          reserved1 : 10;
+            uint32_t                          reserved3 : 2;
             uint32_t                  start_indx_enable : 1;
-            uint32_t                          reserved2 : 3;
+            uint32_t                          reserved4 : 3;
         } bitfields4;
         uint32_t                               ordinal4;
     };
@@ -1043,7 +1044,7 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT_MULTI
         {
             uint32_t                     draw_index_loc : 16;
             uint32_t                          reserved2 : 12;
-            uint32_t                 start_index_enable : 1;
+            uint32_t                  start_indx_enable : 1;
             uint32_t                          reserved3 : 1;
             uint32_t              count_indirect_enable : 1;
             uint32_t                  draw_index_enable : 1;
@@ -1316,8 +1317,8 @@ typedef struct PM4_PFP_INDEX_ATTRIBUTES_INDIRECT
     {
         struct
         {
-            uint32_t                          reserved1 : 3;
-            uint32_t                  attribute_base_lo : 29;
+            uint32_t                          reserved1 : 4;
+            uint32_t                  attribute_base_lo : 28;
         } bitfields2;
         uint32_t                               ordinal2;
     };
@@ -1907,7 +1908,7 @@ typedef struct PM4_PFP_REWIND
 enum PFP_SET_BASE_base_index_enum {
     base_index__pfp_set_base__display_list_patch_table_base                =  0,
     base_index__pfp_set_base__patch_table_base                             =  1,
-    base_index__pfp_set_base__shader_or_context_reg_base_addr              =  4,
+    base_index__pfp_set_base__load_reg_index_base                          =  4,
     base_index__pfp_set_base__indirect_data_base                           =  5,
 };
 

@@ -256,7 +256,6 @@ typedef union CB_TARGET_MASK                                     regCB_TARGET_MA
 typedef union CC_RB_BACKEND_DISABLE                              regCC_RB_BACKEND_DISABLE;
 typedef union CC_RB_DAISY_CHAIN                                  regCC_RB_DAISY_CHAIN;
 typedef union CC_RB_REDUNDANCY                                   regCC_RB_REDUNDANCY;
-typedef union CGTX_SPI_DEBUG_CLK_CTRL                            regCGTX_SPI_DEBUG_CLK_CTRL;
 typedef union COHER_DEST_BASE_0                                  regCOHER_DEST_BASE_0;
 typedef union COHER_DEST_BASE_1                                  regCOHER_DEST_BASE_1;
 typedef union COHER_DEST_BASE_2                                  regCOHER_DEST_BASE_2;
@@ -1893,7 +1892,6 @@ typedef union port_d_data_hi                                     regport_d_data_
 typedef union port_d_data_lo                                     regport_d_data_lo;
 typedef union PWR_OVERRIDE                                       regPWR_OVERRIDE;
 typedef union rbuf_DEBUG_DATA                                    regrbuf_DEBUG_DATA;
-typedef union RefOverflow                                        regRefOverflow;
 typedef union RLC_PERFCOUNTER0_HI                                regRLC_PERFCOUNTER0_HI;
 typedef union RLC_PERFCOUNTER0_LO                                regRLC_PERFCOUNTER0_LO;
 typedef union RLC_PERFCOUNTER0_SELECT                            regRLC_PERFCOUNTER0_SELECT;

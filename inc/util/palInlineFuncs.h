@@ -569,6 +569,15 @@ PAL_INLINE void Strncpy(
     pDst[dstSize - 1] = '\0';
 }
 
+/// Simple wrapper for wcscpy_s or wcsncpy, which are available on Windows and Linux, respectively.
+PAL_INLINE void Wcsncpy(
+    wchar_t*       pDst,    ///< [out] Destination string.
+    const wchar_t* pSrc,    ///< [in] Source string to copy.
+    size_t         dstSize) ///< Length of the destination buffer, in wchar_t's.
+{
+    wcsncpy(pDst, pSrc, dstSize);
+}
+
 /// Simple wrapper for strncat or strncat_s which provides a safe version of strncat.
 PAL_INLINE void Strncat(
     char*       pDst,     ///< [in,out] Destination string.

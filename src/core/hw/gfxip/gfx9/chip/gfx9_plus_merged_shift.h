@@ -902,7 +902,6 @@ constexpr unsigned int CB_TARGET_MASK__TARGET5_ENABLE__SHIFT    = 0x00000014;
 constexpr unsigned int CB_TARGET_MASK__TARGET6_ENABLE__SHIFT    = 0x00000018;
 constexpr unsigned int CB_TARGET_MASK__TARGET7_ENABLE__SHIFT    = 0x0000001c;
 constexpr unsigned int CC_RB_BACKEND_DISABLE__BACKEND_DISABLE__SHIFT = 0x00000010;
-constexpr unsigned int CC_RB_BACKEND_DISABLE__WRITE_DIS__SHIFT  = 0x00000000;
 constexpr unsigned int CC_RB_DAISY_CHAIN__RB_0__SHIFT           = 0x00000000;
 constexpr unsigned int CC_RB_DAISY_CHAIN__RB_1__SHIFT           = 0x00000004;
 constexpr unsigned int CC_RB_DAISY_CHAIN__RB_2__SHIFT           = 0x00000008;
@@ -915,7 +914,6 @@ constexpr unsigned int CC_RB_REDUNDANCY__EN_REDUNDANCY0__SHIFT  = 0x0000000c;
 constexpr unsigned int CC_RB_REDUNDANCY__EN_REDUNDANCY1__SHIFT  = 0x00000014;
 constexpr unsigned int CC_RB_REDUNDANCY__FAILED_RB0__SHIFT      = 0x00000008;
 constexpr unsigned int CC_RB_REDUNDANCY__FAILED_RB1__SHIFT      = 0x00000010;
-constexpr unsigned int CC_RB_REDUNDANCY__WRITE_DIS__SHIFT       = 0x00000000;
 constexpr unsigned int COHER_DEST_BASE_0__DEST_BASE_256B__SHIFT = 0x00000000;
 constexpr unsigned int COHER_DEST_BASE_1__DEST_BASE_256B__SHIFT = 0x00000000;
 constexpr unsigned int COHER_DEST_BASE_2__DEST_BASE_256B__SHIFT = 0x00000000;
@@ -1161,7 +1159,6 @@ constexpr unsigned int CP_DFY_CNTL__ENABLE__SHIFT               = 0x0000001f;
 constexpr unsigned int CP_DFY_CNTL__LFSR_RESET__SHIFT           = 0x0000001c;
 constexpr unsigned int CP_DFY_CNTL__MODE__SHIFT                 = 0x0000001d;
 constexpr unsigned int CP_DFY_CNTL__TPI_SDP_SEL__SHIFT          = 0x0000001a;
-constexpr unsigned int CP_DFY_CNTL__WRITE_DIS__SHIFT            = 0x0000001b;
 constexpr unsigned int CP_DFY_DATA_0__DATA__SHIFT               = 0x00000000;
 constexpr unsigned int CP_DFY_DATA_1__DATA__SHIFT               = 0x00000000;
 constexpr unsigned int CP_DFY_DATA_2__DATA__SHIFT               = 0x00000000;
@@ -11658,10 +11655,6 @@ namespace Vg10_Vg12_Rv1x
 
 namespace Vg12
 {
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__ALL_CLK_ON_OVERRIDE__SHIFT = 0x00000007;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__GRP5_CG_OFF_HYST__SHIFT = 0x00000000;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__GRP5_CG_OVERRIDE__SHIFT = 0x00000006;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__SPI_SH_CLK_CONTROL__SHIFT = 0x00000008;
     constexpr unsigned int DB_DEBUG4__DISABLE_8PPC_OBJPRIMID_WHEN_NO_SHADER_EXPORTS__SHIFT = 0x0000001e;
     constexpr unsigned int GC_CAC_CNTL__CAC_FORCE_DISABLE__SHIFT    = 0x00000000;
     constexpr unsigned int GC_CAC_INDEX_AUTO_INCR_EN__GC_CAC_INDEX_AUTO_INCR_EN__SHIFT = 0x00000000;
@@ -11720,7 +11713,6 @@ namespace Vg12
     constexpr unsigned int PA_STEREO_CNTL__STEREO_MODE__SHIFT       = 0x00000001;
     constexpr unsigned int PA_STEREO_CNTL__VP_ID_MODE__SHIFT        = 0x0000000a;
     constexpr unsigned int PA_STEREO_CNTL__VP_ID_OFFSET__SHIFT      = 0x0000000d;
-    constexpr unsigned int RefOverflow__Data__SHIFT                 = 0x00000000;
     constexpr unsigned int VML2_MEM_ECC_CNTL__DED_COUNT__SHIFT      = 0x00000016;
     constexpr unsigned int VML2_MEM_ECC_CNTL__DSM_IRRITATOR_DATA__SHIFT = 0x0000000e;
     constexpr unsigned int VML2_MEM_ECC_CNTL__ENABLE_ERROR_INJECT__SHIFT = 0x00000011;
@@ -11751,10 +11743,6 @@ namespace Vg20
     constexpr unsigned int alloc_DEBUG_DATA__GDS_DEBUG_REG5_write_dis__SHIFT = 0x00000000;
     constexpr unsigned int alloc_DEBUG_DATA__Reserved0__SHIFT       = 0x00000005;
     constexpr unsigned int alloc_DEBUG_DATA__Reserved1__SHIFT       = 0x00000016;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__ALL_CLK_ON_OVERRIDE__SHIFT = 0x00000007;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__GRP5_CG_OFF_HYST__SHIFT = 0x00000000;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__GRP5_CG_OVERRIDE__SHIFT = 0x00000006;
-    constexpr unsigned int CGTX_SPI_DEBUG_CLK_CTRL__SPI_SH_CLK_CONTROL__SHIFT = 0x00000008;
     constexpr unsigned int CP_ECC_DMA_FIRST_OCCURRENCE__CLIENT__SHIFT = 0x00000004;
     constexpr unsigned int CP_ECC_DMA_FIRST_OCCURRENCE__INTERFACE__SHIFT = 0x00000000;
     constexpr unsigned int CP_ECC_DMA_FIRST_OCCURRENCE__ME__SHIFT   = 0x00000008;

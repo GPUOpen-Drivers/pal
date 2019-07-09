@@ -548,7 +548,7 @@ static void Gfx9InitBasicBlockInfo(
     pGds->numGenericLegacyModules   = 3; // GDS_PERFCOUNTER1-3
     pGds->numSpmWires               = 2;
     pGds->spmBlockSelect            = Gfx9SpmGlobalBlockSelectGds;
-    pGds->maxEventId                = MaxGdsPerfcountSelectGfx09;
+    pGds->maxEventId                = MaxGdsPerfcountSelect;
 
     pGds->regAddr = { 0, {
         { mmGDS_PERFCOUNTER0_SELECT, mmGDS_PERFCOUNTER0_SELECT1, mmGDS_PERFCOUNTER0_LO, mmGDS_PERFCOUNTER0_HI },

@@ -1190,6 +1190,7 @@ Result DeviceDecorator::CreateMsaaState(
 
     return result;
 }
+
 // =====================================================================================================================
 size_t DeviceDecorator::GetColorBlendStateSize(
     const ColorBlendStateCreateInfo& createInfo,
@@ -2515,7 +2516,7 @@ Result QueueDecorator::PresentDirect(
         nextPresentInfo.pDstImage = NextImage(presentInfo.pDstImage);
     }
 
-	PAL_ASSERT(presentInfo.mgpuSlsInfo.imageCount <= MaxMgpuSlsImageCount);
+    PAL_ASSERT(presentInfo.mgpuSlsInfo.imageCount <= MaxMgpuSlsImageCount);
 
     for (uint32 i = 0; i < presentInfo.mgpuSlsInfo.imageCount; i++)
     {

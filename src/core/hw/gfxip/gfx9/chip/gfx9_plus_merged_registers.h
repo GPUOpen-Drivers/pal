@@ -3397,8 +3397,7 @@ union CB_TARGET_MASK {
 
 union CC_RB_BACKEND_DISABLE {
     struct {
-        unsigned int WRITE_DIS                                                    :  1;
-        unsigned int                                                              : 15;
+        unsigned int                                                              : 16;
         unsigned int BACKEND_DISABLE                                              :  8;
         unsigned int                                                              :  8;
     } bits, bitfields;
@@ -3427,8 +3426,7 @@ union CC_RB_DAISY_CHAIN {
 
 union CC_RB_REDUNDANCY {
     struct {
-        unsigned int WRITE_DIS                                                    :  1;
-        unsigned int                                                              :  7;
+        unsigned int                                                              :  8;
         unsigned int FAILED_RB0                                                   :  4;
         unsigned int EN_REDUNDANCY0                                               :  1;
         unsigned int                                                              :  3;
@@ -3436,20 +3434,6 @@ union CC_RB_REDUNDANCY {
         unsigned int EN_REDUNDANCY1                                               :  1;
         unsigned int                                                              : 11;
     } bits, bitfields;
-
-    unsigned int u32All;
-    signed int   i32All;
-    float        f32All;
-};
-
-union CGTX_SPI_DEBUG_CLK_CTRL {
-    struct {
-        unsigned int GRP5_CG_OFF_HYST                                             :  6;
-        unsigned int GRP5_CG_OVERRIDE                                             :  1;
-        unsigned int ALL_CLK_ON_OVERRIDE                                          :  1;
-        unsigned int SPI_SH_CLK_CONTROL                                           :  1;
-        unsigned int                                                              : 23;
-    } most;
 
     unsigned int u32All;
     signed int   i32All;
@@ -5179,7 +5163,7 @@ union CP_DFY_CNTL {
     struct {
         unsigned int                                                              : 26;
         unsigned int TPI_SDP_SEL                                                  :  1;
-        unsigned int WRITE_DIS                                                    :  1;
+        unsigned int                                                              :  1;
         unsigned int LFSR_RESET                                                   :  1;
         unsigned int MODE                                                         :  2;
         unsigned int ENABLE                                                       :  1;
@@ -25720,16 +25704,6 @@ union rbuf_DEBUG_DATA {
         unsigned int pixel_addr_mask                                              : 15;
         unsigned int                                                              :  7;
         unsigned int Reserved0                                                    :  8;
-    } most;
-
-    unsigned int u32All;
-    signed int   i32All;
-    float        f32All;
-};
-
-union RefOverflow {
-    struct {
-        unsigned int Data                                                         : 32;
     } most;
 
     unsigned int u32All;

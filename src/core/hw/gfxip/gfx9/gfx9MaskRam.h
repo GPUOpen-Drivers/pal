@@ -234,6 +234,8 @@ public:
     const ADDR2_COMPUTE_HTILE_INFO_OUTPUT&  GetAddrOutput() const { return m_addrOutput; }
     HtileUsageFlags  GetHtileUsage() const { return m_hTileUsage; }
 
+    static constexpr uint32 Sr1Mask = (3u << 6);
+
 protected:
     virtual uint32  GetNumSamplesLog2() const override;
 

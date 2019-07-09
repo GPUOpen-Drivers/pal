@@ -2710,7 +2710,6 @@ namespace Vg10_Vg12_Rv1x
 namespace Vg12
 {
     constexpr unsigned int mmATC_ATS_CNTL_DEFAULT                   = 0x9A0C00;
-    constexpr unsigned int mmCGTX_SPI_DEBUG_CLK_CTRL_DEFAULT        = 0x0000;
     constexpr unsigned int mmGB_ADDR_CONFIG_DEFAULT                 = 0x26110011;
     constexpr unsigned int mmGB_ADDR_CONFIG_READ_DEFAULT            = 0x26110011;
     constexpr unsigned int mmGC_CAC_INDEX_AUTO_INCR_EN_DEFAULT      = 0x0000;
@@ -2723,7 +2722,6 @@ namespace Vg12
     constexpr unsigned int mmPA_SC_ENHANCE_2_DEFAULT                = 0x0020;
     constexpr unsigned int mmPA_STATE_STEREO_X_DEFAULT              = 0xCDCDCDCD;
     constexpr unsigned int mmPA_STEREO_CNTL_DEFAULT                 = 0x1CDCD;
-    constexpr unsigned int mmRefOverflow_DEFAULT                    = 0x0000;
     constexpr unsigned int mmSPI_PS_MAX_WAVE_ID_DEFAULT             = 0x20000FF;
     constexpr unsigned int mmTD_CNTL_DEFAULT                        = 0x1000000;
     constexpr unsigned int mmUMCCH0_PerfMonCtl1_DEFAULT             = 0x0000;
@@ -2884,7 +2882,6 @@ namespace Vg12_Rv1x
 namespace Vg20
 {
     constexpr unsigned int mmATC_ATS_CNTL_DEFAULT                   = 0x9A0C00;
-    constexpr unsigned int mmCGTX_SPI_DEBUG_CLK_CTRL_DEFAULT        = 0x0000;
     constexpr unsigned int mmCP_ECC_DMA_FIRST_OCCURRENCE_DEFAULT    = 0x0000;
     constexpr unsigned int mmCP_EDC_FUE_CNTL_DEFAULT                = 0x0000;
     constexpr unsigned int mmGB_ADDR_CONFIG_DEFAULT                 = 0x2A110012;

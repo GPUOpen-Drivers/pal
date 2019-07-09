@@ -335,12 +335,25 @@ Result GpuMemory::AllocateSvmVirtualAddress(
     if (baseVirtAddr == 0)
     {
         result = pDevice->GetSvmMgr()->AllocVa(size, static_cast<uint32>(align), &baseVirtAddr);
-        if ((result == Result::Success) && commitCpuVa)
+
+        if (result == Result::Success)
         {
-            result = VirtualCommit(reinterpret_cast<void*>(baseVirtAddr), static_cast<size_t>(size));
+            m_desc.gpuVirtAddr = baseVirtAddr;
+            m_desc.size        = size;
+            m_desc.alignment   = align;
+
+            if (commitCpuVa)
+            {
+                result = VirtualCommit(reinterpret_cast<void*>(baseVirtAddr), static_cast<size_t>(size));
+
+                if (result == Result::Success)
+                {
+                    m_pPinnedMemory = reinterpret_cast<const void*>(m_desc.gpuVirtAddr);
+                }
+            }
         }
     }
-    if (result == Result::Success)
+    else
     {
         m_desc.gpuVirtAddr = baseVirtAddr;
         m_desc.size        = size;
@@ -361,11 +374,11 @@ Result GpuMemory::FreeSvmVirtualAddress()
 
     if (m_pPinnedMemory != nullptr)
     {
-        result = VirtualDecommit(reinterpret_cast<void*>(m_desc.gpuVirtAddr), static_cast<size_t>(m_desc.size));
+        result = VirtualDecommit(const_cast<void*>(m_pPinnedMemory), static_cast<size_t>(m_desc.size));
         PAL_ASSERT(result == Result::Success);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (m_desc.gpuVirtAddr != 0))
     {
         pDevice->GetSvmMgr()->FreeVa(m_desc.gpuVirtAddr);
     }

@@ -1172,6 +1172,18 @@ Result Image::ComputePipeBankXor(
                 // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
                 *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXorFmask;
             }
+            else if ((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil))
+            {
+                // If the aspect is Depth or Stencil, but "numPlanes" is only 1, using the given pipe/bank xor value.
+                if (m_pImageInfo->numPlanes == 1)
+                {
+                    *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
+                }
+                else
+                {
+                    PAL_NOT_IMPLEMENTED();
+                }
+            }
             else
             {
                 PAL_NOT_IMPLEMENTED();

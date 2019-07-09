@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -858,7 +858,6 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI
         struct
         {
             uint32_t                       base_vtx_loc : 16;
-            uint32_t                          reserved1 : 16;
         } bitfields3;
         uint32_t                               ordinal3;
     };
@@ -868,14 +867,14 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI
         struct
         {
             uint32_t                     start_inst_loc : 16;
-            uint32_t                          reserved1 : 16;
+            uint32_t                          reserved1 : 11;
         } bitfields4;
         uint32_t                               ordinal4;
     };
 
     union
     {
-        uint32_t                         draw_initiator;
+        uint32_t                  draw_initiator__GFX09;
     };
 
 } PM4ME_DRAW_INDEX_INDIRECT_MULTI, *PPM4ME_DRAW_INDEX_INDIRECT_MULTI;
@@ -1010,17 +1009,28 @@ typedef struct PM4_ME_DRAW_INDIRECT_MULTI
 
     union
     {
-        uint32_t                         draw_initiator;
+        uint32_t                  draw_initiator__GFX09;
     };
 
 } PM4ME_DRAW_INDIRECT_MULTI, *PPM4ME_DRAW_INDIRECT_MULTI;
 
 //--------------------EVENT_WRITE--------------------
+enum ME_EVENT_WRITE_counter_id_enum {
+    counter_id__me_event_write__pixel_pipe_occlusion_count_0               =  0,
+    counter_id__me_event_write__pixel_pipe_occlusion_count_1               =  1,
+    counter_id__me_event_write__pixel_pipe_occlusion_count_2               =  2,
+    counter_id__me_event_write__pixel_pipe_occlusion_count_3               =  3,
+    counter_id__me_event_write__pixel_pipe_screen_min_extents_0            =  4,
+    counter_id__me_event_write__pixel_pipe_screen_max_extents_0            =  5,
+    counter_id__me_event_write__pixel_pipe_screen_min_extents_1            =  6,
+    counter_id__me_event_write__pixel_pipe_screen_max_extents_1            =  7,
+};
+
 enum ME_EVENT_WRITE_event_index_enum {
     event_index__me_event_write__other                                     =  0,
     event_index__me_event_write__zpass_pixel_pipe_stat_control_or_dump     =  1,
-    event_index__me_event_write__sample_pipelinestats                      =  2,
-    event_index__me_event_write__sample_streamoutstat                      =  3,
+    event_index__me_event_write__sample_pipelinestat                       =  2,
+    event_index__me_event_write__sample_streamoutstats                     =  3,
     event_index__me_event_write__cs_vs_ps_partial_flush                    =  4,
 };
 
@@ -1050,11 +1060,24 @@ typedef struct PM4_ME_EVENT_WRITE
         {
             uint32_t                          reserved1 : 3;
             uint32_t                         address_lo : 29;
-        } bitfields3;
+        } bitfields3a;
+        struct
+        {
+            uint32_t                          reserved1 : 3;
+            ME_EVENT_WRITE_counter_id_enum   counter_id : 6;
+            uint32_t                             stride : 2;
+            uint32_t                    instance_enable : 16;
+            uint32_t                          reserved2 : 5;
+        } bitfields3b;
         uint32_t                               ordinal3;
     };
 
-    uint32_t                                 address_hi;
+    union
+    {
+        uint32_t                             address_hi;
+        uint32_t                              reserved6;
+        uint32_t                               ordinal4;
+    };
 
 } PM4ME_EVENT_WRITE, *PPM4ME_EVENT_WRITE;
 
@@ -1659,7 +1682,7 @@ enum ME_RELEASE_MEM_data_sel_enum {
     data_sel__me_release_mem__send_32_bit_low                              =  1,
     data_sel__me_release_mem__send_64_bit_data                             =  2,
     data_sel__me_release_mem__send_gpu_clock_counter                       =  3,
-    data_sel__me_release_mem__send_cp_perfcounter_hi_lo                    =  4,
+    data_sel__me_release_mem__send_system_clock_counter                    =  4,
     data_sel__me_release_mem__store_gds_data_to_memory                     =  5,
 };
 
@@ -1679,7 +1702,7 @@ enum ME_RELEASE_MEM_int_sel_enum {
     int_sel__me_release_mem__none                                          =  0,
     int_sel__me_release_mem__send_interrupt_only                           =  1,
     int_sel__me_release_mem__send_interrupt_after_write_confirm            =  2,
-    int_sel__me_release_mem__send_data_after_write_confirm                 =  3,
+    int_sel__me_release_mem__send_data_and_write_confirm                   =  3,
     int_sel__me_release_mem__unconditionally_send_int_ctxid                =  4,
     int_sel__me_release_mem__conditionally_send_int_ctxid_based_on_32_bit_compare =  5,
     int_sel__me_release_mem__conditionally_send_int_ctxid_based_on_64_bit_compare =  6,
@@ -2071,9 +2094,7 @@ typedef struct PM4_ME_WAIT_ON_CE_COUNTER
         {
             uint32_t                  cond_surface_sync : 1;
             uint32_t                         force_sync : 1;
-            uint32_t                          reserved1 : 25;
-            uint32_t                       mem_volatile : 1;
-            uint32_t                          reserved2 : 4;
+            uint32_t                          reserved1 : 30;
         } bitfields2;
         uint32_t                               ordinal2;
     };

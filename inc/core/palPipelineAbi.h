@@ -130,6 +130,9 @@ static constexpr char AmdGpuCommentName[] = ".AMDGPU.comment.";
 /// Name of the section where our pipeline binaries store AMDIL disassembly.
 static constexpr char AmdGpuCommentAmdIlName[] = ".AMDGPU.comment.amdil";
 
+/// Name of the section where our pipeline binaries store LLVMIR disassembly.
+static constexpr char AmdGpuCommentLlvmIrName[] = ".AMDGPU.comment.llvmir";
+
 /// String table of the Pipeline ABI symbols.
 static const char* PipelineAbiSymbolNameStrings[] =
 {
@@ -724,7 +727,8 @@ enum class AbiSectionType : uint32
     Code,          ///< The code (.text) section containing executable machine code for all shader stages.
     Data,          ///< Data section
     Disassembly,   ///< Disassembly section
-    AmdIl          ///< AMDIL section
+    AmdIl,         ///< AMDIL section
+    LlvmIr         ///< LLVMIR section
 };
 
 /// These Relocation types are specific to the AMDGPU target machine architecture.

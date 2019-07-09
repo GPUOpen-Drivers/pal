@@ -620,7 +620,8 @@ Result Queue::CreateTrackedCmdBuffer(
 
 // =====================================================================================================================
 Result Queue::SubmitTrackedCmdBuffer(
-    TrackedCmdBuffer* pTrackedCmdBuffer)
+    TrackedCmdBuffer* pTrackedCmdBuffer,
+    const GpuMemory*  pWrittenPrimary)
 {
     Result result = pTrackedCmdBuffer->pCmdBuffer->End();
 
@@ -635,6 +636,13 @@ Result Queue::SubmitTrackedCmdBuffer(
         submitInfo.cmdBufferCount = 1;
         submitInfo.ppCmdBuffers   = reinterpret_cast<ICmdBuffer**>(&pTrackedCmdBuffer->pCmdBuffer);
         submitInfo.pFence         = pTrackedCmdBuffer->pFence;
+
+        if ((m_pDevice->GetPlatform()->GetProperties().supportBlockIfFlipping == 1) &&
+            (pWrittenPrimary != nullptr) && (pWrittenPrimary->IsFlippable()))
+        {
+            submitInfo.ppBlockIfFlipping    = reinterpret_cast<const IGpuMemory**>(&pWrittenPrimary);
+            submitInfo.blockIfFlippingCount = 1;
+        }
 
         result = Submit(submitInfo);
     }
@@ -1405,7 +1413,7 @@ Result Queue::SubmitPostprocessCmdBuffer(
                 m_pDevice->ApplyDevOverlay(presentedImage, pTrackedCmdBuffer->pCmdBuffer);
             }
 
-            result = SubmitTrackedCmdBuffer(pTrackedCmdBuffer);
+            result = SubmitTrackedCmdBuffer(pTrackedCmdBuffer, presentedImage.GetBoundGpuMemory().Memory());
         }
     }
 

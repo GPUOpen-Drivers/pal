@@ -1978,9 +1978,8 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportDonutTessDistribution     = gfx9Props.supportDonutTessDistribution;
             pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution = gfx9Props.supportTrapezoidTessDistribution;
 
-            pInfo->gfxipProperties.flags.support1xMsaaSampleLocations = gfx9Props.support1xMsaaSampleLocations;
-
-            pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives = gfx9Props.supportOutOfOrderPrimitives;
+            pInfo->gfxipProperties.flags.support1xMsaaSampleLocations   = gfx9Props.support1xMsaaSampleLocations;
+            pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives    = gfx9Props.supportOutOfOrderPrimitives;
 
             PAL_ASSERT((gfx9Props.numShaderEngines <= MaxShaderEngines) &&
                        (gfx9Props.numShaderArrays  <= MaxShaderArraysPerSe));

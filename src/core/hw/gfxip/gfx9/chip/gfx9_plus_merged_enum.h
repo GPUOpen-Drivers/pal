@@ -2682,7 +2682,7 @@ typedef enum GDS_PERFCOUNT_SELECT {
     GDS_PERF_SEL_GWS_BYPASS                            = 0x00000078,
 } GDS_PERFCOUNT_SELECT;
 
-constexpr unsigned int MaxGdsPerfcountSelectGfx09      = GDS_PERF_SEL_GWS_BYPASS;
+constexpr unsigned int MaxGdsPerfcountSelect           = GDS_PERF_SEL_GWS_BYPASS;
 
 typedef enum GENERICA_STEREOSYNC_SEL {
     GENERICA_STEREOSYNC_SEL_D1                         = 0x00000000,

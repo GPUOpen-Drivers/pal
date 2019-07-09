@@ -2160,7 +2160,6 @@ void GraphicsPipeline::SetupStereoRegisters()
             }
         }
     }
-
 }
 
 } // Gfx9

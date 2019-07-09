@@ -1872,7 +1872,8 @@ VOID Lib::ComputeQbStereoInfo(
     pOut->pixelHeight <<= 1;
 
     // Double size
-    pOut->surfSize <<= 1;
+    pOut->surfSize  <<= 1;
+    pOut->sliceSize <<= 1;
 }
 
 } // V2

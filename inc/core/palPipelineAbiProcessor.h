@@ -153,6 +153,18 @@ public:
         const void* pData,
         size_t      dataSize);
 
+    /// Set the pipelines' LLVMIR data.  This should contain LLVMIR disassembly for all shader stages in the
+    /// pipeline.  Each shader stage has an associated symbol type which defines the size and offset to the
+    /// LLVMIR disassembly data for that stage.
+    ///
+    /// @param [in] pData     Pointer to the pipeline's LLVMIR binary data.
+    /// @param [in] dataSize  Size of the binary data, in bytes.
+    ///
+    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
+    Result SetLlvmIr(
+        const void* pData,
+        size_t      dataSize);
+
     /// Set the comment which contains compiler version info.
     ///
     /// @param [in] pComment The comment string.
@@ -285,6 +297,19 @@ public:
         const void** ppData,
         size_t*      pDataSize) const;
 
+    /// Gets the pipeline's LLVMIR token data, if it is present.  The LLVMIR data contains a series of binary
+    /// blobs (one per API shader stage), each of which is a binary representation of that API shader's
+    /// executable shader IR.  Each API shader stage has an associated symbol type which defines the size and
+    /// offset to the disassembly data for that stage.
+    ///
+    /// @param [out] ppData     Pointer to the LLVMIR token data for the whole pipeline.  Will be nullptr if
+    ///                         the LLVMIR data is not present in the ELF.
+    /// @param [out] pDataSize  Size of the LLVMIR data in bytes.  Will be zero if the LLVMIR data is not present
+    ///                         in the ELF.
+    void GetLlvmIr(
+        const void** ppData,
+        size_t*      pDataSize) const;
+
     /// Get the GFXIP version.
     ///
     /// @param [out] pGfxIpMajorVer The major version.
@@ -397,6 +422,7 @@ private:
     Elf::Section<Allocator>* m_pCommentSection;      // Comment with compiler info
     Elf::Section<Allocator>* m_pDisasmSection;       // Disassembly section (.AMDGPU.disasm)
     Elf::Section<Allocator>* m_pAmdIlSection;        // AMDIL section (.AMDGPU.comment.amdil)
+    Elf::Section<Allocator>* m_pLlvmIrSection;       // AMDIL section (.AMDGPU.comment.llvmir)
 
     AmdGpuElfFlags         m_flags;                  // ELF flags. Contains GPU info, such as GFXIP version.
 

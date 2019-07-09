@@ -67,6 +67,7 @@ PipelineAbiProcessor<Allocator>::PipelineAbiProcessor(
     m_pCommentSection(nullptr),
     m_pDisasmSection(nullptr),
     m_pAmdIlSection(nullptr),
+    m_pLlvmIrSection(nullptr),
     m_flags(),
     m_metadataMajorVer(0),
     m_metadataMinorVer(1),
@@ -310,6 +311,30 @@ Result PipelineAbiProcessor<Allocator>::SetAmdIl(
 
 // =====================================================================================================================
 template <typename Allocator>
+Result PipelineAbiProcessor<Allocator>::SetLlvmIr(
+    const void* pData,
+    size_t      dataSize)
+{
+    if (m_pLlvmIrSection == nullptr)
+    {
+        m_pLlvmIrSection = m_elfProcessor.GetSections()->Add(&AmdGpuCommentLlvmIrName[0]);
+        if (m_pLlvmIrSection != nullptr)
+        {
+            m_pLlvmIrSection->SetType(Elf::SectionHeaderType::ProgBits);
+        }
+    }
+
+    Result result = Result::Success;
+    if ((m_pLlvmIrSection == nullptr) || (nullptr == m_pLlvmIrSection->SetData(pData, dataSize)))
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+template <typename Allocator>
 Result PipelineAbiProcessor<Allocator>::GetMetadata(
     MsgPackReader*         pReader,
     PalCodeObjectMetadata* pMetadata
@@ -462,6 +487,25 @@ void PipelineAbiProcessor<Allocator>::GetAmdIl(
     else
     {
         *ppData    = nullptr;
+        *pDataSize = 0;
+    }
+}
+
+// =====================================================================================================================
+template <typename Allocator>
+void PipelineAbiProcessor<Allocator>::GetLlvmIr(
+    const void** ppData,
+    size_t*      pDataSize
+    ) const
+{
+    if (m_pLlvmIrSection != nullptr)
+    {
+        *ppData = m_pLlvmIrSection->GetData();
+        *pDataSize = m_pLlvmIrSection->GetDataSize();
+    }
+    else
+    {
+        *ppData = nullptr;
         *pDataSize = 0;
     }
 }
@@ -763,6 +807,9 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
             case AbiSectionType::AmdIl:
                 sectionIndex = m_pAmdIlSection->GetIndex();
                 break;
+            case AbiSectionType::LlvmIr:
+                sectionIndex = m_pLlvmIrSection->GetIndex();
+                break;
             default:
                 PAL_NEVER_CALLED();
                 break;
@@ -800,6 +847,9 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
                 break;
             case AbiSectionType::AmdIl:
                 sectionIndex = m_pAmdIlSection->GetIndex();
+                break;
+            case AbiSectionType::LlvmIr:
+                sectionIndex = m_pLlvmIrSection->GetIndex();
                 break;
             default:
                 PAL_NEVER_CALLED();
@@ -945,6 +995,7 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
 
         m_pDisasmSection       = m_elfProcessor.GetSections()->Get(AmdGpuDisassemblyName);
         m_pAmdIlSection        = m_elfProcessor.GetSections()->Get(AmdGpuCommentAmdIlName);
+        m_pLlvmIrSection       = m_elfProcessor.GetSections()->Get(AmdGpuCommentLlvmIrName);
 
         m_flags.u32All         = m_elfProcessor.GetFileHeader()->e_flags;
 
@@ -1127,6 +1178,10 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
             else if ((m_pAmdIlSection != nullptr) && (sectionIndex == m_pAmdIlSection->GetIndex()))
             {
                 sectionType = AbiSectionType::AmdIl;
+            }
+            else if ((m_pLlvmIrSection != nullptr) && (sectionIndex == m_pLlvmIrSection->GetIndex()))
+            {
+                sectionType = AbiSectionType::LlvmIr;
             }
             else if (sectionIndex != 0)
             {
