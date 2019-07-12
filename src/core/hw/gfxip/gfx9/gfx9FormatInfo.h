@@ -56,6 +56,28 @@ struct MergedFmtInfo
     StencilFormat   hwStencilFmt;  // Corresponding HW depth block (DB) stencil format enum.
 };
 
+// Stores each channel format and its corresponding HW enums for Gfxip's with flattened image and buffer formats.
+struct MergedFlatFmtInfo
+{
+    ChNumFormat     format;         // PAL channel format enum.
+    ColorFormat     hwColorFmt;     // Corresponding HW color block (CB) format enum.
+    SurfaceNumber   hwColorNumFmt;  // Corresponding HW color block (CB) numeric format enum.
+    IMG_FMT         hwImgFmt;       // Corresponding HW texture block image descriptor format enum.
+    BUF_FMT         hwBufFmt;       // Corresponding HW texture block buffer descriptor format enum.
+    ZFormat         hwZFmt;         // Corresponding HW depth block (DB) Z format enum.
+    StencilFormat   hwStencilFmt;   // Corresponding HW depth block (DB) stencil format enum.
+};
+
+extern const MergedFlatFmtInfo*  MergedChannelFlatFmtInfoTbl(GfxIpLevel gfxIpLevel);
+extern BUF_FMT                   HwBufFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
+extern IMG_FMT                   HwImgFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
+extern ChNumFormat               FmtFromHwBufFmt(BUF_FMT imgFmt, GfxIpLevel gfxIpLevel);
+extern ChNumFormat               FmtFromHwImgFmt(IMG_FMT imgFmt, GfxIpLevel gfxIpLevel);
+extern ColorFormat               HwColorFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
+extern SurfaceNumber             ColorSurfNum(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
+extern StencilFormat             HwStencilFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
+extern ZFormat                   HwZFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
+
 // Stores each HW texture block image descriptor format and its corresponding formats.
 struct MergedImgDataFmtInfo
 {

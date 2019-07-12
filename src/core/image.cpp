@@ -154,6 +154,12 @@ Result Image::ValidateCreateInfo(
         ret = Result::ErrorInvalidImageTargetUsage;
     }
 
+    // Verify that the device supports corner sampling if the caller requested use of that feature.
+    if ((imageProperties.flags.supportsCornerSampling == 0) && imageInfo.usageFlags.cornerSampling)
+    {
+        ret = Result::Unsupported;
+    }
+
     // Check MSAA compatibility
     if (ret == Result::Success)
     {
@@ -493,6 +499,13 @@ uint32 Image::DegradeMipDimension(
     ) const
 {
     uint32  retMipDim = inputMipDimension >> 1;
+
+    if (GetImageCreateInfo().usageFlags.cornerSampling)
+    {
+        // If corner sampling is enabled, then mip levels degrade slightly differently; i.e., round up instead of
+        // down.  5 degrades to 3, instead of the traditional 2.
+        retMipDim += (inputMipDimension & 1);
+    }
 
     return retMipDim;
 }

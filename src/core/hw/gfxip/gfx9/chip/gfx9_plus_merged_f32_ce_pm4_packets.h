@@ -78,11 +78,15 @@ typedef struct PM4_CE_COND_EXEC
 enum CE_COND_INDIRECT_BUFFER_CONST_cache_policy1_enum {
     cache_policy1__ce_cond_indirect_buffer_const__lru                      =  0,
     cache_policy1__ce_cond_indirect_buffer_const__stream                   =  1,
+    cache_policy1__ce_cond_indirect_buffer_const__noa__GFX10               =  2,
+    cache_policy1__ce_cond_indirect_buffer_const__bypass__GFX10            =  3,
 };
 
 enum CE_COND_INDIRECT_BUFFER_CONST_cache_policy2_enum {
     cache_policy2__ce_cond_indirect_buffer_const__lru                      =  0,
     cache_policy2__ce_cond_indirect_buffer_const__stream                   =  1,
+    cache_policy2__ce_cond_indirect_buffer_const__noa__GFX10               =  2,
+    cache_policy2__ce_cond_indirect_buffer_const__bypass__GFX10            =  3,
 };
 
 enum CE_COND_INDIRECT_BUFFER_CONST_function_enum {
@@ -224,12 +228,15 @@ enum CE_COPY_DATA_count_sel_enum {
 enum CE_COPY_DATA_dst_cache_policy_enum {
     dst_cache_policy__ce_copy_data__lru                                    =  0,
     dst_cache_policy__ce_copy_data__stream                                 =  1,
+    dst_cache_policy__ce_copy_data__noa__GFX10                             =  2,
+    dst_cache_policy__ce_copy_data__bypass__GFX10                          =  3,
 };
 
 enum CE_COPY_DATA_dst_sel_enum {
     dst_sel__ce_copy_data__mem_mapped_register                             =  0,
     dst_sel__ce_copy_data__tc_l2                                           =  2,
     dst_sel__ce_copy_data__memory__GFX09                                   =  5,
+    dst_sel__ce_copy_data__tc_l2_obsolete__GFX10                           =  5,
 };
 
 enum CE_COPY_DATA_engine_sel_enum {
@@ -239,6 +246,8 @@ enum CE_COPY_DATA_engine_sel_enum {
 enum CE_COPY_DATA_src_cache_policy_enum {
     src_cache_policy__ce_copy_data__lru                                    =  0,
     src_cache_policy__ce_copy_data__stream                                 =  1,
+    src_cache_policy__ce_copy_data__noa__GFX10                             =  2,
+    src_cache_policy__ce_copy_data__bypass__GFX10                          =  3,
 };
 
 enum CE_COPY_DATA_src_sel_enum {
@@ -246,6 +255,7 @@ enum CE_COPY_DATA_src_sel_enum {
     src_sel__ce_copy_data__memory__GFX09                                   =  1,
     src_sel__ce_copy_data__tc_l2                                           =  2,
     src_sel__ce_copy_data__immediate_data                                  =  5,
+    src_sel__ce_copy_data__tc_l2_obsolete__GFX10                           =  1,
 };
 
 enum CE_COPY_DATA_wr_confirm_enum {
@@ -338,6 +348,8 @@ typedef struct PM4_CE_COPY_DATA
 enum CE_DUMP_CONST_RAM_cache_policy_enum {
     cache_policy__ce_dump_const_ram__lru                                   =  0,
     cache_policy__ce_dump_const_ram__stream                                =  1,
+    cache_policy__ce_dump_const_ram__noa__GFX10                            =  2,
+    cache_policy__ce_dump_const_ram__bypass__GFX10                         =  3,
 };
 
 typedef struct PM4_CE_DUMP_CONST_RAM
@@ -382,6 +394,8 @@ typedef struct PM4_CE_DUMP_CONST_RAM
 enum CE_DUMP_CONST_RAM_OFFSET_cache_policy_enum {
     cache_policy__ce_dump_const_ram_offset__lru                            =  0,
     cache_policy__ce_dump_const_ram_offset__stream                         =  1,
+    cache_policy__ce_dump_const_ram_offset__noa__GFX10                     =  2,
+    cache_policy__ce_dump_const_ram_offset__bypass__GFX10                  =  3,
 };
 
 typedef struct PM4_CE_DUMP_CONST_RAM_OFFSET
@@ -523,6 +537,8 @@ typedef struct PM4_CE_INDIRECT_BUFFER_CONST
 enum CE_LOAD_CONST_RAM_cache_policy_enum {
     cache_policy__ce_load_const_ram__lru                                   =  0,
     cache_policy__ce_load_const_ram__stream                                =  1,
+    cache_policy__ce_load_const_ram__noa__GFX10                            =  2,
+    cache_policy__ce_load_const_ram__bypass__GFX10                         =  3,
 };
 
 typedef struct PM4_CE_LOAD_CONST_RAM
@@ -688,6 +704,7 @@ typedef struct PM4_CE_SWITCH_BUFFER
     union
     {
         uint32_t                        ordinal2__GFX09;
+        uint32_t                           dummy__GFX10;
     };
 
 } PM4CE_SWITCH_BUFFER, *PPM4CE_SWITCH_BUFFER;
@@ -735,6 +752,8 @@ enum CE_WRITE_DATA_addr_incr_enum {
 enum CE_WRITE_DATA_cache_policy_enum {
     cache_policy__ce_write_data__lru                                       =  0,
     cache_policy__ce_write_data__stream                                    =  1,
+    cache_policy__ce_write_data__noa__GFX10                                =  2,
+    cache_policy__ce_write_data__bypass__GFX10                             =  3,
 };
 
 enum CE_WRITE_DATA_dst_sel_enum {

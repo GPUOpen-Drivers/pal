@@ -234,6 +234,7 @@ enum ChipFamily
 #if ADDR_GFX9_BUILD
     ADDR_CHIP_FAMILY_AI,
 #endif
+    ADDR_CHIP_FAMILY_NAVI,
 };
 
 /**

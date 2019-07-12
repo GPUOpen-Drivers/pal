@@ -126,6 +126,13 @@ void SettingsLoader::ValidateSettings(
             m_settings.binningMaxAllocCountLegacy =
                 Min(128u, gfx9Props.parameterCacheLines / (4u * gfx9Props.numShaderEngines));
         }
+        else
+        {
+            // In Gfx10 there is a single view of the PC rather than a division per SE.
+            // The recommended value for this is to allow a single batch to consume at
+            // most 1/3 of the parameter cache lines.
+            m_settings.binningMaxAllocCountLegacy = gfx9Props.parameterCacheLines / 3;
+        }
     }
 
     if (m_settings.binningMaxAllocCountNggOnChip == 0)
@@ -230,6 +237,69 @@ void SettingsLoader::ValidateSettings(
         m_settings.enableOutOfOrderPrimitives = OutOfOrderPrimDisable;
     }
 
+    if (IsGfx10(*m_pDevice))
+    {
+        // GFX10 doesn't need this workaround as it can natively support 1D depth images.
+        m_settings.treat1dAs2d = false;
+
+        // GFX10 doesn't use the convoluted meta-addressing scheme that GFX9 does, so disable
+        // the "optimized" algorithm for processing the meta-equations.
+        m_settings.optimizedFastClear = 0;
+
+        if (m_settings.waTessFactorBufferSizeLimitGeUtcl1Underflow)
+        {
+            // This workaround requires that the TF ring buffer is set to 1KB.
+            m_settings.tessFactorBufferSizePerSe = 0x80;
+        }
+        else
+        {
+            // The suggested size of the tessellation factor buffer per SE is 0x4000 DWORDs, to account for the
+            // multiples SA's per SE.
+            m_settings.tessFactorBufferSizePerSe = 0x4000;
+        }
+
+        if ((m_settings.tessFactorBufferSizePerSe * gfx9Props.numShaderEngines) > VGT_TF_RING_SIZE__SIZE_MASK)
+        {
+            m_settings.tessFactorBufferSizePerSe =
+                Pow2AlignDown(VGT_TF_RING_SIZE__SIZE_MASK, gfx9Props.numShaderEngines) / gfx9Props.numShaderEngines;
+            static_assert(VGT_TF_RING_SIZE__SIZE__SHIFT == 0, "VGT_TF_RING_SIZE::SIZE shift is no longer zero!");
+        }
+
+        if (m_settings.waClampQuadDistributionFactor)
+        {
+            // VGT_TESS_DISTRIBUTION.ACCUM_QUAD should never be allowed to exceed 64
+            m_settings.quadDistributionFactor = Min(m_settings.quadDistributionFactor, 64u);
+        }
+
+        // If Gfx10ForceWaveBreakSizeAuto or Gfx10ForceWaveBreakSizeClient is chosen
+        // make sure Gfx10CheckIndicies is not also chosen.
+        if ((m_settings.forceWaveBreakSize & 0x7) == Gfx10ForceWaveBreakSizeAuto)
+        {
+            m_settings.forceWaveBreakSize = Gfx10ForceWaveBreakSizeAuto;
+        }
+        else if ((m_settings.forceWaveBreakSize & 0x7) == Gfx10ForceWaveBreakSizeClient)
+        {
+            m_settings.forceWaveBreakSize = Gfx10ForceWaveBreakSizeClient;
+        }
+
+        if ((m_settings.waLateAllocGs0) && (m_settings.nggEnableMode != NggPipelineTypeDisabled))
+        {
+            m_settings.nggLateAllocGs = 0;
+
+            // This workaround requires that tessellation distribution is enabled and the distribution factors are
+            // non-zero.
+            if (pPalSettings->distributionTessMode == DistributionTessOff)
+            {
+                pPalSettings->distributionTessMode = DistributionTessDefault;
+            }
+            m_settings.donutDistributionFactor     = Max(m_settings.donutDistributionFactor,     1u);
+            m_settings.isolineDistributionFactor   = Max(m_settings.isolineDistributionFactor,   1u);
+            m_settings.quadDistributionFactor      = Max(m_settings.quadDistributionFactor,      1u);
+            m_settings.trapezoidDistributionFactor = Max(m_settings.trapezoidDistributionFactor, 1u);
+            m_settings.triDistributionFactor       = Max(m_settings.triDistributionFactor,       1u);
+        }
+    }
+
     if ((pPalSettings->distributionTessMode == DistributionTessTrapezoidOnly) ||
         (pPalSettings->distributionTessMode == DistributionTessDefault))
     {
@@ -267,6 +337,86 @@ void SettingsLoader::ValidateSettings(
 
     m_state = SettingsLoaderState::Final;
 }
+
+// =====================================================================================================================
+// Setup any workarounds that are necessary for all Gfx10 products.
+static void SetupGfx10Workarounds(
+    const Pal::Device&  device,
+    Gfx9PalSettings*    pSettings)
+{
+    pSettings->waColorCacheControllerInvalidEviction = true;
+
+    // GCR ranged sync operations cause page faults for Cmask without the uCode fix that properly converts the
+    // ACQUIRE_MEM packet's COHER_SIZE to the correct GCR_DATA_INDEX.
+    pSettings->waCmaskImageSyncs = (device.EngineProperties().cpUcodeVersion < 28);
+}
+
+// =====================================================================================================================
+// Setup workarounds that are necessary for all Gfx10.1 products.
+static void SetupGfx101Workarounds(
+    const Pal::Device&  device,
+    Gfx9PalSettings*    pSettings)
+{
+    pSettings->waVgtFlushNggToLegacyGs = true;
+
+    pSettings->waDisableFmaskNofetchOpOnFmaskCompressionDisable = true;
+
+    // The GE has a bug where attempting to use an index buffer of size zero can cause a hang.
+    // The workaround is to bind an internal index buffer of a single entry and force the index buffer
+    // size to one. This applies to all Navi1x products, which are all Gfx10.1 products.
+    pSettings->waIndexBufferZeroSize = true;
+
+    {
+        // The DB has a bug where an attempted depth expand of a Z16_UNORM 1xAA surface that has not had its
+        // metadata initialized will cause the DBs to incorrectly calculate the amount of return data from the
+        // RMI block, which results in a hang.
+        // The workaround is to force a compute resummarize for these surfaces, as we can't guarantee that an
+        // expand won't be executed on an uninitialized depth surface.
+        // This applies to all Navi1x products, which are all Gfx10.1 products.
+        pSettings->waZ16Unorm1xAaDecompressUninitialized = true;
+
+        // Workaround gfx10 Ngg performance issues related to UTCL2 misses with Index Buffers.
+        pSettings->waEnableIndexBufferPrefetchForNgg = true;
+
+        // Applies to all Navi1x products.
+        pSettings->waClampQuadDistributionFactor = true;
+
+        pSettings->waLogicOpDisablesOverwriteCombiner = true;
+
+        // Applies to all Navi1x products.
+        // If Primitive Order Pixel Shader (POPS/ROVs) are enabled and DB_DFSM_CONTROL.POPS_DRAIN_PS_ON_OVERLAP == 1,
+        // we must set DB_RENDER_OVERRIDE2.PARTIAL_SQUAD_LAUNCH_CONTROL = PSLC_ON_HANG_ONLY to avoid a hang.
+        pSettings->waStalledPopsMode = true;
+
+        // The DB has a bug that when setting the iterate_256 register to 1 causes a hang.
+        // More specifically the Flush Sequencer state-machine gets stuck waiting for Z data
+        // when Iter256 is set to 1. The software workaround is to set DECOMPRESS_ON_N_ZPLANES
+        // register to 2 for 4x MSAA Depth/Stencil surfaces to prevent hangs.
+        pSettings->waTwoPlanesIterate256 = true;
+    }
+}
+
+// =====================================================================================================================
+// Setup workarounds that only apply to Navi10.
+static void SetupNavi10Workarounds(
+    const Pal::Device&  device,
+    Gfx9PalSettings*    pSettings)
+{
+    // Setup any Gfx10 workarounds.
+    SetupGfx10Workarounds(device, pSettings);
+
+    // Setup any Gfx10.1 workarounds.
+    SetupGfx101Workarounds(device, pSettings);
+
+    // Setup any Navi10 specific workarounds.
+
+    pSettings->waSdmaPreventCompressedSurfUse = true;
+
+    pSettings->waFixPostZConservativeRasterization = true;
+
+    pSettings->waTessIncorrectRelativeIndex = true;
+
+} // PAL_BUILD_NAVI10
 
 // =====================================================================================================================
 // Override Gfx9 layer settings. This also includes setting up the workaround flags stored in the settings structure
@@ -329,6 +479,13 @@ void SettingsLoader::OverrideDefaults(
             )
         {
             m_settings.waMetaAliasingFixEnabled = false;
+        }
+    }
+    else if (IsGfx10(device))
+    {
+        if (IsNavi10(device))
+        {
+            SetupNavi10Workarounds(device, &m_settings);
         }
     }
 

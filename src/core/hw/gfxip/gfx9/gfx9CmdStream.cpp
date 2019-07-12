@@ -282,6 +282,10 @@ uint32* CmdStream::WriteSetVgtLsHsConfig<false>(
 // =====================================================================================================================
 // Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
 // Returns a pointer to the next unused DWORD in pCmdSpace.
+//
+// Note that we must be very careful when setting registers on gfx10. The CP's register filter CAM isn't smart enough
+// to track GRBM_GFX_INDEX so it can filter out packets that set the same register value for different instances.
+// The caller must set isPerfCtr = true when they could write any register to multiple instances.
 template <bool isPerfCtr>
 uint32* CmdStream::WriteSetOneConfigReg(
     uint32                               regAddr,
@@ -311,6 +315,10 @@ uint32* CmdStream::WriteSetOneConfigReg<false>(
 // =====================================================================================================================
 // Builds a PM4 packet to set the given set of sequential config registers.  Returns a pointer to the next unused DWORD
 // in pCmdSpace.
+//
+// Note that we must be very careful when setting registers on gfx10. The CP's register filter CAM isn't smart enough
+// to track GRBM_GFX_INDEX so it can filter out packets that set the same register value for different instances.
+// The caller must set isPerfCtr = true when they could write any register to multiple instances.
 template <bool isPerfCtr>
 uint32* CmdStream::WriteSetSeqConfigRegs(
     uint32      startRegAddr,
@@ -945,6 +953,22 @@ uint32* CmdStream::WriteSetOnePerfCtrReg(
     else
     {
         // Non-protected register: use a normal SET_DATA command.
+        if (m_device.Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp9)
+        {
+            const auto engineType = GetEngineType();
+
+            // The resetFilterCam bit is not valid for the Compute Micro Engine. Setting this bit would cause a hang in
+            // compute-only engines.
+            if ((engineType == EngineTypeUniversal) || (engineType == EngineTypeHighPriorityUniversal))
+            {
+                pReturnVal = WriteSetOneConfigReg<true>(regAddr, value, pCmdSpace);
+            }
+            else
+            {
+                pReturnVal = WriteSetOneConfigReg<false>(regAddr, value, pCmdSpace);
+            }
+        }
+        else
         {
             pReturnVal = WriteSetOneConfigReg<false>(regAddr, value, pCmdSpace);
         }

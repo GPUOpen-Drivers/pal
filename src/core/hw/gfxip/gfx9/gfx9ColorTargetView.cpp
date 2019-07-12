@@ -662,5 +662,343 @@ uint32* Gfx9ColorTargetView::WriteCommands(
     return pCmdStream->WritePm4Image(spaceNeeded, pPm4Commands, pCmdSpace);
 }
 
+// =====================================================================================================================
+Gfx10ColorTargetView::Gfx10ColorTargetView(
+    const Device*                            pDevice,
+    const ColorTargetViewCreateInfo&         createInfo,
+    const ColorTargetViewInternalCreateInfo& internalInfo)
+    :
+    ColorTargetView(pDevice, createInfo, internalInfo)
+{
+    memset(&m_pm4Cmds, 0, sizeof(m_pm4Cmds));
+    memset(&m_uavExportSrd, 0, sizeof(m_uavExportSrd));
+    m_gfx10Flags.u32All = 0;
+
+    BuildPm4Headers();
+    InitRegisters(createInfo, internalInfo);
+
+    if (m_flags.viewVaLocked && (m_flags.isBufferView == 0))
+    {
+        UpdateImageVa(&m_pm4Cmds);
+        if (m_pImage->Parent()->GetImageCreateInfo().imageType == ImageType::Tex2d)
+        {
+            UpdateImageSrd(&m_uavExportSrd);
+        }
+    }
+
+}
+
+// =====================================================================================================================
+// Builds the PM4 packet headers for an image of PM4 commands used to write this View object to hardware.
+void Gfx10ColorTargetView::BuildPm4Headers()
+{
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+
+    // NOTE: The register offset will be updated at bind-time to reflect the actual slot this View is being bound to.
+    size_t spaceNeeded = CmdUtil::ContextRegRmwSizeDwords;
+
+    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmCB_COLOR0_BASE, mmCB_COLOR0_VIEW, &m_pm4Cmds.hdrCbColorBase);
+    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmCB_COLOR0_ATTRIB, mmCB_COLOR0_FMASK, &m_pm4Cmds.hdrCbColorAttrib);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmCB_COLOR0_DCC_BASE, &m_pm4Cmds.hdrCbColorDccBase);
+
+    // Registers prior to this in the ordering are grouped in terms of the target index (i.e., there's all of the
+    // MRT0 regs, then the MRT1 regs, etc.)  Therefore, registers of a given "type" (i.e., COLOR0_ATTRIB) are
+    // separated by CbRegsPerSlot.  Starting with mmCB_COLOR0_ATTRIB2 though, the registers are grouped by "type"...
+    // i.e., mmCB_COLOR0_ATTRIB2 immediately preceeds mmCB_COLOR1_ATTRIB2, etc.
+    //
+    // All following registers have to be written one at a time.
+    //
+    // This is part of the reason why PAL doesn't write the various BASE_EXT registers; all of these should be zero
+    // anyway (assert protection added in the image-address-getter functions).
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(Gfx10::mmCB_COLOR0_ATTRIB2, &m_pm4Cmds.hdrCbColorAttrib2);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(Gfx10::mmCB_COLOR0_ATTRIB3, &m_pm4Cmds.hdrCbColorAttrib3);
+
+    m_pm4Cmds.spaceNeeded             = spaceNeeded;
+    m_pm4Cmds.spaceNeededDecompressed = spaceNeeded;
+
+    CommonBuildPm4Headers(&m_pm4Cmds);
+}
+
+// =====================================================================================================================
+// Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
+void Gfx10ColorTargetView::InitRegisters(
+    const ColorTargetViewCreateInfo&         createInfo,
+    const ColorTargetViewInternalCreateInfo& internalInfo)
+{
+    const auto&            palDevice   = *m_pDevice->Parent();
+    const auto*const       pFmtInfoTbl = MergedChannelFlatFmtInfoTbl(palDevice.ChipProperties().gfxLevel);
+    const Gfx9PalSettings& settings    = GetGfx9Settings(palDevice);
+
+    regCB_COLOR0_INFO cbColorInfo    = InitCommonCbColorInfo(createInfo, pFmtInfoTbl);
+
+    // Most register values are simple to compute but vary based on whether or not this is a buffer view. Let's set
+    // them all up-front before we get on to the harder register values.
+    if (m_flags.isBufferView)
+    {
+        InitCommonBufferView(createInfo, &m_pm4Cmds, &m_pm4Cmds.cbColorView.gfx10);
+
+        m_extent.width  = createInfo.bufferInfo.extent;
+        m_extent.height = 1;
+
+        // Setup GFX10-specific registers here
+        m_pm4Cmds.cbColorAttrib3.bits.MIP0_DEPTH    = 0;
+        m_pm4Cmds.cbColorAttrib3.bits.COLOR_SW_MODE = SW_LINEAR;
+        m_pm4Cmds.cbColorAttrib3.bits.RESOURCE_TYPE = static_cast<uint32>(ImageType::Tex1d); // no HW enums
+
+        m_pm4Cmds.cbColorAttrib3.bits.FMASK_SW_MODE = SW_LINEAR; // ignored as there is no fmask
+        m_pm4Cmds.cbColorAttrib3.bits.META_LINEAR   = 1;         // no meta-data, but should be set for linear surfaces
+
+        // Specifying a non-zero buffer offset only works with linear-general surfaces
+        cbColorInfo.gfx10.LINEAR_GENERAL            = 1;
+    }
+    else
+    {
+        const auto*const            pImage          = m_pImage->Parent();
+        const SubresId              baseSubRes      = { m_subresource.aspect, 0, 0 };
+        const SubResourceInfo*const pBaseSubResInfo = pImage->SubresourceInfo(baseSubRes);
+        const SubResourceInfo*const pSubResInfo     = pImage->SubresourceInfo(m_subresource);
+        const auto*                 pAddrOutput     = m_pImage->GetAddrOutput(pSubResInfo);
+        const auto&                 surfSetting     = m_pImage->GetAddrSettings(pSubResInfo);
+        const auto&                 imageCreateInfo = pImage->GetImageCreateInfo();
+        const ImageType             imageType       = m_pImage->GetOverrideImageType();
+        const bool                  imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
+        const bool                  hasFmask        = m_pImage->HasFmaskData();
+
+        // Extents are one of the things that could be changing on GFX10 with respect to certain surface formats,
+        // so go with the simple approach here for now.
+        Extent3d baseExtent = pBaseSubResInfo->extentTexels;
+        Extent3d extent     = pSubResInfo->extentTexels;
+
+        // The view should be in terms of texels except in the below cases when we're operating in terms of elements:
+        // 1. Viewing a compressed image in terms of blocks. For BC images elements are blocks, so if the caller gave
+        //    us an uncompressed view format we assume they want to view blocks.
+        // 2. Copying to an "expanded" format (e.g., R32G32B32). In this case we can't do native format writes so we're
+        //    going to write each element independently. The trigger for this case is a mismatched bpp.
+        // 3. Viewing a YUV-packed image with a non-YUV-packed format when the view format is allowed for view formats
+        //    with twice the bpp. In this case, the effective width of the view is half that of the base image.
+        // 4. Viewing a YUV planar Image. The view must be associated with a single plane. Since all planes of an array
+        //    slice are packed together for YUV formats, we need to tell the CB hardware to "skip" the other planes if
+        //    the view either spans multiple array slices or starts at a nonzero array slice.
+        if (imgIsBc || (pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(createInfo.swizzledFormat.format)))
+        {
+            const uint32  firstMipLevel = this->m_subresource.mipLevel;
+
+            baseExtent.width  = Util::Clamp((pSubResInfo->extentElements.width  << firstMipLevel),
+                                            pBaseSubResInfo->extentElements.width,
+                                            pBaseSubResInfo->actualExtentElements.width);
+            baseExtent.height = Util::Clamp((pSubResInfo->extentElements.height << firstMipLevel),
+                                            pBaseSubResInfo->extentElements.height,
+                                            pBaseSubResInfo->actualExtentElements.height);
+
+            extent = pSubResInfo->extentElements;
+        }
+
+        bool modifiedYuvExtent = false;
+        if (Formats::IsYuvPacked(pSubResInfo->format.format)                  &&
+            (Formats::IsYuvPacked(createInfo.swizzledFormat.format) == false) &&
+            ((pSubResInfo->bitsPerTexel << 1) == Formats::BitsPerPixel(createInfo.swizzledFormat.format)))
+        {
+            PAL_NOT_TESTED();
+
+            // Changing how we interpret the bits-per-pixel of the subresource wreaks havoc with any tile swizzle
+            // pattern used. This will only work for linear-tiled Images.
+            PAL_ASSERT(m_pImage->IsSubResourceLinear(baseSubRes));
+
+            baseExtent.width >>= 1;
+            extent.width     >>= 1;
+            modifiedYuvExtent  = true;
+        }
+        else if (Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format) &&
+                 ((createInfo.imageInfo.arraySize > 1) || (createInfo.imageInfo.baseSubRes.arraySlice != 0)))
+        {
+            baseExtent = pBaseSubResInfo->actualExtentTexels;
+            m_pImage->PadYuvPlanarViewActualExtent(m_subresource, &baseExtent);
+            modifiedYuvExtent = true;
+        }
+
+        // The view should be in terms of texels except when we're operating in terms of elements. This will only happen
+        // when we're copying to an "expanded" format (e.g., R32G32B32). In this case we can't do native format writes
+        // so we're going to write each element independently. The trigger for this case is a mismatched bpp.
+        if (pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(createInfo.swizzledFormat.format))
+        {
+            baseExtent = pBaseSubResInfo->extentElements;
+            extent     = pSubResInfo->extentElements;
+        }
+
+        InitCommonImageView(createInfo,
+                            internalInfo,
+                            baseExtent,
+                            &m_pm4Cmds,
+                            &cbColorInfo,
+                            &m_pm4Cmds.cbColorView.gfx10);
+
+        m_extent.width  = extent.width;
+        m_extent.height = extent.height;
+
+        //  Not setting this can lead to functional issues.   It's not a performance measure.   Due to multiple mip
+        //  levels possibly being within same 1K address space, CB can get confused
+        m_pm4Cmds.cbColorAttrib.gfx10.LIMIT_COLOR_FETCH_TO_256B_MAX =
+            settings.waForce256bCbFetch && (m_subresource.mipLevel >= pAddrOutput->firstMipIdInTail);
+
+        m_pm4Cmds.cbColorAttrib3.bits.MIP0_DEPTH    =
+            ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;
+        m_pm4Cmds.cbColorAttrib3.bits.COLOR_SW_MODE = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
+        m_pm4Cmds.cbColorAttrib3.bits.RESOURCE_TYPE = static_cast<uint32>(imageType); // no HW enums
+        m_pm4Cmds.cbColorAttrib3.bits.META_LINEAR   = m_pImage->IsSubResourceLinear(createInfo.imageInfo.baseSubRes);
+
+        if (IsGfx101Plus(palDevice))
+        {
+            m_pm4Cmds.cbColorAttrib3.gfx101Plus.CMASK_PIPE_ALIGNED = m_pImage->IsPipeAligned();
+            m_pm4Cmds.cbColorAttrib3.gfx101Plus.DCC_PIPE_ALIGNED   = m_pImage->IsPipeAligned();
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        const AddrSwizzleMode fMaskSwizzleMode      = (hasFmask
+                                                       ? m_pImage->GetFmask()->GetSwizzleMode()
+                                                       : ADDR_SW_LINEAR /* ignored */);
+        m_pm4Cmds.cbColorAttrib3.bits.FMASK_SW_MODE = AddrMgr2::GetHwSwizzleMode(fMaskSwizzleMode);
+
+        // From the reg-spec:
+        //  this bit or the CONFIG equivalent must be set if parts of FMask surface may be unmapped (such as in PRT`s).
+        if (hasFmask &&
+            (imageCreateInfo.flags.prt ||
+             (settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable &&
+              cbColorInfo.bits.FMASK_COMPRESSION_DISABLE)))
+        {
+            m_pm4Cmds.cbColorAttrib.gfx10.DISABLE_FMASK_NOFETCH_OPT = 1;
+        }
+    }
+
+    m_pm4Cmds.cbColorAttrib3.bits.RESOURCE_LEVEL = 1;
+
+    // The CB_COLOR0_INFO RMW packet requires a mask. We want everything but these two bits,
+    // so we'll use the inverse of them.
+    constexpr uint32 RmwCbColorInfoMask =
+        static_cast<const uint32>(~(CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
+                                    CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK));
+
+    // All relevent register data has now been calculated; create the RMW packet.
+    m_pDevice->CmdUtil().BuildContextRegRmw(mmCB_COLOR0_INFO,
+                                            RmwCbColorInfoMask,
+                                            cbColorInfo.u32All,
+                                            &m_pm4Cmds.cbColorInfo);
+}
+
+// =====================================================================================================================
+// Writes the PM4 commands required to bind to a certain slot.  Returns the next unused DWORD in pCmdSpace.
+uint32* Gfx10ColorTargetView::WriteCommands(
+    uint32        slot,        // Bind slot
+    ImageLayout   imageLayout, // Current image layout
+    CmdStream*    pCmdStream,
+    uint32*       pCmdSpace
+    ) const
+{
+    const bool decompressedImage =
+        (m_flags.isBufferView == 0) &&
+        (ImageLayoutToColorCompressionState(m_layoutToState, imageLayout) != ColorCompressed);
+
+    const Gfx10ColorTargetViewPm4Img* pPm4Commands = &m_pm4Cmds;
+    // Spawn a local copy of the PM4 image, since some register values and offsets may need to be updated in this
+    // method.  For some clients, the base address, Fmask address and Cmask address also need to be updated.  The
+    // contents of the local copy will depend on which Image state is specified.
+    Gfx10ColorTargetViewPm4Img patchedPm4Commands;
+
+    if (slot != 0)
+    {
+        PAL_ASSERT(slot < MaxColorTargets);
+
+        patchedPm4Commands = *pPm4Commands;
+        pPm4Commands = &patchedPm4Commands;
+
+        // Offset to add to most PM4 headers' register offset.  Note that all CB_COLOR*_ATTRIB[2|3] registers are
+        // adjacent to one another, so for those we can just increment by 'slot'.
+        const uint32 slotDelta = (slot * CbRegsPerSlot);
+
+        patchedPm4Commands.hdrCbColorBase.bitfields2.reg_offset         += slotDelta;
+        patchedPm4Commands.hdrCbColorDccBase.bitfields2.reg_offset      += slotDelta;
+        patchedPm4Commands.hdrCbColorAttrib.bitfields2.reg_offset       += slotDelta;
+        patchedPm4Commands.hdrCbColorAttrib2.bitfields2.reg_offset      += slot;
+        patchedPm4Commands.hdrCbColorAttrib3.bitfields2.reg_offset      += slot;
+        patchedPm4Commands.cbColorInfo.bitfields2.reg_offset            += slotDelta;
+        patchedPm4Commands.loadMetaDataIndex.bitfields4.reg_offset      += slotDelta;
+    }
+
+    size_t spaceNeeded = pPm4Commands->spaceNeeded;
+    if (decompressedImage)
+    {
+        if (pPm4Commands != &patchedPm4Commands)
+        {
+            patchedPm4Commands = *pPm4Commands;
+            pPm4Commands = &patchedPm4Commands;
+        }
+
+        // For decompressed rendering to an Image, we need to override the values for CB_COLOR_CONTROL and for
+        // CB_COLOR_DCC_CONTROL.
+        patchedPm4Commands.cbColorDccControl.u32All = CbColorDccControlDecompressed;
+        patchedPm4Commands.cbColorInfo.reg_data    &= ~CbColorInfoDecompressedMask;
+
+        spaceNeeded = pPm4Commands->spaceNeededDecompressed;
+    }
+
+    if ((m_flags.viewVaLocked == 0) && m_pImage->Parent()->GetBoundGpuMemory().IsBound())
+    {
+        if (pPm4Commands != &patchedPm4Commands)
+        {
+            patchedPm4Commands = *pPm4Commands;
+            pPm4Commands = &patchedPm4Commands;
+        }
+        UpdateImageVa(&patchedPm4Commands);
+    }
+
+    PAL_ASSERT(pCmdStream != nullptr);
+    return pCmdStream->WritePm4Image(spaceNeeded, pPm4Commands, pCmdSpace);
+}
+
+// =====================================================================================================================
+// Writes an image SRD (for UAV exports) to the given memory location
+void Gfx10ColorTargetView::GetImageSrd(
+    void* pOut
+    ) const
+{
+    if (m_flags.viewVaLocked == false)
+    {
+        UpdateImageSrd(pOut);
+    }
+    else
+    {
+        memcpy(pOut, &m_uavExportSrd, sizeof(m_uavExportSrd));
+    }
+}
+
+// =====================================================================================================================
+// Updates the cached image SRD (for UAV exports). This may need to get called at draw-time if viewVaLocked is false
+void Gfx10ColorTargetView::UpdateImageSrd(
+    void* pOut
+    ) const
+{
+    PAL_ASSERT(m_flags.isBufferView == 0);
+    PAL_ASSERT(m_pImage->Parent()->GetImageCreateInfo().imageType == ImageType::Tex2d);
+
+    ImageViewInfo viewInfo = {};
+    viewInfo.pImage          = GetImage()->Parent();
+    viewInfo.viewType        = ImageViewType::Tex2d;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+    viewInfo.possibleLayouts =
+    {
+        Pal::LayoutShaderWrite | Pal::LayoutColorTarget,
+        Pal::LayoutUniversalEngine
+    };
+#else
+    viewInfo.flags.shaderWritable = true;
+#endif
+    viewInfo.swizzledFormat       = m_swizzledFormat;
+    viewInfo.subresRange          = { m_subresource, 1, m_arraySize };
+
+    m_pDevice->Parent()->CreateImageViewSrds(1, &viewInfo, pOut);
+}
+
 } // Gfx9
 } // Pal

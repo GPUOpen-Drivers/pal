@@ -177,9 +177,17 @@ void Device::TransitionDepthStencil(
                 // Use compute if:
                 //   - We're on the compute engine
                 //   - or we should force ExpandHiZRange for resummarize and we support compute operations
-                const bool useCompute =
-                    ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
-                     (Pal::Image::ForceExpandHiZRangeForResummarize && pCmdBuf->IsComputeSupported()));
+                //   - or we have a workaround which indicates if we need to use the compute path.
+                const auto& createInfo = image.GetImageCreateInfo();
+                const bool  z16Unorm1xAaDecompressUninitializedActive =
+                    (Settings().waZ16Unorm1xAaDecompressUninitialized &&
+                     (createInfo.samples == 1) &&
+                     ((createInfo.swizzledFormat.format == ChNumFormat::X16_Unorm) ||
+                      (createInfo.swizzledFormat.format == ChNumFormat::D16_Unorm_S8_Uint)));
+                const bool  useCompute = ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
+                                          (pCmdBuf->IsComputeSupported() &&
+                                           (Pal::Image::ForceExpandHiZRangeForResummarize ||
+                                            z16Unorm1xAaDecompressUninitializedActive)));
 
                 if (useCompute)
                 {
@@ -675,6 +683,11 @@ void Device::FillCacheOperations(
     pOperations->caches.flushCbMetadata |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushCbMd);
     pOperations->caches.invalDbMetadata |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvDbMd);
     pOperations->caches.flushDbMetadata |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushDbMd);
+    if (m_gfxIpLevel != GfxIpLevel::GfxIp9)
+    {
+        // On gfx10 here, invalidating the L0 V$ and the GL1 are treated the same
+        pOperations->caches.invalGl1    |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTcp);
+    }
 }
 
 // =====================================================================================================================

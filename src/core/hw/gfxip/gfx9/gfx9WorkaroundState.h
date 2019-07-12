@@ -63,6 +63,13 @@ public:
         UniversalCmdBuffer*     pCmdBuffer,
         const ValidateDrawInfo& drawInfo,
         uint32*                 pCmdSpace);
+    uint32* SwitchFromNggPipelineToLegacy(
+        bool    nextPipelineUsesGs,
+        uint32* pCmdSpace) const;
+    void HandleZeroIndexBuffer(
+        UniversalCmdBuffer* pCmdBuffer,
+        gpusize*            pIndexBufferAddr,
+        uint32*             pIndexCount);
 
 private:
     const Device&                  m_device;

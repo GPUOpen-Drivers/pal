@@ -72,6 +72,9 @@ SqttGfxIpLevel GfxipToSqttGfxIpLevel(
     case Pal::GfxIpLevel::GfxIp9:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_9;
         break;
+    case Pal::GfxIpLevel::GfxIp10_1:
+        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_10_1;
+        break;
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -106,6 +109,9 @@ SqttVersion GfxipToSqttVersion(
         break;
     case Pal::GfxIpLevel::GfxIp9:
         version = SQTT_VERSION_2_3;
+        break;
+    case Pal::GfxIpLevel::GfxIp10_1:
+        version = SQTT_VERSION_2_4;
         break;
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
@@ -190,6 +196,8 @@ static constexpr ThreadTraceTokenConfig SqttTokenConfigNoInst    =
     TokenType::EventCs   |
     TokenType::EventGfx1 |
     TokenType::RegCs
+    | TokenType::WaveRdy
+    | TokenType::UtilCounter
     , RegType::AllRegWrites
 };
 
@@ -312,7 +320,18 @@ void FillSqttAsicInfo(
         }
         PAL_ASSERT((seIndex == 0) || (computeUnitPerShaderEngine == computeUnitPerPreviousShaderEngine));
     }
+#if PAL_BUILD_GFX10 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 491
+    if (properties.gfxLevel > Pal::GfxIpLevel::GfxIp9)
+    {
+        pAsicInfo->computeUnitPerShaderEngine = computeUnitPerShaderEngine * 2;
+    }
+    else
+    {
+        pAsicInfo->computeUnitPerShaderEngine = computeUnitPerShaderEngine;
+    }
+#else
     pAsicInfo->computeUnitPerShaderEngine = computeUnitPerShaderEngine;
+#endif
     pAsicInfo->simdPerComputeUnit         = properties.gfxipProperties.shaderCore.numSimdsPerCu;
     pAsicInfo->wavefrontsPerSimd          = properties.gfxipProperties.shaderCore.numWavefrontsPerSimd;
     pAsicInfo->minimumVgprAlloc           = properties.gfxipProperties.shaderCore.minVgprAlloc;

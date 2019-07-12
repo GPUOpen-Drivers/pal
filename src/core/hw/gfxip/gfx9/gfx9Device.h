@@ -138,6 +138,7 @@ enum HwLayoutTransition : uint32
 // so PAL CE RAM needs to be multiple of 32 bytes to make sure loading only client CE RAM can be correctly done.
 constexpr size_t ReservedCeRamBytes =
     ((sizeof(BufferSrd) * MaxStreamOutTargets) +
+     (sizeof(ImageSrd)  * MaxColorTargets) +
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 469
      (sizeof(BufferSrd) * MaxVertexBuffers) +
 #endif
@@ -384,6 +385,42 @@ public:
         uint32               count,
         const ImageViewInfo* pImgViewInfo,
         void*                pOut);
+
+    uint32 GetCuEnableMaskHi(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
+    static uint16 AdjustCuEnHi(uint16  val, uint32  mask) { return ((val & mask) >> 16); }
+
+    // Function definition for creating typed buffer view SRDs.
+    static void PAL_STDCALL Gfx10CreateTypedBufferViewSrds(
+        const IDevice*        pDevice,
+        uint32                count,
+        const BufferViewInfo* pBufferViewInfo,
+        void*                 pOut);
+
+    // Function definition for creating untyped buffer view SRDs.
+    static void PAL_STDCALL Gfx10CreateUntypedBufferViewSrds(
+        const IDevice*        pDevice,
+        uint32                count,
+        const BufferViewInfo* pBufferViewInfo,
+        void*                 pOut);
+
+    // Function definition for creating image view SRDs.
+    static void PAL_STDCALL Gfx10CreateImageViewSrds(
+        const IDevice*       pDevice,
+        uint32               count,
+        const ImageViewInfo* pImgViewInfo,
+        void*                pOut);
+
+    // Function definition for creating a sampler SRD.
+    static void PAL_STDCALL Gfx10CreateSamplerSrds(
+        const IDevice*      pDevice,
+        uint32              count,
+        const SamplerInfo*  pSamplerInfo,
+        void*               pOut);
+
+    void Gfx10CreateFmaskViewSrdsInternal(
+        const FmaskViewInfo&          viewInfo,
+        const FmaskViewInternalInfo*  pFmaskViewInternalInfo,
+        sq_img_rsrc_t*                pSrd) const;
 
     // Function definition for creating fmask view SRDs.
     static void PAL_STDCALL CreateFmaskViewSrds(
@@ -655,6 +692,19 @@ private:
         bool                          flushTcc,
         uint32                        vgtEventCount,
         const VGT_EVENT_TYPE*         pVgtEvents,
+        Developer::BarrierOperations* pBarrierOps) const;
+
+    uint32 Gfx10BuildReleaseGcrCntl(
+        uint32                        accessMask,
+        bool                          flushGl2,
+        Developer::BarrierOperations* pBarrierOps) const;
+
+    uint32 Gfx10BuildAcquireGcrCntl(
+        uint32                        accessMask,
+        bool                          invalidateGl2,
+        gpusize                       baseAddress,
+        gpusize                       sizeBytes,
+        bool                          isFlushing,
         Developer::BarrierOperations* pBarrierOps) const;
 
     bool WaRefreshTccToAlignMetadata(

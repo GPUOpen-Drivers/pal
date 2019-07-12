@@ -307,6 +307,7 @@ enum class Gfx9DccClearColor : uint8
     ClearColor1110         = 0x80,
     ClearColor1111         = 0xC0,
     ClearColorReg          = 0x20,
+    ClearColorCompToSingle = 0x10,
 };
 
 // Represents an "image" of the fast-clear metadata used by Color Target Images.
@@ -446,6 +447,8 @@ public:
     static constexpr uint32 InitialValue = 0;
 
     static uint32 GetPackedExpandedValue(const Image& image);
+
+    IMG_FMT Gfx10FmaskFormat(uint32  samples, uint32  fragments, bool isUav) const;
 
 private:
     ADDR2_COMPUTE_FMASK_INFO_OUTPUT          m_addrOutput;

@@ -225,6 +225,8 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
 
     pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
                                                                    PredDisable,
+                                                                   pThis->m_pSignatureCs->flags.isWave32,
+                                                                   pThis->GetEngineSubType(),
                                                                    pCmdSpace);
 
     if (issueSqttMarkerEvent)
@@ -265,6 +267,8 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
     }
 
     pCmdSpace += pThis->m_cmdUtil.BuildDispatchIndirectMec(gpuVirtAddr,
+                                                           pThis->m_pSignatureCs->flags.isWave32,
+                                                           pThis->GetEngineSubType(),
                                                            pCmdSpace);
 
     if (issueSqttMarkerEvent)
@@ -318,6 +322,8 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
     // end block positions instead of execution block dimensions. So we need to use the dimensions plus offsets.
     pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, false>(ends[0], ends[1], ends[2],
                                                                     PredDisable,
+                                                                    pThis->m_pSignatureCs->flags.isWave32,
+                                                                    pThis->GetEngineSubType(),
                                                                     pCmdSpace);
 
     if (issueSqttMarkerEvent)
@@ -327,6 +333,24 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
 
     pThis->m_cmdStream.CommitCommands(pCmdSpace);
 }
+
+static_assert(((Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE0__SH0_CU_EN_MASK ==
+                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE0__SA0_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE0__SH1_CU_EN_MASK ==
+                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE0__SA1_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE1__SH0_CU_EN_MASK ==
+                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE1__SA0_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE1__SH1_CU_EN_MASK ==
+                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE1__SA1_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE2__SH0_CU_EN_MASK ==
+                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE2__SA0_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE2__SH1_CU_EN_MASK ==
+                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE2__SA1_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE3__SH0_CU_EN_MASK ==
+                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE3__SA0_CU_EN_MASK) &&
+               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE3__SH1_CU_EN_MASK ==
+                Gfx10::COMPUTE_STATIC_THREAD_MGMT_SE3__SA1_CU_EN_MASK)),
+               "COMPUTE_STATIC_THREAD_MGMT regs have changed between GFX9 and 10!");
 
 // =====================================================================================================================
 void ComputeCmdBuffer::CmdCopyMemory(
@@ -600,6 +624,16 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
                                                   ShaderCompute,
                                                   &indirectGpuVirtAddr,
                                                   pCmdSpace);
+    }
+
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = {};
+        dispatchTunnel.u32All                     = 0;
+
+        pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(Gfx10::mmCOMPUTE_DISPATCH_TUNNEL,
+                                                                dispatchTunnel.u32All,
+                                                                pCmdSpace);
     }
 
     return pCmdSpace;

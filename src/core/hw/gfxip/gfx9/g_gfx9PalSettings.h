@@ -64,6 +64,13 @@ enum Gfx9NggPipelineType : uint32
     NggPipelineTypeAll = 15
 };
 
+enum Gfx10CopyDst : uint32
+{
+    Gfx10CopyDstAlwaysAllow = 0,
+    Gfx10CopyDstNeverAllow = 1,
+    Gfx10CopyDstAllowForReadableFormats = 2
+};
+
 enum Gfx9PrintMetaEquationInfo : uint32
 {
     Gfx9PrintMetaEquationInfoEquations = 1,
@@ -76,6 +83,27 @@ enum Gfx9OptimizedFastClear : uint32
     Gfx9OptimizedFastClearColorCmask = 1,
     Gfx9OptimizedFastClearColorDcc = 2,
     Gfx9OptimizedFastClearDepth = 4
+};
+
+enum Gfx10ForceWaveBreakSize : uint32
+{
+    Gfx10ForceWaveBreakSizeNone = 0,
+    Gfx10ForceWaveBreakSize8x8 = 1,
+    Gfx10ForceWaveBreakSize16x16 = 2,
+    Gfx10ForceWaveBreakSize32x32 = 3,
+    Gfx10ForceWaveBreakSizeClient = 4,
+    Gfx10ForceWaveBreakSizeAuto = 5,
+    Gfx10CheckIndicies = 8
+};
+
+enum Gfx10UseCompToSingle : uint32
+{
+    Gfx10UseCompToSingleNone = 0,
+    Gfx10UseCompToSingle2d = 1,
+    Gfx10UseCompToSingle2dArray = 2,
+    Gfx10UseCompToSingleMsaa = 4,
+    Gfx10UseCompToSingle3D = 8,
+    Gfx10DisableCompToReg = 16
 };
 
 enum Gfx9DccOnCompute : uint32
@@ -95,6 +123,8 @@ enum Gfx9UseDcc : uint32
     Gfx9UseDccMultiSample8x = 64,
     Gfx9UseDccEqaa = 128,
     Gfx9UseDccForNonReadableFormats = 256,
+    Gfx10UseDccRenderTargetUav = 512,
+    Gfx10UseDccNonRenderTargetUav = 1024
 };
 
 enum LateAllocVsBehavior : uint32
@@ -147,6 +177,7 @@ enum Gfx9PrefetchCommands : uint32
 struct Gfx9PalSettings : public Pal::DriverSettings
 {
     bool                                        enableLoadIndexForObjectBinds;
+    Gfx10CopyDst                                copyDstIsCompressed;
 
     bool                                        disableBorderColorPaletteBinds;
     bool                                        drainPsOnOverlap;
@@ -155,6 +186,11 @@ struct Gfx9PalSettings : public Pal::DriverSettings
     uint32                                      optimizedFastClear;
     uint32                                      alwaysDecompress;
     bool                                        treat1dAs2d;
+    Gfx10ForceWaveBreakSize                     forceWaveBreakSize;
+
+    bool                                        sdmaPreferCompressedSource;
+
+    uint32                                      useCompToSingle;
 
     bool                                        forceRegularClearCode;
     bool                                        forceGraphicsFillMemoryPath;
@@ -199,6 +235,11 @@ struct Gfx9PalSettings : public Pal::DriverSettings
     uint32                                      trapezoidDistributionFactor;
     uint32                                      primGroupSize;
     bool                                        gfx9RbPlusEnable;
+    uint32                                      gfx10SpiShaderLateAllocVsNumLines;
+
+    uint32                                      gfx10GePcAllocNumLinesPerSeLegacyNggPassthru;
+
+    uint32                                      gfx10GePcAllocNumLinesPerSeNggCulling;
 
     uint32                                      numPsWavesSoftGroupedPerCu;
     uint32                                      numVsWavesSoftGroupedPerCu;
@@ -234,6 +275,10 @@ struct Gfx9PalSettings : public Pal::DriverSettings
     float                                       nggDisableCullingValuInstrThreshold;
     Gfx9BinningMode                             binningMode;
     uint32                                      customBatchBinSize;
+    struct {
+        uint16                                      width;
+        uint16                                      height;
+    } minBatchBinSize;
 
     bool                                        disableBinningPsKill;
     bool                                        disableBinningNoDb;
@@ -261,9 +306,15 @@ struct Gfx9PalSettings : public Pal::DriverSettings
 
     bool                                        waLogicOpDisablesOverwriteCombiner;
     bool                                        waRotatedSwizzleDisablesOverwriteCombiner;
+    bool                                        waDisableFmaskNofetchOpOnFmaskCompressionDisable;
+
+    bool                                        waFixPostZConservativeRasterization;
+
+    bool                                        waClampQuadDistributionFactor;
 
     bool                                        waWrite1xAASampleLocationsToZero;
     bool                                        waColorCacheControllerInvalidEviction;
+    bool                                        waForceZonlyHtileForMipmaps;
 
     bool                                        waOverwriteCombinerTargetMaskOnly;
     bool                                        waDisableHtilePrefetch;
@@ -278,8 +329,29 @@ struct Gfx9PalSettings : public Pal::DriverSettings
     bool                                        waForce256bCbFetch;
     bool                                        waCmaskImageSyncs;
 
+    bool                                        waTessFactorBufferSizeLimitGeUtcl1Underflow;
+
+    bool                                        waSdmaPreventCompressedSurfUse;
+
+    bool                                        waVgtFlushNggToLegacyGs;
+
+    bool                                        waEnableIndexBufferPrefetchForNgg;
+
+    bool                                        waZ16Unorm1xAaDecompressUninitialized;
+
+    bool                                        waLateAllocGs0;
+
+    bool                                        waIndexBufferZeroSize;
+
+    bool                                        waStalledPopsMode;
+
+    bool                                        waTwoPlanesIterate256;
+
+    bool                                        waTessIncorrectRelativeIndex;
+
 };
 static const char* pEnableLoadIndexForObjectBindsStr = "#2416072074";
+static const char* pCopyDstIsCompressedStr = "#3919048798";
 
 static const char* pDisableBorderColorPaletteBindsStr = "#3825276041";
 static const char* pDrainPsOnOverlapStr = "#2630919068";
@@ -288,6 +360,11 @@ static const char* pProcessMetaEquationViaCpuStr = "#3623936311";
 static const char* pOptimizedFastClearStr = "#1875719625";
 static const char* pAlwaysDecompressStr = "#2887583419";
 static const char* pTreat1dAs2dStr = "#648332656";
+static const char* pForceWaveBreakSizeStr = "#3257946177";
+
+static const char* pSdmaPreferCompressedSourceStr = "#1884222990";
+
+static const char* pUseCompToSingleStr = "#3110040174";
 
 static const char* pForceRegularClearCodeStr = "#2537383476";
 static const char* pForceGraphicsFillMemoryPathStr = "#451570688";
@@ -332,6 +409,11 @@ static const char* pDonutDistributionFactorStr = "#891881186";
 static const char* pTrapezoidDistributionFactorStr = "#674984646";
 static const char* pPrimgroupSizeStr = "#3402504325";
 static const char* pRbPlusEnableStr = "#2122164302";
+static const char* pGfx10SpiShaderLateAllocVsNumLinesStr = "#1830704021";
+
+static const char* pGfx10GePcAllocNumLinesPerSeLegacyNggPassthruStr = "#2459292446";
+
+static const char* pGfx10GePcAllocNumLinesPerSeNggCullingStr = "#665472713";
 
 static const char* pNumPsWavesSoftGroupedPerCuStr = "#1871590621";
 static const char* pNumVsWavesSoftGroupedPerCuStr = "#4021132771";
@@ -367,6 +449,9 @@ static const char* pNggDisableCullingVmemInstrThresholdStr = "#2329541169";
 static const char* pNggDisableCullingValuInstrThresholdStr = "#742646984";
 static const char* pDeferredBatchBinModeStr = "#4130214844";
 static const char* pCustomBatchBinSizeStr = "#207210078";
+static const char* pMinBatchBinSize_WidthStr = "#431998177";
+
+static const char* pMinBatchBinSize_HeightStr = "#286301360";
 
 static const char* pDisableBinningPsKillStr = "#1197165395";
 static const char* pDisableBinningNoDbStr = "#2139865571";
@@ -394,9 +479,15 @@ static const char* pWaRestrictMetaDataUseInMipTailStr = "#599120928";
 
 static const char* pWaLogicOpDisablesOverwriteCombinerStr = "#2566203469";
 static const char* pWaRotatedSwizzleDisablesOverwriteCombinerStr = "#863498563";
+static const char* pWaDisableFmaskNofetchOpOnFmaskCompressionDisableStr = "#1971936918";
+
+static const char* pWaFixPostZConservativeRasterizationStr = "#3779046012";
+
+static const char* pWaClampQuadDistributionFactorStr = "#2022937678";
 
 static const char* pWaWrite1xAASampleLocationsToZeroStr = "#2042380720";
 static const char* pWaColorCacheControllerInvalidEvictionStr = "#2330368444";
+static const char* pWaForceZonlyHtileForMipmapsStr = "#860624612";
 
 static const char* pWaOverwriteCombinerTargetMaskOnlyStr = "#1670732044";
 static const char* pWaDisableHtilePrefetchStr = "#4011209522";
@@ -411,9 +502,30 @@ static const char* pWaMetaAliasingFixEnabledStr = "#3182155668";
 static const char* pWaForce256bCbFetchStr = "#2944333716";
 static const char* pWaCmaskImageSyncsStr = "#3002384369";
 
+static const char* pWaTessFactorBufferSizeLimitGeUtcl1UnderflowStr = "#1289747262";
+
+static const char* pWaSdmaPreventCompressedSurfUseStr = "#1236556278";
+
+static const char* pWaVgtFlushNggToLegacyGsStr = "#1821581352";
+
+static const char* pWaEnableIndexBufferPrefetchForNggStr = "#816147502";
+
+static const char* pWaZ16Unorm1xAaDecompressUninitializedStr = "#575442222";
+
+static const char* pWaLateAllocGs0Str = "#1163996140";
+
+static const char* pWaIndexBufferZeroSizeStr = "#2561313302";
+
+static const char* pWaStalledPopsModeStr = "#54918207";
+
+static const char* pWaTwoPlanesIterate256Str = "#164975373";
+
+static const char* pWaTessIncorrectRelativeIndexStr = "#3815932601";
+
 static const uint32 g_gfx9PalNumSettings = 161;
 static const SettingNameHash g_gfx9PalSettingHashList[] = {
 2416072074,
+3919048798,
 
 3825276041,
 2630919068,
@@ -422,6 +534,11 @@ static const SettingNameHash g_gfx9PalSettingHashList[] = {
 1875719625,
 2887583419,
 648332656,
+3257946177,
+
+1884222990,
+
+3110040174,
 
 2537383476,
 451570688,
@@ -466,6 +583,11 @@ static const SettingNameHash g_gfx9PalSettingHashList[] = {
 674984646,
 3402504325,
 2122164302,
+1830704021,
+
+2459292446,
+
+665472713,
 
 1871590621,
 4021132771,
@@ -501,6 +623,9 @@ static const SettingNameHash g_gfx9PalSettingHashList[] = {
 742646984,
 4130214844,
 207210078,
+431998177,
+
+286301360,
 
 1197165395,
 2139865571,
@@ -528,9 +653,15 @@ static const SettingNameHash g_gfx9PalSettingHashList[] = {
 
 2566203469,
 863498563,
+1971936918,
+
+3779046012,
+
+2022937678,
 
 2042380720,
 2330368444,
+860624612,
 
 1670732044,
 4011209522,
@@ -544,6 +675,26 @@ static const SettingNameHash g_gfx9PalSettingHashList[] = {
 3182155668,
 2944333716,
 3002384369,
+
+1289747262,
+
+1236556278,
+
+1821581352,
+
+816147502,
+
+575442222,
+
+1163996140,
+
+2561313302,
+
+54918207,
+
+164975373,
+
+3815932601,
 
 };
 

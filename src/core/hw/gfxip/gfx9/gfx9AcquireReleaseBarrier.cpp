@@ -372,6 +372,44 @@ static void UpdateCmdBufStateFromAcquire(
 }
 
 // =====================================================================================================================
+// Translate acquire's accessMask to CoherCntl.
+static uint32 Gfx10BuildAcquireCoherCntl(
+    EngineType                    engineType,
+    uint32                        accessMask,
+    Developer::BarrierOperations* pBarrierOps)
+{
+    PAL_ASSERT(pBarrierOps != nullptr);
+    // K$ and I$ and all previous tcCacheOp controlled caches are moved to GCR fields, set in CalcAcquireMemGcrCntl().
+    regCP_COHER_CNTL cpCoherCntl = {};
+
+    // We do direct conversion from accessMask to hardware cache sync bits to avoid the unnecessary transition to
+    // cacheSyncFlags. We don't want transition gfx10's accessMask to cacheSyncFlags because cacheSyncFlags are Gfx9
+    // style.
+    const bool wbInvCbData = TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear | CoherColorTarget);
+    const bool wbInvDb     = TestAnyFlagSet(accessMask, CoherCopy    |
+                                                        CoherResolve |
+                                                        CoherClear   |
+                                                        CoherDepthStencilTarget);
+
+    if (wbInvCbData)
+    {
+        cpCoherCntl.bits.CB_ACTION_ENA = 1;
+        pBarrierOps->caches.invalCb    = 1;
+        pBarrierOps->caches.flushCb    = 1;
+    }
+    if (wbInvDb)
+    {
+        cpCoherCntl.bits.DB_ACTION_ENA      = 1;
+        pBarrierOps->caches.invalDb         = 1;
+        pBarrierOps->caches.flushDb         = 1;
+        pBarrierOps->caches.invalDbMetadata = 1;
+        pBarrierOps->caches.flushDbMetadata = 1;
+    }
+
+    return cpCoherCntl.u32All;
+}
+
+// =====================================================================================================================
 // Wrapper to call RPM's InitMaskRam to issues a compute shader blt to initialize the Mask RAM allocatons for an Image.
 // Returns "true" if the compute engine was used for the InitMaskRam operation.
 bool Device::AcqRelInitMaskRam(
@@ -833,9 +871,17 @@ HwLayoutTransition Device::ConvertToDepthStencilBlt(
         // Use compute if:
         //   - We're on the compute engine
         //   - or we should force ExpandHiZRange for resummarize and we support compute operations
-        const bool useCompute =
-            ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
-             (Pal::Image::ForceExpandHiZRangeForResummarize && pCmdBuf->IsComputeSupported()));
+        //   - or we have a workaround which indicates if we need to use the compute path.
+        const auto& createInfo = image.GetImageCreateInfo();
+        const bool  z16Unorm1xAaDecompressUninitializedActive =
+            (Settings().waZ16Unorm1xAaDecompressUninitialized &&
+             (createInfo.samples == 1) &&
+             ((createInfo.swizzledFormat.format == ChNumFormat::X16_Unorm) ||
+              (createInfo.swizzledFormat.format == ChNumFormat::D16_Unorm_S8_Uint)));
+        const bool  useCompute = ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
+                                  (pCmdBuf->IsComputeSupported() &&
+                                   (Pal::Image::ForceExpandHiZRangeForResummarize ||
+                                    z16Unorm1xAaDecompressUninitializedActive)));
         if (useCompute)
         {
             // CS blit to open-up the HiZ range.
@@ -1713,6 +1759,12 @@ size_t Device::BuildReleaseSyncPackets(
 
         requestCacheSync = (releaseMemInfo.coherCntl != 0);
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        releaseMemInfo.gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
+
+        requestCacheSync = (releaseMemInfo.gcrCntl != 0);
+    }
 
     // If we have cache sync request yet don't issue any VGT event, we need to issue a dummy one.
     if (requestCacheSync && (vgtEventCount == 0))
@@ -1794,6 +1846,54 @@ uint32 Device::Gfx9BuildReleaseCoherCntl(
 }
 
 // =====================================================================================================================
+// Translate accessMask to syncReqs.cacheFlags. (CacheCoherencyUsageFlags -> GcrCntl)
+uint32 Device::Gfx10BuildReleaseGcrCntl(
+    uint32                        accessMask,
+    bool                          flushGl2,
+    Developer::BarrierOperations* pBarrierOps
+    ) const
+{
+    PAL_ASSERT(pBarrierOps != nullptr);
+    Gfx10ReleaseMemGcrCntl gcrCntl = {};
+
+    if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory))
+    {
+        // At release we want to invalidate L2 so any future read to L2 would go down to memory, at acquire we want to
+        // flush L2 so that main memory gets the latest data.
+        gcrCntl.bits.gl2Inv = 1;
+        pBarrierOps->caches.invalTcc = 1;
+    }
+
+    // Setup GL2Range and Sequence only if cache flush/inv is requested.
+    if (gcrCntl.u32All != 0)
+    {
+        // GL2_RANGE[1:0]
+        //  0:ALL          wb/inv op applies to entire physical cache (ignore range)
+        //  1:VOL          wb/inv op applies to all volatile tagged lines in the GL2 (ignore range)
+        //  2:RANGE      - wb/inv ops applies to just the base/limit virtual address range
+        //  3:FIRST_LAST - wb/inv ops applies to 128B at BASE_VA and 128B at LIMIT_VA
+        gcrCntl.bits.gl2Range = 0; // ReleaseMem doesn't support RANGE.
+
+        // SEQ[1:0]   controls the sequence of operations on the cache hierarchy (L0/L1/L2)
+        //      0: PARALLEL   initiate wb/inv ops on specified caches at same time
+        //      1: FORWARD    L0 then L1/L2, complete L0 ops then initiate L1/L2
+        //                    Typically only needed when doing WB of L0 K$, M$, or RB w/ WB of GL2
+        //      2: REVERSE    L2 -> L1 -> L0
+        //                    Typically only used for post-unaligned-DMA operation (invalidate only)
+        // Because GCR can issue any cache flush, we need to ensure the flush sequence unconditionally.
+        gcrCntl.bits.seq = 1;
+    }
+
+    if (flushGl2)
+    {
+        gcrCntl.bits.gl2Wb = 1;
+        pBarrierOps->caches.flushTcc = 1;
+    }
+
+    return gcrCntl.u32All;
+}
+
+// =====================================================================================================================
 // Build the necessary packets to fulfill the requested cache sync for acquire.
 size_t Device::BuildAcquireSyncPackets(
     EngineType                    engineType,
@@ -1850,8 +1950,127 @@ size_t Device::BuildAcquireSyncPackets(
                                                                VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
         }
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
+        {
+            acquireMemInfo.coherCntl = Gfx10BuildAcquireCoherCntl(engineType, accessMask, pBarrierOps);
+        }
+
+        // The only difference between the GFX9 and GFX10 versions of this packet are that GFX10
+        // added a new "gcr_cntl" field.
+        acquireMemInfo.gcrCntl = Gfx10BuildAcquireGcrCntl(accessMask,
+                                                          invalidateLlc,
+                                                          baseAddress,
+                                                          sizeBytes,
+                                                          (acquireMemInfo.coherCntl != 0),
+                                                          pBarrierOps);
+
+        // Build ACQUIRE_MEM packet.
+        dwordsWritten += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo,
+                                                           VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
+    }
 
     return dwordsWritten;
+}
+
+// =====================================================================================================================
+// Translate accessMask to GcrCntl.
+uint32 Device::Gfx10BuildAcquireGcrCntl(
+    uint32                        accessMask,
+    bool                          invalidateGl2,
+    gpusize                       baseAddress,
+    gpusize                       sizeBytes,
+    bool                          isFlushing,
+    Developer::BarrierOperations* pBarrierOps
+    ) const
+{
+    PAL_ASSERT(pBarrierOps != nullptr);
+    // K$ and I$ and all previous tcCacheOp controlled caches are moved to GCR fields, set in CalcAcquireMemGcrCntl().
+
+    // Cache operations supported by ACQUIRE_MEM's gcr_cntl.
+    Gfx10AcquireMemGcrCntl gcrCntl = {};
+
+    // The L1 / L2 caches are physical address based. When specify the range, the GCR will perform virtual address
+    // to physical address translation before the wb / inv. If the acquired op is full sync, we must ignore the range,
+    // otherwise page fault may occur because page table cannot cover full range virtual address.
+    //    When the source address is virtual , the GCR block will have to perform the virtual address to physical
+    //    address translation before the wb / inv. Since the pages in memory are a collection of fragments, you can't
+    //    specify the full range without walking into a page that has no PTE triggering a fault. In the cases where
+    //    the driver wants to wb / inv the entire cache, you should not use range based method, and instead flush the
+    //    entire cache without it. The range based method is not meant to be used this way, it is for selective page
+    //    invalidation.
+    //
+    // GL1_RANGE[1:0] - range control for L0 / L1 physical caches(K$, V$, M$, GL1)
+    //  0:ALL         - wb / inv op applies to entire physical cache (ignore range)
+    //  1:reserved
+    //  2:RANGE       - wb / inv op applies to just the base / limit virtual address range
+    //  3:FIRST_LAST  - wb / inv op applies to 128B at BASE_VA and 128B at LIMIT_VA
+    //
+    // GL2_RANGE[1:0]
+    //  0:ALL         - wb / inv op applies to entire physical cache (ignore range)
+    //  1:VOL         - wb / inv op applies to all volatile tagged lines in the GL2 (ignore range)
+    //  2:RANGE       - wb / inv op applies to just the base/limit virtual address range
+    //  3:FIRST_LAST  - wb / inv op applies to 128B at BASE_VA and 128B at LIMIT_VA
+    if (((baseAddress == FullSyncBaseAddr) && (sizeBytes == FullSyncSize)) ||
+        (sizeBytes > CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes))
+    {
+        gcrCntl.bits.gl1Range = 0;
+        gcrCntl.bits.gl2Range = 0;
+    }
+    else
+    {
+        {
+            gcrCntl.bits.gl1Range = 2;
+            gcrCntl.bits.gl2Range = 2;
+        }
+    }
+
+    const bool isShaderCacheDirty = TestAnyFlagSet(accessMask, CoherShader  |
+                                                               CoherCopy    |
+                                                               CoherResolve |
+                                                               CoherClear   |
+                                                               CoherStreamOut);
+
+    // GLM_WB[0]  - write-back control for the meta-data cache of GL2. L2MD is write-through, ignore this bit.
+    // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
+    // GLK_WB[0]  - write-back control for shaded scalar L0 cache
+    // GLK_INV[0] - invalidate enable for shader scalar L0 cache
+    // GLV_INV[0] - invalidate enable for shader vector L0 cache
+    // GL1_INV[0] - invalidate enable for GL1
+    // GL2_INV[0] - invalidate enable for GL2
+    // GL2_WB[0]  - writeback enable for GL2
+    gcrCntl.bits.glmWb  = 0;
+    gcrCntl.bits.glmInv = isShaderCacheDirty;
+    gcrCntl.bits.glkWb  = 0;
+    gcrCntl.bits.glkInv = isShaderCacheDirty;
+    gcrCntl.bits.glvInv = isShaderCacheDirty;
+    gcrCntl.bits.gl1Inv = isShaderCacheDirty;
+
+    // Leave gcrCntl.bits.gl2Us unset.
+    // Leave gcrCntl.bits.gl2Discard unset.
+    gcrCntl.bits.gl2Inv = invalidateGl2;
+    gcrCntl.bits.gl2Wb  = TestAnyFlagSet(accessMask, CoherCpu | CoherMemory);
+
+    pBarrierOps->caches.invalSqK$        |= isShaderCacheDirty;
+    pBarrierOps->caches.invalTcp         |= isShaderCacheDirty;
+    pBarrierOps->caches.invalTccMetadata |= isShaderCacheDirty;
+    pBarrierOps->caches.invalGl1         |= isShaderCacheDirty;
+    pBarrierOps->caches.invalTcc         |= invalidateGl2;
+    pBarrierOps->caches.flushTcc         |= TestAnyFlagSet(accessMask, CoherCpu | CoherMemory);
+
+    // SEQ[1:0]   controls the sequence of operations on the cache hierarchy (L0/L1/L2)
+    //      0: PARALLEL   initiate wb/inv ops on specified caches at same time
+    //      1: FORWARD    L0 then L1/L2, complete L0 ops then initiate L1/L2
+    //                    Typically only needed when doing WB of L0 K$, M$, or RB w/ WB of GL2
+    //      2: REVERSE    L2 -> L1 -> L0
+    //                    Typically only used for post-unaligned-DMA operation (invalidate only)
+    // If we're issuing an RB cache flush while writing back GL2, we need to ensure the bottom-up flush sequence.
+    //  Note: If we ever start flushing K$ or M$, isFlushing should be updated
+    PAL_ASSERT((gcrCntl.bits.glmWb == 0) && (gcrCntl.bits.glkWb == 0));
+    gcrCntl.bits.seq = (isFlushing && gcrCntl.bits.gl2Wb) ? 1 : 0;
+
+    return gcrCntl.u32All;
 }
 
 } // Gfx9

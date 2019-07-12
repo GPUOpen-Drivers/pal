@@ -133,6 +133,16 @@ private:
                 PM4_ME_SET_SH_REG             hdrSpiShaderUserData;
                 regSPI_SHADER_USER_DATA_PS_1  spiShaderUserDataLoPs;
 
+                // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be used.
+                PM4_ME_SET_SH_REG             hdrSpishaderUserAccumPs;
+                regSPI_SHADER_USER_ACCUM_PS_0 shaderUserAccumPs0;
+                regSPI_SHADER_USER_ACCUM_PS_1 shaderUserAccumPs1;
+                regSPI_SHADER_USER_ACCUM_PS_2 shaderUserAccumPs2;
+                regSPI_SHADER_USER_ACCUM_PS_3 shaderUserAccumPs3;
+
+                PM4_ME_SET_SH_REG             hdrShaderReqCtrlPs;
+                regSPI_SHADER_REQ_CTRL_PS     shaderReqCtrlPs;
+
                 // Checksum register is optional, as not all GFX9+ hardware uses it.
                 // If we don't have it, NOP will be used.
                 PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
@@ -154,6 +164,16 @@ private:
                 PM4_ME_SET_SH_REG             hdrSpiShaderUserData;
                 regSPI_SHADER_USER_DATA_VS_1  spiShaderUserDataLoVs;
 
+                // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be added.
+                PM4_ME_SET_SH_REG             hdrSpishaderUserAccumVs;
+                regSPI_SHADER_USER_ACCUM_VS_0 shaderUserAccumVs0;
+                regSPI_SHADER_USER_ACCUM_VS_1 shaderUserAccumVs1;
+                regSPI_SHADER_USER_ACCUM_VS_2 shaderUserAccumVs2;
+                regSPI_SHADER_USER_ACCUM_VS_3 shaderUserAccumVs3;
+
+                PM4_ME_SET_SH_REG             hdrShaderReqCtrlVs;
+                regSPI_SHADER_REQ_CTRL_VS     shaderReqCtrlVs;
+
                 // Checksum register is optional, as not all GFX9+ hardware uses it.
                 // If we don't have it, NOP will be added.
                 PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
@@ -171,6 +191,9 @@ private:
                 PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc3Ps;
                 regSPI_SHADER_PGM_RSRC3_PS  spiShaderPgmRsrc3Ps;
 
+                PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc4Ps;
+                regSPI_SHADER_PGM_RSRC4_PS  spiShaderPgmRsrc4Ps;
+
                 // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
                 // w/ the actual commands contained above.
                 size_t  spaceNeeded;
@@ -181,6 +204,8 @@ private:
                 PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc3Vs;
                 regSPI_SHADER_PGM_RSRC3_VS  spiShaderPgmRsrc3Vs;
 
+                PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc4Vs;
+                regSPI_SHADER_PGM_RSRC4_VS  spiShaderPgmRsrc4Vs;
                 // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
                 // w/ the actual commands contained above.
                 size_t  spaceNeeded;
@@ -253,6 +278,7 @@ private:
     Pm4Commands    m_commands;
 
     regPA_SC_SHADER_CONTROL  m_paScShaderControl;
+    bool                     m_calcWaveBreakAtDrawTime;
 
     const PerfDataInfo*const  m_pVsPerfDataInfo;   // VS performance data information.
     const PerfDataInfo*const  m_pPsPerfDataInfo;   // PS performance data information.

@@ -45,6 +45,7 @@ endfunction()
                 option(ADDR_SI_BUILD         "Build support for SI?"         OFF                                               )
 cmake_dependent_option(ADDR_CI_BUILD         "Build support for CI?"         ON  "ADDR_SI_BUILD"                            OFF)
                 option(ADDR_GFX9_BUILD       "Build support for GFX9?"       OFF                                               )
+                option(ADDR_GFX10_BUILD      "Build support for GFX10?"      OFF                                               )
 cmake_dependent_option(ADDR_VEGA20_BUILD     "Build support for Vega 20?"    ON  "ADDR_GFX9_BUILD"                          OFF)
 cmake_dependent_option(ADDR_RAVEN1_BUILD     "Build support for Raven 1?"    ON  "ADDR_GFX9_BUILD"                          OFF)
 cmake_dependent_option(ADDR_VEGA12_BUILD     "Build support for Vega 12?"    ON  "ADDR_GFX9_BUILD"                          OFF)
@@ -130,6 +131,17 @@ if(ADDR_GFX9_BUILD)
     if(ADDR_RAVEN2_BUILD)
         target_compile_definitions(addrlib PRIVATE ADDR_RAVEN2_BUILD)
     endif()
+endif()
+
+if(ADDR_GFX10_BUILD)
+    target_sources(addrlib PRIVATE src/chip/gfx10/gfx10_gb_reg.h
+                                   src/gfx10/gfx10SwizzlePattern.h
+                                   src/gfx10/gfx10addrlib.h
+                                   src/gfx10/gfx10addrlib.cpp)
+
+    target_include_directories(addrlib PRIVATE src/chip/gfx10)
+
+    target_compile_definitions(addrlib PRIVATE ADDR_GFX10_BUILD)
 endif()
 
     target_sources(addrlib PRIVATE src/amdgpu_asic_addr.h)

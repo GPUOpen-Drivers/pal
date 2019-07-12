@@ -79,6 +79,7 @@ void MsaaState::BuildPm4Headers()
     memset(&m_pm4Image, 0, sizeof(m_pm4Image));
 
     const CmdUtil& cmdUtil  = m_device.CmdUtil();
+    const auto&    settings = GetGfx9Settings(*m_device.Parent());
 
     // 1st PM4 packet
     m_pm4Image.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_EQAA, &m_pm4Image.hdrDbEqaa);
@@ -107,6 +108,15 @@ void MsaaState::BuildPm4Headers()
                                 aaConfigMask,
                                 0,
                                 &m_pm4Image.paScAaConfig);
+
+    if (settings.waFixPostZConservativeRasterization)
+    {
+        m_pm4Image.spaceNeeded += cmdUtil.BuildContextRegRmw(
+                cmdUtil.GetRegInfo().mmDbDepthInfo,
+                static_cast<uint32>(~Nv10::DB_RESERVED_REG_2__FIELD_1_MASK),
+                0, // filled in by the "Init" function
+                &m_pm4Image.dbReservedReg2);
+    }
 
     //     Driver must insert FLUSH_DFSM event whenever the AA mode changes if force_punchout is set to
     //     auto as well as channel mask changes (ARGB to RGB)
@@ -289,6 +299,21 @@ Result MsaaState::Init(
     }
 
     m_pm4Image.paScAaConfig.reg_data = paScAaConfig.u32All;
+
+    if (settings.waFixPostZConservativeRasterization &&
+        (TestAllFlagsSet(m_pm4Image.paScAaMask1.u32All, ((1 << msaaState.exposedSamples) - 1)) == false))
+    {
+        //    We have an issue in Navi10 related to Late - Z Conservative rasterization when the mask is partially lit.
+        //
+        //    The logic that determines whether the mask is partially lit needs to be fed into an existing piece of
+        //    logic.  Unfortunately, when we do this as an ECO, it creates a giant logic cone and breaks timing.
+        //
+        //    A compromise solution is to define a context register that lets hardware know that the mask is partially
+        //    lit.  The SWA would require that when PA_SC_AA_MASK_AA_MASK is partially lit with the number of
+        //    samples defined by PA_SC_AA_CONFIG_MSAA_EXPOSED_SAMPLES, software would need to write the corresponding
+        //    "PARTIALLY LIT" bit for that context.
+        m_pm4Image.dbReservedReg2.reg_data = Nv10::DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
+    }
 
     if (settings.waWrite1xAASampleLocationsToZero && (m_log2Samples == 0) && (usedMask != 0))
     {

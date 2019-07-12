@@ -103,6 +103,12 @@ private:
             PM4_ME_SET_SH_REG             hdrSpiShaderUserDataHs;
             uint32                        spiShaderUserDataLoHs;
 
+            // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be added.
+            PM4_ME_SET_SH_REG               hdrSpishaderUserAccumLshs;
+            regSPI_SHADER_USER_ACCUM_LSHS_0 shaderUserAccumLshs0;
+            regSPI_SHADER_USER_ACCUM_LSHS_1 shaderUserAccumLshs1;
+            regSPI_SHADER_USER_ACCUM_LSHS_2 shaderUserAccumLshs2;
+            regSPI_SHADER_USER_ACCUM_LSHS_3 shaderUserAccumLshs3;
             // Checksum register is optional, as not all GFX9+ hardware uses it. If we don't have it, NOP will be added.
             PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
             regSPI_SHADER_PGM_CHKSUM_HS  spiShaderPgmChksumHs;
@@ -122,6 +128,9 @@ private:
         {
             PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc3Hs;
             regSPI_SHADER_PGM_RSRC3_HS  spiShaderPgmRsrc3Hs;
+
+            PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc4Hs;
+            regSPI_SHADER_PGM_RSRC4_HS  spiShaderPgmRsrc4Hs;
 
             // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
             // w/ the actual commands contained above.

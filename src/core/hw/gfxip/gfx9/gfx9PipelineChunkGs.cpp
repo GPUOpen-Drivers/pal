@@ -57,7 +57,10 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmVGT_GS_PER_VS
     1 + // mmVGT_GSVS_RING_ITEMSIZE
     1 + // mmVGT_ESGS_RING_ITEMSIZE
-    1;  // mmVGT_GS_MAX_PRIMS_PER_SUBGROUP
+    1 + // mmVGT_GS_MAX_PRIMS_PER_SUBGROUP or mmGE_MAX_OUTPUT_PER_SUBGROUP, depending on GfxIp version
+    0 + // mmSPI_SHADER_IDX_FORMAT is not included because it is not present on all HW
+    0 + // mmGE_NGG_SUBGRP_CNTL is not included because it is not present on all HW
+    0;  // mmSPI_SHADER_USER_ACCUM_ESGS_0...3 are not included because it is not present on all HW
 
 // =====================================================================================================================
 PipelineChunkGs::PipelineChunkGs(
@@ -88,6 +91,20 @@ void PipelineChunkGs::EarlyInit(
     {
         pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
         pInfo->loadedShRegCount  += (BaseLoadedShRegCount + chipProps.gfx9.supportSpp);
+
+        // Handle GFX10 specific context registers
+        if (IsGfx10(chipProps.gfxLevel))
+        {
+            // mmSPI_SHADER_IDX_FORMAT
+            // mmGE_NGG_SUBGRP_CNTL
+            pInfo->loadedCtxRegCount += 2;
+
+            if (chipProps.gfx9.supportSpiPrefPriority)
+            {
+                // mmSPI_SHADER_USER_ACCUM_ESGS_0...3
+                pInfo->loadedShRegCount += 4;
+            }
+        }
 
         // Up to two additional SH registers will be loaded for on-chip GS or NGG pipelines for the ES/GS LDS sizes.
         if (pInfo->enableNgg)
@@ -156,6 +173,14 @@ void PipelineChunkGs::LateInit(
     // always use the setting PAL prefers.
     m_commands.sh.spiShaderPgmRsrc1Gs.bits.CU_GROUP_ENABLE = (settings.gsCuGroupEnabled ? 1 : 0);
 
+    if (chipProps.gfx9.supportSpiPrefPriority)
+    {
+        registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0, &m_commands.sh.shaderUserAccumEsgs0.u32All);
+        registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_1, &m_commands.sh.shaderUserAccumEsgs1.u32All);
+        registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_2, &m_commands.sh.shaderUserAccumEsgs2.u32All);
+        registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_3, &m_commands.sh.shaderUserAccumEsgs3.u32All);
+    }
+
     uint32 lateAllocWaves  = settings.lateAllocGs;
     uint16 gsCuDisableMask = 0;
     if (loadInfo.enableNgg)
@@ -191,6 +216,12 @@ void PipelineChunkGs::LateInit(
     {
         // It is possible, with an NGG shader, that late-alloc GS waves can deadlock the PS.  To prevent this hang
         // situation, we need to mask off one CU when NGG is enabled.
+        if (IsGfx10(chipProps.gfxLevel))
+        {
+            // Both CU's of a WGP need to be disabled for better performance.
+            gsCuDisableMask = 0xC;
+        }
+        else
         {
             // Disable virtualized CU #1 instead of #0 because thread traces use CU #0 by default.
             gsCuDisableMask = 0x2;
@@ -202,6 +233,15 @@ void PipelineChunkGs::LateInit(
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
         m_commands.dynamic.spiShaderPgmRsrc4Gs.gfx09.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
+    }
+    else // Gfx10+
+    {
+        // Note that SPI_SHADER_PGM_RSRC4_GS has a totally different layout on Gfx10+ vs. Gfx9!
+        m_commands.dynamic.spiShaderPgmRsrc4Gs.gfx10.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
+
+        const uint16 gsCuDisableMaskHi = 0;
+        m_commands.dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN = m_device.GetCuEnableMaskHi(gsCuDisableMaskHi,
+                                                                                        settings.gsCuEnLimitMask);
     }
 
     if (chipProps.gfx9.supportSpp != 0)
@@ -236,6 +276,12 @@ void PipelineChunkGs::LateInit(
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
         m_commands.context.maxPrimsPerSubgrp.u32All = registers.At(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP);
+    }
+    else
+    {
+        m_commands.context.maxPrimsPerSubgrp.u32All  = registers.At(Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP);
+        m_commands.context.spiShaderIdxFormat.u32All = registers.At(Gfx10::mmSPI_SHADER_IDX_FORMAT);
+        m_commands.context.geNggSubgrpCntl.u32All    = registers.At(Gfx10::mmGE_NGG_SUBGRP_CNTL);
     }
 
     pHasher->Update(m_commands.context);
@@ -282,6 +328,20 @@ void PipelineChunkGs::LateInit(
         {
             pUploader->AddCtxReg(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP, m_commands.context.maxPrimsPerSubgrp);
         }
+        else // Gfx10+
+        {
+            pUploader->AddCtxReg(Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP, m_commands.context.maxPrimsPerSubgrp);
+            pUploader->AddCtxReg(Gfx10::mmSPI_SHADER_IDX_FORMAT,      m_commands.context.spiShaderIdxFormat);
+            pUploader->AddCtxReg(Gfx10::mmGE_NGG_SUBGRP_CNTL,         m_commands.context.geNggSubgrpCntl);
+
+            if (chipProps.gfx9.supportSpiPrefPriority)
+            {
+                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0, m_commands.sh.shaderUserAccumEsgs0);
+                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_1, m_commands.sh.shaderUserAccumEsgs1);
+                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_2, m_commands.sh.shaderUserAccumEsgs2);
+                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_3, m_commands.sh.shaderUserAccumEsgs3);
+            }
+        }
     }
 }
 
@@ -316,6 +376,11 @@ uint32* PipelineChunkGs::WriteShCommands(
     if (gsStageInfo.cuEnableMask != 0)
     {
         dynamicCmds.spiShaderPgmRsrc3Gs.bits.CU_EN &= gsStageInfo.cuEnableMask;
+        if (dynamicCmds.hdrPgmRsrc4Gs.header.u32All != 0)
+        {
+            dynamicCmds.spiShaderPgmRsrc4Gs.gfx10.CU_EN =
+                Device::AdjustCuEnHi(dynamicCmds.spiShaderPgmRsrc4Gs.gfx10.CU_EN, gsStageInfo.cuEnableMask);
+        }
     }
 
     constexpr uint32 SpaceNeededDynamic = sizeof(m_commands.dynamic) / sizeof(uint32);
@@ -427,6 +492,28 @@ void PipelineChunkGs::BuildPm4Headers(
                                                                  &m_commands.shLds.hdrEsGsSizeForVs);
     }
 
+    if (IsGfx10(chipProps.gfxLevel))
+    {
+        m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(Gfx10::mmSPI_SHADER_IDX_FORMAT,
+                                                                        &m_commands.context.hdrSpiShaderIdxFormat);
+
+        m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(Gfx10::mmGE_NGG_SUBGRP_CNTL,
+                                                                        &m_commands.context.hdrGeNggSubgrpCntl);
+    }
+
+    if (chipProps.gfx9.supportSpiPrefPriority)
+    {
+        m_commands.sh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0,
+                                                               Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_3,
+                                                               ShaderGraphics,
+                                                               &m_commands.sh.hdrshaderUserAccumEsgs);
+    }
+    else
+    {
+        m_commands.sh.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 4,
+                                                      &m_commands.sh.hdrshaderUserAccumEsgs);
+    }
+
     m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_GS_MAX_VERT_OUT,
                                                                     &m_commands.context.hdrVgtGsMaxVertOut);
 
@@ -465,6 +552,14 @@ void PipelineChunkGs::BuildPm4Headers(
         cmdUtil.BuildSetOneShReg(mmSPI_SHADER_PGM_RSRC4_GS,
                                  ShaderGraphics,
                                  &m_commands.dynamic.hdrPgmRsrc4Gs);
+    }
+    else
+    {
+        cmdUtil.BuildSetOneShRegIndex(
+                      mmSPI_SHADER_PGM_RSRC4_GS,
+                      ShaderGraphics,
+                      index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                      &m_commands.dynamic.hdrPgmRsrc4Gs);
     }
 }
 

@@ -157,6 +157,19 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
         }
         break;
 #endif
+    case 10:
+        switch (gfxIpMinorVer)
+        {
+        case 1:
+            switch (gfxIpStepping)
+            {
+            case GfxIpSteppingNavi10:
+                m_flags.machineType = AmdGpuMachineType::Gfx1010;
+                break;
+            }
+            break;
+        }
+        break;
     default:
         PAL_ASSERT_ALWAYS();
         break;
@@ -666,6 +679,11 @@ void PipelineAbiProcessor<Allocator>::GetGfxIpVersion(
         *pGfxIpStepping = 9;
         break;
 #endif
+    case AmdGpuMachineType::Gfx1010:
+        *pGfxIpMajorVer = 10;
+        *pGfxIpMinorVer = 1;
+        *pGfxIpStepping = 0;
+        break;
     default:
         // What is this?
         PAL_ASSERT_ALWAYS();
@@ -1402,6 +1420,23 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
         pOut->pipeline.flags.usesViewportArrayIndex = (metadata.At(indices[type]).value != 0);
         pOut->pipeline.hasEntry.usesViewportArrayIndex = 1;
     }
+
+    type = static_cast<uint32>(PipelineMetadataType::CalcWaveBreakSizeAtDrawTime);
+    if (indices[type] != -1)
+    {
+        pOut->pipeline.flags.calcWaveBreakSizeAtDrawTime = (metadata.At(indices[type]).value != 0);
+        pOut->pipeline.hasEntry.calcWaveBreakSizeAtDrawTime = 1;
+    }
+
+#if PAL_BUILD_GFX10 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
+    type = static_cast<uint32>(PipelineMetadataType::CsWaveFrontSize);
+    if (indices[type] != -1)
+    {
+        constexpr uint32 Cs = static_cast<uint32>(HardwareStage::Cs);
+        pOut->pipeline.hardwareStage[Cs].wavefrontSize = metadata.At(indices[type]).value;
+        pOut->pipeline.hardwareStage[Cs].hasEntry.wavefrontSize = 1;
+    }
+#endif
 
     type = static_cast<uint32>(PipelineMetadataType::PipelineNameIndex);
     if (indices[type] != -1)

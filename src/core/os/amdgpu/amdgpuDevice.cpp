@@ -820,6 +820,7 @@ Result Device::InitGpuProperties()
 #endif
 #if PAL_BUILD_GFX9
     case GfxIpLevel::GfxIp9:
+    case GfxIpLevel::GfxIp10_1:
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_ARCTICISLAND;
         m_pFormatPropertiesTable    = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
         InitGfx9ChipProperties();
@@ -1036,6 +1037,16 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->backendDisableMask |= disabledRbBits << (i * pChipInfo->maxNumRbPerSe);
     }
 
+    if (IsGfx10(m_chipProperties.gfxLevel))
+    {
+        pChipInfo->gfx10.numTcpPerSa    = 10; // GPU__GC__NUM_TCP_PER_SA
+        pChipInfo->gfx10.numWgpAboveSpi =  3; // GPU__GC__NUM_WGP0_PER_SA
+        pChipInfo->gfx10.numWgpBelowSpi =  2; // GPU__GC__NUM_WGP1_PER_SA
+
+        // The number of instances of gl2c is dependent on the number of memory channels.
+        pChipInfo->gfx10.numGl2c = (m_gpuInfo.vram_bit_width / 16);
+    }
+
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
     Gfx9::FinalizeGpuChipProperties(*this, &m_chipProperties);
@@ -1071,6 +1082,33 @@ void Device::InitGfx9CuMask()
 
             const uint32 aoSeMask = (m_gpuInfo.cu_ao_mask >> (seIndex * AlwaysOnSeMaskSize)) & AlwaysOnSeMask;
             pChipInfo->alwaysOnCuMask[seIndex][shIndex] = aoSeMask;
+        }
+    }
+    if (IsGfx10(m_chipProperties.gfxLevel))
+    {
+        // In GFX 10, we need convert CU mask to WGP mask.
+        for (uint32 seIndex = 0; seIndex < m_gpuInfo.num_shader_engines; seIndex++)
+        {
+            for (uint32 shIndex = 0; shIndex < m_gpuInfo.num_shader_arrays_per_engine; shIndex++)
+            {
+                pChipInfo->gfx10.activeWgpMask[seIndex][shIndex] = 0;
+                pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] = 0;
+                // For gfx10 each WGP has two CU's, so we'll convert the bit masks(0x3->0x1) accordingly:
+                // CuMask(32 bits) -> WGPmask(16 bits)
+                for (uint32 cuIdx = 0; cuIdx < 32; cuIdx += 2)
+                {
+                    const uint32 cuBit = 3 << cuIdx;
+                    const uint32 wgpMask  = 1 << (cuIdx >> 1);
+                    if (TestAnyFlagSet(pChipInfo->activeCuMask[seIndex][shIndex], cuBit))
+                    {
+                        pChipInfo->gfx10.activeWgpMask[seIndex][shIndex] |= wgpMask;
+                    }
+                    if (TestAnyFlagSet(pChipInfo->alwaysOnCuMask[seIndex][shIndex], cuBit))
+                    {
+                        pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] |= wgpMask;
+                    }
+                }
+            }
         }
     }
 }
@@ -1122,6 +1160,12 @@ static LocalMemoryType TranslateMemoryType(
     case AMDGPU_VRAM_TYPE_GDDR5:
         {
             result = LocalMemoryType::Gddr5;
+            break;
+        }
+
+    case AMDGPU_VRAM_TYPE_GDDR6:
+        {
+            result = LocalMemoryType::Gddr6;
             break;
         }
 
@@ -1361,6 +1405,8 @@ Result Device::InitMemQueueInfo()
 
             case EngineTypeDma:
                 if ((m_chipProperties.ossLevel != OssIpLevel::None)
+                    // GFX10 parts have the DMA engine in the GFX block, not in the OSS
+                    || IsGfx10(m_chipProperties.gfxLevel)
                     )
                 {
                     if (m_drmProcs.pfnAmdgpuQueryHwIpInfo(m_hDevice, AMDGPU_HW_IP_DMA, 0, &engineInfo) != 0)
@@ -3038,7 +3084,7 @@ void Device::UpdateImageInfo(
             pTileInfo->tileSwizzle                  = pUmdMetaData->pipeBankXor;
         }
 #if PAL_BUILD_GFX9
-        else if (ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
+        else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
         {
             AddrMgr2::TileInfo*const pTileInfo   = static_cast<AddrMgr2::TileInfo*>(pImage->GetSubresourceTileInfo(0));
             auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
@@ -3137,7 +3183,7 @@ void Device::UpdateMetaData(
         metadata.tiling_info = tilingFlags.u64All;
     }
 #if PAL_BUILD_GFX9
-    else if (ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
+    else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
     {
         const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
         const AddrMgr2::TileInfo*const pTileInfo   = AddrMgr2::GetTileInfo(&image, 0);

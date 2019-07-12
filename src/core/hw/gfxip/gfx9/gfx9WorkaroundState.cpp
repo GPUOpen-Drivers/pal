@@ -62,6 +62,40 @@ WorkaroundState::WorkaroundState(
 }
 
 // =====================================================================================================================
+uint32* WorkaroundState::SwitchFromNggPipelineToLegacy(
+    bool    nextPipelineUsesGs,
+    uint32* pCmdSpace
+    ) const
+{
+    if (m_settings.waVgtFlushNggToLegacyGs && nextPipelineUsesGs)
+    {
+        //  GE has a bug where a legacy GS draw following an NGG draw can cause the legacy GS draw to interfere with
+        //  pending NGG primitives, causing the GE to drop the pending NGG primitives and eventually lead to a hang.
+        //  The suggested workaround is to create a bubble for the GE. Since determining the necessary size of this
+        //  bubble is workload dependent, it is safer to issue a VGT_FLUSH between this transition.
+        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH, EngineTypeUniversal, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+void WorkaroundState::HandleZeroIndexBuffer(
+    UniversalCmdBuffer* pCmdBuffer,
+    gpusize*            pIndexBufferAddr,
+    uint32*             pIndexCount)
+{
+    if (m_settings.waIndexBufferZeroSize && (*pIndexCount == 0))
+    {
+        // The GE has a bug where attempting to use an index buffer of size zero can cause a hang.
+        // The workaround is to bind an internal index buffer of a single entry and force the index buffer size to one.
+        uint32* pNewIndexBuffer = pCmdBuffer->CmdAllocateEmbeddedData(1, 1, pIndexBufferAddr);
+        pNewIndexBuffer[0]      = 0;
+        *pIndexCount            = 1;
+    }
+}
+
+// =====================================================================================================================
 // Performs pre-draw validation specifically for hardware workarounds which must be evaluated at draw-time.
 // Returns the next unused DWORD in pCmdSpace.
 template <bool indirect, bool stateDirty, bool pm4OptImmediate>
@@ -176,6 +210,39 @@ uint32* WorkaroundState::PreDraw(
             DB_DFSM_CONTROL__POPS_DRAIN_PS_ON_OVERLAP_MASK,
             dbDfsmControl.u32All,
             pCmdSpace);
+    }
+
+    // setPopsDrainPsOnOverlap should effectively be false for all Gfx10 products, but adding it here just in case.
+    if (m_settings.waStalledPopsMode &&
+        stateDirty                   &&
+        pPipeline->PsUsesRovs()      &&
+        (setPopsDrainPsOnOverlap || m_settings.drainPsOnOverlap))
+    {
+        regDB_RENDER_OVERRIDE2 dbRenderOverride2 = {};
+        dbRenderOverride2.bits.PARTIAL_SQUAD_LAUNCH_CONTROL = PSLC_ON_HANG_ONLY;
+
+        pCmdSpace = pDeCmdStream->WriteContextRegRmw<pm4OptImmediate>(
+            mmDB_RENDER_OVERRIDE2,
+            DB_RENDER_OVERRIDE2__PARTIAL_SQUAD_LAUNCH_CONTROL_MASK,
+            dbRenderOverride2.u32All,
+            pCmdSpace);
+    }
+
+    // If legacy tessellation is active and the fillmode is set to wireframe, the workaround requires that vertex reuse
+    // is disabled to avoid corruption. It is expected that we should rarely hit this case.
+    // Since we should rarely hit this and to keep this "simple," we won't handle the case where a legacy tessellation
+    // pipeline is bound and fillMode goes from Wireframe to NOT wireframe.
+    if (stateDirty                                               &&
+        m_settings.waTessIncorrectRelativeIndex                  &&
+        (gfxState.pipelineState.dirtyFlags.pipelineDirty ||
+         gfxState.dirtyFlags.validationBits.triangleRasterState) &&
+        pPipeline->IsTessEnabled()                               &&
+        (pPipeline->IsNgg() == false)                            &&
+        (gfxState.triangleRasterState.fillMode == FillMode::Wireframe))
+    {
+        pCmdSpace = pDeCmdStream->WriteSetOneContextReg<pm4OptImmediate>(mmVGT_REUSE_OFF,
+                                                                         VGT_REUSE_OFF__REUSE_OFF_MASK,
+                                                                         pCmdSpace);
     }
 
     if (pPipeline->IsNggFastLaunch())

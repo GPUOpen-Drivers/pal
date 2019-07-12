@@ -46,6 +46,8 @@
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_pfp_pm4_packets.h" // pre-fetch-parser
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_pm4_it_opcodes.h"
 
+#include "core/hw/gfxip/gfx9/chip/gfx10_sq_ko_reg.h"
+
 namespace Pal
 {
 namespace Gfx9
@@ -95,7 +97,7 @@ static_assert((VGT_INDEX_16 == 0) && (VGT_INDEX_32 == 1) && (VGT_INDEX_8 == 2),
 // Context reg space technically goes to 0xBFFF, but in reality there are no registers we currently write beyond
 // a certain limit. This enum can save some memory space in situations where we shadow register state in the driver.
 constexpr uint32 CntxRegUsedRangeEnd  =
-                    Gfx09::mmCB_COLOR7_DCC_BASE_EXT;
+                    Gfx10::mmCB_COLOR7_ATTRIB3;
 
 constexpr uint32 CntxRegUsedRangeSize = (CntxRegUsedRangeEnd - CONTEXT_SPACE_START + 1);
 constexpr uint32 CntxRegCount         = (CONTEXT_SPACE_END - CONTEXT_SPACE_START + 1);
@@ -103,7 +105,7 @@ constexpr uint32 CntxRegCount         = (CONTEXT_SPACE_END - CONTEXT_SPACE_START
 // SH reg space technically goes to 0x2FFF, but in reality there are no registers we currently write beyond the
 // COMPUTE_USER_DATA_15 register.  This enum can save some memory space in situations where we shadow register state
 // in the driver.
-constexpr uint32 ShRegUsedRangeEnd  = mmCOMPUTE_USER_DATA_15;
+constexpr uint32 ShRegUsedRangeEnd  = Gfx10::mmCOMPUTE_DISPATCH_TUNNEL;
 constexpr uint32 ShRegUsedRangeSize = (ShRegUsedRangeEnd - PERSISTENT_SPACE_START + 1);
 constexpr uint32 ShRegCount         = (PERSISTENT_SPACE_END - PERSISTENT_SPACE_START + 1);
 
@@ -130,6 +132,8 @@ using RegisterVector = Util::SparseVector<
     CONTEXT_SPACE_START,           CntxRegUsedRangeEnd,
     PERSISTENT_SPACE_START,        ShRegUsedRangeEnd,
     Gfx09::mmIA_MULTI_VGT_PARAM,   Gfx09::mmIA_MULTI_VGT_PARAM
+    , Gfx10::mmGE_STEREO_CNTL,     Gfx10::mmGE_STEREO_CNTL,
+    Gfx101Plus::mmGE_USER_VGPR_EN, Gfx101Plus::mmGE_USER_VGPR_EN
     >;
 
 // Number of SGPRs available to each wavefront.  Note that while only 104 SGPRs are available for use by a particular
@@ -148,6 +152,16 @@ constexpr uint32 Gfx9NumSimdPerCu = 4;
 // The maximum number of waves per SIMD and Compute Unit.
 constexpr uint32 Gfx9NumWavesPerSimd = 10;
 constexpr uint32 Gfx9NumWavesPerCu   = Gfx9NumWavesPerSimd * Gfx9NumSimdPerCu;
+
+// Number of SIMDs per Compute Unit
+constexpr uint32 Gfx10NumSimdPerCu = 2;
+
+// The maximum number of waves per SIMD and Compute Unit.
+constexpr uint32 Gfx10NumWavesPerSimd = 20;
+constexpr uint32 Gfx10NumWavesPerCu   = Gfx10NumWavesPerSimd * Gfx10NumSimdPerCu;
+
+// Number of SGPRs physically present per SIMD
+constexpr uint32 Gfx10PhysicalSgprsPerSimd = 128 * Gfx10NumWavesPerSimd;
 
 // Number of slots the GPU events need in order to support all the MultiSlots usecases (for now just AcqRelBarrier).
 constexpr uint32 MaxSlotsPerEvent = 2;
@@ -362,6 +376,7 @@ struct Gfx9BufferSrd
 union BufferSrd
 {
     Gfx9BufferSrd  gfx9;
+    sq_buf_rsrc_t  gfx10;
 };
 
 // GFX9-specific image resource descriptor structure
@@ -381,6 +396,7 @@ struct Gfx9ImageSrd
 union ImageSrd
 {
     Gfx9ImageSrd   gfx9;
+    sq_img_rsrc_t  gfx10;
 };
 
 // GFX9-specific image sampler descriptor structure
@@ -396,7 +412,15 @@ struct Gfx9SamplerSrd
 union SamplerSrd
 {
     Gfx9SamplerSrd gfx9;
+    sq_img_samp_t  gfx10;
 };
+
+static_assert((sizeof(Gfx9BufferSrd) == sizeof(sq_buf_rsrc_t)),
+              "GFX9 and GFX10 buffer SRD definitions are not the same size!");
+static_assert((sizeof(Gfx9ImageSrd) == sizeof(sq_img_rsrc_t)),
+              "GFX9 and GFX10 image SRD definitions are not the same size!");
+static_assert((sizeof(Gfx9SamplerSrd) == sizeof(sq_img_samp_t)),
+              "GFX9 and GFX10 sampler SRD definitions are not the same size!");
 
 union TargetViewExtent2d
 {
@@ -436,6 +460,8 @@ constexpr uint32 MaxImageDepth = 8192;
 constexpr uint32 MaxImageMipLevels = 15;
 // Maximum image array slices for GFX9 GPUs
 constexpr uint32 Gfx9MaxImageArraySlices = 2048;
+// Maximum image array slices for GFX10 GPUs
+constexpr uint32 Gfx10MaxImageArraySlices = 8192;
 
 static_assert ((1 << (MaxImageMipLevels - 1)) == MaxImageWidth,
                "Max image dimensions don't match max mip levels!");
@@ -513,6 +539,15 @@ struct ComputePipelineSignature
     // shader-specific performance profiling. Zero indicates that the shader does not use this buffer.
     uint16  perfDataAddr;
 
+    union
+    {
+        struct
+        {
+            uint16  isWave32 :  1;   // Is the pipeline running in Wave-32 mode?
+            uint16  reserved : 15;
+        };
+        uint16  u16All;
+    } flags;
 };
 
 // User-data signature for an unbound compute pipeline.
@@ -531,6 +566,9 @@ struct GraphicsPipelineSignature
     // Register address for the GPU virtual address of the stream-output table used by this pipeline. Zero indicates
     // that stream-output is not used by this pipeline.
     uint16  streamOutTableRegAddr;
+    // Register address for the GPU virtual address of the uav-export SRD table used by this pipeline. Zero indicates
+    // that UAV export is not used by this pipeline.
+    uint16  uavExportTableAddr;
     // Register address for the GPU virtual address of the NGG culling data constant buffer used by this pipeline.
     // Zero indicates that the NGG culling constant buffer is not used by the pipeline.
     uint16  nggCullingDataAddr;

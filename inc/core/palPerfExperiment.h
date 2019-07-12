@@ -73,6 +73,21 @@ enum class GpuBlock : uint32
     Rpb,
     Rmi,
     Umcch,
+    Ge,
+    Gl1a,
+    Gl1c,
+    Gl1cg,
+    Gl2a, // TCA is used in Gfx9, and changed to GL2A in Gfx10
+    Gl2c, // TCC is used in Gfx9, and changed to GL2C in Gfx10
+    Cha,
+    Chc,
+    Chcg,
+    Gus,
+    Gcr,
+    Ph,
+#if PAL_BUILD_GFX10 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION > 485)
+    UtcL1,
+#endif
     Count
 };
 
@@ -228,6 +243,13 @@ enum ThreadTraceTokenTypeFlags : Pal::uint32
     Issue        = 0x00002000, ///< Provides information about instruction scheduling. TT 2.3
     Perf         = 0x00004000, ///< The performance counter delta has been updated. TT 2.3 and below only.
     RegCs        = 0x00008000, ///< A compute  state update packet has been received by the SPI. TT 2.3
+    VmemExec     = 0x00010000, ///< A previously issued VMEM instruction is now being sent to LDS/TA. TT 3.0
+    AluExec      = 0x00020000, ///< A previously issued VALU instruction is now being executed. TT 3.0
+    ValuInst     = 0x00040000, ///< A VALU instruction has been issued. TT 3.0.
+    WaveRdy      = 0x00080000, ///< Mask of which waves became ready this cycle but did not issue an instruction. TT 3.0
+    Immed1       = 0x00100000, ///< One wave issued an immediate instruction this cycle. TT 3.0.
+    Immediate    = 0x00200000, ///< One or more waves have issued an immediate instruction this cycle. TT 3.0.
+    UtilCounter  = 0x00400000, ///< A new set of utilization counter values. TT 3.0.
     All          = 0xFFFFFFFF  ///< Enable all the above tokens.
 };
 
@@ -246,6 +268,7 @@ enum ThreadTraceRegTypeFlags : Pal::uint32
     AsyncComputeRegs      = 0x00000100, ///< Async compute registers. TT 3.0.
     GraphicsContextRegs   = 0x00000200, ///< Graphics context registers. TT 3.0.
     OtherConfigRegs       = 0x00000400, ///< Other regs. TT 2.3.
+    OtherBusRegs          = 0x00000800, ///< All write activity over gfx and compute buses. Debug only. TT 3.0.
     AllRegWrites          = 0x00001FFF, ///< All reg writes other than OtherBusRegs.
     AllRegReads           = 0x00002000, ///< Not encouraged to be enabled. This can cause a GPU hang.
     AllReadsAndWrites     = 0xFFFFFFFF  ///< All reads and writes. Not encouraged. This can cause a GPU hang.

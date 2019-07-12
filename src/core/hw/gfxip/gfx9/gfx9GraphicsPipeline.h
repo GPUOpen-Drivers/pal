@@ -95,6 +95,7 @@ public:
     regVGT_LS_HS_CONFIG VgtLsHsConfig()   const { return m_vgtLsHsConfig;  }
     regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_spiVsOutConfig; }
     regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_spiPsInControl; }
+    regGE_STEREO_CNTL GeStereoCntl() const { return m_geStereoCntl; }
 
     regSX_PS_DOWNCONVERT SxPsDownconvert() const { return m_sxPsDownconvert; }
     regSX_BLEND_OPT_EPSILON SxBlendOptEpsilon() const { return m_sxBlendOptEpsilon; }
@@ -132,6 +133,8 @@ public:
     bool HwStereoRenderingUsesMultipleViewports() const;
     bool UsesMultipleViewports() const { return UsesViewportArrayIndex() || HwStereoRenderingUsesMultipleViewports(); }
     bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
+    bool UsesUavExport() const { return (m_signature.uavExportTableAddr != UserDataNotMapped); }
+    bool NeedsUavExportFlush() const { return m_uavExportRequiresFlush; }
 
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,
@@ -244,6 +247,12 @@ private:
             PM4_ME_CONTEXT_REG_RMW        dbRenderOverride;
             PM4ME_NON_SAMPLE_EVENT_WRITE  flushDfsm;
 
+            PM4PFP_SET_UCONFIG_REG        hdrGePcAlloc;
+            regGE_PC_ALLOC                gePcAlloc;
+
+            // The following is only available on Gfx10.1+.
+            PM4PFP_SET_UCONFIG_REG        hdrGeUserVgprEn;
+            regGE_USER_VGPR_EN            geUserVgprEn;
             // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
             // w/ the actual commands contained above.
             size_t  spaceNeeded;
@@ -276,6 +285,9 @@ private:
             {
                 PM4_PFP_SET_CONTEXT_REG  hdrVgtShaderStagesEn;
                 regVGT_SHADER_STAGES_EN  vgtShaderStagesEn;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrVgtDrawPayloadCntl;
+                regVGT_DRAW_PAYLOAD_CNTL vgtDrawPayloadCntl;
 
                 PM4_PFP_SET_CONTEXT_REG  hdrVgtGsMode;
                 regVGT_GS_MODE           vgtGsMode;
@@ -314,6 +326,8 @@ private:
                 PM4_PFP_SET_CONTEXT_REG         hdrVgtVertexReuseBlockCntl;
                 regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;
 
+                PM4PFP_SET_CONTEXT_REG      hdrCbCoverageOutCntl;
+                regCB_COVERAGE_OUT_CONTROL  cbCoverageOutCntl;
                 PM4_PFP_SET_CONTEXT_REG  hdrVgtGsOnchipCntl;
                 regVGT_GS_ONCHIP_CNTL    vgtGsOnchipCntl;
 
@@ -328,6 +342,7 @@ private:
     Device*const      m_pDevice;
     uint64            m_contextRegHash;
     bool              m_isNggFastLaunch; ///< Is NGG fast launch enabled?
+    bool              m_uavExportRequiresFlush; // If false, must flush after each draw when UAV export is enabled
 
     // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
     // WD_SWITCH_ON_EOP is required.
@@ -341,6 +356,7 @@ private:
     regSPI_VS_OUT_CONFIG     m_spiVsOutConfig;
     regSPI_PS_IN_CONTROL     m_spiPsInControl;
     regPA_SC_MODE_CNTL_1     m_paScModeCntl1;
+    regGE_STEREO_CNTL        m_geStereoCntl;
 
     // Each pipeline object contains all possibly pipeline chunk sub-objects, even though not every pipeline will
     // actually end up needing them.

@@ -1316,13 +1316,6 @@ ChipFamily Gfx9Lib::HwlConvertChipFamily(
                 m_settings.applyAliasFix = 1;
             }
 
-#if ADDR_RENOIR_BUILD
-            if (ASICREV_IS_RENOIR(uChipRevision))
-            {
-                m_settings.isRaven = 1;
-            }
-#endif
-
             m_settings.isDcn1 = m_settings.isRaven;
 
             m_settings.metaBaseAlignFix = 1;

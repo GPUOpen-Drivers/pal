@@ -46,6 +46,7 @@
 #if ADDR_RAVEN1_BUILD
 #define FAMILY_RV      0x8E
 #endif
+#define FAMILY_NV      0x8F
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
@@ -62,6 +63,7 @@
 #if ADDR_RAVEN1_BUILD
 #define FAMILY_IS_RV(f)      FAMILY_IS(f, RV)
 #endif
+#define FAMILY_IS_NV(f)      FAMILY_IS(f, NV)
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -103,6 +105,8 @@
 #define AMDGPU_RAVEN_RANGE      0x01, 0x81
 #endif
 #define AMDGPU_RAVEN2_RANGE     0x81, 0xFF
+
+#define AMDGPU_NAVI10_RANGE     0x01, 0xFF
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -150,5 +154,7 @@
 #define ASICREV_IS_RAVEN(r)            ASICREV_IS(r, RAVEN)
 #endif
 #define ASICREV_IS_RAVEN2(r)           ASICREV_IS(r, RAVEN2)
+
+#define ASICREV_IS_NAVI10_P(r)         ASICREV_IS(r, NAVI10)
 
 #endif // _AMDGPU_ASIC_ADDR_H

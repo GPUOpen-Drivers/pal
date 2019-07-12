@@ -106,6 +106,10 @@ static void SetupCommonPreamble(
     {
         pCommonPreamble->cpCoherStartDelay.bits.START_DELAY_COUNT = 0;
     }
+    else if (IsGfx10(gfxLevel))
+    {
+        pCommonPreamble->cpCoherStartDelay.bits.START_DELAY_COUNT = mmCP_COHER_START_DELAY_DEFAULT;
+    }
 }
 
 // =====================================================================================================================
@@ -720,6 +724,17 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         {
             InitializeContextRegistersGfx9(&cmdStream, 0, nullptr, nullptr);
         }
+        else
+        {
+            // The clear-state value associated with the PA_SC_TILE_STEERING_OVERRIDE register changes depending on
+            // the GPU configuration, so program it as a "special case".
+            uint32  regOffset = mmPA_SC_TILE_STEERING_OVERRIDE;
+
+            if (IsGfx101(*m_pDevice->Parent()))
+            {
+                InitializeContextRegistersNv10(&cmdStream,   1, &regOffset, &chipProps.gfx9.paScTileSteeringOverride);
+            }
+        }
     } // if initShadowMemory
 }
 
@@ -1051,6 +1066,28 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
                                           Gfx09::mmVGT_INDX_OFFSET,
                                           &m_universalPreamble.gfx9.hdrVgtIndexRegs);
     }
+    else if (IsGfx10(chipProps.gfxLevel))
+    {
+        m_universalPreamble.spaceNeeded +=
+            cmdUtil.BuildSetSeqConfigRegs(Gfx10::mmGE_MIN_VTX_INDX,
+                                          Gfx10::mmGE_INDX_OFFSET,
+                                          &m_universalPreamble.gfx10.hdrGeIndexRegs);
+
+        m_universalPreamble.spaceNeeded +=
+            cmdUtil.BuildSetOneConfigReg(Gfx10::mmGE_MAX_VTX_INDX,
+                                         &m_universalPreamble.gfx10.hdrMaxVtxIndexReg);
+
+        m_universalPreamble.spaceNeeded +=
+            cmdUtil.BuildSetSeqContextRegs(Gfx10::mmCB_COLOR0_BASE_EXT,
+                                           Gfx10::mmCB_COLOR7_DCC_BASE_EXT,
+                                           &m_universalPreamble.gfx10.hdrCbHi);
+
+        m_universalPreamble.spaceNeeded +=
+            cmdUtil.BuildSetSeqContextRegs(Gfx10::mmDB_Z_READ_BASE_HI,
+                                           Gfx10::mmDB_HTILE_DATA_BASE_HI,
+                                           &m_universalPreamble.gfx10.hdrDbHi);
+
+    }
 
     // TODO: The following are set on Gfx8 because the clear state doesn't set up these registers to our liking.
     //       We might be able to remove these when the clear state for Gfx9 is finalized.
@@ -1128,6 +1165,17 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
         m_universalPreamble.gfx9.vgtMinVtxIndx.bits.MIN_INDX    = 0;
         m_universalPreamble.gfx9.vgtIndxOffset.bits.INDX_OFFSET = 0;
     }
+    else if (IsGfx10(gfxLevel))
+    {
+        Gfx10UniversalPreamblePm4Img*  pGfx10Preamble = &m_universalPreamble.gfx10;
+
+        pGfx10Preamble->geMaxVtxIndx.bits.MAX_INDX    = 0xFFFFFFFF;
+        pGfx10Preamble->geMinVtxIndx.bits.MIN_INDX    = 0;
+        pGfx10Preamble->geIndxOffset.bits.INDX_OFFSET = 0;
+
+        // No need to set cbColor*Ext or db*Hi regs. 0 is the desired value and we memset m_universalPreamble.
+
+    }
 
     // Set-and-forget DCC register:
     //  This will stop compression to one of the four "magic" clear colors.
@@ -1141,6 +1189,29 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
     {
         m_universalPreamble.cbDccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
         m_universalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK            = 4;
+    }
+    else
+    {
+        // ELIMFC = EliMinate Fast Clear, i.e., Fast Clear Eliminate.
+        // So, DISABLE_ELIMFC_SKIP means disable the skipping of the fast-clear elimination.  Got that?
+        //
+        // Without the double negative, leaving this bit at zero means that if a comp-to-single clear was done, any
+        // FCE operation on that image will leave the comp-to-single in place.  Setting this bit to one will mean
+        // that the FCE operation on that image will actually "eliminate the fast clear".  We want to leave this
+        // at zero because the texture pipe can understand comp-to-single, so there's no need to fce those pixels.
+        m_universalPreamble.cbDccControl.gfx09_1xPlus.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
+
+        // This register also contains various "DISABLE_CONSTANT_ENCODE" bits.  Those are the master switches
+        // for CB-based rendering.  i.e., setting DISABLE_CONSTANT_ENCODE_REG will disable all compToReg
+        // rendering.  The same bit(s) exist in the CB_COLORx_DCC_CONTROL register for enabling / disabling the
+        // various encoding modes on a per MRT basis.
+        //
+        // Note that the CB registers only control DCC compression occurring through rendering (i.e., through the
+        // CB).  The GL2C_CM_CTRL1 register controls DCC compression occurring through shader writes.  I'd write
+        // it here, but it's privileged, and I can't.  GACK.  By default, both compToReg and compToSingle are
+        // enabled for shader write operations.
+
+        m_universalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 6;
     }
 
     // Small primitive filter control

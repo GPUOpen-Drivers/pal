@@ -936,6 +936,26 @@ uint32 Gfx9MaskRam::AdjustPipeBankXorForSwizzle(
     uint32  pipeBankXor
     ) const
 {
+    const auto&  chipProps = m_pGfxDevice->Parent()->ChipProperties();
+
+    if (IsGfx10(chipProps.gfxLevel))
+    {
+        // On GFX10, the mask ram and the image itself might have different tile block sizes (i.e., usually the
+        // image will be 64kB, but the meta data will usually be 4kB).  For a 64kB block image, the low 16 bits
+        // will always be zero, but for a 4kB block image, only the low 12 bits will be zero.  The low eight
+        // bits are never programmed (i.e., assumed by HW to be zero), so we really have:
+        //    64kB = low 16 bits are zero --> 8 bits for pipeBankXor
+        //     4kB = low 12 bits are zero --> 4 bits for pipeBankXor
+        //
+        // The "alignment" parameter of the mask ram essentially defines the block size of the mask-ram.
+        // The low eight bits are never programmed and assumed by HW to be zero
+        //
+        const uint32  numBitsForPipeBankXor = LowPart(Util::Log2(Alignment())) - 8;
+        const uint32  pipeBankXorMask       = ((1 << numBitsForPipeBankXor) - 1);
+
+        // Whack off any bits that we can't use.
+        pipeBankXor = pipeBankXor & pipeBankXorMask;
+    }
 
     return pipeBankXor;
 }
@@ -1115,6 +1135,7 @@ bool Gfx9MaskRam::SupportFastColorClear(
     const Pal::Image*const pParent    = image.Parent();
     const ImageCreateInfo& createInfo = pParent->GetImageCreateInfo();
     const Gfx9PalSettings& settings   = GetGfx9Settings(device);
+    const GfxIpLevel       gfxLevel   = pParent->GetDevice()->ChipProperties().gfxLevel;
 
     // Choose which fast-clear setting to examine based on the type of Image we have.
     const bool fastColorClearEnable = (createInfo.imageType == ImageType::Tex2d) ?
@@ -1124,6 +1145,8 @@ bool Gfx9MaskRam::SupportFastColorClear(
     const bool allowShaderWriteableSurfaces =
             // If ths image isn't shader-writeable at all, then there isn't a problem
             ((pParent->IsShaderWritable() == false) ||
+            // GFX10 doesn't have a problem with shader-writeable surfaces anyway
+             IsGfx10(gfxLevel)                      ||
             // Enable Fast Clear Support if some mips are not shader writable.
              (pParent->FirstShaderWritableMip() != 0));
 
@@ -1165,6 +1188,19 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
                                  (settings.htileEnable                  == true)          &&
                                  (createInfo.extent.width               >= MinHtileWidth) &&
                                  (createInfo.extent.height              >= MinHtileHeight));
+
+        //
+        // Verify that hTile should be allowed (i.e, minus the workaround) to silence the below assert for
+        // non-depth images.  i.e., this function is called for all images not just depth images.
+        if ((hTileUsage.dsMetadata != 0)                                                          &&
+             settings.waForceZonlyHtileForMipmaps                                                 &&
+             (device.SupportsDepth(createInfo.swizzledFormat.format, createInfo.tiling) == false) &&
+             (createInfo.mipLevels > 1))
+        {
+            PAL_ASSERT(device.SupportsStencil(createInfo.swizzledFormat.format, createInfo.tiling));
+
+            hTileUsage.dsMetadata = 0;
+        }
 
     }
 
@@ -1714,6 +1750,27 @@ void Gfx9Dcc::GetXyzInc(
     bool  isEffective2d    = AddrMgr2::IsDisplayableSwizzle(swizzleMode);
     bool  useZswizzleFor3d = AddrMgr2::IsZSwizzle(swizzleMode);
 
+    const Pal::Device& palDevice = *(m_pGfxDevice->Parent());
+
+    if (IsGfx10(palDevice) && (imageType == ImageType::Tex3d))
+    {
+        //   SW_Z and SW_R are use the same 256B block dimensions, whether 1d, 2d, or 3d.
+        //   3D_D mode has the same dimensions as what's shown for 3D_Z.
+        //
+        // SW_64KB_Z_X
+        //    This option organize 3D volume maps the same as a 2DArray using SW_64KB_Z_X.  See the 2D block
+        //    swizzle section of this doc for details.
+        //
+        // SW_64KB_R_X
+        //    This option organizes 3D volume maps the same as a 2DArray using SW_64KB_R_X.
+        isEffective2d    = AddrMgr2::IsZSwizzle(swizzleMode) || AddrMgr2::IsRotatedSwizzle(swizzleMode);
+
+        // This should never be true, courtesy of the UseDccForImage function.  _S and _D modes have so
+        // many restrictions on their use with DCC that we never allocate it for those swizzle modes.
+        // So this is for completeness only.
+        useZswizzleFor3d = AddrMgr2::IsDisplayableSwizzle(swizzleMode);
+    }
+
     if ((imageType == ImageType::Tex2d) || isEffective2d)
     {
         constexpr uint32 XyzIncSizes[][3]=
@@ -1878,6 +1935,7 @@ void Gfx9Dcc::SetControlReg()
     const Pal::Device*      pDevice     = m_pGfxDevice->Parent();
     const GfxIpLevel        gfxLevel    = pDevice->ChipProperties().gfxLevel;
     const ImageCreateInfo&  createInfo  = pParent->GetImageCreateInfo();
+    const auto&             settings    = GetGfx9Settings(*pDevice);
 
     // Setup DCC control registers with suggested value from spec
     m_dccControl.bits.KEY_CLEAR_ENABLE = 0; // not supported on VI
@@ -1916,6 +1974,20 @@ void Gfx9Dcc::SetControlReg()
         m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 1;
         m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize64B);
 
+        if (IsGfx10(gfxLevel))
+        {
+            m_dccControl.bits.INDEPENDENT_64B_BLOCKS     = 0;
+            m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE  = static_cast<unsigned int>(
+                                                                  Gfx9DccMaxBlockSize::BlockSize128B);
+            m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS   = 1;
+
+            PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
+        }
+        else
+        {
+            // Verify that we only have DCC memory for shader writeable surfaces on GFX10
+            PAL_ASSERT(createInfo.usageFlags.shaderWrite == 0);
+        }
     }
     else
     {
@@ -1926,6 +1998,21 @@ void Gfx9Dcc::SetControlReg()
         m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
     }
 
+    if (IsGfx10(gfxLevel) && m_image.Gfx10UseCompToSingleFastClears())
+    {
+        if (TestAnyFlagSet(settings.useCompToSingle, Gfx10DisableCompToReg))
+        {
+            // If the image was potentially fast-cleared to comp-to-single mode (i.e., no fast-clear-eliminate is
+            // required), then we can't allow the CB / DCC to render in comp-to-reg mode because that *will* require
+            // an FCE operation.
+            //
+            // The other option here is to not touch this bit at all and to allow the fast-clear-eliminate to proceed
+            // anyway.  Because CB_DCC_CONTROL.DISABLE_ELIMFC_SKIP_OF_SINGLE=0, any DCC codes left at comp-to-
+            // single will be skipped during the FCE and it will (theoretically) be a super-fast-fast-clear-eliminate.
+            // Theoretically.
+            m_dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -2015,6 +2102,38 @@ bool Gfx9Dcc::UseDccForImage(
         const SubResourceInfo*const pSubResInfo  = pParent->SubresourceInfo(subResId);
         const auto&                 surfSettings = image.GetAddrSettings(pSubResInfo);
         const AddrSwizzleMode       swizzleMode  = surfSettings.swizzleMode;
+
+        if (IsGfx10(*pDevice))
+        {
+            //   1) SW_D does not support DCC.
+            //   2) The restriction [on SW_S] is that you can't bind it to all CBs for a single draw.  If you want
+            //      SW_S + DCC to be bound to the CB, it would have to go through a single CB (that is, change
+            //      raster_config to route all traffic to 1 CB).  You could also use a SW compressor, and bind it
+            //      to texture (say for static image)
+            if (AddrMgr2::IsStandardSwzzle(swizzleMode) || AddrMgr2::IsDisplayableSwizzle(swizzleMode))
+            {
+                useDcc = false;
+                mustDisableDcc = true;
+                // The above check for "standard swizzle" is a bit of a misnomer; it's really a check for "S"
+                // swizzle modes.  On GFX10, the "R" modes (render targets, not rotated) are expected to be the
+                // most commonly used.  Still, throw an indication if we're faling into this code path with any
+                // sort of frequency
+                PAL_ALERT_ALWAYS();
+            }
+            else if (allMipsShaderWritable)
+            {
+                if (isNotARenderTarget)
+                {
+                    // If we are a UAV and not a render target, check our setting
+                    useDcc = TestAnyFlagSet(settings.useDcc, Gfx10UseDccNonRenderTargetUav);
+                }
+                else
+                {
+                    // If we are a UAV and a render target, check our other setting.
+                    useDcc = TestAnyFlagSet(settings.useDcc, Gfx10UseDccRenderTargetUav);
+                }
+            }
+        }
 
         if (AddrMgr2::IsLinearSwizzleMode(swizzleMode))
         {
@@ -2309,6 +2428,17 @@ uint8 Gfx9Dcc::GetFastClearCode(
         *pNeedFastClearElim = true;
     }
 
+    if (IsGfx10(*pParent->GetDevice())                  &&
+        (clearCode == Gfx9DccClearColor::ClearColorReg) &&
+        image.Gfx10UseCompToSingleFastClears())
+    {
+        // If we're going to write the clear color into the image data during the fast-clear, then we need to
+        // use a clear-code that indicates that's what we've done...  Otherwise the DCC block gets seriously
+        // confused especially if the next rendering operation happens to render constant pixel data that
+        // perfectly matches the clear color stored in the CB_COLORx_CLEAR_WORD* registers.
+        clearCode = Gfx9DccClearColor::ClearColorCompToSingle;
+    }
+
     return static_cast<uint8>(clearCode);
 }
 
@@ -2566,6 +2696,77 @@ regSQ_IMG_RSRC_WORD1 Gfx9Fmask::Gfx9FmaskFormat(
     word1.bits.NUM_FORMAT  = numFmt;
 
     return word1;
+}
+
+// =====================================================================================================================
+// Determines the Image format used by SRD's which access an image's fMask allocation.
+IMG_FMT Gfx9Fmask::Gfx10FmaskFormat(
+    uint32  samples,
+    uint32  fragments,
+    bool    isUav
+    ) const
+{
+    IMG_FMT  imgFmt = IMG_FMT_INVALID;
+
+    if (isUav)
+    {
+        switch (m_addrOutput.bpp)
+        {
+        case 8:
+            imgFmt = IMG_FMT_8_UINT;
+            break;
+        case 16:
+            imgFmt = IMG_FMT_16_UINT;
+            break;
+        case 32:
+            imgFmt = IMG_FMT_32_UINT;
+            break;
+        case 64:
+            imgFmt = IMG_FMT_32_32_UINT;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+    }
+    else
+    {
+        // Lookup table of FMask Image Data Formats:
+        // The table is indexed by: [log_2(samples) - 1][log_2(fragments)].
+        constexpr IMG_FMT FMaskFormatTbl[4][4] =
+        {
+            // Two-sample formats
+            { IMG_FMT_FMASK8_S2_F1,         // One fragment
+              IMG_FMT_FMASK8_S2_F2, },      // Two fragments
+
+            // Four-sample formats
+            { IMG_FMT_FMASK8_S4_F1,         // One fragment
+              IMG_FMT_FMASK8_S4_F2,         // Two fragments
+              IMG_FMT_FMASK8_S4_F4, },      // Four fragments
+
+            // Eight-sample formats
+            { IMG_FMT_FMASK8_S8_F1,         // One fragment
+              IMG_FMT_FMASK16_S8_F2,        // Two fragments
+              IMG_FMT_FMASK32_S8_F4,        // Four fragments
+              IMG_FMT_FMASK32_S8_F8, },     // Eight fragments
+
+            // Sixteen-sample formats
+            { IMG_FMT_FMASK16_S16_F1,       // One fragment
+              IMG_FMT_FMASK32_S16_F2,       // Two fragments
+              IMG_FMT_FMASK64_S16_F4,       // Four fragments
+              IMG_FMT_FMASK64_S16_F8, },    // Eight fragments
+        };
+
+        const uint32 log2Samples   = Log2(samples);
+        const uint32 log2Fragments = Log2(fragments);
+
+        PAL_ASSERT((log2Samples  >= 1) && (log2Samples <= 4));
+        PAL_ASSERT(log2Fragments <= 3);
+
+        imgFmt = FMaskFormatTbl[log2Samples - 1][log2Fragments];
+    }
+
+    return imgFmt;
 }
 
 // =====================================================================================================================

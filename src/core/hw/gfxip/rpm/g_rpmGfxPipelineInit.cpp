@@ -109,6 +109,10 @@ Result CreateRpmGraphicsPipelines(
         pTable = rpmGfxBinaryTableRaven2;
         break;
 
+    case AsicRevision::Navi10:
+        pTable = rpmGfxBinaryTableNavi10;
+        break;
+
     default:
         result = Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

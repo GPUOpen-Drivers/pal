@@ -182,6 +182,14 @@ union MuxselEncoding
         uint16 instance : 5; // The local instance of the block.
     } gfx9;
 
+    struct
+    {
+        uint16 counter     : 6; // A special ID used by the RLC to identify a specific 32-bit SPM wire select.
+        uint16 block       : 4; // A special block enum defined by the RLC.
+        uint16 shaderArray : 1; // 0: SA0, 1: SA1
+        uint16 instance    : 5; // The local instance of the block.
+    } gfx10Se;                   // Use this version in the per-SE muxsel rams on gfx10.
+
     uint16 u16All; // All the fields above as a single uint16
 };
 
@@ -282,6 +290,9 @@ private:
     Result BuildCounterMapping(const PerfCounterInfo& info, CounterMapping* pMapping) const;
 
     Result BuildGrbmGfxIndex(GpuBlock block, uint32 globalInstance, regGRBM_GFX_INDEX* pGrbmGfxIndex) const;
+
+    uint32 Gfx10CalcInstanceIndex(GpuBlock block, uint32 flatIndex) const;
+    bool HasRmiSubInstances(GpuBlock block) const;
 
     MuxselEncoding BuildMuxselEncoding(GpuBlock block, uint32 counter, regGRBM_GFX_INDEX grbmGfxIndex) const;
 

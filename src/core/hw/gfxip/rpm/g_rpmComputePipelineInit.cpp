@@ -125,6 +125,10 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTableRaven2;
         break;
 
+    case AsicRevision::Navi10:
+        pTable = rpmComputeBinaryTableNavi10;
+        break;
+
     default:
         result = Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();
@@ -784,6 +788,30 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::Gfx9InitCmaskSingleSample, pDevice, pTable, pPipelineMem);
     }
 #endif
+
+    if (IsGfx10(properties.gfxLevel) && (result == Result::Success))
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel, pDevice, pTable, pPipelineMem);
+    }
+
+    if (IsGfx10(properties.gfxLevel) && (result == Result::Success))
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa, pDevice, pTable, pPipelineMem);
+    }
+
+    if (IsGfx10(properties.gfxLevel) && (result == Result::Success))
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx10GenerateCmdDispatch, pDevice, pTable, pPipelineMem);
+    }
+
+    if (IsGfx10(properties.gfxLevel) && (result == Result::Success))
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx10GenerateCmdDraw, pDevice, pTable, pPipelineMem);
+    }
 
     return result;
 }

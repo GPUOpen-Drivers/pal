@@ -210,6 +210,9 @@ static PAL_INLINE ColorFormat HwColorFormat(
     case GfxIpLevel::GfxIp9:
         hwColorFmt = HwColorFmt(MergedChannelFmtInfoTbl(gfxLevel), format);
         break;
+    case GfxIpLevel::GfxIp10_1:
+        hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel), format);
+        break;
     default:
         PAL_NEVER_CALLED();
         break;
@@ -2108,6 +2111,7 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
     // For Gfx9, we need do fixup after fixfuction or compute shader resolve.
     if (Util::TestAnyFlagSet(gfx9Image.LayoutToColorCompressionState().compressed.usages,
                               Pal::LayoutResolveDst)
+        && ((IsGfx10(device) && (computeResolve == false)) || (IsGfx10(device) == false))
        )
     {
         BarrierInfo      barrierInfo = {};
@@ -2661,6 +2665,12 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 
+    if (IsGfx10(device))
+    {
+        // The SRD is setup so that writing the decompressed value into the destination image will automagically
+        // update DCC memory with the correct initial value.  So there's no need to do it again.
+    }
+    else
     {
         // Put DCC memory itself back into a "fully decompressed" state, since only compressed fragments needed
         // to be written, as initialization of dcc memory will write to uncompressed fragment and hence
@@ -3019,6 +3029,9 @@ void RsrcProcMgr::CommitBeginEndGfxCopy(
 {
     CmdStream*  pGfxCmdStream = reinterpret_cast<CmdStream*>(pCmdStream);
     uint32*     pCmdSpace     = pCmdStream->ReserveCommands();
+
+    PAL_ASSERT((m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) ||
+               (m_pDevice->Parent()->ChipProperties().gfx9.validPaScTileSteeringOverride));
 
     pCmdSpace = pGfxCmdStream->WriteSetOneContextReg(mmPA_SC_TILE_STEERING_OVERRIDE,
                                                      paScTileSteeringOverride,
@@ -5233,6 +5246,1024 @@ void Gfx9RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
 
     // Fmask and cmask data still need fixing as well.
     RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
+}
+
+// =====================================================================================================================
+// Does a compute-based fast-clear of the specified image / range.  The image's associated DCC memory is updated to
+// "clearCode" for all bytes corresponding to "clearRange".
+void Gfx10RsrcProcMgr::ClearDccCompute(
+    GfxCmdBuffer*      pCmdBuffer,
+    Pal::CmdStream*    pCmdStream,
+    const Image&       dstImage,
+    const SubresRange& clearRange,
+    uint8              clearCode,
+    DccClearPurpose    clearPurpose,
+    const uint32*      pPackedClearColor
+    ) const
+{
+    const Pal::Image*    pPalImage     = dstImage.Parent();
+    const Pal::Device*   pDevice       = pPalImage->GetDevice();
+    const auto&          createInfo    = pPalImage->GetImageCreateInfo();
+    const auto*          pDcc          = dstImage.GetDcc();
+    const auto&          dccAddrOutput = pDcc->GetAddrOutput();
+    const auto*          pBoundMemory  = pPalImage->GetBoundGpuMemory().Memory();
+    const uint32         startSlice    = ((createInfo.imageType == ImageType::Tex3d)
+                                          ? 0
+                                          : clearRange.startSubres.arraySlice);
+    const uint32         clearColor    = ExpandClearCodeToDword(clearCode);
+    const auto*          pSubResInfo   = dstImage.Parent()->SubresourceInfo(clearRange.startSubres);
+    const SwizzledFormat aspectFormat  = pSubResInfo->format;
+    const uint32         bytesPerPixel = Formats::BytesPerPixel(aspectFormat.format);
+    const auto*          pAddrOutput   = dstImage.GetAddrOutput(pSubResInfo);
+
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+
+    bool  clearedLastMip = false;
+    for (uint32  mipIdx = 0; ((clearedLastMip == false) && (mipIdx < clearRange.numMips)); mipIdx++)
+    {
+        const uint32 absMipLevel = clearRange.startSubres.mipLevel + mipIdx;
+        const auto&  dccMipInfo  = pDcc->GetAddrMipInfo(absMipLevel);
+
+        // The sliceSize will be set to zero for mipLevel's that can't use DCC
+        if (dccMipInfo.sliceSize != 0)
+        {
+            // The number of slices for 2D images is the number of slices; for 3D images, it's the depth
+            // of the image for the current mip level.
+            const uint32 numSlices = GetClearDepth(dstImage, clearRange, absMipLevel);
+
+            // The "metaBlkDepth" parameter is the number of slices that the "dccRamSliceSize" covers.  For non-3D
+            // images, this should always be 1 (i.e., one addrlib slice is one PAL API slice).  For 3D images, this
+            // can be way more than the number of PAL API slices.
+            const uint32 numSlicesToClear = Max(1u, numSlices / dccAddrOutput.metaBlkDepth);
+
+            for (uint32  sliceIdx = 0; sliceIdx < numSlicesToClear; sliceIdx++)
+            {
+                const uint32    absSlice      = startSlice + sliceIdx;
+                const gpusize   clearBaseAddr = dstImage.GetMaskRamBaseAddr(pDcc)        +
+                                                absSlice * dccAddrOutput.dccRamSliceSize +
+                                                dccMipInfo.offset;
+                const gpusize   clearOffset   = clearBaseAddr - pBoundMemory->Desc().gpuVirtAddr;
+
+                CmdFillMemory(pCmdBuffer,
+                              false,            // don't save / restore the compute state
+                              *pBoundMemory,
+                              clearOffset,
+                              dccMipInfo.sliceSize,
+                              clearColor);
+            }
+
+            if (clearCode == static_cast<uint8>(Gfx9DccClearColor::ClearColorCompToSingle))
+            {
+                // If this image doesn't support comp-to-single fast clears, then how did we wind up with the
+                // comp-to-single clear code???
+                PAL_ASSERT(dstImage.Gfx10UseCompToSingleFastClears());
+
+                // If we're not doing a fast clear then how did we wind up with a fast-clear related code???
+                PAL_ASSERT(clearPurpose == DccClearPurpose::FastClear);
+
+                ClearDccComputeSetFirstPixelOfBlock(pCmdBuffer,
+                                                    dstImage,
+                                                    absMipLevel,
+                                                    bytesPerPixel,
+                                                    pPackedClearColor);
+            }
+        }
+        else
+        {
+            // There's nothing left to do...  the mip levels are only going higher and none of them
+            // will have accessible DCC memory anyway.
+            clearedLastMip = true;
+
+            // Image setup (see the Gfx9::Image::Finalize function) should have prevented the use of
+            // fast-clears for any mip levels with zero-sized slices.  We can still get here for inits
+            // though.
+            PAL_ASSERT(clearPurpose == DccClearPurpose::Init);
+        }
+    }
+
+    const Pm4Predicate packetPredicate =
+        static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+
+    // Since we're using a compute shader we have to update the DCC state metadata manually.
+    dstImage.UpdateDccStateMetaData(pCmdStream,
+                                    clearRange,
+                                    (clearPurpose == DccClearPurpose::FastClear),
+                                    pCmdBuffer->GetEngineType(),
+                                    packetPredicate);
+
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
+
+// =====================================================================================================================
+// Use a compute shader to write the clear color to the first byte of each 256B block.
+void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
+    GfxCmdBuffer*      pCmdBuffer,
+    const Image&       dstImage,
+    uint32             absMipLevel,
+    uint32             bytesPerPixel,
+    const uint32*      pPackedClearColor
+    ) const
+{
+    PAL_ASSERT(pPackedClearColor != nullptr);
+    const Pal::Image*        pPalImage  = dstImage.Parent();
+    const auto&              createInfo = pPalImage->GetImageCreateInfo();
+    const auto*              pDcc       = dstImage.GetDcc();
+    const RpmComputePipeline pipeline   = ((createInfo.samples == 1)
+                                            ? RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel
+                                            : RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa);
+    const auto*const         pPipeline  = GetPipeline(pipeline);
+
+    // Bind Compute Pipeline used for the clear.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
+
+    uint32 xInc = 0;
+    uint32 yInc = 0;
+    uint32 zInc = 0;
+    pDcc->GetXyzInc(&xInc, &yInc, &zInc);
+
+    const SubresId subResId     = { ImageAspect::Color, absMipLevel, 0 };
+    SwizzledFormat aspectFormat = {};
+    aspectFormat.swizzle.r = ChannelSwizzle::X;
+    aspectFormat.swizzle.g = ChannelSwizzle::Zero;
+    aspectFormat.swizzle.b = ChannelSwizzle::Zero;
+    aspectFormat.swizzle.a = ChannelSwizzle::One;
+
+    switch (bytesPerPixel)
+    {
+    case 1:
+        aspectFormat.format = ChNumFormat::X8_Uint;
+
+        // With an 8bpp format, one DCC byte covers a 16x16 pixel region.  However, for reasons
+        // of GFX10 addressing weirdness, writing the clear color once for every (16,16) region
+        // isn't sufficient...  so write it every (8,8) instead
+        xInc = 8;
+        yInc = 8;
+        break;
+    case 2:
+        aspectFormat.format = ChNumFormat::X16_Uint;
+        break;
+    case 4:
+        aspectFormat.format = ChNumFormat::X32_Uint;
+        break;
+    case 8:
+        aspectFormat.format = ChNumFormat::X32Y32_Uint;
+
+        // This is the only dual channel export, so the "Y" becomes important
+        aspectFormat.swizzle.g = ChannelSwizzle::Y;
+        break;
+    case 16:
+        // We can't fast clear a surface with more than 64bpp, so we shouldn't get here.
+        PAL_ASSERT_ALWAYS();
+        break;
+    default:
+        PAL_ASSERT_ALWAYS();
+    }
+
+    uint32 threadsPerGroup[3] = {};
+    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+
+    const auto*    pSubResInfo    = pPalImage->SubresourceInfo(subResId);
+    const uint32   mipLevelWidth  = pSubResInfo->extentTexels.width;
+    const uint32   mipLevelHeight = pSubResInfo->extentTexels.height;
+    const uint32   mipLevelDepth  = pSubResInfo->extentTexels.depth;
+
+    // How many blocks are there for this miplevel in X/Y/Z dimension.
+    // We'll need one thread for each block, which writes clear value to the first byte.
+    const uint32 numBlockX = (mipLevelWidth  + xInc - 1) / xInc;
+    const uint32 numBlockY = (mipLevelHeight + yInc - 1) / yInc;
+    const uint32 numBlockZ = (mipLevelDepth  + zInc - 1) / zInc;
+
+    const uint32 constData[] =
+    {
+        // start cb0[0]
+        mipLevelWidth,
+        mipLevelHeight,
+        mipLevelDepth,
+        // start cb0[1]
+        // Because we can't fast clear a surface with more than 64bpp, there's no need to pass in
+        // pPackedClearColor[2] and pPackedClearColor[3].
+        pPackedClearColor[0],
+        pPackedClearColor[1],
+        // single-sample shader ignores this entry
+        createInfo.samples,
+        // start cb0[2]
+        xInc,
+        yInc,
+        zInc
+    };
+
+    const uint32  sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
+
+    uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                               SrdDwordAlignment() + sizeConstDataDwords,
+                                                               SrdDwordAlignment(),
+                                                               PipelineBindPoint::Compute,
+                                                               0);
+
+    ImageViewInfo  imageView    = {};
+    SubresRange    viewRange    = { subResId, 1, 1 };
+
+    RpmUtil::BuildImageViewInfo(&imageView,
+                                *dstImage.Parent(),
+                                viewRange,
+                                aspectFormat,
+                                RpmUtil::DefaultRpmLayoutShaderWriteRaw,
+                                pPalImage->GetDevice()->TexOptLevel());
+
+    sq_img_rsrc_t srd = {};
+
+    pPalImage->GetDevice()->CreateImageViewSrds(1, &imageView, &srd);
+
+    // We want to unset this bit because we are writing the real clear color to the first pixel of each DCC block,
+    // So it doesn't need to be compressed. Currently this is the only place we unset this bit in GFX10.
+
+    srd.compression_en = 0;
+
+    memcpy(pSrdTable, &srd, sizeof(srd));
+
+    pSrdTable += SrdDwordAlignment();
+
+    // And give the shader all kinds of useful dimension info
+    memcpy(pSrdTable, &constData[0], sizeof(constData));
+
+    uint32 numThreadGroupsX = RpmUtil::MinThreadGroups(numBlockX, threadsPerGroup[0]);
+    uint32 numThreadGroupsY = RpmUtil::MinThreadGroups(numBlockY, threadsPerGroup[1]);
+    uint32 numThreadGroupsZ = RpmUtil::MinThreadGroups(numBlockZ, threadsPerGroup[2]);
+
+    pCmdBuffer->CmdDispatch(numThreadGroupsX, numThreadGroupsY, numThreadGroupsZ);
+}
+
+// =====================================================================================================================
+// Performs a fast color clear eliminate blt on the provided Image. Returns true if work (blt) is submitted to GPU.
+bool Gfx10RsrcProcMgr::FastClearEliminate(
+    GfxCmdBuffer*                pCmdBuffer,
+    Pal::CmdStream*              pCmdStream,
+    const Image&                 image,
+    const IMsaaState*            pMsaaState,
+    const MsaaQuadSamplePattern* pQuadSamplePattern,
+    const SubresRange&           range
+    ) const
+{
+    const auto& settings = GetGfx9Settings(*image.Parent()->GetDevice());
+
+    bool isSubmitted = false;
+
+    // If this image did *not* use comp-to-single for the clear, then a fast-clear is required.
+    // If this image did *not* disable comp-to-reg, then a fast-clear is also required even if comp-to-single fast
+    // clears were done.
+    if ((image.Gfx10UseCompToSingleFastClears() == false) ||
+        (TestAnyFlagSet(settings.useCompToSingle, Gfx10DisableCompToReg) == false))
+    {
+        isSubmitted = RsrcProcMgr::FastClearEliminate(pCmdBuffer,
+                                                      pCmdStream,
+                                                      image,
+                                                      pMsaaState,
+                                                      pQuadSamplePattern,
+                                                      range);
+    }
+
+    return isSubmitted;
+}
+
+// =====================================================================================================================
+// Performs a "fast" depth and stencil resummarize operation by updating the Image's HTile buffer to represent a fully
+// open HiZ range and set ZMask and SMem to expanded state.
+void Gfx10RsrcProcMgr::HwlResummarizeHtileCompute(
+    GfxCmdBuffer*      pCmdBuffer,
+    const GfxImage&    image,
+    const SubresRange& range
+    ) const
+{
+    // Evaluate the mask and value for updating the HTile buffer.
+    const Gfx9::Image& gfx9Image = static_cast<const Gfx9::Image&>(image);
+    const Gfx9Htile*const pHtile = gfx9Image.GetHtile();
+    PAL_ASSERT(pHtile != nullptr);
+
+    const uint32 hTileValue  = pHtile->ComputeResummarizeData();
+    const ImageAspect aspect = range.startSubres.aspect;
+    PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
+    const uint32 clearFlags  = (aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil;
+    uint32 hTileMask         = pHtile->GetAspectMask(clearFlags);
+
+    InitHtileData(pCmdBuffer, gfx9Image, range, hTileValue, hTileMask);
+}
+
+// =====================================================================================================================
+void Gfx10RsrcProcMgr::InitHtileData(
+    GfxCmdBuffer*      pCmdBuffer,
+    const Image&       dstImage,
+    const SubresRange& range,
+    uint32             hTileValue,
+    uint32             hTileMask
+    ) const
+{
+    const Pal::Image*  pPalImage     = dstImage.Parent();
+    const auto*        pHtile        = dstImage.GetHtile();
+    const auto&        hTileAddrOut  = pHtile->GetAddrOutput();
+    const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile);
+
+    PAL_ASSERT(pCmdBuffer->IsComputeSupported());
+
+    // Save the command buffer's state.
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+
+    // Determine which pipeline to use for this clear.  The "GetLinearHtileClearPipeline" will return nullptr if
+    // the mask value is UINT_MAX (i.e., don't keep any existing values, just write hTileValue directly).  However,
+    // the FastDepthClear pipeline will still work for this case.
+    const ComputePipeline* pPipeline = ((hTileMask != UINT_MAX)
+                                        ? GetLinearHtileClearPipeline(m_pDevice->Settings().dbPerTileExpClearEnable,
+                                                                      pHtile->TileStencilDisabled(),
+                                                                      hTileMask)
+                                        : GetPipeline(RpmComputePipeline::FastDepthClear));
+
+    PAL_ASSERT(pPipeline != nullptr);
+
+    // Bind the pipeline.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
+
+    // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
+    const uint32 hTileUserData[2] = { hTileValue & hTileMask, ~hTileMask };
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
+                               NumBytesToNumDwords(sizeof(sq_buf_rsrc_t)),
+                               NumBytesToNumDwords(sizeof(hTileUserData)),
+                               hTileUserData);
+
+    bool  wroteLastMipLevel = false;
+    for (uint32 mipIdx = 0; mipIdx < range.numMips; mipIdx++)
+    {
+        const uint32  absMip       = mipIdx + range.startSubres.mipLevel;
+        const auto&   hTileMipInfo = pHtile->GetAddrMipInfo(absMip);
+
+        // A slice size of zero indicates that this subresource isn't compressible and that there's
+        // nothing to do
+        if (hTileMipInfo.sliceSize != 0)
+        {
+            for (uint32 sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
+            {
+                const  uint32 absSlice        = sliceIdx + range.startSubres.arraySlice;
+                const gpusize hTileSubResAddr = hTileBaseAddr +
+                                                hTileAddrOut.sliceSize * absSlice +
+                                                hTileMipInfo.offset;
+
+                BufferViewInfo hTileBufferView         = {};
+                hTileBufferView.gpuAddr                = hTileSubResAddr;
+                hTileBufferView.range                  = hTileMipInfo.sliceSize;
+                hTileBufferView.stride                 = sizeof(uint32);
+                hTileBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
+                hTileBufferView.swizzledFormat.swizzle =
+                    { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+                BufferSrd srd = { };
+                m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &hTileBufferView, &srd);
+
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
+                                           0,
+                                           NumBytesToNumDwords(sizeof(sq_buf_rsrc_t)),
+                                           reinterpret_cast<uint32*>(&srd.gfx10));
+
+                // Issue a dispatch with one thread per HTile DWORD.
+                const uint32 hTileDwords  = static_cast<uint32>(hTileBufferView.range / sizeof(uint32));
+                const uint32 threadGroups = RpmUtil::MinThreadGroups(hTileDwords, pPipeline->ThreadsPerGroup());
+                pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+            } // end loop through slices
+        }
+        else
+        {
+            // If this mip level isn't compressible, then no smaller mip levels will be either.
+            wroteLastMipLevel = true;
+        }
+    } // end loop through mip levels
+
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
+
+// =====================================================================================================================
+void Gfx10RsrcProcMgr::WriteHtileData(
+    GfxCmdBuffer*      pCmdBuffer,
+    const Image&       dstImage,
+    const SubresRange& range,
+    uint32             hTileValue,
+    uint32             hTileMask,
+    uint8              stencil
+    ) const
+{
+    const Pal::Image*  pPalImage     = dstImage.Parent();
+    const auto*        pHtile        = dstImage.GetHtile();
+    const auto&        hTileAddrOut  = pHtile->GetAddrOutput();
+    const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile);
+
+    PAL_ASSERT(pCmdBuffer->IsComputeSupported());
+
+    // Save the command buffer's state.
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+
+    const bool expClearEnable        = m_pDevice->Settings().dbPerTileExpClearEnable;
+    const bool tileStencilDisabled   = pHtile->TileStencilDisabled();
+    const ComputePipeline* pPipeline = nullptr;
+    const uint32 numBufferSrdDwords  = NumBytesToNumDwords(sizeof(sq_buf_rsrc_t));
+    bool  wroteLastMipLevel          = false;
+
+    for (uint32 mipIdx = 0; mipIdx < range.numMips; mipIdx++)
+    {
+        const uint32  absMip       = mipIdx + range.startSubres.mipLevel;
+        const auto&   hTileMipInfo = pHtile->GetAddrMipInfo(absMip);
+
+        // A slice size of zero indicates that this subresource isn't compressible and that there's
+        // nothing to do
+        if (hTileMipInfo.sliceSize != 0)
+        {
+            for (uint32 sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
+            {
+                const  uint32 absSlice        = sliceIdx + range.startSubres.arraySlice;
+                const gpusize hTileSubResAddr = hTileBaseAddr +
+                                                hTileAddrOut.sliceSize * absSlice +
+                                                hTileMipInfo.offset;
+
+                pPipeline                              = nullptr;
+                BufferViewInfo hTileBufferView         = {};
+                hTileBufferView.gpuAddr                = hTileSubResAddr;
+                hTileBufferView.range                  = hTileMipInfo.sliceSize;
+                hTileBufferView.stride                 = sizeof(uint32);
+                hTileBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
+                hTileBufferView.swizzledFormat.swizzle =
+                    { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+                BufferSrd htileSurfSrd                 = { };
+                uint32 hTileUserData[4]                = { };
+                uint32 numConstDwords                  = 4;
+                bool useHisPretests                    = false;
+
+                // Number of bytes of all htiles within a sub resouce can be divided by 4.
+                PAL_ASSERT((hTileMipInfo.sliceSize % sizeof(uint32) == 0));
+                const uint32 hTileDwords = static_cast<uint32>(hTileMipInfo.sliceSize / sizeof(uint32));
+                uint32 minThreads        = hTileDwords;
+
+                if (expClearEnable)
+                {
+                    // If Exp/Clear is enabled, fast clears require using a special Exp/Clear shader.
+                    // One such shader exists for depth/stencil Images and for depth-only Images.
+                    if (tileStencilDisabled == false)
+                    {
+                        pPipeline = GetPipeline(RpmComputePipeline::FastDepthStExpClear);
+                    }
+                    else
+                    {
+                        pPipeline = GetPipeline(RpmComputePipeline::FastDepthExpClear);
+                    }
+                    hTileUserData[0] = hTileValue & hTileMask;
+                    hTileUserData[1] = ~hTileMask;
+                    numConstDwords = 2;
+                    m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &hTileBufferView, &htileSurfSrd);
+                }
+                else
+                {
+                    // In two cases, we use FastDepthClear pipeline for fast clear.
+                    // One case is that htile is of depth only format.
+                    // The other is that htile is of depth stencil format, but client clear depth aspect only.
+                    if ((tileStencilDisabled == true) ||
+                        ((pHtile->GetAspectMask(HtileAspectStencil) & hTileMask) == 0) ||
+                        (dstImage.HasHiSPretestsMetaData() == false))
+                    {
+                        // If the htile is of pure depth format (i.e., no stencil fields), and hTileMask is 0,
+                        // we'll also take this path. This will happen when the range is
+                        // of stencil aspect, but the the htile is of pure depth format.
+                        pPipeline = GetPipeline(RpmComputePipeline::FastDepthClear);
+                        hTileUserData[0] = hTileValue & hTileMask;
+                        hTileUserData[1] = ~hTileMask;
+                        numConstDwords   = 2;
+                        m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &hTileBufferView, &htileSurfSrd);
+                    }
+                    else
+                    {
+                        // Clear both depth and stencil aspect, or clear stencil aspect only.
+                        // In case of stencil only or D+S, we have to update SR0/1 fields based on given fast
+                        // clear stencil value and HiS pretests meta data stored in the image.
+                        if ((hTileDwords % 4) == 0)
+                        {
+                            pPipeline  = GetPipeline(RpmComputePipeline::HtileSR4xUpdate);
+                            minThreads = minThreads / 4;
+                        }
+                        else
+                        {
+                            pPipeline = GetPipeline(RpmComputePipeline::HtileSRUpdate);
+                        }
+                        hTileBufferView.stride         = 1;
+                        hTileBufferView.swizzledFormat = UndefinedSwizzledFormat;
+                        m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &hTileBufferView, &htileSurfSrd);
+                        hTileUserData[0] = hTileValue; // The htile value written to the htile surf.
+                        hTileUserData[1] = hTileMask; // It determines which aspect of htileValue will be used.
+                        hTileUserData[2] = stencil; // Fast clear stencil value.
+                        numConstDwords   = 4; // This shader expects four values and the last one is padding.
+                        useHisPretests   = true;
+                    }
+                }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+                pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
+                pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
+
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
+                                           0,
+                                           numBufferSrdDwords,
+                                           reinterpret_cast<uint32*>(&htileSurfSrd.gfx10));
+
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
+                                           numBufferSrdDwords,
+                                           numConstDwords,
+                                           hTileUserData);
+
+                // HiS metadata is only needed if we use HiStencil shaders to do fast DS clear.
+                if (useHisPretests)
+                {
+                    BufferSrd metadataSrd = {};
+
+                    // BufferView for the HiStencil meta data.
+                    BufferViewInfo metadataView = {  };
+                    // We may replace absMip with 0, as HiS meta data is each sub resouce is same.
+                    metadataView.gpuAddr        = dstImage.HiSPretestsMetaDataAddr(absMip);
+                    // HiStencil meta data size for one mip.
+                    metadataView.range          = dstImage.HiSPretestsMetaDataSize(1);
+                    metadataView.stride         = 1;
+                    metadataView.swizzledFormat = UndefinedSwizzledFormat;
+                    m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &metadataView, &metadataSrd);
+
+                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
+                                               numBufferSrdDwords + numConstDwords,
+                                               numBufferSrdDwords,
+                                               reinterpret_cast<uint32*>(&metadataSrd.gfx10));
+                }
+
+                // Issue a dispatch with one thread per HTile DWORD or a dispatch every 4 Htile DWORD.
+                const uint32 threadGroups = RpmUtil::MinThreadGroups(minThreads, pPipeline->ThreadsPerGroup());
+                pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+
+            } // end loop through slices
+        }
+        else
+        {
+            // If this mip level isn't compressible, then no smaller mip levels will be either.
+            wroteLastMipLevel = true;
+        }
+    } // end loop through mip levels
+
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
+
+// =====================================================================================================================
+// Performs a fast-clear on a Depth/Stencil Image range by updating the Image's HTile buffer.
+void Gfx10RsrcProcMgr::FastDepthStencilClearCompute(
+    GfxCmdBuffer*      pCmdBuffer,
+    const Image&       dstImage,
+    const SubresRange& range,
+    uint32             hTileValue,
+    uint32             clearMask,
+    uint8              stencil
+    ) const
+{
+    const auto* pHtile = dstImage.GetHtile();
+    uint32   hTileMask = pHtile->GetAspectMask(clearMask);
+
+    WriteHtileData(pCmdBuffer, dstImage, range, hTileValue, hTileMask, stencil);
+
+    FastDepthStencilClearComputeCommon(pCmdBuffer, dstImage.Parent(), clearMask);
+}
+
+// =====================================================================================================================
+const Pal::ComputePipeline* Gfx10RsrcProcMgr::GetCmdGenerationPipeline(
+    const Pal::IndirectCmdGenerator& generator,
+    const CmdBuffer&                 cmdBuffer
+    ) const
+{
+    RpmComputePipeline pipeline   = RpmComputePipeline::Count;
+    const EngineType   engineType = cmdBuffer.GetEngineType();
+
+    switch (generator.Type())
+    {
+    case GeneratorType::Draw:
+    case GeneratorType::DrawIndexed:
+        // We use a compute pipeline to generate PM4 for executing graphics draws...  This command buffer needs
+        // to be able to support both operations.  This will be a problem for GFX10-graphics only rings.
+        PAL_ASSERT(Pal::Device::EngineSupportsGraphics(engineType) &&
+                   Pal::Device::EngineSupportsCompute(engineType));
+
+        pipeline = RpmComputePipeline::Gfx10GenerateCmdDraw;
+        break;
+
+    case GeneratorType::Dispatch:
+        PAL_ASSERT(Pal::Device::EngineSupportsCompute(engineType));
+
+        pipeline = RpmComputePipeline::Gfx10GenerateCmdDispatch;
+        break;
+
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    return GetPipeline(pipeline);
+}
+
+// =====================================================================================================================
+void Gfx10RsrcProcMgr::HwlDecodeBufferViewSrd(
+    const void*      pBufferViewSrd,
+    BufferViewInfo*  pViewInfo
+    ) const
+{
+    const auto* pSrd = static_cast<const sq_buf_rsrc_t*>(pBufferViewSrd);
+
+    // Verify that we have a buffer view SRD.
+    PAL_ASSERT(pSrd->type == SQ_RSRC_BUF);
+
+    // Reconstruct the buffer view info struct.
+    pViewInfo->gpuAddr = pSrd->base_address;
+    pViewInfo->range   = pSrd->num_records;
+    pViewInfo->stride  = pSrd->stride;
+
+    if (pViewInfo->stride > 1)
+    {
+        pViewInfo->range *= pViewInfo->stride;
+    }
+
+    pViewInfo->swizzledFormat.format    = FmtFromHwBufFmt(static_cast<BUF_FMT>(pSrd->format),
+                                                          m_pDevice->Parent()->ChipProperties().gfxLevel);
+    pViewInfo->swizzledFormat.swizzle.r =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_x));
+    pViewInfo->swizzledFormat.swizzle.g =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_y));
+    pViewInfo->swizzledFormat.swizzle.b =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_z));
+    pViewInfo->swizzledFormat.swizzle.a =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_w));
+
+    // Verify that we have a valid format.
+    PAL_ASSERT(pViewInfo->swizzledFormat.format != ChNumFormat::Undefined);
+}
+
+// =====================================================================================================================
+// GFX10-specific function for extracting the subresource range and format information from the supplied SRD and image
+void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
+    const void*           pImageViewSrd,
+    const Pal::Image&     dstImage,
+    SwizzledFormat*       pSwizzledFormat,
+    SubresRange*          pSubresRange
+    ) const
+{
+    const auto*  pSrd = static_cast<const sq_img_rsrc_t*>(pImageViewSrd);
+
+    // Verify that we have an image view SRD.
+    PAL_ASSERT((pSrd->type >= SQ_RSRC_IMG_1D) && (pSrd->type <= SQ_RSRC_IMG_2D_MSAA_ARRAY));
+
+    const gpusize  srdBaseAddr = pSrd->base_address;
+
+    pSwizzledFormat->format    = FmtFromHwImgFmt(static_cast<IMG_FMT>(pSrd->format),
+                                                 m_pDevice->Parent()->ChipProperties().gfxLevel);
+    pSwizzledFormat->swizzle.r = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_x));
+    pSwizzledFormat->swizzle.g = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_y));
+    pSwizzledFormat->swizzle.b = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_z));
+    pSwizzledFormat->swizzle.a = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_w));
+
+    // Verify that we have a valid format.
+    PAL_ASSERT(pSwizzledFormat->format != ChNumFormat::Undefined);
+
+    // Next, recover the original subresource range. We can't recover the exact range in all cases so we must assume
+    // that it's looking at the color aspect and that it's not block compressed.
+    PAL_ASSERT(Formats::IsBlockCompressed(pSwizzledFormat->format) == false);
+
+    pSubresRange->startSubres.aspect = DecodeImageViewSrdAspect(dstImage, srdBaseAddr);
+
+    // The PAL interface can not individually address the slices of a 3D resource.  "numSlices==1" is assumed to
+    // mean all of them and we have to start from the first slice.
+    if (dstImage.GetImageCreateInfo().imageType == ImageType::Tex3d)
+    {
+        pSubresRange->numSlices              = 1;
+        pSubresRange->startSubres.arraySlice = 0;
+    }
+    else
+    {
+        pSubresRange->numSlices              = LowPart(pSrd->depth - pSrd->base_array + 1);
+        pSubresRange->startSubres.arraySlice = LowPart(pSrd->base_array);
+    }
+
+    if (pSrd->type == SQ_RSRC_IMG_2D_MSAA_ARRAY)
+    {
+        // MSAA textures cannot be mipmapped; the BASE_LEVEL and LAST_LEVEL fields indicate the texture's sample count.
+        pSubresRange->startSubres.mipLevel = 0;
+        pSubresRange->numMips              = 1;
+    }
+    else
+    {
+        pSubresRange->startSubres.mipLevel = LowPart(pSrd->base_level);
+        pSubresRange->numMips              = LowPart(pSrd->last_level - pSrd->base_level + 1);
+    }
+}
+
+// =====================================================================================================================
+// Check if for all the regions, the format and swizzle mode are compatible for src and dst image.
+// If all regions are compatible, we can do a fixed function resolve. Otherwise return false.
+bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
+    const Pal::Image&         srcImage,
+    const Pal::Image&         dstImage,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions
+    ) const
+{
+    // GFX10 can't do copy resolves until the HwlHtileCopyAndFixUp function (below) is implemented.
+    return false;
+}
+
+// =====================================================================================================================
+// After a fixed-func depth/stencil copy resolve, src htile will be copied to dst htile and set the zmask or smask to
+// expanded. Depth part and stencil part share same htile. So the depth part and stencil part will be merged (if
+// necessary) and one cs blt will be launched for each merged region to copy and fixup the htile.
+void Gfx10RsrcProcMgr::HwlHtileCopyAndFixUp(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Pal::Image&         srcImage,
+    const Pal::Image&         dstImage,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions
+    ) const
+{
+    // Implementing this function requires udpating the "HwlCanDoDepthStencilCopyResolve" function as well so it
+    // actually gets called.
+    PAL_NOT_IMPLEMENTED();
+}
+
+// =====================================================================================================================
+// Initializes the requested range of cMask memory for the specified image.
+void Gfx10RsrcProcMgr::InitCmask(
+    GfxCmdBuffer*      pCmdBuffer,
+    Pal::CmdStream*    pCmdStream,
+    const Image&       image,
+    const SubresRange& range
+    ) const
+{
+    const auto&            boundMem     = image.Parent()->GetBoundGpuMemory();
+    const GpuMemory*       pGpuMemory   = boundMem.Memory();
+    const ImageCreateInfo& createInfo   = image.Parent()->GetImageCreateInfo();
+    const Gfx9Cmask*       pCmask       = image.GetCmask();
+    const auto&            cMaskAddrOut = pCmask->GetAddrOutput();
+    const uint32           clearValue   = ExpandClearCodeToDword(Gfx9Cmask::InitialValue);
+    const uint32           startSlice   = ((createInfo.imageType == ImageType::Tex3d)
+                                           ? 0
+                                           : range.startSubres.arraySlice);
+
+    // This is the byte offset from the start of the memory bound to this image
+    const gpusize          cMaskOffset  = boundMem.Offset() + pCmask->MemoryOffset();
+
+    // MSAA images can't have mipmaps
+    PAL_ASSERT (createInfo.mipLevels == 1);
+
+    const uint32  numSlices = GetClearDepth(image, range, 0);
+    const gpusize offset    = cMaskOffset + startSlice * cMaskAddrOut.sliceSize;
+
+    CmdFillMemory(pCmdBuffer,
+                  true,
+                  *pGpuMemory,
+                  offset,
+                  numSlices * cMaskAddrOut.sliceSize,
+                  clearValue);
+}
+
+// =====================================================================================================================
+// Use the compute engine to initialize hTile memory that corresponds to the specified clearRange
+void Gfx10RsrcProcMgr::InitHtile(
+    GfxCmdBuffer*      pCmdBuffer,
+    Pal::CmdStream*    pCmdStream,
+    const Image&       dstImage,
+    const SubresRange& clearRange
+    ) const
+{
+    const Pal::Image*      pParentImg = dstImage.Parent();
+    const Pal::Device*     pParentDev = pParentImg->GetDevice();
+    const ImageCreateInfo& createInfo = pParentImg->GetImageCreateInfo();
+    const auto*            pHtile = dstImage.GetHtile();
+    const uint32           initValue = pHtile->GetInitialValue();
+
+    // There shouldn't be any 3D images with HTile allocations.
+    PAL_ASSERT(createInfo.imageType != ImageType::Tex3d);
+    PAL_ASSERT(pCmdBuffer->IsComputeSupported());
+
+    uint32 clearMask = 0;
+
+    // If htile is of depth only format, and the client is initialzing stencil aspect, we do nothing here.
+    if (clearRange.startSubres.aspect == ImageAspect::Depth)
+    {
+        clearMask         = HtileAspectDepth;
+        uint32  hTileMask = pHtile->GetAspectMask(clearMask);
+        InitHtileData(pCmdBuffer, dstImage, clearRange, initValue, hTileMask);
+        FastDepthStencilClearComputeCommon(pCmdBuffer, dstImage.Parent(), clearMask);
+    }
+    else if ((clearRange.startSubres.aspect == ImageAspect::Stencil) && (pHtile->TileStencilDisabled() == false))
+    {
+        clearMask         = HtileAspectStencil;
+        uint32  hTileMask = pHtile->GetAspectMask(clearMask);
+        InitHtileData(pCmdBuffer, dstImage, clearRange, initValue, hTileMask);
+        FastDepthStencilClearComputeCommon(pCmdBuffer, dstImage.Parent(), clearMask);
+    }
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
+// =====================================================================================================================
+void Gfx10RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
+    uint32                numSrds,
+    const ImageViewInfo*  pBaseImageView,
+    void*                 pSrdTable
+    ) const
+{
+    const auto&     device   = *m_pDevice->Parent();
+    sq_img_rsrc_t*  pBaseSrd = reinterpret_cast<sq_img_rsrc_t*>(pSrdTable);
+
+    for (uint32 i = 0; i < numSrds; i++)
+    {
+        const ImageViewInfo*  pImageView = &pBaseImageView[i];
+        sq_img_rsrc_t*        pSrd       = &pBaseSrd[i];
+
+        device.CreateImageViewSrds(1, pImageView, pSrd);
+
+        // Leave "compression_en=1" so that the HW will update DCC memory with the "DCC is decompressed" code.
+        pSrd->write_compress_enable = 0;
+    }
+}
+#endif
+
+// =====================================================================================================================
+// On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation while copying
+// the data from src to dest, which means dst needs to have fmask of src.
+void Gfx10RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
+    GfxCmdBuffer*          pCmdBuffer,
+    const Pal::Image&      srcImage,
+    const Pal::Image&      dstImage,
+    uint32                 regionCount,
+    const ImageCopyRegion* pRegions,
+    uint32                 flags
+    ) const
+{
+    // On GFX9, the HW will not update the DCC memory on a shader-write.  GFX10 changes the rules.  There are a couple
+    // possibilities:
+    //   1) If the dst image was marked as shader-writeable, then the HW compressed the copied image data as the shader
+    //      wrote it...  in this case, do *not* fix up the DCC memory or corruption will result!
+    //   2) If the dst image was marked as shader-readable (but not writeable), then the HW wrote 0xFF (the DCC
+    //      "decompressed" code) into the DCC memory as the image data was being copied, so there's no need to do it
+    //      again here.
+    //   3) If the dst image is not meta-fetchable at all, then it should have been decompressed on the transition to
+    //      "LayoutCopyDst", at which point there's nothing to do in regards to fixing DCC.
+
+    // However, fmask and cmask data still need fixing.
+    RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
+}
+
+// =====================================================================================================================
+// Returns true if the image SRD indicates that writes to the surface from the shader are DCC compressed writes.
+bool Gfx10RsrcProcMgr::HwlImageUsesCompressedWrites(
+    const uint32* pImageSrd
+    ) const
+{
+    const auto*  pSrd = reinterpret_cast<const sq_img_rsrc_t*>(pImageSrd);
+    PAL_ASSERT((pSrd->write_compress_enable == 0) || (pSrd->compression_en == 1));
+    const bool   usesCompressedWrites = (pSrd->write_compress_enable != 0);
+    return usesCompressedWrites;
+}
+
+// =====================================================================================================================
+// In Gfx10 it is possible that internal blits can write compressed DCC data to the surface. If this occurs, we need
+// to update PAL's internal state metadata for DCC to indicate that the specific subresource is now (at least partially)
+// compressed.
+// NOTE: It is expected that this function *only* be called if updating DCC state metadata to compressed is expected.
+void Gfx10RsrcProcMgr::HwlUpdateDstImageStateMetaData(
+    GfxCmdBuffer*          pCmdBuffer,
+    const Pal::Image&      dstImage,
+    const SubresRange&     range
+    ) const
+{
+    auto*const   pStream      = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+    const auto&  gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
+    gfx9DstImage.UpdateDccStateMetaData(pStream, range, true, pCmdBuffer->GetEngineType(), PredDisable);
+}
+
+// =====================================================================================================================
+// For copies to non-local destinations, it is faster (although very unintuitive) to disable all but one of the RBs.
+// All of the RBs banging away on the PCIE bus produces more traffic than the write-combiner can efficiently handle,
+// so if we detect a write to non-local memory here, then disable RBs for the duration of the copy.  They will get
+// restored in the HwlEndGraphicsCopy function.
+uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
+    Pal::GfxCmdBuffer*           pCmdBuffer,
+    const Pal::GraphicsPipeline* pPipeline,
+    const Pal::Image&            dstImage,
+    uint32                       bpp
+    ) const
+{
+    Pal::CmdStream*const pCmdStream   = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+    const GpuMemory*     pGpuMem      = dstImage.GetBoundGpuMemory().Memory();
+    const auto&          palDevice    = *(m_pDevice->Parent());
+    const auto&          coreSettings = palDevice.Settings();
+    const auto&          settings     = m_pDevice->Settings();
+    uint32               modifiedMask = 0;
+
+    if (pGpuMem != nullptr)
+    {
+        const GpuHeap firstHeap = pGpuMem->Heap(0);
+
+        if ((((firstHeap == GpuHeapGartUswc)       ||
+              (firstHeap == GpuHeapGartCacheable)) ||
+              pGpuMem->IsPeer())                   &&
+            (coreSettings.nonlocalDestGraphicsCopyRbs >= 0))
+        {
+            regPA_SC_TILE_STEERING_OVERRIDE  defaultPaRegVal = {};
+            const auto&                      chipProps = m_pDevice->Parent()->ChipProperties().gfx9;
+
+            defaultPaRegVal.u32All  = chipProps.paScTileSteeringOverride;
+            const uint32 maxRbPerSc = (1 << defaultPaRegVal.gfx10.NUM_RB_PER_SC);
+
+            // A setting of zero RBs implies that the driver should use the optimal number.  For now, assume the
+            // optimal number is one.  Also don't allow more RBs than actively exist.
+            const uint32 numNeededTotalRbs = Min(Max(1u,
+                                                     static_cast<uint32>(coreSettings.nonlocalDestGraphicsCopyRbs)),
+                                                 chipProps.numActiveRbs);
+
+            // We now have the total number of RBs that we need...  However, the ASIC divides RBs up between the
+            // various SEs, so calculate how many SEs we need to involve and how many RBs each SE should use.
+            const uint32  numNeededScs      = Max(1u, (numNeededTotalRbs / maxRbPerSc));
+            const uint32  numNeededRbsPerSc = numNeededTotalRbs / numNeededScs;
+
+            //   - SC typically supports the following:
+            //       - Non-RB+ chip
+            //           -- 1-2 (base 10) packers
+            //           -- Each packer has 2 (base 10) RBs
+            //       - RB+ chip
+            //           -- 1-2 (base 10) packers
+            //           -- Each packer has 1 (base 10) RB
+            //           -- Each packer again has 1 (base 10) RB
+            //
+            //   - For a non-RB+ chip, we can support 1 RB per packer.  A non-RB+ chip, always has
+            //     2 RBs per packer.   RB+, is restricted to 1 RB per packer
+
+            // Write the new register value to the command stream
+            regPA_SC_TILE_STEERING_OVERRIDE  paScTileSteeringOverride = {};
+
+            // LOG2 of the effective number of scan-converters desired. Must not be programmed to greater than the
+            // number of active SCs present in the chip
+            paScTileSteeringOverride.gfx10.NUM_SC        = Log2(numNeededScs);
+
+            // LOG2 of the effective NUM_RB_PER_SC desired. Must not be programmed to greater than the number of
+            // active RBs per SC present in the chip.
+            paScTileSteeringOverride.gfx10.NUM_RB_PER_SC = Log2(numNeededRbsPerSc);
+
+            // LOG2 of the effective NUM_PACKER_PER_SC desired. This is strictly for test purposes, otherwise
+            // noramlly would be set to match the number of physical packers active in the design configuration. Must
+            // not be programmed to greater than the number of active packers per SA (SC) present in the chip
+            // configuration. Must be 0x1 if NUM_RB_PER_SC = 0x2.
+            if (IsNavi10(palDevice))
+            {
+                paScTileSteeringOverride.nv10.NUM_PACKER_PER_SC =
+                        Min(paScTileSteeringOverride.gfx10.NUM_RB_PER_SC,
+                            defaultPaRegVal.nv10.NUM_PACKER_PER_SC);
+            }
+
+            CommitBeginEndGfxCopy(pCmdStream, paScTileSteeringOverride.u32All);
+
+            // Let EndGraphcisCopy know that it has work to do
+            modifiedMask |= PaScTileSteeringOverrideMask;
+        }
+    }
+
+    // CreateCopyStates does not specify CompoundStateCrateInfo.pTriangleRasterParams and it is set here.
+    const TriangleRasterStateParams triangleRasterState
+    {
+        FillMode::Solid,        // fillMode
+        CullMode::None,         // cullMode
+        FaceOrientation::Cw,    // frontFace
+        ProvokingVertex::First  // provokingVertex
+    };
+
+    const bool optimizeLinearDestGfxCopy = RsrcProcMgr::OptimizeLinearDestGraphicsCopy &&
+                                           (dstImage.GetImageCreateInfo().tiling == ImageTiling::Linear);
+
+    static_cast<UniversalCmdBuffer*>(pCmdBuffer)->CmdSetTriangleRasterStateInternal(triangleRasterState,
+                                                                                    optimizeLinearDestGfxCopy);
+
+    return modifiedMask;
+}
+
+// =====================================================================================================================
+// Undoes whatever HwlBeginGraphicsCopy did.
+void Gfx10RsrcProcMgr::HwlEndGraphicsCopy(
+    Pal::CmdStream* pCmdStream,
+    uint32          restoreMask
+    ) const
+{
+    // Did HwlBeginGraphicsCopy do anything? If not, there's nothing to do here.
+    if (TestAnyFlagSet(restoreMask, PaScTileSteeringOverrideMask))
+    {
+        CommitBeginEndGfxCopy(pCmdStream, m_pDevice->Parent()->ChipProperties().gfx9.paScTileSteeringOverride);
+    }
 }
 
 } // Gfx9

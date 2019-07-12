@@ -379,6 +379,14 @@ private:
         gpusize*               pGpuMemSize
         ) const;
 
+    void Gfx10InitSubresource(
+        const Pal::Image*      pImage,
+        const SubResIterator&  subResIt,
+        SubResourceInfo*       pSubResInfoList,
+        void*                  pSubResTileInfoList,
+        gpusize*               pGpuMemSize
+        ) const;
+
     void BuildTileToken(
         SubResourceInfo* pSubResInfo,
         AddrSwizzleMode  swizzleMode) const;

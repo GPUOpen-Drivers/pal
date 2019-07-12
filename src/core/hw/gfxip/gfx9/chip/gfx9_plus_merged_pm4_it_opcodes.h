@@ -147,6 +147,12 @@ typedef enum IT_OpCodeType {
     IT_GET_LOD_STATS__GFX09                            = 0x0000008e,
     IT_DRAW_MULTI_PREAMBLE__GFX09                      = 0x0000008f,
     IT_AQL_PACKET__GFX09                               = 0x00000099,
+    IT_DISPATCH_DRAW_PREAMBLE__GFX101                  = 0x0000008c,
+    IT_DISPATCH_DRAW_PREAMBLE_ACE__GFX101              = 0x0000008c,
+    IT_DISPATCH_DRAW__GFX101                           = 0x0000008d,
+    IT_DISPATCH_DRAW_ACE__GFX101                       = 0x0000008d,
+    IT_DRAW_MULTI_PREAMBLE__GFX101                     = 0x0000008f,
+    IT_AQL_PACKET__GFX101                              = 0x00000099,
 } IT_OpCodeType;
 
 constexpr unsigned int PM4_TYPE_0                               = 0;

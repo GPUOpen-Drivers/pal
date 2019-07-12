@@ -68,6 +68,9 @@ static Sdl_GfxIpLevel PalToSdlGfxIpLevel(
         sdlGfxLevel = Sdl_GfxIp9;
         break;
 #endif
+    case GfxIpLevel::GfxIp10_1:
+        sdlGfxLevel = Sdl_GfxIp10;
+        break;
     default:
         PAL_ASSERT_ALWAYS();
         break;

@@ -147,6 +147,7 @@ enum class SchedulerMode : uint32
 {
     Software  = 0,  // Software scheduling only
     LegacyHws = 1,  // Legacy compute-only hardware scheduling (GFX8+)
+    MesHws    = 2,  // MES hardware scheduling (GFX10+)
 };
 
 struct HwsInfo
@@ -566,7 +567,8 @@ struct GpuChipProperties
                 /// array-based stereo feature supported by Presentable images.
                 uint32 supportsAqbsStereoMode       :  1;
 
-                uint32 reservedForFutureHw          :  1;
+                /// Images created on this device support being sampled with corner sampling.
+                uint32 supportsCornerSampling       :  1;
                 /// Reserved for future use.
                 uint32 reserved                     : 29;
             };
@@ -760,6 +762,19 @@ struct GpuChipProperties
 
             struct
             {
+                uint32  numTcpPerSa;
+                uint32  numWgpAboveSpi;
+                uint32  numWgpBelowSpi;
+                uint32  numGl2a;
+                uint32  numGl2c;
+
+                //                     [SE][SA]
+                uint16  activeWgpMask  [4] [2];
+                uint16  alwaysOnWgpMask[4] [2];
+            } gfx10;
+
+            struct
+            {
 
                 uint32 doubleOffchipLdsBuffers                  :  1; // HW supports 2x number of offchip LDS buffers
                                                                       // per SE
@@ -783,7 +798,11 @@ struct GpuChipProperties
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
                 uint32 validPaScTileSteeringOverride            :  1; // Value of paScTileSteeringOverride is valid
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
-                uint32 placeholder1                             :  5; // Placeholder. Do not use.
+                uint32 supportPerShaderStageWaveSize            :  1; // HW supports changing the wave size
+                uint32 supportCustomWaveBreakSize               :  1;
+                uint32 supportMsaaCoverageOut                   :  1; // HW supports MSAA coverage samples
+                uint32 supportPostDepthCoverage                 :  1; // HW supports post depth coverage feature
+                uint32 supportSpiPrefPriority                   :  1;
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
                 uint32 supportReleaseAcquireInterface           :  1; // True when ASIC supports the new barrier
@@ -2080,6 +2099,17 @@ PAL_INLINE bool IsGfx9(const Device& device)
 }
 #endif
 
+PAL_INLINE bool IsGfx10(GfxIpLevel gfxLevel)
+{
+    const bool isGfx10 = ((gfxLevel == GfxIpLevel::GfxIp10_1)
+                         );
+    return isGfx10;
+}
+PAL_INLINE bool IsGfx10(const Device& device)
+{
+    return IsGfx10(device.ChipProperties().gfxLevel);
+}
+
 PAL_INLINE bool IsTahiti(const Device& device)
 {
     return AMDGPU_IS_TAHITI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
@@ -2204,11 +2234,29 @@ PAL_INLINE bool IsRaven2(const Device& device)
 }
 #endif // PAL_BUILD_GFX9
 
+static bool IsNavi(const Device& device)
+{
+    return AMDGPU_IS_NAVI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+static bool IsNavi10(const Device& device)
+{
+    return AMDGPU_IS_NAVI10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+static bool IsGfx101(const Device& device)
+{
+    return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_1);
+}
+static bool IsGfx101Plus(const Device& device)
+{
+    return (device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_1);
+}
+
 static bool IsGfx091xPlus(const Device& device)
 {
     return (IsVega12(device)
             || IsVega20(device)
             || IsRaven2(device)
+            || IsGfx10(device)
            );
 }
 

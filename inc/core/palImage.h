@@ -236,7 +236,10 @@ union ImageUsageFlags
                                              ///  is used as a color target and compute is used to generate mipmaps,PAL
                                              ///  may be able to enable additional compression on the baseLevels which
                                              ///  are used exclusively as color target and shader read.
-        uint32 placeHolder1           :  1;
+        uint32 cornerSampling         :  1; ///< Set if this image will use corner sampling in image-read scenarios.  With
+                                            ///  corner sampling, the extent refers to the number of pixel corners which will
+                                            ///  be one more than the number of pixels.  Border color is ignored when corner
+                                            ///  sampling is enabled.
         uint32 placeHolder2           :  1;
         uint32 reserved               : 17;  ///< Reserved for future use.
     };

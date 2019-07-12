@@ -2310,6 +2310,11 @@ void CmdBuffer::DescribeBarrier(
         GetNextLayer()->CmdCommentString("\tflushDbMetadata");
     }
 
+    if (pData->operations.caches.invalGl1)
+    {
+        GetNextLayer()->CmdCommentString("\tinvalGl1");
+    }
+
     GetNextLayer()->CmdCommentString("}");
 
     switch (pData->type)

@@ -60,6 +60,8 @@ public:
 
     const ComputePipelineSignature& Signature() const { return m_signature; }
 
+    bool IsWave32() const { return m_signature.flags.isWave32; }
+
 protected:
     virtual Result HwlInit(
         const ComputePipelineCreateInfo& createInfo,
@@ -107,6 +109,17 @@ private:
             // Checksum register is optional, as not all GFX9+ hardware uses it. If we don't use it, NOP will be added.
             PM4_ME_SET_SH_REG         hdrComputeShaderChksum;
             regCOMPUTE_SHADER_CHKSUM  computeShaderChksum;
+
+            // All GFX10 devices support the checksum register. If we don't have it, NOP will be added.
+            PM4_ME_SET_SH_REG        hdrComputePgmRsrc3;
+            regCOMPUTE_PGM_RSRC3     computePgmRsrc3;
+
+            // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be added.
+            PM4_ME_SET_SH_REG        hdrComputeUserAccum;
+            regCOMPUTE_USER_ACCUM_0  regComputeUserAccum0;
+            regCOMPUTE_USER_ACCUM_1  regComputeUserAccum1;
+            regCOMPUTE_USER_ACCUM_2  regComputeUserAccum2;
+            regCOMPUTE_USER_ACCUM_3  regComputeUserAccum3;
 
             // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
             // w/ the actual commands contained above.

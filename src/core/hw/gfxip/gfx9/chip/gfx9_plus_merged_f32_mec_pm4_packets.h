@@ -96,6 +96,63 @@ typedef struct PM4_MEC_ACQUIRE_MEM__GFX09
 
 } PM4MEC_ACQUIRE_MEM__GFX09, *PPM4MEC_ACQUIRE_MEM__GFX09;
 
+//--------------------ACQUIRE_MEM__GFX10--------------------
+typedef struct PM4_MEC_ACQUIRE_MEM__GFX10
+{
+    union
+    {
+        PM4_MEC_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
+    };
+
+    uint32_t                                  reserved1;
+
+    uint32_t                                 coher_size;
+
+    union
+    {
+        struct
+        {
+            uint32_t                      coher_size_hi : 8;
+            uint32_t                          reserved1 : 24;
+        } bitfields4;
+        uint32_t                               ordinal4;
+    };
+
+    uint32_t                              coher_base_lo;
+
+    union
+    {
+        struct
+        {
+            uint32_t                      coher_base_hi : 24;
+            uint32_t                          reserved1 : 8;
+        } bitfields6;
+        uint32_t                               ordinal6;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                      poll_interval : 16;
+            uint32_t                          reserved1 : 16;
+        } bitfields7;
+        uint32_t                               ordinal7;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                           gcr_cntl : 19;
+            uint32_t                          reserved1 : 13;
+        } bitfields8;
+        uint32_t                               ordinal8;
+    };
+
+} PM4MEC_ACQUIRE_MEM__GFX10, *PPM4MEC_ACQUIRE_MEM__GFX10;
+
 //--------------------ATOMIC_GDS--------------------
 enum MEC_ATOMIC_GDS_atom_cmp_swap_enum {
     atom_cmp_swap__mec_atomic_gds__dont_repeat                             =  0,
@@ -202,11 +259,15 @@ typedef struct PM4_MEC_ATOMIC_GDS
 enum MEC_ATOMIC_MEM_cache_policy_enum {
     cache_policy__mec_atomic_mem__lru                                      =  0,
     cache_policy__mec_atomic_mem__stream                                   =  1,
+    cache_policy__mec_atomic_mem__noa__GFX10                               =  2,
+    cache_policy__mec_atomic_mem__bypass__GFX10                            =  3,
 };
 
 enum MEC_ATOMIC_MEM_command_enum {
     command__mec_atomic_mem__single_pass_atomic                            =  0,
     command__mec_atomic_mem__loop_until_compare_satisfied                  =  1,
+    command__mec_atomic_mem__wait_for_write_confirmation__GFX10            =  2,
+    command__mec_atomic_mem__send_and_continue__GFX10                      =  3,
 };
 
 typedef struct PM4_MEC_ATOMIC_MEM
@@ -259,6 +320,8 @@ typedef struct PM4_MEC_ATOMIC_MEM
 enum MEC_COND_EXEC_cache_policy_enum {
     cache_policy__mec_cond_exec__lru                                       =  0,
     cache_policy__mec_cond_exec__stream                                    =  1,
+    cache_policy__mec_cond_exec__noa__GFX10                                =  2,
+    cache_policy__mec_cond_exec__bypass__GFX10                             =  3,
 };
 
 typedef struct PM4_MEC_COND_EXEC
@@ -308,11 +371,15 @@ typedef struct PM4_MEC_COND_EXEC
 enum MEC_COND_INDIRECT_BUFFER_cache_policy1_enum {
     cache_policy1__mec_cond_indirect_buffer__lru                           =  0,
     cache_policy1__mec_cond_indirect_buffer__stream                        =  1,
+    cache_policy1__mec_cond_indirect_buffer__noa__GFX10                    =  2,
+    cache_policy1__mec_cond_indirect_buffer__bypass__GFX10                 =  3,
 };
 
 enum MEC_COND_INDIRECT_BUFFER_cache_policy2_enum {
     cache_policy2__mec_cond_indirect_buffer__lru                           =  0,
     cache_policy2__mec_cond_indirect_buffer__stream                        =  1,
+    cache_policy2__mec_cond_indirect_buffer__noa__GFX10                    =  2,
+    cache_policy2__mec_cond_indirect_buffer__bypass__GFX10                 =  3,
 };
 
 enum MEC_COND_INDIRECT_BUFFER_function_enum {
@@ -489,6 +556,8 @@ enum MEC_COPY_DATA_count_sel_enum {
 enum MEC_COPY_DATA_dst_cache_policy_enum {
     dst_cache_policy__mec_copy_data__lru                                   =  0,
     dst_cache_policy__mec_copy_data__stream                                =  1,
+    dst_cache_policy__mec_copy_data__noa__GFX10                            =  2,
+    dst_cache_policy__mec_copy_data__bypass__GFX10                         =  3,
 };
 
 enum MEC_COPY_DATA_dst_sel_enum {
@@ -498,6 +567,7 @@ enum MEC_COPY_DATA_dst_sel_enum {
     dst_sel__mec_copy_data__perfcounters                                   =  4,
     dst_sel__mec_copy_data__memory__GFX09                                  =  5,
     dst_sel__mec_copy_data__mem_mapped_reg_dc                              =  6,
+    dst_sel__mec_copy_data__tc_l2_obsolete__GFX10                          =  5,
 };
 
 enum MEC_COPY_DATA_pq_exe_status_enum {
@@ -508,6 +578,8 @@ enum MEC_COPY_DATA_pq_exe_status_enum {
 enum MEC_COPY_DATA_src_cache_policy_enum {
     src_cache_policy__mec_copy_data__lru                                   =  0,
     src_cache_policy__mec_copy_data__stream                                =  1,
+    src_cache_policy__mec_copy_data__noa__GFX10                            =  2,
+    src_cache_policy__mec_copy_data__bypass__GFX10                         =  3,
 };
 
 enum MEC_COPY_DATA_src_sel_enum {
@@ -522,6 +594,7 @@ enum MEC_COPY_DATA_src_sel_enum {
     src_sel__mec_copy_data__gds_atomic_return_data1                        =  8,
     src_sel__mec_copy_data__gpu_clock_count                                =  9,
     src_sel__mec_copy_data__system_clock_count                             = 10,
+    src_sel__mec_copy_data__tc_l2_obsolete__GFX10                          =  1,
 };
 
 enum MEC_COPY_DATA_wr_confirm_enum {
@@ -722,6 +795,8 @@ enum MEC_DMA_DATA_das_enum {
 enum MEC_DMA_DATA_dst_cache_policy_enum {
     dst_cache_policy__mec_dma_data__lru                                    =  0,
     dst_cache_policy__mec_dma_data__stream                                 =  1,
+    dst_cache_policy__mec_dma_data__noa__GFX10                             =  2,
+    dst_cache_policy__mec_dma_data__bypass__GFX10                          =  3,
 };
 
 enum MEC_DMA_DATA_dst_sel_enum {
@@ -743,6 +818,8 @@ enum MEC_DMA_DATA_sas_enum {
 enum MEC_DMA_DATA_src_cache_policy_enum {
     src_cache_policy__mec_dma_data__lru                                    =  0,
     src_cache_policy__mec_dma_data__stream                                 =  1,
+    src_cache_policy__mec_dma_data__noa__GFX10                             =  2,
+    src_cache_policy__mec_dma_data__bypass__GFX10                          =  3,
 };
 
 enum MEC_DMA_DATA_src_sel_enum {
@@ -806,6 +883,8 @@ typedef struct PM4_MEC_DMA_DATA
 enum MEC_DMA_DATA_FILL_MULTI_dst_cache_policy_enum {
     dst_cache_policy__mec_dma_data_fill_multi__lru                         =  0,
     dst_cache_policy__mec_dma_data_fill_multi__stream                      =  1,
+    dst_cache_policy__mec_dma_data_fill_multi__noa__GFX10                  =  2,
+    dst_cache_policy__mec_dma_data_fill_multi__bypass__GFX10               =  3,
 };
 
 enum MEC_DMA_DATA_FILL_MULTI_dst_sel_enum {
@@ -920,6 +999,8 @@ typedef struct PM4_MEC_HDP_FLUSH
 enum MEC_INDIRECT_BUFFER_cache_policy_enum {
     cache_policy__mec_indirect_buffer__lru                                 =  0,
     cache_policy__mec_indirect_buffer__stream                              =  1,
+    cache_policy__mec_indirect_buffer__noa__GFX10                          =  2,
+    cache_policy__mec_indirect_buffer__bypass__GFX10                       =  3,
 };
 
 typedef struct PM4_MEC_INDIRECT_BUFFER
@@ -965,6 +1046,8 @@ typedef struct PM4_MEC_INDIRECT_BUFFER
 enum MEC_INDIRECT_BUFFER_PASID_cache_policy_enum {
     cache_policy__mec_indirect_buffer_pasid__lru                           =  0,
     cache_policy__mec_indirect_buffer_pasid__stream                        =  1,
+    cache_policy__mec_indirect_buffer_pasid__noa__GFX10                    =  2,
+    cache_policy__mec_indirect_buffer_pasid__bypass__GFX10                 =  3,
 };
 
 typedef struct PM4_MEC_INDIRECT_BUFFER_PASID
@@ -1167,6 +1250,8 @@ typedef struct PM4_MEC_PRIME_UTCL2
 enum MEC_RELEASE_MEM_cache_policy_enum {
     cache_policy__mec_release_mem__lru                                     =  0,
     cache_policy__mec_release_mem__stream                                  =  1,
+    cache_policy__mec_release_mem__noa__GFX10                              =  2,
+    cache_policy__mec_release_mem__bypass__GFX10                           =  3,
 };
 
 enum MEC_RELEASE_MEM_data_sel_enum {
@@ -1302,6 +1387,95 @@ typedef struct PM4_MEC_RELEASE_MEM__GFX09
     uint32_t                                  int_ctxid;
 
 } PM4MEC_RELEASE_MEM__GFX09, *PPM4MEC_RELEASE_MEM__GFX09;
+
+//--------------------RELEASE_MEM__GFX10--------------------
+typedef struct PM4_MEC_RELEASE_MEM__GFX10
+{
+    union
+    {
+        PM4_MEC_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                         event_type : 6;
+            uint32_t                          reserved1 : 2;
+            MEC_RELEASE_MEM_event_index_enum event_index : 4;
+            uint32_t                           gcr_cntl : 12;
+            uint32_t                          reserved2 : 1;
+            MEC_RELEASE_MEM_cache_policy_enum cache_policy : 2;
+            uint32_t                          reserved3 : 1;
+            MEC_RELEASE_MEM_pq_exe_status_enum pq_exe_status : 1;
+            uint32_t                          reserved4 : 3;
+        } bitfields2;
+        uint32_t                               ordinal2;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                          reserved1 : 16;
+            MEC_RELEASE_MEM_dst_sel_enum        dst_sel : 2;
+            uint32_t                          reserved2 : 6;
+            MEC_RELEASE_MEM_int_sel_enum        int_sel : 3;
+            uint32_t                          reserved3 : 2;
+            MEC_RELEASE_MEM_data_sel_enum      data_sel : 3;
+        } bitfields3;
+        uint32_t                               ordinal3;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                          reserved1 : 2;
+            uint32_t                     address_lo_32b : 30;
+        } bitfields4a;
+        struct
+        {
+            uint32_t                          reserved1 : 3;
+            uint32_t                     address_lo_64b : 29;
+        } bitfields4b;
+        uint32_t                             reserved10;
+        uint32_t                               ordinal4;
+    };
+
+    union
+    {
+        uint32_t                             address_hi;
+        uint32_t                             reserved11;
+        uint32_t                               ordinal5;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                          dw_offset : 16;
+            uint32_t                         num_dwords : 16;
+        } bitfields6;
+        uint32_t                                data_lo;
+        uint32_t                            cmp_data_lo;
+        uint32_t                             reserved12;
+        uint32_t                               ordinal6;
+    };
+
+    union
+    {
+        uint32_t                                data_hi;
+        uint32_t                            cmp_data_hi;
+        uint32_t                             reserved13;
+        uint32_t                             reserved14;
+        uint32_t                               ordinal7;
+    };
+
+    uint32_t                                  int_ctxid;
+
+} PM4MEC_RELEASE_MEM__GFX10, *PPM4MEC_RELEASE_MEM__GFX10;
 
 //--------------------REWIND--------------------
 typedef struct PM4_MEC_REWIND
@@ -1479,6 +1653,10 @@ typedef struct PM4_MEC_WAIT_ON_CE_COUNTER
 
 //--------------------WAIT_REG_MEM--------------------
 enum MEC_WAIT_REG_MEM_cache_policy_enum {
+    cache_policy__mec_wait_reg_mem__lru__GFX10                             =  0,
+    cache_policy__mec_wait_reg_mem__stream__GFX10                          =  1,
+    cache_policy__mec_wait_reg_mem__noa__GFX10                             =  2,
+    cache_policy__mec_wait_reg_mem__bypass__GFX10                          =  3,
 };
 
 enum MEC_WAIT_REG_MEM_function_enum {
@@ -1519,6 +1697,8 @@ typedef struct PM4_MEC_WAIT_REG_MEM
             MEC_WAIT_REG_MEM_mem_space_enum   mem_space : 2;
             MEC_WAIT_REG_MEM_operation_enum   operation : 2;
             uint32_t                          reserved2 : 17;
+            MEC_WAIT_REG_MEM_cache_policy_enum cache_policy__GFX10 : 2;
+            uint32_t                          reserved3 : 5;
         } bitfields2;
         uint32_t                               ordinal2;
     };
@@ -1573,6 +1753,10 @@ typedef struct PM4_MEC_WAIT_REG_MEM
 
 //--------------------WAIT_REG_MEM64--------------------
 enum MEC_WAIT_REG_MEM64_cache_policy_enum {
+    cache_policy__mec_wait_reg_mem64__lru__GFX10                           =  0,
+    cache_policy__mec_wait_reg_mem64__stream__GFX10                        =  1,
+    cache_policy__mec_wait_reg_mem64__noa__GFX10                           =  2,
+    cache_policy__mec_wait_reg_mem64__bypass__GFX10                        =  3,
 };
 
 enum MEC_WAIT_REG_MEM64_function_enum {
@@ -1613,6 +1797,8 @@ typedef struct PM4_MEC_WAIT_REG_MEM64
             MEC_WAIT_REG_MEM64_mem_space_enum mem_space : 2;
             MEC_WAIT_REG_MEM64_operation_enum operation : 2;
             uint32_t                          reserved2 : 17;
+            MEC_WAIT_REG_MEM64_cache_policy_enum cache_policy__GFX10 : 2;
+            uint32_t                          reserved3 : 5;
         } bitfields2;
         uint32_t                               ordinal2;
     };
@@ -1678,6 +1864,8 @@ enum MEC_WRITE_DATA_addr_incr_enum {
 enum MEC_WRITE_DATA_cache_policy_enum {
     cache_policy__mec_write_data__lru                                      =  0,
     cache_policy__mec_write_data__stream                                   =  1,
+    cache_policy__mec_write_data__noa__GFX10                               =  2,
+    cache_policy__mec_write_data__bypass__GFX10                            =  3,
 };
 
 enum MEC_WRITE_DATA_dst_sel_enum {

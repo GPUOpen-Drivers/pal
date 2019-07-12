@@ -81,6 +81,7 @@ enum class AmdGpuMachineType : uint8
     Gfx906  = 0x2f,  ///< EF_AMDGPU_MACH_AMDGCN_GFX906
     Gfx909  = 0x31,  ///< EF_AMDGPU_MACH_AMDGCN_GFX909
 #endif
+    Gfx1010 = 0x33,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1010
 };
 
 /// Enumerates the steppng values for each GPU supported by PAL (and by PAL's ABI).  There are many duplicates
@@ -118,6 +119,9 @@ enum GfxIpStepping : uint16
     GfxIpSteppingVega12 = 4,
     GfxIpSteppingVega20 = 6,
     GfxIpSteppingRaven2 = 9,
+
+    // GFXIP 10.1.x steppings:
+    GfxIpSteppingNavi10        = 0,
 
 };
 
@@ -292,7 +296,7 @@ static const char* PipelineMetadataNameStrings[] =
     "PS_PERFORMANCE_DATA_BUFFER_SIZE",
     "CS_PERFORMANCE_DATA_BUFFER_SIZE",
 
-    "RESERVED0",
+    "CALC_WAVE_BREAK_SIZE_AT_DRAW_TIME",
 
     "RESERVED1",
 
@@ -303,7 +307,11 @@ static const char* PipelineMetadataNameStrings[] =
     "INTERNAL_PIPELINE_HASH_DWORD2",
     "INTERNAL_PIPELINE_HASH_DWORD3",
 
+#if PAL_BUILD_GFX10 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
+    "CS_WAVE_FRONT_SIZE",
+#else
     "RESERVED2",
+#endif
 };
 
 /// The pipeline ABI note types.
@@ -618,7 +626,8 @@ enum class PipelineMetadataType : uint32
     CsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
                                   ///  shader and the size in bytes required.
 
-    Reserved0,                    ///< Reserved for future use.
+    CalcWaveBreakSizeAtDrawTime,  ///< If present, a boolean indicating whether or not the wave-break-size should
+                                  ///  be calculated at draw time or not.
 
     Reserved1,                    ///< Reserved for future use.
 
@@ -629,7 +638,11 @@ enum class PipelineMetadataType : uint32
     InternalPipelineHashDword2,   ///< Dword 2 of a 128-bit hash identifying the internal pipeline (unique portion).
     InternalPipelineHashDword3,   ///< Dword 3 of a 128-bit hash identifying the internal pipeline (unique portion).
 
+#if PAL_BUILD_GFX10 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
+    CsWaveFrontSize,              ///< Wave front size.
+#else
     Reserved2,                    ///< Reserved for future use.
+#endif
 
     Count,
 
@@ -705,6 +718,9 @@ enum class UserDataMapping : uint32
     PerShaderPerfData = 0x1000000D, ///< 32-bit pointer to GPU memory containing the per-shader performance data buffer.
     VertexBufferTable = 0x1000000F, ///< 32-bit pointer to GPU memory containing the vertex buffer SRD table.  This can
                                     ///  only appear for one shader stage per pipeline.
+    UavExportTable    = 0x10000010, ///< 32-bit pointer to GPU memory containing the UAV export SRD table.  This can
+                                    ///  only appear for one shader stage per pipeline (PS). These replace color targets
+                                    ///  and are completely separate from any UAVs used by the shader.
     NggCullingData    = 0x10000011, ///< 64-bit pointer to GPU memory containing the hardware register data needed by
                                     ///  some NGG pipelines to perform culling.  This value contains the address of the
                                     //   first of two consecutive registers which provide the full GPU address.

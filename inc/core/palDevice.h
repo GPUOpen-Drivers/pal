@@ -153,6 +153,7 @@ enum class GfxIpLevel : uint32
     GfxIp8    = 0x3,
     GfxIp8_1  = 0x4,
     GfxIp9    = 0x5,
+    GfxIp10_1 = 0x7,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 462
     Count              ///< Count of all supported GfxIp levels.
 #endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION
@@ -199,6 +200,7 @@ enum class AsicRevision : uint32
     Raven2     = 0x1C,
 #endif // PAL_BUILD_GFX9
 
+    Navi10     = 0x1F,
 };
 
 /// Specifies which operating-system-support IP level (OSSIP) this device has.
@@ -894,7 +896,8 @@ struct DeviceProperties
                 /// array-based stereo feature supported by Presentable images.
                 uint32 supportsAqbsStereoMode       :  1;
 
-                uint32 reservedForFutureHw          :  1;
+                /// Set if images created on this device support being created with corner sampling.
+                uint32 supportsCornerSampling       :  1;
 
                 /// Reserved for future use.
                 uint32 reserved                     : 29;
@@ -986,7 +989,17 @@ struct DeviceProperties
                                                                      ///  filtering operates on only one channel at
                                                                      ///  a time.
                 uint32 supportRgpTraces                         : 1; ///< Hardware supports RGP traces.
-                uint32 placeholder1                             : 5; ///< Reserved for future hardware.
+                uint32 supportMsaaCoverageOut                   : 1; ///< Set if HW supports MSAA coverage feature
+                uint32 supportPostDepthCoverage                 : 1; ///< Set if HW supports post depth coverage feature
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 452
+                uint32 supportSpiPrefPriority                   : 1; ///< Set if HW supports preference priority.
+#else
+                uint32 placeholder0                             : 1; ///< Placeholder, do not use
+#endif
+                uint32 supportWaveBreakSize                     : 1; ///< The HW supports specifying the wavebreak size
+                                                                     ///  in the pixel shader pipeline.
+                uint32 supportsPerShaderStageWaveSize           : 1; ///< If set, the "waveSize" setting in the
+                                                                     /// PipelineShaderInfo structure is meaningful.
 
                 uint32 placeholder2                             : 1; ///< Reserved for future hardware.
 

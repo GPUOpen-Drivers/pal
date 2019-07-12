@@ -58,6 +58,8 @@ static constexpr uint32 BaseLoadedShRegCountVs =
     1 + // mmSPI_SHADER_PGM_RSRC1_VS
     1 + // mmSPI_SHADER_PGM_RSRC2_VS
     0 + // SPI_SHADER_PGM_CHKSUM_VS is not included because it is not present on all HW
+    0 + // mmSPI_SHADER_REQ_CTRL_PS is gfx10 only
+    0 + // mmSPI_SHADER_REQ_CTRL_VS is gfx10 only
     1;  // mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg
 
 // Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
@@ -74,6 +76,7 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmVGT_PRIMITIVEID_EN
     0 + // mmSPI_PS_INPUT_CNTL_0...31 are not included because the number of interpolants depends on the pipeline
     1 + // mmVGT_STRMOUT_CONFIG
+    0 + // mmSPI_SHADER_USER_ACCUM_PS/VS0...3 are not included because it is not present on all HW
     1;  // mmVGT_STRMOUT_BUFFER_CONFIG
 
 // Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer when
@@ -88,6 +91,7 @@ PipelineChunkVsPs::PipelineChunkVsPs(
     const PerfDataInfo* pPsPerfDataInfo)
     :
     m_device(device),
+    m_calcWaveBreakAtDrawTime(false),
     m_pVsPerfDataInfo(pVsPerfDataInfo),
     m_pPsPerfDataInfo(pPsPerfDataInfo)
 {
@@ -143,6 +147,22 @@ void PipelineChunkVsPs::EarlyInit(
             pInfo->loadedCtxRegCount += BaseLoadedCntxRegCountStreamOut;
         }
 
+        if (IsGfx10(chipProps.gfxLevel))
+        {
+            // mmSPI_SHADER_REQ_CTRL_PS & mmSPI_SHADE_REQ_CTRL_VS
+            pInfo->loadedShRegCount += (pInfo->enableNgg ? 1 : 2);
+        }
+
+        if (chipProps.gfx9.supportSpiPrefPriority)
+        {
+            if (pInfo->enableNgg == false)
+            {
+                // mmSPI_SHADER_USER_ACCUM_VS_0...3
+                pInfo->loadedShRegCount += 4;
+            }
+            // mmSPI_SHADER_USER_ACCUM_PS_0...3
+            pInfo->loadedShRegCount += 4;
+        }
     }
 }
 
@@ -201,6 +221,38 @@ void PipelineChunkVsPs::LateInit(
 
     m_commands.dynamic.ps.spiShaderPgmRsrc3Ps.bits.CU_EN = m_device.GetCuEnableMask(0, settings.psCuEnLimitMask);
 
+    if (IsGfx10(chipProps.gfxLevel))
+    {
+        m_commands.dynamic.ps.spiShaderPgmRsrc4Ps.bits.CU_EN = m_device.GetCuEnableMaskHi(0, settings.psCuEnLimitMask);
+
+        if (chipProps.gfx9.supportSpiPrefPriority)
+        {
+            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0, &m_commands.sh.ps.shaderUserAccumPs0.u32All);
+            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_1, &m_commands.sh.ps.shaderUserAccumPs1.u32All);
+            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_2, &m_commands.sh.ps.shaderUserAccumPs2.u32All);
+            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_3, &m_commands.sh.ps.shaderUserAccumPs3.u32All);
+            if (loadInfo.enableNgg == false)
+            {
+                registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0, &m_commands.sh.vs.shaderUserAccumVs0.u32All);
+                registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_1, &m_commands.sh.vs.shaderUserAccumVs1.u32All);
+                registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_2, &m_commands.sh.vs.shaderUserAccumVs2.u32All);
+                registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3, &m_commands.sh.vs.shaderUserAccumVs3.u32All);
+            }
+        }
+
+        if (settings.numPsWavesSoftGroupedPerCu > 0)
+        {
+            m_commands.sh.ps.shaderReqCtrlPs.bits.SOFT_GROUPING_EN = 1;
+            m_commands.sh.ps.shaderReqCtrlPs.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
+        }
+
+        if (settings.numVsWavesSoftGroupedPerCu > 0)
+        {
+            m_commands.sh.vs.shaderReqCtrlVs.bits.SOFT_GROUPING_EN = 1;
+            m_commands.sh.vs.shaderReqCtrlVs.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numVsWavesSoftGroupedPerCu - 1;
+        }
+    }
+
     if (loadInfo.enableNgg == false)
     {
         if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::VsMainEntry, &symbol))
@@ -238,6 +290,12 @@ void PipelineChunkVsPs::LateInit(
         }
 
         uint16 vsCuDisableMask = 0;
+        if (IsGfx10(chipProps.gfxLevel))
+        {
+            // Both CU's of a WGP need to be disabled for better performance.
+            vsCuDisableMask = 0xC;
+        }
+        else
         {
             // Disable virtualized CU #1 instead of #0 because thread traces use CU #0 by default.
             vsCuDisableMask = 0x2;
@@ -247,6 +305,12 @@ void PipelineChunkVsPs::LateInit(
         // always use the ones PAL prefers.
         m_commands.dynamic.vs.spiShaderPgmRsrc3Vs.bits.CU_EN =
                     m_device.GetCuEnableMask(vsCuDisableMask, settings.vsCuEnLimitMask);
+        if (IsGfx10(chipProps.gfxLevel))
+        {
+            const uint16 vsCuDisableMaskHi = 0;
+            m_commands.dynamic.vs.spiShaderPgmRsrc4Vs.bits.CU_EN =
+                    m_device.GetCuEnableMaskHi(vsCuDisableMaskHi, settings.vsCuEnLimitMask);
+        }
     } // if enableNgg == false
 
     if (VgtStrmoutConfig().u32All != 0)
@@ -272,6 +336,36 @@ void PipelineChunkVsPs::LateInit(
     m_commands.context.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
 
     m_commands.common.paScAaConfig.reg_data      = registers.At(mmPA_SC_AA_CONFIG);
+
+    if (chipProps.gfx9.supportCustomWaveBreakSize)
+    {
+        if (settings.forceWaveBreakSize == Gfx10ForceWaveBreakSizeAuto)
+        {
+            m_calcWaveBreakAtDrawTime = true;
+
+            // Default to none but check at draw time if we need to change this to 8x8
+            m_paScShaderControl.gfx10.WAVE_BREAK_REGION_SIZE = static_cast<uint32>(Gfx10ForceWaveBreakSizeNone);
+        }
+        else if (settings.forceWaveBreakSize != Gfx10ForceWaveBreakSizeClient)
+        {
+            // If the setting to check indicies is set then we need to check at draw time
+            if (TestAnyFlagSet(settings.forceWaveBreakSize, Gfx10CheckIndicies))
+            {
+                m_calcWaveBreakAtDrawTime = true;
+            }
+
+            // Override whatever wave-break size was specified by the pipeline binary if the panel is forcing a
+            // value for the preferred wave-break size.
+            m_paScShaderControl.gfx10.WAVE_BREAK_REGION_SIZE = static_cast<uint32>(settings.forceWaveBreakSize);
+        }
+        else
+        {
+            if (metadata.pipeline.hasEntry.calcWaveBreakSizeAtDrawTime != 0)
+            {
+                m_calcWaveBreakAtDrawTime = (metadata.pipeline.flags.calcWaveBreakSizeAtDrawTime != 0);
+            }
+        }
+    }
 
     // Binner_cntl1:
     // 16 bits: Maximum amount of parameter storage allowed per batch.
@@ -310,6 +404,25 @@ void PipelineChunkVsPs::LateInit(
             pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS, m_commands.sh.ps.spiShaderPgmChksumPs);
         }
 
+        if (IsGfx10(chipProps.gfxLevel))
+        {
+            pUploader->AddShReg(Gfx10::mmSPI_SHADER_REQ_CTRL_PS, m_commands.sh.ps.shaderReqCtrlPs);
+        }
+
+        if (chipProps.gfx9.supportSpiPrefPriority)
+        {
+            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0, m_commands.sh.ps.shaderUserAccumPs0);
+            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_1, m_commands.sh.ps.shaderUserAccumPs1);
+            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_2, m_commands.sh.ps.shaderUserAccumPs2);
+            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_3, m_commands.sh.ps.shaderUserAccumPs3);
+            if (loadInfo.enableNgg == false)
+            {
+                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0, m_commands.sh.vs.shaderUserAccumVs0);
+                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_1, m_commands.sh.vs.shaderUserAccumVs1);
+                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_2, m_commands.sh.vs.shaderUserAccumVs2);
+                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3, m_commands.sh.vs.shaderUserAccumVs3);
+            }
+        }
         if (loadInfo.enableNgg == false)
         {
             pUploader->AddShReg(mmSPI_SHADER_PGM_LO_VS,    m_commands.sh.vs.spiShaderPgmLoVs);
@@ -325,6 +438,10 @@ void PipelineChunkVsPs::LateInit(
                 pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS, m_commands.sh.vs.spiShaderPgmChksumVs);
             }
 
+            if (IsGfx10(chipProps.gfxLevel))
+            {
+                pUploader->AddShReg(Gfx10::mmSPI_SHADER_REQ_CTRL_PS, m_commands.sh.vs.shaderReqCtrlVs);
+            }
         } // if enableNgg == false
 
         pUploader->AddCtxReg(mmDB_SHADER_CONTROL,         m_commands.context.dbShaderControl);
@@ -377,6 +494,11 @@ uint32* PipelineChunkVsPs::WriteShCommands(
     if (psStageInfo.cuEnableMask != 0)
     {
         dynamicCmdsPs.spiShaderPgmRsrc3Ps.bits.CU_EN &= psStageInfo.cuEnableMask;
+        if (dynamicCmdsPs.hdrPgmRsrc4Ps.header.u32All != 0)
+        {
+            dynamicCmdsPs.spiShaderPgmRsrc4Ps.bits.CU_EN =
+                Device::AdjustCuEnHi(dynamicCmdsPs.spiShaderPgmRsrc4Ps.bits.CU_EN, psStageInfo.cuEnableMask);
+        }
     }
 
     if (isNgg == false)
@@ -391,6 +513,11 @@ uint32* PipelineChunkVsPs::WriteShCommands(
         if (vsStageInfo.cuEnableMask != 0)
         {
             dynamicCmdsVs.spiShaderPgmRsrc3Vs.bits.CU_EN &= vsStageInfo.cuEnableMask;
+            if (dynamicCmdsVs.hdrPgmRsrc4Vs.header.u32All != 0)
+            {
+                dynamicCmdsVs.spiShaderPgmRsrc4Vs.bits.CU_EN =
+                    Device::AdjustCuEnHi(dynamicCmdsVs.spiShaderPgmRsrc4Vs.bits.CU_EN, vsStageInfo.cuEnableMask);
+            }
         }
 
         if (UseLoadIndexPath == false)
@@ -539,6 +666,17 @@ void PipelineChunkVsPs::BuildPm4Headers(
         m_commands.sh.vs.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
                                                          &m_commands.sh.vs.hdrSpiShaderPgmChksum);
     }
+    if ((loadInfo.enableNgg == false) && IsGfx10(chipProps.gfxLevel))
+    {
+        m_commands.sh.vs.spaceNeeded += cmdUtil.BuildSetOneShReg(Gfx10::mmSPI_SHADER_REQ_CTRL_VS,
+                                                                 ShaderGraphics,
+                                                                 &m_commands.sh.vs.hdrShaderReqCtrlVs);
+    }
+    else
+    {
+        m_commands.sh.vs.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
+                                                         &m_commands.sh.vs.hdrShaderReqCtrlVs);
+    }
 
     m_commands.context.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmSPI_SHADER_Z_FORMAT,
                                                                     mmSPI_SHADER_COL_FORMAT,
@@ -595,6 +733,15 @@ void PipelineChunkVsPs::BuildPm4Headers(
                                                         index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                         &m_commands.dynamic.ps.hdrPgmRsrc3Ps);
 
+    if (IsGfx10(chipProps.gfxLevel))
+    {
+        m_commands.dynamic.ps.spaceNeeded += cmdUtil.BuildSetOneShRegIndex(
+                                                    Gfx10::mmSPI_SHADER_PGM_RSRC4_PS,
+                                                    ShaderGraphics,
+                                                    index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                    &m_commands.dynamic.ps.hdrPgmRsrc4Ps);
+    }
+
     if (loadInfo.enableNgg == false)
     {
         // NOTE: Supporting real-time compute requires use of SET_SH_REG_INDEX for this register.
@@ -604,7 +751,53 @@ void PipelineChunkVsPs::BuildPm4Headers(
                                                         index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                         &m_commands.dynamic.vs.hdrPgmRsrc3Vs);
 
+        if (IsGfx10(chipProps.gfxLevel))
+        {
+            m_commands.dynamic.vs.spaceNeeded += cmdUtil.BuildSetOneShRegIndex(
+                                                            Gfx10::mmSPI_SHADER_PGM_RSRC4_VS,
+                                                            ShaderGraphics,
+                                                            index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                            &m_commands.dynamic.vs.hdrPgmRsrc4Vs);
+        }
     } // if enableNgg == false
+
+    if (chipProps.gfx9.supportSpiPrefPriority)
+    {
+        m_commands.sh.ps.spaceNeeded += cmdUtil.BuildSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0,
+                                                                  Gfx10::mmSPI_SHADER_USER_ACCUM_PS_3,
+                                                                  ShaderGraphics,
+                                                                  &m_commands.sh.ps.hdrSpishaderUserAccumPs);
+    }
+    else
+    {
+        m_commands.sh.ps.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 4,
+                                                         &m_commands.sh.ps.hdrSpishaderUserAccumPs);
+    }
+
+    if (chipProps.gfx9.supportSpiPrefPriority && (loadInfo.enableNgg == false))
+    {
+        m_commands.sh.vs.spaceNeeded += cmdUtil.BuildSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0,
+                                                                  Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3,
+                                                                  ShaderGraphics,
+                                                                  &m_commands.sh.vs.hdrSpishaderUserAccumVs);
+    }
+    else
+    {
+        m_commands.sh.vs.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 4,
+                                                         &m_commands.sh.vs.hdrSpishaderUserAccumVs);
+    }
+
+    if (IsGfx10(chipProps.gfxLevel))
+    {
+        m_commands.sh.ps.spaceNeeded += cmdUtil.BuildSetOneShReg(Gfx10::mmSPI_SHADER_REQ_CTRL_PS,
+                                                                 ShaderGraphics,
+                                                                 &m_commands.sh.ps.hdrShaderReqCtrlPs);
+    }
+    else
+    {
+        m_commands.sh.ps.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
+                                                         &m_commands.sh.ps.hdrShaderReqCtrlPs);
+    }
 
     cmdUtil.BuildContextRegRmw(mmPA_SC_AA_CONFIG,
                                PA_SC_AA_CONFIG__COVERAGE_TO_SHADER_SELECT_MASK,
@@ -618,6 +811,18 @@ regPA_SC_SHADER_CONTROL PipelineChunkVsPs::PaScShaderControl(
     ) const
 {
     regPA_SC_SHADER_CONTROL  paScShaderControl = m_paScShaderControl;
+
+    if (m_calcWaveBreakAtDrawTime)
+    {
+        PAL_ASSERT(m_device.Parent()->ChipProperties().gfx9.supportCustomWaveBreakSize);
+        // For the WAVE_BREAK_REGION_SIZE, setting to '1' for an index count <= 6 (typically indicates large prim
+        // draw), and '0' for everything else is OK to start.   We're going to want to experiment w/ all four
+        // settings (0-3) in performance runs for index count > 6.
+        if (numIndices <= 6)
+        {
+            paScShaderControl.gfx10.WAVE_BREAK_REGION_SIZE = 1;
+        }
+    } // end check for GFX10
 
     return  paScShaderControl;
 }

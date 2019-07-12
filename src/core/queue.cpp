@@ -249,6 +249,10 @@ Result Queue::Init(
                 {
                     result = pOssDevice->CreateQueueContext(this, pContextPlacementAddr, &m_pQueueContext);
                 }
+                else if ((pGfxDevice != nullptr) && IsGfx10(*m_pDevice))
+                {
+                    result = pGfxDevice->CreateQueueContext(this, m_pEngine, pContextPlacementAddr, &m_pQueueContext);
+                }
                 else
                 {
                     result = Result::ErrorIncompatibleDevice;

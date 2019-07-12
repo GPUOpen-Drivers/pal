@@ -497,7 +497,17 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
 
     flags.display = createInfo.flags.flippable | image.IsPrivateScreenPresent() | image.IsTurboSyncSurface();
 
-    flags.prt     = createInfo.flags.prt;
+    if (IsGfx10(m_gfxLevel) && ((flags.depth == 1) || (createInfo.samples > 1)))
+    {
+        // Gfx10 doesn't support PRT synonyms for depth or MSAA resource; so set prt to 0 to allow suporting
+        // non-synonyms case. If prt is set to 1, Gfx10Lib::HwlComputeSurfaceInfoSanityCheck will
+        // return ADDR_INVALIDPARAMS.
+        flags.prt = 0;
+    }
+    else
+    {
+        flags.prt = createInfo.flags.prt;
+    }
 
     // Note: AddrLib does not compute the byte offset to nonzero mipmap levels for us. We need to do this manually,
     // using the overall starting location (in texels) of each mip within the whole array slice. However, AddrLib only
@@ -636,6 +646,14 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         surfSettingInput.preferredSwSet.sw_R = TestAnyFlagSet(addr2PreferredSwizzleTypeSet, Addr2PreferredSW_R);
     }
 
+    if (IsGfx101(*m_pDevice)
+       )
+    {
+        if (pImage->IsRenderTarget() && (surfSettingInput.bpp == 8))
+        {
+            surfSettingInput.preferredSwSet.sw_S = 0;
+        }
+    }
     ADDR_E_RETURNCODE addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), &surfSettingInput, pOut);
 
     // Retry without tiling preference and preferredSwSet mask.
@@ -651,6 +669,12 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     {
         result = Result::Success;
 
+        if (IsGfx10(*m_pDevice) &&
+            Formats::IsMacroPixelPackedRgbOnly(createInfo.swizzledFormat.format))
+        {
+            pOut->swizzleMode = ADDR_SW_LINEAR;
+        }
+        else
         if (createInfo.tiling == ImageTiling::Standard64Kb)
         {
             pOut->swizzleMode = ADDR_SW_64KB_S;
@@ -686,6 +710,14 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                 }
                 else
                 {
+                    // Use linear swizzle mode if it's a render target.
+                    if (pImage->IsRenderTarget() &&
+                        (IsGfx101(*m_pDevice)
+                        ))
+                    {
+                        pOut->swizzleMode = ADDR_SW_LINEAR;
+                    }
+                    else
                     {
                         pOut->swizzleMode = ADDR_SW_64KB_S;
                     }
@@ -724,6 +756,12 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         if (createInfo.flags.view3dAs2dArray != 0)
         {
             if (IsGfx9(*m_pDevice) && (IsDisplayableSwizzle(pOut->swizzleMode) == false))
+            {
+                result = Result::ErrorInvalidFlags;
+            }
+            else if (IsGfx10(*m_pDevice)                      &&
+                     (IsZSwizzle(pOut->swizzleMode) == false) &&
+                     (IsRotatedSwizzle(pOut->swizzleMode) == false))
             {
                 result = Result::ErrorInvalidFlags;
             }
@@ -917,7 +955,7 @@ Result AddrMgr2::InitSubresourceInfo(
 
     // Compute the exact row pitch in bytes. This math must be done in terms of elements instead of texels
     // because some formats (e.g., R32G32B32) have pitches that are not multiples of their texel size.
-    if (IsLinearSwizzleMode(surfaceSetting.swizzleMode))
+    if (IsLinearSwizzleMode(surfaceSetting.swizzleMode) || IsGfx10(*m_pDevice))
     {
         // Linear images do not have tightly packed mipmap levels, so the rowPitch of a subresource
         // is the size in bytes of one row of that subresource.
@@ -954,7 +992,8 @@ Result AddrMgr2::InitSubresourceInfo(
         pSubResInfo->offset = mipInfo.macroBlockOffset + mipInfo.mipTailOffset;
 
         PAL_ASSERT((pSubResInfo->subresId.mipLevel > 0) ||
-                   (mipInfo.macroBlockOffset == 0));
+                   (mipInfo.macroBlockOffset == 0)      ||
+                   IsGfx10(m_gfxLevel));
 
         pSubResInfo->blockSize.width  = surfaceInfo.blockWidth;
         pSubResInfo->blockSize.height = surfaceInfo.blockHeight;

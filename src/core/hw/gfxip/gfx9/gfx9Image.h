@@ -369,6 +369,9 @@ public:
     bool IsInMetadataMipTail(uint32 mip) const;
     bool CanMipSupportMetaData(uint32 mip) const override;
 
+    uint32 GetIterate256(const SubResourceInfo*  pSubResInfo) const;
+    bool Gfx10UseCompToSingleFastClears() const { return m_useCompToSingleForFastClears; };
+
     gpusize GetGpuMemSyncSize() const { return m_gpuMemSyncSize; }
 
     bool IsColorDataZeroOrOne(const uint32*  pColor, uint32 compIdx) const;
@@ -462,6 +465,14 @@ private:
     void SetupAspectOffsets();
 
     void Addr2InitSubResInfoGfx9(
+        const SubResIterator&  subResIt,
+        SubResourceInfo*       pSubResInfoList,
+        void*                  pSubResTileInfoList,
+        gpusize*               pGpuMemSize);
+
+    void CheckCompToSingle();
+
+    void Addr2InitSubResInfoGfx10(
         const SubResIterator&  subResIt,
         SubResourceInfo*       pSubResInfoList,
         void*                  pSubResTileInfoList,

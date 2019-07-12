@@ -49,6 +49,7 @@ const GraphicsPipelineSignature NullGfxSignature =
     { 0, },                     // User-data mapping for each shader stage
     UserDataNotMapped,          // Vertex buffer table register address
     UserDataNotMapped,          // Stream-out table register address
+    UserDataNotMapped,          // UAV export table mapping
     UserDataNotMapped,          // NGG culling data constant buffer
     UserDataNotMapped,          // Vertex offset register address
     UserDataNotMapped,          // Draw ID register address
@@ -71,6 +72,7 @@ static constexpr uint32 BaseLoadedShRegCount =
 // Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
 static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmVGT_SHADER_STAGES_EN
+    0 + // mmVGT_DRAW_PAYLOAD_CNTL is not included because it is not needed on all HW
     1 + // mmVGT_GS_MODE
     1 + // mmVGT_REUSE_OFF
     1 + // mmVGT_TF_PARAM
@@ -82,6 +84,7 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmPA_CL_VTE_CNTL
     1 + // mmPA_SC_LINE_CNTL
     0 + // mmPA_STEREO_CNTL is not included because it is not present on all HW
+    0 + // mmCB_COVERAGE_OUT_CONTROL is not included because it is not present on all HW
     0 + // mmVGT_GS_ONCHIP_CNTL is not included because it is not required for all pipeline types.
     1 + // mmSPI_INTERP_CONTROL_0
     1;  // mmVGT_VERTEX_REUSE_BLOCK_CNTL
@@ -200,6 +203,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_pDevice(pDevice),
     m_contextRegHash(0),
     m_isNggFastLaunch(false),
+    m_uavExportRequiresFlush(false),
     m_chunkHs(*pDevice,
               &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)]),
     m_chunkGs(*pDevice,
@@ -220,6 +224,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_spiVsOutConfig.u32All    = 0;
     m_spiPsInControl.u32All    = 0;
     m_paScModeCntl1.u32All     = 0;
+    m_geStereoCntl.u32All      = 0;
 }
 
 // =====================================================================================================================
@@ -257,6 +262,9 @@ void GraphicsPipeline::EarlyInit(
         pInfo->loadedShRegCount  = BaseLoadedShRegCount + (IsNgg() == false);
 
         pInfo->loadedCtxRegCount =
+            // This mimics the definition in BaseLoadedCntxRegCount
+            IsGfx10(m_gfxLevel)                                    + // mmVGT_DRAW_PAYLOAD_CNTL
+            IsGfx10(m_gfxLevel)                                    + // mmCB_COVERAGE_OUT_CONTROL
             (regInfo.mmPaStereoCntl != 0)                          + // mmPA_STEREO_CNTL
             (IsGsEnabled() || IsNgg() || IsTessEnabled())          + // mmVGT_GS_ONCHIP_CNTL
             BaseLoadedCntxRegCount;
@@ -663,6 +671,17 @@ void GraphicsPipeline::BuildPm4Headers(
     m_commands.common.spaceNeeded +=
         cmdUtil.BuildNonSampleEventWrite(FLUSH_DFSM, EngineTypeUniversal, &m_commands.common.flushDfsm);
 
+    if (IsGfx10(m_gfxLevel))
+    {
+        m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx10::mmGE_PC_ALLOC,
+                                                                      &m_commands.common.hdrGePcAlloc);
+        if (IsGfx101Plus(*m_pDevice->Parent()))
+        {
+            m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx101Plus::mmGE_USER_VGPR_EN,
+                                                                          &m_commands.common.hdrGeUserVgprEn);
+        }
+    }
+
     if (uploader.EnableLoadIndexPath())
     {
         PAL_ASSERT((uploader.CtxRegGpuVirtAddr() != 0) && (uploader.ShRegGpuVirtAddr() != 0));
@@ -682,6 +701,9 @@ void GraphicsPipeline::BuildPm4Headers(
 
     m_commands.set.context.spaceNeeded =
         cmdUtil.BuildSetOneContextReg(mmVGT_SHADER_STAGES_EN, &m_commands.set.context.hdrVgtShaderStagesEn);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmVGT_DRAW_PAYLOAD_CNTL, &m_commands.set.context.hdrVgtDrawPayloadCntl);
 
     m_commands.set.context.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmVGT_GS_MODE, &m_commands.set.context.hdrVgtGsMode);
@@ -721,6 +743,19 @@ void GraphicsPipeline::BuildPm4Headers(
         // Use a NOP to fill the gap for hardware which doesn't have mmPA_STEREO_CNTL.
         m_commands.set.context.spaceNeeded +=
             cmdUtil.BuildNop(CmdUtil::ContextRegSizeDwords + 1, &m_commands.set.context.hdrPaStereoCntl);
+    }
+
+    if (IsGfx10(m_gfxLevel))
+    {
+        m_commands.set.context.spaceNeeded +=
+            cmdUtil.BuildSetOneContextReg(Gfx10::mmCB_COVERAGE_OUT_CONTROL,
+                                          &m_commands.set.context.hdrCbCoverageOutCntl);
+    }
+    else
+    {
+        // Use a NOP to fill the gap for hardware which doesn't have mmCB_COVERAGE_OUT_CONTROL/ mmGE_USER_VGPR_EN.
+        m_commands.set.context.spaceNeeded +=
+            cmdUtil.BuildNop(CmdUtil::ContextRegSizeDwords + 1, &m_commands.set.context.hdrCbCoverageOutCntl);
     }
 
     m_commands.set.context.spaceNeeded +=
@@ -824,6 +859,32 @@ void GraphicsPipeline::SetupCommonRegisters(
         registers.HasEntry(regInfo.mmPaStereoCntl, &m_commands.set.context.paStereoCntl.u32All);
     }
 
+    if (IsGfx10(m_gfxLevel))
+    {
+        registers.HasEntry(Gfx10::mmGE_STEREO_CNTL,       &m_geStereoCntl.u32All);
+        registers.HasEntry(Gfx101Plus::mmGE_USER_VGPR_EN, &m_commands.common.geUserVgprEn.u32All);
+
+        if ((IsNgg() == false) || (m_commands.set.context.vgtShaderStagesEn.gfx10.PRIMGEN_PASSTHRU_EN == 1))
+        {
+            if (settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru > 0)
+            {
+                m_commands.common.gePcAlloc.bits.OVERSUB_EN   = 1;
+                m_commands.common.gePcAlloc.bits.NUM_PC_LINES =
+                    ((settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru * chipProps.gfx9.numShaderEngines) - 1);
+            }
+        }
+        else
+        {
+            PAL_ASSERT(m_commands.set.context.vgtShaderStagesEn.bits.PRIMGEN_EN == 1);
+            if (settings.gfx10GePcAllocNumLinesPerSeNggCulling > 0)
+            {
+                m_commands.common.gePcAlloc.bits.OVERSUB_EN   = 1;
+                m_commands.common.gePcAlloc.bits.NUM_PC_LINES =
+                    ((settings.gfx10GePcAllocNumLinesPerSeNggCulling * chipProps.gfx9.numShaderEngines) - 1);
+            }
+        }
+    }
+
     m_commands.set.context.vgtReuseOff.u32All = registers.At(mmVGT_REUSE_OFF);
     m_spiPsInControl.u32All                   = registers.At(mmSPI_PS_IN_CONTROL);
     m_spiVsOutConfig.u32All                   = registers.At(mmSPI_VS_OUT_CONFIG);
@@ -867,6 +928,9 @@ void GraphicsPipeline::SetupCommonRegisters(
             (createInfo.rsState.pointCoordOrigin != PointOrigin::UpperLeft);
     }
 
+    // Default to nothing enabled
+    m_commands.set.context.vgtDrawPayloadCntl.u32All = 0;
+
     if (pUploader->EnableLoadIndexPath())
     {
         pUploader->AddCtxReg(mmVGT_SHADER_STAGES_EN,        m_commands.set.context.vgtShaderStagesEn);
@@ -884,6 +948,10 @@ void GraphicsPipeline::SetupCommonRegisters(
             pUploader->AddCtxReg(regInfo.mmPaStereoCntl, m_commands.set.context.paStereoCntl);
         }
 
+        if (IsGfx10(m_gfxLevel))
+        {
+            pUploader->AddCtxReg(mmVGT_DRAW_PAYLOAD_CNTL, m_commands.set.context.vgtDrawPayloadCntl);
+        }
     }
 
     // If NGG is enabled, there is no hardware-VS, so there is no need to compute the late-alloc VS limit.
@@ -911,6 +979,19 @@ void GraphicsPipeline::SetupCommonRegisters(
         if (m_gfxLevel == GfxIpLevel::GfxIp9)
         {
             m_commands.set.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
+        }
+        else if (IsGfx10(m_gfxLevel))
+        {
+            // Always use the (forced) experimental setting if specified, or use a fixed limit if
+            // enabled, otherwise check the VS/PS resource usage to compute the limit.
+            if (settings.gfx10SpiShaderLateAllocVsNumLines < 64)
+            {
+                m_commands.set.sh.spiShaderLateAllocVs.bits.LIMIT = settings.gfx10SpiShaderLateAllocVsNumLines;
+            }
+            else
+            {
+                m_commands.set.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
+            }
         }
         if (pUploader->EnableLoadIndexPath())
         {
@@ -1297,6 +1378,33 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         m_commands.set.context.cbColorControl.bits.DISABLE_DUAL_QUAD = 1;
     }
 
+    if (chipProps.gfx9.supportMsaaCoverageOut && createInfo.coverageOutDesc.flags.enable)
+    {
+        const auto& coverageInfo = createInfo.coverageOutDesc;
+
+        m_commands.set.context.cbCoverageOutCntl.bits.COVERAGE_OUT_ENABLE  = 1;
+        m_commands.set.context.cbCoverageOutCntl.bits.COVERAGE_OUT_MRT     = coverageInfo.flags.mrt;
+        m_commands.set.context.cbCoverageOutCntl.bits.COVERAGE_OUT_SAMPLES = Log2(coverageInfo.flags.numSamples);
+        m_commands.set.context.cbCoverageOutCntl.bits.COVERAGE_OUT_CHANNEL = coverageInfo.flags.channel;
+
+        // The target and the shader mask need to be modified to ensure the coverage-out channel / MRT
+        // combination is enabled.
+        const uint32 mask = 1 << (coverageInfo.flags.channel +
+                                  CB_SHADER_MASK__OUTPUT1_ENABLE__SHIFT * coverageInfo.flags.mrt);
+
+        m_commands.set.context.cbShaderMask.u32All |= mask;
+        m_commands.set.context.cbTargetMask.u32All |= mask;
+    }
+
+    if (m_signature.uavExportTableAddr != UserDataNotMapped)
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 497
+        m_uavExportRequiresFlush = (createInfo.cbState.uavExportSingleDraw == false);
+#else
+        m_uavExportRequiresFlush = true;
+#endif
+    }
+
     // Override some register settings based on toss points.  These toss points cannot be processed in the hardware
     // independent class because they cannot be overridden by altering the pipeline creation info.
     if ((IsInternal() == false) && (m_pDevice->Parent()->Settings().tossPointMode == TossPointAfterPs))
@@ -1316,6 +1424,10 @@ void GraphicsPipeline::SetupNonShaderRegisters(
             pUploader->AddCtxReg(mmVGT_GS_ONCHIP_CNTL, m_commands.set.context.vgtGsOnchipCntl);
         }
 
+        if (IsGfx10(m_gfxLevel))
+        {
+            pUploader->AddCtxReg(Gfx10::mmCB_COVERAGE_OUT_CONTROL, m_commands.set.context.cbCoverageOutCntl);
+        }
     }
 }
 
@@ -1708,6 +1820,15 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 
                 m_perfDataInfo[PalToAbiHwShaderStage[stageId]].regOffset = offset;
             }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::UavExportTable))
+            {
+                // There can be only one uav export table per pipeline
+                PAL_ASSERT((m_signature.uavExportTableAddr == offset) ||
+                           (m_signature.uavExportTableAddr == UserDataNotMapped));
+                // This will still work on older gfxips but provides no perf benefits
+                PAL_ASSERT(IsGfx10(m_gfxLevel));
+                m_signature.uavExportTableAddr = offset;
+            }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::NggCullingData))
             {
                 // There can be only one NGG culling data buffer per pipeline, and it must be used by the
@@ -2076,6 +2197,12 @@ bool GraphicsPipeline::HwStereoRenderingEnabled() const
             enStereo = m_commands.set.context.paStereoCntl.vg20.EN_STEREO;
         }
     }
+    else
+    {
+
+        enStereo = m_geStereoCntl.bits.EN_STEREO;
+
+    }
 
     return (enStereo != 0);
 }
@@ -2087,6 +2214,11 @@ bool GraphicsPipeline::HwStereoRenderingUsesMultipleViewports() const
     const auto&  palDevice  = *(m_pDevice->Parent());
     uint32       vpIdOffset = 0;
 
+    if (IsGfx10(m_gfxLevel))
+    {
+        vpIdOffset = m_commands.set.context.paStereoCntl.gfx10.VP_ID_OFFSET;
+    }
+    else
     {
         if (IsVega12(palDevice))
         {
@@ -2156,6 +2288,34 @@ void GraphicsPipeline::SetupStereoRegisters()
                 else if (IsVega20(device))
                 {
                     SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_commands.set.context.paStereoCntl.vg20);
+                }
+            }
+            else
+            {
+                const uint32  vpIdOffset    = viewInstancingDesc.viewportArrayIdx[1] -
+                                              viewInstancingDesc.viewportArrayIdx[0];
+                const uint32  rtSliceOffset = viewInstancingDesc.renderTargetArrayIdx[1] -
+                                              viewInstancingDesc.renderTargetArrayIdx[0];
+
+                m_commands.set.context.paStereoCntl.gfx10.VP_ID_OFFSET    = vpIdOffset;
+                m_commands.set.context.paStereoCntl.gfx10.RT_SLICE_OFFSET = rtSliceOffset;
+
+                if ((vpIdOffset != 0) || (rtSliceOffset != 0))
+                {
+                    m_geStereoCntl.bits.EN_STEREO = 1;
+                }
+
+                m_geStereoCntl.bits.VIEWPORT = viewInstancingDesc.viewportArrayIdx[0];
+                m_geStereoCntl.bits.RT_SLICE = viewInstancingDesc.renderTargetArrayIdx[0];
+
+                if (m_geStereoCntl.bits.VIEWPORT != 0)
+                {
+                    m_commands.set.context.vgtDrawPayloadCntl.gfx10.EN_DRAW_VP = 1;
+                }
+
+                if (m_geStereoCntl.bits.RT_SLICE != 0)
+                {
+                    m_commands.set.context.vgtDrawPayloadCntl.bits.EN_REG_RT_INDEX = 1;
                 }
             }
         }

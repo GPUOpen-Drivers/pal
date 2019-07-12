@@ -227,5 +227,99 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9ColorTargetView);
 };
 
+// =====================================================================================================================
+// Represents an "image" of the PM4 commands necessary to write a GcnColorTargetView to GFX10 hardware. The required
+// register writes are grouped into sets based on sequential register addresses, so that we can minimize the amount of
+// PM4 space needed by setting several regs in each packet.
+struct Gfx10ColorTargetViewPm4Img
+{
+    PM4PFP_SET_CONTEXT_REG        hdrCbColorBase;
+    regCB_COLOR0_BASE             cbColorBase;
+    uint32                        cbColorPitch;  // meaningless register in GFX10 addressing mode
+    uint32                        cbColorSlice;  // meaningless register in GFX10 addressing mode
+    regCB_COLOR0_VIEW             cbColorView;
+
+    PM4ME_CONTEXT_REG_RMW         cbColorInfo;
+
+    PM4PFP_SET_CONTEXT_REG        hdrCbColorAttrib;
+    regCB_COLOR0_ATTRIB           cbColorAttrib;
+    regCB_COLOR0_DCC_CONTROL      cbColorDccControl;
+    regCB_COLOR0_CMASK            cbColorCmask;
+    uint32                        cbColorCmaskSlice;  // meaningless register in GFX10 addressing mode
+    regCB_COLOR0_FMASK            cbColorFmask;
+
+    PM4PFP_SET_CONTEXT_REG        hdrCbColorDccBase;
+    regCB_COLOR0_DCC_BASE         cbColorDccBase;
+
+    PM4PFP_SET_CONTEXT_REG        hdrCbColorAttrib2;
+    regCB_COLOR0_ATTRIB2          cbColorAttrib2;
+
+    PM4PFP_SET_CONTEXT_REG        hdrCbColorAttrib3;
+    regCB_COLOR0_ATTRIB3          cbColorAttrib3;
+
+    // PM4 load context regs packet to load the Image's fast-clear meta-data.  This must be the last packet in the
+    // image because it is either absent or present depending on compression state.
+    PM4PFP_LOAD_CONTEXT_REG_INDEX loadMetaDataIndex;
+
+    // Command space needed for compressed and decomrpessed rendering, in DWORDs.  These fields must always be last
+    // in the structure to not interfere w/ the actual commands contained within.
+    size_t  spaceNeeded;
+    size_t  spaceNeededDecompressed;
+};
+
+// =====================================================================================================================
+// Gfx10 specific extension of the base Pal::Gfx9::ColorTargetView class
+class Gfx10ColorTargetView : public ColorTargetView
+{
+public:
+    Gfx10ColorTargetView(
+        const Device*                            pDevice,
+        const ColorTargetViewCreateInfo&         createInfo,
+        const ColorTargetViewInternalCreateInfo& internalInfo);
+
+    virtual uint32* WriteCommands(
+        uint32      slot,
+        ImageLayout imageLayout,
+        CmdStream*  pCmdStream,
+        uint32*     pCmdSpace) const override;
+
+    void GetImageSrd(void* pOut) const;
+
+protected:
+    virtual ~Gfx10ColorTargetView()
+    {
+        // This destructor, and the destructors of all member and base classes, must always be empty: PAL color target
+        // views guarantee to the client that they do not have to be explicitly destroyed.
+        PAL_NEVER_CALLED();
+    }
+
+    void UpdateImageSrd(void* pOut) const;
+
+private:
+    void BuildPm4Headers();
+    void InitRegisters(
+        const ColorTargetViewCreateInfo&         createInfo,
+        const ColorTargetViewInternalCreateInfo& internalInfo);
+
+    // Image of PM4 commands used to write this View to hardware for buffer views or for image views with full
+    // compression enabled.
+    Gfx10ColorTargetViewPm4Img  m_pm4Cmds;
+    // The view as a cached srd, for use with the UAV export opt. This must be generated on-the-fly if the VA is not
+    //  known in advance.
+    ImageSrd m_uavExportSrd;
+
+    union
+    {
+        struct
+        {
+            uint32 placeholder0 :  2;
+            uint32 reserved     : 30;
+        };
+        uint32 u32All;
+    } m_gfx10Flags;
+
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10ColorTargetView);
+};
+
 } // Gfx9
 } // Pal

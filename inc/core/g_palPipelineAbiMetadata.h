@@ -68,6 +68,7 @@ struct HardwareStageMetadata
     uint32             vgprLimit;
     uint32             sgprLimit;
     uint32             threadgroupDimensions[3];
+    uint32             wavefrontSize;
     uint32             maxPrimsPerWave;
 
     union
@@ -97,7 +98,7 @@ struct HardwareStageMetadata
             uint16 vgprLimit             : 1;
             uint16 sgprLimit             : 1;
             uint16 threadgroupDimensions : 1;
-            uint16 placeholder0          : 1;
+            uint16 wavefrontSize         : 1;
             uint16 usesUavs              : 1;
             uint16 usesRovs              : 1;
             uint16 writesUavs            : 1;
@@ -131,7 +132,7 @@ struct PipelineMetadata
         struct
         {
             uint8 usesViewportArrayIndex      : 1;
-            uint8 placeholder0                : 1;
+            uint8 calcWaveBreakSizeAtDrawTime : 1;
             uint8 reserved                    : 6;
         };
         uint8 uAll;
@@ -152,7 +153,7 @@ struct PipelineMetadata
             uint16 indirectUserDataTableAddresses : 1;
             uint16 numInterpolants                : 1;
             uint16 scratchMemorySize              : 1;
-            uint16 placeholder0                   : 1;
+            uint16 calcWaveBreakSizeAtDrawTime    : 1;
             uint16 placeholder1                   : 1;
             uint16 api                            : 1;
             uint16 apiCreateInfo                  : 1;
@@ -200,6 +201,7 @@ namespace PipelineMetadataKey
     static constexpr char IndirectUserDataTableAddresses[] = ".indirect_user_data_table_addresses";
     static constexpr char NumInterpolants[]                = ".num_interpolants";
     static constexpr char ScratchMemorySize[]              = ".scratch_memory_size";
+    static constexpr char CalcWaveBreakSizeAtDrawTime[]    = ".calc_wave_break_size_at_draw_time";
     static constexpr char Api[]                            = ".api";
     static constexpr char ApiCreateInfo[]                  = ".api_create_info";
 };
@@ -215,6 +217,7 @@ namespace HardwareStageMetadataKey
     static constexpr char VgprLimit[]             = ".vgpr_limit";
     static constexpr char SgprLimit[]             = ".sgpr_limit";
     static constexpr char ThreadgroupDimensions[] = ".threadgroup_dimensions";
+    static constexpr char WavefrontSize[]         = ".wavefront_size";
     static constexpr char UsesUavs[]              = ".uses_uavs";
     static constexpr char UsesRovs[]              = ".uses_rovs";
     static constexpr char WritesUavs[]            = ".writes_uavs";

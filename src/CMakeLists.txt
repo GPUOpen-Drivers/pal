@@ -462,6 +462,11 @@ if(PAL_BUILD_CORE)
                 target_compile_definitions(pal PRIVATE PAL_BUILD_RAVEN2)
                 target_compile_definitions(pal PRIVATE CHIP_HDR_RAVEN2)
             endif()
+            if(PAL_BUILD_GFX10)
+                target_compile_definitions(pal PRIVATE PAL_BUILD_GFX10)
+                target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10)
+                target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10)
+            endif()
             target_sources(pal PRIVATE
                 core/hw/gfxip/gfx9/g_gfx9PalSettings.cpp
                 core/hw/gfxip/gfx9/gfx9Barrier.cpp
@@ -506,6 +511,12 @@ if(PAL_BUILD_CORE)
 
             # Resource Processing Manager(RPM) GFXIP 9 files.
             target_sources(pal PRIVATE core/hw/gfxip/rpm/gfx9/gfx9RsrcProcMgr.cpp)
+
+            if(PAL_BUILD_GFX10)
+                target_sources(pal PRIVATE
+                    core/hw/gfxip/gfx9/gfx10DmaCmdBuffer.cpp
+                )
+            endif()
 
         endif()
     endif()

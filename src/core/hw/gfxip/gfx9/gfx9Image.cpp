@@ -325,6 +325,54 @@ void Image::SetupAspectOffsets()
 }
 
 // =====================================================================================================================
+// Determines whether we need to set first pixel of each block that corresponds to 1 byte in DCC memory.  i.e.,
+// should fast-clears be done via the CompToSingle mode
+// Sets the "m_needToSetFirstPixel" variable.
+void Image::CheckCompToSingle()
+{
+    const auto&  createInfo = Parent()->GetImageCreateInfo();
+    const auto   imageType  = GetOverrideImageType();
+
+    if (IsGfx10(m_device)               &&
+        // Disable comp-to-single for 1D images.  The tiling pattern for 1D images is essentially the same pattern as
+        // used by a 2D image;  i.e., for 16bpp images, it's either 16x8 or 8x16 pixels, with everything outside the
+        // first scanline being wasted.  As such, the clear color needs to be written either every 8 or 16 pixels, and
+        // knowing which isn't trivial.  At that rate, we're essentially doing a slow clear again.  So don't bother.
+        (imageType != ImageType::Tex1d) &&
+        // If the HW is compressing fewer samples then this image has, then we can't do comp-to-single as any attempt
+        // by a shader to read pixels that don't fall on the DCC block boundaries will get the wrong color.  i.e., if
+        // comp-to-single was done, then an attempt to read pixel (2,2) at a compressed sample would read the DCC
+        // memory (since that sample was compressed) and find the real clear color at coordinates (0,0) and proceed
+        // correctly. However, reading pixel (2,2) at an uncompressed sample will simply read the image memory
+        // associated with that pixel/sample without looking at DCC memory and the texture pipe will have no way of
+        // understanding the clear color.  We should still be able to do comp-to-reg with a fast-clear-eliminate, but
+        // comp-to-single is out.
+        (m_gfxDevice.GetMaxFragsLog2() >= Log2(createInfo.fragments)))
+    {
+        // Setting the first pixel of each DCC block assumes that DCC memory is present...
+        PAL_ASSERT(HasDccData());
+
+        const Gfx9PalSettings& settings = GetGfx9Settings(m_device);
+
+        if (imageType == ImageType::Tex3d)
+        {
+            // 3d images are easy as they don't have arrays or MSAA.
+            m_useCompToSingleForFastClears = TestAnyFlagSet(settings.useCompToSingle, Gfx10UseCompToSingle3D);
+        }
+        else if (TestAnyFlagSet(settings.useCompToSingle, Gfx10UseCompToSingle2d))
+        {
+            // Ok, if it's not a 3D image and we have DCC memory, then this is a 2D image (1D images can't have
+            // DCC memory).  Make sure that any 2D images are allowed to use this feature.
+            const  uint32 neededFlags  =
+                (((createInfo.arraySize > 1) ? Gfx10UseCompToSingle2dArray : 0) |
+                 ((createInfo.samples > 1)   ? Gfx10UseCompToSingleMsaa    : 0));
+
+            m_useCompToSingleForFastClears = TestAllFlagsSet(settings.useCompToSingle, neededFlags);
+        }
+    }
+}
+
+// =====================================================================================================================
 // "Finalizes" this Image object: this includes determining what metadata surfaces need to be used for this Image, and
 // initializing the data structures for them.
 Result Image::Finalize(
@@ -474,6 +522,10 @@ Result Image::Finalize(
                     {
                         needsHtileLookupTable = true;
                     }
+                    if (IsGfx10(m_device))
+                    {
+                        needsHtileLookupTable = false;
+                    }
                 }
                 else
                 {
@@ -503,6 +555,9 @@ Result Image::Finalize(
             }
             else
             {
+                // Determine whether or not we need to set the first pixel of each block that corresponds to each
+                // byte of DCC memory.  This result is used during DCC initialization.
+                CheckCompToSingle();
 
                 result = m_pDcc->Init(pGpuMemSize, true);
             }
@@ -522,6 +577,7 @@ Result Image::Finalize(
                             // going to be used as UAV but some can be then we enable dcc fast clear on those who aren't
                             // going to be used as UAV and disable dcc fast clear on other mips.
                             if ((m_createInfo.usageFlags.shaderWrite == 0) ||
+                                IsGfx10(m_device)                          ||
                                 (mip < m_createInfo.usageFlags.firstShaderWritableMip))
                             {
                                 if (CanMipSupportMetaData(mip))
@@ -544,6 +600,13 @@ Result Image::Finalize(
                     needsDccStateMetaData = (sharedMetadata.dccStateMetaDataOffset  != 0);
                 }
                 else
+                // Currently DCC state metadata is only marked compressed when the image is bound in a color target.
+                // GFX10 allows DCC for a shader-writable image so if the image is used as UAV only then its DCC is in
+                // compressed state but its DCC state metadata is marked uncompressed (0) which causes a DCC decompress
+                // to be skipped and following read operation might get wrong data.
+                // Since GFX10 supports compression for almost all use cases, decompresses should be very rare, the
+                // solution is to disable tracking DCC state for shader writable image on GFX10.
+                if ((IsGfx10(m_device) && (m_createInfo.usageFlags.shaderWrite != 0)) == false)
                 {
                     // We also need the DCC state metadata when DCC is enabled.
                     needsDccStateMetaData = true;
@@ -810,6 +873,13 @@ bool Image::DoesImageSupportCopySrcCompression() const
 
         supportsCompression = (hwBufferDataFmt != BUF_DATA_FORMAT_INVALID);
     }
+    else
+    {
+        const auto*const pFmtInfo       = MergedChannelFlatFmtInfoTbl(gfxLevel);
+        const BUF_FMT    hwBufferFormat = HwBufFmt(pFmtInfo, createFormat);
+
+        supportsCompression = (hwBufferFormat != BUF_FMT_INVALID);
+    }
 
     return supportsCompression;
 }
@@ -838,6 +908,29 @@ void Image::InitLayoutStateMasks()
         // Additional usages may be allowed for an image in the compressed state.
         if (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0)
         {
+            // In Gfx10, UAV surface can have a DCC memory. So we allow compression for:
+            //   - ShaderWrite (because the app can write compressed to the surface)
+            //   - CopyDst     (because PAL copies can write compressed to the surface)
+            // We don't add ResolveDst here because the CB requires that the destination of a FixedFunction resolve must
+            // be decompressed. Additionally, after a FixedFunction resolve the CB does not compress the destination.
+            // Because of this, we can't let ResolveDst be considered a "compressed" state, nor can we allow our compute
+            // resolve to compress the destination data.
+            if (IsGfx10(m_device))
+            {
+                const Gfx9PalSettings& settings = GetGfx9Settings(m_device);
+
+                compressedLayout.usages |= LayoutShaderWrite;
+
+                // If we don't ever want copyDst to be compressed, then we're done
+                // If we always copyDst to be compressed, then this is easy
+                // Otherwise, copyDst is only on if the image supports shader reads
+                if ((settings.copyDstIsCompressed  != Gfx10CopyDstNeverAllow) &&
+                    ((settings.copyDstIsCompressed == Gfx10CopyDstAlwaysAllow) ||
+                     ImageSupportsShaderReadsAndWrites()))
+                {
+                    compressedLayout.usages |= LayoutCopyDst;
+                }
+            }
 
             if (TestAnyFlagSet(UseComputeExpand, (isMsaa ? UseComputeExpandMsaaDcc : UseComputeExpandDcc)))
             {
@@ -881,8 +974,23 @@ void Image::InitLayoutStateMasks()
                     compressedLayout.usages |= LayoutShaderRead;
                 }
 
+                if (IsGfx10(m_device) && (isMsaa == false) && (m_pImageInfo->resolveMethod.fixedFunc == 0))
+                {
+                    compressedLayout.usages |= LayoutResolveDst;
+                }
             }
 
+            const GfxIpLevel  gfxLevel = m_device.ChipProperties().gfxLevel;
+
+            if (HasDccData() &&
+                ((gfxLevel == GfxIpLevel::GfxIp10_1)
+                ))
+            {
+                // Verify that transitions to presentable state will invoke a DCC decompress on GFX10 for texture-
+                // fetchable images.
+                PAL_ASSERT(((pBaseSubResInfo->bitsPerTexel / 8) < 4) ||
+                           TestAnyFlagSet(m_layoutToState.color.compressed.usages, LayoutPresentFullscreen) == false);
+            }
         }
         else if (isMsaa && isComprFmaskShaderReadable)
         {
@@ -949,6 +1057,9 @@ void Image::InitLayoutStateMasks()
 
         m_defaultGfxLayout.color = compressedLayout;
 
+        // If this trips, the SDMA engine is in danger of seeing compressed images, which it can't understand.
+        PAL_ASSERT((GetGfx9Settings(m_device).waSdmaPreventCompressedSurfUse == false) ||
+                   (TestAnyFlagSet(m_layoutToState.color.compressed.engines, LayoutDmaEngine) == false));
     }
     else if (HasDsMetadata())
     {
@@ -1000,6 +1111,12 @@ void Image::InitLayoutStateMasks()
             {
                 bool sampleLocsAlwaysKnown = m_createInfo.flags.sampleLocsAlwaysKnown;
 
+                // In Gfx10, sample location will always be stored in MSAA depth buffer
+                if (IsGfx10(m_device))
+                {
+                    sampleLocsAlwaysKnown = true;
+                }
+
                 // Postpone decompresses for HTILE from Barrier-time to Resolve-time if sample location is always known.
                 if (sampleLocsAlwaysKnown)
                 {
@@ -1028,8 +1145,18 @@ void Image::InitLayoutStateMasks()
                     compressedLayouts.engines |= LayoutComputeEngine;
                 }
 
+                if (IsGfx10(m_device))
+                {
+                    // GFX10 supports compressed writes to HTILE, so it should be safe to add ShaderWrite and CopyDst
+                    // to the compressed usages.
+                    compressedLayouts.usages |= LayoutShaderWrite | LayoutCopyDst;
+                }
             }
         }
+
+    // If this trips, the SDMA engine is in danger of seeing compressed image data, which it can't understand.
+    PAL_ASSERT((GetGfx9Settings(m_device).waSdmaPreventCompressedSurfUse   == false) ||
+               (TestAnyFlagSet(compressedLayouts.engines, LayoutDmaEngine) == false));
 
         // Supported depth layouts per compression state
         const uint32 depth   = GetDepthStencilStateIndex(ImageAspect::Depth);
@@ -2296,6 +2423,9 @@ bool Image::IsComprFmaskShaderReadable(
                                      isShaderReadable    &&
 
                                      (
+                                        // The GFX10 fMask SRD will never set the "write" bit but we don't want
+                                        // to make a shader-writeable image disallow reading of fMask data either.
+                                        IsGfx10(m_device) ||
                                         (m_pParent->IsShaderWritable() == false)
                                      );
     }
@@ -2333,6 +2463,10 @@ bool Image::SupportsMetaDataTextureFetch(
             // it... Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function
             // resolve is not preferred, the image will be readable by a shader.
             (m_pParent->IsShaderReadable() ||
+             // For GFX10, copy (UAV) dst layout is a compressed state. Barrier to this layout won't trigger metadata
+             // decompression. If supportMetaDataTexFetch is not set properly, then RPM copy operation will not enable
+             // metadata access (read/write) but write to image directly -- data and meta can be incoherent afterwards.
+             (IsGfx10(m_device) && m_pParent->IsShaderWritable()) ||
              (m_pParent->IsResolveSrc() && (m_pParent->PreferCbResolve() == false))) &&
             // Meta-data isn't fetchable if the meta-data itself isn't addressable
             CanMipSupportMetaData(subResource.mipLevel) &&
@@ -2839,6 +2973,16 @@ gpusize Image::GetMipAddr(
         // aspect starts.
         imageBaseAddr = pParent->GetSubresourceBaseAddr(subresId) - mipInfo.mipTailOffset;
     }
+    else if (IsGfx10(gfxLevel))
+    {
+        // On GFX10, programming is based on the logical starting address of the aspect.  Mips are stored in
+        // reverse order (i.e., mip 0 is *last* and the last mip level isn't necessarily at offset zero either), so
+        // we need to figure out where this aspect begins.  Fun!
+        const uint32   planeIdx    = pParent->GetPlaneFromAspect(subresId.aspect);
+        const gpusize  planeOffset = m_aspectOffset[planeIdx];
+
+        imageBaseAddr = pParent->GetBoundGpuMemory().GpuVirtAddr() + planeOffset;
+    }
     else
     {
         // What is this?
@@ -2899,6 +3043,11 @@ bool Image::CanMipSupportMetaData(
 {
     bool supportsMetaData = true;
 
+    if (IsGfx10(*(m_gfxDevice.Parent())))
+    {
+        supportsMetaData = (mip <= m_addrSurfOutput[0].firstMipIdInTail);
+    }
+
     return supportsMetaData;
 }
 
@@ -2919,6 +3068,10 @@ void Image::Addr2InitSubResInfo(
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
         Addr2InitSubResInfoGfx9(subResIt, pSubResInfoList, pSubResTileInfoList, pGpuMemSize);
+    }
+    else if (IsGfx10(gfxLevel))
+    {
+        Addr2InitSubResInfoGfx10(subResIt, pSubResInfoList, pSubResTileInfoList, pGpuMemSize);
     }
 }
 
@@ -2962,6 +3115,125 @@ void Image::Addr2InitSubResInfoGfx9(
         {
             pSubRes->offset += pBaseSubRes->offset;
         }
+        pTileInfo->backingStoreOffset += pBaseTileInfo->backingStoreOffset;
+    }
+}
+
+// =====================================================================================================================
+// Returns TRUE if this image should set ITERATE_256 for the specified subresource
+//
+// physical memory, for example, if the VM system uses 64 KB pages.  It is recommended that the driver make
+// every effort to keep ITERATE_256 to be 0, since this gives optimal performance.  So if a surface has a
+// potential to spill out to system memory, which typically uses 4 KB pages, it can still set ITERATE_256 = 0,
+// so long as the driver can guarantee that the hardware is not allowed to access this surface while it is in
+// system memory.  Note that this recommendation really only applies to MSAA depth or stencil surfaces that are
+// tc compatible.  The iterate_256 state has no effect on 1xaa surfaces.
+//
+// For APUs, which typically use 4 KB pages, this optimization isn't an option, so the driver can force
+// ITERATE_256 to be enabled, by setting DB_DEBUG2.FORCE_ITERATE_256 = FORCE_ENABLE
+uint32 Image::GetIterate256(
+    const SubResourceInfo*  pSubResInfo
+    ) const
+{
+    const auto& settings        = GetGfx9Settings(m_device);
+    const auto& imageCreateInfo = Parent()->GetImageCreateInfo();
+    const auto& chipProperties  = m_device.ChipProperties();
+
+    // The iterate-256 bit doesn't exist except on GFX10 products...  It's not "bad" to call this function on
+    // other GPUs, but the answer isn't meaningful
+    PAL_ASSERT(IsGfx10(chipProperties.gfxLevel));
+
+    uint32  iterate256  = 0;
+    gpusize minPageSize = 0;
+
+    if (Parent()->GetBoundGpuMemory().IsBound())
+    {
+        minPageSize = Parent()->GetBoundGpuMemory().Memory()->MinPageSize();
+    }
+
+    if ((minPageSize != 0)                                     &&
+        Parent()->IsDepthStencil()                             &&
+        Parent()->IsAspectValid(pSubResInfo->subresId.aspect)  &&
+        (imageCreateInfo.samples > 1)                          &&
+        pSubResInfo->flags.supportMetaDataTexFetch             &&
+        // shareable images are always in system memory where the page size is unknown
+        (imageCreateInfo.flags.shareable ||
+         // depth buffer might not be in 64KiB pages
+         (IsPow2Aligned(minPageSize, 0x10000) == false)))
+    {
+        const auto*  pPlatform = m_device.GetPlatform();
+
+        if (pPlatform->IsEmulationEnabled()     ||
+            imageCreateInfo.flags.shareable     ||  // shareable images are always in system memory
+            ((chipProperties.deviceId == 0x47)  ||
+             (chipProperties.deviceId == 0x53)  ||
+             (chipProperties.deviceId == 0x55)  ||
+             (chipProperties.deviceId == 0x7310)))
+        {
+            // These platforms are really using system memory in place of a real frame buffer, so iterate-256
+            // must always be set.
+            iterate256 = 1;
+        }
+        else
+        {
+            // This should be real HW.
+            PAL_ALERT_ALWAYS();
+
+            // Again play it safe for now.
+            iterate256 = 1;
+        }
+    }
+    return iterate256;
+}
+
+// =====================================================================================================================
+// GFX10 specific version of the Addr2InitSubResInfo function
+void Image::Addr2InitSubResInfoGfx10(
+    const SubResIterator&  subResIt,
+    SubResourceInfo*       pSubResInfoList,
+    void*                  pSubResTileInfoList,
+    gpusize*               pGpuMemSize)
+{
+    const Pal::Image*     pParent     = Parent();
+    const auto&           createInfo  = pParent->GetImageCreateInfo();
+    const bool            isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
+    SubResourceInfo*const pSubRes     = (pSubResInfoList + subResIt.Index());
+    const auto*           pAddrOutput = GetAddrOutput(pSubRes);
+    const uint32          planeIdx    = pParent->GetPlaneFromAspect(pSubRes->subresId.aspect);
+    TileInfo*const        pTileInfo   = NonConstTileInfo(pSubResTileInfoList, subResIt.Index());
+
+    if (isYuvPlanar == false)
+    {
+        // For non-YUV planar surfaces, each aspect is stored contiguously.  i.e., all of aspect 0 data is stored
+        // prior to aspect 1 data starting.
+        pSubRes->offset = pSubRes->offset          + // existing offset to this miplevel within the slice
+                          m_aspectOffset[planeIdx] + // offset of any previous aspects
+                          pSubRes->subresId.arraySlice * pAddrOutput->sliceSize; // offset of any previous slices
+    }
+    else
+    {
+        // YUV planar surfaces are stored in [y] [uv] order for each slice.  i.e., the Y data across various
+        // slices is non-contiguous.  YUV surfaces can't have multiple mip levels.
+        pSubRes->offset = m_aspectOffset[planeIdx] +                        // offset within this slice
+                          pSubRes->subresId.arraySlice * m_totalAspectSize; // all previous slices
+    }
+
+    if (pSubRes->subresId.mipLevel == 0)
+    {
+        // In AddrMgr2, each subresource's size represents the size of the full mip-chain it belongs to. By
+        // adding the size of mip-level zero to the running GPU memory size, we can keep a running total of
+        // the entire Image's size.
+
+        {
+            *pGpuMemSize += pSubRes->size;
+        }
+
+        pTileInfo->backingStoreOffset += *pGpuMemSize;
+    }
+    else
+    {
+        const TileInfo*const pBaseTileInfo = NonConstTileInfo(pSubResTileInfoList, subResIt.BaseIndex());
+
         pTileInfo->backingStoreOffset += pBaseTileInfo->backingStoreOffset;
     }
 }
@@ -3050,6 +3322,7 @@ bool Image::IsHtileDepthOnly() const
 
     // Use Z-only hTile if this image's format doesn't have a stencil aspect
     if ((pDevice->SupportsStencil(createInfo.swizzledFormat.format, createInfo.tiling) == false)
+        || (settings.waForceZonlyHtileForMipmaps && (createInfo.mipLevels > 1))
        )
     {
         PAL_ASSERT(pDevice->SupportsDepth(createInfo.swizzledFormat.format, createInfo.tiling));
@@ -3161,6 +3434,57 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
             else if (HasDccData() && (baseSubRes.flags.supportMetaDataTexFetch != 0))
             {
                 firstMip = ((createInfo.samples > 1) ? 0 : firstMipInMetadataMipTail);
+            }
+        }
+    }
+    else
+    {
+        // The pipe misalignment issue occurs on Images which satisfy the following test:
+        //
+        // mod_log2_bpp        = (depth && num_slices >= 8) ? 2 : log2_bpp
+        // clamped_bpe_samples = MIN(mod_log2_bpp + log2_samples, 6)
+        //
+        // overlap             = MAX(clamped_bpe_samples + log2_pipes - 8, 0)
+        // samples_overlap     = MIN(log2_samples, overlap)
+        //
+        // if (non-pow2-memory)
+        //      do_flush = true
+        // else if (depth)
+        //      do_flush = (overlap > 0)
+        // else if (color)
+        //      do_flush = (samples_overlap > MAX(log2_samples - log2_max_compressed_frags, 0))
+
+        regGB_ADDR_CONFIG gbAddrConfig;
+        gbAddrConfig.u32All = chipProps.gfx9.gbAddrConfig;
+
+        const int32 log2Samples = Log2(createInfo.samples);
+        const int32 log2Bpp     = Log2(baseSubRes.bitsPerTexel >> 3);
+
+        int32 log2BppAndSamplesClamped = 0;
+        {
+            const int32 modifiedLog2Bpp = ((isDepth && (createInfo.arraySize >= 8)) ? 2 : log2Bpp);
+            log2BppAndSamplesClamped    = Min(6, (modifiedLog2Bpp + log2Samples));
+        }
+
+        const int32 overlap        = Max<int32>(0, (log2BppAndSamplesClamped + gbAddrConfig.bits.NUM_PIPES - 8));
+        const int32 samplesOverlap = Min(log2Samples, overlap);
+        const bool  isNonPow2Vram  = (IsPowerOfTwo(m_gfxDevice.Parent()->MemoryProperties().vramBusBitWidth) == false);
+
+        if (isDepth)
+        {
+            if (HasHtileData() && (baseSubRes.flags.supportMetaDataTexFetch != 0) &&
+                (isNonPow2Vram || (overlap > 0)))
+            {
+               firstMip = 0;
+            }
+        }
+        else
+        {
+            const int32 log2SamplesFragsDiff = Max<int32>(0, (log2Samples - gbAddrConfig.bits.MAX_COMPRESSED_FRAGS));
+            if (HasDccData() && (baseSubRes.flags.supportMetaDataTexFetch != 0) &&
+                (isNonPow2Vram || (samplesOverlap > log2SamplesFragsDiff)))
+            {
+                firstMip = 0;
             }
         }
     }

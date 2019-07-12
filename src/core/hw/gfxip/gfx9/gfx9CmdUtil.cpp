@@ -343,6 +343,47 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmUserDataStartHsShaderStage = Gfx09::mmSPI_SHADER_USER_DATA_LS_0;
         m_registerInfo.mmUserDataStartGsShaderStage = Gfx09::mmSPI_SHADER_USER_DATA_ES_0;
     }
+    else
+    {
+        if (IsGfx101(parent))
+        {
+            m_registerInfo.mmRlcSpmPerfmonSe3To0SegmentSize = Gfx101Plus::mmRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE;
+            m_registerInfo.mmRlcSpmPerfmonGlbSegmentSize    = Gfx101Plus::mmRLC_SPM_PERFMON_GLB_SEGMENT_SIZE;
+            m_registerInfo.mmEaPerfResultCntl               = Gfx101::mmGCEA_PERFCOUNTER_RSLT_CNTL;
+            m_registerInfo.mmDbDepthInfo                    = Nv10::mmDB_RESERVED_REG_2;
+            m_registerInfo.mmAtcPerfResultCntl              = Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL;
+            m_registerInfo.mmAtcL2PerfResultCntl            = Nv10::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL;
+
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        m_registerInfo.mmRlcPerfmonClkCntl        = Gfx10::mmRLC_PERFMON_CLK_CNTL;
+        m_registerInfo.mmRlcSpmGlobalMuxselAddr   = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmGlobalMuxselData   = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
+        m_registerInfo.mmRlcSpmSeMuxselAddr       = Gfx10::mmRLC_SPM_SE_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmSeMuxselData       = Gfx10::mmRLC_SPM_SE_MUXSEL_DATA;
+        m_registerInfo.mmMcVmL2PerfResultCntl     = Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmRpbPerfResultCntl        = Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmVgtGsMaxPrimsPerSubGroup = Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP;
+        m_registerInfo.mmDbDfsmControl            = Gfx10::mmDB_DFSM_CONTROL;
+        m_registerInfo.mmComputeShaderChksum      = Gfx10::mmCOMPUTE_SHADER_CHKSUM;
+        m_registerInfo.mmPaStereoCntl             = Gfx10::mmPA_STEREO_CNTL;
+        m_registerInfo.mmPaStateStereoX           = Gfx10::mmPA_STATE_STEREO_X;
+
+        // GFX10 provides a "PGM_{LO,HI}_ES_GS" and a "PGM_{LO,HI}_LS_HS" register that you would think is
+        // what you want to use for the merged shader stages.  You'd be wrong.  According to
+        // Those registers are for internal use only.
+        m_registerInfo.mmSpiShaderPgmLoLs = Gfx10::mmSPI_SHADER_PGM_LO_LS;
+        m_registerInfo.mmSpiShaderPgmLoEs = Gfx10::mmSPI_SHADER_PGM_LO_ES;
+
+        // The "LS" and "ES" user-data registers (that GFX9 utilizes) do exist on GFX10, but they are only
+        // meaningful in non-GEN-TWO mode.  We get 32 of these which is what we want.
+        m_registerInfo.mmUserDataStartHsShaderStage = Gfx10::mmSPI_SHADER_USER_DATA_HS_0;
+        m_registerInfo.mmUserDataStartGsShaderStage = Gfx10::mmSPI_SHADER_USER_DATA_GS_0;
+    }
 }
 
 // =====================================================================================================================
@@ -453,6 +494,153 @@ uint32 CmdUtil::BuildAcquireMemInternal(
 }
 
 // =====================================================================================================================
+// GFX10 adds a new GCR_CNTL field that takes over flush/inv control on most caches. Only CB and DB are still
+// controlled by CP_COHER_CNTL field. This function essentially converts GFX9 style cache sync info to GFX10 style one.
+uint32 CmdUtil::Gfx10CalcAcquireMemGcrCntl(
+    const AcquireMemInfo&  acquireMemInfo
+    ) const
+{
+    Gfx10AcquireMemGcrCntl gcrCntl = {};
+
+    // The L1 / L2 caches are physical address based. When specify the range, the GCR will perform virtual address
+    // to physical address translation before the wb / inv. If the acquired op is full sync, we must ignore the range,
+    // otherwise page fault may occur because page table cannot cover full range virtual address.
+    //    When the source address is virtual , the GCR block will have to perform the virtual address to physical
+    //    address translation before the wb / inv. Since the pages in memory are a collection of fragments, you can't
+    //    specify the full range without walking into a page that has no PTE triggering a fault. In the cases where
+    //    the driver wants to wb / inv the entire cache, you should not use range based method, and instead flush the
+    //    entire cache without it. The range based method is not meant to be used this way, it is for selective page
+    //    invalidation.
+    //
+    // GL1_RANGE[1:0] - range control for L0 / L1 physical caches(K$, V$, M$, GL1)
+    //  0:ALL         - wb / inv op applies to entire physical cache (ignore range)
+    //  1:reserved
+    //  2:RANGE       - wb / inv op applies to just the base / limit virtual address range
+    //  3:FIRST_LAST  - wb / inv op applies to 128B at BASE_VA and 128B at LIMIT_VA
+    //
+    // GL2_RANGE[1:0]
+    //  0:ALL         - wb / inv op applies to entire physical cache (ignore range)
+    //  1:VOL         - wb / inv op applies to all volatile tagged lines in the GL2 (ignore range)
+    //  2:RANGE       - wb / inv op applies to just the base/limit virtual address range
+    //  3:FIRST_LAST  - wb / inv op applies to 128B at BASE_VA and 128B at LIMIT_VA
+    if (((acquireMemInfo.baseAddress == FullSyncBaseAddr) && (acquireMemInfo.sizeBytes == FullSyncSize)) ||
+        (acquireMemInfo.sizeBytes > CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes))
+    {
+        gcrCntl.bits.gl1Range = 0;
+        gcrCntl.bits.gl2Range = 0;
+    }
+    else
+    {
+        {
+            gcrCntl.bits.gl1Range = 2;
+            gcrCntl.bits.gl2Range = 2;
+        }
+    }
+
+    // #1. Setup TC cache operations.
+    switch (acquireMemInfo.tcCacheOp)
+    {
+    case TcCacheOp::WbInvL1L2:
+        // GLM_WB[0]  - write-back control for the meta-data cache of GL2. L2MD is write-through, ignore this bit.
+        // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
+        // GLV_INV[0] - invalidate enable for shader vector L0 cache
+        // GL1_INV[0] - invalidate enable for GL1
+        // GL2_INV[0] - invalidate enable for GL2
+        // GL2_WB[0]  - writeback enable for GL2
+        gcrCntl.bits.glmInv = 1;
+        gcrCntl.bits.glvInv = 1;
+        gcrCntl.bits.gl1Inv = 1;
+        gcrCntl.bits.gl2Inv = 1;
+        gcrCntl.bits.gl2Wb  = 1;
+        break;
+
+    case TcCacheOp::WbInvL2Nc:
+        // GL2_INV[0] - invalidate enable for GL2
+        // GL2_WB[0]  - writeback enable for GL2
+        gcrCntl.bits.gl2Inv = 1;
+        gcrCntl.bits.gl2Wb  = 1;
+        break;
+
+        // GFX10TODO: GCR cannot differentiate Nc(non-coherent MTYPE) and Wc(write-combined MTYPE)?
+    case TcCacheOp::WbL2Nc:
+    case TcCacheOp::WbL2Wc:
+        // GL2_WB[0] - writeback enable for GL2
+        gcrCntl.bits.gl2Wb = 1;
+        break;
+
+    case TcCacheOp::InvL2Nc:
+        // GL2_INV[0] - invalidate enable for GL2
+        gcrCntl.bits.gl2Inv = 1;
+
+    case TcCacheOp::InvL2Md:
+        // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
+        gcrCntl.bits.glmInv = 1;
+        break;
+
+    case TcCacheOp::InvL1:
+        // GLV_INV[0] - invalidate enable for shader vector L0 cache
+        gcrCntl.bits.glvInv = 1;
+        gcrCntl.bits.gl1Inv = 1;
+        break;
+
+    case TcCacheOp::InvL1Vol:
+        // GL2_RANGE[1:0]
+        // GL1_INV[0] - invalidate enable for GL1
+        // GLV_INV[0] - invalidate enable for shader vector L0 cache
+        gcrCntl.bits.gl2Range = 1;
+        gcrCntl.bits.gl1Inv = 1;
+        gcrCntl.bits.glvInv = 1;
+        break;
+
+    default:
+        PAL_ASSERT(acquireMemInfo.tcCacheOp == TcCacheOp::Nop);
+        break;
+    }
+
+    // #2. Setup extra cache operations.
+    // GLI_INV[1:0]   control for the virtual tagged instruction cache (I$)
+    //      0:NOP          no invalidation of I$
+    //      1:ALL          entire I$ is invalidated
+    //      2:RANGE        invalidate base -> limit virtual address range of the I$.
+    //                     Overrides to NOP if RANGE_IS_PA == 1
+    //      3:FIRST_LAST   invalidate just 128B at BASE_VA and 128B at LIMIT_VA.
+    //                     Overrides to NOP if RANGE_IS_PA == 1
+    //
+    gcrCntl.bits.gliInv = acquireMemInfo.flags.invSqI$;
+
+    // GLK_WB[0]  - write-back control for shaded scalar L0 cache
+    // GLK_INV[0] - invalidate enable for shader scalar L0 cache
+    gcrCntl.bits.glkWb  = acquireMemInfo.flags.flushSqK$;
+    gcrCntl.bits.glkInv = acquireMemInfo.flags.invSqK$;
+
+    // SEQ[1:0]   controls the sequence of operations on the cache hierarchy (L0/L1/L2)
+    //      0: PARALLEL   initiate wb/inv ops on specified caches at same time
+    //      1: FORWARD    L0 then L1/L2, complete L0 ops then initiate L1/L2
+    //                    Typically only needed when doing WB of L0 K$, M$, or RB w/ WB of GL2
+    //      2: REVERSE    L2 -> L1 -> L0
+    //                    Typically only used for post-unaligned-DMA operation (invalidate only)
+    switch (acquireMemInfo.tcCacheOp)
+    {
+    case TcCacheOp::WbInvL1L2:
+    case TcCacheOp::WbInvL2Nc:
+    case TcCacheOp::WbL2Nc:
+    case TcCacheOp::WbL2Wc:
+        // CbMd flush only happens with CACHE_FLUSH_AND_INV_XX event, in this case we expect the hardware to
+        // take care of the flush sequence.
+        if (acquireMemInfo.flags.flushSqK$ || acquireMemInfo.flags.wbInvCbData || acquireMemInfo.flags.wbInvDb)
+        {
+            gcrCntl.bits.seq = 1;
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    return gcrCntl.u32All;
+}
+
+// =====================================================================================================================
 // Builds the the ACQUIRE_MEM command.  Returns the size, in DWORDs, of the assembled PM4 command
 size_t CmdUtil::BuildAcquireMem(
     const AcquireMemInfo& acquireMemInfo,
@@ -493,6 +681,24 @@ size_t CmdUtil::BuildAcquireMem(
 
         explicitAcquireMemInfo.coherCntl = cpCoherCntl.u32All | acquireMemInfo.cpMeCoherCntl.u32All;
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
+        {
+            // K$ and I$ and all previous tcCacheOp controlled caches are moved to GCR fields,
+            // set in CalcAcquireMemGcrCntl().
+            regCP_COHER_CNTL cpCoherCntl = {};
+            cpCoherCntl.bits.CB_ACTION_ENA = acquireMemInfo.flags.wbInvCbData;
+            cpCoherCntl.bits.DB_ACTION_ENA = acquireMemInfo.flags.wbInvDb;
+
+            // There shouldn't be any shared bits between CP_ME_COHER_CNTL and CP_COHER_CNTL.
+            PAL_ASSERT((cpCoherCntl.u32All & acquireMemInfo.cpMeCoherCntl.u32All) == 0);
+
+            explicitAcquireMemInfo.coherCntl = cpCoherCntl.u32All | acquireMemInfo.cpMeCoherCntl.u32All;
+        }
+
+        explicitAcquireMemInfo.gcrCntl = Gfx10CalcAcquireMemGcrCntl(acquireMemInfo);
+    }
 
     // Call a more explicit function.
     return ExplicitBuildAcquireMem(explicitAcquireMemInfo, pBuffer);
@@ -515,6 +721,20 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
         auto*const pPacket = static_cast<PM4ME_ACQUIRE_MEM__GFX09*>(pBuffer);
 
         packetSize = BuildAcquireMemInternal(acquireMemInfo, pPacket);
+    }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        static_assert(sizeof(PM4MEC_ACQUIRE_MEM__GFX10) == sizeof(PM4ME_ACQUIRE_MEM__GFX10),
+                      "GFX10: ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
+
+        auto*const pPacket = static_cast<PM4ME_ACQUIRE_MEM__GFX10*>(pBuffer);
+
+        packetSize = BuildAcquireMemInternal(acquireMemInfo, pPacket);
+
+        // Handle the GFX-specific aspects of a release-mem packet.
+        pPacket->ordinal8            = 0;
+        pPacket->bitfields8.gcr_cntl = acquireMemInfo.gcrCntl;
+        PAL_ASSERT(pPacket->bitfields8.reserved1 == 0);
     }
 
     return packetSize;
@@ -551,6 +771,12 @@ size_t CmdUtil::BuildAtomicMem(
                     static_cast<uint32>(cache_policy__mec_atomic_mem__lru))  &&
                    (static_cast<uint32>(cache_policy__me_atomic_mem__stream) ==
                     static_cast<uint32>(cache_policy__mec_atomic_mem__stream))),
+                  "Atomic Mem cache policy enum is different between ME and MEC!");
+
+    static_assert(((static_cast<uint32>(cache_policy__me_atomic_mem__noa__GFX10) ==
+                    static_cast<uint32>(cache_policy__mec_atomic_mem__noa__GFX10))  &&
+                   (static_cast<uint32>(cache_policy__me_atomic_mem__bypass__GFX10) ==
+                    static_cast<uint32>(cache_policy__mec_atomic_mem__bypass__GFX10))),
                   "Atomic Mem cache policy enum is different between ME and MEC!");
 
     // The destination address must be aligned to the size of the operands.
@@ -797,6 +1023,14 @@ size_t CmdUtil::BuildCopyData(
                     static_cast<uint32>(wr_confirm__me_copy_data__wait_for_confirmation))),
                    "CopyData wrConfirm enum is different between ME and MEC!");
 
+    static_assert((static_cast<uint32>(src_sel__pfp_copy_data__tc_l2_obsolete__GFX10) ==
+                   static_cast<uint32>(src_sel__pfp_copy_data__memory__GFX09)),
+                  "CopyData memory destination enumerations have changed between GFX9 and GFX10");
+
+    static_assert((static_cast<uint32>(dst_sel__pfp_copy_data__tc_l2_obsolete__GFX10) ==
+                   static_cast<uint32>(dst_sel__pfp_copy_data__memory__GFX09)),
+                  "CopyData memory destination enumerations have changed between GFX9 and GFX10");
+
     constexpr uint32  PacketSize     = (sizeof(PM4ME_COPY_DATA) / sizeof(uint32));
     PM4ME_COPY_DATA   packetGfx;
     PM4MEC_COPY_DATA* pPacketCompute = reinterpret_cast<PM4MEC_COPY_DATA*>(&packetGfx);
@@ -929,6 +1163,8 @@ size_t CmdUtil::BuildDispatchDirect(
     uint32          yDim,      // Thread groups (or threads) to launch (Y dimension).
     uint32          zDim,      // Thread groups (or threads) to launch (Z dimension).
     Pm4Predicate    predicate, // Predication enable control. Must be PredDisable on the Compute Engine.
+    bool            isWave32,  // Meaingful for GFX10 only, set if wave-size is 32 for bound compute shader
+    EngineSubType   engineSubType,
     void*           pBuffer    // [out] Build the PM4 packet in this buffer.
     ) const
 {
@@ -937,6 +1173,11 @@ size_t CmdUtil::BuildDispatchDirect(
     dispatchInitiator.bits.COMPUTE_SHADER_EN     = 1;
     dispatchInitiator.bits.FORCE_START_AT_000    = forceStartAt000;
     dispatchInitiator.bits.USE_THREAD_DIMENSIONS = dimInThreads;
+    dispatchInitiator.gfx10.CS_W32_EN            = isWave32;
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        dispatchInitiator.gfx10.TUNNEL_ENABLE    = ((engineSubType == EngineSubType::VrHighPriority) ? 1 : 0);
+    }
 
     // Set unordered mode to allow waves launch faster. This bit is related to the QoS (Quality of service) feature and
     // should be safe to set by default as the feature gets enabled only when allowed by the KMD. This bit also only
@@ -964,6 +1205,8 @@ size_t CmdUtil::BuildDispatchDirect<true, true>(
     uint32          yDim,
     uint32          zDim,
     Pm4Predicate    predicate,
+    bool            isWave32,
+    EngineSubType   engineSubType,
     void*           pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchDirect<false, false>(
@@ -971,6 +1214,8 @@ size_t CmdUtil::BuildDispatchDirect<false, false>(
     uint32          yDim,
     uint32          zDim,
     Pm4Predicate    predicate,
+    bool            isWave32,
+    EngineSubType   engineSubType,
     void*           pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchDirect<false, true>(
@@ -978,6 +1223,8 @@ size_t CmdUtil::BuildDispatchDirect<false, true>(
     uint32          yDim,
     uint32          zDim,
     Pm4Predicate    predicate,
+    bool            isWave32,
+    EngineSubType   engineSubType,
     void*           pBuffer) const;
 
 // =====================================================================================================================
@@ -986,6 +1233,7 @@ size_t CmdUtil::BuildDispatchDirect<false, true>(
 size_t CmdUtil::BuildDispatchIndirectGfx(
     gpusize      byteOffset, // Offset from the address specified by the set-base packet where the compute params are
     Pm4Predicate predicate,  // Predication enable control
+    bool         isWave32,   // Meaingful for GFX10 only, set if wave-size is 32 for bound compute shader
     void*        pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
     // We accept a 64-bit offset but the packet can only handle a 32-bit offset.
@@ -995,6 +1243,7 @@ size_t CmdUtil::BuildDispatchIndirectGfx(
     dispatchInitiator.u32All                   = 0;
     dispatchInitiator.bits.COMPUTE_SHADER_EN   = 1;
     dispatchInitiator.bits.FORCE_START_AT_000  = 1;
+    dispatchInitiator.gfx10.CS_W32_EN          = isWave32;
 
     constexpr uint32 PacketSize = (sizeof(PM4ME_DISPATCH_INDIRECT) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4ME_DISPATCH_INDIRECT*>(pBuffer);
@@ -1011,6 +1260,8 @@ size_t CmdUtil::BuildDispatchIndirectGfx(
 // This packet has different sizes between ME compute and ME gfx.
 size_t CmdUtil::BuildDispatchIndirectMec(
     gpusize       address,   // Address of the indirect args data.
+    bool          isWave32,  // Meaingful for GFX10 only, set if wave-size is 32 for bound compute shader
+    EngineSubType engineSubType,
     void*         pBuffer    // [out] Build the PM4 packet in this buffer.
     ) const
 {
@@ -1025,6 +1276,11 @@ size_t CmdUtil::BuildDispatchIndirectMec(
     dispatchInitiator.bits.COMPUTE_SHADER_EN   = 1;
     dispatchInitiator.bits.FORCE_START_AT_000  = 1;
     dispatchInitiator.bits.ORDER_MODE          = 1;
+    dispatchInitiator.gfx10.CS_W32_EN          = isWave32;
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        dispatchInitiator.gfx10.TUNNEL_ENABLE  = ((engineSubType == EngineSubType::VrHighPriority) ? 1 : 0);
+    }
 
     pPacket->header.u32All      = Type3Header(IT_DISPATCH_INDIRECT, PacketSize);
     pPacket->addr_lo            = LowPart(address);
@@ -2321,6 +2577,95 @@ size_t CmdUtil::BuildPreambleCntl(
 }
 
 // =====================================================================================================================
+// GFX10 adds a new GCR_CNTL field that takes over flush/inv control on most caches. Only CB and DB are still
+// controlled by CP_COHER_CNTL field. This function essentially converts GFX9 style cache sync info to GFX10 style one.
+uint32 CmdUtil::Gfx10CalcReleaseMemGcrCntl(
+    const ReleaseMemInfo&  releaseMemInfo
+    ) const
+{
+    Gfx10ReleaseMemGcrCntl gcrCntl = {};
+
+    // GL2_RANGE[1:0]
+    //  0:ALL          wb/inv op applies to entire physical cache (ignore range)
+    //  1:VOL          wb/inv op applies to all volatile tagged lines in the GL2 (ignore range)
+    //  2:RANGE      - wb/inv ops applies to just the base/limit virtual address range
+    //  3:FIRST_LAST - wb/inv ops applies to 128B at BASE_VA and 128B at LIMIT_VA
+    gcrCntl.bits.gl2Range = 0;
+
+    switch(releaseMemInfo.tcCacheOp)
+    {
+    case TcCacheOp::WbInvL1L2:
+        // GLM_WB[0]  - write-back control for the meta-data cache of GL2. L2MD is write-through, ignore this bit.
+        // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
+        // GLV_INV[0] - invalidate enable for shader vector L0 cache
+        // GL1_INV[0] - invalidate enable for GL1
+        // GL2_INV[0] - invalidate enable for GL2
+        // GL2_WB[0]  - writeback enable for GL2
+        gcrCntl.bits.glmInv = 1;
+        gcrCntl.bits.glvInv = 1;
+        gcrCntl.bits.gl1Inv = 1;
+        gcrCntl.bits.gl2Inv = 1;
+        gcrCntl.bits.gl2Wb  = 1;
+        break;
+
+    case TcCacheOp::WbInvL2Nc:
+        // GL2_INV[0] - invalidate enable for GL2
+        // GL2_WB[0]  - writeback enable for GL2
+        gcrCntl.bits.gl2Inv = 1;
+        gcrCntl.bits.gl2Wb  = 1;
+        break;
+
+    // GFX10TODO: GCR cannot differentiate Nc(non-coherent MTYPE) and Wc(write-combined MTYPE)?
+    case TcCacheOp::WbL2Nc:
+    case TcCacheOp::WbL2Wc:
+        // GL2_WB[0] - writeback enable for GL2
+        gcrCntl.bits.gl2Wb  = 1;
+        break;
+
+    case TcCacheOp::InvL2Nc:
+        // GL2_INV[0] - invalidate enable for GL2
+        gcrCntl.bits.gl2Inv = 1;
+
+    case TcCacheOp::InvL2Md:
+        // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
+        gcrCntl.bits.glmInv = 1;
+        break;
+
+    case TcCacheOp::InvL1:
+        // GLV_INV[0] - invalidate enable for shader vector L0 cache
+        gcrCntl.bits.glvInv = 1;
+        gcrCntl.bits.gl1Inv = 1;
+        break;
+
+    case TcCacheOp::InvL1Vol:
+        // GL2_RANGE[1:0]
+        // GL1_INV[0] - invalidate enable for GL1
+        // GLV_INV[0] - invalidate enable for shader vector L0 cache
+
+        gcrCntl.bits.gl2Range = 1;
+        gcrCntl.bits.gl1Inv   = 1;
+        gcrCntl.bits.glvInv   = 1;
+        break;
+
+    default:
+        PAL_ASSERT(releaseMemInfo.tcCacheOp == TcCacheOp::Nop);
+        break;
+    }
+
+    // SEQ[1:0]   controls the sequence of operations on the cache hierarchy (L0/L1/L2)
+    //      0: PARALLEL   initiate wb/inv ops on specified caches at same time
+    //      1: FORWARD    L0 then L1/L2, complete L0 ops then initiate L1/L2
+    //                    Typically only needed when doing WB of L0 K$, M$, or RB w/ WB of GL2
+    //      2: REVERSE    L2 -> L1 -> L0
+    //                    Typically only used for post-unaligned-DMA operation (invalidate only)
+    // For RELEASE_MEM, the only case when WB of L0 K$, RbMd and/or RB happens w/ WB of GL2 is when a
+    // CACHE_FLUSH_AND_INV_XX event is issued, in this case we expect the hardware to take care of the flush sequence.
+    gcrCntl.bits.seq = 0;
+
+    return gcrCntl.u32All;
+}
+
+// =====================================================================================================================
 // Builds the common aspects of a release-mem packet.
 template <typename ReleaseMemPacketType>
 size_t CmdUtil::BuildReleaseMemInternal(
@@ -2480,6 +2825,11 @@ size_t CmdUtil::BuildReleaseMem(
 
         explicitReleaseMemInfo.coherCntl = cpCoherCntl.u32All;
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        explicitReleaseMemInfo.coherCntl = 0;
+        explicitReleaseMemInfo.gcrCntl   = Gfx10CalcReleaseMemGcrCntl(releaseMemInfo);
+    }
 
     // Call a more explicit function.
     totalSize += ExplicitBuildReleaseMem(explicitReleaseMemInfo,
@@ -2542,6 +2892,21 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
         packet.bitfields2.tc_nc_action_ena    = cpCoherCntl.bitfields.TC_NC_ACTION_ENA;
         packet.bitfields2.tc_wc_action_ena    = cpCoherCntl.bitfields.TC_WC_ACTION_ENA;
         packet.bitfields2.tc_md_action_ena    = cpCoherCntl.bitfields.TC_INV_METADATA_ACTION_ENA;
+
+        memcpy(pBuffer, &packet, packetSize * sizeof(uint32));
+    }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        static_assert(sizeof(PM4MEC_RELEASE_MEM__GFX10) == sizeof(PM4ME_RELEASE_MEM__GFX10),
+                      "RELEASE_MEM is different sizes between ME and MEC!");
+
+        // This function is written with the MEC version of this packet, but we're assuming that the MEC and ME
+        // versions are identical.
+        PM4MEC_RELEASE_MEM__GFX10 packet = {};
+        packetSize = BuildReleaseMemInternal(releaseMemInfo, &packet, gdsAddr, gdsSize);
+
+        // Handle the GFX-specific aspects of a release-mem packet.
+        packet.bitfields2.gcr_cntl = releaseMemInfo.gcrCntl;
 
         memcpy(pBuffer, &packet, packetSize * sizeof(uint32));
     }
@@ -2666,6 +3031,9 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
     CheckShadowedUserConfigRegs(startRegAddr, endRegAddr);
 #endif
 
+    // resetFilterCam is not valid for Gfx9.
+    PAL_ASSERT((m_gfxIpLevel != GfxIpLevel::GfxIp9) || (resetFilterCam == false));
+
     const uint32 packetSize = ConfigRegSizeDwords + endRegAddr - startRegAddr + 1;
     auto*const   pPacket    = static_cast<PM4_PFP_SET_UCONFIG_REG*>(pBuffer);
 
@@ -2674,6 +3042,7 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
     {
         // GFX9 started supporting uconfig-reg-index as of ucode version 26.
         if ((m_cpUcodeVersion >= 26)
+            || IsGfx10(m_gfxIpLevel)
             )
         {
             //    SW needs to change from using the IT_SET_UCONFIG_REG to IT_SET_UCONFIG_REG_INDEX when using the

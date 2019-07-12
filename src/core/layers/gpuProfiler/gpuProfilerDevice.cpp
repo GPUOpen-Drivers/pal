@@ -813,6 +813,21 @@ GpuBlock StringToGpuBlock(
         "RPB",     // GpuBlock::Rpb
         "RMI",     // GpuBlock::Rmi
         "UMCCH",    // GpuBlock::Umcch
+        "GE",      // GpuBlock::Ge
+        "GL1A",    // GpuBlock::GL1A
+        "GL1C",    // GpuBlock::GL1C
+        "GL1CG",   // GpuBlock::GL1CG
+        "GL2A",    // GpuBlock::GL2A
+        "GL2C",    // GpuBlock::GL2C
+        "CHA",     // GpuBlock::Cha
+        "CHC",     // GpuBlock::Chc
+        "CHCG",    // GpuBlock::Chcg
+        "GUS",     // GpuBlock::Gus
+        "GCR",     // GpuBlock::Gcr
+        "PH",      // GpuBlock::Ph
+#if PAL_BUILD_GFX10 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION > 485)
+        "UTCL1",   // GpuBlock::UtcL1
+#endif
     };
 
     static_assert(ArrayLen(TranslationTbl) == static_cast<uint32>(GpuBlock::Count),

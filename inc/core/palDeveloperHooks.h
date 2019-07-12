@@ -180,7 +180,8 @@ struct BarrierOperations
             uint16 invalDbMetadata  : 1; ///< Invalidate DB meta-data cache.
             uint16 flushDbMetadata  : 1; ///< Flush DB meta-data cache.
             uint16 invalTccMetadata : 1; ///< Invalidate TCC meta-data cache.
-            uint16 reserved         : 2; ///< Reserved for future use.
+            uint16 invalGl1         : 1; ///< Invalidate the global L1 cache
+            uint16 reserved         : 1; ///< Reserved for future use.
         };
 
         uint16 u16All; ///< Unsigned integer containing all the values.

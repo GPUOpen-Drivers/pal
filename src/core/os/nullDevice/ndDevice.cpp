@@ -95,7 +95,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
 
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { FAMILY_NV,  NV_NAVI10_P_A2,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310      },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
@@ -146,7 +146,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
 
     nullptr,
-    nullptr,
+    "NAVI10:gfx1010",
     nullptr,
     nullptr,
     nullptr,
@@ -932,6 +932,24 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
+    else if (AMDGPU_IS_NAVI10(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->supportSpiPrefPriority  =    1;
+        pChipInfo->doubleOffchipLdsBuffers =    1;
+        pChipInfo->gbAddrConfig            = 0x44; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    2; // GPU__GC__NUM_SA_PER_SE
+        pChipInfo->maxNumRbPerSe           =    8; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->nativeWavefrontSize     =   32; // GPU__GC__SQ_WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =   32;
+        pChipInfo->maxWavefrontSize        =   64;
+        pChipInfo->numShaderVisibleVgprs   =  256; // min(GPU__GC__NUM_GPRS, 256);
+        pChipInfo->numCuPerSh              =   10; // GPU__GC__NUM_WGP_PER_SA * 2;
+        pChipInfo->numTccBlocks            =   16; // GPU__GC__NUM_GL2C;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
     else
     {
         // Unknown device id
@@ -948,6 +966,21 @@ void Device::InitGfx9ChipProperties()
         {
             pChipInfo->activeCuMask[seIndex][shIndex]   = activeCuMask;
             pChipInfo->alwaysOnCuMask[seIndex][shIndex] = activeCuMask;
+        }
+    }
+
+    if (AMDGPU_IS_NAVI(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        PAL_ASSERT(pChipInfo->numCuPerSh <= 32);      // avoid overflow in activeWgpMask
+        PAL_ASSERT((pChipInfo->numCuPerSh & 1) == 0); // CUs come in WGP pairs in gfx10
+        const uint16  activeWgpMask = (1 << (pChipInfo->numCuPerSh / 2)) - 1;
+        for (uint32 seIndex = 0; seIndex < pChipInfo->numShaderEngines; seIndex++)
+        {
+            for (uint32 shIndex = 0; shIndex < pChipInfo->numShaderArrays; shIndex++)
+            {
+                pChipInfo->gfx10.activeWgpMask[seIndex][shIndex]   = activeWgpMask;
+                pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] = activeWgpMask;
+            }
         }
     }
 
@@ -1017,6 +1050,7 @@ Result Device::EarlyInit(
 #endif
 #if PAL_BUILD_GFX9
     case GfxIpLevel::GfxIp9:
+    case GfxIpLevel::GfxIp10_1:
         m_pFormatPropertiesTable    = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
 
         InitGfx9ChipProperties();

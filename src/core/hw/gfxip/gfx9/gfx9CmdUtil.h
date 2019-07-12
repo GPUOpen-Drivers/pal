@@ -57,6 +57,51 @@ enum class TcCacheOp : uint32
     Count
 };
 
+// GCR_CNTL bit fields for ACQUIRE_MEM and RELEASE_MEM are slightly different.
+union Gfx10AcquireMemGcrCntl
+{
+    struct
+    {
+        uint32  gliInv     :  2;
+        uint32  gl1Range   :  2;
+        uint32  glmWb      :  1;
+        uint32  glmInv     :  1;
+        uint32  glkWb      :  1;
+        uint32  glkInv     :  1;
+        uint32  glvInv     :  1;
+        uint32  gl1Inv     :  1;
+        uint32  gl2Us      :  1;
+        uint32  gl2Range   :  2;
+        uint32  gl2Discard :  1;
+        uint32  gl2Inv     :  1;
+        uint32  gl2Wb      :  1;
+        uint32  seq        :  2;
+        uint32             : 14;
+    } bits;
+
+    uint32  u32All;
+};
+
+union Gfx10ReleaseMemGcrCntl
+{
+    struct
+    {
+        uint32  glmWb      :  1;
+        uint32  glmInv     :  1;
+        uint32  glvInv     :  1;
+        uint32  gl1Inv     :  1;
+        uint32  gl2Us      :  1;
+        uint32  gl2Range   :  2;
+        uint32  gl2Discard :  1;
+        uint32  gl2Inv     :  1;
+        uint32  gl2Wb      :  1;
+        uint32  seq        :  2;
+        uint32             : 20;
+    } bits;
+
+    uint32  u32All;
+};
+
 // This table was taken from the ACQUIRE_MEM packet spec.
 static constexpr uint32 Gfx9TcCacheOpConversionTable[] =
 {
@@ -115,6 +160,7 @@ struct ExplicitAcquireMemInfo
 
     EngineType engineType;
     uint32     coherCntl;
+    uint32     gcrCntl;
 
     // These define the address range being acquired. Use FullSyncBaseAddr and FullSyncSize for a global acquire.
     gpusize    baseAddress;
@@ -139,6 +185,7 @@ struct ExplicitReleaseMemInfo
     EngineType       engineType;
     VGT_EVENT_TYPE   vgtEvent;
     uint32           coherCntl;
+    uint32           gcrCntl;
     gpusize          dstAddr;
     uint32           dataSel;    // One of the data_sel_*_release_mem enumerations
     uint64           data;       // data to write, ignored except for DATA_SEL_SEND_DATA{32,64}
@@ -280,6 +327,11 @@ public:
     // The COPY_DATA src_reg_offset and dst_reg_offset fields have a bit-width of 18 bits.
     static constexpr uint32 MaxCopyDataRegOffset = (1 << 18) - 1;
 
+    ///@note GFX10 added the ability to do ranged checks when for Flush/INV ops to GL1/GL2 (so that you can just
+    ///      Flush/INV necessary lines instead of the entire cache). Since these caches are physically tagged, this
+    ///      can invoke a high penalty for large surfaces so limit the surface size allowed.
+    static constexpr uint64 Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes = (64 * 1024);
+
     static bool IsContextReg(uint32 regAddr);
     static bool IsUserConfigReg(uint32 regAddr);
     static bool IsShReg(uint32 regAddr);
@@ -362,13 +414,18 @@ public:
         uint32          yDim,
         uint32          zDim,
         Pm4Predicate    predicate,
+        bool            isWave32,
+        EngineSubType   engineSubType,
         void*           pBuffer) const;
     static size_t BuildDispatchIndirectGfx(
         gpusize      byteOffset,
         Pm4Predicate predicate,
+        bool         isWave32,
         void*        pBuffer);
     size_t BuildDispatchIndirectMec(
         gpusize         address,
+        bool            isWave32,
+        EngineSubType   engineSubType,
         void*           pBuffer) const;
     static size_t BuildDrawIndex2(
         uint32       indexCount,
@@ -681,6 +738,9 @@ private:
         ReleaseMemPacketType*         pPacket,
         uint32                        gdsAddr,
         uint32                        gdsSize) const;
+
+    uint32 Gfx10CalcAcquireMemGcrCntl(const AcquireMemInfo&  acquireMemInfo) const;
+    uint32 Gfx10CalcReleaseMemGcrCntl(const ReleaseMemInfo&  releaseMemInfo) const;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     void CheckShadowedContextReg(uint32 regAddr) const;

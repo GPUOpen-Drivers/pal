@@ -188,6 +188,9 @@ ADDR_E_RETURNCODE Lib::Create(
 #endif
                         pLib = Gfx9HwlInit(&client);
                         break;
+                    case FAMILY_NV:
+                        pLib = Gfx10HwlInit(&client);
+                        break;
                     default:
                         ADDR_ASSERT_ALWAYS();
                         break;

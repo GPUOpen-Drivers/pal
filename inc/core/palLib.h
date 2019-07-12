@@ -122,6 +122,8 @@ enum class NullGpuId : uint32
     Vega20     = 0x19,
     Raven2     = 0x1A,
 
+    Navi10     = 0x1E,
+
     Max        = 0x24,
     All        = 0x25,
 };

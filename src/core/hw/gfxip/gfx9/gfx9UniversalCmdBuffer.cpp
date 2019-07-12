@@ -300,6 +300,54 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.batchBreakOnNewPs         = settings.batchBreakOnNewPixelShader;
     m_cachedSettings.padParamCacheSpace        =
             ((pPublicSettings->contextRollOptimizationFlags & PadParamCacheSpace) != 0);
+    m_cachedSettings.prefetchIndexBufferForNgg = settings.waEnableIndexBufferPrefetchForNgg;
+    // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
+    // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
+    // The bin size is choosen from the minimum size for Depth, Color and Fmask.
+    // See usage in Gfx10GetDepthBinSize() and Gfx10GetColorBinSize() for further details.
+    const uint32 totalNumRbs   = m_device.Parent()->ChipProperties().gfx9.numShaderEngines *
+                                 m_device.Parent()->ChipProperties().gfx9.maxNumRbPerSe;
+    const uint32 totalNumPipes = Max(totalNumRbs, m_device.Parent()->ChipProperties().gfx9.numSdpInterfaces);
+
+    constexpr uint32 ZsTagSize  = 64;
+    constexpr uint32 ZsNumTags  = 312;
+    constexpr uint32 CcTagSize  = 1024;
+    constexpr uint32 CcReadTags = 31;
+    constexpr uint32 FcTagSize  = 256;
+    constexpr uint32 FcReadTags = 44;
+
+    // The logic given to calculate the Depth bin size is:
+    //   depthBinArea = ((ZsReadTags * totalNumRbs / totalNumPipes) * (ZsTagSize * totalNumPipes)) / cDepth
+    // After we precalculate the constant terms, the formula becomes:
+    //   depthBinArea = depthBinSizeTagPart / cDepth;
+    m_depthBinSizeTagPart   = ((ZsNumTags * totalNumRbs / totalNumPipes) * (ZsTagSize * totalNumPipes));
+
+    // The logic given to calculate the Color bin size is:
+    //   colorBinArea = ((CcReadTags * totalNumRbs / totalNumPipes) * (CcTagSize * totalNumPipes)) / cColor
+    // After we precalculate the constant terms, the formula becomes:
+    //   colorBinArea = colorBinSizeTagPart / cColor;
+    m_colorBinSizeTagPart   = ((CcReadTags * totalNumRbs / totalNumPipes) * (CcTagSize * totalNumPipes));
+
+    // The logic given to calculate the Fmask bin size is:
+    //   fmaskBinArea =  ((FcReadTags * totalNumRbs / totalNumPipes) * (FcTagSize * totalNumPipes)) / cFmask
+    // After we precalculate the constant terms, the formula becomes:
+    //   fmaskBinArea = fmaskBinSizeTagPart / cFmask;
+    m_fmaskBinSizeTagPart   = ((FcReadTags * totalNumRbs / totalNumPipes) * (FcTagSize * totalNumPipes));
+
+    m_minBinSizeX = settings.minBatchBinSize.width;
+    m_minBinSizeY = settings.minBatchBinSize.height;
+
+    // If minimum sizes are 0, then use default size of 128x64
+    if (m_minBinSizeX == 0)
+    {
+        m_minBinSizeX = 128;
+    }
+    if (m_minBinSizeY == 0)
+    {
+        m_minBinSizeY = 64;
+    }
+
+    PAL_ASSERT(IsPowerOfTwo(m_minBinSizeX) && IsPowerOfTwo(m_minBinSizeY));
 
     if (settings.binningMode == Gfx9DeferredBatchBinCustom)
     {
@@ -335,6 +383,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     SwitchDrawFunctions(
         false,
+        false,
         false);
 }
 
@@ -357,6 +406,9 @@ Result UniversalCmdBuffer::Init(
     m_streamOut.state.sizeInDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
     m_streamOut.state.ceRamOffset  = ceRamOffset;
     ceRamOffset += sizeof(m_streamOut.srd);
+    m_uavExportTable.state.sizeInDwords = (sizeof(m_uavExportTable.srd) / sizeof(uint32));
+    m_uavExportTable.state.ceRamOffset  = ceRamOffset;
+    ceRamOffset += sizeof(m_uavExportTable.srd);
 
     if (m_device.Settings().nggEnableMode != NggPipelineTypeDisabled)
     {
@@ -498,12 +550,18 @@ void UniversalCmdBuffer::ResetState()
     SetUserDataValidationFunctions(false, false, false);
     SwitchDrawFunctions(
         false,
+        false,
         false);
 
     m_vgtDmaIndexType.u32All = 0;
     m_vgtDmaIndexType.bits.SWAP_MODE = VGT_DMA_SWAP_NONE;
 
     // For IndexBuffers - default to STREAM cache policy so that they get evicted from L2 as soon as possible.
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        m_vgtDmaIndexType.gfx10.RDREQ_POLICY = VGT_POLICY_STREAM;
+    }
+    else
     {
         PAL_ASSERT(IsGfx9(*m_device.Parent()));
         m_vgtDmaIndexType.gfx09.RDREQ_POLICY = VGT_POLICY_STREAM;
@@ -532,6 +590,7 @@ void UniversalCmdBuffer::ResetState()
 
     ResetUserDataTable(&m_streamOut.state);
     ResetUserDataTable(&m_nggTable.state);
+    ResetUserDataTable(&m_uavExportTable.state);
 
     // Reset the command buffer's per-draw state objects.
     memset(&m_drawTimeHwState, 0, sizeof(m_drawTimeHwState));
@@ -598,13 +657,19 @@ void UniversalCmdBuffer::CmdBindPipeline(
         const bool oldIsNggFastLaunch    = (pOldPipeline != nullptr) && pOldPipeline->IsNggFastLaunch();
         const bool newUsesViewInstancing = (pNewPipeline != nullptr) && pNewPipeline->UsesViewInstancing();
         const bool oldUsesViewInstancing = (pOldPipeline != nullptr) && pOldPipeline->UsesViewInstancing();
+        const bool newUsesUavExport      = (pNewPipeline != nullptr) && pNewPipeline->UsesUavExport();
+        const bool oldUsesUavExport      = (pOldPipeline != nullptr) && pOldPipeline->UsesUavExport();
+        const bool newNeedsUavExportFlush = (pNewPipeline != nullptr) && pNewPipeline->NeedsUavExportFlush();
+        const bool oldNeedsUavExportFlush = (pOldPipeline != nullptr) && pOldPipeline->NeedsUavExportFlush();
 
         // NGG Fast Launch pipelines require issuing different packets for indexed draws. We'll need to switch the
         // draw function pointers around to handle this case.
         if ((oldIsNggFastLaunch     != newIsNggFastLaunch)     ||
+            (oldNeedsUavExportFlush != newNeedsUavExportFlush) ||
             (oldUsesViewInstancing  != newUsesViewInstancing))
         {
             SwitchDrawFunctions(
+                newNeedsUavExportFlush,
                 newUsesViewInstancing,
                 newIsNggFastLaunch);
         }
@@ -634,6 +699,24 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
         m_vbTable.watermark = vbTableDwords;
 #endif
+        if (newUsesUavExport)
+        {
+            const uint32 maxTargets = static_cast<const GraphicsPipeline*>(params.pPipeline)->NumColorTargets();
+            m_uavExportTable.maxColorTargets = maxTargets;
+            m_uavExportTable.tableSizeDwords = NumBytesToNumDwords(maxTargets * sizeof(ImageSrd));
+
+            if (oldUsesUavExport == false)
+            {
+                // Invalidate color caches so upcoming uav exports don't overlap previous normal exports
+                uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+                pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(GetEngineType(),
+                                                                  CACHE_FLUSH_AND_INV_TS_EVENT,
+                                                                  TcCacheOp::Nop,
+                                                                  TimestampGpuVirtAddr(),
+                                                                  pCmdSpace);
+                m_deCmdStream.CommitCommands(pCmdSpace);
+            }
+        }
     }
 
      Pal::UniversalCmdBuffer::CmdBindPipeline(params);
@@ -650,6 +733,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
 
     const bool isFirstDrawInCmdBuf = (m_state.flags.firstDrawExecuted == 0);
     const bool wasPrevPipelineNull = (pPrevSignature == &NullGfxSignature);
+    const bool wasPrevPipelineNgg  = m_pipelineFlags.isNgg;
     const bool isNgg               = pCurrPipeline->IsNgg();
     const bool tessEnabled         = pCurrPipeline->IsTessEnabled();
     const bool gsEnabled           = pCurrPipeline->IsGsEnabled();
@@ -667,6 +751,13 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     {
         pDeCmdSpace = m_deCmdStream.WritePm4Image(m_rbPlusPm4Img.spaceNeeded, &m_rbPlusPm4Img, pDeCmdSpace);
         m_deCmdStream.SetContextRollDetected<true>();
+    }
+
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10::mmGE_STEREO_CNTL,
+                                                         pCurrPipeline->GeStereoCntl().u32All,
+                                                         pDeCmdSpace);
     }
 
     if (m_cachedSettings.batchBreakOnNewPs)
@@ -768,6 +859,11 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         }
     }
 
+    if (wasPrevPipelineNgg && (isNgg == false))
+    {
+        pDeCmdSpace = m_workaroundState.SwitchFromNggPipelineToLegacy(gsEnabled, pDeCmdSpace);
+    }
+
     // Save the set of pipeline flags for the next pipeline transition.  This should come last because the previous
     // pipelines' values are used earlier in the function.
     m_pipelineFlags.isNgg    = isNgg;
@@ -852,6 +948,7 @@ void UniversalCmdBuffer::CmdBindIndexData(
     uint32    indexCount,
     IndexType indexType)
 {
+    m_workaroundState.HandleZeroIndexBuffer(this, &gpuAddr, &indexCount);
 
     if (m_graphicsState.iaState.indexAddr != gpuAddr)
     {
@@ -1490,6 +1587,28 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                             pDeCmdSpace);
     }
 
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        regCB_RMI_GL2_CACHE_CONTROL cbRmiGl2CacheControl = { };
+
+        cbRmiGl2CacheControl.u32All               = 0;
+        cbRmiGl2CacheControl.bits.CMASK_WR_POLICY = CACHE_STREAM;
+        cbRmiGl2CacheControl.bits.FMASK_WR_POLICY = CACHE_STREAM;
+        cbRmiGl2CacheControl.bits.DCC_WR_POLICY   = CACHE_STREAM;
+        cbRmiGl2CacheControl.bits.CMASK_RD_POLICY = CACHE_NOA;
+        cbRmiGl2CacheControl.bits.FMASK_RD_POLICY = CACHE_NOA;
+        cbRmiGl2CacheControl.bits.DCC_RD_POLICY   = CACHE_NOA;
+        cbRmiGl2CacheControl.bits.COLOR_RD_POLICY = CACHE_NOA;
+
+        // If any of the bound color targets are using linear swizzle mode (or 256_S or 256_D, but PAL doesn't utilize
+        // those), then COLOR_WR_POLICY can not be CACHE_BYPASS.
+        cbRmiGl2CacheControl.bits.COLOR_WR_POLICY = CACHE_STREAM;
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10::mmCB_RMI_GL2_CACHE_CONTROL,
+                                                          cbRmiGl2CacheControl.u32All,
+                                                          pDeCmdSpace);
+    }
+
     if (surfaceExtent.value != m_graphicsState.targetExtent.value)
     {
         // Set scissor owned by the target.
@@ -1570,6 +1689,14 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
                 pSrd->word3.bits.ADD_TID_ENABLE  = 0;
                 pSrd->word3.bits.DATA_FORMAT     = BUF_DATA_FORMAT_32;
                 pSrd->word3.bits.NUM_FORMAT      = BUF_NUM_FORMAT_UINT;
+            }
+            else if (IsGfx10(m_gfxIpLevel))
+            {
+                auto*const  pSrd = &pBufferSrd->gfx10;
+
+                pSrd->add_tid_enable = 0;
+                pSrd->format         = BUF_FMT_32_UINT;
+                pSrd->oob_select     = SQ_OOB_INDEX_ONLY;
             }
             else
             {
@@ -1885,6 +2012,7 @@ void UniversalCmdBuffer::DescribeDraw(
 // Issues a non-indexed draw command. We must discard the draw if vertexCount or instanceCount are zero. To avoid
 // branching, we will rely on the HW to discard the draw for us.
 template <bool IssueSqttMarkerEvent,
+          bool HasUavExport,
           bool ViewInstancingEnable>
 void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     ICmdBuffer* pCmdBuffer,
@@ -1949,6 +2077,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     {
         pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
+    if (HasUavExport)
+    {
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+    }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
 
@@ -1965,6 +2097,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 // =====================================================================================================================
 // Issues a draw opaque command.
 template <bool IssueSqttMarkerEvent,
+          bool HasUavExport,
           bool ViewInstancingEnable>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     ICmdBuffer* pCmdBuffer,
@@ -2048,6 +2181,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     {
         pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
+    if (HasUavExport)
+    {
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+    }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
 
@@ -2066,6 +2203,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 // we will rely on the HW to discard the draw for us.
 template <bool IssueSqttMarkerEvent,
           bool IsNggFastLaunch,
+          bool HasUavExport,
           bool ViewInstancingEnable>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     ICmdBuffer* pCmdBuffer,
@@ -2198,6 +2336,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     if (IssueSqttMarkerEvent)
     {
         pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+    }
+    if (HasUavExport)
+    {
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace  = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -2462,6 +2604,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 
     pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
                                                                      pThis->PacketPredicate(),
+                                                                     pThis->m_pSignatureCs->flags.isWave32,
+                                                                     pThis->GetEngineSubType(),
                                                                      pDeCmdSpace);
 
     if (IssueSqttMarkerEvent)
@@ -2505,6 +2649,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
                                          pDeCmdSpace);
     pDeCmdSpace += CmdUtil::BuildDispatchIndirectGfx(offset,
                                                      pThis->PacketPredicate(),
+                                                     pThis->m_pSignatureCs->flags.isWave32,
                                                      pDeCmdSpace);
 
     if (IssueSqttMarkerEvent)
@@ -2560,6 +2705,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
                                                                       yDim,
                                                                       zDim,
                                                                       pThis->PacketPredicate(),
+                                                                      pThis->m_pSignatureCs->flags.isWave32,
+                                                                      pThis->GetEngineSubType(),
                                                                       pDeCmdSpace);
 
     if (IssueSqttMarkerEvent)
@@ -2766,6 +2913,11 @@ void UniversalCmdBuffer::CmdInsertTraceMarker(
         (markerType == PerfTraceMarkerType::A) ? mmSQ_THREAD_TRACE_USERDATA_2 : mmSQ_THREAD_TRACE_USERDATA_3;
 
     uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+    if (m_device.Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp9)
+    {
+        pCmdSpace = m_deCmdStream.WriteSetOneConfigReg<true>(userDataAddr, markerData, pCmdSpace);
+    }
+    else
     {
         pCmdSpace = m_deCmdStream.WriteSetOneConfigReg<false>(userDataAddr, markerData, pCmdSpace);
     }
@@ -2790,6 +2942,14 @@ void UniversalCmdBuffer::CmdInsertRgpTraceMarker(
         // Reserve and commit command space inside this loop.  Some of the RGP packets are unbounded, like adding a
         // comment string, so it's not safe to assume the whole packet will fit under our reserve limit.
         uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+        if (m_device.Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp9)
+        {
+            pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<true>(mmSQ_THREAD_TRACE_USERDATA_2,
+                                                                  mmSQ_THREAD_TRACE_USERDATA_2 + dwordsToWrite - 1,
+                                                                  pDwordData,
+                                                                  pCmdSpace);
+        }
+        else
         {
             pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<false>(mmSQ_THREAD_TRACE_USERDATA_2,
                                                                    mmSQ_THREAD_TRACE_USERDATA_2 + dwordsToWrite - 1,
@@ -2847,6 +3007,23 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
         pm4Commands.gfx9.dbStencilWriteBaseHi.u32All = 0;
         pm4Commands.gfx9.dbDfsmControl.u32All        = m_device.GetDbDfsmControl();
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(Gfx10::mmDB_DFSM_CONTROL,
+                                                      Gfx10::mmDB_STENCIL_WRITE_BASE,
+                                                      &pm4Commands.hdrDbInfo);
+
+        pm4Commands.gfx10.dbDfsmControl.u32All      = m_device.GetDbDfsmControl();
+
+        pm4Commands.gfx10.dbDepthInfo               = 0;
+        pm4Commands.gfx10.dbZInfo.u32All            = 0;
+        pm4Commands.gfx10.dbStencilInfo.u32All      = 0;
+        pm4Commands.gfx10.dbZReadBase.u32All        = 0;
+        pm4Commands.gfx10.dbStencilReadBase.u32All  = 0;
+        pm4Commands.gfx10.dbZWriteBase.u32All       = 0;
+        pm4Commands.gfx10.dbStencilWriteBase.u32All = 0;
+
+    }
     else
     {
         // What is this?
@@ -2903,6 +3080,75 @@ BinningMode UniversalCmdBuffer::GetDisableBinningSetting(
     ) const
 {
     BinningMode  binningMode = DISABLE_BINNING_USE_LEGACY_SC;
+
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        //  DISABLE_BINNING_USE_LEGACY_SC: reverts binning completely and uses the old scan converter (along with
+        //                                 serpentine walking pattern). It doesn't support FSR in GFX10.
+        //  DISABLE_BINNING_USE_NEW_SC   : disables binning but still uses the binner rasterizer (typewriter walking
+        //                                 pattern). Supports FSR.
+        //
+        // Because of FSR and because we want to maintain the same performance characteristics, we want to use the
+        // second setting on GFX10: DISABLE_BINNING_USE_NEW_SC
+        binningMode = DISABLE_BINNING_USE_NEW_SC;
+
+        // when using "New" SC (PA_SC_BINNER_CNTL_0.BINNING_MODE = 2)
+        //     If <= 4BPE render-target -> 128x128
+        //     Else -> 128x64  (ie 8BPE and 16BPE)
+        // If the render targets are a mix of 4BPE and 8/16 BPE, driver is to use 128x128 bin size.
+        uint32  minBpe = 0;
+
+        // First check if there is a bound Depth target which is enabled and being written to
+        const auto&  boundTargets     = m_graphicsState.bindTargets;
+        const auto*  pDepthTargetView =
+                static_cast<const DepthStencilView*>(boundTargets.depthTarget.pDepthStencilView);
+        const auto*  pDepthImage      = (pDepthTargetView ? pDepthTargetView->GetImage() : nullptr);
+        if (pDepthImage != nullptr)
+        {
+            const auto*  pDepthStencilState = static_cast<const DepthStencilState*>(m_graphicsState.pDepthStencilState);
+            const auto&  imageCreateInfo    = pDepthImage->Parent()->GetImageCreateInfo();
+            if ((pDepthStencilState->IsDepthEnabled() && (pDepthTargetView->ReadOnlyDepth() == false)) ||
+                (pDepthStencilState->IsStencilEnabled() && (pDepthTargetView->ReadOnlyStencil() == false)))
+            {
+                // Since depth targets can only ever be 16 or 32 bits-per-pixel, we always fall into the 4BPE or
+                // less case
+                minBpe = 4;
+            }
+        }
+
+        // Query Color targets if minimum not determined from Depth
+        if (minBpe == 0)
+        {
+            // Loop through all Color targets to find minimum bytes per pixel
+            for (uint32  idx = 0; idx < boundTargets.colorTargetCount; idx++)
+            {
+                const auto* pColorView =
+                        static_cast<const ColorTargetView*>(boundTargets.colorTargets[idx].pColorTargetView);
+                const auto* pImage     = ((pColorView != nullptr) ? pColorView->GetImage() : nullptr);
+
+                if (pImage != nullptr)
+                {
+                    const auto&  info = pImage->Parent()->GetImageCreateInfo();
+                    const uint32 bpe  = BytesPerPixel(info.swizzledFormat.format);
+                    if ((bpe != 0) && ((minBpe == 0) || (bpe < minBpe)))
+                    {
+                        minBpe = bpe;
+                    }
+                }
+            }
+        }
+
+        if (minBpe <= 4) // <= 4 BPE, or mixed <=4 with 8/16 BPE
+        {
+            pBinSize->width  = 128;
+            pBinSize->height = 128;
+        }
+        else // 8 or 16 BPE
+        {
+            pBinSize->width  = 128;
+            pBinSize->height = 64;
+        }
+    }
 
     return binningMode;
 }
@@ -2990,6 +3236,11 @@ Result UniversalCmdBuffer::AddPreamble()
     const uint32  mmPaStateStereoX = m_cmdUtil.GetRegInfo().mmPaStateStereoX;
     if (mmPaStateStereoX != 0)
     {
+        if (IsGfx10(m_gfxIpLevel))
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPaStateStereoX, 0, pDeCmdSpace);
+        }
+        else
         {
             pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmPaStateStereoX, 0, pDeCmdSpace);
         }
@@ -3633,6 +3884,27 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToUserSgprsCs(
 }
 
 // =====================================================================================================================
+// Helper function to create SRDs corresponding to the current render targets
+void UniversalCmdBuffer::UpdateUavExportTable()
+{
+    for (uint32 idx = 0; idx < m_uavExportTable.maxColorTargets; ++idx)
+    {
+        const auto* pTargetView = m_graphicsState.bindTargets.colorTargets[idx].pColorTargetView;
+        if (pTargetView != nullptr)
+        {
+            PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+            const Gfx10ColorTargetView* pGfx10TargetView = static_cast<const Gfx10ColorTargetView*>(pTargetView);
+            pGfx10TargetView->GetImageSrd(&m_uavExportTable.srd[idx]);
+        }
+        else
+        {
+            m_uavExportTable.srd[idx] = {};
+        }
+    }
+    m_uavExportTable.state.dirty = true;
+}
+
+// =====================================================================================================================
 // Helper function which is responsible for making sure all user-data entries are written to either the spill table or
 // to user-SGPR's, as well as making sure that all indirect user-data tables are up-to-date in GPU memory.  Part of
 // Dispatch-time validation.
@@ -3643,6 +3915,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCeRam(
 {
     PAL_ASSERT((HasPipelineChanged  && (pPrevSignature != nullptr)) ||
                (!HasPipelineChanged && (pPrevSignature == nullptr)));
+    constexpr uint16 UavExportMask        = (1 << 2);
     constexpr uint32 StreamOutTableDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
     constexpr uint16 StreamOutMask        = (1 << 1);
     constexpr uint16 VertexBufMask        = (1 << 0);
@@ -3700,6 +3973,32 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCeRam(
                                                                          pDeCmdSpace);
         }
     } // if stream-out table is mapped by current pipeline
+    // Update uav export srds if enabled
+    const uint16 uavExportEntry = m_pSignatureGfx->uavExportTableAddr;
+    if (uavExportEntry != UserDataNotMapped)
+    {
+        const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+        if (HasPipelineChanged || (dirtyFlags.colorTargetView))
+        {
+            UpdateUavExportTable();
+        }
+
+        if (m_uavExportTable.state.dirty != 0)
+        {
+            RelocateUserDataTable<CacheLineDwords>(&m_uavExportTable.state, 0, m_uavExportTable.tableSizeDwords);
+            srdTableDumpMask |= UavExportMask;
+        }
+
+        // Update the virtual address if the table has been relocated or we have a different sgpr mapping
+        if ((HasPipelineChanged && (pPrevSignature->uavExportTableAddr != uavExportEntry)) ||
+            (m_uavExportTable.state.dirty != 0))
+        {
+            const uint32 gpuVirtAddrLo = LowPart(m_uavExportTable.state.gpuVirtAddr);
+            pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(uavExportEntry,
+                                                                         gpuVirtAddrLo,
+                                                                         pDeCmdSpace);
+        }
+    }
 
     // Step #2:
     // Write all dirty user-data entries to their mapped user SGPR's.
@@ -3782,6 +4081,19 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCeRam(
             }
             pCeCmdSpace = DumpUserDataTable(&m_streamOut.state, 0, StreamOutTableDwords, pCeCmdSpace);
         } // if stream-out table needs dumping
+        if (srdTableDumpMask & UavExportMask)
+        {
+            pCeCmdSpace = UploadToUserDataTable(&m_uavExportTable.state,
+                                                0,
+                                                m_uavExportTable.tableSizeDwords,
+                                                reinterpret_cast<const uint32*>(&m_uavExportTable.srd),
+                                                UINT_MAX,
+                                                pCeCmdSpace);
+            pCeCmdSpace = DumpUserDataTable(&m_uavExportTable.state,
+                                            0,
+                                            m_uavExportTable.tableSizeDwords,
+                                            pCeCmdSpace);
+        } // if uav export table needs dumping
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
     } // needs CE workload
 
@@ -3863,6 +4175,34 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCpu(
                                                                          pDeCmdSpace);
         }
     } // if stream-out table is mapped by current pipeline
+    // Update uav export srds if enabled
+    const uint16 uavExportEntry = m_pSignatureGfx->uavExportTableAddr;
+    if (uavExportEntry != UserDataNotMapped)
+    {
+        const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+        if (HasPipelineChanged || (dirtyFlags.colorTargetView))
+        {
+            UpdateUavExportTable();
+        }
+
+        if (m_uavExportTable.state.dirty != 0)
+        {
+            UpdateUserDataTableCpu(&m_uavExportTable.state,
+                                   0,
+                                   m_uavExportTable.tableSizeDwords,
+                                   reinterpret_cast<const uint32*>(&m_uavExportTable.srd));
+        }
+
+        // Update the virtual address if the table has been relocated or we have a different sgpr mapping
+        if ((HasPipelineChanged && (pPrevSignature->uavExportTableAddr != uavExportEntry)) ||
+            (m_uavExportTable.state.dirty != 0))
+        {
+            const uint32 gpuVirtAddrLo = LowPart(m_uavExportTable.state.gpuVirtAddr);
+            pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(uavExportEntry,
+                                                                         gpuVirtAddrLo,
+                                                                         pDeCmdSpace);
+        }
+    }
 
     // Step #2:
     // Write all dirty user-data entries to their mapped user SGPR's.
@@ -4373,6 +4713,30 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBuffer(
 }
 
 // =====================================================================================================================
+uint32* UniversalCmdBuffer::Gfx10ValidateTriangleRasterState(
+    const GraphicsPipeline*  pPipeline,
+    uint32*                  pDeCmdSpace)
+{
+    //  The field was added for both polymode and perpendicular endcap lines.
+    //  The SC reuses some information from the first primitive for other primitives within a polymode group. The
+    //  whole group needs to make it to the SC in the same order it was produced by the PA. When the field is enabled,
+    //  the PA will set a keep_together bit on the first and last primitive of each group. This tells the PBB that the
+    //  primitives must be kept in order
+    //
+    //  it should be enabled when POLY_MODE is enabled.  Also, if the driver ever sets PERPENDICULAR_ENDCAP_ENA, that
+    //  should follow the same rules
+    if ((m_graphicsState.triangleRasterState.fillMode != FillMode::Solid) || pPipeline->IsPerpEndCapsEnabled())
+    {
+        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmPA_SU_SC_MODE_CNTL,
+                                                       Gfx10::PA_SU_SC_MODE_CNTL__KEEP_TOGETHER_ENABLE_MASK,
+                                                       Gfx10::PA_SU_SC_MODE_CNTL__KEEP_TOGETHER_ENABLE_MASK,
+                                                       pDeCmdSpace);
+    }
+
+    return pDeCmdSpace;
+}
+
+// =====================================================================================================================
 // Performs draw-time dirty state validation. Returns the next unused DWORD in pDeCmdSpace.
 template <bool Indexed,
           bool Indirect,
@@ -4399,6 +4763,40 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     // All of our dirty state will leak to the caller.
     m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
+    if (Indexed                                                 &&
+        IsNgg                                                   &&
+        (Indirect == false)                                     &&
+        m_cachedSettings.prefetchIndexBufferForNgg              &&
+        (m_graphicsState.iaState.indexType == IndexType::Idx32) &&
+        (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::TriangleList))
+    {
+
+        // We'll underflow the numPages calculation if we're priming zero bytes.
+        const size_t  offset      = drawInfo.firstIndex  * sizeof(uint32);
+        const size_t  sizeInBytes = drawInfo.vtxIdxCount * sizeof(uint32);
+        const gpusize gpuAddr     = m_graphicsState.iaState.indexAddr + offset;
+        PAL_ASSERT(sizeInBytes > 0);
+
+        const gpusize firstPage   = Pow2AlignDown(gpuAddr, PrimeUtcL2MemAlignment);
+        const gpusize lastPage    = Pow2AlignDown(gpuAddr + sizeInBytes - 1, PrimeUtcL2MemAlignment);
+        const size_t  numPages    = 1 + static_cast<size_t>((lastPage - firstPage) / PrimeUtcL2MemAlignment);
+
+        // If multiple draws refetch indices from the same page there's no need to refetch that page.
+        // Also, if we use 2 MB pages there won't be much benefit from priming.
+        if ((firstPage < m_drawTimeHwState.nggIndexBufferPfStartAddr) ||
+            (lastPage  > m_drawTimeHwState.nggIndexBufferPfEndAddr))
+        {
+            m_drawTimeHwState.nggIndexBufferPfStartAddr = firstPage;
+            m_drawTimeHwState.nggIndexBufferPfEndAddr   = lastPage;
+
+            pDeCmdSpace += CmdUtil::BuildPrimeUtcL2(firstPage,
+                                                    cache_perm__pfp_prime_utcl2__read,
+                                                    prime_mode__pfp_prime_utcl2__dont_wait_for_xack,
+                                                    engine_sel__pfp_prime_utcl2__prefetch_parser,
+                                                    numPages,
+                                                    pDeCmdSpace);
+        }
+    }
 
     if (PipelineDirty || (StateDirty && dirtyFlags.colorBlendState))
     {
@@ -4477,6 +4875,12 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                              iaMultiVgtParam.u32All,
                                                              pDeCmdSpace,
                                                              index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09);
+        }
+        else if (IsGfx10(m_gfxIpLevel))
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10::mmGE_CNTL,
+                                                             CalcGeCntl<IsNgg>(iaMultiVgtParam),
+                                                             pDeCmdSpace);
         }
 
         pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<Pm4OptImmediate>(vgtLsHsConfig, pDeCmdSpace);
@@ -4609,6 +5013,8 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         // Reset binner state unless it used to be off and remains off.  If it was on and remains on, it is possible
         // the ideal bin sizes will change, so we must revalidate.
         if (m_enabledPbb || shouldEnablePbb
+              // optimal gfx10 bin sizes are determined from render targets both when PBB is enabled or disabled
+              || IsGfx10(m_gfxIpLevel)
             )
         {
             m_enabledPbb = shouldEnablePbb;
@@ -4619,6 +5025,15 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
     // VGT also applies it to auto-generated vertex index values.
     //
+    // GFX10 moves the RESET_EN functionality to a new register called GE_MULTI_PRIM_IB_RESET_EN.  Verify that
+    // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
+    // statements to verify which Gfx level the active device uses.
+    static_assert(VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
+                  Gfx10::GE_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK,
+                  "MATCH_ALL_BITS bits are not in the same place on GFX9 and GFX10!");
+    static_assert(VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
+                  Gfx10::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
+                  "RESET_EN bits are not in the same place on GFX9 and GFX10!");
 
     const regPA_SC_SHADER_CONTROL  newPaScShaderControl = pPipeline->PaScShaderControl(drawInfo.vtxIdxCount);
     if (newPaScShaderControl.u32All != m_paScShaderControl.u32All)
@@ -4636,6 +5051,12 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         Indexed && m_graphicsState.inputAssemblyState.primitiveRestartEnable);
 
     m_state.primShaderCbLayout.renderStateCb.primitiveRestartEnable = vgtMultiPrimIbResetEn.bits.RESET_EN;
+
+    if (IsGfx10(m_gfxIpLevel) &&
+        (PipelineDirty || (StateDirty && dirtyFlags.triangleRasterState)))
+    {
+        pDeCmdSpace = Gfx10ValidateTriangleRasterState(pPipeline, pDeCmdSpace);
+    }
 
     // Validate the per-draw HW state.
     pDeCmdSpace = ValidateDrawTimeHwState<Indexed,
@@ -4962,6 +5383,151 @@ void UniversalCmdBuffer::Gfx9GetDepthBinSize(
 }
 
 // =====================================================================================================================
+// Gfx10 specific function for calculating Color PBB bin size.
+void UniversalCmdBuffer::Gfx10GetColorBinSize(
+    Extent2d* pBinSize
+    ) const
+{
+    PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+
+    // TODO: This function needs to be updated to look at the pixel shader and determine which outputs are valid in
+    //       addition to looking at the bound render targets. Bound render targets may not necessarily get a pixel
+    //       shader export. Using the bound render targets means that we may make the bin size smaller than it needs to
+    //       be when a render target is bound, but is not written by the PS. With export cull mask enabled. We need only
+    //       examine the PS output because it will account for any RTs that are not bound.
+
+    // Calculate cColor and cFmask(if applicable)
+    uint32 cColor   = 0;
+    uint32 cFmask   = 0;
+    bool   hasFmask = false;
+
+    const auto& boundTargets = m_graphicsState.bindTargets;
+    const auto* pPipeline    = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+    const bool  psIterSample = ((pPipeline != nullptr) && (pPipeline->PaScModeCntl1().bits.PS_ITER_SAMPLE == 1));
+    for (uint32  idx = 0; idx < boundTargets.colorTargetCount; idx++)
+    {
+        const auto* pColorView = static_cast<const ColorTargetView*>(boundTargets.colorTargets[idx].pColorTargetView);
+        const auto* pImage     = ((pColorView != nullptr) ? pColorView->GetImage() : nullptr);
+
+        if (pImage != nullptr)
+        {
+            // mMRT = (num_frag == 1) ? 1 : (ps_iter == 1) ? num_frag : 2
+            // cMRT = Bpp * mMRT
+            // cColor = Sum(cMRT)
+            const auto&  info = pImage->Parent()->GetImageCreateInfo();
+            const uint32 mmrt = (info.fragments == 1) ? 1 : (psIterSample ? info.fragments : 2);
+
+            cColor += BytesPerPixel(info.swizzledFormat.format) * mmrt;
+            if (pImage->HasFmaskData())
+            {
+                PAL_ASSERT((info.fragments > 0) && (info.samples > 0));
+                const uint32 fragmentsLog2 = (uint32)Log2(info.fragments);
+                const uint32 samplesLog2   = (uint32)Log2(info.samples);
+                PAL_ASSERT((fragmentsLog2 < 4) && (samplesLog2 < 5));
+                static constexpr uint32 cFmaskMrt[4 /* fragments */][5 /* samples */]=
+                {
+                    { 0, 1, 1, 1, 2 }, // fragments = 1
+                    { 0, 1, 1, 2, 4 }, // fragments = 2
+                    { 0, 1, 1, 4, 8 }, // fragments = 4
+                    { 0, 1, 2, 4, 8 }  // fragments = 8
+                };
+                cFmask  += cFmaskMrt[fragmentsLog2][samplesLog2];
+                hasFmask = true;
+            }
+        }
+    }
+    cColor = Max(cColor, 1u);  // cColor 0 to 1 uses cColor=1
+
+    // Calculate Color and Fmask bin sizes
+    // The logic for gfx10 bin sizes is based on a formula that accounts for the number of RBs
+    // and Channels on the ASIC.  Since this a potentially large amount of combinations,
+    // it is not practical to hardcode binning tables into the driver.
+    // Note that the final bin size is choosen from minimum between Depth, Color and Fmask.
+
+    // The logic given to calculate the Color bin size is:
+    //   colorBinArea = ((CcReadTags * totalNumRbs / totalNumPipes) * (CcTagSize * totalNumPipes)) / cColor
+    // The numerator has been pre-calculated as m_colorBinSizeTagPart.
+    const uint32 colorLog2Pixels = Log2(m_colorBinSizeTagPart / cColor);
+    const uint16 colorBinSizeX   = 1 << ((colorLog2Pixels + 1) / 2); // (Y_BIAS=false) round up width
+    const uint16 colorBinSizeY   = 1 << (colorLog2Pixels / 2);       // (Y_BIAS=false) round down height
+
+    uint16 binSizeX = colorBinSizeX;
+    uint16 binSizeY = colorBinSizeY;
+
+    if (hasFmask)
+    {
+        cFmask = Max(cFmask, 1u);  // cFmask 0 to 1 uses cFmask=1
+
+        // The logic given to calculate the Fmask bin size is:
+        //   fmaskBinArea =((FcReadTags * totalNumRbs / totalNumPipes) * (FcTagSize * totalNumPipes)) / cFmask
+        // The numerator has been pre-calculated as m_fmaskBinSizeTagPart.
+        const uint32 fmaskLog2Pixels = Log2(m_fmaskBinSizeTagPart / cFmask);
+        const uint32 fmaskBinSizeX   = 1 << ((fmaskLog2Pixels + 1) / 2); // (Y_BIAS=false) round up width
+        const uint32 fmaskBinSizeY   = 1 << (fmaskLog2Pixels / 2);       // (Y_BIAS=false) round down height
+
+        // use the smaller of the Color vs. Fmask bin sizes
+        if (fmaskLog2Pixels < colorLog2Pixels)
+        {
+            binSizeX = static_cast<uint16>(fmaskBinSizeX);
+            binSizeY = static_cast<uint16>(fmaskBinSizeY);
+        }
+    }
+    // Return size adjusted for minimum bin size
+    pBinSize->width  = Max(binSizeX, m_minBinSizeX);
+    pBinSize->height = Max(binSizeY, m_minBinSizeY);
+}
+
+// =====================================================================================================================
+// Gfx10 specific function for calculating Depth PBB bin size.
+void UniversalCmdBuffer::Gfx10GetDepthBinSize(
+    Extent2d* pBinSize
+    ) const
+{
+    PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+
+    const auto*  pDepthTargetView =
+            static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
+    const auto*  pImage           = (pDepthTargetView ? pDepthTargetView->GetImage() : nullptr);
+
+    if (pImage == nullptr)
+    {
+        // Set to max sizes when no depth image bound
+        pBinSize->width  = 512;
+        pBinSize->height = 512;
+    }
+    else
+    {
+        const auto* pDepthStencilState = static_cast<const DepthStencilState*>(m_graphicsState.pDepthStencilState);
+        const auto& imageCreateInfo    = pImage->Parent()->GetImageCreateInfo();
+
+        // C_per_sample = ((z_enabled) ? 5 : 0) + ((stencil_enabled) ? 1 : 0)
+        // cDepth = 4 * C_per_sample * num_samples
+        const uint32 cPerDepthSample   = (pDepthStencilState->IsDepthEnabled() &&
+                                          (pDepthTargetView->ReadOnlyDepth() == false)) ? 5 : 0;
+        const uint32 cPerStencilSample = (pDepthStencilState->IsStencilEnabled() &&
+                                          (pDepthTargetView->ReadOnlyStencil() == false)) ? 1 : 0;
+        const uint32 cDepth            = (cPerDepthSample + cPerStencilSample) * imageCreateInfo.samples;
+
+        // The logic for gfx10 bin sizes is based on a formula that accounts for the number of RBs
+        // and Channels on the ASIC.  Since this a potentially large amount of combinations,
+        // it is not practical to hardcode binning tables into the driver.
+        // Note that final bin size is choosen from the minimum between Depth, Color and FMask.
+
+        // The logic given to calculate the Depth bin size is:
+        //   depthBinArea = ((ZsReadTags * totalNumRbs / totalNumPipes) * (ZsTagSize * totalNumPipes)) / cDepth
+        // The numerator has been pre-calculated as m_depthBinSizeTagPart.
+        // Note that cDepth 0 to 1 falls into cDepth=1 bucket
+        const uint32 depthLog2Pixels = Log2(m_depthBinSizeTagPart / Max(cDepth, 1u));
+        uint16       depthBinSizeX   = 1 << ((depthLog2Pixels + 1) / 2); // (Y_BIAS=false) round up width
+        uint16       depthBinSizeY   = 1 << (depthLog2Pixels / 2);       // (Y_BIAS=false) round down height
+
+        // Return size adjusted for minimum bin size
+        pBinSize->width  = Max(depthBinSizeX, m_minBinSizeX);
+        pBinSize->height = Max(depthBinSizeY, m_minBinSizeY);
+    }
+}
+
+// =====================================================================================================================
 // Fills in m_paScBinnerCntl0(PA_SC_BINNER_CNTL_0 register) with values that corresponds to the
 // specified binning mode and sizes.   For disabled binning the caller should pass a bin size of zero(0x0).
 // 'pBinSize' will be updated with the actual bin size configured.
@@ -5121,6 +5687,13 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
             // Go through all the bound color targets and the depth target.
             Extent2d colorBinSize = {};
             Extent2d depthBinSize = {};
+            if (IsGfx10(m_gfxIpLevel))
+            {
+                // Final bin size is choosen from minimum between Depth, Color and Fmask.
+                Gfx10GetColorBinSize(&colorBinSize); // returns minimum of Color and Fmask
+                Gfx10GetDepthBinSize(&depthBinSize);
+            }
+            else
             {
                 // Final bin size is choosen from minimum between Depth and Color.
                 Gfx9GetColorBinSize(&colorBinSize);
@@ -5454,6 +6027,43 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
 }
 
 // =====================================================================================================================
+// Translates the supplied IA_MULTI_VGT_PARAM register to its equivalent GE_CNTL value
+template <bool isNgg>
+uint32 UniversalCmdBuffer::CalcGeCntl(
+    regIA_MULTI_VGT_PARAM  iaMultiVgtParam
+    ) const
+{
+    const auto*  pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+
+    regGE_CNTL  geCntl = {};
+
+    if ((isNgg == false) || pPipeline->IsTessEnabled())
+    {
+        // PRIMGROUP_SIZE is zero-based (i.e., zero means one) but PRIM_GRP_SIZE is one based (i.e., one means one).
+        geCntl.bits.PRIM_GRP_SIZE = iaMultiVgtParam.bits.PRIMGROUP_SIZE + 1;
+
+        // Setting this to zero disables grouping based on the number of vertices.  This could be set through the
+        // VertsPerPrimitive() function in the pipeline, but that would seem to simply limit the grouping to the
+        // same thing via two different settings?
+        geCntl.bits.VERT_GRP_SIZE = 0;
+    }
+    else
+    {
+        const regVGT_GS_ONCHIP_CNTL vgtGsOnchipCntl = pPipeline->VgtGsOnchipCntl();
+
+        geCntl.bits.PRIM_GRP_SIZE = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
+        geCntl.bits.VERT_GRP_SIZE = vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
+    }
+    // Only used for line-stipple which PAL doesn't support
+    geCntl.bits.PACKET_TO_ONE_PA = 0;
+
+    geCntl.bits.BREAK_WAVE_AT_EOI = iaMultiVgtParam.bits.SWITCH_ON_EOI;
+    geCntl.bits.PACKET_TO_ONE_PA  = (iaMultiVgtParam.bits.WD_SWITCH_ON_EOP && iaMultiVgtParam.bits.SWITCH_ON_EOP);
+
+    return geCntl.u32All;
+}
+
+// =====================================================================================================================
 // Update the HW state and write the necessary packets to push any changes to the HW. Returns the next unused DWORD
 // in pDeCmdSpace.
 template <bool Indexed, bool Indirect, bool IsNggFastLaunch, bool Pm4OptImmediate>
@@ -5469,6 +6079,12 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
     {
         m_drawTimeHwState.vgtMultiPrimIbResetEn.u32All = vgtMultiPrimIbResetEn.u32All;
         m_drawTimeHwState.valid.vgtMultiPrimIbResetEn  = 1;
+
+        // GFX10 moves the RESET_EN functionality into a new register that happens to exist in the same place
+        // as the GFX9 register.
+        static_assert(Gfx09::mmVGT_MULTI_PRIM_IB_RESET_EN ==
+                      Gfx10::mmGE_MULTI_PRIM_IB_RESET_EN,
+                      "MULTI_PRIM_IB_RESET_EN has moved from GFX9 to GFX10!");
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx09::mmVGT_MULTI_PRIM_IB_RESET_EN,
                                                          vgtMultiPrimIbResetEn.u32All,
@@ -5758,6 +6374,16 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
                                                       ShaderCompute,
                                                       &indirectGpuVirtAddr,
                                                       pDeCmdSpace);
+    }
+
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = {};
+        dispatchTunnel.u32All                     = 0;
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(Gfx10::mmCOMPUTE_DISPATCH_TUNNEL,
+                                                                    dispatchTunnel.u32All,
+                                                                    pDeCmdSpace);
     }
 
     return pDeCmdSpace;
@@ -6107,6 +6733,10 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
         pDbCountControl->bits.ZPASS_ENABLE            = 1;
         pDbCountControl->bits.ZPASS_INCREMENT_DISABLE = 0;
 
+        if (IsGfx10(m_gfxIpLevel))
+        {
+            pDbCountControl->gfx10.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
+        }
     }
     else if (IsNested())
     {
@@ -7217,6 +7847,11 @@ uint8 UniversalCmdBuffer::CheckStreamOutBufferStridesOnPipelineSwitch()
             srdNumRecords = pBufferSrd->gfx9.word2.bits.NUM_RECORDS;
             srdStride     = pBufferSrd->gfx9.word1.bits.STRIDE;
         }
+        else if (IsGfx10(m_gfxIpLevel))
+        {
+            srdNumRecords = pBufferSrd->gfx10.num_records;
+            srdStride     = pBufferSrd->gfx10.stride;
+        }
 
         if ((srdNumRecords != numRecords) || (srdStride != strideInBytes))
         {
@@ -7224,6 +7859,11 @@ uint8 UniversalCmdBuffer::CheckStreamOutBufferStridesOnPipelineSwitch()
             {
                 pBufferSrd->gfx9.word2.bits.NUM_RECORDS = numRecords;
                 pBufferSrd->gfx9.word1.bits.STRIDE      = strideInBytes;
+            }
+            else if (IsGfx10(m_gfxIpLevel))
+            {
+                pBufferSrd->gfx10.num_records = numRecords;
+                pBufferSrd->gfx10.stride      = strideInBytes;
             }
 
             // Mark this stream-out target slot as requiring an update.
@@ -7395,7 +8035,7 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
         const bool exclusiveSubmit = pCallee->IsExclusiveSubmit();
         const bool allowIb2Launch = (pCallee->AllowLaunchViaIb2() &&
                                      ((pCallee->m_state.flags.containsDrawIndirect == 0)
-                                     ));
+                                      || (IsGfx10(m_gfxIpLevel) == true)));
 
         m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
         m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_gpuScratchMem.chunkList);
@@ -7572,31 +8212,49 @@ uint32* UniversalCmdBuffer::BuildWriteViewId(
 
 // =====================================================================================================================
 // Switch draw functions - the actual assignment
-template <bool ViewInstancing, bool NggFastLaunch, bool IssueSqtt>
+template <bool ViewInstancing, bool NggFastLaunch, bool HasUavExport, bool IssueSqtt>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal()
 {
-    m_funcTable.pfnCmdDraw = CmdDraw<IssueSqtt, ViewInstancing>;
-    m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<IssueSqtt, ViewInstancing>;
+    m_funcTable.pfnCmdDraw = CmdDraw<IssueSqtt, HasUavExport, ViewInstancing>;
+    m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<IssueSqtt, HasUavExport, ViewInstancing>;
     m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<IssueSqtt, ViewInstancing>;
-    m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<IssueSqtt, NggFastLaunch, ViewInstancing>;
-    m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<IssueSqtt, NggFastLaunch, ViewInstancing>;
+    m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<IssueSqtt, NggFastLaunch, HasUavExport, ViewInstancing>;
+    m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti<IssueSqtt, NggFastLaunch, ViewInstancing>;
+}
+
+// =====================================================================================================================
+// Switch draw functions - overloaded internal implementation for switching function params to template params
+template <bool ViewInstancing, bool NggFastLaunch,  bool IssueSqtt>
+void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
+    bool hasUavExport)
+{
+    if (hasUavExport)
+    {
+        SwitchDrawFunctionsInternal<ViewInstancing, NggFastLaunch, true, IssueSqtt>();
+    }
+    else
+    {
+        SwitchDrawFunctionsInternal<ViewInstancing, NggFastLaunch, false, IssueSqtt>();
+    }
 }
 
 // =====================================================================================================================
 // Switch draw functions - overloaded internal implementation for switching function params to template params
 template <bool NggFastLaunch, bool IssueSqtt>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
+    bool hasUavExport,
     bool viewInstancingEnable)
 {
     if (viewInstancingEnable)
     {
         SwitchDrawFunctionsInternal<true, NggFastLaunch, IssueSqtt>(
+            hasUavExport
             );
     }
     else
     {
         SwitchDrawFunctionsInternal<false, NggFastLaunch, IssueSqtt>(
+            hasUavExport
             );
     }
 }
@@ -7605,17 +8263,20 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
 // Switch draw functions - overloaded internal implementation for switching function params to template params
 template <bool IssueSqtt>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
+    bool hasUavExport,
     bool viewInstancingEnable,
     bool nggFastLaunch)
 {
     if (nggFastLaunch)
     {
         SwitchDrawFunctionsInternal<true, IssueSqtt>(
+            hasUavExport,
             viewInstancingEnable);
     }
     else
     {
         SwitchDrawFunctionsInternal<false, IssueSqtt>(
+            hasUavExport,
             viewInstancingEnable);
     }
 }
@@ -7623,18 +8284,21 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
 // =====================================================================================================================
 // Switch draw functions.
 void UniversalCmdBuffer::SwitchDrawFunctions(
+    bool hasUavExport,
     bool viewInstancingEnable,
     bool nggFastLaunch)
 {
     if (m_cachedSettings.issueSqttMarkerEvent)
     {
         SwitchDrawFunctionsInternal<true>(
+            hasUavExport,
             viewInstancingEnable,
             nggFastLaunch);
     }
     else
     {
         SwitchDrawFunctionsInternal<false>(
+            hasUavExport,
             viewInstancingEnable,
             nggFastLaunch);
     }

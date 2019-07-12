@@ -44,6 +44,7 @@
 #define FAMILY_AI      0x8D
 #endif
 #define FAMILY_RV      0x8E
+#define FAMILY_NV      0x8F
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
@@ -58,6 +59,7 @@
 #define FAMILY_IS_AI(f)      FAMILY_IS(f, AI)
 #endif
 #define FAMILY_IS_RV(f)      FAMILY_IS(f, RV)
+#define FAMILY_IS_NV(f)      FAMILY_IS(f, NV)
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -95,6 +97,8 @@
 
 #define AMDGPU_RAVEN_RANGE      0x01, 0x81
 #define AMDGPU_RAVEN2_RANGE     0x81, 0xFF
+
+#define AMDGPU_NAVI10_RANGE        0x01, 0x0A
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -139,6 +143,8 @@
 #define ASICREV_IS_RAVEN(r)            ASICREV_IS(r, RAVEN)
 #define ASICREV_IS_RAVEN2(r)           ASICREV_IS(r, RAVEN2)
 
+#define ASICREV_IS_NAVI10(r)           ASICREV_IS(r, NAVI10)
+
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
 #define AMDGPU_IS(f, r, fn, rn)    (FAMILY_IS(f, fn) && ASICREV_IS(r, rn))
 #define AMDGPU_IS_TAHITI(f, r)     AMDGPU_IS(f, r, SI, TAHITI)
@@ -176,6 +182,9 @@
 #define AMDGPU_IS_RAVEN(f, r)      AMDGPU_IS(f, r, RV, RAVEN)
 #define AMDGPU_IS_RAVEN2(f, r)     AMDGPU_IS(f, r, RV, RAVEN2)
 
+#define AMDGPU_IS_NAVI(f, r)          FAMILY_IS_NV(f)
+#define AMDGPU_IS_NAVI10(f, r)        AMDGPU_IS(f, r, NV, NAVI10)
+
 // Device IDs
 #define DEVICE_ID_SI_TAHITI_P_6780      0x6780
 #define DEVICE_ID_SI_PITCAIRN_PM_6818   0x6818
@@ -210,6 +219,8 @@
 #define DEVICE_ID_AI_VEGA20_P_66A0      0x66A0
 #define DEVICE_ID_RV2_15D8              0x15D8
 
+#define DEVICE_ID_NV_NAVI10_P_7310      0x7310
+
 // Revision IDs
 #define SI_TAHITI_P_A21              5
 #define SI_PITCAIRN_PM_A12          21
@@ -241,6 +252,8 @@
 #endif
 #define AI_VEGA20_P_A0              40
 #define RAVEN2_A0                  0x81
+
+#define NV_NAVI10_P_A2               3
 
 // PRIDs
 #define PRID_SI_TAHITI              0x00
@@ -274,5 +287,7 @@
 #endif
 #define PRID_AI_VEGA20_00           0x00
 #define PRID_RV_E2                  0xE2
+
+#define PRID_NV_NAVI10_00           0x00
 
 #endif // _AMDGPU_ASIC_H

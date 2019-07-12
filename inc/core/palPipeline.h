@@ -213,6 +213,27 @@ struct ViewInstancingDescriptor
     bool           enableMasking;                               ///< Indicate whether instance masking is enabled.
 };
 
+// Specifies the input parameters for the MSAA coverage out feature.  MSAA coverage out is used in conjunction with a
+// single sampled color image.  This feature exports a mask indicating which samples would have been used if the
+// image had been multi-sampled.  The mask is exported to the specified channel of the MRT pointing to the rendered
+// image.  That is, the MRT must be an active bound render target.  This MSAA mask data can then be post-processed.
+struct MsaaCoverageOutDescriptor
+{
+    union
+    {
+        struct
+        {
+            uint32  enable        :  1; ///< Set to true to enable render target channel output
+            uint32  numSamples    :  4; ///< Number of samples to export
+            uint32  mrt           :  3; ///< Which MRT to export to.
+            uint32  channel       :  2; ///< Which channel to export to (x = 0, y = 1, z = 2, w = 3)
+            uint32  reserved      : 22;
+        };
+
+        uint32  u32All;
+    } flags;
+};
+
 /// Specifies properties about an indirect function belonging to a compute @ref IPipelne object.  Part of the input
 /// structure to IDevice::CreateComputePipeline().
 struct ComputePipelineIndirectFuncInfo
@@ -310,6 +331,11 @@ struct GraphicsPipelineCreateInfo
         bool    alphaToCoverageEnable;          ///< Enable alpha to coverage.
         bool    dualSourceBlendEnable;          ///< Blend state bound at draw time will use a dual source blend mode.
         LogicOp logicOp;                        ///< Logic operation to perform.
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 497) && PAL_BUILD_GFX10
+        bool    uavExportSingleDraw;            ///< When UAV export is enabled, acts as a hint that only a single draw
+                                                ///  is done on a color target with this or subsequent pipelines before
+                                                ///  a barrier. Improves performance by allowing pipelines to overlap.
+#endif
 
         struct
         {
@@ -322,6 +348,7 @@ struct GraphicsPipelineCreateInfo
 
     ViewInstancingDescriptor viewInstancingDesc;    ///< Descriptor describes view instancing state
                                                     ///  of the graphics pipeline
+    MsaaCoverageOutDescriptor  coverageOutDesc;     ///< Descriptor describes input parameters for MSAA coverage out.
 };
 
 /// The graphic pipeline view instancing information. This is used to determine if hardware accelerated stereo rendering

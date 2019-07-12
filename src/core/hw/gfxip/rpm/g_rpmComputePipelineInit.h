@@ -146,6 +146,10 @@ enum class RpmComputePipeline : uint32
     Gfx9HtileCopyAndFixUp                 = 110,
     Gfx9InitCmaskSingleSample             = 111,
 #endif
+    Gfx10ClearDccComputeSetFirstPixel     = 112,
+    Gfx10ClearDccComputeSetFirstPixelMsaa = 113,
+    Gfx10GenerateCmdDispatch              = 114,
+    Gfx10GenerateCmdDraw                  = 115,
     Count
 };
 

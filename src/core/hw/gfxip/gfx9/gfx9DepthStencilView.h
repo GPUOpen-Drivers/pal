@@ -262,5 +262,112 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9DepthStencilView);
 };
 
+// Represents an "image" of the PM4 commands necessary to write a DepthStencilView to GFX10 hardware. The required
+// register writes are grouped into sets based on sequential register addresses, to minimize the amount of PM4 space
+// needed by setting several registers at once.
+struct Gfx10DepthStencilViewPm4Img
+{
+    PM4PFP_SET_CONTEXT_REG            hdrDbRenderControl;
+    regDB_RENDER_CONTROL              dbRenderControl;
+
+    PM4PFP_SET_CONTEXT_REG            hdrDbDepthView;
+    regDB_DEPTH_VIEW                  dbDepthView;
+
+    PM4PFP_SET_CONTEXT_REG            hdrDbRenderOverride2;
+    regDB_RENDER_OVERRIDE2            dbRenderOverride2;
+    regDB_HTILE_DATA_BASE             dbHtileDataBase;
+
+    // Note:  GFX10's DB_DEPTH_SIZE_XY is the same register as what GFX9 called DB_DEPTH_SIZE.  Keep the same name
+    //        (i.e., dbDepthSize) so that the templates continue to work.  GFX10 has a separate register called
+    //        DB_DEPTH_SIZE that PAL will not be writing.
+    PM4PFP_SET_CONTEXT_REG            hdrDbDepthSize;
+    regDB_DEPTH_SIZE_XY               dbDepthSize;
+
+    PM4PFP_SET_CONTEXT_REG            hdrDbDfsmControl;
+    regDB_DFSM_CONTROL                dbDfsmControl;
+
+    PM4ME_CONTEXT_REG_RMW             dbDepthInfo;
+
+    PM4PFP_SET_CONTEXT_REG            hdrDbZInfo;
+    regDB_Z_INFO                      dbZInfo;
+    regDB_STENCIL_INFO                dbStencilInfo;
+    regDB_Z_READ_BASE                 dbZReadBase;
+    regDB_STENCIL_READ_BASE           dbStencilReadBase;
+    regDB_Z_WRITE_BASE                dbZWriteBase;
+    regDB_STENCIL_WRITE_BASE          dbStencilWriteBase;
+
+    PM4PFP_SET_CONTEXT_REG            hdrDbHtileSurface;
+    regDB_HTILE_SURFACE               dbHtileSurface;
+
+    PM4PFP_SET_CONTEXT_REG            hdrDbPreloadControl;
+    regDB_PRELOAD_CONTROL             dbPreloadControl;
+
+    PM4PFP_SET_CONTEXT_REG            hdrPaSuPolyOffsetDbFmtCntl;
+    regPA_SU_POLY_OFFSET_DB_FMT_CNTL  paSuPolyOffsetDbFmtCntl;
+
+    PM4PFP_SET_CONTEXT_REG            hdrCoherDestBase;
+    regCOHER_DEST_BASE_0              coherDestBase0;
+
+    PM4ME_CONTEXT_REG_RMW             dbRenderOverrideRmw;
+
+    PM4PFP_SET_CONTEXT_REG            hdrDbRmiL2CacheControl;
+    regDB_RMI_L2_CACHE_CONTROL        dbRmiL2CacheControl;
+
+    // PM4 load context regs packet to load the Image's fast-clear meta-data.  This must be the last packet in the
+    // image because it is either absent or present depending on compression state.
+    PM4PFP_LOAD_CONTEXT_REG_INDEX     loadMetaDataIndex;
+
+    // Command space needed for compressed and decomrpessed rendering, in DWORDs.  These fields must always be last
+    // in the structure to not interfere w/ the actual commands contained within.
+    size_t  spaceNeeded;
+    size_t  spaceNeededDecompressed;    // Used when nether depth nor stencil is compressed.
+};
+
+// =====================================================================================================================
+// Gfx10 HW-specific implementation of the Pal::IDepthStencilView interface
+class Gfx10DepthStencilView : public DepthStencilView
+{
+public:
+    Gfx10DepthStencilView(
+        const Device*                             pDevice,
+        const DepthStencilViewCreateInfo&         createInfo,
+        const DepthStencilViewInternalCreateInfo& internalInfo);
+
+    uint32* WriteCommands(
+        ImageLayout depthLayout,
+        ImageLayout stencilLayout,
+        CmdStream*  pCmdStream,
+        uint32*     pCmdSpace) const override;
+
+    uint32 BaseArraySlice() const { return m_baseArraySlice; }
+    uint32 ArraySize() const { return m_arraySize; }
+
+protected:
+    virtual ~Gfx10DepthStencilView()
+    {
+        // This destructor, and the destructors of all member and base classes, must always be empty: PAL depth stencil
+        // views guarantee to the client that they do not have to be explicitly destroyed.
+        PAL_NEVER_CALLED();
+    }
+
+private:
+    void BuildPm4Headers();
+    void InitRegisters(
+        const DepthStencilViewCreateInfo&         createInfo,
+        const DepthStencilViewInternalCreateInfo& internalInfo);
+
+    // Image of PM4 commands used to write this View to hardware for with full compression enabled.
+    Gfx10DepthStencilViewPm4Img  m_pm4Cmds;
+
+    static constexpr uint32 DbDepthViewSliceStartMaskNumBits = 11;
+    static constexpr uint32 DbDepthViewSliceMaxMaskNumBits   = 11;
+
+    const uint32  m_baseArraySlice;
+    const uint32  m_arraySize;
+
+    PAL_DISALLOW_DEFAULT_CTOR(Gfx10DepthStencilView);
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10DepthStencilView);
+};
+
 } // Gfx9
 } // Pal

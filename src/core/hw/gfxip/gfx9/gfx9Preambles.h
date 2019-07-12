@@ -103,6 +103,33 @@ struct Gfx9UniversalPreamblePm4Img
     regVGT_INDX_OFFSET       vgtIndxOffset;
 };
 
+// Gfx10-specific registers associated with the preamble
+struct Gfx10UniversalPreamblePm4Img
+{
+    // The VGT versions of these registers exist on GFX10 but only for GEN-ZERO and GEN-ONE modes; GEN-TWO
+    // uses new versions of these registers.
+    PM4_PFP_SET_UCONFIG_REG       hdrGeIndexRegs;
+    regGE_MIN_VTX_INDX            geMinVtxIndx;
+    regGE_INDX_OFFSET             geIndxOffset;
+
+    PM4_PFP_SET_UCONFIG_REG       hdrMaxVtxIndexReg; // GFX10 doesn't keep these three registers consecutive :-(
+    regGE_MAX_VTX_INDX            geMaxVtxIndx;
+
+    PM4PFP_SET_CONTEXT_REG        hdrCbHi;
+    regCB_COLOR0_BASE_EXT         cbColorBaseExt[MaxColorTargets];
+    regCB_COLOR0_CMASK_BASE_EXT   cbColorCmaskBaseExt[MaxColorTargets];
+    regCB_COLOR0_FMASK_BASE_EXT   cbColorFmaskBaseExt[MaxColorTargets];
+    regCB_COLOR0_DCC_BASE_EXT     cbColorDccBaseExt[MaxColorTargets];
+
+    PM4PFP_SET_CONTEXT_REG        hdrDbHi;
+    regDB_Z_READ_BASE_HI          dbZReadBaseHi;
+    regDB_STENCIL_READ_BASE_HI    dbStencilReadBaseHi;
+    regDB_Z_WRITE_BASE_HI         dbZWriteBaseHi;
+    regDB_STENCIL_WRITE_BASE_HI   dbStencilWriteBaseHi;
+    regDB_HTILE_DATA_BASE_HI      dbHtileDataBaseHi;
+
+};
+
 // Contains a subset of commands necessary to the universal preamble command stream.
 struct UniversalPreamblePm4Img
 {
@@ -138,6 +165,7 @@ struct UniversalPreamblePm4Img
     union
     {
         Gfx9UniversalPreamblePm4Img     gfx9;
+        Gfx10UniversalPreamblePm4Img    gfx10;
     };
 
     size_t                              spaceNeeded;

@@ -168,6 +168,13 @@ struct UniversalRingSetPm4Img
             regVGT_TF_MEMORY_BASE_HI      vgtTfMemoryBaseHi;
         } gfx9;
 
+        struct
+        {
+            PM4_PFP_SET_UCONFIG_REG        hdrVgtTfMemoryBaseLo;
+            regVGT_TF_MEMORY_BASE_UMD      vgtTfMemoryBaseLo;
+            PM4_PFP_SET_UCONFIG_REG        hdrVgtTfMemoryBaseHi;
+            regVGT_TF_MEMORY_BASE_HI_UMD   vgtTfMemoryBaseHi;
+        } gfx10;
     } tfMemBase;
 
     size_t spaceNeeded;

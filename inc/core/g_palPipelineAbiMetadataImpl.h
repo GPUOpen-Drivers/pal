@@ -679,6 +679,12 @@ PAL_INLINE Result DeserializeHardwareStageMetadata(
                 pMetadata->hasEntry.threadgroupDimensions = (result == Result::Success);
                 break;
 
+            case HashLiteralString(HardwareStageMetadataKey::WavefrontSize):
+                PAL_ASSERT(pMetadata->hasEntry.wavefrontSize == 0);
+                result = pReader->UnpackNext(&pMetadata->wavefrontSize);
+                pMetadata->hasEntry.wavefrontSize = (result == Result::Success);
+                break;
+
             case HashLiteralString(HardwareStageMetadataKey::UsesUavs):
             {
                 PAL_ASSERT(pMetadata->hasEntry.usesUavs == 0);
@@ -922,6 +928,20 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 result = pReader->UnpackNext(&pMetadata->scratchMemorySize);
                 pMetadata->hasEntry.scratchMemorySize = (result == Result::Success);
                 break;
+
+            case HashLiteralString(PipelineMetadataKey::CalcWaveBreakSizeAtDrawTime):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.calcWaveBreakSizeAtDrawTime == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.calcWaveBreakSizeAtDrawTime = value;
+                }
+                pMetadata->hasEntry.calcWaveBreakSizeAtDrawTime = (result == Result::Success);
+                break;
+            }
 
             case HashLiteralString(PipelineMetadataKey::Api):
                 PAL_ASSERT(pMetadata->hasEntry.api == 0);

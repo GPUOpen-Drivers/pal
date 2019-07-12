@@ -147,6 +147,7 @@ bool Device::DetermineGpuIpLevels(
 #if PAL_BUILD_GFX9
     case FAMILY_AI:
     case FAMILY_RV:
+    case FAMILY_NV:
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 #endif // PAL_BUILD_GFX9
@@ -181,6 +182,10 @@ bool Device::DetermineGpuIpLevels(
         pIpLevels->oss = Oss4::DetermineIpLevel(familyId, eRevId);
         break;
 #endif
+    case FAMILY_NV:
+        // GFX10 GPUs have moved the SDMA block into the GFX layer; there is no OSS layer
+        // for this GPU.  The proper GFX layer for this family was determined above.
+        break;
     default:
         break;
     }
@@ -549,6 +554,7 @@ Result Device::HwlEarlyInit()
 #endif
 #if PAL_BUILD_GFX9
     case GfxIpLevel::GfxIp9:
+    case GfxIpLevel::GfxIp10_1:
         result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
         break;
 #endif
@@ -662,6 +668,7 @@ void Device::InitPerformanceRatings()
 #endif
 #if PAL_BUILD_GFX9
         case GfxIpLevel::GfxIp9:
+        case GfxIpLevel::GfxIp10_1:
             numCuPerSh   = m_chipProperties.gfx9.numCuPerSh;
             numSimdPerCu = m_chipProperties.gfx9.numSimdPerCu;
             break;
@@ -799,6 +806,7 @@ void Device::GetHwIpDeviceSizes(
 #endif
 #if PAL_BUILD_GFX9
     case GfxIpLevel::GfxIp9:
+    case GfxIpLevel::GfxIp10_1:
         pHwDeviceSizes->gfx = Gfx9::GetDeviceSize(ipLevels.gfx);
         gfxAddrMgrSize      = AddrMgr2::GetSize();
         break;
@@ -1527,6 +1535,11 @@ Result Device::CreateEngine(
         }
 #endif
 
+        // GFX10 level parts have the DMA engine as part of the GFX device...
+        if (IsGfx10(*this))
+        {
+            result = m_pGfxDevice->CreateEngine(engineType, engineIndex, &m_pEngines[engineType][engineIndex]);
+        }
         break;
     case EngineTypeTimer:
     {
@@ -1811,6 +1824,8 @@ Result Device::GetProperties(
                 m_chipProperties.imageProperties.flags.supportsSingleSampleQuilting;
         pInfo->imageProperties.flags.supportsAqbsStereoMode       =
                 m_chipProperties.imageProperties.flags.supportsAqbsStereoMode;
+        pInfo->imageProperties.flags.supportsCornerSampling       =
+                m_chipProperties.imageProperties.flags.supportsCornerSampling;
 
         pInfo->imageProperties.numSwizzleEqs   = m_chipProperties.imageProperties.numSwizzleEqs;
         pInfo->imageProperties.pSwizzleEqs     = m_chipProperties.imageProperties.pSwizzleEqs;
@@ -1886,6 +1901,9 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportDonutTessDistribution     = gfx6Props.supportDonutTessDistribution;
             pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution = gfx6Props.supportTrapezoidTessDistribution;
 
+            // No pre-GFX9 GPU supported this.
+            pInfo->gfxipProperties.flags.supportsPerShaderStageWaveSize = 0;
+
             pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives = gfx6Props.supportOutOfOrderPrimitives;
 
             if (m_chipProperties.gfxLevel == GfxIpLevel::GfxIp6)
@@ -1923,6 +1941,7 @@ Result Device::GetProperties(
 
 #if PAL_BUILD_GFX9
         case GfxIpLevel::GfxIp9:
+        case GfxIpLevel::GfxIp10_1:
         {
             const auto& gfx9Props = m_chipProperties.gfx9;
 
@@ -1978,6 +1997,14 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportDonutTessDistribution     = gfx9Props.supportDonutTessDistribution;
             pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution = gfx9Props.supportTrapezoidTessDistribution;
 
+            pInfo->gfxipProperties.flags.supportMsaaCoverageOut         = gfx9Props.supportMsaaCoverageOut;
+            pInfo->gfxipProperties.flags.supportPostDepthCoverage       = gfx9Props.supportPostDepthCoverage;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 452
+            pInfo->gfxipProperties.flags.supportSpiPrefPriority         = gfx9Props.supportSpiPrefPriority;
+#endif
+            pInfo->gfxipProperties.flags.supportWaveBreakSize           = gfx9Props.supportCustomWaveBreakSize;
+            pInfo->gfxipProperties.flags.supportsPerShaderStageWaveSize = gfx9Props.supportPerShaderStageWaveSize;
+
             pInfo->gfxipProperties.flags.support1xMsaaSampleLocations   = gfx9Props.support1xMsaaSampleLocations;
             pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives    = gfx9Props.supportOutOfOrderPrimitives;
 
@@ -2004,6 +2031,16 @@ Result Device::GetProperties(
 
                         // Ensure no overflow occurs
                         PAL_ASSERT(TestAnyFlagSet(gfx9Props.activeCuMask[se][sa], 0xffff0000) == false);
+                    }
+                }
+            }
+            else
+            {
+                for (uint32 se = 0; se < gfx9Props.numShaderEngines; ++se)
+                {
+                    for (uint32 sa = 0; sa < gfx9Props.numShaderArrays; ++sa)
+                    {
+                        pInfo->gfxipProperties.shaderCore.activeCuMask[se][sa] = gfx9Props.gfx10.activeWgpMask[se][sa];
                     }
                 }
             }

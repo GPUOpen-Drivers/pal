@@ -542,5 +542,143 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9RsrcProcMgr);
 };
 
+// =====================================================================================================================
+// GFX10 specific implementation of RPM.
+class Gfx10RsrcProcMgr : public Pal::Gfx9::RsrcProcMgr
+{
+public:
+    explicit Gfx10RsrcProcMgr(Device* pDevice) : Pal::Gfx9::RsrcProcMgr(pDevice) {}
+    virtual ~Gfx10RsrcProcMgr() {}
+
+    virtual void HwlResummarizeHtileCompute(
+        GfxCmdBuffer*      pCmdBuffer,
+        const GfxImage&    image,
+        const SubresRange& range) const override;
+
+    virtual bool FastClearEliminate(
+        GfxCmdBuffer*                pCmdBuffer,
+        Pal::CmdStream*              pCmdStream,
+        const Image&                 image,
+        const IMsaaState*            pMsaaState,
+        const MsaaQuadSamplePattern* pQuadSamplePattern,
+        const SubresRange&           range) const override;
+
+protected:
+    virtual void ClearDccCompute(
+        GfxCmdBuffer*      pCmdBuffer,
+        Pal::CmdStream*    pCmdStream,
+        const Image&       dstImage,
+        const SubresRange& clearRange,
+        uint8              clearCode,
+        DccClearPurpose    clearPurpose,
+        const uint32*      pPackedClearColor = nullptr) const override;
+
+    virtual void FastDepthStencilClearCompute(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Image&       dstImage,
+        const SubresRange& range,
+        uint32             htileValue,
+        uint32             clearMask,
+        uint8              stencil) const override;
+
+    virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
+        const Pal::IndirectCmdGenerator& generator,
+        const CmdBuffer&                 cmdBuffer) const override;
+
+    virtual void HwlDecodeBufferViewSrd(
+        const void*     pBufferViewSrd,
+        BufferViewInfo* pViewInfo) const override;
+
+    virtual void HwlDecodeImageViewSrd(
+        const void*       pImageViewSrd,
+        const Pal::Image& dstImage,
+        SwizzledFormat*   pSwizzledFormat,
+        SubresRange*      pSubresRange) const override;
+
+    virtual void InitCmask(
+        GfxCmdBuffer*      pCmdBuffer,
+        Pal::CmdStream*    pCmdStream,
+        const Image&       image,
+        const SubresRange& range) const override;
+
+    virtual void InitHtile(
+        GfxCmdBuffer*      pCmdBuffer,
+        Pal::CmdStream*    pCmdStream,
+        const Image&       dstImage,
+        const SubresRange& clearRange) const override;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
+    virtual void HwlCreateDecompressResolveSafeImageViewSrds(
+        uint32                numSrds,
+        const ImageViewInfo*  pImageView,
+        void*                 pSrdTable) const override;
+#endif
+
+private:
+    void InitHtileData(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Image&       dstImage,
+        const SubresRange& range,
+        uint32             hTileValue,
+        uint32             hTileMask) const;
+
+    void WriteHtileData(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Image&       dstImage,
+        const SubresRange& range,
+        uint32             hTileValue,
+        uint32             hTileMask,
+        uint8              stencil) const;
+
+    void ClearDccComputeSetFirstPixelOfBlock(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Image&       dstImage,
+        uint32             absMipLevel,
+        uint32             bytesPerPixel,
+        const uint32*      pPackedClearColor) const;
+
+    virtual bool HwlCanDoDepthStencilCopyResolve(
+        const Pal::Image&         srcImage,
+        const Pal::Image&         dstImage,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions) const override;
+
+    virtual void HwlHtileCopyAndFixUp(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Pal::Image&         srcImage,
+        const Pal::Image&         dstImage,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions) const override;
+
+    virtual void HwlUpdateDstImageFmaskMetaData(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 flags) const override;
+
+    virtual void HwlUpdateDstImageStateMetaData(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      dstImage,
+        const SubresRange&     range) const override;
+
+    virtual bool HwlImageUsesCompressedWrites(
+        const uint32* pImageSrd) const override;
+
+    virtual uint32 HwlBeginGraphicsCopy(
+        Pal::GfxCmdBuffer*           pCmdBuffer,
+        const Pal::GraphicsPipeline* pPipeline,
+        const Pal::Image&            dstImage,
+        uint32                       bpp) const override;
+
+    virtual void HwlEndGraphicsCopy(
+        Pal::CmdStream* pCmdStream,
+        uint32          restoreMask) const override;
+
+    PAL_DISALLOW_DEFAULT_CTOR(Gfx10RsrcProcMgr);
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10RsrcProcMgr);
+};
+
 } // Gfx9
 } // Pal

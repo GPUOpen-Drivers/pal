@@ -128,6 +128,25 @@ Result ShaderRing::AllocateVideoMemory(
     createInfo.alignment = ShaderRingAlignment;
     createInfo.priority  = GpuMemPriority::Normal;
 
+    if ((ringType == ShaderRingType::TfBuffer) &&
+        (m_pDevice->Settings().waTessFactorBufferSizeLimitGeUtcl1Underflow
+        ))
+    {
+        // For this workaround, the tessellation factor buffer must be limited to onchip memory and must not be
+        // suballocated in order to fit within one page entry.
+        createInfo.heaps[0]  = GpuHeapInvisible;
+        createInfo.heaps[1]  = GpuHeapLocal;
+        createInfo.heapCount = 2;
+        pMemOffset = nullptr;
+
+        if (m_pDevice->Settings().waTessFactorBufferSizeLimitGeUtcl1Underflow)
+        {
+            // This workaround requires that the tessellation factor buffer be limited to 1KB.
+            createInfo.size      = 0x400;
+            createInfo.alignment = 0x1000;
+        }
+    }
+    else
     if (ringType == ShaderRingType::SamplePos)
     {
         createInfo.heaps[0]  = GpuHeapLocal;
@@ -229,6 +248,14 @@ ScratchRing::ScratchRing(
         pSrd->word1.bits.SWIZZLE_ENABLE  = 1;
         pSrd->word3.bits.INDEX_STRIDE    = BUF_INDEX_STRIDE_64B;
         pSrd->word3.bits.ADD_TID_ENABLE  = 1;
+    }
+    else if (IsGfx10(m_gfxLevel))
+    {
+        auto*const  pSrd = &pGenericSrd->gfx10;
+
+        pSrd->swizzle_enable = 1;
+        pSrd->index_stride   = BUF_INDEX_STRIDE_64B;
+        pSrd->add_tid_enable = 1;
     }
     else
     {
@@ -335,6 +362,14 @@ GsVsRing::GsVsRing(
             pSrdWr->word3.bits.INDEX_STRIDE   = BUF_INDEX_STRIDE_16B;
             pSrdWr->word3.bits.ADD_TID_ENABLE = 1;
         }
+        else if (IsGfx10(m_gfxLevel))
+        {
+            auto*const  pSrdWr = &pBufferSrdWr->gfx10;
+
+            pSrdWr->swizzle_enable = 1;
+            pSrdWr->index_stride   = BUF_INDEX_STRIDE_16B;
+            pSrdWr->add_tid_enable = 1;
+        }
         else
         {
             PAL_ASSERT_ALWAYS();
@@ -373,6 +408,10 @@ void GsVsRing::UpdateSrds() const
         if (m_gfxLevel == GfxIpLevel::GfxIp9)
         {
             pSrdWr->gfx9.word1.bits.STRIDE = 0;
+        }
+        else if (IsGfx10(m_gfxLevel))
+        {
+            pSrdWr->gfx10.stride = 0;
         }
         else
         {

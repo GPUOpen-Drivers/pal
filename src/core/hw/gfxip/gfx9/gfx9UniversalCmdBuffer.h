@@ -65,7 +65,7 @@ struct UniversalCmdBufferState
             uint32 containsDrawIndirect  :  1;
             uint32 optimizeLinearGfxCpy  :  1;
             uint32 firstDrawExecuted     :  1;
-            uint32 reservedForFutureHw   :  1;
+            uint32 fsrEnabled            :  1;
             uint32 reserved              : 23;
         };
         uint32 u32All;
@@ -120,6 +120,19 @@ struct NullDepthStencilPm4Img
             regDB_DFSM_CONTROL           dbDfsmControl;
         } gfx9;
 
+        struct
+        {
+            regDB_DFSM_CONTROL           dbDfsmControl;
+            uint32                       dbDepthInfo;
+            regDB_Z_INFO                 dbZInfo;
+            regDB_STENCIL_INFO           dbStencilInfo;
+            regDB_Z_READ_BASE            dbZReadBase;
+            regDB_STENCIL_READ_BASE      dbStencilReadBase;
+            regDB_Z_WRITE_BASE           dbZWriteBase;
+            regDB_STENCIL_WRITE_BASE     dbStencilWriteBase;
+
+            ///@note Writing HI base addresses in the preamble as they are known to be 0 always.
+        } gfx10;
     };
 };
 
@@ -838,6 +851,7 @@ protected:
 
 private:
     template <bool IssueSqttMarkerEvent,
+              bool HasUavExport,
               bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDraw(
         ICmdBuffer* pCmdBuffer,
@@ -847,6 +861,7 @@ private:
         uint32      instanceCount);
 
     template <bool IssueSqttMarkerEvent,
+              bool HasUavExport,
               bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDrawOpaque(
         ICmdBuffer* pCmdBuffer,
@@ -858,6 +873,7 @@ private:
 
     template <bool IssueSqttMarkerEvent,
               bool IsNggFastLaunch,
+              bool HasUavExport,
               bool ViewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
@@ -905,6 +921,13 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
+
+    template <bool isNgg>
+    uint32 CalcGeCntl(regIA_MULTI_VGT_PARAM iaMultiVgtParam) const;
+
+    uint32* Gfx10ValidateTriangleRasterState(
+        const GraphicsPipeline*  pPipeline,
+        uint32*                  pDeCmdSpace);
 
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
@@ -1026,6 +1049,8 @@ private:
 
     void Gfx9GetColorBinSize(Extent2d* pBinSize) const;
     void Gfx9GetDepthBinSize(Extent2d* pBinSize) const;
+    void Gfx10GetColorBinSize(Extent2d* pBinSize) const;
+    void Gfx10GetDepthBinSize(Extent2d* pBinSize) const;
     void SetPaScBinnerCntl0(const GraphicsPipeline&  pipeline,
                             const ColorBlendState*   pColorBlendState,
                             Extent2d*                pBinSize,
@@ -1044,22 +1069,34 @@ private:
         uint32  viewId,
         uint32* pCmdSpace);
 
+    void UpdateUavExportTable();
+
     void SwitchDrawFunctions(
+        bool hasUavExport,
         bool viewInstancingEnable,
         bool nggFastLaunch);
 
     template <bool IssueSqtt>
     void SwitchDrawFunctionsInternal(
+        bool hasUavExport,
         bool viewInstancingEnable,
         bool nggFastLaunch);
 
     template <bool NggFastLaunch,
               bool IssueSqtt>
     void SwitchDrawFunctionsInternal(
+        bool hasUavExport,
         bool viewInstancingEnable);
 
     template <bool ViewInstancing,
               bool NggFastLaunch,
+              bool IssueSqtt>
+    void SwitchDrawFunctionsInternal(
+        bool hasUavExport );
+
+    template <bool ViewInstancing,
+              bool NggFastLaunch,
+              bool HasUavExport,
               bool IssueSqtt>
     void SwitchDrawFunctionsInternal();
 
@@ -1123,6 +1160,14 @@ private:
         BufferSrd  srd[MaxStreamOutTargets];    // Current stream-out target SRD's
     }  m_streamOut;
 
+    struct
+    {
+        UserDataTableState  state;         // Tracks the state of the SRD table
+        ImageSrd            srd[MaxColorTargets];
+        uint32              tableSizeDwords; // Size of the srd table in dwords, omitting unbound targets at the end
+        uint32              maxColorTargets; // Maximum color targets bound by the shader
+    }  m_uavExportTable;
+
     WorkaroundState              m_workaroundState;
     UniversalCmdBufferState      m_state; // State tracking for internal cmd buffer operations
 
@@ -1137,6 +1182,12 @@ private:
 
     const uint32                             m_log2NumSes;
     const uint32                             m_log2NumRbPerSe;
+
+    uint32                       m_depthBinSizeTagPart;    // Constant used in Depth PBB bin size formulas
+    uint32                       m_colorBinSizeTagPart;    // Constant used in Color PBB bin size formulas
+    uint32                       m_fmaskBinSizeTagPart;    // Constant used in Fmask PBB bin size formulas
+    uint16                       m_minBinSizeX;            // Minimum bin size(width) for PBB.
+    uint16                       m_minBinSizeY;            // Minimum bin size(height) for PBB.
 
     regPA_SC_BINNER_CNTL_0       m_paScBinnerCntl0;
     regPA_SC_BINNER_CNTL_0       m_savedPaScBinnerCntl0; // Value of PA_SC_BINNER_CNTL0 selected by settings
@@ -1176,7 +1227,7 @@ private:
                                                     // shaders.
             uint32 padParamCacheSpace         :  1; // True if this command buffer should pad used param-cache space to
                                                     // reduce context rolls.
-            uint32 reserved0                  :  1;
+            uint32 prefetchIndexBufferForNgg  :  1; // Prefetch index buffers to workaround misses in UTCL2 with NGG
             uint32 reserved1                  :  1;
             uint32 reserved                   :  8;
         };

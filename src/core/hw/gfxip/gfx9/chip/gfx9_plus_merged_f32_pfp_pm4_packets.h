@@ -102,6 +102,71 @@ typedef struct PM4_PFP_ACQUIRE_MEM__GFX09
 
 } PM4PFP_ACQUIRE_MEM__GFX09, *PPM4PFP_ACQUIRE_MEM__GFX09;
 
+//--------------------ACQUIRE_MEM__GFX10--------------------
+typedef struct PM4_PFP_ACQUIRE_MEM__GFX10
+{
+    union
+    {
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                         coher_cntl : 31;
+            PFP_ACQUIRE_MEM_engine_sel_enum  engine_sel : 1;
+        } bitfields2;
+        uint32_t                               ordinal2;
+    };
+
+    uint32_t                                 coher_size;
+
+    union
+    {
+        struct
+        {
+            uint32_t                      coher_size_hi : 8;
+            uint32_t                          reserved1 : 24;
+        } bitfields4;
+        uint32_t                               ordinal4;
+    };
+
+    uint32_t                              coher_base_lo;
+
+    union
+    {
+        struct
+        {
+            uint32_t                      coher_base_hi : 24;
+            uint32_t                          reserved1 : 8;
+        } bitfields6;
+        uint32_t                               ordinal6;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                      poll_interval : 16;
+            uint32_t                          reserved1 : 16;
+        } bitfields7;
+        uint32_t                               ordinal7;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                           gcr_cntl : 19;
+            uint32_t                          reserved1 : 13;
+        } bitfields8;
+        uint32_t                               ordinal8;
+    };
+
+} PM4PFP_ACQUIRE_MEM__GFX10, *PPM4PFP_ACQUIRE_MEM__GFX10;
+
 //--------------------ATOMIC_GDS--------------------
 enum PFP_ATOMIC_GDS_atom_cmp_swap_enum {
     atom_cmp_swap__pfp_atomic_gds__dont_repeat                             =  0,
@@ -213,11 +278,15 @@ typedef struct PM4_PFP_ATOMIC_GDS
 enum PFP_ATOMIC_MEM_cache_policy_enum {
     cache_policy__pfp_atomic_mem__lru                                      =  0,
     cache_policy__pfp_atomic_mem__stream                                   =  1,
+    cache_policy__pfp_atomic_mem__noa__GFX10                               =  2,
+    cache_policy__pfp_atomic_mem__bypass__GFX10                            =  3,
 };
 
 enum PFP_ATOMIC_MEM_command_enum {
     command__pfp_atomic_mem__single_pass_atomic                            =  0,
     command__pfp_atomic_mem__loop_until_compare_satisfied                  =  1,
+    command__pfp_atomic_mem__wait_for_write_confirmation__GFX10            =  2,
+    command__pfp_atomic_mem__send_and_continue__GFX10                      =  3,
 };
 
 enum PFP_ATOMIC_MEM_engine_sel_enum {
@@ -338,11 +407,15 @@ typedef struct PM4_PFP_COND_EXEC
 enum PFP_COND_INDIRECT_BUFFER_cache_policy1_enum {
     cache_policy1__pfp_cond_indirect_buffer__lru                           =  0,
     cache_policy1__pfp_cond_indirect_buffer__stream                        =  1,
+    cache_policy1__pfp_cond_indirect_buffer__noa__GFX10                    =  2,
+    cache_policy1__pfp_cond_indirect_buffer__bypass__GFX10                 =  3,
 };
 
 enum PFP_COND_INDIRECT_BUFFER_cache_policy2_enum {
     cache_policy2__pfp_cond_indirect_buffer__lru                           =  0,
     cache_policy2__pfp_cond_indirect_buffer__stream                        =  1,
+    cache_policy2__pfp_cond_indirect_buffer__noa__GFX10                    =  2,
+    cache_policy2__pfp_cond_indirect_buffer__bypass__GFX10                 =  3,
 };
 
 enum PFP_COND_INDIRECT_BUFFER_function_enum {
@@ -531,12 +604,15 @@ enum PFP_COPY_DATA_count_sel_enum {
 enum PFP_COPY_DATA_dst_cache_policy_enum {
     dst_cache_policy__pfp_copy_data__lru                                   =  0,
     dst_cache_policy__pfp_copy_data__stream                                =  1,
+    dst_cache_policy__pfp_copy_data__noa__GFX10                            =  2,
+    dst_cache_policy__pfp_copy_data__bypass__GFX10                         =  3,
 };
 
 enum PFP_COPY_DATA_dst_sel_enum {
     dst_sel__pfp_copy_data__mem_mapped_register                            =  0,
     dst_sel__pfp_copy_data__tc_l2                                          =  2,
     dst_sel__pfp_copy_data__memory__GFX09                                  =  5,
+    dst_sel__pfp_copy_data__tc_l2_obsolete__GFX10                          =  5,
 };
 
 enum PFP_COPY_DATA_engine_sel_enum {
@@ -546,6 +622,8 @@ enum PFP_COPY_DATA_engine_sel_enum {
 enum PFP_COPY_DATA_src_cache_policy_enum {
     src_cache_policy__pfp_copy_data__lru                                   =  0,
     src_cache_policy__pfp_copy_data__stream                                =  1,
+    src_cache_policy__pfp_copy_data__noa__GFX10                            =  2,
+    src_cache_policy__pfp_copy_data__bypass__GFX10                         =  3,
 };
 
 enum PFP_COPY_DATA_src_sel_enum {
@@ -553,6 +631,7 @@ enum PFP_COPY_DATA_src_sel_enum {
     src_sel__pfp_copy_data__memory__GFX09                                  =  1,
     src_sel__pfp_copy_data__tc_l2                                          =  2,
     src_sel__pfp_copy_data__immediate_data                                 =  5,
+    src_sel__pfp_copy_data__tc_l2_obsolete__GFX10                          =  1,
 };
 
 enum PFP_COPY_DATA_wr_confirm_enum {
@@ -782,6 +861,8 @@ enum PFP_DMA_DATA_das_enum {
 enum PFP_DMA_DATA_dst_cache_policy_enum {
     dst_cache_policy__pfp_dma_data__lru                                    =  0,
     dst_cache_policy__pfp_dma_data__stream                                 =  1,
+    dst_cache_policy__pfp_dma_data__noa__GFX10                             =  2,
+    dst_cache_policy__pfp_dma_data__bypass__GFX10                          =  3,
 };
 
 enum PFP_DMA_DATA_dst_sel_enum {
@@ -808,6 +889,8 @@ enum PFP_DMA_DATA_sas_enum {
 enum PFP_DMA_DATA_src_cache_policy_enum {
     src_cache_policy__pfp_dma_data__lru                                    =  0,
     src_cache_policy__pfp_dma_data__stream                                 =  1,
+    src_cache_policy__pfp_dma_data__noa__GFX10                             =  2,
+    src_cache_policy__pfp_dma_data__bypass__GFX10                          =  3,
 };
 
 enum PFP_DMA_DATA_src_sel_enum {
@@ -872,6 +955,8 @@ typedef struct PM4_PFP_DMA_DATA
 enum PFP_DMA_DATA_FILL_MULTI_dst_cache_policy_enum {
     dst_cache_policy__pfp_dma_data_fill_multi__lru                         =  0,
     dst_cache_policy__pfp_dma_data_fill_multi__stream                      =  1,
+    dst_cache_policy__pfp_dma_data_fill_multi__noa__GFX10                  =  2,
+    dst_cache_policy__pfp_dma_data_fill_multi__bypass__GFX10               =  3,
 };
 
 enum PFP_DMA_DATA_FILL_MULTI_dst_sel_enum {
@@ -996,7 +1081,8 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT
         {
             uint32_t                     start_inst_loc : 16;
             uint32_t                          reserved1 : 10;
-            uint32_t                          reserved3 : 2;
+            uint32_t         disable_cpvgtdma_sm__GFX10 : 1;
+            uint32_t                          reserved2 : 1;
             uint32_t                  start_indx_enable : 1;
             uint32_t                          reserved4 : 3;
         } bitfields4;
@@ -1043,9 +1129,11 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT_MULTI
         struct
         {
             uint32_t                     draw_index_loc : 16;
-            uint32_t                          reserved2 : 12;
+            uint32_t                          reserved1 : 10;
+            uint32_t         disable_cpvgtdma_sm__GFX10 : 1;
+            uint32_t                   use_vgprs__GFX10 : 1;
             uint32_t                  start_indx_enable : 1;
-            uint32_t                          reserved3 : 1;
+            uint32_t  thread_trace_marker_enable__GFX10 : 1;
             uint32_t              count_indirect_enable : 1;
             uint32_t                  draw_index_enable : 1;
         } bitfields5;
@@ -1216,7 +1304,9 @@ typedef struct PM4_PFP_DRAW_INDIRECT_MULTI
         {
             uint32_t                     draw_index_loc : 16;
             uint32_t                          reserved1 : 11;
-            uint32_t                          reserved3 : 3;
+            uint32_t                   use_vgprs__GFX10 : 1;
+            uint32_t                          reserved2 : 1;
+            uint32_t  thread_trace_marker_enable__GFX10 : 1;
             uint32_t              count_indirect_enable : 1;
             uint32_t                  draw_index_enable : 1;
         } bitfields5;
@@ -1377,6 +1467,8 @@ typedef struct PM4_PFP_INDEX_BUFFER_SIZE
 enum PFP_INDIRECT_BUFFER_cache_policy_enum {
     cache_policy__pfp_indirect_buffer__lru                                 =  0,
     cache_policy__pfp_indirect_buffer__stream                              =  1,
+    cache_policy__pfp_indirect_buffer__noa__GFX10                          =  2,
+    cache_policy__pfp_indirect_buffer__bypass__GFX10                       =  3,
 };
 
 typedef struct PM4_PFP_INDIRECT_BUFFER
@@ -2258,6 +2350,10 @@ typedef struct PM4_PFP_STRMOUT_BUFFER_UPDATE
 
 //--------------------WAIT_REG_MEM--------------------
 enum PFP_WAIT_REG_MEM_cache_policy_enum {
+    cache_policy__pfp_wait_reg_mem__lru__GFX10                             =  0,
+    cache_policy__pfp_wait_reg_mem__stream__GFX10                          =  1,
+    cache_policy__pfp_wait_reg_mem__noa__GFX10                             =  2,
+    cache_policy__pfp_wait_reg_mem__bypass__GFX10                          =  3,
 };
 
 enum PFP_WAIT_REG_MEM_engine_sel_enum {
@@ -2303,6 +2399,8 @@ typedef struct PM4_PFP_WAIT_REG_MEM
             PFP_WAIT_REG_MEM_operation_enum   operation : 2;
             PFP_WAIT_REG_MEM_engine_sel_enum engine_sel : 2;
             uint32_t                          reserved2 : 15;
+            PFP_WAIT_REG_MEM_cache_policy_enum cache_policy__GFX10 : 2;
+            uint32_t                          reserved3 : 5;
         } bitfields2;
         uint32_t                               ordinal2;
     };
@@ -2356,6 +2454,10 @@ typedef struct PM4_PFP_WAIT_REG_MEM
 
 //--------------------WAIT_REG_MEM64--------------------
 enum PFP_WAIT_REG_MEM64_cache_policy_enum {
+    cache_policy__pfp_wait_reg_mem64__lru__GFX10                           =  0,
+    cache_policy__pfp_wait_reg_mem64__stream__GFX10                        =  1,
+    cache_policy__pfp_wait_reg_mem64__noa__GFX10                           =  2,
+    cache_policy__pfp_wait_reg_mem64__bypass__GFX10                        =  3,
 };
 
 enum PFP_WAIT_REG_MEM64_engine_sel_enum {
@@ -2401,6 +2503,8 @@ typedef struct PM4_PFP_WAIT_REG_MEM64
             PFP_WAIT_REG_MEM64_operation_enum operation : 2;
             PFP_WAIT_REG_MEM64_engine_sel_enum engine_sel : 2;
             uint32_t                          reserved2 : 15;
+            PFP_WAIT_REG_MEM64_cache_policy_enum cache_policy__GFX10 : 2;
+            uint32_t                          reserved3 : 5;
         } bitfields2;
         uint32_t                               ordinal2;
     };
@@ -2465,6 +2569,8 @@ enum PFP_WRITE_DATA_addr_incr_enum {
 enum PFP_WRITE_DATA_cache_policy_enum {
     cache_policy__pfp_write_data__lru                                      =  0,
     cache_policy__pfp_write_data__stream                                   =  1,
+    cache_policy__pfp_write_data__noa__GFX10                               =  2,
+    cache_policy__pfp_write_data__bypass__GFX10                            =  3,
 };
 
 enum PFP_WRITE_DATA_dst_sel_enum {
@@ -2528,4 +2634,64 @@ typedef struct PM4_PFP_WRITE_DATA
     uint32_t                            dst_mem_addr_hi;
 
 } PM4PFP_WRITE_DATA, *PPM4PFP_WRITE_DATA;
+
+//--------------------LOAD_UCONFIG_REG_INDEX__GFX10--------------------
+enum PFP_LOAD_UCONFIG_REG_INDEX_data_format_enum {
+    data_format__pfp_load_uconfig_reg_index__offset_and_size               =  0,
+    data_format__pfp_load_uconfig_reg_index__offset_and_data               =  1,
+};
+
+enum PFP_LOAD_UCONFIG_REG_INDEX_index_enum {
+    index__pfp_load_uconfig_reg_index__direct_addr                         =  0,
+    index__pfp_load_uconfig_reg_index__offset                              =  1,
+};
+
+typedef struct PM4_PFP_LOAD_UCONFIG_REG_INDEX__GFX10
+{
+    union
+    {
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
+    };
+
+    union
+    {
+        struct
+        {
+            PFP_LOAD_UCONFIG_REG_INDEX_index_enum index : 1;
+            uint32_t                          reserved1 : 1;
+            uint32_t                        mem_addr_lo : 30;
+        } bitfields2;
+        uint32_t                               ordinal2;
+    };
+
+    union
+    {
+        uint32_t                            mem_addr_hi;
+        uint32_t                            addr_offset;
+        uint32_t                               ordinal3;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 15;
+            PFP_LOAD_UCONFIG_REG_INDEX_data_format_enum data_format : 1;
+        } bitfields4;
+        uint32_t                               ordinal4;
+    };
+
+    union
+    {
+        struct
+        {
+            uint32_t                         num_dwords : 14;
+            uint32_t                          reserved1 : 18;
+        } bitfields5;
+        uint32_t                               ordinal5;
+    };
+
+} PM4PFP_LOAD_UCONFIG_REG_INDEX__GFX10, *PPM4PFP_LOAD_UCONFIG_REG_INDEX__GFX10;
 

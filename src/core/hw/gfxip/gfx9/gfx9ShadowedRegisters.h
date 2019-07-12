@@ -27,6 +27,7 @@
 
 #include "palInlineFuncs.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
+#include "core/hw/gfxip/gfx9/gfx10ShadowedRegisters.h"
 
 namespace Pal
 {
@@ -803,10 +804,17 @@ constexpr uint32 Gfx91NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(
 
 #endif // PAL_ENABLE_PRINTS_ASSERTS
 
-constexpr uint32 MaxNumUserConfigRanges  = Gfx9NumUserConfigShadowRanges;
-constexpr uint32 MaxNumContextRanges     = Gfx9NumContextShadowRanges;
-constexpr uint32 MaxNumShRanges          = Gfx9NumShShadowRanges;
-constexpr uint32 MaxNumCsShRanges        = Gfx9NumShShadowRanges;
+constexpr uint32 Gfx10NumShShadowRanges    = static_cast<uint32>(Util::ArrayLen(Gfx10ShShadowRange));
+constexpr uint32 Gfx10NumCsShShadowRanges  = static_cast<uint32>(Util::ArrayLen(Gfx10CsShShadowRange));
 
+constexpr uint32 Gfx10NumUserConfigShadowRanges = Util::Max(Nv10NumUserConfigShadowRanges
+                                                            , 0u);
+constexpr uint32 Gfx10NumContextShadowRanges    = Util::Max(Nv10NumContextShadowRanges
+                                                            , 0u);
+
+constexpr uint32 MaxNumUserConfigRanges  = Util::Max(Gfx9NumUserConfigShadowRanges, Gfx10NumUserConfigShadowRanges);
+constexpr uint32 MaxNumContextRanges     = Util::Max(Gfx9NumContextShadowRanges,    Gfx10NumContextShadowRanges);
+constexpr uint32 MaxNumShRanges          = Util::Max(Gfx9NumShShadowRanges,         Gfx10NumShShadowRanges);
+constexpr uint32 MaxNumCsShRanges        = Util::Max(Gfx9NumCsShShadowRanges,       Gfx10NumCsShShadowRanges);
 } // Gfx9
 } // Pal

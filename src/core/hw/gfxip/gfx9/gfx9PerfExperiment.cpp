@@ -58,6 +58,16 @@ constexpr uint32  SqttDetailedSimdMask  = 0xF;
 constexpr uint32  SqttGfx9RegMaskDefault   = 0xFF;
 constexpr uint32  SqttGfx9TokenMaskDefault = 0xBFFF;
 constexpr uint32  SqttGfx9InstMaskDefault  = 0xFFFFFFFF;
+// Safe defaults for token exclude mask and register include mask for the gfx10 SQTT_TOKEN_MASK register.
+constexpr uint32  SqttGfx10RegMaskDefault = (SQ_TT_TOKEN_MASK_SQDEC_BIT   |
+                                             SQ_TT_TOKEN_MASK_SHDEC_BIT   |
+                                             SQ_TT_TOKEN_MASK_GFXUDEC_BIT |
+                                             SQ_TT_TOKEN_MASK_CONTEXT_BIT |
+                                             SQ_TT_TOKEN_MASK_COMP_BIT);
+constexpr uint32  SqttGfx10TokenMaskDefault = ((1 << SQ_TT_TOKEN_EXCLUDE_VMEMEXEC_SHIFT) |
+                                               (1 << SQ_TT_TOKEN_EXCLUDE_ALUEXEC_SHIFT)  |
+                                               (1 << SQ_TT_TOKEN_EXCLUDE_WAVERDY_SHIFT)  |
+                                               (1 << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT));
 
 // The SPM ring buffer base address must be 32-byte aligned.
 constexpr uint32 SpmRingBaseAlignment = 32;
@@ -173,6 +183,115 @@ static uint32 GetGfx9SqttTokenMask(
     }
 
     return value.u32All;
+}
+
+// =====================================================================================================================
+static void SetSqttTokenExclude(
+    const Pal::Device&             device,
+    regSQ_THREAD_TRACE_TOKEN_MASK* pRegValue,
+    uint32                         tokenExclude)
+{
+    if (IsGfx101(device))
+    {
+        pRegValue->nv10.TOKEN_EXCLUDE = tokenExclude;
+    }
+    else
+    {
+        // What is this?
+        PAL_ASSERT_ALWAYS();
+    }
+}
+
+// =====================================================================================================================
+// Converts the thread trace token config to the gfx9 format for programming the TOKEN_MASK register.
+static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
+    const Pal::Device&            device,
+    const ThreadTraceTokenConfig& tokenConfig)
+{
+    regSQ_THREAD_TRACE_TOKEN_MASK value = {};
+
+    const uint32 tokenExclude       = ~tokenConfig.tokenMask;
+    const bool   vmemExecExclude    = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::VmemExec);
+    const bool   aluExecExclude     = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::AluExec);
+    const bool   valuInstExclude    = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::ValuInst);
+    const bool   waveRdyExclude     = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::WaveRdy);
+    const bool   immed1Exclude      = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Immed1);
+    const bool   immediateExclude   = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Immediate);
+    const bool   utilCounterExclude = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::UtilCounter);
+    const bool   waveAllocExclude   = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::WaveAlloc);
+
+    // Perf counters through thread trace is expected to be deprecated.
+    const bool perfExclude = true;
+
+    // Combine legacy TT enumerations with the newer (TT 3.0) enumerations).
+    const bool regExclude   = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Reg   |
+                                                           ThreadTraceTokenTypeFlags::RegCs |
+                                                           ThreadTraceTokenTypeFlags::RegCsPriv);
+
+    const bool eventExclude = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Event   |
+                                                           ThreadTraceTokenTypeFlags::EventCs |
+                                                           ThreadTraceTokenTypeFlags::EventGfx1);
+
+    const bool instExclude  = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Inst   |
+                                                           ThreadTraceTokenTypeFlags::InstPc |
+                                                           ThreadTraceTokenTypeFlags::InstUserData);
+
+    SetSqttTokenExclude(device,
+                        &value,
+                        ((vmemExecExclude    << SQ_TT_TOKEN_EXCLUDE_VMEMEXEC_SHIFT)  |
+                         (aluExecExclude     << SQ_TT_TOKEN_EXCLUDE_ALUEXEC_SHIFT)   |
+                         (valuInstExclude    << SQ_TT_TOKEN_EXCLUDE_VALUINST_SHIFT)  |
+                         (waveRdyExclude     << SQ_TT_TOKEN_EXCLUDE_WAVERDY_SHIFT)   |
+                         (immed1Exclude      << SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT)    |
+                         (immediateExclude   << SQ_TT_TOKEN_EXCLUDE_IMMEDIATE_SHIFT) |
+                         (utilCounterExclude << SQ_TT_TOKEN_EXCLUDE_UTILCTR_SHIFT)   |
+                         (waveAllocExclude   << SQ_TT_TOKEN_EXCLUDE_WAVEALLOC_SHIFT) |
+                         (regExclude         << SQ_TT_TOKEN_EXCLUDE_REG_SHIFT)       |
+                         (eventExclude       << SQ_TT_TOKEN_EXCLUDE_EVENT_SHIFT)     |
+                         (instExclude        << SQ_TT_TOKEN_EXCLUDE_INST_SHIFT)      |
+                         (perfExclude        << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT)));
+
+    // Compute Register include mask. Obtain reg mask from combined legacy (TT 2.3 and below) and the newer (TT 3.0)
+    // register types.
+    const bool sqdecRegs       = TestAnyFlagSet(tokenConfig.regMask, ThreadTraceRegTypeFlags::ShaderConfigRegs |
+                                                                     ThreadTraceRegTypeFlags::DrawRegs         |
+                                                                     ThreadTraceRegTypeFlags::DispatchRegs);
+
+    const bool shdecRegs       = TestAnyFlagSet(tokenConfig.regMask, ThreadTraceRegTypeFlags::ShaderLaunchStateRegs |
+                                                                     ThreadTraceRegTypeFlags::DrawRegs              |
+                                                                     ThreadTraceRegTypeFlags::DispatchRegs);
+
+    const bool gfxudecRegs     = TestAnyFlagSet(tokenConfig.regMask, ThreadTraceRegTypeFlags::GraphicsPipeStateRegs |
+                                                                     ThreadTraceRegTypeFlags::DrawRegs);
+
+    const bool compRegs        = TestAnyFlagSet(tokenConfig.regMask, ThreadTraceRegTypeFlags::AsyncComputeRegs |
+                                                                     ThreadTraceRegTypeFlags::DispatchRegs);
+
+    const bool contextRegs     = TestAnyFlagSet(tokenConfig.regMask, ThreadTraceRegTypeFlags::GraphicsContextRegs |
+                                                                     ThreadTraceRegTypeFlags::DrawRegs);
+
+    const bool otherConfigRegs = TestAnyFlagSet(tokenConfig.regMask, ThreadTraceRegTypeFlags::OtherConfigRegs);
+
+    // Note: This is for debug only. Enabling this can lead to a chip hang.
+    const bool grbmCsDataRegs  = TestAnyFlagSet(tokenConfig.regMask, ThreadTraceRegTypeFlags::OtherBusRegs);
+
+    // Note: Hw docs mention that this should normally be zero.
+    const bool regReads        = TestAnyFlagSet(tokenConfig.regMask, ThreadTraceRegTypeFlags::AllRegReads);
+
+    // Warning. Attempting to trace all register reads or enabling thread trace to capture all GRBM and CSDATA bus
+    // activity could cause GPU hang or generate lot of thread trace traffic.
+    PAL_ALERT(grbmCsDataRegs || regReads);
+
+    value.gfx10.REG_INCLUDE = ((sqdecRegs       << SQ_TT_TOKEN_MASK_SQDEC_SHIFT)   |
+                               (shdecRegs       << SQ_TT_TOKEN_MASK_SHDEC_SHIFT)   |
+                               (gfxudecRegs     << SQ_TT_TOKEN_MASK_GFXUDEC_SHIFT) |
+                               (compRegs        << SQ_TT_TOKEN_MASK_COMP_SHIFT)    |
+                               (contextRegs     << SQ_TT_TOKEN_MASK_CONTEXT_SHIFT) |
+                               (otherConfigRegs << SQ_TT_TOKEN_MASK_CONFIG_SHIFT)  |
+                               (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT)   |
+                               (regReads        << SQ_TT_TOKEN_MASK_READS_SHIFT));
+
+    return value;
 }
 
 // =====================================================================================================================
@@ -714,6 +833,11 @@ Result PerfExperiment::AddSpmCounter(
                             m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = simdMask;
                             m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK    = bankMask;
                         }
+                        else if (IsGfx101(m_device)
+                                )
+                        {
+                            m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = bankMask;
+                        }
 
                         // Each SQ module gets a single wire with one sub-counter (use the default value of zero).
                         spmWire   = idx;
@@ -850,6 +974,12 @@ Result PerfExperiment::AddSpmCounter(
             pMapping->isEven = (subCounter == 0);
             pMapping->isOdd  = (subCounter != 0);
 
+            if (HasRmiSubInstances(info.block) && ((info.instance % Gfx10NumRmiSubInstances) != 0))
+            {
+                // Odd instances are the second set of counters in the real HW RMI instance.
+                spmWire += 2;
+            }
+
             if (pMapping->isEven)
             {
                 // We want the lower 16 bits of this wire.
@@ -976,6 +1106,24 @@ Result PerfExperiment::AddThreadTrace(
         // The stall mode is invalid.
         result = Result::ErrorInvalidValue;
     }
+    else if (IsGfx10(m_chipProps.gfxLevel))
+    {
+        if ((traceInfo.optionFlags.threadTraceSimdMask != 0) &&
+            (IsPowerOfTwo(traceInfo.optionValues.threadTraceSimdMask) == false))
+        {
+            // The SIMD mask is treated as an index on gfx10, use IsPowerOfTwo to check that only one bit is set.
+            result = Result::ErrorInvalidValue;
+        }
+        else if ((traceInfo.optionFlags.threadTraceSh0CounterMask != 0) ||
+                 (traceInfo.optionFlags.threadTraceSh1CounterMask != 0) ||
+                 (traceInfo.optionFlags.threadTraceVmIdMask != 0)       ||
+                 (traceInfo.optionFlags.threadTraceIssueMask != 0)      ||
+                 (traceInfo.optionFlags.threadTraceWrapBuffer != 0))
+        {
+            // None of these options can be supported on gfx10.
+            result = Result::ErrorInvalidValue;
+        }
+    }
 
     // Note that threadTraceRandomSeed cannot be implemented on gfx9+ but using it shouldn't cause an error because
     // doing nothing with the seed should still give us deterministic traces.
@@ -1095,6 +1243,87 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[traceInfo.instance].mask.gfx09.SPI_STALL_EN           = (stallMode != GpuProfilerStallNever);
             m_sqtt[traceInfo.instance].mask.gfx09.SQ_STALL_EN            = (stallMode != GpuProfilerStallNever);
             m_sqtt[traceInfo.instance].tokenMask.gfx09.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
+        }
+        else
+        {
+            // Note that gfx10 has new thread trace modes. For now we use "on" to match the gfx9 implementation.
+            // We may want to consider using one of the new modes by default.
+            m_sqtt[traceInfo.instance].ctrl.gfx10.MODE              = SQ_TT_MODE_ON;
+            m_sqtt[traceInfo.instance].ctrl.gfx10.HIWATER           = SqttHiWaterValue;
+            m_sqtt[traceInfo.instance].ctrl.gfx10.UTIL_TIMER        = 1;
+            m_sqtt[traceInfo.instance].ctrl.gfx10.RT_FREQ           = SQ_TT_RT_FREQ_4096_CLK;
+            m_sqtt[traceInfo.instance].ctrl.gfx10.DRAW_EVENT_EN     = 1;
+
+            // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.
+            m_sqtt[traceInfo.instance].ctrl.gfx10.REG_STALL_EN      = (stallMode == GpuProfilerStallAlways);
+            m_sqtt[traceInfo.instance].ctrl.gfx10.SPI_STALL_EN      = (stallMode != GpuProfilerStallNever);
+            m_sqtt[traceInfo.instance].ctrl.gfx10.SQ_STALL_EN       = (stallMode != GpuProfilerStallNever);
+            m_sqtt[traceInfo.instance].ctrl.gfx10.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
+
+            static_assert((static_cast<uint32>(PerfShaderMaskPs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_PS_BIT) &&
+                           static_cast<uint32>(PerfShaderMaskVs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_VS_BIT) &&
+                           static_cast<uint32>(PerfShaderMaskGs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_GS_BIT) &&
+                           static_cast<uint32>(PerfShaderMaskEs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_ES_BIT) &&
+                           static_cast<uint32>(PerfShaderMaskHs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_HS_BIT) &&
+                           static_cast<uint32>(PerfShaderMaskLs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_LS_BIT) &&
+                           static_cast<uint32>(PerfShaderMaskCs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_CS_BIT)),
+                           "We assume that the SQ_TT_WTYPE enum matches PerfExperimentShaderFlags.");
+
+            m_sqtt[traceInfo.instance].mask.gfx10.WTYPE_INCLUDE = shaderMask;
+            m_sqtt[traceInfo.instance].mask.gfx10.SA_SEL        = shIndex;
+
+            if (traceInfo.optionFlags.threadTraceTargetCu != 0)
+            {
+                // Divide by two to convert to a WGP index.
+                m_sqtt[traceInfo.instance].mask.gfx10.WGP_SEL = traceInfo.optionValues.threadTraceTargetCu / 2;
+            }
+            else
+            {
+                // Pick a default detailed token WGP within our shader array. Default to only selecting WGPs that are
+                // active and not reserved for realtime use. Note that there is no real time WGP mask, but all of the
+                // CU masks are still populated with two adjacent bits set for each WGP.
+                const uint32 traceableCuMask =
+                    m_chipProps.gfx9.activeCuMask[traceInfo.instance][shIndex] & ~m_chipProps.gfxip.realTimeCuMask;
+
+                // Select the first available CU from the mask
+                uint32 firstActiveCu = 0;
+                if (BitMaskScanForward(&firstActiveCu, traceableCuMask) == false)
+                {
+                    // We should always have at least one non-realtime CU.
+                    PAL_ASSERT_ALWAYS();
+                }
+
+                // Divide by two to convert from CUs to WGPs.
+                m_sqtt[traceInfo.instance].mask.gfx10.WGP_SEL = firstActiveCu / 2;
+            }
+
+            // Default to getting detailed tokens from SIMD 0.
+            m_sqtt[traceInfo.instance].mask.gfx10.SIMD_SEL = (traceInfo.optionFlags.threadTraceSimdMask != 0)
+                    ? traceInfo.optionValues.threadTraceSimdMask : 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
+            if ((traceInfo.optionFlags.threadTraceTokenMask != 0) ||
+                (traceInfo.optionFlags.threadTraceRegMask != 0))
+            {
+                ThreadTraceTokenConfig tokenConfig = {};
+                tokenConfig.tokenMask = traceInfo.optionValues.threadTraceTokenMask;
+                tokenConfig.regMask   = traceInfo.optionValues.threadTraceRegMask;
+
+                m_sqtt[traceInfo.instance].tokenMask = GetGfx10SqttTokenMask(m_device, tokenConfig);
+            }
+#else
+            if (traceInfo.optionFlags.threadTraceTokenConfig != 0)
+            {
+                m_sqtt[traceInfo.instance].tokenMask =
+                    GetGfx10SqttTokenMask(m_device, traceInfo.optionValues.threadTraceTokenConfig);
+            }
+#endif
+            else
+            {
+                // By default trace all tokens and registers.
+                SetSqttTokenExclude(m_device, &m_sqtt[traceInfo.instance].tokenMask, SqttGfx10TokenMaskDefault);
+                m_sqtt[traceInfo.instance].tokenMask.gfx10.REG_INCLUDE   = SqttGfx10RegMaskDefault;
+            }
         }
     }
 
@@ -1500,6 +1729,11 @@ Result PerfExperiment::GetThreadTraceLayout(
                     if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
                     {
                         pLayout->traces[traceIdx].computeUnit = m_sqtt[idx].mask.gfx09.CU_SEL;
+                    }
+                    else
+                    {
+                        // Our thread trace tools seem to expect that this is in units of WGPs.
+                        pLayout->traces[traceIdx].computeUnit = m_sqtt[idx].mask.gfx10.WGP_SEL;
                     }
                     traceIdx++;
                 }
@@ -1926,6 +2160,18 @@ void PerfExperiment::UpdateSqttTokenMask(
                                                                   tokenMask.u32All,
                                                                   pCmdSpace);
                 }
+                else
+                {
+                    regSQ_THREAD_TRACE_TOKEN_MASK tokenMask = GetGfx10SqttTokenMask(m_device, sqttTokenConfig);
+
+                    // These fields aren't controlled by the token config.
+                    tokenMask.gfx10.INST_EXCLUDE   = m_sqtt[idx].tokenMask.gfx10.INST_EXCLUDE;
+                    tokenMask.gfx10.REG_DETAIL_ALL = m_sqtt[idx].tokenMask.gfx10.REG_DETAIL_ALL;
+
+                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_TOKEN_MASK,
+                                                                  tokenMask.u32All,
+                                                                  pCmdSpace);
+                }
             }
         }
 
@@ -1958,6 +2204,16 @@ void PerfExperiment::UpdateSqttTokenMaskStatic(
 
         // Note that we will lose the current value of the REG_DROP_ON_STALL field.
         pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_TOKEN_MASK,
+                                                      tokenMask.u32All,
+                                                      pCmdSpace);
+    }
+    else
+    {
+        regSQ_THREAD_TRACE_TOKEN_MASK tokenMask = GetGfx10SqttTokenMask(palDevice, sqttTokenConfig);
+
+        // Note that we will lose the current value of the INST_EXCLUDE and REG_DETAIL_ALL fields. They default
+        // to zero so hopefully the default value is fine.
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_TOKEN_MASK,
                                                       tokenMask.u32All,
                                                       pCmdSpace);
     }
@@ -2052,6 +2308,12 @@ Result PerfExperiment::BuildGrbmGfxIndex(
         saIndex       = (globalInstance / blockInfo.numInstances) % m_chipProps.gfx9.numShaderArrays;
         instanceIndex = globalInstance % blockInfo.numInstances;
 
+        if (HasRmiSubInstances(block))
+        {
+            // Pairs of perfcounter sub-instances are sequential, so we can convert to the proper HW instance ID by
+            // dividing by the number of sub-instances.
+            instanceIndex /= Gfx10NumRmiSubInstances;
+        }
     }
 
     if (seIndex >= m_chipProps.gfx9.numShaderEngines)
@@ -2069,6 +2331,11 @@ Result PerfExperiment::BuildGrbmGfxIndex(
         // This instance doesn't exist on our device.
         result = Result::ErrorInvalidValue;
     }
+    else if (IsGfx10(m_chipProps.gfxLevel))
+    {
+        // Update the instance index, some gfx10 blocks have special encodings.
+        instanceIndex = Gfx10CalcInstanceIndex(block, instanceIndex);
+    }
 
     if (result == Result::Success)
     {
@@ -2080,6 +2347,52 @@ Result PerfExperiment::BuildGrbmGfxIndex(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Some gfx10 blocks use a different instance index format that requires some bit swizzling.
+uint32 PerfExperiment::Gfx10CalcInstanceIndex(
+    GpuBlock block,
+    uint32   flatIndex // A flat instance index mapping (0, 1, 2, 3, etc.), no weird gaps.
+    ) const
+{
+    // The shader array hardware defines this instance index format.
+    union
+    {
+        struct
+        {
+            uint32 blockIndex :  2; // The index of the block within the WGP.
+            uint32 wgpIndex   :  3; // The WGP index within the SPI side of this shader array.
+            uint32 isBelowSpi :  1; // 0 - The side with lower WGP numbers, 1 - the side with higher WGP numbers.
+            uint32 reserved   : 26;
+        } bits;
+
+        uint32 u32All;
+    } instanceIndex = {};
+
+    // Note that SQ registers would normally require a special per-SIMD instance index format but the SQ perf counter
+    // registers are special. All SQ and SQC perf counters are implemented in the per-SE SQG block. Thus we don't
+    // need any special handing for the SQ or SQC here, we can just pass along our flat index.
+
+    if ((block == GpuBlock::Ta) || (block == GpuBlock::Td) || (block == GpuBlock::Tcp))
+    {
+        // These blocks are per-CU.
+        constexpr uint32 NumCuPerWgp    = 2;
+        const     uint32 numWgpAboveSpi = m_chipProps.gfx9.gfx10.numWgpAboveSpi;
+        const     uint32 flatWgpIndex   = flatIndex / NumCuPerWgp;
+        const     bool   isBelowSpi     = (flatWgpIndex >= numWgpAboveSpi);
+
+        instanceIndex.bits.blockIndex = flatIndex % NumCuPerWgp;
+        instanceIndex.bits.wgpIndex   = isBelowSpi ? (flatWgpIndex - numWgpAboveSpi) : flatWgpIndex;
+        instanceIndex.bits.isBelowSpi = isBelowSpi;
+    }
+    else
+    {
+        // Otherwise the hardware uses a flat index.
+        instanceIndex.u32All = flatIndex;
+    }
+
+    return instanceIndex.u32All;
 }
 
 // =====================================================================================================================
@@ -2099,6 +2412,24 @@ MuxselEncoding PerfExperiment::BuildMuxselEncoding(
         muxsel.gfx9.counter  = counter;
         muxsel.gfx9.block    = blockInfo.spmBlockSelect;
         muxsel.gfx9.instance = grbmGfxIndex.bits.INSTANCE_INDEX;
+    }
+    else
+    {
+        uint32 counterId = counter;
+
+        if (HasRmiSubInstances(block)
+            )
+        {
+            // Use a non-default mapping of counter select IDs for the RMI block. This changes the counter
+            // mapping from {0,..7} to {4,5,6,7,0,1,2,3}
+            counterId = (counterId < 4) ? (counterId + 4) : (counterId - 4);
+        }
+
+        // Gfx10 per-SE muxsels use a slightly different encoding.
+        muxsel.gfx10Se.counter     = counterId;
+        muxsel.gfx10Se.block       = blockInfo.spmBlockSelect;
+        muxsel.gfx10Se.shaderArray = grbmGfxIndex.gfx10.SA_INDEX;
+        muxsel.gfx10Se.instance    = grbmGfxIndex.bits.INSTANCE_INDEX;
     }
 
     return muxsel;
@@ -2151,6 +2482,30 @@ uint32* PerfExperiment::WriteSpmSetup(
         totalLines += m_numMuxselLines[idx];
     }
 
+    if (over31Lines && IsGfx10(m_chipProps.gfxLevel))
+    {
+        // We must use these extended registers when at least one segment is over 31 lines. The original SEGMENT_SIZE
+        // register must still be written but it must be full of zeros.
+        struct
+        {
+            regRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE se3To0SegmentSize;
+            regRLC_SPM_PERFMON_GLB_SEGMENT_SIZE    glbSegmentSize;
+        } rlcExtendedSize = {};
+
+        rlcExtendedSize.se3To0SegmentSize.bits.SE0_NUM_LINE      = m_numMuxselLines[0];
+        rlcExtendedSize.se3To0SegmentSize.bits.SE1_NUM_LINE      = m_numMuxselLines[1];
+        rlcExtendedSize.se3To0SegmentSize.bits.SE2_NUM_LINE      = m_numMuxselLines[2];
+        rlcExtendedSize.se3To0SegmentSize.bits.SE3_NUM_LINE      = m_numMuxselLines[3];
+        rlcExtendedSize.glbSegmentSize.bits.PERFMON_SEGMENT_SIZE = totalLines;
+        rlcExtendedSize.glbSegmentSize.bits.GLOBAL_NUM_LINE      =
+            m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
+
+        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(m_registerInfo.mmRlcSpmPerfmonSe3To0SegmentSize,
+                                                      m_registerInfo.mmRlcSpmPerfmonGlbSegmentSize,
+                                                      &rlcExtendedSize,
+                                                      pCmdSpace);
+    }
+    else
     {
         // We have no way to handle more than 31 lines. Assert so that the user knows this is broken but continue
         // anyway and hope to maybe get some partial data.
@@ -2326,6 +2681,37 @@ uint32* PerfExperiment::WriteStartThreadTraces(
                                                               m_sqtt[idx].mode.u32All,
                                                               pCmdSpace);
             }
+            else
+            {
+                regSQ_THREAD_TRACE_BUF0_BASE sqttBuf0Base = {};
+                regSQ_THREAD_TRACE_BUF0_SIZE sqttBuf0Size = {};
+
+                sqttBuf0Size.bits.SIZE    = shiftedSize;
+                sqttBuf0Size.bits.BASE_HI = HighPart(shiftedAddr);
+                sqttBuf0Base.bits.BASE_LO = LowPart(shiftedAddr);
+
+                // All of these registers were moved to privileged space in gfx10 which is pretty silly.
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE,
+                                                              sqttBuf0Base.u32All,
+                                                              pCmdSpace);
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_BUF0_SIZE,
+                                                              sqttBuf0Size.u32All,
+                                                              pCmdSpace);
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_MASK,
+                                                              m_sqtt[idx].mask.u32All,
+                                                              pCmdSpace);
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_TOKEN_MASK,
+                                                              m_sqtt[idx].tokenMask.u32All,
+                                                              pCmdSpace);
+
+                // We must write this register last because it turns on thread traces.
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_CTRL,
+                                                              m_sqtt[idx].ctrl.u32All,
+                                                              pCmdSpace);
+            }
         }
     }
 
@@ -2428,6 +2814,63 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                     Gfx09::mmSQ_THREAD_TRACE_WPTR,
                     Gfx09::mmSQ_THREAD_TRACE_STATUS,
                     Gfx09::mmSQ_THREAD_TRACE_CNTR
+                };
+
+                for (uint32 regIdx = 0; regIdx < ArrayLen(InfoRegisters); regIdx++)
+                {
+                    pCmdSpace += m_cmdUtil.BuildCopyData(engineType,
+                                                         engine_sel__me_copy_data__micro_engine,
+                                                         dst_sel__me_copy_data__tc_l2,
+                                                         infoAddr + regIdx * sizeof(uint32),
+                                                         src_sel__me_copy_data__perfcounters,
+                                                         InfoRegisters[regIdx],
+                                                         count_sel__me_copy_data__32_bits_of_data,
+                                                         wr_confirm__me_copy_data__wait_for_confirmation,
+                                                         pCmdSpace);
+                }
+            }
+            else
+            {
+                // Poll the status register's finish_done bit to be sure that the trace buffer is written out.
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__register_space,
+                                                       function__me_wait_reg_mem__not_equal_reference_value,
+                                                       engine_sel__me_wait_reg_mem__micro_engine,
+                                                       Gfx10::mmSQ_THREAD_TRACE_STATUS,
+                                                       0,
+                                                       Gfx10::SQ_THREAD_TRACE_STATUS__FINISH_DONE_MASK,
+                                                       pCmdSpace);
+
+                // Set the mode to "OFF".
+                regSQ_THREAD_TRACE_CTRL sqttCtrl = m_sqtt[idx].ctrl;
+                sqttCtrl.gfx10.MODE = SQ_TT_MODE_OFF;
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_CTRL,
+                                                              sqttCtrl.u32All,
+                                                              pCmdSpace);
+
+                // Poll the status register's busy bit to wait for it to totally turn off.
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__register_space,
+                                                       function__me_wait_reg_mem__equal_to_the_reference_value,
+                                                       engine_sel__me_wait_reg_mem__micro_engine,
+                                                       Gfx10::mmSQ_THREAD_TRACE_STATUS,
+                                                       0,
+                                                       Gfx10::SQ_THREAD_TRACE_STATUS__BUSY_MASK,
+                                                       pCmdSpace);
+
+                // Use COPY_DATA to read back the info struct one DWORD at a time.
+                const gpusize infoAddr = m_gpuMemory.GpuVirtAddr() + m_sqtt[idx].infoOffset;
+
+                // If each member doesn't start at a DWORD offset this won't wor.
+                static_assert(offsetof(ThreadTraceInfoData, curOffset)    == 0,                  "");
+                static_assert(offsetof(ThreadTraceInfoData, traceStatus)  == sizeof(uint32),     "");
+                static_assert(offsetof(ThreadTraceInfoData, writeCounter) == sizeof(uint32) * 2, "");
+
+                // Gfx10 doesn't have SQ_THREAD_TRACE_CNTR but SQ_THREAD_TRACE_DROPPED_CNTR seems good enough.
+                constexpr uint32 InfoRegisters[] =
+                {
+                    Gfx10::mmSQ_THREAD_TRACE_WPTR,
+                    Gfx10::mmSQ_THREAD_TRACE_STATUS,
+                    Gfx10::mmSQ_THREAD_TRACE_DROPPED_CNTR
                 };
 
                 for (uint32 regIdx = 0; regIdx < ArrayLen(InfoRegisters); regIdx++)
@@ -2583,6 +3026,19 @@ uint32* PerfExperiment::WriteSelectRegisters(
                             {
                                 // SDMA has unique registers for each instance.
                                 pRegAddr = &m_counterInfo.sdmaRegAddr[instance][idx];
+                            }
+                            else if (HasRmiSubInstances(static_cast<GpuBlock>(block)))
+                            {
+                                // RegAddr for even sub-instances of RMI start from index 0 and from index 2 for odd
+                                // sub-instances.
+                                if ((instance % Gfx10NumRmiSubInstances) == 0)
+                                {
+                                    pRegAddr = &m_counterInfo.block[block].regAddr.perfcounter[idx];
+                                }
+                                else
+                                {
+                                    pRegAddr = &m_counterInfo.block[block].regAddr.perfcounter[idx + 2];
+                                }
                             }
                             else
                             {
@@ -2876,6 +3332,19 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
                 // SDMA has unique registers for each instance.
                 pRegAddr = &m_counterInfo.sdmaRegAddr[instance][mapping.counterId];
             }
+            else if (HasRmiSubInstances(static_cast<GpuBlock>(block)))
+            {
+                // Register address offsets for even sub-instances of RMI start from index 0 and from index 2 for
+                // odd sub-instances.
+                if ((instance % Gfx10NumRmiSubInstances) == 0)
+                {
+                    pRegAddr = &m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId];
+                }
+                else
+                {
+                    pRegAddr = &m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId + 2];
+                }
+            }
             else
             {
                 pRegAddr = &m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId];
@@ -2994,6 +3463,10 @@ uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
     {
         spiConfigCntl.u32All = Gfx09::mmSPI_CONFIG_CNTL_DEFAULT;
     }
+    else
+    {
+        spiConfigCntl.u32All = Gfx10::mmSPI_CONFIG_CNTL_DEFAULT;
+    }
 
     spiConfigCntl.bits.ENABLE_SQG_TOP_EVENTS = enableSqgEvents;
     spiConfigCntl.bits.ENABLE_SQG_BOP_EVENTS = enableSqgEvents;
@@ -3001,6 +3474,26 @@ uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
     if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmSPI_CONFIG_CNTL, spiConfigCntl.u32All, pCmdSpace);
+    }
+    else
+    {
+        // MEC doesn't support RMW, so directly set the register as we do on gfx9.
+        if (m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
+        {
+            constexpr uint32 SpiConfigCntlSqgEventsMask = ((1 << SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS__SHIFT) |
+                                                           (1 << SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS__SHIFT));
+
+            pCmdSpace += m_cmdUtil.BuildRegRmw(Gfx10::mmSPI_CONFIG_CNTL_REMAP,
+                                               spiConfigCntl.u32All,
+                                               ~(SpiConfigCntlSqgEventsMask),
+                                               pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10::mmSPI_CONFIG_CNTL_REMAP,
+                                                         spiConfigCntl.u32All,
+                                                         pCmdSpace);
+        }
     }
 
     return pCmdSpace;
@@ -3118,6 +3611,23 @@ bool PerfExperiment::HasGenericCounters(
     }
 
     return hasCounters;
+}
+
+// =====================================================================================================================
+// Returns true if this block is an RMI block and PAL considers this instance as consisting of virtual sub-instances.
+bool PerfExperiment::HasRmiSubInstances(
+    GpuBlock block
+    ) const
+{
+    bool hasRmiSubinstances = false;
+
+    if ((block == GpuBlock::Rmi)
+        )
+    {
+        hasRmiSubinstances = true;
+    }
+
+    return hasRmiSubinstances;
 }
 
 } // gfx9

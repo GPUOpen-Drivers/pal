@@ -1023,7 +1023,7 @@ void LogContext::Enum(
 
         nullptr,
         nullptr,
-        nullptr,
+        "Navi10",
         nullptr,
         nullptr,
         nullptr,

@@ -51,6 +51,8 @@ constexpr gpusize SqttBufferAlignment  = 0x1 << SqttBufferAlignShift;
 constexpr uint32 Gfx9MaxShaderEngines     = 4;  // We can't have more than 4 SEs on gfx9+.
 constexpr uint32 Gfx9MaxSqgPerfmonModules = 16; // The SQG can have up to 16 custom perfmon modules.
 
+constexpr uint32 Gfx10NumRmiSubInstances = 2; // PAL considers each RMI isntance to consist of sub-instances.
+
 // Called during device init to populate the perf counter info.
 extern void InitPerfCtrInfo(const Pal::Device& device, GpuChipProperties* pProps);
 

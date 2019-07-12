@@ -4208,7 +4208,7 @@ void TargetCmdBuffer::UpdateCommentString(
             "Invalidate DB Metadata",
             "Flush DB Metadata",
             "Invalidate TCC Metadata (L2)",
-            "Reserved",
+            "Invalidate GL1",
             "Reserved",
         };
 

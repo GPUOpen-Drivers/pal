@@ -479,6 +479,26 @@ uint32 DepthStencilView::CalcDecompressOnZPlanesValue(
         break;
     }
 
+    const Gfx9PalSettings& settings = m_device.Settings();
+
+    // Check this first to eliminate products that don't have an ITERATE_256 bit in the first place.  Calling
+    // the GetIterate256() function below causes asserts on non-GFX10 products.
+    if (settings.waTwoPlanesIterate256)
+    {
+        const SubResourceInfo*const pDepthSubResInfo   = pParent->SubresourceInfo(m_depthSubresource);
+        const SubResourceInfo*const pStencilSubResInfo = pParent->SubresourceInfo(m_stencilSubresource);
+
+        const bool isIterate256 = (m_pImage->GetIterate256(pDepthSubResInfo) == 1) ||
+                                  (m_pImage->GetIterate256(pStencilSubResInfo) == 1);
+
+        if (isIterate256                            &&
+            (m_pImage->IsHtileDepthOnly() == false) &&
+            (createInfo.samples == 4))
+        {
+            decompressOnZPlanes = 1;
+        }
+    }
+
     return decompressOnZPlanes + 1;
 }
 
@@ -690,6 +710,147 @@ uint32* Gfx9DepthStencilView::UpdateZRangePrecision(
     regVal.bits.ZRANGE_PRECISION = 0;
 
     return pCmdStream->WriteSetOneContextReg(Gfx09::mmDB_Z_INFO, regVal.u32All, pCmdSpace);
+}
+
+// =====================================================================================================================
+Gfx10DepthStencilView::Gfx10DepthStencilView(
+    const Device*                             pDevice,
+    const DepthStencilViewCreateInfo&         createInfo,
+    const DepthStencilViewInternalCreateInfo& internalInfo)
+    :
+    DepthStencilView(pDevice, createInfo, internalInfo),
+    m_baseArraySlice(createInfo.baseArraySlice),
+    m_arraySize(createInfo.arraySize)
+{
+    memset(&m_pm4Cmds, 0, sizeof(m_pm4Cmds));
+
+    BuildPm4Headers();
+    InitRegisters(createInfo, internalInfo);
+
+    if (IsVaLocked())
+    {
+        UpdateImageVa(&m_pm4Cmds);
+    }
+}
+
+// =====================================================================================================================
+// Builds the PM4 packet headers for an image of PM4 commands used to write this View object to hardware.
+void Gfx10DepthStencilView::BuildPm4Headers()
+{
+    const CmdUtil& cmdUtil = m_device.CmdUtil();
+
+    uint32  dbDepthInfoRegMask = 0;
+    uint32  dbDepthInfoRegData = 0;
+
+    CommonBuildPm4Headers(&m_pm4Cmds);
+
+    size_t spaceNeeded = cmdUtil.BuildSetOneContextReg(mmDB_RENDER_CONTROL, &m_pm4Cmds.hdrDbRenderControl);
+
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(Gfx10::mmDB_RMI_L2_CACHE_CONTROL, &m_pm4Cmds.hdrDbRmiL2CacheControl);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_DEPTH_VIEW, &m_pm4Cmds.hdrDbDepthView);
+    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmDB_RENDER_OVERRIDE2,
+                                                  mmDB_HTILE_DATA_BASE,
+                                                  &m_pm4Cmds.hdrDbRenderOverride2);
+
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(Gfx10::mmDB_DEPTH_SIZE_XY, &m_pm4Cmds.hdrDbDepthSize);
+
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(Gfx10::mmDB_DFSM_CONTROL,
+                                                 &m_pm4Cmds.hdrDbDfsmControl);
+    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(Gfx10::mmDB_Z_INFO,
+                                                  Gfx10::mmDB_STENCIL_WRITE_BASE,
+                                                  &m_pm4Cmds.hdrDbZInfo);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_HTILE_SURFACE, &m_pm4Cmds.hdrDbHtileSurface);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_PRELOAD_CONTROL, &m_pm4Cmds.hdrDbPreloadControl);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,
+                                                 &m_pm4Cmds.hdrPaSuPolyOffsetDbFmtCntl);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmCOHER_DEST_BASE_0, &m_pm4Cmds.hdrCoherDestBase);
+    spaceNeeded += CmdUtil::ContextRegRmwSizeDwords; // Header and value defined by InitRegisters()
+
+    if (cmdUtil.GetRegInfo().mmDbDepthInfo != 0)
+    {
+        spaceNeeded += cmdUtil.BuildContextRegRmw(cmdUtil.GetRegInfo().mmDbDepthInfo,
+                                                  dbDepthInfoRegMask,
+                                                  dbDepthInfoRegData,
+                                                  &m_pm4Cmds.dbDepthInfo);
+    }
+    else
+    {
+        // If this register doesn't even exist, then just NOP it.
+        spaceNeeded += cmdUtil.BuildNop(CmdUtil::RegRmwSizeDwords, &m_pm4Cmds.dbDepthInfo);
+    }
+
+    m_pm4Cmds.spaceNeeded             += spaceNeeded;
+    m_pm4Cmds.spaceNeededDecompressed += spaceNeeded;
+}
+
+// =====================================================================================================================
+// Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
+void Gfx10DepthStencilView::InitRegisters(
+    const DepthStencilViewCreateInfo&         createInfo,
+    const DepthStencilViewInternalCreateInfo& internalInfo)
+{
+    const auto*                 pParentImg           = m_pImage->Parent();
+    const ImageCreateInfo&      imageCreateInfo      = pParentImg->GetImageCreateInfo();
+    const auto&                 palDevice            = *m_device.Parent();
+    GfxIpLevel                  gfxip                = palDevice.ChipProperties().gfxLevel;
+    const auto*                 pFmtInfo             = MergedChannelFlatFmtInfoTbl(gfxip);
+    const SubResourceInfo*      pDepthSubResInfo     = pParentImg->SubresourceInfo(m_depthSubresource);
+    const SubResourceInfo*      pStencilSubResInfo   = pParentImg->SubresourceInfo(m_stencilSubresource);
+    const SubresId              baseDepthSubResId    = { m_depthSubresource.aspect, 0 , 0 };
+    const SubResourceInfo*const pBaseDepthSubResInfo = pParentImg->SubresourceInfo(baseDepthSubResId);
+
+    DB_RENDER_OVERRIDE dbRenderOverride = { };
+    InitCommonImageView(createInfo, internalInfo, pFmtInfo, &m_pm4Cmds, &dbRenderOverride);
+
+    // GFX10 adds extra bits to the slice selection...  the "hi" bits are in different fields from the "low" bits.
+    // The "low" bits were set in "InitCommonImageView", take care of the new high bits here.
+    const uint32 sliceMax = (createInfo.arraySize + createInfo.baseArraySlice - 1);
+
+    // Setup the size
+    m_pm4Cmds.dbDepthSize.bits.X_MAX = (pBaseDepthSubResInfo->extentTexels.width  - 1);
+    m_pm4Cmds.dbDepthSize.bits.Y_MAX = (pBaseDepthSubResInfo->extentTexels.height - 1);
+
+    // From the reg-spec:  Indicates that compressed data must be iterated on flush every pipe interleave bytes in
+    //                     order to be readable by TC
+    m_pm4Cmds.dbZInfo.gfx10.ITERATE_FLUSH       = m_flags.depthMetadataTexFetch;
+    m_pm4Cmds.dbStencilInfo.gfx10.ITERATE_FLUSH = m_flags.stencilMetadataTexFetch;
+
+    m_pm4Cmds.dbZInfo.bits.SW_MODE       = SW_64KB_Z_X;
+    m_pm4Cmds.dbStencilInfo.bits.SW_MODE = SW_64KB_Z_X;
+
+    m_pm4Cmds.dbZInfo.gfx10.FAULT_BEHAVIOR       = FAULT_ZERO;
+    m_pm4Cmds.dbStencilInfo.gfx10.FAULT_BEHAVIOR = FAULT_ZERO;
+
+    m_pm4Cmds.dbZInfo.gfx10.ITERATE_256          = m_pImage->GetIterate256(pDepthSubResInfo);
+    m_pm4Cmds.dbStencilInfo.gfx10.ITERATE_256    = m_pImage->GetIterate256(pStencilSubResInfo);
+
+    PAL_ASSERT(CountSetBits(DB_DEPTH_VIEW__SLICE_START_MASK) == DbDepthViewSliceStartMaskNumBits);
+    PAL_ASSERT(CountSetBits(DB_DEPTH_VIEW__SLICE_MAX_MASK)   == DbDepthViewSliceMaxMaskNumBits);
+
+    m_pm4Cmds.dbDepthView.gfx10.SLICE_START_HI = createInfo.baseArraySlice >> DbDepthViewSliceStartMaskNumBits;
+    m_pm4Cmds.dbDepthView.gfx10.SLICE_MAX_HI   = sliceMax >> DbDepthViewSliceMaxMaskNumBits;
+
+    m_pm4Cmds.dbRmiL2CacheControl.u32All                = 0;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.Z_WR_POLICY      = CACHE_STREAM;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.S_WR_POLICY      = CACHE_STREAM;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.HTILE_WR_POLICY  = CACHE_STREAM;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.ZPCPSD_WR_POLICY = CACHE_STREAM;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.Z_RD_POLICY      = CACHE_NOA;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.S_RD_POLICY      = CACHE_NOA;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.HTILE_RD_POLICY  = CACHE_NOA;
+
+}
+
+// =====================================================================================================================
+// Writes the PM4 commands required to bind to depth/stencil slot. Returns the next unused DWORD in pCmdSpace.
+uint32* Gfx10DepthStencilView::WriteCommands(
+    ImageLayout depthLayout,   // Allowed usages/queues for the depth aspect. Implies compression state.
+    ImageLayout stencilLayout, // Allowed usages/queues for the stencil aspect. Implies compression state.
+    CmdStream*  pCmdStream,
+    uint32*     pCmdSpace
+    ) const
+{
+    return WriteCommandsInternal(depthLayout, stencilLayout, pCmdStream, pCmdSpace, m_pm4Cmds);
 }
 
 } // Gfx9

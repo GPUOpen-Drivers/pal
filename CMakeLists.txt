@@ -66,6 +66,8 @@ cmake_dependent_option(CHIP_HDR_VEGA20 "Build PAL chip with Vega20 support?" ON 
 cmake_dependent_option(PAL_BUILD_RAVEN2 "Build PAL with Raven2 support?" ON "PAL_BUILD_GFX" OFF)
 cmake_dependent_option(CHIP_HDR_RAVEN2 "Build PAL chip with Raven2 support?" ON "PAL_BUILD_GFX" OFF)
 
+option(PAL_BUILD_GFX10 "Build PAL with GFX10 support?" OFF)
+
 option(PAL_BUILD_OSS  "Build PAL with Operating System support?" ON)
 cmake_dependent_option(PAL_BUILD_OSS1   "Build PAL with OSS1?"   ON "PAL_BUILD_OSS" OFF)
 cmake_dependent_option(PAL_BUILD_OSS2   "Build PAL with OSS2?"   ON "PAL_BUILD_OSS" OFF)
@@ -125,6 +127,9 @@ if(PAL_BUILD_GFX9)
     else()
         set(ADDR_RAVEN2_BUILD OFF CACHE BOOL "PAL override to build ADDRLIB with Vega20 support." FORCE)
 	set(CHIP_HDR_RAVEN2 OFF CACHE BOOL "PAL override to build chip register header with Raven2 support." FORCE)
+    endif()
+    if(PAL_BUILD_GFX10)
+        set(ADDR_GFX10_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with GFX10 support." FORCE)
     endif()
 endif()
 

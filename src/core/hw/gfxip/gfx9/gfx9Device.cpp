@@ -53,6 +53,7 @@
 #include "core/hw/gfxip/gfx9/gfx9StreamoutStatsQueryPool.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalEngine.h"
+#include "core/hw/gfxip/gfx9/gfx10DmaCmdBuffer.h"
 #include "palAssert.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
@@ -77,6 +78,7 @@ constexpr uint32 UcodeVersionWithDumpOffsetSupport = 30;
 
 // Microcode version for SET_SH_REG_OFFSET with 256B alignment.
 constexpr uint32 Gfx9UcodeVersionSetShRegOffset256B  = 42;
+constexpr uint32 Gfx10UcodeVersionSetShRegOffset256B = 27;
 
 static PAL_INLINE uint32 ComputeImageViewDepth(
     const ImageViewInfo&   viewInfo,
@@ -88,6 +90,11 @@ size_t GetDeviceSize(
     GfxIpLevel  gfxLevel)
 {
     size_t  rpmSize = sizeof(Gfx9RsrcProcMgr);
+
+    if (IsGfx10(gfxLevel))
+    {
+        rpmSize = sizeof(Gfx10RsrcProcMgr);
+    }
 
     return (sizeof(Device) + rpmSize);
 }
@@ -116,6 +123,13 @@ Result CreateDevice(
             pPfnTable->pfnCreateUntypedBufViewSrds = &Device::Gfx9CreateUntypedBufferViewSrds;
             pPfnTable->pfnCreateImageViewSrds      = &Device::Gfx9CreateImageViewSrds;
             pPfnTable->pfnCreateSamplerSrds        = &Device::Gfx9CreateSamplerSrds;
+            break;
+
+        case GfxIpLevel::GfxIp10_1:
+            pPfnTable->pfnCreateTypedBufViewSrds   = &Device::Gfx10CreateTypedBufferViewSrds;
+            pPfnTable->pfnCreateUntypedBufViewSrds = &Device::Gfx10CreateUntypedBufferViewSrds;
+            pPfnTable->pfnCreateImageViewSrds      = &Device::Gfx10CreateImageViewSrds;
+            pPfnTable->pfnCreateSamplerSrds        = &Device::Gfx10CreateSamplerSrds;
             break;
 
         default:
@@ -172,7 +186,8 @@ Device::Device(
     m_gbAddrConfig(m_pParent->ChipProperties().gfx9.gbAddrConfig),
     m_gfxIpLevel(pDevice->ChipProperties().gfxLevel)
 {
-    PAL_ASSERT(((GetGbAddrConfig().bits.NUM_PIPES - GetGbAddrConfig().bits.NUM_RB_PER_SE) < 2) );
+    PAL_ASSERT(((GetGbAddrConfig().bits.NUM_PIPES - GetGbAddrConfig().bits.NUM_RB_PER_SE) < 2) ||
+               IsGfx10(m_gfxIpLevel));
 
     for (uint32  shaderStage = 0; shaderStage < HwShaderStage::Last; shaderStage++)
     {
@@ -229,6 +244,10 @@ Result Device::EarlyInit()
     {
         m_pRsrcProcMgr = PAL_PLACEMENT_NEW(pRpmPlacementAddr) Pal::Gfx9::Gfx9RsrcProcMgr(this);
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        m_pRsrcProcMgr = PAL_PLACEMENT_NEW(pRpmPlacementAddr) Pal::Gfx9::Gfx10RsrcProcMgr(this);
+    }
     else
     {
         // No RPM, you're not going to get very far...
@@ -254,6 +273,7 @@ void Device::SetupWorkarounds()
     const auto& gfx9Props = m_pParent->ChipProperties().gfx9;
     // The LBPW feature uses a fixed late alloc VS limit based off of the available CUs.
     if (gfx9Props.lbpwEnabled
+        || IsGfx10(*m_pParent)
         )
     {
         m_useFixedLateAllocVsLimit = true;
@@ -267,6 +287,12 @@ void Device::SetupWorkarounds()
             {
                 // Use a fixed value for the late alloc VS limit based on the number of available CUs
                 // on the GPU. The computation is late_alloc_waves = 4 * (Available_CUs - 1)
+                m_lateAllocVsLimit = 4 * (gfx9Props.numCuPerSh - 1);
+            }
+            else
+            {
+                PAL_ASSERT(IsGfx10(*m_pParent));
+                // On Gfx10, a limit of 4 * (NumCUs/SA - 1) has been found to be optimal
                 m_lateAllocVsLimit = 4 * (gfx9Props.numCuPerSh - 1);
             }
         }
@@ -284,6 +310,12 @@ void Device::SetupWorkarounds()
         m_waEnableDccCacheFlushAndInvalidate = true;
 
         m_waTcCompatZRange = true;
+    }
+    else if (IsGfx10(*m_pParent))
+    {
+        m_waEnableDccCacheFlushAndInvalidate = true;
+
+        // m_waTcCompatZRange is no longer needed. SEE http://ontrack-internal.amd.com/browse/DEGGIGXX0-1647
     }
 }
 
@@ -572,6 +604,13 @@ Result Device::CreateEngine(
     case EngineTypeExclusiveCompute:
         pEngine = PAL_NEW(ComputeEngine, GetPlatform(), AllocInternal)(this, engineType, engineIndex);
         break;
+    case EngineTypeDma:
+        // Gfx10 has the DMA engine on the GFX level, not the OSS level
+        if (IsGfx10(m_gfxIpLevel))
+        {
+            pEngine = PAL_NEW(Engine, GetPlatform(), AllocInternal)(*Parent(), engineType, engineIndex);
+        }
+        break;
     default:
         // What is this?
         PAL_ASSERT_ALWAYS();
@@ -621,6 +660,11 @@ Result Device::CreateDummyCommandStream(
         pCmdStream->Begin(beginFlags, nullptr);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        if (engineType == EngineTypeDma)
+        {
+            pCmdSpace = DmaCmdBuffer::BuildNops(pCmdSpace, pCmdStream->GetSizeAlignDwords());
+        }
+        else
         {
             pCmdSpace += m_cmdUtil.BuildNop(CmdUtil::MinNopSizeInDwords, pCmdSpace);
         }
@@ -659,6 +703,11 @@ size_t Device::GetQueueContextSize(
         break;
     case QueueTypeUniversal:
         size = sizeof(UniversalQueueContext);
+        break;
+    case QueueTypeDma:
+        PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+
+        size = sizeof(QueueContext);
         break;
     default:
         break;
@@ -718,6 +767,14 @@ Result Device::CreateQueueContext(
                 pContext->Destroy();
             }
         }
+        break;
+    case QueueTypeDma:
+        // Only GFX10 implements the DMA queue on the GFX engine.
+        PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+
+        (*ppQueueContext) = PAL_PLACEMENT_NEW(pPlacementAddr) QueueContext(Parent());
+
+        result = Result::Success;
         break;
     default:
         result = Result::ErrorUnavailable;
@@ -839,6 +896,55 @@ bool Device::DetermineHwStereoRenderingSupported(
                 {
                     hwStereoRenderingSupported = false;
                 }
+            }
+        }
+        else
+        {
+            hwStereoRenderingSupported = true;
+
+            // The bits number of RT_SLICE in GE_STEREO_CNTL
+            constexpr uint32 LeftEyeSliceIdBits      = 3;
+
+            // The bits number of RT_SLICE_OFFSET in PA_STEREO_CNTL.
+            constexpr uint32 RightEyeSliceOffsetBits = 4;
+
+            if (viewInstancingInfo.shaderUseViewId)
+            {
+                // TODO: Hardware can also supports the case that view id is only used by VS/GS/DS to export
+                // position, but this requires SC changes to add semantic for view id and
+                // export second position in sp3 codes.
+                hwStereoRenderingSupported = false;
+            }
+            else if (viewInstancingInfo.pViewInstancingDesc->viewportArrayIdx[0] >
+                     viewInstancingInfo.pViewInstancingDesc->viewportArrayIdx[1])
+            {
+                hwStereoRenderingSupported = false;
+            }
+            else if (viewInstancingInfo.pViewInstancingDesc->renderTargetArrayIdx[0] >=
+                     (1 << LeftEyeSliceIdBits))
+            {
+                hwStereoRenderingSupported = false;
+            }
+            else if (viewInstancingInfo.pViewInstancingDesc->renderTargetArrayIdx[0] >
+                     viewInstancingInfo.pViewInstancingDesc->renderTargetArrayIdx[1])
+            {
+                hwStereoRenderingSupported = false;
+            }
+            else if ((viewInstancingInfo.pViewInstancingDesc->renderTargetArrayIdx[1] -
+                      viewInstancingInfo.pViewInstancingDesc->renderTargetArrayIdx[0]) >=
+                     (1 << RightEyeSliceOffsetBits))
+            {
+                hwStereoRenderingSupported = false;
+            }
+            else if ((viewInstancingInfo.gsExportViewportArrayIndex != 0) &&
+                     (viewInstancingInfo.pViewInstancingDesc->viewportArrayIdx[0] != 0))
+            {
+                hwStereoRenderingSupported = false;
+            }
+            else if ((viewInstancingInfo.gsExportRendertargetArrayIndex != 0) &&
+                     (viewInstancingInfo.pViewInstancingDesc->renderTargetArrayIdx[0] != 0))
+            {
+                hwStereoRenderingSupported = false;
             }
         }
     }
@@ -1200,6 +1306,10 @@ size_t Device::GetCmdBufferSize(
     {
         cmdBufferSize = UniversalCmdBuffer::GetSize(*this);
     }
+    else if (IsGfx10(m_gfxIpLevel) && (createInfo.queueType == QueueTypeDma))
+    {
+        cmdBufferSize = DmaCmdBuffer::GetSize(*this);
+    }
 
     return cmdBufferSize;
 }
@@ -1223,6 +1333,13 @@ Result Device::CreateCmdBuffer(
         result = Result::Success;
 
         *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) UniversalCmdBuffer(*this, createInfo);
+    }
+    else if ((createInfo.queueType == QueueTypeDma) && IsGfx10(m_gfxIpLevel))
+    {
+        result = Result::Success;
+
+        // As of GFX10, DMA operations have become part of the graphics engine...
+        *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) DmaCmdBuffer(*this, createInfo);
     }
 
     return result;
@@ -1270,6 +1387,11 @@ size_t Device::GetColorTargetViewSize(
 
     size_t  viewSize = sizeof(Gfx9ColorTargetView);
 
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        viewSize = sizeof(Gfx10ColorTargetView);
+    }
+
     return viewSize;
 }
 
@@ -1285,6 +1407,10 @@ Result Device::CreateColorTargetView(
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
         (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx9ColorTargetView(this, createInfo, internalInfo);
+    }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx10ColorTargetView(this, createInfo, internalInfo);
     }
 
     return Result::Success;
@@ -1302,6 +1428,11 @@ size_t Device::GetDepthStencilViewSize(
 
     size_t  viewSize = sizeof(Gfx9DepthStencilView);
 
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        viewSize = sizeof(Gfx10DepthStencilView);
+    }
+
     return viewSize;
 }
 
@@ -1317,6 +1448,10 @@ Result Device::CreateDepthStencilView(
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
         (*ppDepthStencilView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx9DepthStencilView(this, createInfo, internalInfo);
+    }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        (*ppDepthStencilView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx10DepthStencilView(this, createInfo, internalInfo);
     }
     else
     {
@@ -1728,6 +1863,56 @@ void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
 }
 
 // =====================================================================================================================
+// Gfx10 specific function for creating typed buffer view SRDs.
+void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
+    const IDevice*        pDevice,
+    uint32                count,
+    const BufferViewInfo* pBufferViewInfo,
+    void*                 pOut)
+{
+    PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
+    const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
+    const auto*const pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
+    const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(pPalDevice->ChipProperties().gfxLevel);
+
+    for (uint32 idx = 0; idx < count; ++idx)
+    {
+        const auto& view = pBufferViewInfo[idx];
+        PAL_ASSERT(view.gpuAddr != 0);
+        PAL_ASSERT((view.stride == 0) || ((view.gpuAddr % Min<gpusize>(sizeof(uint32), view.stride)) == 0));
+
+        BufferSrd       srd  = { };
+        sq_buf_rsrc_t*  pSrd = &srd.gfx10;
+
+        pSrd->base_address = view.gpuAddr;
+        pSrd->stride       = view.stride;
+        pSrd->num_records  = pGfxDevice->CalcNumRecords(static_cast<size_t>(view.range),
+                                                        pSrd->stride);
+        pSrd->type         = SQ_RSRC_BUF;
+
+        PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format) == false);
+        PAL_ASSERT(Formats::BytesPerPixel(view.swizzledFormat.format) == view.stride);
+
+        pSrd->dst_sel_x = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.r);
+        pSrd->dst_sel_y = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.g);
+        pSrd->dst_sel_z = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.b);
+        pSrd->dst_sel_w = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.a);
+        pSrd->format    = Formats::Gfx9::HwBufFmt(pFmtInfo, view.swizzledFormat.format);
+
+        // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
+        PAL_ASSERT(pSrd->format != BUF_FMT_INVALID);
+
+        // This means "(index >= NumRecords)" is out-of-bounds.
+        pSrd->oob_select = SQ_OOB_INDEX_ONLY;
+
+        pSrd->resource_level = 1;
+
+        memcpy(pOut, pSrd, sizeof(BufferSrd));
+        pOut = VoidPtrInc(pOut, sizeof(BufferSrd));
+    }
+}
+
+// =====================================================================================================================
 // Gfx9 specific function for creating untyped buffer view SRDs.
 void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
     const IDevice*        pDevice,
@@ -1772,6 +1957,60 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
         }
 
         pOutSrd++;
+    }
+}
+
+// =====================================================================================================================
+// Gfx10 specific function for creating untyped buffer view SRDs.
+void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
+    const IDevice*        pDevice,
+    uint32                count,
+    const BufferViewInfo* pBufferViewInfo,
+    void*                 pOut)
+{
+    PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
+    const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
+
+    for (uint32 idx = 0; idx < count; ++idx)
+    {
+        const auto& view = pBufferViewInfo[idx];
+        PAL_ASSERT((view.gpuAddr != 0) || ((view.range == 0) && (view.stride == 0)));
+
+        BufferSrd       bufferSrd = { };
+        sq_buf_rsrc_t*  pSrd      = &bufferSrd.gfx10;
+
+        pSrd->base_address  = view.gpuAddr;
+        pSrd->stride        = view.stride;
+        pSrd->num_records   = pGfxDevice->CalcNumRecords(static_cast<size_t>(view.range),
+                                                         pSrd->stride);
+        if (view.gpuAddr != 0)
+        {
+            pSrd->type          = SQ_RSRC_BUF;
+
+            PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format));
+
+            pSrd->dst_sel_x = SQ_SEL_X;
+            pSrd->dst_sel_y = SQ_SEL_Y;
+            pSrd->dst_sel_z = SQ_SEL_Z;
+            pSrd->dst_sel_w = SQ_SEL_W;
+            pSrd->format    = BUF_FMT_32_UINT;
+
+            if ((pSrd->stride == 1) || (pSrd->stride == 0))
+            {
+                // Raw buffer.  This means "offset >= NumRecords" is out-of-bounds.
+                pSrd->oob_select = SQ_OOB_COMPLETE;
+            }
+            else
+            {
+                // Structured buffer.  This means "(index >= NumRecords)" is out-of-bounds.
+                pSrd->oob_select = SQ_OOB_INDEX_ONLY;
+            }
+
+            pSrd->resource_level = 1;
+        }
+
+        memcpy(pOut, pSrd, sizeof(BufferSrd));
+        pOut = VoidPtrInc(pOut, sizeof(BufferSrd));
     }
 }
 
@@ -1901,6 +2140,28 @@ static bool IsGfx9ImageFormatWorkaroundNeeded(
 }
 
 // =====================================================================================================================
+// This function checks to see if an override is needed for the image format in gfx10. In gfx10, YUV422 formats were
+// changed in TC hardware to use 32bpp memory addressing instead of 16bpp in Vega HW. The Gfx10 HW scales the SRD width
+// and x-coordinate accordingly for these formats. Using 32bpp was the intended behavior in Vega also. It's a bug that
+// TC uses 16bpp in Vega.
+static bool IsGfx10ImageFormatOverrideNeeded(
+    const ImageCreateInfo& imageCreateInfo,
+    ChNumFormat*           pFormat,
+    uint32*                pPixelsPerBlock)
+{
+    bool isOverrideNeeded = false;
+
+    if (Formats::IsMacroPixelPacked(*pFormat))
+    {
+        isOverrideNeeded = true;
+        *pFormat         = Pal::ChNumFormat::X32_Uint;
+        *pPixelsPerBlock = 2;
+    }
+
+    return isOverrideNeeded;
+}
+
+// =====================================================================================================================
 // Checks if an image format override is needed.
 bool Device::IsImageFormatOverrideNeeded(
     const ImageCreateInfo& imageCreateInfo,
@@ -1908,7 +2169,9 @@ bool Device::IsImageFormatOverrideNeeded(
     uint32*                pPixelsPerBlock
     ) const
 {
-    return (IsGfx9ImageFormatWorkaroundNeeded(imageCreateInfo, pFormat, pPixelsPerBlock));
+    return IsGfx10(m_gfxIpLevel) ?
+        IsGfx10ImageFormatOverrideNeeded(imageCreateInfo, pFormat, pPixelsPerBlock) :
+        IsGfx9ImageFormatWorkaroundNeeded(imageCreateInfo, pFormat, pPixelsPerBlock);
 }
 
 // =====================================================================================================================
@@ -2408,6 +2671,420 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 }
 
 // =====================================================================================================================
+static void Gfx10SetImageSrdWidth(
+    sq_img_rsrc_t*  pSrd,
+    uint32          width)
+{
+    constexpr uint32  WidthLowSize = 2;
+
+    pSrd->width_lo = (width - 1) & ((1 << WidthLowSize) - 1);
+    pSrd->width_hi = (width - 1) >> WidthLowSize;
+}
+
+// =====================================================================================================================
+void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
+    const IDevice*       pDevice,
+    uint32               count,
+    const ImageViewInfo* pImgViewInfo,
+    void*                pOut)
+{
+    PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pImgViewInfo != nullptr) && (count > 0));
+    const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
+    const auto*const pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
+    const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(pPalDevice->ChipProperties().gfxLevel);
+    const auto&      settings   = GetGfx9Settings(*pPalDevice);
+
+    ImageSrd* pSrds = static_cast<ImageSrd*>(pOut);
+
+    for (uint32 i = 0; i < count; ++i)
+    {
+        const ImageViewInfo&   viewInfo        = pImgViewInfo[i];
+        const Image&           image           = *GetGfx9Image(viewInfo.pImage);
+        const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
+        const ImageInfo&       imageInfo       = pParent->GetImageInfo();
+        const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
+        const bool             imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
+        const bool             imgIsYuvPlanar  = Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format);
+        const auto             gfxLevel        = pPalDevice->ChipProperties().gfxLevel;
+        sq_img_rsrc_t          srd             = {};
+        const auto&            boundMem        = pParent->GetBoundGpuMemory();
+        ChNumFormat            format          = viewInfo.swizzledFormat.format;
+
+        SubresId     baseSubResId   = { viewInfo.subresRange.startSubres.aspect, 0, 0 };
+        uint32       baseArraySlice = viewInfo.subresRange.startSubres.arraySlice;
+        uint32       firstMipLevel  = viewInfo.subresRange.startSubres.mipLevel;
+        uint32       mipLevels      = imageCreateInfo.mipLevels;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+        PAL_ASSERT((viewInfo.possibleLayouts.engines != 0) && (viewInfo.possibleLayouts.usages != 0));
+#endif
+
+        if ((viewInfo.flags.zRangeValid == 1) && (imageCreateInfo.imageType == ImageType::Tex3d))
+        {
+            baseArraySlice = viewInfo.zRange.offset;
+        }
+        else if (imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1))
+        {
+            baseSubResId.arraySlice = baseArraySlice;
+            baseArraySlice = 0;
+        }
+
+        bool  includePadding                    = (viewInfo.flags.includePadding != 0);
+        const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(baseSubResId);
+        const auto&                 surfSetting = image.GetAddrSettings(pSubResInfo);
+
+        // Validate subresource ranges
+        const SubResourceInfo*const pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
+
+        Extent3d extent       = pBaseSubResInfo->extentTexels;
+        Extent3d actualExtent = pBaseSubResInfo->actualExtentTexels;
+
+        // The view should be in terms of texels except in four special cases when we're operating in terms of elements:
+        // 1. Viewing a compressed image in terms of blocks. For BC images elements are blocks, so if the caller gave
+        //    us an uncompressed view format we assume they want to view blocks.
+        // 2. Copying to an "expanded" format (e.g., R32G32B32). In this case we can't do native format writes so we're
+        //    going to write each element independently. The trigger for this case is a mismatched bpp.
+        // 3. Viewing a YUV-packed image with a non-YUV-packed format when the view format is allowed for view formats
+        //    with twice the bpp. In this case, the effective width of the view is half that of the base image.
+        // 4. Viewing a YUV-planar Image which has multiple array slices. In this case, the texture hardware has no way
+        //    to know about the padding in between array slices of the same plane (due to the other plane's slices being
+        //    interleaved). In this case, we pad out the actual height of the view to span all planes (so that the view
+        //    can access each array slice).
+        //    This has the unfortunate side-effect of making normalized texture coordinates inaccurate.
+        //    However, this is required for access to multiple slices.
+        if (imgIsBc && (Formats::IsBlockCompressed(format) == false))
+        {
+            // If we have the following image:
+            //              Uncompressed pixels   Compressed block sizes (4x4)
+            //      mip0:       22 x 22                   6 x 6
+            //      mip1:       11 x 11                   3 x 3
+            //      mip2:        5 x  5                   2 x 2
+            //      mip3:        2 x  2                   1 x 1
+            //      mip4:        1 x  1                   1 x 1
+            //
+            // On GFX10 the SRD is always programmed with the WIDTH and HEIGHT of the base level and the HW is
+            // calculating the degradation of the block sizes down the mip-chain as follows (straight-up
+            // divide-by-two integer math):
+            //      mip0:  6x6
+            //      mip1:  3x3
+            //      mip2:  1x1
+            //      mip3:  1x1
+            //
+            // This means that mip2 will be missing texels.
+            //
+            // Fix this by calculating the start mip's ceil(texels/blocks) width and height and then go up the chain
+            // to pad the base mip's width and height to account for this.  A result lower than the base mip's
+            // indicates a non-power-of-two texture, and the result should be clamped to its extentElements.
+            // Otherwise, if the mip is aligned to block multiples, the result will be equal to extentElements.  If
+            // there is no suitable width or height, the actualExtentElements is chosen.  The application is in
+            // charge of making sure the math works out properly if they do this (allowed by Vulkan), otherwise we
+            // assume it's an internal view and the copy shaders will prevent accessing out-of-bounds pixels.
+            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.aspect, firstMipLevel, 0 };
+            const SubResourceInfo* pMipSubResInfo = pParent->SubresourceInfo(mipSubResId);
+
+            extent.width  = Util::Clamp((pMipSubResInfo->extentElements.width  << firstMipLevel),
+                                        pBaseSubResInfo->extentElements.width,
+                                        pBaseSubResInfo->actualExtentElements.width);
+            extent.height = Util::Clamp((pMipSubResInfo->extentElements.height << firstMipLevel),
+                                        pBaseSubResInfo->extentElements.height,
+                                        pBaseSubResInfo->actualExtentElements.height);
+
+            actualExtent = pBaseSubResInfo->actualExtentElements;
+        }
+        else if (pBaseSubResInfo->bitsPerTexel != Formats::BitsPerPixel(format))
+        {
+            // The mismatched bpp checked is intended to catch the 2nd scenario in the above comment. However, YUV422
+            // format also hit this. For YUV422 case, we need to apply widthScaleFactor to extent and acutalExtent.
+            uint32 widthScaleFactor = 1;
+            ChNumFormat imageFormat = imageCreateInfo.swizzledFormat.format;
+
+            if (IsGfx10ImageFormatOverrideNeeded(imageCreateInfo, &imageFormat, &widthScaleFactor))
+            {
+                extent.width       /= widthScaleFactor;
+                actualExtent.width /= widthScaleFactor;
+            }
+            else
+            {
+                extent       = pBaseSubResInfo->extentElements;
+                actualExtent = pBaseSubResInfo->actualExtentElements;
+            }
+
+            // When there is mismatched bpp and more than 1 mipLevels, it's possible to have missing texels like it
+            // is to block compressed format. To compensate that, we set includePadding to true.
+            includePadding = true;
+        }
+        else if (Formats::IsYuvPacked(pBaseSubResInfo->format.format) &&
+                 (Formats::IsYuvPacked(format) == false)              &&
+                 ((pBaseSubResInfo->bitsPerTexel << 1) == Formats::BitsPerPixel(format)))
+        {
+            // Changing how we interpret the bits-per-pixel of the subresource wreaks havoc with any tile swizzle
+            // pattern used. This will only work for linear-tiled Images.
+            PAL_ASSERT(image.IsSubResourceLinear(baseSubResId));
+
+            extent.width       >>= 1;
+            actualExtent.width >>= 1;
+        }
+        else if (Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format))
+        {
+            if (viewInfo.subresRange.numSlices > 1)
+            {
+                image.PadYuvPlanarViewActualExtent(baseSubResId, &actualExtent);
+                includePadding     = true;
+                // Sampling using this view will not work correctly, but direct image loads will work.
+                // This path is only expected to be used by RPM operations.
+                PAL_ALERT_ALWAYS();
+            }
+            else
+            {
+                // We must use base slice 0 for correct normalized coordinates on a YUV planar surface.
+                PAL_ASSERT(baseArraySlice == 0);
+            }
+        }
+
+        constexpr uint32 Gfx9MinLodIntBits  = 4;
+        constexpr uint32 Gfx9MinLodFracBits = 8;
+
+        // MIN_LOD field is unsigned
+        srd.min_lod = Math::FloatToUFixed(viewInfo.minLod, Gfx9MinLodIntBits, Gfx9MinLodFracBits, true);
+        srd.format  = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
+
+        // GFX10 does not support native 24-bit surfaces...  Clients promote 24-bit depth surfaces to 32-bit depth on
+        // image creation.  However, they can request that border color data be clamped appropriately for the original
+        // 24-bit depth.  Don't check for explicit depth surfaces here, as that only pertains to bound depth surfaces,
+        // not to purely texture surfaces.
+        //
+        if ((imageCreateInfo.usageFlags.depthAsZ24 != 0) &&
+            (Formats::ShareChFmt(format, ChNumFormat::X32_Uint)))
+        {
+            // This special format indicates to HW that this is a promoted 24-bit surface, so sample_c and border color
+            // can be treated differently.
+            srd.format = IMG_FMT_32_FLOAT_CLAMP;
+        }
+
+        const Extent3d programmedExtent = (includePadding) ? actualExtent : extent;
+        Gfx10SetImageSrdWidth(&srd, programmedExtent.width);
+        srd.height   = (programmedExtent.height - 1);
+
+        // Setup CCC filtering optimizations: GCN uses a simple scheme which relies solely on the optimization
+        // setting from the CCC rather than checking the render target resolution.
+        static_assert(TextureFilterOptimizationsDisabled   == 0, "TextureOptLevel lookup table mismatch");
+        static_assert(TextureFilterOptimizationsEnabled    == 1, "TextureOptLevel lookup table mismatch");
+        static_assert(TextureFilterOptimizationsAggressive == 2, "TextureOptLevel lookup table mismatch");
+
+        constexpr TexPerfModulation PanelToTexPerfMod[] =
+        {
+            TexPerfModulation::None,     // TextureFilterOptimizationsDisabled
+            TexPerfModulation::Default,  // TextureFilterOptimizationsEnabled
+            TexPerfModulation::Max       // TextureFilterOptimizationsAggressive
+        };
+
+        PAL_ASSERT(viewInfo.texOptLevel < ImageTexOptLevel::Count);
+
+        uint32 texOptLevel;
+        switch (viewInfo.texOptLevel)
+        {
+        case ImageTexOptLevel::Disabled:
+            texOptLevel = TextureFilterOptimizationsDisabled;
+            break;
+        case ImageTexOptLevel::Enabled:
+            texOptLevel = TextureFilterOptimizationsEnabled;
+            break;
+        case ImageTexOptLevel::Maximum:
+            texOptLevel = TextureFilterOptimizationsAggressive;
+            break;
+        case ImageTexOptLevel::Default:
+        default:
+            texOptLevel = static_cast<const Pal::Device*>(pDevice)->Settings().textureOptLevel;
+            break;
+        }
+
+        PAL_ASSERT(texOptLevel < ArrayLen(PanelToTexPerfMod));
+
+        TexPerfModulation perfMod = PanelToTexPerfMod[texOptLevel];
+
+        srd.perf_mod = static_cast<uint32>(perfMod);
+
+        // Destination swizzles come from the view creation info, rather than the format of the view.
+        srd.dst_sel_x = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.r);
+        srd.dst_sel_y = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.g);
+        srd.dst_sel_z = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.b);
+        srd.dst_sel_w = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.a);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446
+        // When view3dAs2dArray is enabled for 3d image, we'll use the same mode for writing and viewing
+        // according to the doc, so we don't need to change it here.
+#endif
+        srd.sw_mode   = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
+
+        const bool isMultiSampled = (imageCreateInfo.samples > 1);
+
+        // NOTE: Where possible, we always assume an array view type because we don't know how the shader will
+        // attempt to access the resource.
+        const ImageViewType  viewType = GetViewType(viewInfo);
+        switch (viewType)
+        {
+        case ImageViewType::Tex1d:
+            srd.type = SQ_RSRC_IMG_1D_ARRAY;
+            break;
+        case ImageViewType::Tex2d:
+        case ImageViewType::TexQuilt: // quilted textures must be 2D
+            srd.type = (isMultiSampled) ? SQ_RSRC_IMG_2D_MSAA_ARRAY : SQ_RSRC_IMG_2D_ARRAY;
+            break;
+        case ImageViewType::Tex3d:
+            srd.type = SQ_RSRC_IMG_3D;
+            break;
+        case ImageViewType::TexCube:
+            srd.type = SQ_RSRC_IMG_CUBE;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+
+        if (isMultiSampled)
+        {
+            // MSAA textures cannot be mipmapped; the LAST_LEVEL and MAX_MIP fields indicate the texture's
+            // sample count.  According to the docs, these are samples.  According to reality, this is
+            // fragments.  I'm going with reality.
+            srd.base_level = 0;
+            srd.last_level = Log2(imageCreateInfo.fragments);
+            srd.max_mip    = Log2(imageCreateInfo.fragments);
+        }
+        else
+        {
+            srd.base_level = firstMipLevel;
+            srd.last_level = firstMipLevel + viewInfo.subresRange.numMips - 1;
+            srd.max_mip    = mipLevels - 1;
+        }
+
+        srd.depth      = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
+        srd.bc_swizzle = GetBcSwizzle(viewInfo);
+
+        //   The array_pitch resource field is defined so that setting it to zero disables quilting and behavior
+        //   reverts back to a texture array
+        uint32  arrayPitch = 0;
+        if (viewInfo.viewType == ImageViewType::TexQuilt)
+        {
+            PAL_ASSERT(isMultiSampled == false); // quilted images must be single sampled
+            PAL_ASSERT(IsPowerOfTwo(viewInfo.quiltWidthInSlices));
+
+            //    Encoded as trunc(log2(# horizontal  slices)) + 1
+            arrayPitch = Log2(viewInfo.quiltWidthInSlices) + 1;
+        }
+
+        srd.base_array        = baseArraySlice;
+        srd.array_pitch       = arrayPitch;
+        srd.meta_pipe_aligned = Gfx9MaskRam::IsPipeAligned(&image);
+        srd.iterate_256       = image.GetIterate256(pSubResInfo);
+        srd.corner_samples    = imageCreateInfo.usageFlags.cornerSampling;
+
+        // Depth images obviously don't have an alpha component, so don't bother...
+        if ((pParent->IsDepthStencil() == false) && pBaseSubResInfo->flags.supportMetaDataTexFetch)
+        {
+            // The setup of the compression-related fields requires knowing the bound memory and the expected
+            // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
+            const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(viewInfo.swizzledFormat);
+
+            // If single-component color format such as COLOR_8/16/32
+            //    set AoMSB=1 when comp_swap=11
+            //    set AoMSB=0 when comp_swap=others
+            // Follow the legacy way of setting AoMSB for other color formats
+            if (Formats::NumComponents(viewInfo.swizzledFormat.format) == 1)
+            {
+                srd.alpha_is_on_msb = ((surfSwap == SWAP_ALT_REV) ? 1 : 0);
+            }
+            else if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
+            {
+                srd.alpha_is_on_msb = 1;
+            }
+        }
+
+        if (boundMem.IsBound())
+        {
+
+            if (imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1))
+            {
+                gpusize gpuVirtAddress = pParent->GetSubresourceBaseAddr(baseSubResId);
+                srd.base_address = gpuVirtAddress >> 8;
+            }
+            else
+            {
+                srd.base_address = image.GetSubresource256BAddrSwizzled(baseSubResId);
+            }
+
+            if (pBaseSubResInfo->flags.supportMetaDataTexFetch)
+            {
+                srd.compression_en = 1;
+
+                if (image.Parent()->IsDepthStencil())
+                {
+                    // compressed DS writes haven't been tested
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+                    PAL_ASSERT(TestAnyFlagSet(viewInfo.possibleLayouts.usages,
+                                              LayoutShaderWrite | LayoutCopyDst) == false);
+#else
+                    PAL_ASSERT(viewInfo.flags.shaderWritable == false);
+#endif
+                    srd.meta_data_address = image.GetHtile256BAddr();
+                }
+                else
+                {
+                    const auto& dccControl = image.GetDcc()->GetControlReg();
+
+                    // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
+                    // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
+                    // requires enabling an extension and use of an fMask image view.
+                    srd.meta_data_address = image.GetDcc256BAddr();
+
+                    srd.max_compressed_block_size   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
+                    srd.max_uncompressed_block_size = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
+
+                    // In GFX10, there is a feature called compress-to-constant which automatically enocde A0/1 C0/1
+                    // in DCC key if it detected the whole 256Byte of data are all 0s or 1s for both alpha channel and
+                    // color channel. However, this does not work well with format replacement in PAL. When a format
+                    // changes from with-alpha-format to without-alpha-format, HW may incorrectly encode DCC key if
+                    // compress-to-constant is triggered. In PAL, format is only replaceable when DCC is in
+                    // decompressed state.  Therefore, we have the choice to not enable compressed write and simply
+                    // write the surface and allow it to stay in expanded state.
+                    // Additionally, HW will encode the DCC key in a manner that is incompatible with the application's
+                    // understanding of the surface if the format for the SRD differs from the surface's format.
+                    // If the format differs, we need to disable compressed writes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+                    if ((TestAnyFlagSet(viewInfo.possibleLayouts.usages,
+                                        LayoutShaderWrite | LayoutCopyDst | LayoutResolveDst)) &&
+                        (ImageLayoutToColorCompressionState(image.LayoutToColorCompressionState(),
+                                                            viewInfo.possibleLayouts) != ColorDecompressed) &&
+#else
+                    if ((viewInfo.flags.shaderWritable) &&
+#endif
+                        (memcmp(&viewInfo.swizzledFormat,
+                                &imageCreateInfo.swizzledFormat,
+                                sizeof(viewInfo.swizzledFormat)) == 0))
+                    {
+                        srd.color_transform       = dccControl.bits.COLOR_TRANSFORM;
+                        srd.write_compress_enable = 1;
+                    }
+                }
+            } // end check for image supporting meta-data tex fetches
+        }
+
+        srd.resource_level = 1;
+
+        // Fill the unused 4 bits of word6 with sample pattern index
+        srd._reserved_206_203 = viewInfo.samplePatternIdx;
+
+        if (IsGfx101Plus(*pPalDevice))
+        {
+            //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
+            //   Only used with image ops (sample/load)
+            srd.gfx101Plus.prt_default = 0;
+        }
+
+        memcpy(&pSrds[i], &srd, sizeof(srd));
+    }
+}
+
+// =====================================================================================================================
 // Gfx9+ specific function for creating fmask view SRDs. Installed in the function pointer table of the parent device
 // during initialization.
 void PAL_STDCALL Device::CreateFmaskViewSrds(
@@ -2500,6 +3177,82 @@ void Device::Gfx9CreateFmaskViewSrdsInternal(
 }
 
 // =====================================================================================================================
+// GFX10-specific function to create an fmask-specific SRD.  If internal info is not required pFmaskViewInternalInfo
+// can be set to null, otherwise it must be a pointer to a valid internal-info structure.
+void Device::Gfx10CreateFmaskViewSrdsInternal(
+    const FmaskViewInfo&          viewInfo,
+    const FmaskViewInternalInfo*  pFmaskViewInternalInfo,
+    sq_img_rsrc_t*                pSrd
+    ) const
+{
+    const bool             hasInternalInfo = (pFmaskViewInternalInfo != nullptr);
+    const SubresId         slice0Id        = { ImageAspect::Fmask, 0, 0 };
+    const Image&           image           = *GetGfx9Image(viewInfo.pImage);
+    const Gfx9Fmask*const  pFmask          = image.GetFmask();
+    const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
+    const ImageCreateInfo& createInfo      = pParent->GetImageCreateInfo();
+    const bool             isUav           = (hasInternalInfo && (pFmaskViewInternalInfo->flags.fmaskAsUav == 1));
+    const SubResourceInfo& subresInfo      = *pParent->SubresourceInfo(slice0Id);
+    const auto*            pAddrOutput     = image.GetAddrOutput(&subresInfo);
+    const Gfx9Fmask&       fmask           = *image.GetFmask();
+    const auto&            fMaskAddrOut    = fmask.GetAddrOutput();
+
+    PAL_ASSERT(createInfo.extent.depth == 1);
+    PAL_ASSERT(image.HasFmaskData());
+
+    // For Fmask views, the format is based on the sample and fragment counts.
+    pSrd->format  = fmask.Gfx10FmaskFormat(createInfo.samples, createInfo.fragments, isUav);
+    pSrd->min_lod = 0;
+
+    Gfx10SetImageSrdWidth(pSrd, subresInfo.extentTexels.width);
+    pSrd->height   = (subresInfo.extentTexels.height - 1);
+    pSrd->perf_mod = 0;
+
+    // For Fmask views, destination swizzles are based on the bit depth of the Fmask buffer.
+    pSrd->dst_sel_x    = SQ_SEL_X;
+    pSrd->dst_sel_y    = (fMaskAddrOut.bpp == 64) ? SQ_SEL_Y : SQ_SEL_0;
+    pSrd->dst_sel_z    = SQ_SEL_0;
+    pSrd->dst_sel_w    = SQ_SEL_0;
+    // Program "type" based on the image's physical dimensions, not the dimensions of the view
+    pSrd->type         = ((createInfo.arraySize > 1) ? SQ_RSRC_IMG_2D_ARRAY : SQ_RSRC_IMG_2D);
+    pSrd->base_level   = 0;
+    pSrd->last_level   = 0;
+    pSrd->sw_mode      = AddrMgr2::GetHwSwizzleMode(pFmask->GetSwizzleMode());
+
+    // On GFX10, "depth" replaces the deprecated "last_array" from pre-GFX9 ASICs.
+    pSrd->depth = (viewInfo.baseArraySlice + viewInfo.arraySize - 1);
+
+    pSrd->base_array        = viewInfo.baseArraySlice;
+    pSrd->meta_pipe_aligned = Gfx9MaskRam::IsPipeAligned(&image);
+    pSrd->max_mip           = 0;
+
+    pSrd->resource_level = 1;
+
+    if (image.Parent()->GetBoundGpuMemory().IsBound())
+    {
+        // Need to grab the most up-to-date GPU virtual address for the underlying FMask object.
+        pSrd->base_address = image.GetFmask256BAddr();
+
+        // Does this image has an associated FMask which is shader Readable? if FMask needs to be
+        // read in the shader CMask has to be read as FMask meta data
+        if ((image.IsComprFmaskShaderReadable(slice0Id)) &&
+            // The "isUav" flag is basically used to indicate that RPM is going to write into the fMask surface by
+            // itself.  If "compression_en=1", then the HW will try to update the cMask memory to "uncompressed
+            // state", which is NOT what we want.  We want fmask updated and cmask left alone:
+            (isUav == false))
+        {
+            // Does this image has an associated FMask which is shader Readable? if FMask needs to be
+            // read in the shader CMask has to be read as FMask meta data
+            pSrd->compression_en = 1;
+
+            // For fMask,the meta-surface is cMask.
+            pSrd->meta_data_address = image.GetCmask256BAddr();
+        }
+    }
+
+}
+
+// =====================================================================================================================
 // Creates 'count' fmask view SRDs. If internal info is not required pFmaskViewInternalInfo can be set to null,
 // otherwise it must be an array of 'count' internal info structures.
 void Device::CreateFmaskViewSrdsInternal(
@@ -2527,6 +3280,10 @@ void Device::CreateFmaskViewSrdsInternal(
             if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
             {
                 Gfx9CreateFmaskViewSrdsInternal(viewInfo, pInternalInfo, &srd.gfx9);
+            }
+            else if (IsGfx10(m_gfxIpLevel))
+            {
+                Gfx10CreateFmaskViewSrdsInternal(viewInfo, pInternalInfo, &srd.gfx10);
             }
             else
             {
@@ -2735,6 +3492,190 @@ void PAL_STDCALL Device::Gfx9CreateSamplerSrds(
 }
 
 // =====================================================================================================================
+// Gfx10 specific function for creating sampler SRDs. Installed in the function pointer table of the parent device
+// during initialization.
+void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
+    const IDevice*     pDevice,
+    uint32             count,
+    const SamplerInfo* pSamplerInfo,
+    void*              pOut)
+{
+    PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pSamplerInfo != nullptr) && (count > 0));
+    const Pal::Device*     pPalDevice = static_cast<const Pal::Device*>(pDevice);
+    const Device*          pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
+    const Gfx9PalSettings& settings   = GetGfx9Settings(*pPalDevice);
+    constexpr uint32       SamplerSrdSize = sizeof(SamplerSrd);
+
+    constexpr uint32 NumTemporarySamplerSrds                  = 32;
+    SamplerSrd       tempSamplerSrds[NumTemporarySamplerSrds] = {};
+    uint32           srdsBuilt                                = 0;
+
+    while (srdsBuilt < count)
+    {
+        void* pSrdOutput = VoidPtrInc(pOut, (srdsBuilt * SamplerSrdSize));
+        memset(&tempSamplerSrds[0], 0, sizeof(tempSamplerSrds));
+
+        uint32 currentSrdIdx = 0;
+        for (currentSrdIdx = 0;
+             ((currentSrdIdx < NumTemporarySamplerSrds) && (srdsBuilt < count));
+             currentSrdIdx++, srdsBuilt++)
+        {
+            const SamplerInfo* pInfo = &pSamplerInfo[srdsBuilt];
+            auto*              pSrd  = &tempSamplerSrds[currentSrdIdx].gfx10;
+
+            const SQ_TEX_ANISO_RATIO maxAnisoRatio = GetAnisoRatio(*pInfo);
+
+            pSrd->clamp_x            = GetAddressClamp(pInfo->addressU);
+            pSrd->clamp_y            = GetAddressClamp(pInfo->addressV);
+            pSrd->clamp_z            = GetAddressClamp(pInfo->addressW);
+            pSrd->max_aniso_ratio    = maxAnisoRatio;
+            pSrd->depth_compare_func = static_cast<uint32>(pInfo->compareFunc);
+            pSrd->force_unnormalized = pInfo->flags.unnormalizedCoords;
+            pSrd->trunc_coord        = pInfo->flags.truncateCoords;
+            pSrd->disable_cube_wrap  = (pInfo->flags.seamlessCubeMapFiltering == 1) ? 0 : 1;
+
+            constexpr uint32 Gfx10SamplerLodMinMaxIntBits  = 4;
+            constexpr uint32 Gfx10SamplerLodMinMaxFracBits = 8;
+            pSrd->min_lod = Math::FloatToUFixed(pInfo->minLod,
+                                                Gfx10SamplerLodMinMaxIntBits,
+                                                Gfx10SamplerLodMinMaxFracBits);
+            pSrd->max_lod = Math::FloatToUFixed(pInfo->maxLod,
+                                                Gfx10SamplerLodMinMaxIntBits,
+                                                Gfx10SamplerLodMinMaxFracBits);
+
+            constexpr uint32 Gfx10SamplerLodBiasIntBits  = 6;
+            constexpr uint32 Gfx10SamplerLodBiasFracBits = 8;
+
+            // Setup XY and Mip filters.  Encoding of the API enumerations is:  xxyyzzww, where:
+            //     ww : mag filter bits
+            //     zz : min filter bits
+            //     yy : z filter bits
+            //     xx : mip filter bits
+            pSrd->xy_mag_filter = static_cast<uint32>(pInfo->filter.magnification);
+            pSrd->xy_min_filter = static_cast<uint32>(pInfo->filter.minification);
+            pSrd->z_filter      = static_cast<uint32>(pInfo->filter.zFilter);
+            pSrd->mip_filter    = static_cast<uint32>(pInfo->filter.mipFilter);
+            pSrd->lod_bias      = Math::FloatToSFixed(pInfo->mipLodBias,
+                                                      Gfx10SamplerLodBiasIntBits,
+                                                      Gfx10SamplerLodBiasFracBits);
+            pSrd->blend_prt          = pInfo->flags.prtBlendZeroMode;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
+            pSrd->mip_point_preclamp = (pInfo->flags.dx9Mipclamping == 1) ? 0 : 1;
+#else
+            pSrd->mip_point_preclamp = 0;
+#endif
+
+            // Ensure useAnisoThreshold is only set when preciseAniso is disabled
+            PAL_ASSERT((pInfo->flags.preciseAniso == 0) ||
+                        ((pInfo->flags.preciseAniso == 1) && (pInfo->flags.useAnisoThreshold == 0)));
+
+            if (pInfo->flags.preciseAniso == 0)
+            {
+                // Setup filtering optimization levels: these will be modulated by the global filter
+                // optimization aggressiveness, which is controlled by the "TFQ" public setting.
+                // NOTE: Aggressiveness of optimizations is influenced by the max anisotropy level.
+                constexpr uint32 Gfx10PerfMipOffset = 6;
+
+                if (settings.samplerPerfMip)
+                {
+                    pSrd->perf_mip = settings.samplerPerfMip;
+                }
+                else if (pInfo->perfMip)
+                {
+                    pSrd->perf_mip = pInfo->perfMip;
+                }
+                else
+                {
+                    pSrd->perf_mip = (maxAnisoRatio + Gfx10PerfMipOffset);
+                }
+
+                constexpr uint32 Gfx10NumAnisoThresholdValues = 8;
+
+                if (pInfo->flags.useAnisoThreshold == 1)
+                {
+                    // ANISO_THRESHOLD is a 3 bit number representing adjustments of 0/8 through 7/8
+                    // so we quantize and clamp anisoThreshold into that range here.
+                    pSrd->aniso_threshold = Util::Clamp(static_cast<uint32>(
+                        static_cast<float>(Gfx10NumAnisoThresholdValues) * pInfo->anisoThreshold),
+                        0U, Gfx10NumAnisoThresholdValues - 1U);
+                }
+                else
+                {
+                    //  The code below does the following calculation.
+                    //  if maxAnisotropy < 4   ANISO_THRESHOLD = 0 (0.0 adjust)
+                    //  if maxAnisotropy < 16  ANISO_THRESHOLD = 1 (0.125 adjust)
+                    //  if maxAnisotropy == 16 ANISO_THRESHOLD = 2 (0.25 adjust)
+                    constexpr uint32 Gfx10AnisoRatioShift = 1;
+                    pSrd->aniso_threshold = (settings.samplerAnisoThreshold == 0)
+                                             ? (maxAnisoRatio >> Gfx10AnisoRatioShift)
+                                             : settings.samplerAnisoThreshold;
+                }
+
+                pSrd->aniso_bias   = (settings.samplerAnisoBias == 0) ? maxAnisoRatio : settings.samplerAnisoBias;
+                pSrd->lod_bias_sec = settings.samplerSecAnisoBias;
+            }
+
+            constexpr SQ_IMG_FILTER_TYPE  HwFilterMode[]=
+            {
+                SQ_IMG_FILTER_MODE_BLEND, // TexFilterMode::Blend
+                SQ_IMG_FILTER_MODE_MIN,   // TexFilterMode::Min
+                SQ_IMG_FILTER_MODE_MAX,   // TexFilterMode::Max
+            };
+
+            PAL_ASSERT (static_cast<uint32>(pInfo->filterMode) < (sizeof(HwFilterMode) / sizeof(SQ_IMG_FILTER_TYPE)));
+            pSrd->filter_mode = HwFilterMode[static_cast<uint32>(pInfo->filterMode)];
+
+            // The BORDER_COLOR_PTR field is only used by the HW for the SQ_TEX_BORDER_COLOR_REGISTER case
+            pSrd->border_color_ptr = 0;
+
+            // And setup the HW-supported border colors appropriately
+            switch (pInfo->borderColorType)
+            {
+            case BorderColorType::White:
+                pSrd->border_color_type = SQ_TEX_BORDER_COLOR_OPAQUE_WHITE;
+                break;
+            case BorderColorType::TransparentBlack:
+                pSrd->border_color_type = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
+                break;
+            case BorderColorType::OpaqueBlack:
+                pSrd->border_color_type = SQ_TEX_BORDER_COLOR_OPAQUE_BLACK;
+                break;
+            case BorderColorType::PaletteIndex:
+                pSrd->border_color_type = SQ_TEX_BORDER_COLOR_REGISTER;
+                pSrd->border_color_ptr  = pInfo->borderColorPaletteIndex;
+                break;
+            default:
+                PAL_ALERT_ALWAYS();
+                break;
+            }
+
+            // NOTE: The hardware fundamentally does not support multiple border color palettes for compute as the
+            //       register which controls the address of the palette is a config register.
+            //
+            //
+            //       In the event that this setting (disableBorderColorPaletteBinds) should be set to TRUE, we need to
+            //       make sure that any samplers created do not reference a border color palette and instead
+            //       just select transparent black.
+            if (settings.disableBorderColorPaletteBinds)
+            {
+                pSrd->border_color_type = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
+                pSrd->border_color_ptr  = 0;
+            }
+
+            // This allows the sampler to override anisotropic filtering when the resource view contains a single
+            // mipmap level.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448
+            pSrd->aniso_override = !pInfo->flags.disableSingleMipAnisoOverride;
+#else
+            pSrd->aniso_override = 1;
+#endif
+        }
+
+        memcpy(pSrdOutput, &tempSamplerSrds[0], (currentSrdIdx * sizeof(SamplerSrd)));
+    }
+}
+
+// =====================================================================================================================
 // Determines the GFXIP level of a GPU supported by the GFX9 hardware layer. The return value will be GfxIpLevel::None
 // if the GPU is unsupported by this HWL.
 // PAL relies on a specific set of functionality from the CP microcode, so the GPU is only supported if the microcode
@@ -2752,6 +3693,18 @@ GfxIpLevel DetermineIpLevel(
     case FAMILY_AI:
     case FAMILY_RV:
         level = GfxIpLevel::GfxIp9;
+        break;
+    // GFX10 GPU's (Navi family)
+    case FAMILY_NV:
+        if (AMDGPU_IS_NAVI10(familyId, eRevId)
+            )
+        {
+            level = GfxIpLevel::GfxIp10_1;
+        }
+        else
+        {
+            PAL_NOT_IMPLEMENTED_MSG("NV_FAMILY Revision %d unsupported", eRevId);
+        }
         break;
     default:
         PAL_ASSERT_ALWAYS();
@@ -2772,6 +3725,10 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
     {
     case GfxIpLevel::GfxIp9:
         pTable = &Gfx9MergedFormatPropertiesTable;
+        break;
+    case GfxIpLevel::GfxIp10_1:
+
+        pTable = &Gfx10MergedFormatPropertiesTable;
         break;
 
     default:
@@ -2848,11 +3805,34 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportDoubleRate16BitInstructions = 1;
 
     if (
+        IsGfx10(pInfo->gfxLevel) ||
         (cpUcodeVersion  >= UcodeVersionWithDumpOffsetSupport))
     {
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = 1;
     }
 
+    if (IsGfx10(pInfo->gfxLevel))
+    {
+        pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = 1;
+        pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx10UcodeVersionSetShRegOffset256B);
+        pInfo->gfx9.supportPostDepthCoverage         = 1;
+
+        pInfo->gfx9.numShaderArrays         = 2;
+        pInfo->gfx9.numSimdPerCu            = Gfx10NumSimdPerCu;
+        pInfo->gfx9.numWavesPerSimd         = Gfx10NumWavesPerSimd;
+        pInfo->gfx9.nativeWavefrontSize     = 32;
+        pInfo->gfx9.minWavefrontSize        = 32;
+        pInfo->gfx9.maxWavefrontSize        = 64;
+        pInfo->gfx9.numShaderVisibleSgprs   = MaxSgprsAvailable;
+        pInfo->gfx9.numPhysicalSgprs        = Gfx10PhysicalSgprsPerSimd;
+        pInfo->gfx9.sgprAllocGranularity    = 128;
+        pInfo->gfx9.minSgprAlloc            = 128;
+        pInfo->gfx9.numPhysicalVgprs        = 1024;
+        pInfo->gfx9.vgprAllocGranularity    = 8;
+        pInfo->gfx9.minVgprAlloc            = 4;
+        pInfo->gfxip.shaderPrefetchBytes    = 3 * ShaderICacheLineSize;
+    }
+    else
     {
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = (cpUcodeVersion >= UcodeVersionWithDumpOffsetSupport);
         pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx9UcodeVersionSetShRegOffset256B);
@@ -2969,6 +3949,39 @@ void InitializeGpuChipProperties(
         }
         break;
 
+    case FAMILY_NV:
+        pInfo->gfx9.numShaderArrays                = 2;
+        pInfo->gfx9.maxGsWavesPerVgt               = 32;
+        pInfo->gfx9.parameterCacheLines            = 1024;
+        pInfo->gfx9.numTccBlocks                   = 40;
+        pInfo->gfx9.supportSpp                     = 1;
+        pInfo->gfx9.supportMsaaCoverageOut         = 1;
+        pInfo->gfx9.supportReleaseAcquireInterface = 1;
+        pInfo->gfx9.supportSplitReleaseAcquire     = 1;
+
+        // GFX10-specific image properties go here
+        pInfo->imageProperties.flags.supportsCornerSampling = 1;
+
+        // This is the common gl2 config for most gfx10 ASICs.
+        pInfo->gfx9.gfx10.numGl2a                  = 4;
+
+        if (AMDGPU_IS_NAVI10(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType               = GpuType::Discrete;
+            pInfo->revision              = AsicRevision::Navi10;
+            {
+                pInfo->gfxStepping       = Abi::GfxIpSteppingNavi10;
+            }
+            pInfo->gfx9.numShaderEngines = 2;
+            pInfo->gfx9.maxNumCuPerSh    = 10;
+            pInfo->gfx9.maxNumRbPerSe    = 8;
+            pInfo->gfx9.numSdpInterfaces = 16;
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+        break;
     default:
         PAL_ASSERT_ALWAYS();
         break;
@@ -2988,6 +4001,24 @@ void InitializeGpuChipProperties(
         pInfo->imageProperties.maxImageArraySize = Gfx9MaxImageArraySlices;
 
         pInfo->gfx9.supportOutOfOrderPrimitives = 1;
+    }
+    else if (IsGfx10(pInfo->gfxLevel))
+    {
+
+        nullBufferView.gfx10.type = SQ_RSRC_BUF;
+        nullImageView.gfx10.type  = SQ_RSRC_IMG_2D_ARRAY;
+
+        pInfo->imageProperties.maxImageArraySize  = Gfx10MaxImageArraySlices;
+
+        // Programming of the various wave-size parameters started with GFX10 parts
+        pInfo->gfx9.supportPerShaderStageWaveSize = 1;
+        pInfo->gfx9.supportCustomWaveBreakSize    = 1;
+
+        pInfo->gfx9.support1xMsaaSampleLocations  = 1;
+
+        {
+            pInfo->gfx9.supportSpiPrefPriority = 1;
+        }
     }
 
     pInfo->nullSrds.pNullBufferView = &nullBufferView;
@@ -3059,6 +4090,10 @@ void FinalizeGpuChipProperties(
     pInfo->gfx9.numAlwaysOnCus = numAlwaysOnCus;
     PAL_ASSERT((pInfo->gfx9.numActiveCus > 0) && (pInfo->gfx9.numActiveCus <= pInfo->gfx9.numPhysicalCus));
     PAL_ASSERT((pInfo->gfx9.numAlwaysOnCus > 0) && (pInfo->gfx9.numAlwaysOnCus <= pInfo->gfx9.numPhysicalCus));
+    if (IsGfx10(pInfo->gfxLevel))
+    {
+        pInfo->gfx9.nativeWavefrontSize = 32;
+    }
 
     // Initialize the performance counter info.  Perf counter info is reliant on a finalized GpuChipProperties
     // structure, so wait until the pInfo->gfx9 structure is "good to go".
@@ -3164,6 +4199,28 @@ void InitializeGpuEngineProperties(
     pCompute->minLinearMemCopyAlignment.depth       = 1;
     pCompute->minTimestampAlignment                 = 8; // The CP spec requires 8-byte alignment.
     pCompute->queueSupport                          = SupportQueueTypeCompute;
+
+    if (IsGfx10(gfxIpLevel))
+    {
+        // SDMA engine is part of GFXIP for GFX10, so set that up here
+        auto*const pDma = &pInfo->perEngine[EngineTypeDma];
+
+        pDma->flags.timestampSupport               = 1;
+        pDma->flags.memoryPredicationSupport       = 1;
+        pDma->minTiledImageCopyAlignment.width     = 16;
+        pDma->minTiledImageCopyAlignment.height    = 16;
+        pDma->minTiledImageCopyAlignment.depth     = 8;
+        pDma->minTiledImageMemCopyAlignment.width  = 1;
+        pDma->minTiledImageMemCopyAlignment.height = 1;
+        pDma->minTiledImageMemCopyAlignment.depth  = 1;
+        pDma->minLinearMemCopyAlignment.width      = 1;
+        pDma->minLinearMemCopyAlignment.height     = 1;
+        pDma->minLinearMemCopyAlignment.depth      = 1;
+        pDma->minTimestampAlignment                = 8; // The OSSIP 5.0 spec requires 64-bit alignment.
+        pDma->availableGdsSize                     = 0;
+        pDma->gdsSizePerEngine                     = 0;
+        pDma->queueSupport                         = SupportQueueTypeDma;
+    }
 
     // Note that we set this DMA state in the GFXIP layer because it deals with GFXIP features that the OSSIP layer
     // doesn't need to understand. Gfx9 can't support per-subresource initialization on DMA because the metadata
@@ -3451,6 +4508,10 @@ gpusize Device::GetBaseAddress(
         gpuVirtAddr = pBufferSrd->gfx9.word1.bits.BASE_ADDRESS_HI;
         gpuVirtAddr = (gpuVirtAddr << 32) + pBufferSrd->gfx9.word0.bits.BASE_ADDRESS;
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        gpuVirtAddr = pBufferSrd->gfx10.base_address;
+    }
 
     return gpuVirtAddr;
 }
@@ -3467,6 +4528,10 @@ void Device::SetBaseAddress(
 
         pSrd->word0.bits.BASE_ADDRESS    = LowPart(baseAddress);
         pSrd->word1.bits.BASE_ADDRESS_HI = HighPart(baseAddress);
+    }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        pBufferSrd->gfx10.base_address = baseAddress;
     }
     else
     {
@@ -3499,6 +4564,25 @@ void Device::InitBufferSrd(
         pSrd->word3.bits.DATA_FORMAT     = BUF_DATA_FORMAT_32;
         pSrd->word3.bits.ADD_TID_ENABLE  = 0;
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        auto*  pSrd = &pBufferSrd->gfx10;
+
+        pSrd->base_address   = gpuVirtAddr;
+        pSrd->stride         = stride;
+        pSrd->cache_swizzle  = 0;
+        pSrd->swizzle_enable = 0;
+        pSrd->dst_sel_x      = SQ_SEL_X;
+        pSrd->dst_sel_y      = SQ_SEL_Y;
+        pSrd->dst_sel_z      = SQ_SEL_Z;
+        pSrd->dst_sel_w      = SQ_SEL_W;
+        pSrd->type           = SQ_RSRC_BUF;
+        pSrd->format         = BUF_FMT_32_FLOAT;
+        pSrd->add_tid_enable = 0;
+        pSrd->oob_select     = SQ_OOB_NUM_RECORDS_0; // never check out-of-bounds
+
+        pSrd->resource_level = 1;
+    }
     else
     {
         PAL_ASSERT_ALWAYS();
@@ -3514,6 +4598,10 @@ void Device::SetNumRecords(
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
         pBufferSrd->gfx9.word2.bits.NUM_RECORDS = numRecords;
+    }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        pBufferSrd->gfx10.num_records = numRecords;
     }
     else
     {
@@ -3535,6 +4623,11 @@ ColorFormat Device::GetHwColorFmt(
         const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel);
         hwColorFmt = HwColorFmt(pFmtInfo, format.format);
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel);
+        hwColorFmt = HwColorFmt(pFmtInfo, format.format);
+    }
 
     return hwColorFmt;
 }
@@ -3553,6 +4646,11 @@ StencilFormat Device::GetHwStencilFmt(
         const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel);
         hwStencilFmt = HwStencilFmt(pFmtInfo, format);
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel);
+        hwStencilFmt = HwStencilFmt(pFmtInfo, format);
+    }
 
     return hwStencilFmt;
 }
@@ -3569,6 +4667,12 @@ ZFormat Device::GetHwZFmt(
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
         const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel);
+
+        zFmt = HwZFmt(pFmtInfo, format);
+    }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel);
 
         zFmt = HwZFmt(pFmtInfo, format);
     }
@@ -3645,6 +4749,56 @@ const RegisterRange* Device::GetRegisterRange(
             break;
         }
     }
+    else if (IsGfx10(m_gfxIpLevel))
+    {
+        switch (rangeType)
+        {
+        case RegRangeUserConfig:
+            if (IsGfx101(*Parent()))
+            {
+                pRange         = Nv10UserConfigShadowRange;
+                *pRangeEntries = Nv10NumUserConfigShadowRanges;
+            }
+            break;
+
+        case RegRangeContext:
+            if (IsGfx101(*Parent()))
+            {
+                pRange         = Nv10ContextShadowRange;
+                *pRangeEntries = Nv10NumContextShadowRanges;
+            }
+            break;
+
+        case RegRangeSh:
+            pRange         = Gfx10ShShadowRange;
+            *pRangeEntries = Gfx10NumShShadowRanges;
+            break;
+
+        case RegRangeCsSh:
+            pRange         = Gfx10CsShShadowRange;
+            *pRangeEntries = Gfx10NumCsShShadowRanges;
+            break;
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+        case RegRangeNonShadowed:
+            if (IsGfx101(*Parent()))
+            {
+                pRange         = Navi10NonShadowedRanges;
+                *pRangeEntries = Navi10NumNonShadowedRanges;
+            }
+            else
+            {
+                PAL_ASSERT_ALWAYS();
+            }
+            break;
+#endif
+
+        default:
+            // What is this?
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+    }
 
     PAL_ASSERT(pRange != nullptr);
 
@@ -3683,6 +4837,20 @@ PM4PFP_CONTEXT_CONTROL Device::GetContextControl() const
     }
 
     return contextControl;
+}
+
+// =====================================================================================================================
+// Returns bits [31..16] of the CU_EN fields
+uint32 Device::GetCuEnableMaskHi(
+    uint32 disabledCuMask,          // Mask of CU's to explicitly disabled.  These CU's are virtualized so that PAL
+                                    // doesn't need to worry about any yield-harvested CU's.
+    uint32 enabledCuMaskSetting     // Mask of CU's a shader can run on based on a setting
+    ) const
+{
+    // It's GFX10 that expanded the CU_EN fields to 32-bits, no other GPU should be calling this
+    PAL_ASSERT(IsGfx10(m_gfxIpLevel));
+
+    return (GetCuEnableMaskInternal(disabledCuMask, enabledCuMaskSetting) >> 16);
 }
 
 // =====================================================================================================================

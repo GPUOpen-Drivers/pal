@@ -17,7 +17,10 @@
     "Prefetching (L2 Cache Warming)",
     "Texture Filtering",
     "Hardware Workarounds",
-    "Gfx9"
+    "Gfx9",
+    {
+      "Name": "Gfx10"
+    }
   ],
   "Enums": [
     {
@@ -70,6 +73,41 @@
       "Type": "bool",
       "VariableName": "enableLoadIndexForObjectBinds",
       "Name": "EnableLoadIndexForObjectBinds"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Gfx10CopyDstAlwaysAllow",
+            "Value": 0,
+            "Description": "If set, copy-dst will always be set as a compressible layout"
+          },
+          {
+            "Name": "Gfx10CopyDstNeverAllow",
+            "Value": 1,
+            "Description": "If set, copy-dst will never be set as a compressible layout"
+          },
+          {
+            "Name": "Gfx10CopyDstAllowForReadableFormats",
+            "Value": 2,
+            "Description": "If set, copy-dst will be set as a compressible layout for shader readable image formats only"
+          }
+        ],
+        "Name": "Gfx10CopyDst"
+      },
+      "Description": "Determines how the LayoutCopyDst will be set in compressed usages",
+      "Tags": [
+        "General",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": "Gfx10CopyDstAlwaysAllow"
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "enum",
+      "VariableName": "copyDstIsCompressed",
+      "Name": "CopyDstIsCompressed"
     },
     {
       "Description": "Disables binding of border color palettes, and forces any samplers created to use a transparent black color. ",
@@ -246,6 +284,130 @@
       "Type": "bool",
       "VariableName": "treat1dAs2d",
       "Name": "Treat1dAs2d"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "IsExclusive": true,
+        "Values": [
+          {
+            "Name": "Gfx10ForceWaveBreakSizeNone",
+            "Value": 0,
+            "Description": "No wave breaks by region."
+          },
+          {
+            "Name": "Gfx10ForceWaveBreakSize8x8",
+            "Value": 1,
+            "Description": "8x8 region size."
+          },
+          {
+            "Name": "Gfx10ForceWaveBreakSize16x16",
+            "Value": 2,
+            "Description": "16x16 region size."
+          },
+          {
+            "Name": "Gfx10ForceWaveBreakSize32x32",
+            "Value": 3,
+            "Description": "32x32 region size."
+          },
+          {
+            "Name": "Gfx10ForceWaveBreakSizeClient",
+            "Value": 4,
+            "Description": "Use client specified value."
+          },
+          {
+            "Name": "Gfx10ForceWaveBreakSizeAuto",
+            "Value": 5,
+            "Description": "Let PAL decide."
+          },
+          {
+            "Name": "Gfx10CheckIndicies",
+            "Value": 8,
+            "Description": "To be used in combination with one of the first four options. If number of indicies is less than or equal to 6 we will use 8x8 else we will use the option chosen."
+          }
+        ],
+        "Name": "Gfx10ForceWaveBreakSize"
+      },
+      "Description": "Forces the size of a wave break; over-rides client-specified value.",
+      "Tags": [
+        "General",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": "Gfx10ForceWaveBreakSizeClient"
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "enum",
+      "VariableName": "forceWaveBreakSize",
+      "Name": "ForceWaveBreakSize"
+    },
+    {
+      "Description": "Affects tiled-to-tiled image copies on the GFX10 SDMA engine where both images are compressed Set to true to leave the source image in a compressed state, set to false to leave the dest image in a compressed state.",
+      "Tags": [
+        "General",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "sdmaPreferCompressedSource",
+      "Name": "SdmaPreferCompressedSource"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Gfx10UseCompToSingleNone",
+            "Value": 0,
+            "Description": "Use comp-to-reg all image type."
+          },
+          {
+            "Name": "Gfx10UseCompToSingle2d",
+            "Value": 1,
+            "Description": "Use comp-to-single for 2d image."
+          },
+          {
+            "Name": "Gfx10UseCompToSingle2dArray",
+            "Value": 2,
+            "Description": "Use comp-to-single for 2d array image."
+          },
+          {
+            "Name": "Gfx10UseCompToSingleMsaa",
+            "Value": 4,
+            "Description": "Use comp-to-single for MSAA image."
+          },
+          {
+            "Name": "Gfx10UseCompToSingle3D",
+            "Value": 8,
+            "Description": "Use comp-to-single for 3d image."
+          },
+          {
+            "Name": "Gfx10DisableCompToReg",
+            "Value": 16,
+            "Description": "If set, comp-to-reg rendering will be disabled for images that were cleared with comp-to-single."
+          }
+        ],
+        "Name": "Gfx10UseCompToSingle"
+      },
+      "Description": "Whether we need to set first pixel of each block that corresponds to 1 byte in DCC memory, and don't need to do a fast clear eliminate based on image type.",
+      "Tags": [
+        "General",
+        "Gfx10"
+      ],
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 31
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "useCompToSingle",
+      "Name": "UseCompToSingle"
     },
     {
       "Description": "Forces a fast clear code to be the regular clear code and turns off AC01 compression which makes sure the four 'magic' compressed clear codes aren't used.",
@@ -441,6 +603,16 @@
             "Name": "Gfx9UseDccForNonReadableFormats",
             "Value": 256,
             "Description": "Non-readable but still renderable or shader-writeable formats"
+          },
+          {
+            "Name": "Gfx10UseDccRenderTargetUav",
+            "Value": 512,
+            "Description": "Shader writable surfaces(UAV) that are also render targets"
+          },
+          {
+            "Name": "Gfx10UseDccNonRenderTargetUav",
+            "Value": 1024,
+            "Description": "Shader writable surfaces(UAV) that are not render targets"
           }
         ],
         "Name": "Gfx9UseDcc"
@@ -1162,6 +1334,63 @@
       "Type": "bool",
       "VariableName": "gfx9RbPlusEnable",
       "Name": "RbPlusEnable"
+    },
+    {
+      "Description": "Value to program the number of cache lines for SPI_SHADER_LATE_ALLOC_VS to. The range is [0, 63]. The default value of 255 changes to (numCUs/SA - 1) * 4.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx10"
+      ],
+      "ValidValues": {
+        "Values": [
+          {
+            "LogicOp": "LessThanOrEqual",
+            "Description": "Number of cache lines to program SPI_SHADER_LATE_ALLOC_VS to.",
+            "Value": 63
+          }
+        ]
+      },
+      "Defaults": {
+        "Default": 255
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx10SpiShaderLateAllocVsNumLines",
+      "Name": "Gfx10SpiShaderLateAllocVsNumLines"
+    },
+    {
+      "Description": "Value to program GE_PC_ALLOC::NUM_PC_LINES to for legacy and NGG-passthru pipelines. The value in this setting is per shader-engine. The driver multiplies this value by the number of shader engines and then subtracts 1.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": 128
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx10GePcAllocNumLinesPerSeLegacyNggPassthru",
+      "Name": "Gfx10GePcAllocNumLinesPerSeLegacyNggPassthru",
+      "Flags": {
+        "IsHex": true
+      }
+    },
+    {
+      "Description": "Value to program GE_PC_ALLOC::NUM_PC_LINES to for NGG-culling pipelines. The value in this setting is per shader-engine. The driver multiplies this value by the number of shader engines and then subtracts 1.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": 256
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx10GePcAllocNumLinesPerSeNggCulling",
+      "Name": "Gfx10GePcAllocNumLinesPerSeNggCulling",
+      "Flags": {
+        "IsHex": true
+      }
     },
     {
       "Description": "When value is greater than zero, then it specifies the number of PS waves to be soft grouped.",
@@ -1907,6 +2136,43 @@
       }
     },
     {
+      "Description": "Controls the minimum batch bin size used.",
+      "Tags": [
+        "PBB and DFSM",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "VariableName": "minBatchBinSize",
+      "Name": "MinBatchBinSize",
+      "Flags": {
+        "IsHex": true
+      },
+      "Type": "struct",
+      "Structure": [
+        {
+          "Description": "Minimum batch bin size width.  Value must be a power-of-two between 16 and 512.  Set to 0 to use default limit.",
+          "Type": "uint16",
+          "VariableName": "width",
+          "Name": "Width",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "Minimum batch bin size height.  Value must be a power-of-two between 16 and 512.  Set to 0 to use default limit.",
+          "Type": "uint16",
+          "VariableName": "height",
+          "Name": "Height",
+          "Defaults": {
+            "Default": 0
+          }
+        }
+      ]
+    },
+    {
       "Description": "If true, binning is disabled when the PS has a discard instruction or can be trivially rejected.",
       "Tags": [
         "PBB and DFSM",
@@ -2299,6 +2565,54 @@
       "Name": "WaRotatedSwizzleDisablesOverwriteCombiner"
     },
     {
+      "Description": "If the workaround is enabled, then disabling fMask compression also sets the DISABLE_FMASK_NOFETCH_OPT bit.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waDisableFmaskNofetchOpOnFmaskCompressionDisable",
+      "Name": "WaDisableFmaskNofetchOpOnFmaskCompressionDisable"
+    },
+    {
+      "Description": "Fixes issues related to unexposed MSAA samples.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waFixPostZConservativeRasterization",
+      "Name": "WaFixPostZConservativeRasterization"
+    },
+    {
+      "Description": "Fixes issues related to invalid values associated with VGT_TESS_DISTRIBUTION.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waClampQuadDistributionFactor",
+      "Name": "WaClampQuadDistributionFactor"
+    },
+    {
       "Description": "Controls whether the workaround waWrite1xAASampleLocationsToZero is active. FALSE:   Forces the workaround off. TRUE:    Forces the workaround on. Not Set: Allows the driver to decide, based on Chip ID.",
       "Tags": [
         "Hardware Workarounds"
@@ -2329,6 +2643,22 @@
       "Type": "bool",
       "VariableName": "waColorCacheControllerInvalidEviction",
       "Name": "WaColorCacheControllerInvalidEviction"
+    },
+    {
+      "Description": "This workaround forces hTile data to be Z-only for images with multiple mip levels.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waForceZonlyHtileForMipmaps",
+      "Name": "WaForceZonlyHtileForMipmaps"
     },
     {
       "Description": "The overwrite combiner takes only the target mask into consideration while decidingto overwrite combine whereas the other parts of the CB decide on shader mask andtarget mask. This discrepancy may lead to the overwrite combiner incorrectly signalinga read optimization when shader and target mask are different",
@@ -2523,6 +2853,131 @@
       "Name": "WaCmaskImageSyncs"
     },
     {
+      "Description": "If set, PAL will fit the tessellation factor ring buffer to be the 1Kb. This is to workaround a GE/UTCL1 counter underflow HW bug.\\n//# Supercedes waTessFactorBufferSizeLimit.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waTessFactorBufferSizeLimitGeUtcl1Underflow",
+      "Name": "WaTessFactorBufferSizeLimitGeUtcl1Underflow"
+    },
+    {
+      "Description": "If set, SDMA can not access meta-data (compression) surfaces.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waSdmaPreventCompressedSurfUse",
+      "Name": "WaSdmaPreventCompressedSurfUse"
+    },
+    {
+      "Description": "If set, PAL will insert a VGT_FLUSH between a pipeline transition from a NGG to a legacy GS.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waVgtFlushNggToLegacyGs",
+      "Name": "WaVgtFlushNggToLegacyGs"
+    },
+    {
+      "Description": "If true, enables prefetching of Index buffer pages prior to draws in NGG piplines.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waEnableIndexBufferPrefetchForNgg",
+      "Name": "WaEnableIndexBufferPrefetchForNgg"
+    },
+    {
+      "Description": "If true, enables Z16_UNORM 1xAA uninitialized decompress hang workaround.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waZ16Unorm1xAaDecompressUninitialized",
+      "Name": "WaZ16Unorm1xAaDecompressUninitialized"
+    },
+    {
+      "Description": "If true, forces LateAllocGs to always be 0.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waLateAllocGs0",
+      "Name": "WaLateAllocGs0"
+    },
+    {
+      "Description": "If true, whenever an index buffer is bound with zero size we instead bind an internal index buffer with a single zero entry to prevent a hang in the GE.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waIndexBufferZeroSize",
+      "Name": "WaIndexBufferZeroSize"
+    },
+    {
+      "Description": "If true, whenever a POPS (Primitive Order Pixel Shader) pipeline is bound, we need to set DB_RENDER_OVERRIDE2::PARTIAL_SQUAD_LAUNCH = PSLC_ON_HANG_ONLY to prevent a hang..",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waStalledPopsMode",
+      "Name": "WaStalledPopsMode"
+    },
+    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [
@@ -2610,6 +3065,38 @@
         "PAL_BUILD_NAVI21",
         "PAL_BUILD_NAVI21_LITE"
       ]
+    },
+    {
+      "Description": "If the workaround is enabled, then 4x MSAA Depth/Stencil surfaces will set the number of z planes for decompress to 2 in order to avoid a hang associated with setting iterate_256 to 1.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waTwoPlanesIterate256",
+      "Name": "WaTwoPlanesIterate256"
+    },
+    {
+      "Description": "If the workaround is enabled, when legacy tessellation is enabled with wireframe mode, we need to disable vertex reuse or suffer corruption.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waTessIncorrectRelativeIndex",
+      "Name": "WaTessIncorrectRelativeIndex"
     }
   ]
 }

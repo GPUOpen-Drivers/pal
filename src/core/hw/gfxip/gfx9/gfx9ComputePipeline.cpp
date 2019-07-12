@@ -46,6 +46,7 @@ const ComputePipelineSignature NullCsSignature =
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     UserDataNotMapped,          // Register address for performance data buffer
+    0,                          // Flags
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
 
@@ -55,6 +56,8 @@ constexpr uint32 BaseLoadedShRegCount =
     1 + // mmCOMPUTE_PGM_HI
     1 + // mmCOMPUTE_PGM_RSRC1
     0 + // mmCOMPUTE_PGM_RSRC2 is not included because it partially depends on bind-time state
+    0 + // mmCOMPUTE_PGM_RSRC3 is not included because it is not present on all HW
+    0 + // mmCOMPUTE_USER_ACCUM_0...3 is not included because it is not present on all HW
     0 + // mmCOMPUTE_RESOURCE_LIMITS is not included because it partially depends on bind-time state
     1 + // mmCOMPUTE_NUM_THREAD_X
     1 + // mmCOMPUTE_NUM_THREAD_Y
@@ -81,6 +84,8 @@ void ComputePipeline::SetupSignatureFromElf(
     const RegisterVector&     registers)
 {
     uint16  entryToRegAddr[MaxUserDataEntries] = { };
+
+    const auto& chipProps = m_pDevice->Parent()->ChipProperties();
 
     m_signature.stage.firstUserSgprRegAddr = (mmCOMPUTE_USER_DATA_0 + FastUserDataStartReg);
     for (uint16 offset = mmCOMPUTE_USER_DATA_0; offset <= mmCOMPUTE_USER_DATA_15; ++offset)
@@ -168,6 +173,29 @@ void ComputePipeline::SetupSignatureFromElf(
         m_signature.userDataLimit = static_cast<uint16>(metadata.pipeline.userDataLimit);
     }
 
+    // We don't bother checking the wavefront size for pre-Gfx10 GPU's since it is implicitly 64 before Gfx10. Any ELF
+    // which doesn't specify a wavefront size is assumed to use 64, even on Gfx10 and newer.
+    if (IsGfx10(chipProps.gfxLevel))
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 495
+        // Older ABI versions encoded wave32 vs. wave64 using the CS_W32_EN field of COMPUTE_DISPATCH_INITIATOR. Fall
+        // back to that encoding if the CS metadata does not specify a wavefront size.
+        regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator = { };
+#endif
+
+        const auto& csMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+        if (csMetadata.hasEntry.wavefrontSize != 0)
+        {
+            PAL_ASSERT((csMetadata.wavefrontSize == 64) || (csMetadata.wavefrontSize == 32));
+            m_signature.flags.isWave32 = (csMetadata.wavefrontSize == 32);
+        }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 495
+        else if (registers.HasEntry(mmCOMPUTE_DISPATCH_INITIATOR, &dispatchInitiator.u32All))
+        {
+            m_signature.flags.isWave32 = dispatchInitiator.gfx10.CS_W32_EN;
+        }
+#endif
+    }
 }
 
 // =====================================================================================================================
@@ -177,6 +205,15 @@ static PAL_INLINE uint32 LoadedShRegCount(
 {
     // Add one register if the GPU supports SPP.
     uint32 count = (BaseLoadedShRegCount + chipProps.gfx9.supportSpp);
+
+    if (IsGfx10(chipProps.gfxLevel))
+    {
+        count += 1; //  mmCOMPUTE_PGM_RSRC3
+        if (chipProps.gfx9.supportSpiPrefPriority)
+        {
+            count += 4; // mmCOMPUTE_USER_ACCUM_0...3
+        }
+    }
 
     return count;
 }
@@ -250,6 +287,19 @@ Result ComputePipeline::HwlInit(
         m_commands.set.computeNumThreadY.u32All   = registers.At(mmCOMPUTE_NUM_THREAD_Y);
         m_commands.set.computeNumThreadZ.u32All   = registers.At(mmCOMPUTE_NUM_THREAD_Z);
 
+        if (IsGfx10(chipProps.gfxLevel))
+        {
+            m_commands.set.computePgmRsrc3.u32All = registers.At(Gfx10::mmCOMPUTE_PGM_RSRC3);
+
+            if (chipProps.gfx9.supportSpiPrefPriority)
+            {
+                registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_0, &m_commands.set.regComputeUserAccum0.u32All);
+                registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_1, &m_commands.set.regComputeUserAccum1.u32All);
+                registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_2, &m_commands.set.regComputeUserAccum2.u32All);
+                registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_3, &m_commands.set.regComputeUserAccum3.u32All);
+            }
+        }
+
         if (chipProps.gfx9.supportSpp == 1)
         {
             PAL_ASSERT(regInfo.mmComputeShaderChksum != 0);
@@ -272,6 +322,19 @@ Result ComputePipeline::HwlInit(
             uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_commands.set.computeNumThreadY);
             uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_commands.set.computeNumThreadZ);
 
+            if (IsGfx10(chipProps.gfxLevel))
+            {
+                uploader.AddShReg(Gfx10::mmCOMPUTE_PGM_RSRC3, m_commands.set.computePgmRsrc3);
+
+                if (chipProps.gfx9.supportSpiPrefPriority)
+                {
+                    uploader.AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_0, m_commands.set.regComputeUserAccum0);
+                    uploader.AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_1, m_commands.set.regComputeUserAccum1);
+                    uploader.AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_2, m_commands.set.regComputeUserAccum2);
+                    uploader.AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_3, m_commands.set.regComputeUserAccum3);
+                }
+            }
+
             if (chipProps.gfx9.supportSpp == 1)
             {
                 uploader.AddShReg(regInfo.mmComputeShaderChksum, m_commands.set.computeShaderChksum);
@@ -283,7 +346,7 @@ Result ComputePipeline::HwlInit(
         {
             registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_commands.dynamic.computeResourceLimits.u32All);
 
-        const uint32 wavefrontSize   = 64;
+        const uint32 wavefrontSize   = (IsWave32() ? 32 : 64);
         const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
         const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, wavefrontSize);
 
@@ -510,6 +573,32 @@ void ComputePipeline::BuildPm4Headers(
     {
         m_commands.set.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
                                                        &m_commands.set.hdrComputeShaderChksum);
+    }
+
+    if (IsGfx10(chipProps.gfxLevel))
+    {
+        // Sets the following compute register: COMPUTE_PGM_RSRC3.  Note that all GFX10 devices support SPP.
+        m_commands.set.spaceNeeded += cmdUtil.BuildSetOneShReg(Gfx10::mmCOMPUTE_PGM_RSRC3,
+                                                               ShaderCompute,
+                                                               &m_commands.set.hdrComputePgmRsrc3);
+    }
+    else
+    {
+        m_commands.set.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
+                                                       &m_commands.set.hdrComputePgmRsrc3);
+    }
+
+    if (chipProps.gfx9.supportSpiPrefPriority)
+    {
+        m_commands.set.spaceNeeded += cmdUtil.BuildSetSeqShRegs(Gfx10::mmCOMPUTE_USER_ACCUM_0,
+                                                                Gfx10::mmCOMPUTE_USER_ACCUM_3,
+                                                                ShaderCompute,
+                                                                &m_commands.set.hdrComputeUserAccum);
+    }
+    else
+    {
+        m_commands.set.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 4,
+                                                       &m_commands.set.hdrComputeUserAccum);
     }
 
     // PM4 image for universal command buffers:

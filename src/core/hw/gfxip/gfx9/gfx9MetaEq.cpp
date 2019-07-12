@@ -494,6 +494,19 @@ void MetaDataAddrEquation::Mort2d(
             pChosen->compPos++;
         }
     }
+    else if (IsGfx10(palDevice))
+    {
+        const bool reverse = (end < start);
+
+        for (uint32 i = start; (reverse) ? i >= end : i <= end; ((reverse) ? i-- : i++))
+        {
+            int select = ((reverse) ? (start - i) : (i - start)) % 2;
+
+            CompPair*  pChosen = (select == 0) ? pPair0 : pPair1;
+            SetBit(i, pChosen->compType, pChosen->compPos);
+            pChosen->compPos++;
+        }
+    }
 }
 
 // =====================================================================================================================

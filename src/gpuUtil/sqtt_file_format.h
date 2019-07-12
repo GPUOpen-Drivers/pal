@@ -200,6 +200,7 @@ typedef enum SqttGfxIpLevel
     SQTT_GFXIP_LEVEL_GFXIP_8    = 0x3,
     SQTT_GFXIP_LEVEL_GFXIP_8_1  = 0x4,
     SQTT_GFXIP_LEVEL_GFXIP_9    = 0x5,
+    SQTT_GFXIP_LEVEL_GFXIP_10_1 = 0x7,
 } SqttGfxIpLevel;
 
 /** An enumeration of memory types.
@@ -371,6 +372,7 @@ typedef enum SqttVersion
     SQTT_VERSION_2_1  = 0x4,                                /*!< Sea Islands (GfxIp 7). */
     SQTT_VERSION_2_2  = 0x5,                                /*!< Volcanic Islands (GfxIP 8). */
     SQTT_VERSION_2_3  = 0x6,                                /*!< GfxIp 9. */
+    SQTT_VERSION_2_4  = 0x7                                 /*!< GfxIp 10. */
 } SqttVersion;
 
 /** A structure encapsulating the description of the data contained in the matching SQTT_FILE_CHUNK_SQTT_DATA chunk.
