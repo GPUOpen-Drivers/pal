@@ -270,6 +270,9 @@ struct RegisterInfo
     uint16  mmPaStereoCntl;
     uint16  mmPaStateStereoX;
     uint16  mmComputeShaderChksum;
+    uint16  mmVgtTfMemBase;
+    uint16  mmVgtTfMemBaseHi;
+    uint16  mmSpiConfigCntl;
 };
 
 // Pre-baked commands to prefetch (prime caches) for a pipeline.  This can either be done with a PRIME_UTCL2 packet,
@@ -678,21 +681,23 @@ public:
         gpusize        gpuAddr,
         void*          pBuffer) const;
     static size_t BuildWaitRegMem(
-        uint32  memSpace,
-        uint32  function,
-        uint32  engine,
-        gpusize addr,
-        uint32  reference,
-        uint32  mask,
-        void*   pBuffer);
+        EngineType engineType,
+        uint32     memSpace,
+        uint32     function,
+        uint32     engine,
+        gpusize    addr,
+        uint32     reference,
+        uint32     mask,
+        void*      pBuffer);
     static size_t BuildWaitRegMem64(
-        uint32  memSpace,
-        uint32  function,
-        uint32  engine,
-        gpusize addr,
-        uint64  reference,
-        uint64  mask,
-        void*   pBuffer);
+        EngineType engineType,
+        uint32     memSpace,
+        uint32     function,
+        uint32     engine,
+        gpusize    addr,
+        uint64     reference,
+        uint64     mask,
+        void*      pBuffer);
     static size_t BuildWriteConstRam(
         const void* pSrcData,
         uint32      ramByteOffset,

@@ -676,7 +676,9 @@ void Device::IssueAcquireSync(
     ) const
 {
     PAL_ASSERT(pBarrierOps != nullptr);
-    const bool isGfxSupported = pCmdBuf->IsGraphicsSupported();
+
+    const EngineType engineType     = pCmdBuf->GetEngineType();
+    const bool       isGfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
 
     if (isGfxSupported == false)
     {
@@ -704,7 +706,8 @@ void Device::IssueAcquireSync(
 
             for (uint32 slotIdx = 0; slotIdx < numEventSlots; slotIdx++)
             {
-                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                       mem_space__me_wait_reg_mem__memory_space,
                                                        function__me_wait_reg_mem__equal_to_the_reference_value,
                                                        engine_sel__me_wait_reg_mem__micro_engine,
                                                        gpuEventStartVa + (sizeof(uint32) * slotIdx),
@@ -718,7 +721,7 @@ void Device::IssueAcquireSync(
     if (accessMask != 0)
     {
         accessMask = OptimizeBltCacheAccess(pCmdBuf, accessMask);
-        pCmdSpace += BuildAcquireSyncPackets(pCmdBuf->GetEngineType(),
+        pCmdSpace += BuildAcquireSyncPackets(engineType,
                                              stageMask,
                                              accessMask,
                                              invalidateLlc,

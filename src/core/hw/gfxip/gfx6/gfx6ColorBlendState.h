@@ -65,13 +65,13 @@ class ColorBlendState : public Pal::ColorBlendState
 {
 public:
     explicit ColorBlendState(const Device& device, const ColorBlendStateCreateInfo& createInfo);
-    void Init(const ColorBlendStateCreateInfo& createInfo);
+    void Init(const Device& device, const ColorBlendStateCreateInfo& createInfo);
     static Result ValidateCreateInfo(const Device* pDevice, const ColorBlendStateCreateInfo& createInfo);
 
     static size_t Pm4ImgSize() { return sizeof(BlendStatePm4Img); }
     uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    template <bool pm4OptImmediate>
+    template <bool Pm4OptImmediate>
     uint32* WriteBlendOptimizations(
         CmdStream*                     pCmdStream,
         const SwizzledFormat*          pTargetFormats,
@@ -82,8 +82,6 @@ public:
 
     bool IsBlendEnabled(uint32 slot) const { return ((m_blendEnableMask & (1 << slot)) != 0); }
     uint32 BlendEnableMask() const { return m_blendEnableMask; }
-
-    bool IsDualSrcBlend() const { return m_dualSrcBlend; }
 
     bool IsBlendCommutative(uint32 slot) const
     {
@@ -98,9 +96,9 @@ protected:
     virtual ~ColorBlendState() {} // Destructor has nothing to do.
 
 private:
-    void BuildPm4Headers();
+    void BuildPm4Headers(const Device& device);
 
-    void InitBlendOpts(const ColorBlendStateCreateInfo& blend);
+    void InitBlendOpts(const ColorBlendStateCreateInfo& blend, bool isDualSrcBlend);
     void InitBlendCommutativeMask(const ColorBlendStateCreateInfo& createInfo);
 
     static BlendOp  HwBlendOp(Blend blendOp);
@@ -112,7 +110,6 @@ private:
     // Per MRT blend opts
     GfxBlendOptimizer::BlendOpts m_blendOpts[MaxColorTargets * GfxBlendOptimizer::NumChannelWriteComb];
 
-    bool    m_dualSrcBlend;          // Indicatea a dual-source blend mode
     uint32  m_blendEnableMask;       // Indicates if blending is enabled for each target
     uint32  m_blendCommutativeMask;  // Indicates if the blend state is commutative for each target
 

@@ -30,6 +30,7 @@
 #include "palGpuEvent.h"
 #include "palGpuMemory.h"
 #include "palHashSetImpl.h"
+#include "palInlineFuncs.h"
 #include "palMemTrackerImpl.h"
 #include "palPipeline.h"
 #include "palQueue.h"
@@ -655,6 +656,7 @@ Result GpaSession::Init()
     {
         // Create internal cmd allocator for this gpaSession object
         CmdAllocatorCreateInfo createInfo = { };
+        createInfo.flags.threadSafe       = 1;
 
         // Reasonable constants for allocation and suballocation sizes
         constexpr size_t CmdAllocSize = 2 * 1024 * 1024;
@@ -692,6 +694,22 @@ Result GpaSession::Init()
         }
     }
 
+    if (result == Result::Success)
+    {
+        result = m_gartGpuMemLock.Init();
+    }
+    if (result == Result::Success)
+    {
+        result = m_localInvisGpuMemLock.Init();
+    }
+    if (result == Result::Success)
+    {
+        result = m_queueEventsLock.Init();
+    }
+    if (result == Result::Success)
+    {
+        result = m_timedQueuesArrayLock.Init();
+    }
     if (result == Result::Success)
     {
         result = m_registerPipelineLock.Init();
@@ -787,6 +805,7 @@ Pal::Result GpaSession::RegisterTimedQueue(
     uint64       queueId,
     Pal::uint64  queueContext)
 {
+    PAL_ASSERT((m_sessionState == GpaSessionState::Reset) || (m_sessionState == GpaSessionState::Building));
     Pal::Result result = Pal::Result::Success;
 
     // Make sure the queue isn't already registered.
@@ -846,6 +865,7 @@ Pal::Result GpaSession::RegisterTimedQueue(
 
             if (result == Result::Success)
             {
+                Util::RWLockAuto<Util::RWLock::LockType::ReadWrite> lock(&m_timedQueuesArrayLock);
                 result = m_timedQueuesArray.PushBack(pTimedQueueState);
             }
 
@@ -1117,6 +1137,7 @@ Pal::Result GpaSession::TimedSubmit(
 
                 if (result == Pal::Result::Success)
                 {
+                    Util::MutexAuto eventsLock(&m_queueEventsLock);
                     result = m_queueEvents.PushBack(timedQueueEvent);
                 }
 
@@ -1189,6 +1210,7 @@ Pal::Result GpaSession::TimedSignalQueueSemaphore(
 
         // The TS is intentionally left set to 0.
 
+        Util::MutexAuto eventsLock(&m_queueEventsLock);
         result = m_queueEvents.PushBack(timedQueueEvent);
     }
 
@@ -1229,6 +1251,7 @@ Pal::Result GpaSession::TimedWaitQueueSemaphore(
 
         // The TS is intentionally left set to 0.
 
+        Util::MutexAuto eventsLock(&m_queueEventsLock);
         result = m_queueEvents.PushBack(timedQueueEvent);
     }
     return result;
@@ -1318,6 +1341,7 @@ Pal::Result GpaSession::TimedQueuePresent(
         timedQueueEvent.gpuTimestamps.memInfo[0] = timestampMemoryInfo;
         timedQueueEvent.gpuTimestamps.offsets[0] = timestampMemoryOffset;
 
+        Util::MutexAuto eventsLock(&m_queueEventsLock);
         result = m_queueEvents.PushBack(timedQueueEvent);
     }
 
@@ -1355,6 +1379,42 @@ Pal::Result GpaSession::ExternalTimedSignalQueueSemaphore(
 }
 
 // =====================================================================================================================
+// Queries the engine and memory clocks from DeviceProperties
+Pal::Result GpaSession::SampleGpuClocks(
+    GpuClocksSample* pGpuClocksSample) const
+{
+    Result result = Result::ErrorInvalidPointer;
+
+    if (pGpuClocksSample != nullptr)
+    {
+        result = Result::Success;
+    }
+
+    SetClockModeInput clockModeInput = {};
+    clockModeInput.clockMode = DeviceClockMode::Query;
+
+    SetClockModeOutput clockModeOutput = {};
+
+    if (result == Result::Success)
+    {
+        result = m_pDevice->SetClockMode(clockModeInput, &clockModeOutput);
+    }
+
+    if (result == Result::Success)
+    {
+        const float maxEngineClock = m_deviceProps.gfxipProperties.performance.maxGpuClock;
+        const float maxMemoryClock = m_deviceProps.gpuMemoryProperties.performance.maxMemClock;
+        const uint32 engineClock = static_cast<uint32>(maxEngineClock * clockModeOutput.engineClockRatioToPeak);
+        const uint32 memoryClock = static_cast<uint32>(maxMemoryClock * clockModeOutput.memoryClockRatioToPeak);
+
+        pGpuClocksSample->gpuEngineClockSpeed = engineClock;
+        pGpuClocksSample->gpuMemoryClockSpeed = memoryClock;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Samples the timing clocks if queue timing is enabled and adds a clock sample entry to the current session.
 Pal::Result GpaSession::SampleTimingClocks()
 {
@@ -1374,26 +1434,7 @@ Pal::Result GpaSession::SampleTimingClocks()
 
         // Sample the current gpu clock speeds
 
-        SetClockModeInput clockModeInput = {};
-        clockModeInput.clockMode = DeviceClockMode::Query;
-
-        SetClockModeOutput clockModeOutput = {};
-
-        if (result == Result::Success)
-        {
-            result = m_pDevice->SetClockMode(clockModeInput, &clockModeOutput);
-        }
-
-        if (result == Result::Success)
-        {
-            const float maxEngineClock = m_deviceProps.gfxipProperties.performance.maxGpuClock;
-            const float maxMemoryClock = m_deviceProps.gpuMemoryProperties.performance.maxMemClock;
-            const uint32 engineClock = static_cast<uint32>(maxEngineClock * clockModeOutput.engineClockRatioToPeak);
-            const uint32 memoryClock = static_cast<uint32>(maxMemoryClock * clockModeOutput.memoryClockRatioToPeak);
-
-            m_lastGpuClocksSample.gpuEngineClockSpeed = engineClock;
-            m_lastGpuClocksSample.gpuMemoryClockSpeed = memoryClock;
-        }
+        SampleGpuClocks(&m_lastGpuClocksSample);
     }
 
     return result;
@@ -1540,15 +1581,21 @@ Result GpaSession::End(
         m_sessionState = GpaSessionState::Complete;
 
         // Push currently active GPU memory chunk into busy list.
-        if (m_curGartGpuMem.pGpuMemory != nullptr)
         {
-            m_busyGartGpuMem.PushBack(m_curGartGpuMem);
-            m_curGartGpuMem = { nullptr, nullptr };
+            Util::MutexAuto memReuseLock(&m_gartGpuMemLock);
+            if (m_curGartGpuMem.pGpuMemory != nullptr)
+            {
+                m_busyGartGpuMem.PushBack(m_curGartGpuMem);
+                m_curGartGpuMem = { nullptr, nullptr };
+            }
         }
-        if (m_curLocalInvisGpuMem.pGpuMemory != nullptr)
         {
-            m_busyLocalInvisGpuMem.PushBack(m_curLocalInvisGpuMem);
-            m_curLocalInvisGpuMem = { nullptr, nullptr };
+            Util::MutexAuto memReuseLock(&m_localInvisGpuMemLock);
+            if (m_curLocalInvisGpuMem.pGpuMemory != nullptr)
+            {
+                m_busyLocalInvisGpuMem.PushBack(m_curLocalInvisGpuMem);
+                m_curLocalInvisGpuMem = { nullptr, nullptr };
+            }
         }
 
         // Copy all entries in the code object cache into the current code object records list.
@@ -1907,6 +1954,7 @@ void GpaSession::EndSample(
 // GetResults().
 bool GpaSession::IsReady() const
 {
+    PAL_ASSERT((m_sessionState == GpaSessionState::Complete) || (m_sessionState == GpaSessionState::Ready));
     bool isReady = true;
 
     Result result = m_pGpuEvent->GetStatus();
@@ -1917,6 +1965,7 @@ bool GpaSession::IsReady() const
     }
     else if (m_flags.enableQueueTiming)
     {
+        // No lock needed, as it is illegal for the timed queues array to be modified when in Complete/Ready states.
         // Make sure all of the queue fences have retired.
         for (uint32 queueIndex = 0; queueIndex < m_timedQueuesArray.NumElements(); ++queueIndex)
         {
@@ -2180,6 +2229,7 @@ Pal::Result GpaSession::FindTimedQueue(
 
     if ((ppQueueState != nullptr) & (pQueueIndex != nullptr))
     {
+        const Util::RWLockAuto<Util::RWLock::ReadOnly> lock(&m_timedQueuesArrayLock);
         for (Pal::uint32 queueIndex = 0; queueIndex < m_timedQueuesArray.NumElements(); ++queueIndex)
         {
             TimedQueueState* pQueueState = m_timedQueuesArray.At(queueIndex);
@@ -2214,6 +2264,7 @@ Pal::Result GpaSession::FindTimedQueueByContext(
 
     if ((ppQueueState != nullptr) & (pQueueIndex != nullptr))
     {
+        const Util::RWLockAuto<Util::RWLock::LockType::ReadOnly> lock(&m_timedQueuesArrayLock);
         for (Pal::uint32 queueIndex = 0; queueIndex < m_timedQueuesArray.NumElements(); ++queueIndex)
         {
             TimedQueueState* pQueueState = m_timedQueuesArray.At(queueIndex);
@@ -2268,6 +2319,7 @@ Pal::Result GpaSession::ExternalTimedQueueSemaphoreOperation(
         timedQueueEvent.apiId                  = timedSemaphoreInfo.semaphoreID;
         timedQueueEvent.queueIndex             = queueIndex;
 
+        Util::MutexAuto eventsLock(&m_queueEventsLock);
         result = m_queueEvents.PushBack(timedQueueEvent);
     }
 
@@ -2558,6 +2610,9 @@ Result GpaSession::RegisterPipeline(
         if (result == Result::Success)
         {
             PAL_ASSERT(record.recordSize != 0);
+
+            // Pad the record size to the nearest multiple of 4 bytes per the RGP file format spec.
+            record.recordSize = Util::RoundUpToMultiple(record.recordSize, 4U);
 
             // Allocate space to store all the information for one record.
             pCodeObjectRecord = PAL_MALLOC((sizeof(SqttCodeObjectDatabaseRecord) + record.recordSize),
@@ -2887,6 +2942,7 @@ Result GpaSession::AcquireGpuMem(
     Util::Deque<GpuMemoryInfo, GpaAllocator>* pBusyList      = &m_busyGartGpuMem;
     GpuMemoryInfo* pCurGpuMem = &m_curGartGpuMem;
     gpusize* pCurGpuMemOffset = &m_curGartGpuMemOffset;
+    Util::Mutex* pMemoryReuseLock = &m_gartGpuMemLock;
 
     if (heapType == GpuHeapInvisible)
     {
@@ -2894,7 +2950,10 @@ Result GpaSession::AcquireGpuMem(
         pAvailableList   = &m_availableLocalInvisGpuMem;
         pCurGpuMem       = &m_curLocalInvisGpuMem;
         pCurGpuMemOffset = &m_curLocalInvisGpuMemOffset;
+        pMemoryReuseLock = &m_localInvisGpuMemLock;
     }
+
+    pMemoryReuseLock->Lock();
 
     *pCurGpuMemOffset = Util::Pow2Align(*pCurGpuMemOffset, alignment);
 
@@ -2996,6 +3055,8 @@ Result GpaSession::AcquireGpuMem(
     *pOffset = *pCurGpuMemOffset;
 
     *pCurGpuMemOffset += size;
+
+    pMemoryReuseLock->Unlock();
 
     return result;
 }
@@ -3416,8 +3477,18 @@ Result GpaSession::DumpRgpData(
     curFileOffset += sizeof(cpuInfo);
 
     // Get gpu info for rgp dump
+
+    // The previous call to GpaSession::SampleTimingClocks() does nothing when queue timing is not enabled.
+    // In that case, these fields are zero and we must sample the gpu clock ratios explicitly so that we fill out
+    // the AsicInfo block correctly.
+    GpuClocksSample gpuClocksSample = m_lastGpuClocksSample;
+    if ((gpuClocksSample.gpuEngineClockSpeed == 0) || (gpuClocksSample.gpuMemoryClockSpeed == 0))
+    {
+        result = SampleGpuClocks(&gpuClocksSample);
+    }
+
     SqttFileChunkAsicInfo gpuInfo = {};
-    FillSqttAsicInfo(m_deviceProps, m_perfExperimentProps, m_lastGpuClocksSample, &gpuInfo);
+    FillSqttAsicInfo(m_deviceProps, m_perfExperimentProps, gpuClocksSample, &gpuInfo);
 
     if ((result == Result::Success) && (pRgpOutput != nullptr))
     {

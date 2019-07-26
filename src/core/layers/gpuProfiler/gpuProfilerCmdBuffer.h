@@ -463,6 +463,9 @@ public:
     virtual void CmdFlglDisable() override;
     virtual void CmdCommentString(
         const char* pComment) override;
+    virtual void CmdPostProcessFrame(
+        const CmdPostProcessFrameInfo& postProcessInfo,
+        bool*                          pAddedGpuWork) override;
     virtual void CmdSetUserClipPlanes(
         uint32               firstPlane,
         uint32               planeCount,
@@ -718,6 +721,7 @@ private:
     void ReplayCmdSaveComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdRestoreComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCommentString(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdPostProcessFrame(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserClipPlanes(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetClipRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdXdmaWaitFlipPending(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -733,6 +737,7 @@ private:
     void ReplayCmdStartGpuProfilerLogging(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdStopGpuProfilerLogging(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetViewInstanceMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+
     void LogPreTimedCall(
         Queue*           pQueue,
         TargetCmdBuffer* pTgtCmdBuffer,

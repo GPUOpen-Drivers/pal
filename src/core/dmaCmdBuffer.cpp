@@ -172,7 +172,7 @@ Result DmaCmdBuffer::End()
                     static_cast<uint32>(sizeof(CmdBufferDumpFileHeader)), // Structure size
                     1,                                                    // Header version
                     m_pDevice->ChipProperties().familyId,                 // ASIC family
-                    m_pDevice->ChipProperties().deviceId,                 // Reserved, but use for PCI device ID
+                    m_pDevice->ChipProperties().eRevId,                   // ASIC revision
                     0                                                     // Reserved
                 };
                 DumpFile()->Write(&fileHeader, sizeof(fileHeader));

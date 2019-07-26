@@ -280,7 +280,7 @@ void ComputeQueueContext::RebuildCommandStreams()
     // the hardware requires a CS partial flush to operate properly.
     pCmdSpace = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
 
-    pCmdSpace += cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeCompute, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeCompute, pCmdSpace);
 
     // Copy the common preamble commands and compute-specific preamble commands.
     pCmdSpace = m_cmdStream.WritePm4Image(m_commonPreamble.spaceNeeded,  &m_commonPreamble,  pCmdSpace);
@@ -301,13 +301,14 @@ void ComputeQueueContext::RebuildCommandStreams()
     //
     // Wait for a prior submission on this context to be idle before executing the command buffer streams.
     // The timestamp memory is initialized to zero so the first submission on this context will not wait.
-    pCmdSpace += cmdUtil.BuildWaitRegMem(mem_space__mec_wait_reg_mem__memory_space,
-                                         function__mec_wait_reg_mem__equal_to_the_reference_value,
-                                         0,
-                                         m_timestampMem.GpuVirtAddr(),
-                                         0,
-                                         0xFFFFFFFF,
-                                         pCmdSpace);
+    pCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeCompute,
+                                          mem_space__mec_wait_reg_mem__memory_space,
+                                          function__mec_wait_reg_mem__equal_to_the_reference_value,
+                                          0,
+                                          m_timestampMem.GpuVirtAddr(),
+                                          0,
+                                          0xFFFFFFFF,
+                                          pCmdSpace);
 
     // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
     WriteDataInfo writeData = {};
@@ -315,7 +316,7 @@ void ComputeQueueContext::RebuildCommandStreams()
     writeData.dstAddr    = m_timestampMem.GpuVirtAddr();
     writeData.dstSel     = dst_sel__mec_write_data__memory;
 
-    pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildWriteData(writeData, 1, pCmdSpace);
 
     // Issue an acquire mem packet to invalidate all SQ caches (SQ I-cache and SQ K-cache).
     //
@@ -615,13 +616,14 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
 
     // Wait for a prior submission on this context to be idle before executing the command buffer streams.
     // The timestamp memory is initialized to zero so the first submission on this context will not wait.
-    pCmdSpace += cmdUtil.BuildWaitRegMem(mem_space__pfp_wait_reg_mem__memory_space,
-                                         function__pfp_wait_reg_mem__equal_to_the_reference_value,
-                                         engine_sel__pfp_wait_reg_mem__prefetch_parser,
-                                         m_timestampMem.GpuVirtAddr(),
-                                         0,
-                                         UINT_MAX,
-                                         pCmdSpace);
+    pCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeUniversal,
+                                          mem_space__pfp_wait_reg_mem__memory_space,
+                                          function__pfp_wait_reg_mem__equal_to_the_reference_value,
+                                          engine_sel__pfp_wait_reg_mem__prefetch_parser,
+                                          m_timestampMem.GpuVirtAddr(),
+                                          0,
+                                          UINT_MAX,
+                                          pCmdSpace);
 
     // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
     WriteDataInfo writeData = {};
@@ -630,7 +632,7 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
     writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
     writeData.dstSel     = dst_sel__pfp_write_data__memory;
 
-    pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildWriteData(writeData, 1, pCmdSpace);
 
     // Issue an acquire mem packet to invalidate all SQ caches (SQ I-cache and SQ K-cache).
     //
@@ -653,12 +655,12 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         // Those registers (which are used to setup UniversalRingSet) are shadowed and will be set by LOAD_*_REG.
         // We have to setup packets which issue VS_PARTIAL_FLUSH and VGT_FLUSH events before those LOAD_*_REGs
         // to make sure it is safe to write the ring config.
-        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
-        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH,        EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(VGT_FLUSH,        EngineTypeUniversal, pCmdSpace);
     }
 
-    pCmdSpace += cmdUtil.BuildContextControl(m_pDevice->GetContextControl(), pCmdSpace);
-    pCmdSpace += cmdUtil.BuildClearState(cmd__pfp_clear_state__clear_state, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildContextControl(m_pDevice->GetContextControl(), pCmdSpace);
+    pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state, pCmdSpace);
 
     if (m_useShadowing)
     {
@@ -668,16 +670,16 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
 
         uint32      numEntries = 0;
         const auto* pRegRange  = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
 
         pRegRange  = m_pDevice->GetRegisterRange(RegRangeContext, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadContextRegs(contextRegGpuAddr, pRegRange, numEntries, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildLoadContextRegs(contextRegGpuAddr, pRegRange, numEntries, pCmdSpace);
 
         pRegRange  = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
 
         pRegRange  = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
     }
 
     cmdStream.CommitCommands(pCmdSpace);
@@ -700,20 +702,20 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         dmaData.numBytes     = static_cast<uint32>(m_shadowGpuMemSizeInBytes);
         dmaData.sync         = true;
         dmaData.usePfp       = true;
-        pCmdSpace += cmdUtil.BuildDmaData(dmaData, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildDmaData(dmaData, pCmdSpace);
 
         // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
         // might contain invalid value. We don't need to load context register again because in the
         // InitializeContextRegisters() we will set the contexts that we can load.
         uint32      numEntries = 0;
         const auto* pRegRange  = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
 
         pRegRange = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
 
         pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
 
         cmdStream.CommitCommands(pCmdSpace);
 
@@ -897,9 +899,9 @@ void UniversalQueueContext::RebuildCommandStreams()
     // Write the shader ring-set's commands after the command stream's normal preamble. If the ring sizes have changed,
     // the hardware requires a CS/VS/PS partial flush to operate properly.
     pCmdSpace = m_pEngine->RingSet()->WriteCommands(&m_deCmdStream, pCmdSpace);
-    pCmdSpace += cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
-    pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
-    pCmdSpace += cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
 
     m_deCmdStream.CommitCommands(pCmdSpace);
     m_deCmdStream.End();
@@ -945,7 +947,7 @@ void UniversalQueueContext::RebuildCommandStreams()
         m_cePreambleCmdStream.Begin(beginFlags, nullptr);
 
         pCmdSpace  = m_cePreambleCmdStream.ReserveCommands();
-        pCmdSpace += cmdUtil.BuildLoadConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildLoadConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
         m_cePreambleCmdStream.CommitCommands(pCmdSpace);
 
         m_cePreambleCmdStream.End();
@@ -960,7 +962,7 @@ void UniversalQueueContext::RebuildCommandStreams()
             m_cePostambleCmdStream.Begin(beginFlags, nullptr);
 
             pCmdSpace  = m_cePostambleCmdStream.ReserveCommands();
-            pCmdSpace += cmdUtil.BuildDumpConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
+            pCmdSpace += CmdUtil::BuildDumpConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
             m_cePostambleCmdStream.CommitCommands(pCmdSpace);
 
             m_cePostambleCmdStream.End();
@@ -1054,10 +1056,10 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
                                                 ((1 << gfx9ChipProps.numTotalRbs) - 1);
 
     m_universalPreamble.spaceNeeded +=
-        cmdUtil.BuildSampleEventWrite(PIXEL_PIPE_STAT_CONTROL,
-                                      EngineTypeUniversal,
-                                      pixelPipeStatControl.u32All,
-                                      &m_universalPreamble.pixelPipeStatControl);
+        CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_CONTROL,
+                                       EngineTypeUniversal,
+                                       pixelPipeStatControl.u32All,
+                                       &m_universalPreamble.pixelPipeStatControl);
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {

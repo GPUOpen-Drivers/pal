@@ -3388,6 +3388,32 @@ void CmdBuffer::ReplayCmdCommentString(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdPostProcessFrame(
+    const CmdPostProcessFrameInfo& postProcessInfo,
+    bool*                          pAddedGpuWork)
+{
+    InsertToken(CmdBufCallId::CmdPostProcessFrame);
+    InsertToken(postProcessInfo);
+    InsertToken((pAddedGpuWork != nullptr) ? *pAddedGpuWork : false);
+
+    // Pass this command on to the next layer.  Clients depend on the pAddedGpuWork output parameter.
+    CmdPostProcessFrameInfo nextPostProcessInfo = {};
+    NextLayer()->CmdPostProcessFrame(*NextCmdPostProcessFrameInfo(postProcessInfo, &nextPostProcessInfo),
+                                     pAddedGpuWork);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdPostProcessFrame(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto postProcessInfo = ReadTokenVal<CmdPostProcessFrameInfo>();
+    auto addedGpuWork    = ReadTokenVal<bool>();
+
+    pTgtCmdBuffer->CmdPostProcessFrame(postProcessInfo, &addedGpuWork);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdSetUserClipPlanes(
     uint32               firstPlane,
     uint32               planeCount,
@@ -3607,6 +3633,7 @@ void CmdBuffer::Replay(
 #endif
         &CmdBuffer::ReplayCmdUpdateHiSPretests,
         &CmdBuffer::ReplayCmdSetClipRects,
+        &CmdBuffer::ReplayCmdPostProcessFrame,
     };
 
     static_assert(ArrayLen(ReplayFuncTbl) == static_cast<size_t>(CmdBufCallId::Count),

@@ -322,6 +322,10 @@ public:
         const ImageCopyRegion* pRegions,
         Pal::PackedPixelType   packPixelType) override;
 
+    virtual void CmdPostProcessFrame(
+        const CmdPostProcessFrameInfo& postProcessInfo,
+        bool*                          pAddedGpuWork) override;
+
     void CmdPresentBlt(
         const IImage&   srcImage,
         const IImage&   dstImage,

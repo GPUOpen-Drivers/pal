@@ -155,7 +155,7 @@ Result ComputeCmdBuffer::End()
                     static_cast<uint32>(sizeof(CmdBufferDumpFileHeader)), // Structure size
                     1,                                                    // Header version
                     m_device.Parent()->ChipProperties().familyId,         // ASIC family
-                    m_device.Parent()->ChipProperties().deviceId,         // Reserved, but use for PCI device ID
+                    m_device.Parent()->ChipProperties().eRevId,           // ASIC revision
                     0                                                     // Reserved
                 };
                 DumpFile()->Write(&fileHeader, sizeof(fileHeader));

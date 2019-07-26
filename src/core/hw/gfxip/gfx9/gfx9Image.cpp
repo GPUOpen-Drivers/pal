@@ -636,18 +636,18 @@ Result Image::Finalize(
     if (useCmask && (result == Result::Success))
     {
         // Cmask setup depends on Fmask swizzle mode, so setup Fmask first.
-        m_pFmask = PAL_NEW(Gfx9Fmask, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this);
+        m_pFmask = PAL_NEW(Gfx9Fmask, m_device.GetPlatform(), SystemAllocType::AllocObject)();
         if (m_pFmask != nullptr)
         {
             if (useSharedMetadata)
             {
                 gpusize forcedOffset = sharedMetadata.fmaskOffset;
-                result = m_pFmask->Init(&forcedOffset);
+                result = m_pFmask->Init(*this, &forcedOffset);
                 *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
             }
             else
             {
-                result = m_pFmask->Init(pGpuMemSize);
+                result = m_pFmask->Init(*this, pGpuMemSize);
             }
 
             if ((m_createInfo.flags.repetitiveResolve != 0) || (coreSettings.forceFixedFuncColorResolve != 0))

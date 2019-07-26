@@ -775,7 +775,9 @@ Result CreateRpmComputePipelines(
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9GenerateCmdDraw, pDevice, pTable, pPipelineMem);
     }
+#endif
 
+#if PAL_BUILD_GFX9
     if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
     {
         result = CreateRpmComputePipeline(

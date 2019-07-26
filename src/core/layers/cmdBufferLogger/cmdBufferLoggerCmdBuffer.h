@@ -471,6 +471,10 @@ public:
     virtual void CmdStartGpuProfilerLogging() override;
     virtual void CmdStopGpuProfilerLogging() override;
 
+    virtual void CmdPostProcessFrame(
+        const CmdPostProcessFrameInfo& postProcessInfo,
+        bool*                          pAddedGpuWork) override;
+
     virtual void CmdSetUserClipPlanes(
         uint32               firstPlane,
         uint32               planeCount,

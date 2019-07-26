@@ -57,11 +57,9 @@ uint32 MsaaState::ComputeMaxSampleDistance(
 }
 
 // =====================================================================================================================
-MsaaState::MsaaState(
-    const Device& device)
+MsaaState::MsaaState()
     :
-    Pal::MsaaState(*device.Parent()),
-    m_device(device),
+    Pal::MsaaState(),
     m_log2Samples(0),
     m_log2ShaderExportMaskSamples(0),
     m_sampleMask(0),
@@ -71,11 +69,12 @@ MsaaState::MsaaState(
 
 // =====================================================================================================================
 // Assembles the PM4 headers for the commands in this MSAA state object.
-void MsaaState::BuildPm4Headers()
+void MsaaState::BuildPm4Headers(
+    const Device& device)
 {
     memset(&m_pm4Image, 0, sizeof(m_pm4Image));
 
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
+    const CmdUtil& cmdUtil = device.CmdUtil();
 
     // 1st PM4 packet
     m_pm4Image.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_EQAA, &m_pm4Image.hdrDbEqaa);
@@ -134,6 +133,7 @@ uint32* MsaaState::WriteCommands(
 // =====================================================================================================================
 // Pre-constructs all the packets required to set the MSAA state
 Result MsaaState::Init(
+    const Device&              device,
     const MsaaStateCreateInfo& msaaState)
 {
     // pre GFX9 HW doesn't support conservative rasterization.
@@ -144,7 +144,7 @@ Result MsaaState::Init(
     m_log2ShaderExportMaskSamples = Log2(msaaState.shaderExportMaskSamples);
     m_log2OcclusionQuerySamples   = Log2(msaaState.occlusionQuerySamples);
 
-    BuildPm4Headers();
+    BuildPm4Headers(device);
 
     // Use the supplied sample mask to initialize the PA_SC_AA_MASK_** registers:
     uint32 usedMask    = (m_sampleMask & ((1 << NumSamples()) - 1));
@@ -171,7 +171,7 @@ Result MsaaState::Init(
     m_pm4Image.dbEqaa.bits.INCOHERENT_EQAA_READS      = 1;
     m_pm4Image.dbEqaa.bits.INTERPOLATE_COMP_Z         = 1;
 
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
+    const CmdUtil& cmdUtil = device.CmdUtil();
 
     if (msaaState.coverageSamples > 1)
     {
@@ -191,7 +191,7 @@ Result MsaaState::Init(
         m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT  = m_log2ShaderExportMaskSamples -
                                                            Log2(msaaState.sampleClusters);
 
-        if (m_device.WaDbOverRasterization() && UsesOverRasterization())
+        if (device.WaDbOverRasterization() && UsesOverRasterization())
         {
             // Apply the "DB Over-Rasterization" workaround:
             // The DB has a bug with early-Z where the DB kills pixels when over-rasterization is enabled. Most of

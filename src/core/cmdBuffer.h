@@ -710,6 +710,16 @@ public:
         const ImageCopyRegion* pRegions,
         Pal::PackedPixelType   packPixelType) override { PAL_NEVER_CALLED(); }
 
+    virtual void CmdPostProcessFrame(
+        const CmdPostProcessFrameInfo& postProcessInfo,
+        bool*                          pAddedGpuWork) override
+    {
+        if (pAddedGpuWork != nullptr)
+        {
+            *pAddedGpuWork = false;
+        }
+    }
+
     virtual void CmdSetUserClipPlanes(
         uint32               firstPlane,
         uint32               planeCount,

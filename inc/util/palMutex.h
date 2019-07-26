@@ -248,6 +248,13 @@ extern void YieldThread();
 /// @returns Result of the increment operation.
 extern uint32 AtomicIncrement(volatile uint32* pValue);
 
+/// Atomically increment a 64-bit-unsigned  integer
+///
+/// @param [in,out] pAddend Pointer to the value to be incremented
+///
+/// @returns Result of the increment operation.
+extern uint64 AtomicIncrement64(volatile uint64* pAddend);
+
 /// Atomically decrements the specified 32-bit unsigned integer.
 ///
 /// @param [in,out] pValue Pointer to the value to be decremented.

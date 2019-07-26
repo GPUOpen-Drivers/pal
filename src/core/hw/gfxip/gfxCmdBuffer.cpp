@@ -580,6 +580,33 @@ void GfxCmdBuffer::CmdColorSpaceConversionCopy(
 }
 
 // =====================================================================================================================
+void GfxCmdBuffer::CmdPostProcessFrame(
+    const CmdPostProcessFrameInfo& postProcessInfo,
+    bool*                          pAddedGpuWork)
+{
+    bool addedGpuWork = false;
+
+    if (postProcessInfo.flags.srcIsTypedBuffer == 0)
+    {
+        const auto& image          = static_cast<const Image&>(*postProcessInfo.pSrcImage);
+        const auto& presentedImage =
+            image;
+
+        // If developer mode is enabled, we need to apply the developer overlay.
+        if (m_device.GetPlatform()->ShowDevDriverOverlay())
+        {
+            m_device.Parent()->ApplyDevOverlay(presentedImage, this);
+            addedGpuWork = true;
+        }
+    }
+
+    if (addedGpuWork && (pAddedGpuWork != nullptr))
+    {
+        *pAddedGpuWork = true;
+    }
+}
+
+// =====================================================================================================================
 // For BLT presents, this function on GfxCmdBuffer will perform whatever operations are necessary to copy the image data
 // from the source image to the destination image.
 void GfxCmdBuffer::CmdPresentBlt(

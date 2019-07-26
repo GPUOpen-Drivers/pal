@@ -58,7 +58,13 @@ public:
         TexFilter                         filter,
         const ColorSpaceConversionTable&  cscTable) override;
 
+    virtual void CmdPostProcessFrame(
+        const CmdPostProcessFrameInfo& postProcessInfo,
+        bool*                          pAddedGpuWork) override;
+
 private:
+    void DrawOverlay(const IImage* pSrcImage);
+
     const Device&   m_device;
     const QueueType m_queueType;
     bool            m_containsPresent;  // Detects if a Present call is made in this command buffer

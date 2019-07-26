@@ -660,7 +660,7 @@ void CmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
-    AutoBuffer<bool, 16, Platform>  processed(barrierInfo.transitionCount, m_device.GetPlatform());
+    AutoBuffer<bool, 32, Platform>  processed(barrierInfo.transitionCount, m_device.GetPlatform());
     if (processed.Capacity() >= barrierInfo.transitionCount)
     {
         memset(&processed[0], 0, sizeof(bool) * barrierInfo.transitionCount);

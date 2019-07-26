@@ -107,8 +107,8 @@ constexpr uint32 SizeOfMsaaSamplePositionsPm4ImageInDwords = sizeof(MsaaSamplePo
 class MsaaState : public Pal::MsaaState
 {
 public:
-    MsaaState(const Device& device);
-    Result Init(const MsaaStateCreateInfo& msaaState);
+    MsaaState();
+    Result Init(const Device& device, const MsaaStateCreateInfo& msaaState);
 
     static uint32 ComputeMaxSampleDistance(uint32                       numSamples,
                                            const MsaaQuadSamplePattern& quadSamplePattern);
@@ -146,9 +146,7 @@ protected:
     virtual ~MsaaState() {}
 
 private:
-    void BuildPm4Headers();
-
-    const Device&  m_device;
+    void BuildPm4Headers(const Device& device);
 
     uint32  m_log2Samples;
     uint32  m_sampleMask;
@@ -158,7 +156,6 @@ private:
     MsaaStatePm4Img                             m_pm4Image;
     regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL    m_paScConsRastCntl;
 
-    PAL_DISALLOW_DEFAULT_CTOR(MsaaState);
     PAL_DISALLOW_COPY_AND_ASSIGN(MsaaState);
 };
 

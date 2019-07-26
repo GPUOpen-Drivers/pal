@@ -92,8 +92,10 @@ Queue::Queue(
     m_submitIdPerFrame(0),
     m_queuePriority(QueuePriority::Low),
     m_persistentCeRamOffset(0),
-    m_persistentCeRamSize(0),
-    m_pTrackedCmdBufferDeque(nullptr)
+    m_persistentCeRamSize(0)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
+    ,m_pTrackedCmdBufferDeque(nullptr)
+#endif
 {
     if (m_pDevice->Settings().ifhGpuMask & (0x1 << m_pDevice->ChipProperties().gpuIndex))
     {
@@ -174,6 +176,7 @@ void Queue::Destroy()
     // slow and have chance to be preempted. Solution is call WaitIdle before doing anything else.
     WaitIdle();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     if (m_pTrackedCmdBufferDeque != nullptr)
     {
         while (m_pTrackedCmdBufferDeque->NumElements() > 0)
@@ -184,6 +187,7 @@ void Queue::Destroy()
         }
         PAL_SAFE_DELETE(m_pTrackedCmdBufferDeque, m_pDevice->GetPlatform());
     }
+#endif
 
     if (m_pDummyCmdBuffer != nullptr)
     {
@@ -297,6 +301,7 @@ Result Queue::Init(
         }
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     const bool shouldAllocTrackedCmdBuffers =
         m_pDevice->GetPlatform()->IsDeveloperModeEnabled();
 
@@ -309,6 +314,7 @@ Result Queue::Init(
 
         result = (m_pTrackedCmdBufferDeque != nullptr) ? Result::Success : Result::ErrorOutOfMemory;
     }
+#endif
 
     return result;
 }
@@ -465,7 +471,7 @@ void Queue::DumpCmdToFile(
                     static_cast<uint32>(sizeof(CmdBufferDumpFileHeader)), // Structure size
                     1,                                                    // Header version
                     m_pDevice->ChipProperties().familyId,                 // ASIC family
-                    m_pDevice->ChipProperties().deviceId,                 // Reserved, but use for PCI device ID
+                    m_pDevice->ChipProperties().eRevId,                   // ASIC revision
                     0                                                     // Reserved
                 };
                 logFile.Write(&fileHeader, sizeof(fileHeader));
@@ -545,6 +551,7 @@ void Queue::DumpCmdToFile(
 }
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
 // =====================================================================================================================
 Result Queue::CreateTrackedCmdBuffer(
     TrackedCmdBuffer** ppTrackedCmdBuffer)
@@ -672,6 +679,7 @@ void Queue::DestroyTrackedCmdBuffer(
 
     PAL_SAFE_DELETE(pTrackedCmdBuffer, m_pDevice->GetPlatform());
 }
+#endif
 
 // =====================================================================================================================
 // Waits for all requested submissions on this Queue to finish, including any batched-up submissions. This call never
@@ -810,12 +818,14 @@ Result Queue::PresentDirectInternal(
     }
     else
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
         // We only want to add postprocessing when this is a non-internal present. Internal presents are expected to
         // have done so themselves.
         if (((result == Result::Success) && isClientPresent) && (presentInfo.pSrcImage != nullptr))
         {
             result = SubmitPostprocessCmdBuffer(static_cast<Image&>(*presentInfo.pSrcImage));
         }
+#endif
 
         if (result == Result::Success)
         {
@@ -884,10 +894,12 @@ Result Queue::PresentSwapChain(
         result = Result::ErrorInvalidValue;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     if (result == Result::Success)
     {
         result = SubmitPostprocessCmdBuffer(static_cast<Image&>(*presentInfo.pSrcImage));
     }
+#endif
 
     if (presentInfo.flags.notifyOnly == 0)
     {
@@ -1388,6 +1400,7 @@ void Queue::IncFrameCount()
     m_pDevice->IncFrameCount();
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
 // =====================================================================================================================
 // Applies developer overlay and other postprocessing to be done prior to presenting an image.
 Result Queue::SubmitPostprocessCmdBuffer(
@@ -1423,6 +1436,7 @@ Result Queue::SubmitPostprocessCmdBuffer(
 
     return result;
 }
+#endif
 
 // =====================================================================================================================
 // Check whether the present mode is supported by the queue.

@@ -59,11 +59,9 @@ uint32 MsaaState::ComputeMaxSampleDistance(
 }
 
 // =====================================================================================================================
-MsaaState::MsaaState(
-    const Device& device)
+MsaaState::MsaaState()
     :
-    Pal::MsaaState(*device.Parent()),
-    m_device(device),
+    Pal::MsaaState(),
     m_log2Samples(0),
     m_sampleMask(0),
     m_pixelShaderSamples(0),
@@ -74,12 +72,13 @@ MsaaState::MsaaState(
 
 // =====================================================================================================================
 // Assembles the PM4 headers for the commands in this MSAA state object.
-void MsaaState::BuildPm4Headers()
+void MsaaState::BuildPm4Headers(
+    const Device& device)
 {
     memset(&m_pm4Image, 0, sizeof(m_pm4Image));
 
-    const CmdUtil& cmdUtil  = m_device.CmdUtil();
-    const auto&    settings = GetGfx9Settings(*m_device.Parent());
+    const CmdUtil& cmdUtil  = device.CmdUtil();
+    const auto&    settings = GetGfx9Settings(*device.Parent());
 
     // 1st PM4 packet
     m_pm4Image.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_EQAA, &m_pm4Image.hdrDbEqaa);
@@ -165,10 +164,11 @@ uint32* MsaaState::WriteCommands(
 // =====================================================================================================================
 // Pre-constructs all the packets required to set the MSAA state
 Result MsaaState::Init(
+    const Device&              device,
     const MsaaStateCreateInfo& msaaState)
 {
     regPA_SC_AA_CONFIG  paScAaConfig    = {};
-    const auto&         settings        = GetGfx9Settings(*m_device.Parent());
+    const auto&         settings        = GetGfx9Settings(*device.Parent());
 
     m_log2Samples               = Log2(msaaState.coverageSamples);
     m_sampleMask                = msaaState.sampleMask;
@@ -176,7 +176,7 @@ Result MsaaState::Init(
     m_log2OcclusionQuerySamples = Log2(msaaState.occlusionQuerySamples);
     m_paScConsRastCntl.u32All   = 0;
 
-    BuildPm4Headers();
+    BuildPm4Headers(device);
 
     // Use the supplied sample mask to initialize the PA_SC_AA_MASK_** registers:
     uint32 usedMask    = (m_sampleMask & ((1 << NumSamples()) - 1));

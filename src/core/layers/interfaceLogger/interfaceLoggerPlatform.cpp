@@ -173,6 +173,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
 #endif
     { InterfaceFunc::CmdUpdateHiSPretests,                          (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetClipRects,                      (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdPostProcessFrame,                  (CmdBuild)            },
     { InterfaceFunc::ColorBlendStateDestroy,                        (CrtDstry)            },
     { InterfaceFunc::DepthStencilStateDestroy,                      (CrtDstry)            },
     { InterfaceFunc::DeviceCommitSettingsAndInit,                   (GenCalls)            },

@@ -130,7 +130,7 @@ void PipelineChunkGs::LateInit(
     const RegisterVector&           registers,
     const GraphicsPipelineLoadInfo& loadInfo,
     GraphicsPipelineUploader*       pUploader,
-    Util::MetroHash64*              pHasher)
+    MetroHash64*                    pHasher)
 {
     const bool useLoadIndexPath = pUploader->EnableLoadIndexPath();
 

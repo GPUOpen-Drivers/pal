@@ -42,24 +42,24 @@ ColorBlendState::ColorBlendState(
     const Device&                    device,
     const ColorBlendStateCreateInfo& createInfo)
     :
-    Pal::ColorBlendState(*device.Parent()),
-    m_dualSrcBlend(false),
+    Pal::ColorBlendState(),
     m_blendEnableMask(0),
     m_blendReadsDestMask(0),
     m_blendCommutativeMask(0)
 {
     memset(&m_pm4Commands, 0, sizeof(m_pm4Commands));
     memset(&m_blendOpts[0], 0, sizeof(m_blendOpts));
-    BuildPm4Headers();
-    Init(createInfo);
+    BuildPm4Headers(device);
+    Init(device, createInfo);
 }
 
 // =====================================================================================================================
 // Builds the packet headers for the various PM4 images associated with this State Object.
 // Register values and packet payloads are computed elsewhere.
-void ColorBlendState::BuildPm4Headers()
+void ColorBlendState::BuildPm4Headers(
+    const Device& device)
 {
-    const CmdUtil& cmdUtil = static_cast<Device*>(m_device.GetGfxDevice())->CmdUtil();
+    const CmdUtil& cmdUtil = device.CmdUtil();
 
     // 1st PM4 packet: sets the following context registers: CB_BLEND0_CONTROL-CB_BLEND7_CONTROL
     cmdUtil.BuildSetSeqContextRegs(mmCB_BLEND0_CONTROL,
@@ -291,31 +291,32 @@ static GfxBlendOptimizer::BlendOp HwEnumToBlendOp(
 static uint32 BlendOptToHw(
     GfxBlendOptimizer::BlendOpt op)
 {
-    constexpr BlendOpt ConversionTable[] =
-    {
-        FORCE_OPT_AUTO,
-        FORCE_OPT_DISABLE,
-        FORCE_OPT_ENABLE_IF_SRC_A_0,
-        FORCE_OPT_ENABLE_IF_SRC_RGB_0,
-        FORCE_OPT_ENABLE_IF_SRC_ARGB_0,
-        FORCE_OPT_ENABLE_IF_SRC_A_1,
-        FORCE_OPT_ENABLE_IF_SRC_RGB_1,
-        FORCE_OPT_ENABLE_IF_SRC_ARGB_1
-    };
+    // PAL's enum == HW enum. Static_cast is safe w/o lookup table.
+    static_assert((static_cast<uint32>(GfxBlendOptimizer::BlendOpt::ForceOptAuto) ==
+        FORCE_OPT_AUTO), "BlendOpt != GfxBlendOptimizer::BlendOpts");
+    static_assert((static_cast<uint32>(GfxBlendOptimizer::BlendOpt::ForceOptDisable) ==
+        FORCE_OPT_DISABLE), "BlendOpt != GfxBlendOptimizer::BlendOpts");
+    static_assert((static_cast<uint32>(GfxBlendOptimizer::BlendOpt::ForceOptEnableIfSrcA0) ==
+        FORCE_OPT_ENABLE_IF_SRC_A_0), "BlendOpt != GfxBlendOptimizer::BlendOpts");
+    static_assert((static_cast<uint32>(GfxBlendOptimizer::BlendOpt::ForceOptEnableIfSrcRgb0) ==
+        FORCE_OPT_ENABLE_IF_SRC_RGB_0), "BlendOpt != GfxBlendOptimizer::BlendOpts");
+    static_assert((static_cast<uint32>(GfxBlendOptimizer::BlendOpt::ForceOptEnableIfSrcArgb0) ==
+        FORCE_OPT_ENABLE_IF_SRC_ARGB_0), "BlendOpt != GfxBlendOptimizer::BlendOpts");
+    static_assert((static_cast<uint32>(GfxBlendOptimizer::BlendOpt::ForceOptEnableIfSrcA1) ==
+        FORCE_OPT_ENABLE_IF_SRC_A_1), "BlendOpt != GfxBlendOptimizer::BlendOpts");
+    static_assert((static_cast<uint32>(GfxBlendOptimizer::BlendOpt::ForceOptEnableIfSrcRgb1) ==
+        FORCE_OPT_ENABLE_IF_SRC_RGB_1), "BlendOpt != GfxBlendOptimizer::BlendOpts");
+    static_assert((static_cast<uint32>(GfxBlendOptimizer::BlendOpt::ForceOptEnableIfSrcArgb1) ==
+        FORCE_OPT_ENABLE_IF_SRC_ARGB_1), "BlendOpt != GfxBlendOptimizer::BlendOpts");
 
-    constexpr uint32 ConversionTableSize = sizeof(ConversionTable) / sizeof(BlendOp);
-
-    PAL_ASSERT(ConversionTable[static_cast<uint32>(GfxBlendOptimizer::BlendOpt::ForceOptAuto)] == FORCE_OPT_AUTO);
-    static_assert(ConversionTableSize == FORCE_OPT_ENABLE_IF_SRC_ARGB_1 + 1,
-                  "Conversion table does not include all HW enumerations");
-
-    return ConversionTable[static_cast<uint32>(op)];
+    return static_cast<uint32>(op);
 }
 
 // =====================================================================================================================
 // Performs Gfx9 hardware-specific initialization for a color blend state object, including:
 // Set up the image of PM4 commands used to write the pipeline to HW.
 void ColorBlendState::Init(
+    const Device&                         device,
     const Pal::ColorBlendStateCreateInfo& blend)    // [in] Creation info
 {
     for (uint32 i = 0; i < MaxColorTargets; i++)
@@ -349,23 +350,23 @@ void ColorBlendState::Init(
         }
     }
 
-    m_dualSrcBlend  = IsDualSrcBlendOption(blend.targets[0].srcBlendColor);
-    m_dualSrcBlend |= IsDualSrcBlendOption(blend.targets[0].dstBlendColor);
-    m_dualSrcBlend |= IsDualSrcBlendOption(blend.targets[0].srcBlendAlpha);
-    m_dualSrcBlend |= IsDualSrcBlendOption(blend.targets[0].dstBlendAlpha);
+    bool isDualSrcBlend  = IsDualSrcBlendOption(blend.targets[0].srcBlendColor);
+    isDualSrcBlend |= IsDualSrcBlendOption(blend.targets[0].dstBlendColor);
+    isDualSrcBlend |= IsDualSrcBlendOption(blend.targets[0].srcBlendAlpha);
+    isDualSrcBlend |= IsDualSrcBlendOption(blend.targets[0].dstBlendAlpha);
 
     // CB_BLEND1_CONTROL.ENABLE must be 1 for dual source blend.
-    if (m_dualSrcBlend == true)
+    if (isDualSrcBlend == true)
     {
         m_pm4Commands.cbBlendControl[1].bits.ENABLE = 1;
     }
 
-    InitBlendOpts(blend);
+    InitBlendOpts(blend, isDualSrcBlend);
 
-    const Gfx9PalSettings& settings = GetGfx9Settings(m_device);
+    const Gfx9PalSettings& settings = device.Settings();
 
     // sxMrtBlendOpt is defaulted to 0 for the case Rb+ is disabled, disable RB+ when dualSrcBlend is enabled
-    if ((settings.gfx9RbPlusEnable == true) && (m_dualSrcBlend == false))
+    if ((settings.gfx9RbPlusEnable == true) && (isDualSrcBlend == false))
     {
         for (uint32 i = 0; i < MaxColorTargets; i++)
         {
@@ -443,7 +444,8 @@ void ColorBlendState::Init(
 //      + Writing to Color channel only.
 //      + Writing to both Alpha and Color channels.
 void ColorBlendState::InitBlendOpts(
-    const Pal::ColorBlendStateCreateInfo& blend)    // [in] Creation info
+    const Pal::ColorBlendStateCreateInfo& blend,    // [in] Creation info
+    bool                                  isDualSrcBlend)
 {
     using namespace GfxBlendOptimizer;
 
@@ -464,7 +466,7 @@ void ColorBlendState::InitBlendOpts(
             // Per discussions with HW engineers, RTL has issues with blend optimization for dual source blending.  HW
             // is already turning it off for that case.  Thus, driver must not turn it on as well for dual source
             // blending.
-            if ((blend.targets[ct].blendEnable == true) && (IsDualSrcBlend() == false))
+            if ((blend.targets[ct].blendEnable == true) && (isDualSrcBlend == false))
             {
                 // The logic assumes the separate alpha blend is always on
                 PAL_ASSERT(m_pm4Commands.cbBlendControl[ct].bits.SEPARATE_ALPHA_BLEND == 1);
@@ -542,7 +544,7 @@ uint32* ColorBlendState::WriteCommands(
 
 // =====================================================================================================================
 // Writes the PM4 commands required to enable or disable blending opts. Returns the next unused DWORD in pCmdSpace.
-template <bool pm4OptImmediate>
+template <bool Pm4OptImmediate>
 uint32* ColorBlendState::WriteBlendOptimizations(
     CmdStream*                     pCmdStream,
     const SwizzledFormat*          pTargetFormats,     // [in] Array of pixel formats per target.
@@ -589,7 +591,7 @@ uint32* ColorBlendState::WriteBlendOptimizations(
                 regValue.bits.BLEND_OPT_DONT_RD_DST   = BlendOptToHw(dontRdDst);
                 regValue.bits.BLEND_OPT_DISCARD_PIXEL = BlendOptToHw(discardPixel);
 
-                pCmdSpace = pCmdStream->WriteContextRegRmw<pm4OptImmediate>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
+                pCmdSpace = pCmdStream->WriteContextRegRmw<Pm4OptImmediate>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
                                                                             BlendOptRegMask,
                                                                             regValue.u32All,
                                                                             pCmdSpace);

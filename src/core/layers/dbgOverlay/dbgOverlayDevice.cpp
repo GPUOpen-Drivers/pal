@@ -327,12 +327,9 @@ Result Device::CreatePresentableImage(
     IImage*     pNextImage     = nullptr;
     IGpuMemory* pNextGpuMemory = nullptr;
 
-    // In order to be able to overlay debug information on presentable images, the images must also be ShaderWrite.
     PresentableImageCreateInfo nextCreateInfo = createInfo;
     nextCreateInfo.pScreen                    = NextScreen(createInfo.pScreen);
     nextCreateInfo.pSwapChain                 = NextSwapChain(createInfo.pSwapChain);
-
-    nextCreateInfo.usage.shaderWrite = 1;
 
     Result result =
         m_pNextLayer->CreatePresentableImage(nextCreateInfo,
@@ -340,15 +337,6 @@ Result Device::CreatePresentableImage(
                                              NextObjectAddr<GpuMemoryDecorator>(pGpuMemoryPlacementAddr),
                                              &pNextImage,
                                              &pNextGpuMemory);
-
-    // NOTE: Since Srgb formats do not support ShaderWrite, the DebugOverlay needs to force the image to act as
-    //       Unorm. We still need the lower layers to know that this image is Srgb so we do not change it before
-    //       the call to CreatePresentableImage, but we need the DebugOverlay's version of this image to be
-    //       considered as Unorm for rendering of the overlay.
-    if (Formats::IsSrgb(nextCreateInfo.swizzledFormat.format))
-    {
-        nextCreateInfo.swizzledFormat.format = Formats::ConvertToUnorm(nextCreateInfo.swizzledFormat.format);
-    }
 
     if ((result == Result::Success) || (result == Result::TooManyFlippableAllocations))
     {

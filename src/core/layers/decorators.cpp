@@ -1011,8 +1011,9 @@ void DeviceDecorator::DecoratorCreateImageViewSrds(
     {
         for (uint32 i = 0; i < count; i++)
         {
-            imageViewInfo[i]        = pImgViewInfo[i];
-            imageViewInfo[i].pImage = NextImage(pImgViewInfo[i].pImage);
+            imageViewInfo[i]               = pImgViewInfo[i];
+            imageViewInfo[i].pImage        = NextImage(pImgViewInfo[i].pImage);
+
         }
 
         pNextDevice->CreateImageViewSrds(count, &imageViewInfo[0], pOut);
@@ -1842,6 +1843,27 @@ Result DeviceDecorator::SetPowerProfile(
         pNextInfo = &nextInfo;
     }
     return m_pNextLayer->SetPowerProfile(profile, pNextInfo);
+}
+
+// =====================================================================================================================
+const CmdPostProcessFrameInfo* CmdBufferDecorator::NextCmdPostProcessFrameInfo(
+    const CmdPostProcessFrameInfo& postProcessInfo,
+    CmdPostProcessFrameInfo*       pNextPostProcessInfo)
+{
+    PAL_ASSERT(pNextPostProcessInfo != nullptr);
+
+    pNextPostProcessInfo->flags.u32All = postProcessInfo.flags.u32All;
+
+    if (postProcessInfo.flags.srcIsTypedBuffer != 0)
+    {
+        pNextPostProcessInfo->pSrcTypedBuffer = NextGpuMemory(postProcessInfo.pSrcTypedBuffer);
+    }
+    else
+    {
+        pNextPostProcessInfo->pSrcImage = NextImage(postProcessInfo.pSrcImage);
+    }
+
+    return pNextPostProcessInfo;
 }
 
 // =====================================================================================================================

@@ -416,6 +416,8 @@ static void SetupNavi10Workarounds(
 
     pSettings->waTessIncorrectRelativeIndex = true;
 
+    pSettings->waForceZonlyHtileForMipmaps = true;
+
 } // PAL_BUILD_NAVI10
 
 // =====================================================================================================================

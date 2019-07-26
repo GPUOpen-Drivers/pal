@@ -1463,12 +1463,12 @@ public:
     virtual void GetReferencedMemoryTotals(
         gpusize  referencedGpuMemTotal[GpuHeapCount]) const override;
 
-    Result ValidateBindObjectMemoryInput(
+    static Result ValidateBindObjectMemoryInput(
         const IGpuMemory* pMemObject,
         gpusize           offset,
         gpusize           objMemSize,
         gpusize           objAlignment,
-        bool              allowVirtualBinding = false) const;
+        bool              allowVirtualBinding = false);
 
     // Requests the device to reserve the GPU VA partition.
     virtual Result ReserveGpuVirtualAddress(VaPartition             vaPartition,

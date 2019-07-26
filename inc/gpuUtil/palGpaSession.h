@@ -444,6 +444,9 @@ public:
                                                   Pal::uint64 cpuCompletionTimestamp,
                                                   const TimedQueueSemaphoreInfo& timedSignalInfo);
 
+    /// Queries the engine and memory clocks from DeviceProperties
+    Pal::Result SampleGpuClocks(GpuClocksSample* pGpuClocksSample) const;
+
     /// Samples the timing clocks if queue timing is enabled and adds a clock sample entry to the current session.
     Pal::Result SampleTimingClocks();
 
@@ -674,6 +677,10 @@ private:
     GpuMemoryInfo                 m_curLocalInvisGpuMem;
     Pal::gpusize                  m_curLocalInvisGpuMemOffset;
 
+    // Locks for the local-invisible and gart memory subdivision (and their pools)
+    Util::Mutex m_gartGpuMemLock;
+    Util::Mutex m_localInvisGpuMemLock;
+
     // Counts number of samples that are active in this GpaSession.
     Pal::uint32                   m_sampleCount;
 
@@ -775,9 +782,11 @@ private:
 
     // Array containing all of the queues registered for timing operations
     Util::Vector<TimedQueueState*, 8, GpaAllocator> m_timedQueuesArray;
+    Util::RWLock m_timedQueuesArrayLock;
 
     // List of timed queue events for the current session
     Util::Vector<TimedQueueEventItem, 16, GpaAllocator> m_queueEvents;
+    Util::Mutex m_queueEventsLock;
 
     // List of timestamp calibration samples
     Util::Vector<Pal::CalibratedTimestamps, 4, GpaAllocator> m_timestampCalibrations;

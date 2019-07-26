@@ -30,23 +30,19 @@
 namespace Pal
 {
 
-// Forward decl's
-class Device;
-
 // =====================================================================================================================
 // GFXIP-independent msaa state implementation. See IMsaaState documentation for more details.
 class MsaaState : public IMsaaState
 {
 public:
     virtual void Destroy() override { this->~MsaaState(); }
-    void DestroyInternal();
 
 protected:
-    MsaaState(const Device& device) : m_device(device) {}
+    MsaaState() {}
     virtual ~MsaaState() {}
 
 private:
-    const Device& m_device;
+    PAL_DISALLOW_COPY_AND_ASSIGN(MsaaState);
 };
 
 } // Pal

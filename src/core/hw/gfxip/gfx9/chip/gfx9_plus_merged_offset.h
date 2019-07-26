@@ -3225,12 +3225,6 @@ namespace Gfx10
     constexpr unsigned int mmRPB_PERFCOUNTER_LO                     = 0x0CE9;
     constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL              = 0x0CEF;
     constexpr unsigned int mmRPB_WR_SWITCH_CNTL                     = 0x0CDD;
-    constexpr unsigned int mmSPI_CONFIG_CNTL                        = 0x2440;
-    constexpr unsigned int mmSPI_CONFIG_CNTL_1                      = 0x244F;
-    constexpr unsigned int mmSPI_CONFIG_CNTL_1_REMAP                = 0xC441;
-    constexpr unsigned int mmSPI_CONFIG_CNTL_2                      = 0x244E;
-    constexpr unsigned int mmSPI_CONFIG_CNTL_2_REMAP                = 0xC442;
-    constexpr unsigned int mmSPI_CONFIG_CNTL_REMAP                  = 0xC440;
     constexpr unsigned int mmSPI_DEBUG_CNTL_2                       = 0x243E;
     constexpr unsigned int mmSPI_FEATURE_CTRL                       = 0x31FE;
     constexpr unsigned int mmSPI_LB_DATA_PERWGP_WAVE_CS             = 0x24E7;
@@ -3336,8 +3330,6 @@ namespace Gfx10
     constexpr unsigned int mmSPI_SHADER_USER_DATA_HS_29             = 0x2D29;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_HS_30             = 0x2D2A;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_HS_31             = 0x2D2B;
-    constexpr unsigned int mmSPI_WAVE_LIMIT_CNTL                    = 0x244D;
-    constexpr unsigned int mmSPI_WAVE_LIMIT_CNTL_REMAP              = 0xC443;
     constexpr unsigned int mmSP_CONFIG                              = 0x230B;
     constexpr unsigned int mmSQC_DCACHE_UTCL0_CNTL1                 = 0x23D5;
     constexpr unsigned int mmSQC_DCACHE_UTCL0_CNTL2                 = 0x23D6;
@@ -3668,18 +3660,12 @@ namespace Gfx10
     constexpr unsigned int mmUTCL1_PERFCOUNTER1_HI                  = 0xD51F;
     constexpr unsigned int mmUTCL1_PERFCOUNTER1_LO                  = 0xD51E;
     constexpr unsigned int mmUTCL1_PERFCOUNTER1_SELECT              = 0xDD64;
-    constexpr unsigned int mmVGT_ESGS_RING_SIZE_UMD                 = 0xC240;
-    constexpr unsigned int mmVGT_GSVS_RING_SIZE_UMD                 = 0xC241;
-    constexpr unsigned int mmVGT_HS_OFFCHIP_PARAM_UMD               = 0xC24F;
     constexpr unsigned int mmVGT_INDX_OFFSET                        = 0xA102;
     constexpr unsigned int mmVGT_MAX_VTX_INDX                       = 0xA100;
     constexpr unsigned int mmVGT_MIN_VTX_INDX                       = 0xA101;
     constexpr unsigned int mmVGT_MULTI_PRIM_IB_RESET_EN             = 0xA2A5;
     constexpr unsigned int mmVGT_RESET_DEBUG                        = 0x2274;
     constexpr unsigned int mmVGT_STRMOUT_DELAY                      = 0x2275;
-    constexpr unsigned int mmVGT_TF_MEMORY_BASE_HI_UMD              = 0xC261;
-    constexpr unsigned int mmVGT_TF_MEMORY_BASE_UMD                 = 0xC250;
-    constexpr unsigned int mmVGT_TF_RING_SIZE_UMD                   = 0xC24E;
 } // namespace Gfx10
 
 namespace Gfx101
@@ -3868,6 +3854,7 @@ namespace Gfx101
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_15          = 0x31FB;
     constexpr unsigned int mmSPI_SYS_COMPUTE                        = 0x2721;
     constexpr unsigned int mmSPI_SYS_WIF_CNTL                       = 0x2722;
+    constexpr unsigned int mmSPI_USER_ACCUM_VMID_CNTL               = 0x243F;
     constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS4               = 0x31CD;
     constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS5               = 0x31CE;
     constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS6               = 0x31CF;
@@ -3959,7 +3946,6 @@ namespace Gfx101Plus
     constexpr unsigned int mmRLC_SPM_RING_WRPTR                     = 0xDC94;
     constexpr unsigned int mmRLC_SPM_VIRT_CTRL                      = 0xDCA1;
     constexpr unsigned int mmRLC_SPM_VIRT_STATUS                    = 0xDCA3;
-    constexpr unsigned int mmSPI_USER_ACCUM_VMID_CNTL               = 0x243F;
 } // namespace Gfx101Plus
 
 namespace Nv10
@@ -4094,6 +4080,12 @@ namespace Nv10
     constexpr unsigned int mmSCRATCH_REGISTER7                      = 0x16B17;
     constexpr unsigned int mmSOCCLK_CGTT_BLK_CTRL_REG               = 0x0136;
     constexpr unsigned int mmSOC_GAP_PWROK                          = 0x16AF8;
+    constexpr unsigned int mmSPI_CONFIG_CNTL                        = 0x2440;
+    constexpr unsigned int mmSPI_CONFIG_CNTL_1                      = 0x244F;
+    constexpr unsigned int mmSPI_CONFIG_CNTL_1_REMAP                = 0xC441;
+    constexpr unsigned int mmSPI_CONFIG_CNTL_2                      = 0x244E;
+    constexpr unsigned int mmSPI_CONFIG_CNTL_2_REMAP                = 0xC442;
+    constexpr unsigned int mmSPI_CONFIG_CNTL_REMAP                  = 0xC440;
     constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_4              = 0x24E0;
     constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_5              = 0x24E1;
     constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_6              = 0x24E2;
@@ -4153,6 +4145,8 @@ namespace Nv10
     constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_13             = 0x2D59;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_14             = 0x2D5A;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_15             = 0x2D5B;
+    constexpr unsigned int mmSPI_WAVE_LIMIT_CNTL                    = 0x244D;
+    constexpr unsigned int mmSPI_WAVE_LIMIT_CNTL_REMAP              = 0xC443;
     constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_3               = 0x24B8;
     constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_5               = 0x24BA;
     constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_10              = 0x24BF;
@@ -4166,11 +4160,17 @@ namespace Nv10
     constexpr unsigned int mmSQ_SHADER_TMA_LO                       = 0x231E;
     constexpr unsigned int mmVGT_CACHE_INVALIDATION                 = 0x2231;
     constexpr unsigned int mmVGT_ESGS_RING_SIZE                     = 0x2232;
+    constexpr unsigned int mmVGT_ESGS_RING_SIZE_UMD                 = 0xC240;
     constexpr unsigned int mmVGT_GSVS_RING_SIZE                     = 0x2233;
+    constexpr unsigned int mmVGT_GSVS_RING_SIZE_UMD                 = 0xC241;
     constexpr unsigned int mmVGT_HS_OFFCHIP_PARAM                   = 0x226C;
+    constexpr unsigned int mmVGT_HS_OFFCHIP_PARAM_UMD               = 0xC24F;
     constexpr unsigned int mmVGT_TF_MEMORY_BASE                     = 0x226E;
     constexpr unsigned int mmVGT_TF_MEMORY_BASE_HI                  = 0x2278;
+    constexpr unsigned int mmVGT_TF_MEMORY_BASE_HI_UMD              = 0xC261;
+    constexpr unsigned int mmVGT_TF_MEMORY_BASE_UMD                 = 0xC250;
     constexpr unsigned int mmVGT_TF_RING_SIZE                       = 0x2262;
+    constexpr unsigned int mmVGT_TF_RING_SIZE_UMD                   = 0xC24E;
 } // namespace Nv10
 
 namespace Oss50

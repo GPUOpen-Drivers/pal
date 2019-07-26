@@ -182,7 +182,7 @@ Result AddrMgr2::InitSubresourcesForImage(
         surfInfoOut.size     = sizeof(surfInfoOut);
         surfInfoOut.pMipInfo = &mipInfo[0];
 
-        result = ComputePlaneSwizzleMode<false>(pImage, pBaseSubRes, &surfSettingOut);
+        result = ComputePlaneSwizzleMode(pImage, pBaseSubRes, false, &surfSettingOut);
         if (result == Result::Success)
         {
             surfInfoOut.pStereoInfo = &addrStereoInfo;
@@ -368,7 +368,7 @@ Result AddrMgr2::ComputeFmaskSwizzleMode(
     ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT* pOut
     ) const
 {
-    return ComputePlaneSwizzleMode<true>(&image, image.SubresourceInfo(0), pOut);
+    return ComputePlaneSwizzleMode(&image, image.SubresourceInfo(0), true, pOut);
 }
 
 // =====================================================================================================================
@@ -581,10 +581,10 @@ bool AddrMgr2::IsValidToOverride(
 // =====================================================================================================================
 // Computes the swizzling mode for all subresources for the plane associated with the aspect associated with the
 // specified subresource.
-template <bool forFmask>
 Result AddrMgr2::ComputePlaneSwizzleMode(
     const Image*                             pImage,
     const SubResourceInfo*                   pBaseSubRes,
+    bool                                     forFmask,
     ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT* pOut
     ) const
 {
@@ -595,7 +595,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     const ImageCreateInfo& createInfo = pImage->GetImageCreateInfo();
     const ImageInfo&       imageInfo  = pImage->GetImageInfo();
     const PalSettings&     settings   = m_pDevice->Settings();
-    const ImageAspect aspect = (forFmask ? ImageAspect::Fmask : pBaseSubRes->subresId.aspect);
+    const ImageAspect      aspect     = (forFmask ? ImageAspect::Fmask : pBaseSubRes->subresId.aspect);
 
     ADDR2_GET_PREFERRED_SURF_SETTING_INPUT surfSettingInput = { };
     surfSettingInput.size            = sizeof(surfSettingInput);

@@ -95,8 +95,6 @@ public:
     regVGT_LS_HS_CONFIG VgtLsHsConfig()   const { return m_vgtLsHsConfig;  }
     regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_spiVsOutConfig; }
     regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_spiPsInControl; }
-    regGE_STEREO_CNTL GeStereoCntl() const { return m_geStereoCntl; }
-
     regSX_PS_DOWNCONVERT SxPsDownconvert() const { return m_sxPsDownconvert; }
     regSX_BLEND_OPT_EPSILON SxBlendOptEpsilon() const { return m_sxBlendOptEpsilon; }
     regSX_BLEND_OPT_CONTROL SxBlendOptControl() const { return m_sxBlendOptControl; }
@@ -250,6 +248,9 @@ private:
             PM4PFP_SET_UCONFIG_REG        hdrGePcAlloc;
             regGE_PC_ALLOC                gePcAlloc;
 
+            PM4PFP_SET_UCONFIG_REG        hdrGeStereoCntl;
+            regGE_STEREO_CNTL             geStereoCntl;
+
             // The following is only available on Gfx10.1+.
             PM4PFP_SET_UCONFIG_REG        hdrGeUserVgprEn;
             regGE_USER_VGPR_EN            geUserVgprEn;
@@ -356,7 +357,6 @@ private:
     regSPI_VS_OUT_CONFIG     m_spiVsOutConfig;
     regSPI_PS_IN_CONTROL     m_spiPsInControl;
     regPA_SC_MODE_CNTL_1     m_paScModeCntl1;
-    regGE_STEREO_CNTL        m_geStereoCntl;
 
     // Each pipeline object contains all possibly pipeline chunk sub-objects, even though not every pipeline will
     // actually end up needing them.

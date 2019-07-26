@@ -185,11 +185,11 @@ Result QueryPool::BindGpuMemory(
     IGpuMemory* pGpuMemory,
     gpusize     offset)
 {
-    Result result = m_device.ValidateBindObjectMemoryInput(pGpuMemory,
-                                                           offset,
-                                                           m_boundSizeInBytes,
-                                                           m_alignmentInBytes,
-                                                           false);
+    Result result = Device::ValidateBindObjectMemoryInput(pGpuMemory,
+                                                          offset,
+                                                          m_boundSizeInBytes,
+                                                          m_alignmentInBytes,
+                                                          false);
 
     if (result == Result::Success)
     {

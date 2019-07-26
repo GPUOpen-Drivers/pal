@@ -263,15 +263,6 @@ void UniversalRingSet::BuildPm4Headers()
     const auto&    regInfo        = cmdUtil.GetRegInfo();
     const uint16   baseUserDataHs = m_pDevice->GetBaseUserDataReg(HwShaderStage::Hs);
 
-    // Various registers used in this setup have changed names, but they have remained in the same place.  Verify
-    // their consistent locations here, but continue to use the GFX9 names below.
-    static_assert(Gfx09::mmVGT_TF_RING_SIZE == Gfx10::mmVGT_TF_RING_SIZE_UMD,
-                "GFX10: TF_RING_SIZE register has moved!");
-    static_assert(Gfx09::mmVGT_HS_OFFCHIP_PARAM == Gfx10::mmVGT_HS_OFFCHIP_PARAM_UMD,
-                "GFX10: HS_OFFCHIP_PARAM register has moved!");
-    static_assert(Gfx09::mmVGT_GSVS_RING_SIZE == Gfx10::mmVGT_GSVS_RING_SIZE_UMD,
-                "GFX10: _GSVS_RING_SIZE register has moved!");
-
     // Setup m_pm4Commands
     // Setup packets which issue VS_PARTIAL_FLUSH and VGT_FLUSH events to make sure it is safe to write the ring config
     // registers.
@@ -283,16 +274,16 @@ void UniversalRingSet::BuildPm4Headers()
     // Setup the 1st PM4 packet, which sets the config registers VGT_TF_MEMORY_BASE and VGT_TF_MEMORY_BASE_HI.
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
-        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetSeqConfigRegs(Gfx09::mmVGT_TF_MEMORY_BASE,
-                                                                   Gfx09::mmVGT_TF_MEMORY_BASE_HI,
+        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetSeqConfigRegs(regInfo.mmVgtTfMemBase,
+                                                                   regInfo.mmVgtTfMemBaseHi,
                                                                    &m_pm4Commands.tfMemBase.gfx9.hdrVgtTfMemoryBase);
     }
     else if (IsGfx10(m_gfxLevel))
     {
-        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx10::mmVGT_TF_MEMORY_BASE_UMD,
+        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(regInfo.mmVgtTfMemBase,
                                                                   &m_pm4Commands.tfMemBase.gfx10.hdrVgtTfMemoryBaseLo);
 
-        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx10::mmVGT_TF_MEMORY_BASE_HI_UMD,
+        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(regInfo.mmVgtTfMemBaseHi,
                                                                   &m_pm4Commands.tfMemBase.gfx10.hdrVgtTfMemoryBaseHi);
     }
 
@@ -464,8 +455,8 @@ Result UniversalRingSet::Validate(
             {
                 auto*  pGfx10 = &m_pm4Commands.tfMemBase.gfx10;
 
-                pGfx10->vgtTfMemoryBaseLo.bits.BASE    = addrLo;
-                pGfx10->vgtTfMemoryBaseHi.bits.BASE_HI = addrHi;
+                pGfx10->vgtTfMemoryBaseLo     = addrLo;
+                pGfx10->vgtTfMemoryBaseHi     = addrHi;
             }
         }
 

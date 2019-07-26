@@ -1589,7 +1589,12 @@ Result Device::GetMultiGpuCompatibility(
             pInfo->flags.sharedSync   = 1;
             if (settings.peerMemoryEnabled)
             {
-                pInfo->flags.peerTransfer = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 521
+                pInfo->flags.peerTransferWrite = 1;
+#else
+                pInfo->flags.peerTransfer      = 1;
+#endif
+
             }
             if (settings.hwCompositingEnabled)
             {

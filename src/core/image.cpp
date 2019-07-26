@@ -942,11 +942,11 @@ Result Image::BindGpuMemory(
     IGpuMemory* pGpuMemory,
     gpusize     offset)
 {
-    Result ret = m_pDevice->ValidateBindObjectMemoryInput(pGpuMemory,
-                                                          offset,
-                                                          m_gpuMemSize,
-                                                          m_gpuMemAlignment,
-                                                          true);
+    Result ret = Device::ValidateBindObjectMemoryInput(pGpuMemory,
+                                                       offset,
+                                                       m_gpuMemSize,
+                                                       m_gpuMemAlignment,
+                                                       true);
 
     if (ret == Result::Success)
     {

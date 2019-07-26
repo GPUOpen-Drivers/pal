@@ -171,9 +171,9 @@ struct UniversalRingSetPm4Img
         struct
         {
             PM4_PFP_SET_UCONFIG_REG        hdrVgtTfMemoryBaseLo;
-            regVGT_TF_MEMORY_BASE_UMD      vgtTfMemoryBaseLo;
+            uint32                         vgtTfMemoryBaseLo;
             PM4_PFP_SET_UCONFIG_REG        hdrVgtTfMemoryBaseHi;
-            regVGT_TF_MEMORY_BASE_HI_UMD   vgtTfMemoryBaseHi;
+            uint32                         vgtTfMemoryBaseHi;
         } gfx10;
     } tfMemBase;
 

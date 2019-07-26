@@ -538,7 +538,7 @@ public:
     uint32 GetMsaaRate() const override { return m_msaaRate; }
 
 #if DEBUG
-    uint32* TemporarilyHangTheGpu(uint32 number, uint32* pCmdSpace) const override;
+    uint32* TemporarilyHangTheGpu(EngineType engineType, uint32 number, uint32* pCmdSpace) const override;
 #endif
 
     gpusize GetBaseAddress(const BufferSrd*  pBufferSrd) const;

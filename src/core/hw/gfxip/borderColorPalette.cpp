@@ -103,7 +103,7 @@ Result BorderColorPalette::BindGpuMemory(
     IGpuMemory* pGpuMemory,
     gpusize     offset)
 {
-    Result result = m_device.ValidateBindObjectMemoryInput(pGpuMemory, offset, m_gpuMemSize, m_gpuMemAlignment, false);
+    Result result = Device::ValidateBindObjectMemoryInput(pGpuMemory, offset, m_gpuMemSize, m_gpuMemAlignment, false);
 
     if (result == Result::Success)
     {

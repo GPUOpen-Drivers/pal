@@ -224,7 +224,6 @@ GraphicsPipeline::GraphicsPipeline(
     m_spiVsOutConfig.u32All    = 0;
     m_spiPsInControl.u32All    = 0;
     m_paScModeCntl1.u32All     = 0;
-    m_geStereoCntl.u32All      = 0;
 }
 
 // =====================================================================================================================
@@ -675,6 +674,8 @@ void GraphicsPipeline::BuildPm4Headers(
     {
         m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx10::mmGE_PC_ALLOC,
                                                                       &m_commands.common.hdrGePcAlloc);
+        m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx10::mmGE_STEREO_CNTL,
+                                                                      &m_commands.common.hdrGeStereoCntl);
         if (IsGfx101Plus(*m_pDevice->Parent()))
         {
             m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx101Plus::mmGE_USER_VGPR_EN,
@@ -861,7 +862,7 @@ void GraphicsPipeline::SetupCommonRegisters(
 
     if (IsGfx10(m_gfxLevel))
     {
-        registers.HasEntry(Gfx10::mmGE_STEREO_CNTL,       &m_geStereoCntl.u32All);
+        registers.HasEntry(Gfx10::mmGE_STEREO_CNTL,       &m_commands.common.geStereoCntl.u32All);
         registers.HasEntry(Gfx101Plus::mmGE_USER_VGPR_EN, &m_commands.common.geUserVgprEn.u32All);
 
         if ((IsNgg() == false) || (m_commands.set.context.vgtShaderStagesEn.gfx10.PRIMGEN_PASSTHRU_EN == 1))
@@ -2200,7 +2201,7 @@ bool GraphicsPipeline::HwStereoRenderingEnabled() const
     else
     {
 
-        enStereo = m_geStereoCntl.bits.EN_STEREO;
+        enStereo = m_commands.common.geStereoCntl.bits.EN_STEREO;
 
     }
 
@@ -2302,18 +2303,18 @@ void GraphicsPipeline::SetupStereoRegisters()
 
                 if ((vpIdOffset != 0) || (rtSliceOffset != 0))
                 {
-                    m_geStereoCntl.bits.EN_STEREO = 1;
+                    m_commands.common.geStereoCntl.bits.EN_STEREO = 1;
                 }
 
-                m_geStereoCntl.bits.VIEWPORT = viewInstancingDesc.viewportArrayIdx[0];
-                m_geStereoCntl.bits.RT_SLICE = viewInstancingDesc.renderTargetArrayIdx[0];
+                m_commands.common.geStereoCntl.bits.VIEWPORT = viewInstancingDesc.viewportArrayIdx[0];
+                m_commands.common.geStereoCntl.bits.RT_SLICE = viewInstancingDesc.renderTargetArrayIdx[0];
 
-                if (m_geStereoCntl.bits.VIEWPORT != 0)
+                if (m_commands.common.geStereoCntl.bits.VIEWPORT != 0)
                 {
                     m_commands.set.context.vgtDrawPayloadCntl.gfx10.EN_DRAW_VP = 1;
                 }
 
-                if (m_geStereoCntl.bits.RT_SLICE != 0)
+                if (m_commands.common.geStereoCntl.bits.RT_SLICE != 0)
                 {
                     m_commands.set.context.vgtDrawPayloadCntl.bits.EN_REG_RT_INDEX = 1;
                 }

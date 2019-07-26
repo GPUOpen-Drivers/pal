@@ -4918,6 +4918,23 @@ void CmdBuffer::CmdCommentString(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdPostProcessFrame(
+    const CmdPostProcessFrameInfo& postProcessInfo,
+    bool*                          pAddedGpuWork)
+{
+    if (m_annotations.logMiscellaneous)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdPostProcessFrame));
+
+        // TODO: Add comment string.
+    }
+
+    CmdPostProcessFrameInfo nextPostProcessInfo = {};
+    GetNextLayer()->CmdPostProcessFrame(*NextCmdPostProcessFrameInfo(postProcessInfo, &nextPostProcessInfo),
+                                        pAddedGpuWork);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdSetUserClipPlanes(
     uint32               firstPlane,
     uint32               planeCount,

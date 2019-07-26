@@ -74,6 +74,10 @@ if(PAL_BUILD_GPUOPEN)
     target_compile_definitions(pal PUBLIC PAL_BUILD_GPUOPEN)
 endif()
 
+if(PAL_ENABLE_DEVDRIVER_USAGE)
+    target_compile_definitions(pal PRIVATE PAL_ENABLE_DEVDRIVER_USAGE=1)
+endif()
+
 # CMAKE-TODO: Where are PAL_ENABLE_DEBUG_PRINTS and PAL_ENABLE_ASSERTS used?
 if(PAL_ENABLE_PRINTS_ASSERTS)
     # CMAKE-TODO: To support multiple configurations for Visual Studio we can't use CMAKE_BUILD_TYPE
@@ -118,10 +122,6 @@ if(UNIX)
         # Public because it is used in the interface.
         target_compile_definitions(pal PUBLIC PAL_AMDGPU_BUILD)
     endif()
-endif()
-
-if(PAL_BUILD_DTIF)
-    target_compile_definitions(pal PRIVATE PAL_BUILD_DTIF)
 endif()
 
 target_compile_definitions(pal PRIVATE PAL_BUILD_CORE)
@@ -378,10 +378,8 @@ if(PAL_BUILD_CORE)
         target_sources(pal PRIVATE
             core/hw/gfxip/borderColorPalette.cpp
             core/hw/gfxip/cmdUploadRing.cpp
-            core/hw/gfxip/colorBlendState.cpp
             core/hw/gfxip/computeCmdBuffer.cpp
             core/hw/gfxip/computePipeline.cpp
-            core/hw/gfxip/depthStencilState.cpp
             core/hw/gfxip/gfxBlendOptimizer.cpp
             core/hw/gfxip/gfxCmdBuffer.cpp
             core/hw/gfxip/gfxCmdStream.cpp
@@ -389,7 +387,6 @@ if(PAL_BUILD_CORE)
             core/hw/gfxip/gfxImage.cpp
             core/hw/gfxip/graphicsPipeline.cpp
             core/hw/gfxip/indirectCmdGenerator.cpp
-            core/hw/gfxip/msaaState.cpp
             core/hw/gfxip/pipeline.cpp
             core/hw/gfxip/queryPool.cpp
             core/hw/gfxip/universalCmdBuffer.cpp

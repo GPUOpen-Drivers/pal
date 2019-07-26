@@ -295,8 +295,10 @@ protected:
 
     bool IsMinClockRequired() const { return false; }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     // Applies developer overlay and other postprocessing to be done prior to presenting an image.
     Result SubmitPostprocessCmdBuffer(const Image& image);
+#endif
 
     virtual Result DoAssociateFenceWithLastSubmit(Fence* pFence) = 0;
 
@@ -339,12 +341,14 @@ protected:
     uint32      m_numReservedCu;    // The number of reserved CUs for RT queue
 
 private:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     // A command buffer and a fence to track its submission state wrapped into one object.
     struct TrackedCmdBuffer
     {
         CmdBuffer* pCmdBuffer;
         Fence*     pFence;
     };
+#endif
 
     Result ValidateSubmit(const SubmitInfo& submitInfo) const;
     Result EnqueueSubmit(
@@ -361,9 +365,11 @@ private:
         const InternalSubmitInfo& internalSubmitInfo);
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     Result CreateTrackedCmdBuffer(TrackedCmdBuffer** ppTrackedCmdBuffer);
     void   DestroyTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer);
     Result SubmitTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer, const GpuMemory* pWrittenPrimary);
+#endif
 
     // Each Queue needs a QueueContext to apply any hardware-specific pre- or post-processing before Submit().
     QueueContext*     m_pQueueContext;
@@ -390,10 +396,12 @@ private:
     uint32  m_persistentCeRamSize;         // Amount of CE RAM space (in DWORDs) which this Queue will keep persistent
                                            // across multiple submissions.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     // Internal command buffers used by this queue for various postprocess tasks such as render the developer overlay.
     // The least recently used item is at the front.
     typedef Util::Deque<TrackedCmdBuffer*, Platform> TrackedCmdBufferDeque;
     TrackedCmdBufferDeque* m_pTrackedCmdBufferDeque;
+#endif
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

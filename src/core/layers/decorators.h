@@ -1202,6 +1202,9 @@ protected:
     ICmdBuffer*const             m_pNextLayer;
     const DeviceDecorator*const  m_pDevice;
 
+    const CmdPostProcessFrameInfo* NextCmdPostProcessFrameInfo(const CmdPostProcessFrameInfo& postProcessInfo,
+                                                               CmdPostProcessFrameInfo*       pNextPostProcessInfo);
+
     PAL_DISALLOW_DEFAULT_CTOR(CmdBufferDecorator);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBufferDecorator);
 };
@@ -1958,6 +1961,15 @@ public:
 
     virtual void CmdCommentString(const char* pComment) override
         { return m_pNextLayer->CmdCommentString(pComment); }
+
+    virtual void CmdPostProcessFrame(
+        const CmdPostProcessFrameInfo& postProcessInfo,
+        bool*                          pAddedGpuWork) override
+    {
+        CmdPostProcessFrameInfo nextPostProcessInfo = {};
+        m_pNextLayer->CmdPostProcessFrame(*NextCmdPostProcessFrameInfo(postProcessInfo, &nextPostProcessInfo),
+                                          pAddedGpuWork);
+    }
 
     virtual void CmdSetUserClipPlanes(
         uint32               firstPlane,

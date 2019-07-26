@@ -107,10 +107,10 @@ void StreamoutStatsQueryPool::Begin(
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-        pCmdSpace += m_device.CmdUtil().BuildSampleEventWrite(XlateEventType(queryType),
-                                                              pCmdBuffer->GetEngineType(),
-                                                              gpuAddr,
-                                                              pCmdSpace);
+        pCmdSpace += CmdUtil::BuildSampleEventWrite(XlateEventType(queryType),
+                                                    pCmdBuffer->GetEngineType(),
+                                                    gpuAddr,
+                                                    pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -138,7 +138,7 @@ void StreamoutStatsQueryPool::End(
         pCmdBuffer->RemoveQuery(QueryPoolType::StreamoutStats);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += m_device.CmdUtil().BuildSampleEventWrite(XlateEventType(queryType),
+        pCmdSpace += CmdUtil::BuildSampleEventWrite(XlateEventType(queryType),
                                                               pCmdBuffer->GetEngineType(),
                                                               gpuAddr + sizeof(StreamoutStatsData),
                                                               pCmdSpace);
@@ -171,7 +171,6 @@ void StreamoutStatsQueryPool::WaitForSlots(
     Result  result  = GetTimestampGpuAddress(startQuery, &gpuAddr);
     PAL_ASSERT(result == Result::Success);
 
-    const auto&  cmdUtil        = m_device.CmdUtil();
     const uint32 waitsPerCommit = pCmdStream->ReserveLimit() / CmdUtil::WaitRegMemSizeDwords;
     uint32       remainingWaits = queryCount;
 
@@ -183,13 +182,14 @@ void StreamoutStatsQueryPool::WaitForSlots(
 
         for (uint32 waitIdx = 0; waitIdx < waitsToWrite; ++waitIdx)
         {
-            pCmdSpace += cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
-                                                 function__me_wait_reg_mem__equal_to_the_reference_value,
-                                                 engine_sel__me_wait_reg_mem__micro_engine,
-                                                 gpuAddr,
-                                                 QueryTimestampEnd,
-                                                 0xFFFFFFFF,
-                                                 pCmdSpace);
+            pCmdSpace += CmdUtil::BuildWaitRegMem(pCmdStream->GetEngineType(),
+                                                  mem_space__me_wait_reg_mem__memory_space,
+                                                  function__me_wait_reg_mem__equal_to_the_reference_value,
+                                                  engine_sel__me_wait_reg_mem__micro_engine,
+                                                  gpuAddr,
+                                                  QueryTimestampEnd,
+                                                  0xFFFFFFFF,
+                                                  pCmdSpace);
 
             // Advance to the next timestamp.
             gpuAddr += m_timestampSizePerSlotInBytes;
@@ -270,9 +270,9 @@ void StreamoutStatsQueryPool::OptimizedReset(
         // semaphores to make sure all queries are complete.
         if (pCmdBuffer->IsComputeSupported())
         {
-            pCmdSpace += cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH,
-                                                          pCmdBuffer->GetEngineType(),
-                                                          pCmdSpace);
+            pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH,
+                                                           pCmdBuffer->GetEngineType(),
+                                                           pCmdSpace);
         }
 
         // And make sure the pipeline is idled here.

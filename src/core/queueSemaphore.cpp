@@ -53,11 +53,21 @@ Result QueueSemaphore::ValidateInit(
 {
     Result result = Result::ErrorInvalidValue;
 
-    if ((createInfo.maxCount > 0)                                  &&
-        (createInfo.maxCount <= pDevice->MaxQueueSemaphoreCount()) &&
-        (createInfo.initialCount <= createInfo.maxCount))
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 458
+    if (createInfo.flags.timeline)
     {
+        // Timeline does not use maxCount
         result = Result::Success;
+    }
+    else
+#endif
+    {
+        if ((createInfo.maxCount > 0)                                  &&
+            (createInfo.maxCount <= pDevice->MaxQueueSemaphoreCount()) &&
+            (createInfo.initialCount <= createInfo.maxCount))
+        {
+            result = Result::Success;
+        }
     }
 
     return result;

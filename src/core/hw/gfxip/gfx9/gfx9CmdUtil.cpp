@@ -331,6 +331,9 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmAtcPerfResultCntl      = Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmAtcL2PerfResultCntl    = Gfx09::mmATC_L2_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmMcVmL2PerfResultCntl   = Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmVgtTfMemBase           = Gfx09::mmVGT_TF_MEMORY_BASE;
+        m_registerInfo.mmVgtTfMemBaseHi         = Gfx09::mmVGT_TF_MEMORY_BASE_HI;
+        m_registerInfo.mmSpiConfigCntl          = Gfx09::mmSPI_CONFIG_CNTL;
 
         {
             m_registerInfo.mmRpbPerfResultCntl = Vega::mmRPB_PERFCOUNTER_RSLT_CNTL;
@@ -353,6 +356,9 @@ CmdUtil::CmdUtil(
             m_registerInfo.mmDbDepthInfo                    = Nv10::mmDB_RESERVED_REG_2;
             m_registerInfo.mmAtcPerfResultCntl              = Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmAtcL2PerfResultCntl            = Nv10::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL;
+            m_registerInfo.mmVgtTfMemBase                   = Nv10::mmVGT_TF_MEMORY_BASE_UMD;
+            m_registerInfo.mmVgtTfMemBaseHi                 = Nv10::mmVGT_TF_MEMORY_BASE_HI_UMD;
+            m_registerInfo.mmSpiConfigCntl                  = Nv10::mmSPI_CONFIG_CNTL_REMAP;
 
         }
         else
@@ -3437,7 +3443,8 @@ size_t CmdUtil::BuildWaitOnReleaseMemEvent(
     totalSize += BuildReleaseMem(releaseInfo, static_cast<uint32*>(pBuffer) + totalSize);
 
     // Wait on the timestamp value.
-    totalSize += BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
+    totalSize += BuildWaitRegMem(engineType,
+                                 mem_space__me_wait_reg_mem__memory_space,
                                  function__me_wait_reg_mem__equal_to_the_reference_value,
                                  engine_sel__me_wait_reg_mem__micro_engine,
                                  gpuAddr,
@@ -3451,6 +3458,7 @@ size_t CmdUtil::BuildWaitOnReleaseMemEvent(
 // =====================================================================================================================
 // Builds a WAIT_REG_MEM PM4 packet. Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildWaitRegMem(
+    EngineType    engineType,
     uint32        memSpace,
     uint32        function,
     uint32        engine,
@@ -3493,12 +3501,13 @@ size_t CmdUtil::BuildWaitRegMem(
     // We build the packet with the ME definition, but the MEC definition is identical, so it should work...
     constexpr uint32 PacketSize           = (sizeof(PM4_ME_WAIT_REG_MEM) / sizeof(uint32));
     auto*const pPacket                    = static_cast<PM4_ME_WAIT_REG_MEM*>(pBuffer);
+    auto*const pPacketMecOnly             = static_cast<PM4_MEC_WAIT_REG_MEM*>(pBuffer);
+
     pPacket->header.u32All                = Type3Header(IT_WAIT_REG_MEM, PacketSize);
     pPacket->ordinal2                     = 0;
     pPacket->bitfields2.function          = static_cast<ME_WAIT_REG_MEM_function_enum>(function);
     pPacket->bitfields2.mem_space         = static_cast<ME_WAIT_REG_MEM_mem_space_enum>(memSpace);
     pPacket->bitfields2.operation         = operation__me_wait_reg_mem__wait_reg_mem;
-    pPacket->bitfields2.engine_sel        = static_cast<ME_WAIT_REG_MEM_engine_sel_enum>(engine);
     pPacket->ordinal3                     = LowPart(addr);
 
     if (memSpace == mem_space__me_wait_reg_mem__memory_space)
@@ -3516,12 +3525,23 @@ size_t CmdUtil::BuildWaitRegMem(
     pPacket->ordinal7                     = 0;
     pPacket->bitfields7.poll_interval     = Pal::Device::PollInterval;
 
+    if (Pal::Device::EngineSupportsGraphics(engineType))
+    {
+        pPacket->bitfields2.engine_sel = static_cast<ME_WAIT_REG_MEM_engine_sel_enum>(engine);
+    }
+    else
+    {
+        // Similarily to engine_sel in ME, this ACE offload optimization is only for MEC and a reserved bit for ME.
+        pPacketMecOnly->bitfields7.optimize_ace_offload_mode = 1;
+    }
+
     return PacketSize;
 }
 
 // =====================================================================================================================
 // Builds a WAIT_REG_MEM64 PM4 packet. Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildWaitRegMem64(
+    EngineType    engineType,
     uint32        memSpace,
     uint32        function,
     uint32        engine,
@@ -3564,6 +3584,7 @@ size_t CmdUtil::BuildWaitRegMem64(
     // We build the packet with the ME definition, but the MEC definition is identical, so it should work...
     constexpr uint32 PacketSize           = (sizeof(PM4_ME_WAIT_REG_MEM64) / sizeof(uint32));
     auto*const pPacket                    = static_cast<PM4_ME_WAIT_REG_MEM64*>(pBuffer);
+    auto*const pPacketMecOnly             = static_cast<PM4_MEC_WAIT_REG_MEM64*>(pBuffer);
 
     pPacket->header.u32All                = Type3Header(IT_WAIT_REG_MEM64, PacketSize);
     pPacket->ordinal2                     = 0;
@@ -3580,6 +3601,16 @@ size_t CmdUtil::BuildWaitRegMem64(
     pPacket->mask_hi                      = HighPart(mask);
     pPacket->ordinal9                     = 0;
     pPacket->bitfields9.poll_interval     = Pal::Device::PollInterval;
+
+    if (Pal::Device::EngineSupportsGraphics(engineType))
+    {
+        pPacket->bitfields2.engine_sel = static_cast<ME_WAIT_REG_MEM64_engine_sel_enum>(engine);
+    }
+    else
+    {
+        // Similarily to engine_sel in ME, this ACE offload optimization is only for MEC and a reserved bit for ME.
+        pPacketMecOnly->bitfields9.optimize_ace_offload_mode = 1;
+    }
 
     return PacketSize;
 }

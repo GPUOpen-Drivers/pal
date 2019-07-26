@@ -753,13 +753,6 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         m_deCmdStream.SetContextRollDetected<true>();
     }
 
-    if (IsGfx10(m_gfxIpLevel))
-    {
-        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10::mmGE_STEREO_CNTL,
-                                                         pCurrPipeline->GeStereoCntl().u32All,
-                                                         pDeCmdSpace);
-    }
-
     if (m_cachedSettings.batchBreakOnNewPs)
     {
         const ShaderHash& psHash = pCurrPipeline->GetInfo().shader[static_cast<uint32>(ShaderType::Pixel)].hash;
@@ -2079,7 +2072,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     }
     if (HasUavExport)
     {
-        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -2129,14 +2122,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     // Streamout filled is saved in gpuMemory, we use a me_copy to set mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE.
-    pDeCmdSpace += pThis->m_cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                          dst_sel__me_copy_data__mem_mapped_register,
-                                                          mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE,
-                                                          src_sel__me_copy_data__memory__GFX09,
-                                                          streamOutFilledSizeVa,
-                                                          count_sel__me_copy_data__32_bits_of_data,
-                                                          wr_confirm__me_copy_data__wait_for_confirmation,
-                                                          pDeCmdSpace);
+    pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                  dst_sel__me_copy_data__mem_mapped_register,
+                                                  mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE,
+                                                  src_sel__me_copy_data__memory__GFX09,
+                                                  streamOutFilledSizeVa,
+                                                  count_sel__me_copy_data__32_bits_of_data,
+                                                  wr_confirm__me_copy_data__wait_for_confirmation,
+                                                  pDeCmdSpace);
 
     // For now, this method is only invoked by DXXP and Vulkan clients, they both prefer to use the size/offset in
     // bytes.
@@ -2183,7 +2176,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     }
     if (HasUavExport)
     {
-        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -2339,7 +2332,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     }
     if (HasUavExport)
     {
-        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace  = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -2771,7 +2764,7 @@ void UniversalCmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     writeData.dstSel     = dst_sel__me_write_data__memory;
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, value, pDeCmdSpace);
+    pDeCmdSpace += CmdUtil::BuildWriteData(writeData, value, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
@@ -2786,7 +2779,7 @@ void UniversalCmdBuffer::CmdMemoryAtomic(
     const gpusize address = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildAtomicMem(atomicOp, address, srcData, pDeCmdSpace);
+    pDeCmdSpace += CmdUtil::BuildAtomicMem(atomicOp, address, srcData, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
@@ -2804,14 +2797,14 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
 
     if (pipePoint == HwPipeTop)
     {
-        pDeCmdSpace += m_cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                       dst_sel__me_copy_data__memory__GFX09,
-                                                       address,
-                                                       src_sel__me_copy_data__gpu_clock_count,
-                                                       0,
-                                                       count_sel__me_copy_data__64_bits_of_data,
-                                                       wr_confirm__me_copy_data__wait_for_confirmation,
-                                                       pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                      dst_sel__me_copy_data__memory__GFX09,
+                                                      address,
+                                                      src_sel__me_copy_data__gpu_clock_count,
+                                                      0,
+                                                      count_sel__me_copy_data__64_bits_of_data,
+                                                      wr_confirm__me_copy_data__wait_for_confirmation,
+                                                      pDeCmdSpace);
     }
     else
     {
@@ -2843,16 +2836,16 @@ void UniversalCmdBuffer::CmdWriteImmediate(
 
     if (pipePoint == HwPipeTop)
     {
-        pDeCmdSpace += m_cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                       dst_sel__me_copy_data__memory__GFX09,
-                                                       address,
-                                                       src_sel__me_copy_data__immediate_data,
-                                                       data,
-                                                       ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
-                                                           count_sel__me_copy_data__32_bits_of_data :
-                                                           count_sel__me_copy_data__64_bits_of_data),
-                                                       wr_confirm__me_copy_data__wait_for_confirmation,
-                                                       pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                      dst_sel__me_copy_data__memory__GFX09,
+                                                      address,
+                                                      src_sel__me_copy_data__immediate_data,
+                                                      data,
+                                                      ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
+                                                       count_sel__me_copy_data__32_bits_of_data :
+                                                       count_sel__me_copy_data__64_bits_of_data),
+                                                      wr_confirm__me_copy_data__wait_for_confirmation,
+                                                      pDeCmdSpace);
     }
     else
     {
@@ -3179,7 +3172,7 @@ Result UniversalCmdBuffer::AddPreamble()
         contextControl.bitfields2.load_per_context_state = 1;
         contextControl.bitfields3.update_shadow_enables  = 1;
 
-        pDeCmdSpace += m_cmdUtil.BuildContextControl(contextControl, pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildContextControl(contextControl, pDeCmdSpace);
     }
 
     // DB_RENDER_OVERRIDE bits are updated via depth-stencil view and at draw time validation based on dirty
@@ -3346,7 +3339,7 @@ Result UniversalCmdBuffer::AddPostamble()
     {
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
-        pDeCmdSpace += m_cmdUtil.BuildWaitDmaData(pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildWaitDmaData(pDeCmdSpace);
         SetGfxCmdBufCpBltState(false);
     }
 
@@ -3357,21 +3350,21 @@ Result UniversalCmdBuffer::AddPostamble()
         // This ensures the CE stream completes before the DE stream completes, so that the timestamp can't return
         // before CE work is complete.
         uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
-        pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
+        pCeCmdSpace += CmdUtil::BuildIncrementCeCounter(pCeCmdSpace);
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
 
-        pDeCmdSpace += m_cmdUtil.BuildWaitOnCeCounter(false, pDeCmdSpace);
-        pDeCmdSpace += m_cmdUtil.BuildIncrementDeCounter(pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildWaitOnCeCounter(false, pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildIncrementDeCounter(pDeCmdSpace);
 
         // The following ATOMIC_MEM packet increments the done-count for the CE command stream, so that we can probe
         // when the command buffer has completed execution on the GPU.
         // NOTE: Normally, we would need to flush the L2 cache to guarantee that this memory operation makes it out to
         // memory. However, since we're at the end of the command buffer, we can rely on the fact that the KMD inserts
         // an EOP event which flushes and invalidates the caches in between command buffers.
-        pDeCmdSpace += m_cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
-                                                m_ceCmdStream.GetFirstChunk()->BusyTrackerGpuAddr(),
-                                                1,
-                                                pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildAtomicMem(AtomicOp::AddInt32,
+                                               m_ceCmdStream.GetFirstChunk()->BusyTrackerGpuAddr(),
+                                               1,
+                                               pDeCmdSpace);
     }
 
     // The following ATOMIC_MEM packet increments the done-count for the DE command stream, so that we can probe
@@ -3381,10 +3374,10 @@ Result UniversalCmdBuffer::AddPostamble()
     // an EOP event which flushes and invalidates the caches in between command buffers.
     if (m_deCmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0)
     {
-        pDeCmdSpace += m_cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
-                                                m_deCmdStream.GetFirstChunk()->BusyTrackerGpuAddr(),
-                                                1,
-                                                pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildAtomicMem(AtomicOp::AddInt32,
+                                               m_deCmdStream.GetFirstChunk()->BusyTrackerGpuAddr(),
+                                               1,
+                                               pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -3409,7 +3402,7 @@ void UniversalCmdBuffer::WriteEventCmd(
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
-        pDeCmdSpace += m_cmdUtil.BuildWaitDmaData(pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildWaitDmaData(pDeCmdSpace);
         SetGfxCmdBufCpBltState(false);
     }
 
@@ -3438,14 +3431,14 @@ void UniversalCmdBuffer::WriteEventCmd(
         // Implement set/reset event with a WRITE_DATA command using PFP engine.
         writeData.engineSel = engine_sel__pfp_write_data__prefetch_parser;
 
-        pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildWriteData(writeData, data, pDeCmdSpace);
         break;
 
     case HwPipePostIndexFetch:
         // Implement set/reset event with a WRITE_DATA command using the ME engine.
         writeData.engineSel = engine_sel__me_write_data__micro_engine;
 
-        pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildWriteData(writeData, data, pDeCmdSpace);
         break;
 
     case HwPipePostCs:
@@ -3483,7 +3476,7 @@ void UniversalCmdBuffer::WriteEventCmd(
         // Implement set/reset event with a WRITE_DATA command using the CP.
         writeData.dstAddr = boundMemObj.GpuVirtAddr() + (i * sizeof(uint32));
 
-        pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildWriteData(writeData, data, pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -3508,7 +3501,7 @@ uint32* UniversalCmdBuffer::WaitOnCeCounter(
         auto*const pDumpCeRam = reinterpret_cast<PM4_CE_DUMP_CONST_RAM*>(m_state.pLastDumpCeRam);
         pDumpCeRam->ordinal2  = m_state.lastDumpCeRamOrdinal2.u32All;
 
-        pDeCmdSpace += m_cmdUtil.BuildWaitOnCeCounter((m_state.flags.ceInvalidateKcache != 0), pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildWaitOnCeCounter((m_state.flags.ceInvalidateKcache != 0), pDeCmdSpace);
 
         m_state.flags.ceInvalidateKcache = 0;
     }
@@ -3523,7 +3516,7 @@ uint32* UniversalCmdBuffer::IncrementDeCounter(
 {
     if (m_state.pLastDumpCeRam != nullptr)
     {
-        pDeCmdSpace += m_cmdUtil.BuildIncrementDeCounter(pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildIncrementDeCounter(pDeCmdSpace);
 
         m_state.pLastDumpCeRam = nullptr;
     }
@@ -3564,10 +3557,10 @@ uint32* UniversalCmdBuffer::UploadToUserDataTable(
 {
     PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
 
-    pCeCmdSpace += m_cmdUtil.BuildWriteConstRam(pSrcData,
-                                                (pTable->ceRamOffset + (sizeof(uint32) * offsetInDwords)),
-                                                dwordsNeeded,
-                                                pCeCmdSpace);
+    pCeCmdSpace += CmdUtil::BuildWriteConstRam(pSrcData,
+                                               (pTable->ceRamOffset + (sizeof(uint32) * offsetInDwords)),
+                                               dwordsNeeded,
+                                               pCeCmdSpace);
 
     if (offsetInDwords < highWatermark)
     {
@@ -3594,7 +3587,7 @@ uint32* UniversalCmdBuffer::DumpUserDataTable(
 
     if (m_state.flags.ceWaitOnDeCounterDiff)
     {
-        pCeCmdSpace += m_cmdUtil.BuildWaitOnDeCounterDiff(m_state.minCounterDiff, pCeCmdSpace);
+        pCeCmdSpace += CmdUtil::BuildWaitOnDeCounterDiff(m_state.minCounterDiff, pCeCmdSpace);
         m_state.flags.ceWaitOnDeCounterDiff = 0;
     }
 
@@ -3605,10 +3598,10 @@ uint32* UniversalCmdBuffer::DumpUserDataTable(
     m_state.pLastDumpCeRam                    = pCeCmdSpace;
     m_state.lastDumpCeRamOrdinal2.bits.offset = (pTable->ceRamOffset + offsetInBytes);
 
-    pCeCmdSpace += m_cmdUtil.BuildDumpConstRam((pTable->gpuVirtAddr + offsetInBytes),
-                                               (pTable->ceRamOffset + offsetInBytes),
-                                               dwordsNeeded,
-                                               pCeCmdSpace);
+    pCeCmdSpace += CmdUtil::BuildDumpConstRam((pTable->gpuVirtAddr + offsetInBytes),
+                                              (pTable->ceRamOffset + offsetInBytes),
+                                              dwordsNeeded,
+                                              pCeCmdSpace);
 
     pTable->dirty = 0;
 
@@ -6526,12 +6519,12 @@ void UniversalCmdBuffer::CmdLoadBufferFilledSizes(
         if (gpuVirtAddr[idx] != 0)
         {
             pDeCmdSpace +=
-                m_cmdUtil.BuildStrmoutBufferUpdate(idx,
-                                                   source_select__pfp_strmout_buffer_update__from_src_address,
-                                                   0,
-                                                   0uLL,
-                                                   gpuVirtAddr[idx],
-                                                   pDeCmdSpace);
+                CmdUtil::BuildStrmoutBufferUpdate(idx,
+                                                  source_select__pfp_strmout_buffer_update__from_src_address,
+                                                  0,
+                                                  0uLL,
+                                                  gpuVirtAddr[idx],
+                                                  pDeCmdSpace);
         }
     }
 
@@ -6552,12 +6545,12 @@ void UniversalCmdBuffer::CmdSaveBufferFilledSizes(
     {
         if (gpuVirtAddr[idx] != 0)
         {
-            pDeCmdSpace += m_cmdUtil.BuildStrmoutBufferUpdate(idx,
-                                                              source_select__pfp_strmout_buffer_update__none,
-                                                              0,
-                                                              gpuVirtAddr[idx],
-                                                              0uLL,
-                                                              pDeCmdSpace);
+            pDeCmdSpace += CmdUtil::BuildStrmoutBufferUpdate(idx,
+                                                             source_select__pfp_strmout_buffer_update__none,
+                                                             0,
+                                                             gpuVirtAddr[idx],
+                                                             0uLL,
+                                                             pDeCmdSpace);
         }
     }
 
@@ -6572,12 +6565,12 @@ void UniversalCmdBuffer::CmdSetBufferFilledSize(
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
     PAL_ASSERT(bufferId < MaxStreamOutTargets);
 
-    pDeCmdSpace += m_cmdUtil.BuildStrmoutBufferUpdate(bufferId,
-                                                      source_select__pfp_strmout_buffer_update__use_buffer_offset,
-                                                      offset,
-                                                      0uLL,
-                                                      0uLL,
-                                                      pDeCmdSpace);
+    pDeCmdSpace += CmdUtil::BuildStrmoutBufferUpdate(bufferId,
+                                                     source_select__pfp_strmout_buffer_update__use_buffer_offset,
+                                                     offset,
+                                                     0uLL,
+                                                     0uLL,
+                                                     pDeCmdSpace);
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
@@ -6838,7 +6831,8 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
 
     pDeCmdSpace += CmdUtil::BuildWriteData(writeData, CpStrmoutCntlData, pDeCmdSpace);
     pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(SO_VGTSTREAMOUT_FLUSH, EngineTypeUniversal, pDeCmdSpace);
-    pDeCmdSpace += CmdUtil::BuildWaitRegMem(mem_space__pfp_wait_reg_mem__register_space,
+    pDeCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeUniversal,
+                                            mem_space__pfp_wait_reg_mem__register_space,
                                             function__pfp_wait_reg_mem__equal_to_the_reference_value,
                                             engine_sel__me_wait_reg_mem__micro_engine,
                                             mmCP_STRMOUT_CNTL,
@@ -7047,10 +7041,10 @@ void UniversalCmdBuffer::CmdLoadCeRam(
     uint32            dwordSize)        // Number of DWORDs to load, must be a multiple of 8
 {
     uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
-    pCeCmdSpace += m_cmdUtil.BuildLoadConstRam(srcGpuMemory.Desc().gpuVirtAddr + memOffset,
-                                               (ReservedCeRamBytes + ramOffset),
-                                               dwordSize,
-                                               pCeCmdSpace);
+    pCeCmdSpace += CmdUtil::BuildLoadConstRam(srcGpuMemory.Desc().gpuVirtAddr + memOffset,
+                                              (ReservedCeRamBytes + ramOffset),
+                                              dwordSize,
+                                              pCeCmdSpace);
     m_ceCmdStream.CommitCommands(pCeCmdSpace);
 }
 
@@ -7069,7 +7063,7 @@ void UniversalCmdBuffer::CmdDumpCeRam(
 
     if (m_state.flags.ceWaitOnDeCounterDiff)
     {
-        pCeCmdSpace += m_cmdUtil.BuildWaitOnDeCounterDiff(m_state.minCounterDiff, pCeCmdSpace);
+        pCeCmdSpace += CmdUtil::BuildWaitOnDeCounterDiff(m_state.minCounterDiff, pCeCmdSpace);
         m_state.flags.ceWaitOnDeCounterDiff = 0;
     }
 
@@ -7078,10 +7072,10 @@ void UniversalCmdBuffer::CmdDumpCeRam(
     m_state.pLastDumpCeRam                    = pCeCmdSpace;
     m_state.lastDumpCeRamOrdinal2.bits.offset = (ReservedCeRamBytes + ramOffset);
 
-    pCeCmdSpace += m_cmdUtil.BuildDumpConstRam(dstGpuMemory.Desc().gpuVirtAddr + memOffset,
-                                               (ReservedCeRamBytes + ramOffset),
-                                               dwordSize,
-                                               pCeCmdSpace);
+    pCeCmdSpace += CmdUtil::BuildDumpConstRam(dstGpuMemory.Desc().gpuVirtAddr + memOffset,
+                                              (ReservedCeRamBytes + ramOffset),
+                                              dwordSize,
+                                              pCeCmdSpace);
     m_ceCmdStream.CommitCommands(pCeCmdSpace);
 }
 
@@ -7093,7 +7087,7 @@ void UniversalCmdBuffer::CmdWriteCeRam(
     uint32      dwordSize)      // Number of DWORDs to write from pSrcData
 {
     uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
-    pCeCmdSpace += m_cmdUtil.BuildWriteConstRam(pSrcData, (ReservedCeRamBytes + ramOffset), dwordSize, pCeCmdSpace);
+    pCeCmdSpace += CmdUtil::BuildWriteConstRam(pSrcData, (ReservedCeRamBytes + ramOffset), dwordSize, pCeCmdSpace);
     m_ceCmdStream.CommitCommands(pCeCmdSpace);
 }
 
@@ -7203,7 +7197,8 @@ void UniversalCmdBuffer::SendFlglSyncCommands(
             // step of the SWAPREADY_READ or SWAPREQUEST_READ sequences
             if ((i == totalNumber - 1) && isReadSequence)
             {
-                pCmdSpace += m_device.CmdUtil().BuildWaitRegMem(mem_space__me_wait_reg_mem__register_space,
+                pCmdSpace += m_device.CmdUtil().BuildWaitRegMem(EngineTypeUniversal,
+                                                                mem_space__me_wait_reg_mem__register_space,
                                                                 CmdUtil::WaitRegMemFunc(CompareFunc::Equal),
                                                                 engine_sel__me_wait_reg_mem__micro_engine,
                                                                 seq[i].offset,
@@ -7231,13 +7226,14 @@ void UniversalCmdBuffer::CmdWaitRegisterValue(
 {
     uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
 
-    pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__register_space,
-                                           CmdUtil::WaitRegMemFunc(compareFunc),
-                                           engine_sel__me_wait_reg_mem__micro_engine,
-                                           registerOffset,
-                                           data,
-                                           mask,
-                                           pCmdSpace);
+    pCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeUniversal,
+                                          mem_space__me_wait_reg_mem__register_space,
+                                          CmdUtil::WaitRegMemFunc(compareFunc),
+                                          engine_sel__me_wait_reg_mem__micro_engine,
+                                          registerOffset,
+                                          data,
+                                          mask,
+                                          pCmdSpace);
 
     m_deCmdStream.CommitCommands(pCmdSpace);
 }
@@ -7252,13 +7248,14 @@ void UniversalCmdBuffer::CmdWaitMemoryValue(
 {
     uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
 
-    pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
-                                           CmdUtil::WaitRegMemFunc(compareFunc),
-                                           engine_sel__me_wait_reg_mem__micro_engine,
-                                           gpuMemory.Desc().gpuVirtAddr + offset,
-                                           data,
-                                           mask,
-                                           pCmdSpace);
+    pCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeUniversal,
+                                          mem_space__me_wait_reg_mem__memory_space,
+                                          CmdUtil::WaitRegMemFunc(compareFunc),
+                                          engine_sel__me_wait_reg_mem__micro_engine,
+                                          gpuMemory.Desc().gpuVirtAddr + offset,
+                                          data,
+                                          mask,
+                                          pCmdSpace);
 
     m_deCmdStream.CommitCommands(pCmdSpace);
 }
@@ -7273,13 +7270,14 @@ void UniversalCmdBuffer::CmdWaitBusAddressableMemoryMarker(
     const GpuMemory* pGpuMemory = static_cast<const GpuMemory*>(&gpuMemory);
     uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
 
-    pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
-                                           CmdUtil::WaitRegMemFunc(compareFunc),
-                                           engine_sel__me_wait_reg_mem__micro_engine,
-                                           pGpuMemory->GetBusAddrMarkerVa(),
-                                           data,
-                                           mask,
-                                           pCmdSpace);
+    pCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeUniversal,
+                                          mem_space__me_wait_reg_mem__memory_space,
+                                          CmdUtil::WaitRegMemFunc(compareFunc),
+                                          engine_sel__me_wait_reg_mem__micro_engine,
+                                          pGpuMemory->GetBusAddrMarkerVa(),
+                                          data,
+                                          mask,
+                                          pCmdSpace);
 
     m_deCmdStream.CommitCommands(pCmdSpace);
 }
@@ -7428,12 +7426,12 @@ void UniversalCmdBuffer::CmdSetPredication(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace += m_cmdUtil.BuildSetPredication(gpuVirtAddr,
-                                                 predPolarity,
-                                                 waitResults,
-                                                 predType,
-                                                 accumulateData,
-                                                 pDeCmdSpace);
+    pDeCmdSpace += CmdUtil::BuildSetPredication(gpuVirtAddr,
+                                                predPolarity,
+                                                waitResults,
+                                                predType,
+                                                accumulateData,
+                                                pDeCmdSpace);
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
@@ -7455,7 +7453,7 @@ void UniversalCmdBuffer::CmdCopyRegisterToMemory(
     dmaData.srcAddrSpace = sas__pfp_dma_data__register;
     dmaData.sync         = true;
     dmaData.usePfp       = false;
-    pCmdSpace += m_cmdUtil.BuildDmaData(dmaData, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildDmaData(dmaData, pCmdSpace);
 
     m_deCmdStream.CommitCommands(pCmdSpace);
 }
@@ -7908,10 +7906,10 @@ uint32* UniversalCmdBuffer::UploadStreamOutBufferStridesToCeRam(
         {
             // Root command buffers and nested command buffers which have changed the stream-output bindings
             // fully know the complete stream-out SRD so we can use the "normal" path.
-            pCeCmdSpace += m_cmdUtil.BuildWriteConstRam(VoidPtrInc(pBufferSrd, sizeof(uint32)),
-                                                        ceRamOffset,
-                                                        2,
-                                                        pCeCmdSpace);
+            pCeCmdSpace += CmdUtil::BuildWriteConstRam(VoidPtrInc(pBufferSrd, sizeof(uint32)),
+                                                       ceRamOffset,
+                                                       2,
+                                                       pCeCmdSpace);
         }
 
         ceRamOffset += sizeof(BufferSrd);
@@ -8058,19 +8056,19 @@ void UniversalCmdBuffer::AddPerPresentCommands(
 {
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace += m_cmdUtil.BuildAtomicMem(AtomicOp::IncUint32,
-                                            frameCountGpuAddr,
-                                            UINT32_MAX,
-                                            pDeCmdSpace);
+    pDeCmdSpace += CmdUtil::BuildAtomicMem(AtomicOp::IncUint32,
+                                           frameCountGpuAddr,
+                                           UINT32_MAX,
+                                           pDeCmdSpace);
 
-    pDeCmdSpace += m_cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                   dst_sel__me_copy_data__perfcounters,
-                                                   frameCntReg,
-                                                   src_sel__me_copy_data__tc_l2,
-                                                   frameCountGpuAddr,
-                                                   count_sel__me_copy_data__32_bits_of_data,
-                                                   wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                                   pDeCmdSpace);
+    pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                  dst_sel__me_copy_data__perfcounters,
+                                                  frameCntReg,
+                                                  src_sel__me_copy_data__tc_l2,
+                                                  frameCountGpuAddr,
+                                                  count_sel__me_copy_data__32_bits_of_data,
+                                                  wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                                  pDeCmdSpace);
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
@@ -8147,7 +8145,7 @@ void UniversalCmdBuffer::P2pBltWaCopyBegin(
         contextControl.bitfields3.shadow_global_uconfig    = 0;
 
         uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildContextControl(contextControl, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildContextControl(contextControl, pCmdSpace);
         m_deCmdStream.CommitCommands(pCmdSpace);
     }
 
@@ -8183,7 +8181,7 @@ void UniversalCmdBuffer::P2pBltWaCopyEnd()
         PM4PFP_CONTEXT_CONTROL contextControl = m_device.GetContextControl();
 
         uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildContextControl(contextControl, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildContextControl(contextControl, pCmdSpace);
         m_deCmdStream.CommitCommands(pCmdSpace);
     }
 }
@@ -8324,7 +8322,7 @@ void UniversalCmdBuffer::CpCopyMemory(
     dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);
 
     uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-    pCmdSpace += m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildDmaData(dmaDataInfo, pCmdSpace);
     m_deCmdStream.CommitCommands(pCmdSpace);
 
     SetGfxCmdBufCpBltState(true);

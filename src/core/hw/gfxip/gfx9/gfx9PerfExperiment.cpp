@@ -2793,7 +2793,8 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                                                               pCmdSpace);
 
                 // Poll the status register's busy bit to wait for it to totally turn off.
-                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__register_space,
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                       mem_space__me_wait_reg_mem__register_space,
                                                        function__me_wait_reg_mem__equal_to_the_reference_value,
                                                        engine_sel__me_wait_reg_mem__micro_engine,
                                                        Gfx09::mmSQ_THREAD_TRACE_STATUS,
@@ -2832,7 +2833,8 @@ uint32* PerfExperiment::WriteStopThreadTraces(
             else
             {
                 // Poll the status register's finish_done bit to be sure that the trace buffer is written out.
-                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__register_space,
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                       mem_space__me_wait_reg_mem__register_space,
                                                        function__me_wait_reg_mem__not_equal_reference_value,
                                                        engine_sel__me_wait_reg_mem__micro_engine,
                                                        Gfx10::mmSQ_THREAD_TRACE_STATUS,
@@ -2849,7 +2851,8 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                                                               pCmdSpace);
 
                 // Poll the status register's busy bit to wait for it to totally turn off.
-                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__register_space,
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                       mem_space__me_wait_reg_mem__register_space,
                                                        function__me_wait_reg_mem__equal_to_the_reference_value,
                                                        engine_sel__me_wait_reg_mem__micro_engine,
                                                        Gfx10::mmSQ_THREAD_TRACE_STATUS,
@@ -3209,14 +3212,44 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
 
     // The recommended sampling procedure: stop windowed, sample, wait-idle, stop global, read values.
     //
-    // By experimentation, global blocks don't listen to perfcounter events so we must always set PERFMON_SAMPLE_ENABLE
-    // while also issuing the event. We could probably take a long time to study how each specific block responds to
-    // events or the sample bit to come up with the optimal programming, but for now just always do both to make sure
-    // we definitely get results.
-    pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
+    // By experimentation, setting the PERFMON_STATE to CP_PERFMON_STATE_STOP_COUNTING interferes with the SQ counter
+    // sampling leading to incorrect and inconsistent counts, so we issue only the event first before reading SQ perf
+    // counter values. Global blocks don't listen to perfcounter events so we must always set PERFMON_SAMPLE_ENABLE
+    // while also issuing the event.
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_SAMPLE, engineType, pCmdSpace);
 
     pCmdSpace = WriteWaitIdle(false, pCmdStream, pCmdSpace);
+
+    // Copy each counter's value from registers to memory, one at a time.
+    const gpusize destBaseAddr = m_gpuMemory.GpuVirtAddr() + (isBeginSample ? m_globalBeginOffset : m_globalEndOffset);
+
+    // A first pass to gather counter values only from the SQ block.
+    for (uint32 idx = 0; idx < m_globalCounters.NumElements(); ++idx)
+    {
+        const GlobalCounterMapping& mapping  = m_globalCounters.At(idx);
+        const uint32                instance = mapping.general.globalInstance;
+        const uint32                block    = static_cast<uint32>(mapping.general.block);
+
+        if (mapping.general.block == GpuBlock::Sq)
+        {
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
+                                                         m_select.sqg[instance].grbmGfxIndex.u32All,
+                                                         pCmdSpace);
+
+            pCmdSpace = WriteCopy64BitCounter(m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].lo,
+                                              m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].hi,
+                                              destBaseAddr + mapping.offset,
+                                              pCmdStream,
+                                              pCmdSpace);
+
+            // Get fresh command space just in case we're close to running out.
+            pCmdStream->CommitCommands(pCmdSpace);
+            pCmdSpace = pCmdStream->ReserveCommands();
+        }
+    }
+
+    pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+    pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
 
     // Stop the global counters. If SPM is enabled we also stop its counters so that they don't sample our sampling.
     regCP_PERFMON_CNTL cpPerfmonCntl = {};
@@ -3243,29 +3276,14 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
         pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRLC_PERFMON_CNTL, rlcPerfmonCntl.u32All, pCmdSpace);
     }
 
-    // Copy each counter's value from registers to memory, one at a time.
-    const gpusize destBaseAddr = m_gpuMemory.GpuVirtAddr() + (isBeginSample ? m_globalBeginOffset : m_globalEndOffset);
-
+    // Perform a second pass for reading counter values from registers for all blocks other than SQ.
     for (uint32 idx = 0; idx < m_globalCounters.NumElements(); ++idx)
     {
         const GlobalCounterMapping& mapping  = m_globalCounters.At(idx);
         const uint32                instance = mapping.general.globalInstance;
         const uint32                block    = static_cast<uint32>(mapping.general.block);
 
-        if (mapping.general.block == GpuBlock::Sq)
-        {
-            // This is essentially the generic path but we keep our GRBM_GFX_INDEX in a special location.
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
-                                                         m_select.sqg[instance].grbmGfxIndex.u32All,
-                                                         pCmdSpace);
-
-            pCmdSpace = WriteCopy64BitCounter(m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].lo,
-                                              m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].hi,
-                                              destBaseAddr + mapping.offset,
-                                              pCmdStream,
-                                              pCmdSpace);
-        }
-        else if (mapping.general.block == GpuBlock::GrbmSe)
+        if (mapping.general.block == GpuBlock::GrbmSe)
         {
             // The per-SE counters are different from the generic case in two ways:
             // 1. The GRBM is a global block so we need to use global broadcasting.
@@ -3357,9 +3375,9 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
                                               pCmdStream,
                                               pCmdSpace);
         }
-        else
+        else if (mapping.general.block != GpuBlock::Sq)
         {
-            // What block did we forget to implement?
+            // We handle the SQ counters separately. What block did we forget to implement?
             PAL_ASSERT_ALWAYS();
         }
 
@@ -3483,14 +3501,14 @@ uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
             constexpr uint32 SpiConfigCntlSqgEventsMask = ((1 << SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS__SHIFT) |
                                                            (1 << SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS__SHIFT));
 
-            pCmdSpace += m_cmdUtil.BuildRegRmw(Gfx10::mmSPI_CONFIG_CNTL_REMAP,
+            pCmdSpace += m_cmdUtil.BuildRegRmw(m_cmdUtil.GetRegInfo().mmSpiConfigCntl,
                                                spiConfigCntl.u32All,
                                                ~(SpiConfigCntlSqgEventsMask),
                                                pCmdSpace);
         }
         else
         {
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10::mmSPI_CONFIG_CNTL_REMAP,
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_cmdUtil.GetRegInfo().mmSpiConfigCntl,
                                                          spiConfigCntl.u32All,
                                                          pCmdSpace);
         }

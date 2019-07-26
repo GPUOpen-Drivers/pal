@@ -87,7 +87,7 @@ Result PerfExperiment::BindGpuMemory(
     }
     else
     {
-        result = m_device.ValidateBindObjectMemoryInput(pGpuMemory, offset, m_totalMemSize, m_memAlignment, false);
+        result = Device::ValidateBindObjectMemoryInput(pGpuMemory, offset, m_totalMemSize, m_memAlignment, false);
     }
 
     if (result == Result::Success)

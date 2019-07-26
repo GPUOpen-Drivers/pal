@@ -1387,8 +1387,16 @@ struct GpuCompatibilityInfo
             uint32 gpuFeatures         :  1;  ///< The devices have an exact feature match: same internal tiling, same
                                               ///  pipeline binary data, etc.
             uint32 iqMatch             :  1;  ///< Devices produce images with same precision.
-            uint32 peerTransfer        :  1;  ///< Peer-to-peer transfers are supported.  See IDevice::OpenPeerMemory()
-                                              ///  and IDevice::OpenPeerImage().
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 521
+            uint32 peerTransferWrite   :  1;  ///< Peer-to-peer transfers write are supported.  See
+                                              ///  IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
+            uint32 peerTransferRead    :  1;  ///< Peer-to-peer transfers based on xmgi are supported.
+                                              ///  See IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
+#else
+            uint32 peerTransfer        :  1;  ///< Peer-to-peer transfers write are supported.  See
+                                              ///  IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
+            uint32 placeholder0        :  1;  ///< Placeholder.
+#endif
             uint32 sharedMemory        :  1;  ///< Devices can share memory objects with.  IDevice::OpenSharedMemory().
             uint32 sharedSync          :  1;  ///< Devices can share queue semaphores with
                                               ///  IDevice::OpenSharedQueueSemaphore().
@@ -1399,7 +1407,7 @@ struct GpuCompatibilityInfo
             uint32 shareOtherGpuScreen :  1;  ///< Either device can present to the other device.  Means that the
                                               ///  device IDevice::GetMultiGpuCompatibility() was called on can present
                                               ///  to the GPU indicated by the otherGpu param.
-            uint32 reserved            : 25;  ///< Reserved for future use.
+            uint32 reserved            : 24;  ///< Reserved for future use.
         };
         uint32 u32All;                        ///< Flags packed as 32-bit uint.
     } flags;                                  ///< GPU compatibility flags.
@@ -1700,16 +1708,17 @@ struct ImageViewInfo
         struct
         {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
-            uint32 shaderWritable : 1; ///< True if used with an image that has been transitioned to a shader-
-                                       ///  writable image state (e.g. [Graphics|Compute][WriteOnly|ReadWrite]).
-                                       ///  Replaced by the relevant enums in 'possibleLayouts'
+            uint32 shaderWritable  : 1; ///< True if used with an image that has been transitioned to a shader-
+                                        ///  writable image state (e.g. [Graphics|Compute][WriteOnly|ReadWrite]).
+                                        ///  Replaced by the relevant enums in 'possibleLayouts'
 #else
-            uint32 placeholder0   : 1;
+            uint32 placeholder0    : 1;
 #endif
 
-            uint32 zRangeValid    : 1;  ///< whether z offset/ range value is valid.
-            uint32 includePadding : 1;  ///< Whether internal padding should be included in the view range.
-            uint32 reserved       : 29; ///< Reserved for future use
+            uint32 zRangeValid     : 1;  ///< whether z offset/ range value is valid.
+            uint32 includePadding  : 1;  ///< Whether internal padding should be included in the view range.
+
+            uint32 reserved        : 29; ///< Reserved for future use
         };
         uint32 u32All;                  ///< Value of flags bitfield
     } flags;                            ///< Image view flags.
@@ -1753,6 +1762,7 @@ struct SamplerInfo
                                               ///  you must avg.out your samples from both MIP 1 and 2.But if PERF_MIP
                                               ///  is set to nonzero the HW will perform an optimization and may fetch
                                               ///  from only 1 MIP.
+
     union
     {
         struct
@@ -1785,11 +1795,14 @@ struct SamplerInfo
             ///  and this flag will be ignored for such GPUs.
             uint32 disableSingleMipAnisoOverride : 1;
 #endif
+
+            uint32 placeholder0        : 1;
+
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444) || (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448)
 
-            uint32 reserved            : 24; ///< Reserved for future use
+            uint32 reserved            : 23; ///< Reserved for future use
 #else
-            uint32 reserved            : 25; ///< Reserved for future use
+            uint32 reserved            : 24; ///< Reserved for future use
 #endif
         };
         uint32 u32All;                ///< Value of flags bitfield

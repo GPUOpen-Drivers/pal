@@ -118,8 +118,8 @@ const RegisterRange Nv10UserConfigShadowRange[] =
          1,
     },
     {
-        (Gfx10::mmVGT_GSVS_RING_SIZE_UMD - UCONFIG_SPACE_START),
-        (mmVGT_PRIMITIVE_TYPE - Gfx10::mmVGT_GSVS_RING_SIZE_UMD + 1),
+        (Nv10::mmVGT_GSVS_RING_SIZE_UMD - UCONFIG_SPACE_START),
+        (mmVGT_PRIMITIVE_TYPE - Nv10::mmVGT_GSVS_RING_SIZE_UMD + 1),
     },
     {
         (Gfx10::mmGE_MAX_VTX_INDX - UCONFIG_SPACE_START),
@@ -131,11 +131,11 @@ const RegisterRange Nv10UserConfigShadowRange[] =
     },
     {
         (mmVGT_NUM_INSTANCES - UCONFIG_SPACE_START),
-        (Gfx10::mmVGT_TF_MEMORY_BASE_UMD - mmVGT_NUM_INSTANCES + 1),
+        (Nv10::mmVGT_TF_MEMORY_BASE_UMD - mmVGT_NUM_INSTANCES + 1),
     },
     {
         (Gfx10::mmGE_STEREO_CNTL - UCONFIG_SPACE_START),
-         Gfx10::mmVGT_TF_MEMORY_BASE_HI_UMD - Gfx10::mmGE_STEREO_CNTL + 1,
+         Nv10::mmVGT_TF_MEMORY_BASE_HI_UMD - Gfx10::mmGE_STEREO_CNTL + 1,
     },
     {
         (Gfx10::mmGE_CNTL - UCONFIG_SPACE_START),
@@ -271,7 +271,7 @@ const RegisterRange Navi10NonShadowedRanges[] =
         mmSPI_PERFCOUNTER_BINS - mmSPI_PERFCOUNTER0_SELECT + 1
     },
     {
-        Gfx10::mmSPI_CONFIG_CNTL_REMAP,
+        Nv10::mmSPI_CONFIG_CNTL_REMAP,
         1
     },
     // SQ

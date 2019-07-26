@@ -76,9 +76,8 @@ struct GpuMemoryInternalCreateInfo
             uint32 timestamp          :  1; // GPU memory will be used for KMD timestamp writeback.
             uint32 accessedPhysically :  1; // GPU memory will be accessed physically (physical engine like MM video).
             uint32 pageFaultDebugSrd  :  1; // GPU memory will be used for PageFaultDebugSrd feature.
-            uint32 placeholder1       :  1; // Reserved. Set to 0.
             uint32 gpuReadOnly        :  1; // Indicates the memory is read-only on the GPU
-            uint32 reserved           : 13;
+            uint32 reserved           : 14;
         };
         uint32 u32All;
     } flags;
@@ -154,9 +153,8 @@ union GpuMemoryFlags
         uint32 restrictedContent        :  1; // GPU memory is protected content
         uint32 restrictedAccess         :  1; // GPU memory is restricted shared access resource
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
-        uint32 placeholder1             :  1; // Placeholder.
         uint32 gpuReadOnly              :  1; // GPU memory is read only.
-        uint32 reserved                 : 26;
+        uint32 reserved                 : 27;
     };
     uint64  u64All;
 };

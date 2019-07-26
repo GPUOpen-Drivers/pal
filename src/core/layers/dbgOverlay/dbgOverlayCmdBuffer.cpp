@@ -125,5 +125,68 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
         cscTable);
 }
 
+// =====================================================================================================================
+void CmdBuffer::DrawOverlay(
+    const IImage* pSrcImage)
+{
+    const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
+
+    // Issue a barrier to ensure the text written via CS is complete and flushed out of L2.
+    BarrierInfo barrier = {};
+    barrier.waitPoint   = HwPipePreCs;
+
+    const HwPipePoint postCs   = HwPipePostCs;
+    barrier.pipePointWaitCount = 1;
+    barrier.pPipePoints        = &postCs;
+
+    BarrierTransition transition = {};
+    transition.srcCacheMask      = CoherShader;
+    transition.dstCacheMask      = CoherShader;
+
+    barrier.transitionCount = 1;
+    barrier.pTransitions    = &transition;
+
+    if (settings.debugOverlayConfig.visualConfirmEnabled == true)
+    {
+        // Draw the debug overlay using this command buffer. Note that the DX runtime controls whether the
+        // present will be windowed or fullscreen. We have no reliable way to detect the chosen present mode.
+        m_device.GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(*pSrcImage),
+                                                    this,
+                                                    ExpectedPresentMode::Unknown);
+
+        barrier.reason = Developer::BarrierReasonDebugOverlayText;
+
+        CmdBarrier(barrier);
+    }
+
+    if (settings.debugOverlayConfig.timeGraphEnabled == true)
+    {
+        // Draw the time graph using this command buffer.
+        m_device.GetTimeGraph().DrawVisualConfirm(static_cast<const Image&>(*pSrcImage), this);
+
+        barrier.reason = Developer::BarrierReasonDebugOverlayGraph;
+
+        CmdBarrier(barrier);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdPostProcessFrame(
+    const CmdPostProcessFrameInfo& postProcessInfo,
+    bool*                          pAddedGpuWork)
+{
+    // Only an Image supports visual confirm
+    if ((postProcessInfo.flags.srcIsTypedBuffer == 0) && Device::DetermineDbgOverlaySupport(m_queueType))
+    {
+        DrawOverlay(postProcessInfo.pSrcImage);
+        if (pAddedGpuWork != nullptr)
+        {
+            *pAddedGpuWork = true;
+        }
+    }
+
+    CmdBufferFwdDecorator::CmdPostProcessFrame(postProcessInfo, pAddedGpuWork);
+}
+
 } // DbgOverlay
 } // Pal

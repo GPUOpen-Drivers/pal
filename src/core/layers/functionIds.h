@@ -151,6 +151,7 @@ enum class CmdBufCallId : uint32
 #endif
     CmdUpdateHiSPretests,
     CmdSetClipRects,
+    CmdPostProcessFrame,
     Count
 };
 
@@ -273,6 +274,7 @@ static const char* CmdBufCallIdStrings[] =
 #endif
     "CmdUpdateHiSPretests()",
     "CmdSetClipRects()",
+    "CmdPostProcessFrame()",
 };
 
 static_assert(Util::ArrayLen(CmdBufCallIdStrings) == static_cast<uint32>(CmdBufCallId::Count),

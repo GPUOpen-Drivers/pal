@@ -27,8 +27,11 @@
 #include "core/device.h"
 #include "core/g_palSettings.h"
 #include "core/platform.h"
+#include "core/hw/gfxip/colorBlendState.h"
+#include "core/hw/gfxip/depthStencilState.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
+#include "core/hw/gfxip/msaaState.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "palHashMapImpl.h"
 
@@ -289,6 +292,19 @@ Result GfxDevice::CreateColorBlendStateInternal(
 }
 
 // =====================================================================================================================
+// Destroys an internal ColorBlendState object
+void GfxDevice::DestroyColorBlendStateInternal(
+    ColorBlendState* pColorBlendState
+    ) const
+{
+    if (pColorBlendState != nullptr)
+    {
+        pColorBlendState->Destroy();
+        PAL_FREE(pColorBlendState, GetPlatform());
+    }
+}
+
+// =====================================================================================================================
 // Creates an internal depth stencil state object by allocating memory then calling the usual create method.
 Result GfxDevice::CreateDepthStencilStateInternal(
     const DepthStencilStateCreateInfo& createInfo,
@@ -316,6 +332,19 @@ Result GfxDevice::CreateDepthStencilStateInternal(
 }
 
 // =====================================================================================================================
+// Destroys an internal DepthStencilState object
+void GfxDevice::DestroyDepthStencilStateInternal(
+    DepthStencilState* pDepthStencilState
+    ) const
+{
+    if (pDepthStencilState != nullptr)
+    {
+        pDepthStencilState->Destroy();
+        PAL_FREE(pDepthStencilState, GetPlatform());
+    }
+}
+
+// =====================================================================================================================
 // Creates an internal msaa state object by allocating memory then calling the usual create method.
 Result GfxDevice::CreateMsaaStateInternal(
     const MsaaStateCreateInfo& createInfo,
@@ -338,6 +367,19 @@ Result GfxDevice::CreateMsaaStateInternal(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Destroys an internal MsaaState object
+void GfxDevice::DestroyMsaaStateInternal(
+    MsaaState* pMsaaState
+    ) const
+{
+    if (pMsaaState != nullptr)
+    {
+        pMsaaState->Destroy();
+        PAL_FREE(pMsaaState, GetPlatform());
+    }
 }
 
 // =====================================================================================================================

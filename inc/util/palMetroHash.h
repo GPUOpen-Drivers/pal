@@ -31,9 +31,8 @@
 
 #pragma once
 
+#include "metrohash.h"
 #include "palUtil.h"
-
-#include "../../src/util/imported/metrohash/src/metrohash.h"
 
 namespace Util
 {

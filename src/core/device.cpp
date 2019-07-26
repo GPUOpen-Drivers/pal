@@ -271,6 +271,7 @@ Device::Device(
     memset(&m_debugFilePath,      0, sizeof(m_debugFilePath));
     memset(&m_referencedGpuMemBytes[0], 0, sizeof(m_referencedGpuMemBytes));
     memset(&m_hwsInfo, 0, sizeof(m_hwsInfo));
+    memset(&m_publicSettings, 0, sizeof(m_publicSettings));
 }
 
 // =====================================================================================================================
@@ -2937,8 +2938,7 @@ Result Device::ValidateBindObjectMemoryInput(
     gpusize           offset,
     gpusize           objMemSize,
     gpusize           objAlignment,
-    bool              allowVirtualBinding
-    ) const
+    bool              allowVirtualBinding)
 {
     Result result = Result::Success;
 
@@ -3710,6 +3710,11 @@ Result Device::ValidateImageViewInfo(
         }
     }
 
+    if (result == Result::Success)
+    {
+        result = m_pGfxDevice->HwlValidateImageViewInfo(info);
+    }
+
     return result;
 }
 
@@ -3796,6 +3801,11 @@ Result Device::ValidateSamplerInfo(
     else if ((samplerInfo.maxAnisotropy < 1) || (samplerInfo.maxAnisotropy > 16))
     {
         result = Result::ErrorInvalidValue;
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_pGfxDevice->HwlValidateSamplerInfo(samplerInfo);
     }
 
     return result;

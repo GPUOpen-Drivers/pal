@@ -350,10 +350,10 @@ private:
         ADDR2_SURFACE_FLAGS surfaceFlags,
         ADDR2_BLOCK_SET*    pBlockSettings) const;
 
-    template <bool forFmask>
     Result ComputePlaneSwizzleMode(
         const Image*                             pImage,
         const SubResourceInfo*                   pBaseSubRes,   // Base subresource for the plane
+        bool                                     forFmask,
         ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT* pOut) const;
 
     Result ComputeAlignedPlaneDimensions(

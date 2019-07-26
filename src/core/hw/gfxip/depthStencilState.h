@@ -30,23 +30,19 @@
 namespace Pal
 {
 
-// Forward decl's
-class Device;
-
 // =====================================================================================================================
 // GFXIP-independent depth stencil state implementation. See IDepthStencilState documentation for more details.
 class DepthStencilState : public IDepthStencilState
 {
 public:
     virtual void Destroy() override { this->~DepthStencilState(); }
-    void DestroyInternal();
 
 protected:
-    DepthStencilState(const Device& device) : m_device(device) {}
+    DepthStencilState() {}
     virtual ~DepthStencilState() {}
 
 private:
-    const Device& m_device;
+    PAL_DISALLOW_COPY_AND_ASSIGN(DepthStencilState);
 };
 
 } // Pal

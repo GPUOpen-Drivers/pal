@@ -719,6 +719,31 @@ void LogContext::Struct(
     KeyAndObject("primaryMemory", value.pPrimaryMemory);
     EndMap();
 }
+// =====================================================================================================================
+void LogContext::Struct(
+    const CmdPostProcessFrameInfo& value)
+{
+    BeginMap(false);
+    KeyAndBeginList("flags", true);
+
+    if (value.flags.srcIsTypedBuffer)
+    {
+        Value("srcIsTypedBuffer");
+    }
+
+    EndList();
+
+    if (value.flags.srcIsTypedBuffer)
+    {
+        KeyAndObject("srcTypedBuffer", value.pSrcTypedBuffer);
+    }
+    else
+    {
+        KeyAndObject("srcImage", value.pSrcImage);
+    }
+
+    EndMap();
+}
 
 // =====================================================================================================================
 void LogContext::Struct(
@@ -2453,6 +2478,7 @@ void LogContext::Struct(
     KeyAndValue("borderColorPaletteIndex", value.borderColorPaletteIndex);
     KeyAndValue("anisoThreshold", value.anisoThreshold);
     KeyAndValue("perfMip", value.perfMip);
+
     KeyAndBeginList("flags", true);
 
     if (value.flags.mgpuIqMatch)

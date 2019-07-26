@@ -66,7 +66,11 @@ struct QueueSemaphoreCreateInfo
     uint32 maxCount;                ///< The maximum signal count; once reached, further signals are dropped.  Must be
                                     ///  non-zero and no more than maxSemaphoreCount in @ref DeviceProperties.  For
                                     ///  example, a value of one would request a binary semaphore.
-    uint32 initialCount;            ///< Initial count value for the semaphore.  Must not be larger than maxCount.
+                                    ///  NOTE: maxCount does not apply to timeline semaphores.
+
+    uint64 initialCount;            ///< Initial value for timeline semaphores. (or)
+                                    ///  Initial count value for counting semaphores.
+                                    ///  Must not be larger than maxCount for counting semaphores.
 };
 
 /// Specifies parameters for opening a queue semaphore for use on another device.  Input structure to

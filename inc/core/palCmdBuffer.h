@@ -1561,6 +1561,27 @@ struct ColorKey
     uint32 u32Color[4]; ///< The color value for each channel
 };
 
+/// Specifies the input parameters for ICmdBuffer::CmdPostProcessFrame.
+struct CmdPostProcessFrameInfo
+{
+    union
+    {
+        struct
+        {
+            uint32 srcIsTypedBuffer : 1;  ///< True if the source is a typed buffer instead of an image.
+            uint32 reserved         : 31; ///< Reserved for future usage.
+        };
+        uint32     u32All;                ///< Flags packed as uint32.
+    } flags;
+
+    union
+    {
+        const IImage*     pSrcImage;       ///< The image to postprocess (prior to presenting).
+        const IGpuMemory* pSrcTypedBuffer; ///< The typed buffer to postprocess.
+                                           ///  Must have been created as a typed buffer.
+    };
+};
+
 /// External flags for ScaledCopyImage.
 union ScaledCopyFlags
 {
@@ -3399,6 +3420,17 @@ public:
         const HiSPretests& pretests,
         uint32             firstMip,
         uint32             numMips) = 0;
+
+    /// Executes any internal postprocessing commands to be performed on a frame, such as drawing the dev driver
+    /// overlay.  Calling this prior to presenting (via any path) is a requirement, and must be prior to or
+    /// concurrent with frameEnd if FSFM is applicable.  This must be called using the image that will be the
+    /// source of the present.
+    ///
+    /// @param [in]  postProcessInfo  Information about the frame to be postprocessed.
+    /// @param [out] pAddedGpuWork    (Optional) Set to true if commands were added as part of this call.
+    virtual void CmdPostProcessFrame(
+        const CmdPostProcessFrameInfo& postProcessInfo,
+        bool*                          pAddedGpuWork) = 0;
 
     /// Inserts a string embedded inside a NOP packet with a signature that is recognized by tools and can be printed
     /// inside a command buffer disassembly. Note that this is a real NOP that willl really be submitted to the GPU

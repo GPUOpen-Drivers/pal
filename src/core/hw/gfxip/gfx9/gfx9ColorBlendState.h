@@ -66,12 +66,11 @@ public:
     uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     bool IsBlendEnabled(uint32 slot) const { return ((m_blendEnableMask & (1 << slot)) != 0); }
-    bool IsDualSrcBlend() const { return m_dualSrcBlend; }
 
     uint32 BlendEnableMask() const    { return m_blendEnableMask;    }
     uint32 BlendReadsDestMask() const { return m_blendReadsDestMask; }
 
-    template <bool pm4OptImmediate>
+    template <bool Pm4OptImmediate>
     uint32* WriteBlendOptimizations(
         CmdStream*                     pCmdStream,
         const SwizzledFormat*          pTargetFormats,
@@ -93,10 +92,10 @@ protected:
     virtual ~ColorBlendState() {} // Destructor has nothing to do.
 
 private:
-    void Init(const ColorBlendStateCreateInfo& createInfo);
-    void BuildPm4Headers();
+    void Init(const Device& device, const ColorBlendStateCreateInfo& createInfo);
+    void BuildPm4Headers(const Device& device);
 
-    void InitBlendOpts(const ColorBlendStateCreateInfo& blend);
+    void InitBlendOpts(const ColorBlendStateCreateInfo& blend, bool isDualSrcBlend);
     void InitBlendMasks(const ColorBlendStateCreateInfo& createInfo);
 
     static BlendOp  HwBlendOp(Blend blendOp);
@@ -108,8 +107,6 @@ private:
     // Per MRT blend opts
     GfxBlendOptimizer::BlendOpts m_blendOpts[MaxColorTargets * GfxBlendOptimizer::NumChannelWriteComb];
 
-    // Indicatea a dual-source blend mode.
-    bool                         m_dualSrcBlend;
     // Indicates if blending is enabled for each target.
     uint32                       m_blendEnableMask;
     // Indicates if the blend state will read the destination for each target.

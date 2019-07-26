@@ -314,8 +314,6 @@ void Device::SetupWorkarounds()
     else if (IsGfx10(*m_pParent))
     {
         m_waEnableDccCacheFlushAndInvalidate = true;
-
-        // m_waTcCompatZRange is no longer needed. SEE http://ontrack-internal.amd.com/browse/DEGGIGXX0-1647
     }
 }
 
@@ -570,11 +568,13 @@ void Device::BindTrapBuffer(
 // then when they're finished, they can "un-hang" the GPU by modifying the memory location being waited on to contain
 // the provided value.
 uint32* Device::TemporarilyHangTheGpu(
-    uint32  number,
-    uint32* pCmdSpace
+    EngineType engineType,
+    uint32     number,
+    uint32*    pCmdSpace
     ) const
 {
-    return (pCmdSpace + m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
+    return (pCmdSpace + m_cmdUtil.BuildWaitRegMem(engineType,
+                                                  mem_space__me_wait_reg_mem__memory_space,
                                                   function__me_wait_reg_mem__equal_to_the_reference_value,
                                                   engine_sel__me_wait_reg_mem__micro_engine,
                                                   m_debugStallGpuMem.GpuVirtAddr(),
@@ -1160,9 +1160,9 @@ Result Device::CreateMsaaState(
     IMsaaState**               ppMsaaState
     ) const
 {
-    MsaaState* pMsaaState = PAL_PLACEMENT_NEW(pPlacementAddr) MsaaState(*this);
+    MsaaState* pMsaaState = PAL_PLACEMENT_NEW(pPlacementAddr) MsaaState();
 
-    Result result = pMsaaState->Init(createInfo);
+    Result result = pMsaaState->Init(*this, createInfo);
 
     if (result != Result::Success)
     {
@@ -2690,8 +2690,8 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 {
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pImgViewInfo != nullptr) && (count > 0));
     const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
-    const auto*const pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
-    const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(pPalDevice->ChipProperties().gfxLevel);
+    const auto&      chipProps  = pPalDevice->ChipProperties();
+    const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel);
     const auto&      settings   = GetGfx9Settings(*pPalDevice);
 
     ImageSrd* pSrds = static_cast<ImageSrd*>(pOut);
@@ -2699,8 +2699,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
     for (uint32 i = 0; i < count; ++i)
     {
         const ImageViewInfo&   viewInfo        = pImgViewInfo[i];
-        const Image&           image           = *GetGfx9Image(viewInfo.pImage);
+
         const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
+        const Image&           image           = static_cast<const Image&>(*(pParent->GetGfxImage()));
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
         const bool             imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
@@ -3665,14 +3666,15 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
             // This allows the sampler to override anisotropic filtering when the resource view contains a single
             // mipmap level.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448
-            pSrd->aniso_override = !pInfo->flags.disableSingleMipAnisoOverride;
+            pSrd->aniso_override = (pInfo->flags.disableSingleMipAnisoOverride == 0);
 #else
             pSrd->aniso_override = 1;
 #endif
-        }
+
+        } // end loop through temp SRDs
 
         memcpy(pSrdOutput, &tempSamplerSrds[0], (currentSrdIdx * sizeof(SamplerSrd)));
-    }
+    } // end loop through SRDs
 }
 
 // =====================================================================================================================
@@ -3793,6 +3795,7 @@ void InitializeGpuChipProperties(
     {
         pInfo->imageProperties.prtFeatures = Gfx9PrtFeatures;
         pInfo->imageProperties.prtTileSize = PrtTileSize;
+
     }
 
     pInfo->gfx9.supports2BitSignedValues           = 1;

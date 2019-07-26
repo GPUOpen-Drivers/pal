@@ -928,7 +928,8 @@ void ComputeCmdBuffer::CmdWaitRegisterValue(
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__register_space,
+    pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
+                                           mem_space__me_wait_reg_mem__register_space,
                                            CmdUtil::WaitRegMemFunc(compareFunc),
                                            engine_sel__me_wait_reg_mem__micro_engine,
                                            registerOffset,
@@ -949,7 +950,8 @@ void ComputeCmdBuffer::CmdWaitMemoryValue(
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
+    pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
+                                           mem_space__me_wait_reg_mem__memory_space,
                                            CmdUtil::WaitRegMemFunc(compareFunc),
                                            engine_sel__me_wait_reg_mem__micro_engine,
                                            gpuMemory.Desc().gpuVirtAddr + offset,
@@ -971,7 +973,8 @@ void ComputeCmdBuffer::CmdWaitBusAddressableMemoryMarker(
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
+    pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
+                                           mem_space__me_wait_reg_mem__memory_space,
                                            CmdUtil::WaitRegMemFunc(compareFunc),
                                            engine_sel__me_wait_reg_mem__micro_engine,
                                            pGpuMemory->GetBusAddrMarkerVa(),

@@ -84,21 +84,27 @@ private:
 
     Result CreateGpuTimestampPairMemory();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     Result SubmitOverlayCmdBuffer(const Image& image, PresentMode presentMode);
+#endif
     Result SubmitWithGpuTimestampPair(const SubmitInfo& submitInfo, GpuTimestampPair* pTimestamp);
 
     Result CreateGpuTimestampPair(GpuTimestampPair** ppTimestamp);
     void DestroyGpuTimestampPair(GpuTimestampPair* pTimestamp);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     Result CreateTrackedCmdBuffer(TrackedCmdBuffer** ppTrackedCmdBuffer);
     void DestroyTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer);
+#endif
 
     static constexpr uint32 MaxGpuTimestampPairCount = 256;
 
     Device*const     m_pDevice;
     const QueueType  m_queueType;
     const EngineType m_engineType;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     const bool       m_overlaySupported;
+#endif
     const bool       m_supportTimestamps;    // Queue (based on engine type) supports timestamps.
     const uint32     m_timestampAlignment;   // Aligns the Timestamps in Memory
     const size_t     m_timestampMemorySize;  // Size of the GpuTimestamp buffer (mapped CPU memory and GPU memory).
@@ -110,8 +116,10 @@ private:
     // GpuTimestampPair is always at the front
     Util::Deque<GpuTimestampPair*, PlatformDecorator> m_gpuTimestampPairDeque;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     // All command buffers used by this queue to render the debug overlay. The least recently used item is at the front.
     Util::Deque<TrackedCmdBuffer*, PlatformDecorator> m_overlayCmdBufferDeque;
+#endif
 };
 
 } // DbgOverlay

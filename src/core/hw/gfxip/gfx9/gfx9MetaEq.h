@@ -109,7 +109,7 @@ static const uint8  MinMetaEqCompPos = 0xFF;
 class MetaDataAddrEquation
 {
 public:
-    MetaDataAddrEquation(const Device*  pDevice, uint32  maxEquationBits, const char*  pName = nullptr);
+    MetaDataAddrEquation(uint32 maxEquationBits, const char*  pName = nullptr);
     virtual ~MetaDataAddrEquation() {}
 
     // This is the maximum number of bits that any given equation can produce
@@ -159,10 +159,11 @@ public:
         uint32  compType,
         uint32  mask) const;
     void Mort2d(
-        CompPair*  pPair0,
-        CompPair*  pPair1,
-        uint32     start = 0,
-        uint32     end   = 0);
+        const Device* pGfxDevice,
+        CompPair*     pPair0,
+        CompPair*     pPair1,
+        uint32        start = 0,
+        uint32        end   = 0);
     void Mort3d(
         CompPair*  pC0,
         CompPair*  pC1,
@@ -237,7 +238,6 @@ private:
     char    m_equationName[MaxEquationNameLength]; // The name given to this equation, used only for printing
 #endif
 
-    const Device*  m_pGfxDevice;
     uint32         m_maxBits;                 // The maximum number of bits this equation could have
 
     // Tracks the first CompPair added through "SetBits" for each bit of the equation

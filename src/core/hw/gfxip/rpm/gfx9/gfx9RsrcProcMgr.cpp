@@ -2168,7 +2168,7 @@ void RsrcProcMgr::ClearHiSPretestsMetaData(
     const ImageCreateInfo& createInfo = dstImage.Parent()->GetImageCreateInfo();
 
     // Not sure if the metaDataRange.startSubres.arraySlice has to be zero as it is in depthClearMetadata.
-    PAL_ALERT(range.numSlices < createInfo.arraySize);
+    PAL_ALERT((range.startSubres.arraySlice + range.numSlices) > createInfo.arraySize);
 
     SubresRange metaDataRange;
     metaDataRange.startSubres.aspect     = range.startSubres.aspect;
@@ -2210,7 +2210,7 @@ void RsrcProcMgr::InitDepthClearMetaData(
     // whos mip was fast-cleared will clobber the fast clear value and cause corruption. However, we rely on this code
     // to guarantee that our TC-compatible images stay TC-compatible so removing it will require more decompresses.
     // For now we leave this as-is, knowing we will need to fix it if we run into a game that triggers bad behavior.
-    PAL_ALERT(range.numSlices < createInfo.arraySize);
+    PAL_ALERT((range.startSubres.arraySlice + range.numSlices) > createInfo.arraySize);
 
     SubresRange metaDataRange;
     metaDataRange.startSubres.aspect     = range.startSubres.aspect;
@@ -2251,7 +2251,7 @@ void RsrcProcMgr::InitColorClearMetaData(
     // whos mip was fast-cleared will clobber the fast clear value and cause corruption. However, we rely on this code
     // to guarantee that our TC-compatible images stay TC-compatible so removing it will require more decompresses.
     // For now we leave this as-is, knowing we will need to fix it if we run into a game that triggers bad behavior.
-    PAL_ALERT(range.numSlices < dstImage.Parent()->GetImageCreateInfo().arraySize);
+    PAL_ALERT((range.startSubres.arraySlice + range.numSlices) > dstImage.Parent()->GetImageCreateInfo().arraySize);
 
     const uint32 packedColor[4] = {0, 0, 0, 0};
 

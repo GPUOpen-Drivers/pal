@@ -2993,6 +2993,42 @@ void CmdBuffer::CmdExecuteIndirectCmds(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdPostProcessFrame(
+    const CmdPostProcessFrameInfo& postProcessInfo,
+    bool*                          pAddedGpuWork)
+{
+    CmdPostProcessFrameInfo nextPostProcessInfo = {};
+    bool addedGpuWork = false;
+
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdPostProcessFrame;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdPostProcessFrame(*NextCmdPostProcessFrameInfo(postProcessInfo, &nextPostProcessInfo),
+                                      &addedGpuWork);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndStruct("postProcessInfo", postProcessInfo);
+        pLogContext->EndInput();
+
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndValue("addedGpuWork", addedGpuWork);
+        pLogContext->EndOutput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+
+    if (addedGpuWork && (pAddedGpuWork != nullptr))
+    {
+        *pAddedGpuWork = true;
+    }
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdCommentString(
     const char* pComment)
 {

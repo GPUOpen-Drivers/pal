@@ -167,18 +167,17 @@ protected:
 
     // Equations used for calculating locations within this meta-surface
     MetaDataAddrEquation  m_meta;
-    MetaDataAddrEquation  m_pipe;
 
     ADDR2_META_MIP_INFO   m_addrMipOutput[MaxImageMipLevels];
     const int32           m_metaDataWordSizeLog2;
 
 private:
-    void   CalcDataOffsetEquation();
-    void   CalcPipeEquation(uint32  numPipesLog2);
+    void   CalcDataOffsetEquation(MetaDataAddrEquation* pDataOffset);
+    void   CalcPipeEquation(MetaDataAddrEquation* pPipe, MetaDataAddrEquation* pDataOffset, uint32  numPipesLog2);
     uint32 CapPipe() const;
-    void   CalcRbEquation(uint32  numSesLog2, uint32  numRbsPerSeLog2);
-    void   MergePipeAndRbEq();
-    uint32 RemoveSmallRbBits();
+    void   CalcRbEquation(MetaDataAddrEquation* pRb, uint32  numSesLog2, uint32  numRbsPerSeLog2);
+    void   MergePipeAndRbEq(MetaDataAddrEquation* pRb, MetaDataAddrEquation* pPipe);
+    uint32 RemoveSmallRbBits(MetaDataAddrEquation* pRb);
 
     uint32 GetRbAppendedBit(uint32  bitPos) const;
     void   SetRbAppendedBit(uint32  bitPos, uint32  bitVal);
@@ -186,8 +185,6 @@ private:
     virtual void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const = 0;
     virtual void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const = 0;
 
-    MetaDataAddrEquation  m_dataOffset;
-    MetaDataAddrEquation  m_rb;
     MetaEquationParam     m_metaEqParam;
 
     const uint32          m_firstUploadBit;
@@ -433,11 +430,11 @@ private:
 class Gfx9Fmask : public MaskRam
 {
 public:
-    Gfx9Fmask(const Image&  image);
+    Gfx9Fmask();
     // Destructor has nothing to do.
     virtual ~Gfx9Fmask() {}
 
-    Result Init(gpusize*  pGpuOffset);
+    Result Init(const Image& image, gpusize*  pGpuOffset);
     regSQ_IMG_RSRC_WORD1 Gfx9FmaskFormat(uint32  samples, uint32  fragments, bool isUav) const;
     const ADDR2_COMPUTE_FMASK_INFO_OUTPUT&  GetAddrOutput() const { return m_addrOutput; }
     AddrSwizzleMode GetSwizzleMode() const { return m_surfSettings.swizzleMode; }
@@ -454,9 +451,8 @@ private:
     ADDR2_COMPUTE_FMASK_INFO_OUTPUT          m_addrOutput;
     ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT  m_surfSettings;
     uint32                                   m_pipeBankXor;
-    const Image&                             m_image;
 
-    Result ComputeFmaskInfo();
+    Result ComputeFmaskInfo(const Image& image);
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9Fmask);
 };

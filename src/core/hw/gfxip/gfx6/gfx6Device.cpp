@@ -674,8 +674,9 @@ void Device::BindTrapBuffer(
 // then when they're finished, they can "un-hang" the GPU by modifying the memory location being waited on to contain
 // the provided value.
 uint32* Device::TemporarilyHangTheGpu(
-    uint32  number,
-    uint32* pCmdSpace
+    EngineType engineType,
+    uint32     number,
+    uint32*    pCmdSpace
     ) const
 {
     return (pCmdSpace + m_cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
@@ -1146,9 +1147,9 @@ Result Device::CreateMsaaState(
     IMsaaState**               ppMsaaState
     ) const
 {
-    MsaaState* pMsaaState = PAL_PLACEMENT_NEW(pPlacementAddr) MsaaState(*this);
+    MsaaState* pMsaaState = PAL_PLACEMENT_NEW(pPlacementAddr) MsaaState();
 
-    Result result = pMsaaState->Init(createInfo);
+    Result result = pMsaaState->Init(*this, createInfo);
 
     if (result != Result::Success)
     {

@@ -171,7 +171,14 @@ Result Platform::ReQueryDevices()
     const DrmLoaderFuncs& drmProcs    = GetDrmLoader().GetProcsTable();
 
     drmDevicePtr pDevices[MaxDevices] = { };
-    const int32 deviceCount = drmProcs.pfnDrmGetDevices(pDevices, MaxDevices);
+
+    int32 deviceCount = 0;
+
+    if (drmProcs.pfnDrmGetDevicesisValid() && drmProcs.pfnDrmFreeDevicesisValid())
+    {
+        // If libdrm.so.2 is not successfully resolved, the deviceCount will always be 0.
+        deviceCount = drmProcs.pfnDrmGetDevices(pDevices, MaxDevices);
+    }
 
     for (int32 i = 0; i < deviceCount; i++)
     {

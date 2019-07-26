@@ -175,6 +175,18 @@ uint32 AtomicIncrement(
 }
 
 // =====================================================================================================================
+// Atomically increments a 64-bit unsigned integer, returning the new value.
+uint64 AtomicIncrement64(
+    volatile uint64* pValue)
+{
+    // The variable pointed to by the pValue parameter must be aligned on a 64-bit boundary; otherwise, this function
+    // will behave unpredictably on multiprocessor x86 systems and any non-x86 systems.
+    PAL_ASSERT(IsPow2Aligned(reinterpret_cast<size_t>(pValue), sizeof(uint64)));
+
+    return __sync_add_and_fetch(pValue, 1ULL);
+}
+
+// =====================================================================================================================
 // Atomically decrements a 32-bit unsigned integer, returning the new value.
 uint32 AtomicDecrement(
     volatile uint32* pValue)

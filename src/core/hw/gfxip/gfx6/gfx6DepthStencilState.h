@@ -47,8 +47,6 @@ struct DepthStencilStatePm4Img
 
     PM4CMDSETDATA           hdrDbStencilControl; // 2nd PM4 set data packet
     regDB_STENCIL_CONTROL   dbStencilControl;    // More controls for stencil test.
-
-    size_t                  spaceNeeded;
 };
 
 // =====================================================================================================================
@@ -76,12 +74,10 @@ protected:
     virtual ~DepthStencilState() {}
 
 private:
-    void BuildPm4Headers();
+    void BuildPm4Headers(const Device& device);
 
     static CompareFrag HwDepthCompare(CompareFunc func);
     static ::StencilOp HwStencilOp(StencilOp stencilOp);
-
-    const Device&            m_device;
 
     // Image of PM4 commands needed to write this object to hardware.
     DepthStencilStatePm4Img  m_pm4Commands;

@@ -151,6 +151,8 @@ if(PAL_BUILD_GPUOPEN)
     set(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON CACHE BOOL "PAL override to build GPUOpen with support for the standard driver protocols." FORCE)
 endif()
 
+option(PAL_ENABLE_DEVDRIVER_USAGE "Enables developer driver suppport." ON)
+
 ### Generator Dependencies #############################################################################################
 find_package(PythonInterp 3)
 if(NOT PYTHONINTERP_FOUND)

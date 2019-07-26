@@ -366,7 +366,7 @@ public:
         { return (pipelineType == PipelineBindPoint::Graphics) ? m_graphicsTrapBuffer : m_computeTrapBuffer; }
 
 #if DEBUG
-    uint32* TemporarilyHangTheGpu(uint32 number, uint32* pCmdSpace) const override;
+    uint32* TemporarilyHangTheGpu(EngineType engineType, uint32 number, uint32* pCmdSpace) const override;
 #endif
 
     int32 OverridedTileIndexForDepthStencilCopy(int32 tileIndex) const

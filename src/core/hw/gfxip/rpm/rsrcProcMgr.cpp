@@ -141,18 +141,11 @@ void RsrcProcMgr::Cleanup()
         }
     }
 
-    // Destoy all state objects.
-    if (m_pBlendDisableState != nullptr)
-    {
-        m_pBlendDisableState->DestroyInternal();
-        m_pBlendDisableState = nullptr;
-    }
+    m_pDevice->DestroyColorBlendStateInternal(m_pBlendDisableState);
+    m_pBlendDisableState = nullptr;
 
-    if (m_pColorBlendState != nullptr)
-    {
-        m_pColorBlendState->DestroyInternal();
-        m_pColorBlendState = nullptr;
-    }
+    m_pDevice->DestroyColorBlendStateInternal(m_pColorBlendState);
+    m_pColorBlendState = nullptr;
 
     DepthStencilState**const ppDepthStates[] =
     {
@@ -169,22 +162,16 @@ void RsrcProcMgr::Cleanup()
 
     for (uint32 idx = 0; idx < ArrayLen(ppDepthStates); ++idx)
     {
-        if (*ppDepthStates[idx] != nullptr)
-        {
-            (*ppDepthStates[idx])->DestroyInternal();
-            (*ppDepthStates[idx]) = nullptr;
-        }
+        m_pDevice->DestroyDepthStencilStateInternal(*ppDepthStates[idx]);
+        (*ppDepthStates[idx]) = nullptr;
     }
 
     for (uint32 sampleIdx = 0; sampleIdx <= MaxLog2AaSamples; ++sampleIdx)
     {
         for (uint32 fragmentIdx = 0; fragmentIdx <= MaxLog2AaFragments; ++fragmentIdx)
         {
-            if (m_pMsaaState[sampleIdx][fragmentIdx] != nullptr)
-            {
-                m_pMsaaState[sampleIdx][fragmentIdx]->DestroyInternal();
-                m_pMsaaState[sampleIdx][fragmentIdx] = nullptr;
-            }
+            m_pDevice->DestroyMsaaStateInternal(m_pMsaaState[sampleIdx][fragmentIdx]);
+            m_pMsaaState[sampleIdx][fragmentIdx] = nullptr;
         }
     }
 }
@@ -195,8 +182,9 @@ Result RsrcProcMgr::EarlyInit()
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
     m_srdAlignment = Max(chipProps.srdSizes.bufferView,
-                         Max(chipProps.srdSizes.fmaskView,
-                             Max(chipProps.srdSizes.imageView, chipProps.srdSizes.sampler)));
+                         chipProps.srdSizes.fmaskView,
+                         chipProps.srdSizes.imageView,
+                         chipProps.srdSizes.sampler);
 
     // Round up to the size of a DWORD.
     m_srdAlignment = Util::NumBytesToNumDwords(m_srdAlignment);
@@ -223,6 +211,7 @@ Result RsrcProcMgr::LateInit()
         {
             result = CreateCommonStateObjects();
         }
+
     }
 
     return result;
@@ -7424,4 +7413,5 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
     }
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
+
 } // Pal

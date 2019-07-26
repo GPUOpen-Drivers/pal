@@ -28580,7 +28580,7 @@ union PA_CL_CNTL_STATUS {
         unsigned int UTC_RETRY_DETECTED                                           :  1;
         unsigned int UTC_PRT_DETECTED                                             :  1;
         unsigned int                                                              : 29;
-    } bits, bitfields;
+    } most;
     struct {
         unsigned int                                                              : 31;
         unsigned int CL_BUSY                                                      :  1;
@@ -35783,8 +35783,7 @@ union RLC_SPM_ACCUM_CTRL {
         unsigned int StrobeResetPerfMonitors                                      :  1;
         unsigned int StrobeStartAccumulation                                      :  1;
         unsigned int StrobeRearmAccum                                             :  1;
-        unsigned int                                                              :  7;
-        unsigned int RESERVED                                                     : 22;
+        unsigned int                                                              : 29;
     } bits, bitfields;
     struct {
         unsigned int                                                              :  3;
@@ -35792,7 +35791,7 @@ union RLC_SPM_ACCUM_CTRL {
         unsigned int StrobeAccumDoneInt                                           :  1;
         unsigned int StrobeResetAccum                                             :  1;
         unsigned int StrobeStartSpm                                               :  4;
-        unsigned int                                                              : 22;
+        unsigned int RESERVED                                                     : 22;
     } nv10;
     struct {
         unsigned int                                                              :  3;
@@ -35800,7 +35799,7 @@ union RLC_SPM_ACCUM_CTRL {
         unsigned int StrobeAccumDoneInt                                           :  1;
         unsigned int StrobeResetAccum                                             :  1;
         unsigned int StrobeStartSpm                                               :  4;
-        unsigned int                                                              : 22;
+        unsigned int RESERVED                                                     : 22;
     } rv2x;
 
     unsigned int u32All;
@@ -35899,8 +35898,16 @@ union RLC_SPM_ACCUM_MODE {
 union RLC_SPM_ACCUM_SAMPLES_REQUESTED {
     struct {
         unsigned int SamplesRequested                                             :  8;
-        unsigned int RESERVED                                                     : 24;
+        unsigned int                                                              : 24;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              :  8;
+        unsigned int RESERVED                                                     : 24;
+    } nv10;
+    struct {
+        unsigned int                                                              :  8;
+        unsigned int RESERVED                                                     : 24;
+    } rv2x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -35937,8 +35944,16 @@ union RLC_SPM_ACCUM_STATUS {
 union RLC_SPM_ACCUM_THRESHOLD {
     struct {
         unsigned int Threshold                                                    : 16;
-        unsigned int RESERVED                                                     : 16;
+        unsigned int                                                              : 16;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 16;
+        unsigned int RESERVED                                                     : 16;
+    } nv10;
+    struct {
+        unsigned int                                                              : 16;
+        unsigned int RESERVED                                                     : 16;
+    } rv2x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -39184,7 +39199,7 @@ union SPI_CONFIG_CNTL_1 {
 union SPI_CONFIG_CNTL_1_REMAP {
     struct {
         unsigned int RESERVED                                                     : 32;
-    } bits, bitfields;
+    } nv10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -39206,7 +39221,7 @@ union SPI_CONFIG_CNTL_2 {
 union SPI_CONFIG_CNTL_2_REMAP {
     struct {
         unsigned int RESERVED                                                     : 32;
-    } bits, bitfields;
+    } nv10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -39216,7 +39231,7 @@ union SPI_CONFIG_CNTL_2_REMAP {
 union SPI_CONFIG_CNTL_REMAP {
     struct {
         unsigned int RESERVED                                                     : 32;
-    } bits, bitfields;
+    } nv10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -46611,7 +46626,7 @@ union SPI_WAVE_LIMIT_CNTL {
 union SPI_WAVE_LIMIT_CNTL_REMAP {
     struct {
         unsigned int RESERVED                                                     : 32;
-    } bits, bitfields;
+    } nv10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -61019,8 +61034,7 @@ union UTCL1_CTRL {
         unsigned int UTCL1_MH_DISABLE_RECENT_BUFFER                               :  1;
         unsigned int UTCL1_MISS_CC_PRIORITY                                       :  2;
         unsigned int UTCL1_REDUCE_CC_SIZE                                         :  2;
-        unsigned int UTCL1_REDUCE_MH_CFIFO_SIZE                                   :  2;
-        unsigned int UTCL1_REDUCE_MH_CAM_SIZE                                     :  2;
+        unsigned int                                                              :  4;
     } bits, bitfields;
     struct {
         unsigned int                                                              : 15;
@@ -61030,7 +61044,9 @@ union UTCL1_CTRL {
     struct {
         unsigned int                                                              : 22;
         unsigned int UTCL1_MH_DISABLE_REQUEST_SQUASHING                           :  1;
-        unsigned int                                                              :  9;
+        unsigned int                                                              :  5;
+        unsigned int UTCL1_REDUCE_MH_CFIFO_SIZE                                   :  2;
+        unsigned int UTCL1_REDUCE_MH_CAM_SIZE                                     :  2;
     } nv10;
 
     unsigned int u32All;
@@ -61958,7 +61974,7 @@ union VGT_ESGS_RING_SIZE {
 union VGT_ESGS_RING_SIZE_UMD {
     struct {
         unsigned int MEM_SIZE                                                     : 32;
-    } bits, bitfields;
+    } nv10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -62187,7 +62203,7 @@ union VGT_GSVS_RING_SIZE {
 union VGT_GSVS_RING_SIZE_UMD {
     struct {
         unsigned int MEM_SIZE                                                     : 32;
-    } bits, bitfields;
+    } nv10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -63229,7 +63245,7 @@ union VGT_TF_MEMORY_BASE_HI_UMD {
     struct {
         unsigned int BASE_HI                                                      :  8;
         unsigned int                                                              : 24;
-    } bits, bitfields;
+    } nv10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -63239,7 +63255,7 @@ union VGT_TF_MEMORY_BASE_HI_UMD {
 union VGT_TF_MEMORY_BASE_UMD {
     struct {
         unsigned int BASE                                                         : 32;
-    } bits, bitfields;
+    } nv10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -63297,7 +63313,7 @@ union VGT_TF_RING_SIZE_UMD {
     struct {
         unsigned int SIZE                                                         : 16;
         unsigned int                                                              : 16;
-    } bits, bitfields;
+    } nv10;
 
     unsigned int u32All;
     signed int   i32All;

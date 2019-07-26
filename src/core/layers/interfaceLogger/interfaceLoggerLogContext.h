@@ -189,6 +189,7 @@ enum class InterfaceFunc : uint32
 #endif
     CmdUpdateHiSPretests,
     CmdBufferCmdSetClipRects,
+    CmdBufferCmdPostProcessFrame,
     ColorBlendStateDestroy,
     DepthStencilStateDestroy,
     DeviceCommitSettingsAndInit,
@@ -457,6 +458,7 @@ public:
     void Struct(const CmdBufferBuildInfo& value);
     void Struct(const CmdBufferCreateInfo& value);
     void Struct(const CmdBufInfo& value);
+    void Struct(const CmdPostProcessFrameInfo& value);
     void Struct(const ColorBlendStateCreateInfo& value);
     void Struct(const ColorKey& value);
     void Struct(const ColorSpaceConversionRegion& value);
@@ -471,6 +473,7 @@ public:
     void Struct(const DepthStencilViewCreateInfo& value);
     void Struct(const DeviceFinalizeInfo& value);
     void Struct(const DeviceGdsAllocInfo& value);
+
     void Struct(const DoppDesktopInfo& value);
     void Struct(const DoppRef& value);
     void Struct(const DynamicComputeShaderInfo& value);
@@ -695,6 +698,7 @@ public:
     void KeyAndStruct(const char* pKey, const CmdBufferBuildInfo& value)                  { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const CmdBufferCreateInfo& value)                 { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const CmdBufInfo& value)                          { Key(pKey); Struct(value); }
+    void KeyAndStruct(const char* pKey, const CmdPostProcessFrameInfo& value)             { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const ColorBlendStateCreateInfo& value)           { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const ColorKey& value)                            { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const ColorSpaceConversionRegion& value)          { Key(pKey); Struct(value); }

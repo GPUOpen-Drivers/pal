@@ -1107,7 +1107,8 @@ void Device::Barrier(
                                     (globalSyncReqs.csPartialFlush &&
                                      (globalSyncReqs.vsPartialFlush || globalSyncReqs.psPartialFlush)));
 
-    const uint32 numEventSlots = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
+    const EngineType engineType    = pCmdBuf->GetEngineType();
+    const uint32     numEventSlots = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
 
     if (barrier.pSplitBarrierGpuEvent != nullptr)
     {
@@ -1126,7 +1127,7 @@ void Device::Barrier(
             {
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT,
-                                                                pCmdBuf->GetEngineType(),
+                                                                engineType,
                                                                 pCmdSpace);
                 pCmdStream->CommitCommands(pCmdSpace);
             }
@@ -1167,7 +1168,8 @@ void Device::Barrier(
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
             for (uint32 slotIdx = 0; slotIdx < numEventSlots; slotIdx++)
             {
-                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                       mem_space__me_wait_reg_mem__memory_space,
                                                        function__me_wait_reg_mem__equal_to_the_reference_value,
                                                        engine_sel__pfp_wait_reg_mem__prefetch_parser,
                                                        gpuEventStartVa + (sizeof(uint32) * slotIdx),
@@ -1250,7 +1252,8 @@ void Device::Barrier(
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
             for (uint32 slotIdx = 0; slotIdx < numEventSlots; slotIdx++)
             {
-                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                       mem_space__me_wait_reg_mem__memory_space,
                                                        function__me_wait_reg_mem__equal_to_the_reference_value,
                                                        waitEngine,
                                                        gpuEventStartVa + (sizeof(uint32) * slotIdx),
@@ -1285,7 +1288,7 @@ void Device::Barrier(
                     const auto& subresRange = imageInfo.subresRange;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-                    const auto& engineProps  = Parent()->EngineProperties().perEngine[pCmdBuf->GetEngineType()];
+                    const auto& engineProps  = Parent()->EngineProperties().perEngine[engineType];
                     const auto& createInfo   = image.GetImageCreateInfo();
                     const bool  isWholeImage = image.IsFullSubResRange(subresRange);
 

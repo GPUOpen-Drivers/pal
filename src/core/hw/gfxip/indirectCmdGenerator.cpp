@@ -168,10 +168,10 @@ Result IndirectCmdGenerator::BindGpuMemory(
     IGpuMemory* pGpuMemory,
     gpusize     offset)
 {
-    Result result = m_device.Parent()->ValidateBindObjectMemoryInput(pGpuMemory,
-                                                                     offset,
-                                                                     m_gpuMemSize,
-                                                                     GpuMemoryAlignment);
+    Result result = Device::ValidateBindObjectMemoryInput(pGpuMemory,
+                                                          offset,
+                                                          m_gpuMemSize,
+                                                          GpuMemoryAlignment);
     if (result == Result::Success)
     {
         m_gpuMemory.Update(pGpuMemory, offset);

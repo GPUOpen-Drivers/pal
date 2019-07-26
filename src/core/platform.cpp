@@ -384,8 +384,8 @@ Result Platform::Init()
 Result Platform::EarlyInitDevDriver()
 {
     bool isConnectionAvailable = false;
-
     DevDriver::HostInfo hostInfo = DevDriver::kDefaultNamedPipe;
+#if PAL_ENABLE_DEVDRIVER_USAGE
     isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
 
 #if (PAL_CLIENT_DX12 || PAL_CLIENT_DX11)
@@ -396,6 +396,7 @@ Result Platform::EarlyInitDevDriver()
         hostInfo = DevDriver::kMessageBus;
         isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
     }
+#endif
 #endif
 
     DevDriver::Result devDriverResult = DevDriver::Result::Success;

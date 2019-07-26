@@ -57,12 +57,8 @@ Gfx9MaskRam::Gfx9MaskRam(
     MaskRam(),
     m_image(image),
     m_pGfxDevice(static_cast<const Device*>(image.Parent()->GetDevice()->GetGfxDevice())),
-    m_meta(m_pGfxDevice, 27, "meta"),
-    m_pipe(m_pGfxDevice, 27, "pipe"),
+    m_meta(27, "meta"),
     m_metaDataWordSizeLog2(metaDataSizeLog2),
-    m_dataOffset(m_pGfxDevice, 27, "dataOffset"),
-    // The RB equation can't have more bits than we have RBs
-    m_rb(m_pGfxDevice, m_pGfxDevice->GetNumShaderEnginesLog2() + m_pGfxDevice->GetNumRbsPerSeLog2(), "rb"),
     m_firstUploadBit(firstUploadBit),
     m_metaEquationValid(false),
     m_effectiveSamples(1), // assume single-sampled image
@@ -106,7 +102,8 @@ void Gfx9MaskRam::BuildSurfBufferView(
 
 // =====================================================================================================================
 // Calculates the data offset equation for this mask-ram.
-void Gfx9MaskRam::CalcDataOffsetEquation()
+void Gfx9MaskRam::CalcDataOffsetEquation(
+    MetaDataAddrEquation* pDataOffset)
 {
     const auto*            pParent        = m_image.Parent();
     const AddrSwizzleMode  swizzleMode    = GetSwizzleMode();
@@ -130,39 +127,39 @@ void Gfx9MaskRam::CalcDataOffsetEquation()
             // Fill in bottom x bits
             for(uint32 bitPos = bppLog2; bitPos < 4; bitPos++)
             {
-                m_dataOffset.SetBit(bitPos, MetaDataAddrCompX, cx.compPos);
+                pDataOffset->SetBit(bitPos, MetaDataAddrCompX, cx.compPos);
                 cx.compPos++;
             }
 
             // Fill in 2 bits of y and then z
             for (uint32 bitPos = 4; bitPos < 6; bitPos++)
             {
-                m_dataOffset.SetBit(bitPos, MetaDataAddrCompY, cy.compPos);
+                pDataOffset->SetBit(bitPos, MetaDataAddrCompY, cy.compPos);
                 cy.compPos++;
             }
 
             for (uint32 bitPos = 6; bitPos < 8; bitPos++)
             {
-                m_dataOffset.SetBit(bitPos, MetaDataAddrCompZ, cz.compPos);
+                pDataOffset->SetBit(bitPos, MetaDataAddrCompZ, cz.compPos);
                 cz.compPos++;
             }
 
             if (bppLog2 < 2)
             {
                 // fill in z & y bit
-                m_dataOffset.SetBit(8, cz.compType, cz.compPos++);
-                m_dataOffset.SetBit(9, cy.compType, cy.compPos++);
+                pDataOffset->SetBit(8, cz.compType, cz.compPos++);
+                pDataOffset->SetBit(9, cy.compType, cy.compPos++);
             }
             else if (bppLog2 == 2)
             {
                 // fill in y and x bit
-                m_dataOffset.SetBit(8, cy.compType, cy.compPos++);
-                m_dataOffset.SetBit(9, cx.compType, cx.compPos++);
+                pDataOffset->SetBit(8, cy.compType, cy.compPos++);
+                pDataOffset->SetBit(9, cx.compType, cx.compPos++);
             } else
             {
                 // fill in 2 x bits
-                m_dataOffset.SetBit(8, cx.compType, cx.compPos++);
-                m_dataOffset.SetBit(9, cx.compType, cx.compPos++);
+                pDataOffset->SetBit(8, cx.compType, cx.compPos++);
+                pDataOffset->SetBit(9, cx.compType, cx.compPos++);
             }
         }
         else
@@ -171,32 +168,32 @@ void Gfx9MaskRam::CalcDataOffsetEquation()
             const uint32 m2dEnd = (bppLog2 == 0) ? 3 : ((bppLog2 < 4) ? 4 : 5);
             const uint32 numZs  = ((bppLog2 == 0) || (bppLog2 == 4)) ? 2 : ((bppLog2 == 1) ? 3 : 1);
 
-            m_dataOffset.Mort2d(&cx, &cy, bppLog2, m2dEnd);
+            pDataOffset->Mort2d(m_pGfxDevice, &cx, &cy, bppLog2, m2dEnd);
             for(uint32 bitPos = m2dEnd + 1; bitPos <= m2dEnd + numZs; bitPos++ )
             {
-                m_dataOffset.SetBit(bitPos, cz.compType, cz.compPos++);
+                pDataOffset->SetBit(bitPos, cz.compType, cz.compPos++);
             }
 
             if ((bppLog2 == 0) || (bppLog2 == 3))
             {
                 // add an x and z
-                m_dataOffset.SetBit(6, cx.compType, cx.compPos++);
-                m_dataOffset.SetBit(7, cz.compType, cz.compPos++);
+                pDataOffset->SetBit(6, cx.compType, cx.compPos++);
+                pDataOffset->SetBit(7, cz.compType, cz.compPos++);
             }
             else if (bppLog2 == 2)
             {
                 // add a y and z
-                m_dataOffset.SetBit(6, cy.compType, cy.compPos++);
-                m_dataOffset.SetBit(7, cz.compType, cz.compPos++);
+                pDataOffset->SetBit(6, cy.compType, cy.compPos++);
+                pDataOffset->SetBit(7, cz.compType, cz.compPos++);
             }
 
             // add y and x
-            m_dataOffset.SetBit(8, cy.compType, cy.compPos++);
-            m_dataOffset.SetBit(9, cx.compType, cx.compPos++);
+            pDataOffset->SetBit(8, cy.compType, cy.compPos++);
+            pDataOffset->SetBit(9, cx.compType, cx.compPos++);
         }
 
         // Fill in bit 10 and up
-        m_dataOffset.Mort3d(&cz, &cy, &cx, 10);
+        pDataOffset->Mort3d(&cz, &cy, &cx, 10);
     }
     else if (IsColor())
     {
@@ -207,41 +204,41 @@ void Gfx9MaskRam::CalcDataOffsetEquation()
         // Fill in bottom x bits
         for (uint32 i = bppLog2; i < 4; i++)
         {
-            m_dataOffset.SetBit(i, MetaDataAddrCompX, cx.compPos);
+            pDataOffset->SetBit(i, MetaDataAddrCompX, cx.compPos);
             cx.compPos++;
         }
 
         // Fill in bottom y bits
         for (uint32 i = 4; i < 4 + microYBits; i++)
         {
-            m_dataOffset.SetBit(i, MetaDataAddrCompY, cy.compPos);
+            pDataOffset->SetBit(i, MetaDataAddrCompY, cy.compPos);
             cy.compPos++;
         }
 
         // Fill in last of the micro_x bits
         for(uint32 i = 4 + microYBits; i < 8; i++)
         {
-            m_dataOffset.SetBit(i, MetaDataAddrCompX, cx.compPos);
+            pDataOffset->SetBit(i, MetaDataAddrCompX, cx.compPos);
             cx.compPos++;
         }
 
         // Fill in x/y bits below sample split
-        m_dataOffset.Mort2d(&cy, &cx, 8, tileSplitStart - 1);
+        pDataOffset->Mort2d(m_pGfxDevice, &cy, &cx, 8, tileSplitStart - 1);
 
         // Fill in sample bits
         for (uint32 bitPos = 0; bitPos < numSamplesLog2; bitPos++)
         {
-            m_dataOffset.SetBit(tileSplitStart + bitPos, MetaDataAddrCompS, bitPos);
+            pDataOffset->SetBit(tileSplitStart + bitPos, MetaDataAddrCompS, bitPos);
         }
 
         // Fill in x/y bits above sample split
         if (((numSamplesLog2 & 1) ^ (blockSizeLog2 & 1)) != 0)
         {
-            m_dataOffset.Mort2d(&cx, &cy, blockSizeLog2);
+            pDataOffset->Mort2d(m_pGfxDevice, &cx, &cy, blockSizeLog2);
         }
         else
         {
-            m_dataOffset.Mort2d(&cy, &cx, blockSizeLog2);
+            pDataOffset->Mort2d(m_pGfxDevice, &cy, &cx, blockSizeLog2);
         }
     }
     else
@@ -254,23 +251,25 @@ void Gfx9MaskRam::CalcDataOffsetEquation()
         // Put in sample bits
         for(uint32 s = 0; s < numSamplesLog2; s++)
         {
-            m_dataOffset.SetBit(bppLog2 + s, MetaDataAddrCompS, s);
+            pDataOffset->SetBit(bppLog2 + s, MetaDataAddrCompS, s);
         }
 
         // Put in the x-major order pixel bits
-        m_dataOffset.Mort2d (&cx, &cy, pixelStart, yMajStart - 1);
+        pDataOffset->Mort2d(m_pGfxDevice, &cx, &cy, pixelStart, yMajStart - 1);
 
         // Put in the y-major order pixel bits
-        m_dataOffset.Mort2d (&cy, &cx, yMajStart);
+        pDataOffset->Mort2d(m_pGfxDevice, &cy, &cx, yMajStart);
     }
 
-    m_dataOffset.PrintEquation(pParent->GetDevice());
+    pDataOffset->PrintEquation(pParent->GetDevice());
 }
 
 // =====================================================================================================================
 // Calculates the pipe equation for this mask-ram.
 void Gfx9MaskRam::CalcPipeEquation(
-    uint32  numPipesLog2)
+    MetaDataAddrEquation* pPipe,
+    MetaDataAddrEquation* pDataOffset,
+    uint32                numPipesLog2)
 {
     const int32            numSamplesLog2     = GetNumSamplesLog2();
     const AddrSwizzleMode  swizzleMode        = GetSwizzleMode();
@@ -278,7 +277,7 @@ void Gfx9MaskRam::CalcPipeEquation(
     const uint32           pipeInterleaveLog2 = m_pGfxDevice->GetPipeInterleaveLog2();
 
     CompPair  tileMin = { MetaDataAddrCompX, 3};
-    MetaDataAddrEquation  dataOffsetLocal(m_pGfxDevice, m_dataOffset.GetNumValidBits(), "dataOffsetLocal");
+    MetaDataAddrEquation  dataOffsetLocal(pDataOffset->GetNumValidBits(), "dataOffsetLocal");
 
     // For color, filter out sample bits only
     // otherwise filter out everything under an 8x8 tile
@@ -287,23 +286,23 @@ void Gfx9MaskRam::CalcPipeEquation(
         tileMin.compPos = 0;
     }
 
-    m_dataOffset.Copy(&dataOffsetLocal);
+    pDataOffset->Copy(&dataOffsetLocal);
     // Z/stencil is no longer tile split
     if (IsColor() && (numSamplesLog2 > 0))
     {
         dataOffsetLocal.Shift(-numSamplesLog2, blockSizeLog2 - numSamplesLog2);
     }
 
-    dataOffsetLocal.Copy(&m_pipe, pipeInterleaveLog2, numPipesLog2);
+    dataOffsetLocal.Copy(pPipe, pipeInterleaveLog2, numPipesLog2);
 
     // If the pipe bit is below the comp block size, then keep moving up the address until we find a bit that is above
-    uint32  pipe = 0;
+    uint32 pipeBit = 0;
     while (true)
     {
-        const CompPair localPair = dataOffsetLocal.Get(pipeInterleaveLog2 + pipe);
+        const CompPair localPair = dataOffsetLocal.Get(pipeInterleaveLog2 + pipeBit);
         if (MetaDataAddrEquation::CompareCompPair(localPair, tileMin, MetaDataAddrCompareLt))
         {
-            pipe++;
+            pipeBit++;
         }
         else
         {
@@ -312,16 +311,16 @@ void Gfx9MaskRam::CalcPipeEquation(
     }
 
     // if pipe is 0, then the first pipe bit is above the comp block size, so we don't need to do anything
-    if (pipe != 0)
+    if (pipeBit != 0)
     {
-        uint32 j = pipe;
+        uint32 j = pipeBit;
         for(uint32 i = 0; i < numPipesLog2; i++)
         {
             // Copy the jth bit above pipe interleave to the current pipe equation bit
             for (uint32  compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
             {
-                m_pipe.ClearBits(i, compType, 0);
-                m_pipe.SetMask(i, compType, dataOffsetLocal.Get(pipeInterleaveLog2 + j, compType));
+                pPipe->ClearBits(i, compType, 0);
+                pPipe->SetMask(i, compType, dataOffsetLocal.Get(pipeInterleaveLog2 + j, compType));
             }
 
             j++;
@@ -342,8 +341,8 @@ void Gfx9MaskRam::CalcPipeEquation(
 
     if (AddrMgr2::IsXorSwizzle(swizzleMode) || AddrMgr2::IsPrtSwizzle(swizzleMode))
     {
-        MetaDataAddrEquation  xorMask(m_pGfxDevice, numPipesLog2, "xorMask");
-        MetaDataAddrEquation  xorMask2(m_pGfxDevice, numPipesLog2, "xorMask2");
+        MetaDataAddrEquation  xorMask(numPipesLog2, "xorMask");
+        MetaDataAddrEquation  xorMask2(numPipesLog2, "xorMask2");
 
         if (IsThick())
         {
@@ -360,7 +359,7 @@ void Gfx9MaskRam::CalcPipeEquation(
         else
         {
             // Xor in the bits above the pipe+gpu bits
-            dataOffsetLocal.Copy(&xorMask, pipeInterleaveLog2 + pipe + numPipesLog2, numPipesLog2);
+            dataOffsetLocal.Copy(&xorMask, pipeInterleaveLog2 + pipeBit + numPipesLog2, numPipesLog2);
             if ((numSamplesLog2 == 0) && (AddrMgr2::IsPrtSwizzle(swizzleMode) == false))
             {
                 // if 1xaa and not prt, then xor in the z bits
@@ -369,16 +368,16 @@ void Gfx9MaskRam::CalcPipeEquation(
                     xorMask2.SetBit(localPipe, MetaDataAddrCompZ, numPipesLog2 - 1 - localPipe);
                 }
 
-                m_pipe.XorIn(&xorMask2);
+                pPipe->XorIn(&xorMask2);
             }
         }
 
         xorMask.Reverse();
 
-        m_pipe.XorIn(&xorMask);
+        pPipe->XorIn(&xorMask);
     }
 
-    m_pipe.PrintEquation(m_pGfxDevice->Parent());
+    pPipe->PrintEquation(m_pGfxDevice->Parent());
 }
 
 // =====================================================================================================================
@@ -460,6 +459,11 @@ void Gfx9MaskRam::CalcMetaEquation()
         const uint32            bppLog2            = GetBytesPerPixelLog2();
         const Gfx9PalSettings&  settings           = GetGfx9Settings(*pDevice);
 
+        // The RB equation can't have more bits than we have RBs
+        MetaDataAddrEquation  rb(m_pGfxDevice->GetNumShaderEnginesLog2() + m_pGfxDevice->GetNumRbsPerSeLog2(), "rb");
+        MetaDataAddrEquation  pipe(27, "pipe");
+        MetaDataAddrEquation  dataOffset(27, "dataOffset");
+
         // Min metablock size if thick is 64KB, otherwise 4KB
         uint32 minMetaBlockSizeLog2     = (IsThick() ? 16 : 12);
         uint32 metaDataWordsPerPageLog2 = minMetaBlockSizeLog2 - m_metaDataWordSizeLog2;
@@ -477,7 +481,7 @@ void Gfx9MaskRam::CalcMetaEquation()
                              : numSamplesLog2;
         int32 uncompFragLog2 = numSamplesLog2 - compFragLog2;
 
-        CalcDataOffsetEquation();
+        CalcDataOffsetEquation(&dataOffset);
 
         // if not pipe aligned, reduce the working number of pipes and SEs
         if (metaFlags.pipeAligned == false)
@@ -494,8 +498,8 @@ void Gfx9MaskRam::CalcMetaEquation()
             numRbsLog2 = 0;
         }
 
-        CalcPipeEquation(numPipesLog2);
-        CalcRbEquation(numSesLog2, numRbsLog2);
+        CalcPipeEquation(&pipe, &dataOffset, numPipesLog2);
+        CalcRbEquation(&rb, numSesLog2, numRbsLog2);
 
         uint32 numTotalRbsLog2 = numSesLog2 + numRbsLog2;
 
@@ -556,11 +560,11 @@ void Gfx9MaskRam::CalcMetaEquation()
 
             if (pCreateInfo->mipLevels > 1)
             {
-                m_meta.Mort2d(&cy, &cx, compFragLog2);
+                m_meta.Mort2d(m_pGfxDevice, &cy, &cx, compFragLog2);
             }
             else
             {
-                m_meta.Mort2d(&cx, &cy, compFragLog2);
+                m_meta.Mort2d(m_pGfxDevice, &cx, &cy, compFragLog2);
             }
 
             // Put the compressible fragments at the lsb
@@ -572,10 +576,10 @@ void Gfx9MaskRam::CalcMetaEquation()
         }
 
         // Keep a copy of the pipe and rb equations
-        MetaDataAddrEquation  origRbEquation(m_pGfxDevice, m_rb.GetNumValidBits(), "origRbEquation");
-        m_rb.Copy(&origRbEquation);
-        MetaDataAddrEquation  origPipeEquation(m_pGfxDevice, m_pipe.GetNumValidBits(), "origPipeEquation");
-        m_pipe.Copy(&origPipeEquation);
+        MetaDataAddrEquation  origRbEquation(rb.GetNumValidBits(), "origRbEquation");
+        rb.Copy(&origRbEquation);
+        MetaDataAddrEquation  origPipeEquation(pipe.GetNumValidBits(), "origPipeEquation");
+        pipe.Copy(&origPipeEquation);
 
         // filter out everything under the compressed block size
         CompPair  cx = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, compBlkDimsLog2.width);
@@ -598,26 +602,26 @@ void Gfx9MaskRam::CalcMetaEquation()
         // filter out everything above the metablock size
         cx = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, metaBlockSizeLog2.width - 1);
         m_meta.Filter(cx, MetaDataAddrCompareGt, 0, cx.compType);
-        m_pipe.Filter(cx, MetaDataAddrCompareGt, 0, cx.compType);
+        pipe.Filter(cx, MetaDataAddrCompareGt, 0, cx.compType);
 
         cy = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, metaBlockSizeLog2.height - 1);
         m_meta.Filter(cy, MetaDataAddrCompareGt, 0, cy.compType);
-        m_pipe.Filter(cy, MetaDataAddrCompareGt, 0, cy.compType);
+        pipe.Filter(cy, MetaDataAddrCompareGt, 0, cy.compType);
 
         cz = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompZ, metaBlockSizeLog2.depth - 1);
         m_meta.Filter(cz, MetaDataAddrCompareGt, 0, cz.compType);
-        m_pipe.Filter(cz, MetaDataAddrCompareGt, 0, cz.compType);
+        pipe.Filter(cz, MetaDataAddrCompareGt, 0, cz.compType);
 
         // Make sure we still have the same number of channel bits
-        PAL_ASSERT(m_pipe.GetNumValidBits() == numPipesLog2);
+        PAL_ASSERT(pipe.GetNumValidBits() == numPipesLog2);
 
         // Loop through all channel and rb bits, and make sure these components exist in the metadata address
         for (uint32 bitPos = 0; bitPos < numPipesLog2; bitPos++)
         {
             for (uint32  compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
             {
-                const uint32  pipeData = m_pipe.Get(bitPos, compType);
-                const uint32  rbData   = m_rb.Get(bitPos, compType);
+                const uint32  pipeData = pipe.Get(bitPos, compType);
+                const uint32  rbData   = rb.Get(bitPos, compType);
 
                 PAL_ASSERT(m_meta.Exists(compType, pipeData));
                 PAL_ASSERT(m_meta.Exists(compType, rbData));
@@ -633,31 +637,31 @@ void Gfx9MaskRam::CalcMetaEquation()
 
                 if (settings.waMetaAliasingFixEnabled == false)
                 {
-                    rbEqualsPipe = m_pipe.IsEqual(m_rb, j, i);
+                    rbEqualsPipe = pipe.IsEqual(rb, j, i);
                 }
                 else
                 {
                     CompPair             compPair = { MetaDataAddrCompZ, MinMetaEqCompPos };
-                    MetaDataAddrEquation filteredPipeEq(m_pGfxDevice, 1, "filtered");
+                    MetaDataAddrEquation filteredPipeEq(1, "filtered");
 
-                    m_pipe.Copy(&filteredPipeEq, j, 1);
+                    pipe.Copy(&filteredPipeEq, j, 1);
                     filteredPipeEq.Filter(compPair, MetaDataAddrCompareGt, 0, MetaDataAddrCompZ);
-                    rbEqualsPipe = m_rb.IsEqual(filteredPipeEq, i, 0);
+                    rbEqualsPipe = rb.IsEqual(filteredPipeEq, i, 0);
                 }
 
                 for (uint32  compType = 0; rbEqualsPipe && (compType < MetaDataAddrCompNumTypes); compType++)
                 {
-                    m_rb.ClearBits(i, compType, 0);
+                    rb.ClearBits(i, compType, 0);
                 }
             }
         }
 
         // Loop through each bit of the channel, get the smallest coordinate, and remove it from the metaaddr,
         // and the rb_equation
-        MergePipeAndRbEq();
+        MergePipeAndRbEq(&rb, &pipe);
 
         // Loop through the rb bits and see what remain; filter out the smallest coordinate if it remains
-        const uint32  rbBitsLeft = RemoveSmallRbBits();
+        const uint32  rbBitsLeft = RemoveSmallRbBits(&rb);
 
         // capture the size of the metaaddr
         uint32  metaEquationSize = m_meta.GetNumValidBits();
@@ -701,7 +705,7 @@ void Gfx9MaskRam::CalcMetaEquation()
         // Put in remaining rb bits
         for (uint32 i = 0, j = 0; j < rbBitsLeft; i = (i + 1) % numTotalRbsLog2)
         {
-            const uint32  numComponents  = m_rb.GetNumComponents(i);
+            const uint32  numComponents  = rb.GetNumComponents(i);
             const bool    isRbEqAppended = (numComponents > GetRbAppendedBit(i));
 
             if (isRbEqAppended)
@@ -767,8 +771,9 @@ void Gfx9MaskRam::FinalizeMetaEquation(
 
 // =====================================================================================================================
 void Gfx9MaskRam::CalcRbEquation(
-    uint32  numSesLog2,
-    uint32  numRbsPerSeLog2)
+    MetaDataAddrEquation* pRb,
+    uint32                numSesLog2,
+    uint32                numRbsPerSeLog2)
 {
     const Pal::Device*      pDevice         = m_pGfxDevice->Parent();
     const Gfx9PalSettings&  settings        = GetGfx9Settings(*pDevice);
@@ -786,15 +791,15 @@ void Gfx9MaskRam::CalcRbEquation(
     if ((numSesLog2 > 0) && (numRbsPerSeLog2 == 1))
     {
         // Special case when more than 1 SE, and only 1 RB per SE
-        m_rb.SetBit(0, MetaDataAddrCompX, rbRegion[MetaDataAddrCompX]);
-        m_rb.SetBit(0, MetaDataAddrCompY, rbRegion[MetaDataAddrCompY]);
+        pRb->SetBit(0, MetaDataAddrCompX, rbRegion[MetaDataAddrCompX]);
+        pRb->SetBit(0, MetaDataAddrCompY, rbRegion[MetaDataAddrCompY]);
 
         rbRegion[MetaDataAddrCompX]++;
         rbRegion[MetaDataAddrCompY]++;
 
         if (settings.waMetaAliasingFixEnabled == false)
         {
-            m_rb.SetBit(0, MetaDataAddrCompY, rbRegion[MetaDataAddrCompY]);
+            pRb->SetBit(0, MetaDataAddrCompY, rbRegion[MetaDataAddrCompY]);
         }
 
         start++;
@@ -807,11 +812,11 @@ void Gfx9MaskRam::CalcRbEquation(
                                                     : i);
         const MetaDataAddrComponentType  compType = (((i % 2) == 1) ? MetaDataAddrCompX : MetaDataAddrCompY);
 
-        m_rb.SetBit(index, compType, rbRegion[compType]);
+        pRb->SetBit(index, compType, rbRegion[compType]);
         rbRegion[compType]++;
     }
 
-    m_rb.PrintEquation(pDevice);
+    pRb->PrintEquation(pDevice);
 }
 
 // =====================================================================================================================
@@ -967,29 +972,31 @@ uint32 Gfx9MaskRam::AdjustPipeBankXorForSwizzle(
 //      The idea is this: we first start with the lsb of the rb_id, find the smallest component, and remove it from
 //      the metadata address, and also from all upper rb_id bits that have this component.  For the rb_id bits, if we
 //      removed that component, then we add back all of the other components that contributed to the lsb of rb_id:
-void Gfx9MaskRam::MergePipeAndRbEq()
+void Gfx9MaskRam::MergePipeAndRbEq(
+    MetaDataAddrEquation* pRb,
+    MetaDataAddrEquation* pPipe)
 {
     const Pal::Device*  pDevice = m_pGfxDevice->Parent();
 
-    for (uint32  pipeAddrBit = 0; pipeAddrBit < m_pipe.GetNumValidBits(); pipeAddrBit++)
+    for (uint32  pipeAddrBit = 0; pipeAddrBit < pPipe->GetNumValidBits(); pipeAddrBit++)
     {
         // Find the lowest coordinate within this pipeAddrBit that is contributing.
         CompPair  lowPipe;
-        if (m_pipe.FindSmallComponent(pipeAddrBit, &lowPipe))
+        if (pPipe->FindSmallComponent(pipeAddrBit, &lowPipe))
         {
             const uint32 lowPosMask = 1 << lowPipe.compPos;
             const uint32 oldSize    = m_meta.GetNumValidBits();
             m_meta.Filter(lowPipe, MetaDataAddrCompareEq);
             PAL_ASSERT(m_meta.GetNumValidBits() == (oldSize - 1));
 
-            m_pipe.Remove(lowPipe);
+            pPipe->Remove(lowPipe);
 
-            for (uint32  rbAddrBit = 0; rbAddrBit < m_rb.GetNumValidBits(); rbAddrBit++)
+            for (uint32  rbAddrBit = 0; rbAddrBit < pRb->GetNumValidBits(); rbAddrBit++)
             {
-                const uint32  rbData = m_rb.Get(rbAddrBit, lowPipe.compType);
+                const uint32  rbData = pRb->Get(rbAddrBit, lowPipe.compType);
                 if (TestAnyFlagSet (rbData, lowPosMask))
                 {
-                    m_rb.ClearBits(rbAddrBit, lowPipe.compType, ~lowPosMask);
+                    pRb->ClearBits(rbAddrBit, lowPipe.compType, ~lowPosMask);
 
                     // if we actually removed something from this bit, then add the remaining
                     // channel bits, as these can be removed for this bit
@@ -997,7 +1004,7 @@ void Gfx9MaskRam::MergePipeAndRbEq()
                                  localPipeCompType < MetaDataAddrCompNumTypes;
                                  localPipeCompType++)
                     {
-                        uint32  eqData = m_pipe.Get(pipeAddrBit, localPipeCompType);
+                        uint32  eqData = pPipe->Get(pipeAddrBit, localPipeCompType);
                         uint32  lowPipeBit;
 
                         while (BitMaskScanForward(&lowPipeBit, eqData))
@@ -1009,7 +1016,7 @@ void Gfx9MaskRam::MergePipeAndRbEq()
                                                                       lowPipe,
                                                                       MetaDataAddrCompareEq) == false)
                             {
-                                m_rb.SetBit(rbAddrBit, localPipePair.compType, localPipePair.compPos);
+                                pRb->SetBit(rbAddrBit, localPipePair.compType, localPipePair.compPos);
                                 SetRbAppendedBit(rbAddrBit, 1);
                             }
 
@@ -1021,8 +1028,8 @@ void Gfx9MaskRam::MergePipeAndRbEq()
         } // end check for a non-empty pipe equation
     } // end loop through all 32 bits in the equation
 
-    m_rb.PrintEquation(pDevice);
-    m_pipe.PrintEquation(pDevice);
+    pRb->PrintEquation(pDevice);
+    pPipe->PrintEquation(pDevice);
     m_meta.PrintEquation(pDevice);
 }
 
@@ -1030,19 +1037,20 @@ void Gfx9MaskRam::MergePipeAndRbEq()
 // Iterate through the remaining RB bits, from lsb to msb, taking the smallest coordinate of each bit, and removing it
 // from the metadata equation, and the remaining upper RB bits.  Like for the pipe bits, if an RB bit gets a component
 // removed, then we add in all other terms not already present from the Rb bit that did the removal.
-uint32 Gfx9MaskRam::RemoveSmallRbBits()
+uint32 Gfx9MaskRam::RemoveSmallRbBits(
+    MetaDataAddrEquation* pRb)
 {
     const Pal::Device*  pDevice    = m_pGfxDevice->Parent();
     uint32              rbBitsLeft = 0;
 
-    for (uint32  rbAddrBit = 0; rbAddrBit < m_rb.GetNumValidBits(); rbAddrBit++)
+    for (uint32  rbAddrBit = 0; rbAddrBit < pRb->GetNumValidBits(); rbAddrBit++)
     {
         const uint32  neededNumComponents = (GetRbAppendedBit(rbAddrBit) != 0);
 
         // Find the lowest coordinate within this pipeAddrBit that is contributing.
         CompPair  lowRb;
-        if ((m_rb.GetNumComponents(rbAddrBit) > neededNumComponents) &&
-            m_rb.FindSmallComponent(rbAddrBit, &lowRb))
+        if ((pRb->GetNumComponents(rbAddrBit) > neededNumComponents) &&
+            pRb->FindSmallComponent(rbAddrBit, &lowRb))
         {
             const uint32  lowRbMask = 1 << lowRb.compPos;
 
@@ -1052,19 +1060,19 @@ uint32 Gfx9MaskRam::RemoveSmallRbBits()
 
             // We need to find any other RB bits that have lowRb{AddrType,Position} in their equation
             for (uint32  scanHiRbAddrBit = rbAddrBit + 1;
-                         scanHiRbAddrBit < m_rb.GetNumValidBits();
+                         scanHiRbAddrBit < pRb->GetNumValidBits();
                          scanHiRbAddrBit++)
             {
-                if (m_rb.IsSet(scanHiRbAddrBit, lowRb.compType, lowRbMask))
+                if (pRb->IsSet(scanHiRbAddrBit, lowRb.compType, lowRbMask))
                 {
                     // Don't forget to eliminate this component.
-                    m_rb.ClearBits(scanHiRbAddrBit, lowRb.compType, ~lowRbMask);
+                    pRb->ClearBits(scanHiRbAddrBit, lowRb.compType, ~lowRbMask);
 
-                    // Loop through all the elements in m_rb[rbAddrBit].  Add everything that isn't equivalent to
-                    // "lowRb" into m_rb[scanHiRbAddrBit]
+                    // Loop through all the elements in rb[rbAddrBit].  Add everything that isn't equivalent to
+                    // "lowRb" into rb[scanHiRbAddrBit]
                     for (uint32  localRbAddrType = 0; localRbAddrType < MetaDataAddrCompNumTypes; localRbAddrType++)
                     {
-                        uint32  rbData = m_rb.Get(rbAddrBit, localRbAddrType);
+                        uint32  rbData = pRb->Get(rbAddrBit, localRbAddrType);
                         if (localRbAddrType == lowRb.compType)
                         {
                             rbData &= ~lowRbMask;
@@ -1072,7 +1080,7 @@ uint32 Gfx9MaskRam::RemoveSmallRbBits()
 
                         if (rbData != 0)
                         {
-                            m_rb.SetMask(scanHiRbAddrBit, localRbAddrType, rbData);
+                            pRb->SetMask(scanHiRbAddrBit, localRbAddrType, rbData);
                             SetRbAppendedBit(scanHiRbAddrBit, GetRbAppendedBit(rbAddrBit));
                         }
                     }
@@ -1081,7 +1089,7 @@ uint32 Gfx9MaskRam::RemoveSmallRbBits()
         } // end check for a valid small component of this RB bit
     } // end loop through all the RB bits
 
-    m_rb.PrintEquation(pDevice);
+    pRb->PrintEquation(pDevice);
     m_meta.PrintEquation(pDevice);
 
     return rbBitsLeft;
@@ -2606,12 +2614,10 @@ bool Gfx9Cmask::UseCmaskForImage(
 //=============== Implementation for Gfx9Fmask: ========================================================================
 
 // =====================================================================================================================
-Gfx9Fmask::Gfx9Fmask(
-    const Image&  image)
+Gfx9Fmask::Gfx9Fmask()
     :
     MaskRam(),
-    m_pipeBankXor(0),
-    m_image(image)
+    m_pipeBankXor(0)
 {
     memset(&m_surfSettings, 0, sizeof(m_surfSettings));
     memset(&m_addrOutput,    0, sizeof(m_addrOutput));
@@ -2771,16 +2777,17 @@ IMG_FMT Gfx9Fmask::Gfx10FmaskFormat(
 
 // =====================================================================================================================
 Result Gfx9Fmask::Init(
-    gpusize*  pGpuOffset)
+    const Image& image,
+    gpusize*     pGpuOffset)
 {
-    Result result = ComputeFmaskInfo();
+    Result result = ComputeFmaskInfo(image);
 
     if (result == Result::Success)
     {
         // fMask surfaces have a pipe/bank xor value which is independent of the image's pipe-bank xor value.
-        result = m_image.ComputePipeBankXor(ImageAspect::Fmask,
-                                            &m_surfSettings,
-                                            &m_pipeBankXor);
+        result = image.ComputePipeBankXor(ImageAspect::Fmask,
+                                          &m_surfSettings,
+                                          &m_pipeBankXor);
     }
 
     if (result == Result::Success)
@@ -2822,9 +2829,10 @@ uint32 Gfx9Fmask::GetPackedExpandedValue(
 }
 
 // =====================================================================================================================
-Result Gfx9Fmask::ComputeFmaskInfo()
+Result Gfx9Fmask::ComputeFmaskInfo(
+    const Image& image)
 {
-    const Pal::Image&       parent   = *(m_image.Parent());
+    const Pal::Image&       parent   = *(image.Parent());
     const Pal::Device*const pDevice  = parent.GetDevice();
     const auto*const        pAddrMgr = static_cast<const AddrMgr2::AddrMgr2*>(pDevice->GetAddrMgr());
 

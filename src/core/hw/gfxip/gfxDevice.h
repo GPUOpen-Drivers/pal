@@ -298,6 +298,9 @@ public:
     virtual Result Finalize();
     virtual Result Cleanup();
 
+    virtual Result HwlValidateImageViewInfo(const ImageViewInfo& viewInfo) const { return Result::Success; }
+    virtual Result HwlValidateSamplerInfo(const SamplerInfo& samplerInfo)  const { return Result::Success; }
+
     Result InitHwlSettings(PalSettings* pSettings);
     Util::MetroHash::Hash GetSettingsHash() const
     {
@@ -382,6 +385,8 @@ public:
         const ColorBlendStateCreateInfo& createInfo,
         ColorBlendState**                ppColorBlendState,
         Util::SystemAllocType            allocType) const;
+    void DestroyColorBlendStateInternal(
+        ColorBlendState* pColorBlendState) const;
 
     virtual size_t GetDepthStencilStateSize(
         const DepthStencilStateCreateInfo& createInfo,
@@ -394,6 +399,8 @@ public:
         const DepthStencilStateCreateInfo& createInfo,
         DepthStencilState**                ppDepthStencilState,
         Util::SystemAllocType              allocType) const;
+    void DestroyDepthStencilStateInternal(
+        DepthStencilState* pDepthStencilState) const;
 
     virtual size_t GetMsaaStateSize(
         const MsaaStateCreateInfo& createInfo,
@@ -406,6 +413,8 @@ public:
         const MsaaStateCreateInfo& createInfo,
         MsaaState**                ppMsaaState,
         Util::SystemAllocType      allocType) const;
+    void DestroyMsaaStateInternal(
+        MsaaState* pMsaaState) const;
     virtual size_t GetImageSize(const ImageCreateInfo& createInfo) const = 0;
     virtual void CreateImage(
         Pal::Image* pParentImage,
@@ -543,8 +552,9 @@ public:
 
 #if DEBUG
     virtual uint32* TemporarilyHangTheGpu(
-        uint32 number,
-        uint32* pCmdSpace) const
+        EngineType engineType,
+        uint32     number,
+        uint32*    pCmdSpace) const
     {
         PAL_NEVER_CALLED();
         return nullptr;

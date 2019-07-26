@@ -36,7 +36,7 @@ namespace Gfx9
 DepthStencilState::DepthStencilState(
     const Device& device)
     :
-    Pal::DepthStencilState(*device.Parent())
+    Pal::DepthStencilState()
 {
     memset(&m_pm4Commands, 0, sizeof(m_pm4Commands));
     memset(&m_flags, 0, sizeof(m_flags));

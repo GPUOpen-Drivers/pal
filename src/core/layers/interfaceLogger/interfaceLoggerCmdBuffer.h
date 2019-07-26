@@ -457,6 +457,10 @@ public:
         const Pal::ImageCopyRegion* pRegions,
         Pal::PackedPixelType        packPixelType) override;
 
+    virtual void CmdPostProcessFrame(
+        const CmdPostProcessFrameInfo& postProcessInfo,
+        bool*                          pAddedGpuWork) override;
+
     virtual void CmdCommentString(
         const char* pComment) override;
     virtual void CmdXdmaWaitFlipPending() override;

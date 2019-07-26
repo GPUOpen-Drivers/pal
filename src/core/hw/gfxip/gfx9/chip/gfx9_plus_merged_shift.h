@@ -3397,9 +3397,6 @@ constexpr unsigned int PA_CL_CLIP_CNTL__VTE_VPORT_PROVOKE_DISABLE__SHIFT = 0x000
 constexpr unsigned int PA_CL_CLIP_CNTL__VTX_KILL_OR__SHIFT      = 0x00000015;
 constexpr unsigned int PA_CL_CLIP_CNTL__ZCLIP_FAR_DISABLE__SHIFT = 0x0000001b;
 constexpr unsigned int PA_CL_CLIP_CNTL__ZCLIP_NEAR_DISABLE__SHIFT = 0x0000001a;
-constexpr unsigned int PA_CL_CNTL_STATUS__UTC_FAULT_DETECTED__SHIFT = 0x00000000;
-constexpr unsigned int PA_CL_CNTL_STATUS__UTC_PRT_DETECTED__SHIFT = 0x00000002;
-constexpr unsigned int PA_CL_CNTL_STATUS__UTC_RETRY_DETECTED__SHIFT = 0x00000001;
 constexpr unsigned int PA_CL_ENHANCE__CLIPPED_PRIM_SEQ_STALL__SHIFT = 0x00000003;
 constexpr unsigned int PA_CL_ENHANCE__CLIP_VTX_REORDER_ENA__SHIFT = 0x00000000;
 constexpr unsigned int PA_CL_ENHANCE__ECO_SPARE0__SHIFT         = 0x0000001f;
@@ -5908,7 +5905,6 @@ constexpr unsigned int TA_CNTL_AUX__DISABLE_DWORD_X2_COALESCE__SHIFT = 0x0000001
 constexpr unsigned int TA_CNTL_AUX__DISABLE_GATHER4_BC_SWIZZLE__SHIFT = 0x00000007;
 constexpr unsigned int TA_CNTL_AUX__GATHERH_DST_SEL__SHIFT      = 0x00000006;
 constexpr unsigned int TA_CNTL_AUX__MINMAG_UNNORM__SHIFT        = 0x0000000f;
-constexpr unsigned int TA_CNTL_AUX__RESERVED__SHIFT             = 0x00000001;
 constexpr unsigned int TA_CNTL_AUX__SCOAL_DSWIZZLE_N__SHIFT     = 0x00000000;
 constexpr unsigned int TA_CNTL_AUX__TFAULT_EN_OVERRIDE__SHIFT   = 0x00000005;
 constexpr unsigned int TA_CNTL_AUX__TRUNC_SMALL_NEG__SHIFT      = 0x0000001d;
@@ -6333,7 +6329,6 @@ namespace Apu09_1xPlus
     constexpr unsigned int RLC_SPM_ACCUM_CTRLRAM_ADDR__addr__SHIFT  = 0x00000000;
     constexpr unsigned int RLC_SPM_ACCUM_CTRLRAM_DATA__data__SHIFT  = 0x00000000;
     constexpr unsigned int RLC_SPM_ACCUM_CTRLRAM_DATA__RESERVED__SHIFT = 0x00000008;
-    constexpr unsigned int RLC_SPM_ACCUM_CTRL__RESERVED__SHIFT      = 0x0000000a;
     constexpr unsigned int RLC_SPM_ACCUM_CTRL__StrobeRearmAccum__SHIFT = 0x00000002;
     constexpr unsigned int RLC_SPM_ACCUM_CTRL__StrobeResetPerfMonitors__SHIFT = 0x00000000;
     constexpr unsigned int RLC_SPM_ACCUM_CTRL__StrobeStartAccumulation__SHIFT = 0x00000001;
@@ -6343,7 +6338,6 @@ namespace Apu09_1xPlus
     constexpr unsigned int RLC_SPM_ACCUM_DATARAM_WRCOUNT__DataRamWrCount__SHIFT = 0x00000000;
     constexpr unsigned int RLC_SPM_ACCUM_DATARAM_WRCOUNT__RESERVED__SHIFT = 0x00000013;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__EnableAccum__SHIFT   = 0x00000000;
-    constexpr unsigned int RLC_SPM_ACCUM_SAMPLES_REQUESTED__RESERVED__SHIFT = 0x00000008;
     constexpr unsigned int RLC_SPM_ACCUM_SAMPLES_REQUESTED__SamplesRequested__SHIFT = 0x00000000;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__AccumArmed__SHIFT  = 0x0000000b;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__AccumDone__SHIFT   = 0x00000008;
@@ -6354,7 +6348,6 @@ namespace Apu09_1xPlus
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__NumbSamplesCompleted__SHIFT = 0x00000000;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__SequenceInProgress__SHIFT = 0x0000000c;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__SpmDone__SHIFT     = 0x00000009;
-    constexpr unsigned int RLC_SPM_ACCUM_THRESHOLD__RESERVED__SHIFT = 0x00000010;
     constexpr unsigned int RLC_SPM_ACCUM_THRESHOLD__Threshold__SHIFT = 0x00000000;
     constexpr unsigned int SPI_SHADER_PGM_CHKSUM_GS__CHECKSUM__SHIFT = 0x00000000;
     constexpr unsigned int SPI_SHADER_PGM_CHKSUM_HS__CHECKSUM__SHIFT = 0x00000000;
@@ -7154,6 +7147,9 @@ namespace Gfx09
     constexpr unsigned int MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB__PHYSICAL_PAGE_NUMBER_MSB__SHIFT = 0x00000000;
     constexpr unsigned int MC_VM_SYSTEM_APERTURE_HIGH_ADDR__LOGICAL_ADDR__SHIFT = 0x00000000;
     constexpr unsigned int MC_VM_SYSTEM_APERTURE_LOW_ADDR__LOGICAL_ADDR__SHIFT = 0x00000000;
+    constexpr unsigned int PA_CL_CNTL_STATUS__UTC_FAULT_DETECTED__SHIFT = 0x00000000;
+    constexpr unsigned int PA_CL_CNTL_STATUS__UTC_PRT_DETECTED__SHIFT = 0x00000002;
+    constexpr unsigned int PA_CL_CNTL_STATUS__UTC_RETRY_DETECTED__SHIFT = 0x00000001;
     constexpr unsigned int PA_CL_ENHANCE__ECO_SPARE2__SHIFT         = 0x0000001d;
     constexpr unsigned int PA_CL_ENHANCE__ECO_SPARE3__SHIFT         = 0x0000001c;
     constexpr unsigned int PA_CL_VS_OUT_CNTL__USE_VTX_LINE_WIDTH__SHIFT = 0x0000001a;
@@ -8404,6 +8400,7 @@ namespace Gfx09
     constexpr unsigned int SX_DEBUG_1__DEBUG_DATA__SHIFT            = 0x0000000e;
     constexpr unsigned int TA_CNTL_AUX__ANISO_MIP_ADJ_MODE__SHIFT   = 0x00000013;
     constexpr unsigned int TA_CNTL_AUX__NONIMG_ANISO_BYPASS__SHIFT  = 0x00000009;
+    constexpr unsigned int TA_CNTL_AUX__RESERVED__SHIFT             = 0x00000001;
     constexpr unsigned int TA_CNTL__FX_XNACK_CREDIT__SHIFT          = 0x00000000;
     constexpr unsigned int TA_CNTL__SQ_XNACK_CREDIT__SHIFT          = 0x00000009;
     constexpr unsigned int TA_CNTL__TC_DATA_CREDIT__SHIFT           = 0x0000000d;
@@ -10762,11 +10759,8 @@ namespace Gfx10
     constexpr unsigned int SH_MEM_CONFIG__DEFAULT_MTYPE__SHIFT      = 0x00000004;
     constexpr unsigned int SH_MEM_CONFIG__ICACHE_USE_GL1__SHIFT     = 0x00000012;
     constexpr unsigned int SH_MEM_CONFIG__INITIAL_INST_PREFETCH__SHIFT = 0x0000000e;
-    constexpr unsigned int SPI_CONFIG_CNTL_1_REMAP__RESERVED__SHIFT = 0x00000000;
     constexpr unsigned int SPI_CONFIG_CNTL_1__MAX_VTX_SYNC_CNT__SHIFT = 0x00000010;
     constexpr unsigned int SPI_CONFIG_CNTL_1__PC_LIMIT_ENABLE__SHIFT = 0x00000005;
-    constexpr unsigned int SPI_CONFIG_CNTL_2_REMAP__RESERVED__SHIFT = 0x00000000;
-    constexpr unsigned int SPI_CONFIG_CNTL_REMAP__RESERVED__SHIFT   = 0x00000000;
     constexpr unsigned int SPI_DEBUG_CNTL_2__ECO_SPARE_0__SHIFT     = 0x00000000;
     constexpr unsigned int SPI_DEBUG_CNTL_2__ECO_SPARE_1__SHIFT     = 0x00000001;
     constexpr unsigned int SPI_DEBUG_CNTL_2__ECO_SPARE_2__SHIFT     = 0x00000002;
@@ -10935,7 +10929,6 @@ namespace Gfx10
     constexpr unsigned int SPI_SHADER_USER_DATA_HS_30__DATA__SHIFT  = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_HS_31__DATA__SHIFT  = 0x00000000;
     constexpr unsigned int SPI_VS_OUT_CONFIG__NO_PC_EXPORT__SHIFT   = 0x00000007;
-    constexpr unsigned int SPI_WAVE_LIMIT_CNTL_REMAP__RESERVED__SHIFT = 0x00000000;
     constexpr unsigned int SP_CONFIG__ALU_BUSY_MGCG_OVERRIDE__SHIFT = 0x00000002;
     constexpr unsigned int SP_CONFIG__DEST_CACHE_EVICT_COUNTER__SHIFT = 0x00000000;
     constexpr unsigned int SP_CONFIG__DISABLE_TRANS_COEXEC__SHIFT   = 0x00000003;
@@ -11231,8 +11224,6 @@ namespace Gfx10
     constexpr unsigned int UTCL1_CTRL__UTCL1_MISS_CC_PRIORITY__SHIFT = 0x00000018;
     constexpr unsigned int UTCL1_CTRL__UTCL1_RANGE_INV_FORCE_CHK_ALL__SHIFT = 0x0000000e;
     constexpr unsigned int UTCL1_CTRL__UTCL1_REDUCE_CC_SIZE__SHIFT  = 0x0000001a;
-    constexpr unsigned int UTCL1_CTRL__UTCL1_REDUCE_MH_CAM_SIZE__SHIFT = 0x0000001e;
-    constexpr unsigned int UTCL1_CTRL__UTCL1_REDUCE_MH_CFIFO_SIZE__SHIFT = 0x0000001c;
     constexpr unsigned int UTCL1_CTRL__UTCL1_RMI_BYPASS__SHIFT      = 0x00000006;
     constexpr unsigned int UTCL1_CTRL__UTCL1_RMI_DEDICATED_CACHE_CORE__SHIFT = 0x00000008;
     constexpr unsigned int UTCL1_CTRL__UTCL1_SMALL_PAGE_SIZE__SHIFT = 0x00000000;
@@ -11252,28 +11243,22 @@ namespace Gfx10
     constexpr unsigned int VGT_DMA_INDEX_TYPE__ATC__SHIFT           = 0x00000008;
     constexpr unsigned int VGT_DMA_INDEX_TYPE__MTYPE__SHIFT         = 0x0000000b;
     constexpr unsigned int VGT_DRAW_PAYLOAD_CNTL__EN_DRAW_VP__SHIFT = 0x00000004;
-    constexpr unsigned int VGT_ESGS_RING_SIZE_UMD__MEM_SIZE__SHIFT  = 0x00000000;
     constexpr unsigned int VGT_ESGS_RING_SIZE__MEM_SIZE__SHIFT      = 0x00000000;
     constexpr unsigned int VGT_FIFO_DEPTHS__HSINPUT_FIFO_DEPTH__SHIFT = 0x00000017;
     constexpr unsigned int VGT_FIFO_DEPTHS__RESERVED_1__SHIFT       = 0x00000016;
-    constexpr unsigned int VGT_GSVS_RING_SIZE_UMD__MEM_SIZE__SHIFT  = 0x00000000;
     constexpr unsigned int VGT_GS_MODE__COMPUTE_MODE__SHIFT         = 0x0000000e;
     constexpr unsigned int VGT_GS_MODE__ELEMENT_INFO_EN__SHIFT      = 0x00000010;
     constexpr unsigned int VGT_GS_MODE__FAST_COMPUTE_MODE__SHIFT    = 0x0000000f;
-    constexpr unsigned int VGT_HS_OFFCHIP_PARAM_UMD__OFFCHIP_BUFFERING__SHIFT = 0x00000000;
     constexpr unsigned int VGT_SHADER_STAGES_EN__DYNAMIC_HS__SHIFT  = 0x00000008;
     constexpr unsigned int VGT_SHADER_STAGES_EN__GS_W32_EN__SHIFT   = 0x00000016;
     constexpr unsigned int VGT_SHADER_STAGES_EN__HS_W32_EN__SHIFT   = 0x00000015;
     constexpr unsigned int VGT_SHADER_STAGES_EN__NGG_WAVE_ID_EN__SHIFT = 0x00000018;
     constexpr unsigned int VGT_SHADER_STAGES_EN__PRIMGEN_PASSTHRU_EN__SHIFT = 0x00000019;
     constexpr unsigned int VGT_SHADER_STAGES_EN__VS_W32_EN__SHIFT   = 0x00000017;
-    constexpr unsigned int VGT_TF_MEMORY_BASE_HI_UMD__BASE_HI__SHIFT = 0x00000000;
-    constexpr unsigned int VGT_TF_MEMORY_BASE_UMD__BASE__SHIFT      = 0x00000000;
     constexpr unsigned int VGT_TF_PARAM__DETECT_ONE__SHIFT          = 0x00000013;
     constexpr unsigned int VGT_TF_PARAM__DETECT_ZERO__SHIFT         = 0x00000014;
     constexpr unsigned int VGT_TF_PARAM__MTYPE__SHIFT               = 0x00000017;
     constexpr unsigned int VGT_TF_PARAM__NUM_DS_WAVES_PER_SIMD__SHIFT = 0x0000000a;
-    constexpr unsigned int VGT_TF_RING_SIZE_UMD__SIZE__SHIFT        = 0x00000000;
     constexpr unsigned int WD_UTCL1_CNTL__MTYPE_OVERRIDE__SHIFT     = 0x0000001d;
 } // namespace Gfx10
 
@@ -12359,6 +12344,9 @@ namespace Nv10
     constexpr unsigned int GSL_SOURCE_SELECT__GSL1_READY_SOURCE_SEL__SHIFT = 0x00000004;
     constexpr unsigned int GSL_SOURCE_SELECT__GSL2_READY_SOURCE_SEL__SHIFT = 0x00000008;
     constexpr unsigned int GSL_SOURCE_SELECT__GSL_TIMING_SYNC_SEL__SHIFT = 0x00000010;
+    constexpr unsigned int PA_CL_CNTL_STATUS__UTC_FAULT_DETECTED__SHIFT = 0x00000000;
+    constexpr unsigned int PA_CL_CNTL_STATUS__UTC_PRT_DETECTED__SHIFT = 0x00000002;
+    constexpr unsigned int PA_CL_CNTL_STATUS__UTC_RETRY_DETECTED__SHIFT = 0x00000001;
     constexpr unsigned int PA_SC_ENHANCE_2__ECO_SPARE0__SHIFT       = 0x00000000;
     constexpr unsigned int PA_SC_ENHANCE_2__ECO_SPARE1__SHIFT       = 0x00000001;
     constexpr unsigned int PA_SC_ENHANCE_2__ECO_SPARE2__SHIFT       = 0x00000002;
@@ -12367,6 +12355,7 @@ namespace Nv10
     constexpr unsigned int PWROK_REFCLK_GAP_CYCLES__Pwrok_PostAssertion_clkgap_cycles__SHIFT = 0x00000008;
     constexpr unsigned int PWROK_REFCLK_GAP_CYCLES__Pwrok_PreAssertion_clkgap_cycles__SHIFT = 0x00000000;
     constexpr unsigned int RLC_SPM_ACCUM_CTRLRAM_ADDR__RESERVED__SHIFT = 0x00000009;
+    constexpr unsigned int RLC_SPM_ACCUM_CTRL__RESERVED__SHIFT      = 0x0000000a;
     constexpr unsigned int RLC_SPM_ACCUM_CTRL__StrobeAccumDoneInt__SHIFT = 0x00000004;
     constexpr unsigned int RLC_SPM_ACCUM_CTRL__StrobeResetAccum__SHIFT = 0x00000005;
     constexpr unsigned int RLC_SPM_ACCUM_CTRL__StrobeSpmDoneInt__SHIFT = 0x00000003;
@@ -12378,7 +12367,9 @@ namespace Nv10
     constexpr unsigned int RLC_SPM_ACCUM_MODE__RESERVED__SHIFT      = 0x00000007;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE0_LoadOverride__SHIFT = 0x00000004;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE1_LoadOverride__SHIFT = 0x00000005;
+    constexpr unsigned int RLC_SPM_ACCUM_SAMPLES_REQUESTED__RESERVED__SHIFT = 0x00000008;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__RESERVED__SHIFT    = 0x00000010;
+    constexpr unsigned int RLC_SPM_ACCUM_THRESHOLD__RESERVED__SHIFT = 0x00000010;
     constexpr unsigned int RLC_SPM_MC_CNTL__RESERVED_2__SHIFT       = 0x0000000d;
     constexpr unsigned int RMI_SPARE_2__SPARE_BIT_4_0__SHIFT        = 0x00000008;
     constexpr unsigned int RMI_SPARE_2__SPARE_BIT_4_1__SHIFT        = 0x0000000c;
@@ -12451,7 +12442,10 @@ namespace Nv10
     constexpr unsigned int SOCCLK_CGTT_BLK_CTRL_REG__SOCCLK_TURN_OFF_DELAY__SHIFT = 0x00000004;
     constexpr unsigned int SOCCLK_CGTT_BLK_CTRL_REG__SOCCLK_TURN_ON_DELAY__SHIFT = 0x00000000;
     constexpr unsigned int SOC_GAP_PWROK__soc_gap_pwrok__SHIFT      = 0x00000000;
+    constexpr unsigned int SPI_CONFIG_CNTL_1_REMAP__RESERVED__SHIFT = 0x00000000;
     constexpr unsigned int SPI_CONFIG_CNTL_1__RESERVED__SHIFT       = 0x00000016;
+    constexpr unsigned int SPI_CONFIG_CNTL_2_REMAP__RESERVED__SHIFT = 0x00000000;
+    constexpr unsigned int SPI_CONFIG_CNTL_REMAP__RESERVED__SHIFT   = 0x00000000;
     constexpr unsigned int SPI_CONFIG_CNTL__RSRC_MGMT_RESET__SHIFT  = 0x0000001a;
     constexpr unsigned int SPI_CSQ_WF_ACTIVE_COUNT_4__COUNT__SHIFT  = 0x00000000;
     constexpr unsigned int SPI_CSQ_WF_ACTIVE_COUNT_4__EVENTS__SHIFT = 0x00000010;
@@ -12628,6 +12622,7 @@ namespace Nv10
     constexpr unsigned int SPI_SHADER_USER_DATA_LS_13__DATA__SHIFT  = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_LS_14__DATA__SHIFT  = 0x00000000;
     constexpr unsigned int SPI_SHADER_USER_DATA_LS_15__DATA__SHIFT  = 0x00000000;
+    constexpr unsigned int SPI_WAVE_LIMIT_CNTL_REMAP__RESERVED__SHIFT = 0x00000000;
     constexpr unsigned int SPI_WCL_PIPE_PERCENT_GFX__ES_GRP_VALUE__SHIFT = 0x00000011;
     constexpr unsigned int SPI_WCL_PIPE_PERCENT_GFX__LS_GRP_VALUE__SHIFT = 0x00000007;
     constexpr unsigned int SPI_WF_LIFETIME_STATUS_3__INT_SENT__SHIFT = 0x0000001f;
@@ -12668,6 +12663,7 @@ namespace Nv10
     constexpr unsigned int SQ_PERFCOUNTER15_SELECT__SQC_BANK_MASK__SHIFT = 0x0000000c;
     constexpr unsigned int SX_PERFCOUNTER2_SELECT__PERFCOUNTER_SELECT1__SHIFT = 0x0000000a;
     constexpr unsigned int SX_PERFCOUNTER3_SELECT__PERFCOUNTER_SELECT1__SHIFT = 0x0000000a;
+    constexpr unsigned int TA_CNTL_AUX__RESERVED__SHIFT             = 0x00000001;
     constexpr unsigned int TA_CNTL__FX_XNACK_CREDIT__SHIFT          = 0x00000000;
     constexpr unsigned int TD_POWER_CNTL__DISABLE_NOFILTER_FORMATTER_POWER_OPT__SHIFT = 0x00000008;
     constexpr unsigned int TD_POWER_CNTL__FORCE_NOFILTER_CLK_TO_CORE__SHIFT = 0x00000001;
@@ -12676,8 +12672,16 @@ namespace Nv10
     constexpr unsigned int TD_POWER_CNTL__NOFILTER_CLK_VALID_DELAY__SHIFT = 0x00000005;
     constexpr unsigned int TD_POWER_CNTL__SAMPLER_CLK_VALID_DELAY__SHIFT = 0x00000002;
     constexpr unsigned int UTCL1_CTRL__UTCL1_MH_DISABLE_REQUEST_SQUASHING__SHIFT = 0x00000016;
+    constexpr unsigned int UTCL1_CTRL__UTCL1_REDUCE_MH_CAM_SIZE__SHIFT = 0x0000001e;
+    constexpr unsigned int UTCL1_CTRL__UTCL1_REDUCE_MH_CFIFO_SIZE__SHIFT = 0x0000001c;
+    constexpr unsigned int VGT_ESGS_RING_SIZE_UMD__MEM_SIZE__SHIFT  = 0x00000000;
+    constexpr unsigned int VGT_GSVS_RING_SIZE_UMD__MEM_SIZE__SHIFT  = 0x00000000;
+    constexpr unsigned int VGT_HS_OFFCHIP_PARAM_UMD__OFFCHIP_BUFFERING__SHIFT = 0x00000000;
     constexpr unsigned int VGT_HS_OFFCHIP_PARAM_UMD__OFFCHIP_GRANULARITY__SHIFT = 0x00000009;
     constexpr unsigned int VGT_HS_OFFCHIP_PARAM__OFFCHIP_GRANULARITY__SHIFT = 0x00000009;
+    constexpr unsigned int VGT_TF_MEMORY_BASE_HI_UMD__BASE_HI__SHIFT = 0x00000000;
+    constexpr unsigned int VGT_TF_MEMORY_BASE_UMD__BASE__SHIFT      = 0x00000000;
+    constexpr unsigned int VGT_TF_RING_SIZE_UMD__SIZE__SHIFT        = 0x00000000;
 } // namespace Nv10
 
 namespace Oss50
@@ -13951,6 +13955,7 @@ namespace Rv2x
     constexpr unsigned int IA_DEBUG_REG16__utcl10_busy__SHIFT       = 0x0000000c;
     constexpr unsigned int PWR_OVERRIDE__VDDCR_CPU_OVERRIDE__SHIFT  = 0x00000000;
     constexpr unsigned int RLC_SPM_ACCUM_CTRLRAM_ADDR__RESERVED__SHIFT = 0x00000008;
+    constexpr unsigned int RLC_SPM_ACCUM_CTRL__RESERVED__SHIFT      = 0x0000000a;
     constexpr unsigned int RLC_SPM_ACCUM_CTRL__StrobeAccumDoneInt__SHIFT = 0x00000004;
     constexpr unsigned int RLC_SPM_ACCUM_CTRL__StrobeResetAccum__SHIFT = 0x00000005;
     constexpr unsigned int RLC_SPM_ACCUM_CTRL__StrobeSpmDoneInt__SHIFT = 0x00000003;
@@ -13961,7 +13966,9 @@ namespace Rv2x
     constexpr unsigned int RLC_SPM_ACCUM_MODE__Globals_LoadOverride__SHIFT = 0x00000003;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__RESERVED__SHIFT      = 0x00000006;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE0_LoadOverride__SHIFT = 0x00000004;
+    constexpr unsigned int RLC_SPM_ACCUM_SAMPLES_REQUESTED__RESERVED__SHIFT = 0x00000008;
     constexpr unsigned int RLC_SPM_ACCUM_STATUS__RESERVED__SHIFT    = 0x00000010;
+    constexpr unsigned int RLC_SPM_ACCUM_THRESHOLD__RESERVED__SHIFT = 0x00000010;
     constexpr unsigned int RPB_ATS_CNTL2__INVAL_COM_ROUTING_CODE__SHIFT = 0x0000000f;
     constexpr unsigned int RPB_ATS_CNTL2__PAGE_REQ_CMD__SHIFT       = 0x00000006;
     constexpr unsigned int RPB_ATS_CNTL2__PAGE_ROUTING_CODE__SHIFT  = 0x0000000c;

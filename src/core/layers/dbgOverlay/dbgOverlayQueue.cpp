@@ -53,14 +53,18 @@ Queue::Queue(
     m_pDevice(pDevice),
     m_queueType(queueType),
     m_engineType(engineType),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     m_overlaySupported(Device::DetermineDbgOverlaySupport(queueType)),
+#endif
     m_supportTimestamps(pDevice->GpuProps().engineProperties[engineType].flags.supportsTimestamps),
     m_timestampAlignment(pDevice->GpuProps().engineProperties[engineType].minTimestampAlignment),
     m_timestampMemorySize(2 * MaxGpuTimestampPairCount * m_timestampAlignment),
     m_nextTimestampOffset(0),
     m_pTimestampMemory(nullptr),
-    m_gpuTimestampPairDeque(pDevice->GetPlatform()),
-    m_overlayCmdBufferDeque(pDevice->GetPlatform())
+    m_gpuTimestampPairDeque(pDevice->GetPlatform())
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
+    ,m_overlayCmdBufferDeque(pDevice->GetPlatform())
+#endif
 {
 }
 
@@ -78,12 +82,14 @@ Queue::~Queue()
         DestroyGpuTimestampPair(pTimestamp);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     while (m_overlayCmdBufferDeque.NumElements() > 0)
     {
         TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
         m_overlayCmdBufferDeque.PopFront(&pTrackedCmdBuffer);
         DestroyTrackedCmdBuffer(pTrackedCmdBuffer);
     }
+#endif
 
     if (m_pTimestampMemory != nullptr)
     {
@@ -191,10 +197,12 @@ Result Queue::PresentDirect(
 {
     Result result = Result::Success;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     if (m_overlaySupported)
     {
         result = SubmitOverlayCmdBuffer(static_cast<const Image&>(*presentInfo.pSrcImage), presentInfo.presentMode);
     }
+#endif
 
     const Result presentResult = QueueDecorator::PresentDirect(presentInfo);
     result = CollapseResults(presentResult, result);
@@ -216,10 +224,12 @@ Result Queue::PresentSwapChain(
 {
     Result result = Result::Success;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     if (m_overlaySupported)
     {
         result = SubmitOverlayCmdBuffer(static_cast<const Image&>(*presentInfo.pSrcImage), presentInfo.presentMode);
     }
+#endif
 
     // Note: We must always call down to the next layer because we must release ownership of the image index.
     const Result presentResult = QueueDecorator::PresentSwapChain(presentInfo);
@@ -320,6 +330,7 @@ Result Queue::Submit(
     return result;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
 // =====================================================================================================================
 // Draw the debug overlay using a tracked command buffer.
 Result Queue::SubmitOverlayCmdBuffer(
@@ -426,6 +437,7 @@ Result Queue::SubmitOverlayCmdBuffer(
 
     return result;
 }
+#endif
 
 // =====================================================================================================================
 Result Queue::SubmitWithGpuTimestampPair(
@@ -648,6 +660,7 @@ void Queue::DestroyGpuTimestampPair(
     PAL_SAFE_DELETE(pTimestamp, m_pDevice->GetPlatform());
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
 // =====================================================================================================================
 Result Queue::CreateTrackedCmdBuffer(
     TrackedCmdBuffer** ppTrackedCmdBuffer)
@@ -707,6 +720,7 @@ void Queue::DestroyTrackedCmdBuffer(
 
     PAL_SAFE_DELETE(pTrackedCmdBuffer, m_pDevice->GetPlatform());
 }
+#endif
 
 } // DbgOverlay
 } // Pal

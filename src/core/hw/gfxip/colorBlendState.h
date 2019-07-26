@@ -30,26 +30,19 @@
 namespace Pal
 {
 
-// Forward decl's
-class Device;
-
 // =====================================================================================================================
 // GFXIP-independent color blend state implementation. See IColorBlendState documentation for more details.
 class ColorBlendState : public IColorBlendState
 {
 public:
     virtual void Destroy() override { this->~ColorBlendState(); }
-    void DestroyInternal();
 
 protected:
-    ColorBlendState(const Device& device) : m_device(device) {}
+    ColorBlendState() {}
     virtual ~ColorBlendState() {}
-
-    const Device& m_device;
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(ColorBlendState);
-    PAL_DISALLOW_DEFAULT_CTOR(ColorBlendState);
 };
 
 } // Pal

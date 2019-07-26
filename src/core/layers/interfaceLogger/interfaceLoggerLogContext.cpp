@@ -214,6 +214,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
 #endif
     { InterfaceFunc::CmdUpdateHiSPretests,                                      InterfaceObject::CmdBuffer,            "CmdUpdateHiSPretests"                    },
     { InterfaceFunc::CmdBufferCmdSetClipRects,                                  InterfaceObject::CmdBuffer,            "CmdSetClipRects"                         },
+    { InterfaceFunc::CmdBufferCmdPostProcessFrame,                              InterfaceObject::CmdBuffer,            "CmdBufferCmdPostProcessFrame"            },
     { InterfaceFunc::ColorBlendStateDestroy,                                    InterfaceObject::ColorBlendState,      "Destroy"                                 },
     { InterfaceFunc::DepthStencilStateDestroy,                                  InterfaceObject::DepthStencilState,    "Destroy"                                 },
     { InterfaceFunc::DeviceCommitSettingsAndInit,                               InterfaceObject::Device,               "CommitSettingsAndInit"                   },

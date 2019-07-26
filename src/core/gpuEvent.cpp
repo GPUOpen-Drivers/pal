@@ -272,11 +272,11 @@ Result GpuEvent::BindGpuMemory(
 {
     const gpusize gpuRequiredMemSizeInBytes = GpuRequiredMemSizePerSlotInBytes * m_numSlotsPerEvent;
 
-    Result result = m_pDevice->ValidateBindObjectMemoryInput(pGpuMemory,
-                                                             offset,
-                                                             gpuRequiredMemSizeInBytes,
-                                                             GpuRequiredMemAlignment,
-                                                             false);
+    Result result = Device::ValidateBindObjectMemoryInput(pGpuMemory,
+                                                          offset,
+                                                          gpuRequiredMemSizeInBytes,
+                                                          GpuRequiredMemAlignment,
+                                                          false);
 
     // First try to unmap currently bound GPU memory if it is CPU-accessable memory.
     if (result == Result::Success)

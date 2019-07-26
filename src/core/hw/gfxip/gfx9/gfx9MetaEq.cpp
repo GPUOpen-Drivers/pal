@@ -41,11 +41,9 @@ namespace Gfx9
 //=============== Implementation for MetaDataAddrEquation: =============================================================
 // =====================================================================================================================
 MetaDataAddrEquation::MetaDataAddrEquation(
-    const Device*  pDevice,
     uint32         maxEquationBits, // maximum number of bits this equation could possibly have
     const char*    pName)           // a identifier for this equation, only used for debug prints.  Can be NULL
     :
-    m_pGfxDevice(pDevice),
     m_maxBits(maxEquationBits)
 {
     PAL_ASSERT (maxEquationBits < MaxNumMetaDataAddrBits);
@@ -467,12 +465,13 @@ bool MetaDataAddrEquation::IsSet(
 
 // =====================================================================================================================
 void MetaDataAddrEquation::Mort2d(
-    CompPair*  pPair0,
-    CompPair*  pPair1,
-    uint32     start,
-    uint32     end)
+    const Device* pGfxDevice,
+    CompPair*     pPair0,
+    CompPair*     pPair1,
+    uint32        start,
+    uint32        end)
 {
-    const Pal::Device&  palDevice = *(m_pGfxDevice->Parent());
+    const Pal::Device&  palDevice = *(pGfxDevice->Parent());
 
     if (end == 0)
     {
