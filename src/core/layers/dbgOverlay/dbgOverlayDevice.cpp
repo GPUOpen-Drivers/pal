@@ -56,6 +56,9 @@ Device::Device(
     // overrun while writing to 'm_vidMemTotals[0]':  the writable size is '32' bytes, but '128' bytes might be written.
     PAL_ANALYSIS_ASSUME(sizeof(m_vidMemTotals) <= (sizeof(gpusize) * AllocTypeCount * GpuHeapCount));
     memset(const_cast<gpusize (&)[AllocTypeCount][GpuHeapCount]>(m_vidMemTotals), 0, sizeof(m_vidMemTotals));
+
+    memset(&m_perHeapMemTotals[0], 0, sizeof(m_perHeapMemTotals));
+    memset(&m_peakVidMemTotals[0], 0, sizeof(m_peakVidMemTotals));
 }
 
 // =====================================================================================================================

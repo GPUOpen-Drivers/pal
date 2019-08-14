@@ -88,18 +88,14 @@ Result CreateRpmGraphicsPipelines(
         pTable = rpmGfxBinaryTableIceland;
         break;
 
-#if PAL_BUILD_GFX9
     case AsicRevision::Vega10:
     case AsicRevision::Raven:
         pTable = rpmGfxBinaryTableVega10;
         break;
-#endif
 
-#if PAL_BUILD_GFX9
     case AsicRevision::Vega12:
         pTable = rpmGfxBinaryTableVega12;
         break;
-#endif
 
     case AsicRevision::Vega20:
         pTable = rpmGfxBinaryTableVega20;
@@ -3116,10 +3112,15 @@ static_assert((
     "PointLineRasterStateParams interface change not propagated. Update this file to match interface changes.");
 
 static_assert((
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 524
     (offsetof(TriangleRasterStateParams, fillMode)        == 0) &&
-    (offsetof(TriangleRasterStateParams, cullMode)        == sizeof(Pal::FillMode)) &&
-    (offsetof(TriangleRasterStateParams, frontFace)       == sizeof(Pal::FillMode) + sizeof(Pal::CullMode)) &&
-    (offsetof(TriangleRasterStateParams, provokingVertex) == sizeof(Pal::FillMode) +
+#else
+    (offsetof(TriangleRasterStateParams, frontFillMode)   == 0) &&
+#endif
+    (offsetof(TriangleRasterStateParams, backFillMode)    == sizeof(Pal::FillMode)) &&
+    (offsetof(TriangleRasterStateParams, cullMode)        == 2 * sizeof(Pal::FillMode)) &&
+    (offsetof(TriangleRasterStateParams, frontFace)       == 2 * sizeof(Pal::FillMode) + sizeof(Pal::CullMode)) &&
+    (offsetof(TriangleRasterStateParams, provokingVertex) == 2 * sizeof(Pal::FillMode) +
                                                              sizeof(Pal::CullMode) +
                                                              sizeof(Pal::FaceOrientation))),
     "TriangleRasterStateParams interface change not propagated. Update this file to match interface changes.");

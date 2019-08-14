@@ -144,6 +144,8 @@ Result SyncobjFence::WaitForFences(
         // so trim down the max value to be INT64_MAX, otherwise drm_timeout_abs_to_jiffies compute wrong output.
         absTimeoutNs= Util::Min(absTimeoutNs, (uint64)INT64_MAX);
 
+        //fix even if the syncobj's submit is still in m_batchedCmds.
+        flags |= DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
         if (waitAll)
         {
             flags |= DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL;

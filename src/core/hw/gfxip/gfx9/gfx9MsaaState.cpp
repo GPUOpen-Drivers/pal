@@ -194,6 +194,9 @@ Result MsaaState::Init(
 
     // Setup the PA_SC_MODE_CNTL_0 register
     m_pm4Image.paScModeCntl0.u32All = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 525
+    m_pm4Image.paScModeCntl0.bits.LINE_STIPPLE_ENABLE    = msaaState.flags.enableLineStipple;
+#endif
     m_pm4Image.paScModeCntl0.bits.VPORT_SCISSOR_ENABLE   = 1;
     m_pm4Image.paScModeCntl0.bits.ALTERNATE_RBS_PER_TILE = 1;
     m_pm4Image.paScModeCntl0.bits.MSAA_ENABLE            = (((NumSamples() > 1) ||
@@ -231,7 +234,11 @@ Result MsaaState::Init(
     // coverage on an edge will be at-most equal to the number of (coverage) samples in the current AA mode. The
     // chosen values set up a different offset for each pixel of a 2x2 quad, allowing many more levels of apparent
     // coverage.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 523
     if (msaaState.disableAlphaToCoverageDither)
+#else
+    if (msaaState.flags.disableAlphaToCoverageDither)
+#endif
     {
         m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET0 = 2;
         m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET1 = 2;

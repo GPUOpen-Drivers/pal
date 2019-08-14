@@ -280,12 +280,8 @@ enum ImageLayoutEngineFlags : uint32
     LayoutDmaEngine             = 0x4,
     LayoutVideoEncodeEngine     = 0x8,
     LayoutVideoDecodeEngine     = 0x10,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 459
     LayoutVideoJpegDecodeEngine = 0x20,
     LayoutAllEngines            = 0x3F
-#else
-    LayoutAllEngines            = 0x1F
-#endif
 };
 
 /// Bitmask values that can be ORed together to specify previous output usage and upcoming input usages of an image or
@@ -343,9 +339,7 @@ struct CmdBufferCreateInfo
     QueueType                     queueType;     ///< Type of queue commands in this command buffer will target.
                                                  ///  This defines the set of allowed actions in the command buffer.
     EngineType                    engineType;    ///< Type of engine the queue commands will run on.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 449)
     EngineSubType                 engineSubType; ///< Sub type of engine the queue commands will run on.
-#endif
 
     union
     {
@@ -1208,7 +1202,14 @@ struct InputAssemblyStateParams
 /// @see ICmdBuffer::CmdSetTriangleRasterState
 struct TriangleRasterStateParams
 {
-    FillMode        fillMode;        ///< Specifies whether triangles should be rendered solid or wireframe.
+    union
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 524
+        FillMode    fillMode;        ///< Specifies whether triangles should be rendered solid or wireframe.
+#endif
+        FillMode    frontFillMode;   ///< Specifies whether front-facing triangles should be rendered solid or wireframe.
+    };
+    FillMode        backFillMode;    ///< Specifies whether back-facing triangles should be rendered solid or wireframe.
     CullMode        cullMode;        ///< Specifies which, if any, triangles should be culled based on whether they are
                                      ///  front or back facing.
     FaceOrientation frontFace;       ///< Specifies the vertex winding that results in a front-facing triangle.
@@ -1233,6 +1234,14 @@ struct PointLineRasterStateParams
     float lineWidth;    ///< Width of a line primitive in pixels.
     float pointSizeMin; ///< Minimum width of a point primitive in pixels.
     float pointSizeMax; ///< Maximum width of a point primitive in pixels.
+};
+
+/// Specifies parameters for controlling line stippling.
+/// @see ICmdBuffer::CmdSetLineStippleState
+struct LineStippleStateParams
+{
+    uint16 lineStippleValue; ///< Line stipple bit pattern.
+    uint32 lineStippleScale; ///< Line stipple repeat factor.
 };
 
 /// Specifies paramters for setting up depth bias. Depth Bias is used to ensure a primitive can properly be displayed
@@ -1394,6 +1403,9 @@ struct ViewportParams
     float           vertDiscardRatio;   ///< The ratio between guardband discard rect height and viewport height.
     float           horzClipRatio;      ///< The ratio between guardband clip rect width and viewport width.
     float           vertClipRatio;      ///< The ratio between guardband clip rect height and viewport height.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    DepthRange      depthRange;         ///< Specifies the target range of Z values
+#endif
 };
 
 /// Specifies the parameters for specifing the scissor rectangle.
@@ -1876,6 +1888,12 @@ public:
     virtual void CmdSetPointLineRasterState(
         const PointLineRasterStateParams& params) = 0;
 
+    /// Sets parameters controlling line stippling.
+    ///
+    /// @param [in] params Parameters to set the line stipple state.
+    virtual void CmdSetLineStippleState(
+        const LineStippleStateParams& params) = 0;
+
     /// Sets depth bias parameters.
     ///
     /// Depth bias is used to ensure a primitive can properly be displayed (without Z fighting) in front (or behind)
@@ -2064,16 +2082,6 @@ public:
                                      firstInstance,
                                      instanceCount);
     }
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 453)
-    PAL_INLINE void CmdDrawOpaque(
-        gpusize streamOutFilledSizeVa,
-        uint32  streamOutOffset,
-        uint32  stride)
-    {
-        CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, 0, 1);
-    }
-#endif
 
     /// Issues an instanced, indexed draw call using the command buffer's currently bound graphics state.  Results in
     /// instanceCount * indexCount vertices being processed.
@@ -3490,6 +3498,16 @@ public:
     ///
     /// @param [in] mask     The mask to control which view instances are enabled.
     virtual void CmdSetViewInstanceMask(uint32 mask) = 0;
+
+    /// Get used size of all chunks in bytes for given CmdAllocType. For CommandDataAlloc with multi-queue scheme, the
+    /// size reported will be the sum of all command streams associated with the command buffer. It's legal to call
+    /// this function while in the command building state.
+    ///
+    /// @param [in] type    Allocation type for ICmdAllocator
+    ///
+    /// @returns Used allocation data size in bytes for provided CmdAllocType.
+    virtual uint32 GetUsedSize(
+        CmdAllocType type) const = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

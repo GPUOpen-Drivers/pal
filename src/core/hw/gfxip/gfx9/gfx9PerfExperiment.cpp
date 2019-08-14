@@ -1030,20 +1030,6 @@ Result PerfExperiment::AddThreadTrace(
         // The buffer size can't be larger than the maximum size and it must be properly aligned.
         result = Result::ErrorInvalidValue;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
-    else if ((traceInfo.optionFlags.threadTraceTokenMask != 0) &&
-             (traceInfo.optionValues.threadTraceTokenMask == 0))
-    {
-        // The thread trace token mask can't be empty.
-        result = Result::ErrorInvalidValue;
-    }
-    else if ((traceInfo.optionFlags.threadTraceRegMask != 0) &&
-             (traceInfo.optionValues.threadTraceRegMask == 0))
-    {
-        // The thread trace reg mask can't be empty.
-        result = Result::ErrorInvalidValue;
-    }
-#else
     else if ((traceInfo.optionFlags.threadTraceTokenConfig != 0) &&
              (traceInfo.optionValues.threadTraceTokenConfig.tokenMask == 0) &&
              (traceInfo.optionValues.threadTraceTokenConfig.regMask == 0))
@@ -1051,7 +1037,6 @@ Result PerfExperiment::AddThreadTrace(
         // The thread trace token config can't be empty.
         result = Result::ErrorInvalidValue;
     }
-#endif
     else if ((traceInfo.optionFlags.threadTraceTargetSh != 0) &&
              (traceInfo.optionValues.threadTraceTargetSh >= m_chipProps.gfx9.numShaderArrays))
     {
@@ -1214,23 +1199,11 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[traceInfo.instance].perfMask.bits.SH1_MASK = (traceInfo.optionFlags.threadTraceSh1CounterMask != 0)
                     ? traceInfo.optionValues.threadTraceSh1CounterMask : SqttPerfCounterCuMask;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
-            if ((traceInfo.optionFlags.threadTraceTokenMask != 0) ||
-                (traceInfo.optionFlags.threadTraceRegMask != 0))
-            {
-                ThreadTraceTokenConfig tokenConfig = {};
-                tokenConfig.tokenMask = traceInfo.optionValues.threadTraceTokenMask;
-                tokenConfig.regMask   = traceInfo.optionValues.threadTraceRegMask;
-
-                m_sqtt[traceInfo.instance].tokenMask.u32All = GetGfx9SqttTokenMask(tokenConfig);
-            }
-#else
             if (traceInfo.optionFlags.threadTraceTokenConfig != 0)
             {
                 m_sqtt[traceInfo.instance].tokenMask.u32All =
                     GetGfx9SqttTokenMask(traceInfo.optionValues.threadTraceTokenConfig);
             }
-#endif
             else
             {
                 // By default trace all tokens and registers.
@@ -1301,23 +1274,11 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[traceInfo.instance].mask.gfx10.SIMD_SEL = (traceInfo.optionFlags.threadTraceSimdMask != 0)
                     ? traceInfo.optionValues.threadTraceSimdMask : 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
-            if ((traceInfo.optionFlags.threadTraceTokenMask != 0) ||
-                (traceInfo.optionFlags.threadTraceRegMask != 0))
-            {
-                ThreadTraceTokenConfig tokenConfig = {};
-                tokenConfig.tokenMask = traceInfo.optionValues.threadTraceTokenMask;
-                tokenConfig.regMask   = traceInfo.optionValues.threadTraceRegMask;
-
-                m_sqtt[traceInfo.instance].tokenMask = GetGfx10SqttTokenMask(m_device, tokenConfig);
-            }
-#else
             if (traceInfo.optionFlags.threadTraceTokenConfig != 0)
             {
                 m_sqtt[traceInfo.instance].tokenMask =
                     GetGfx10SqttTokenMask(m_device, traceInfo.optionValues.threadTraceTokenConfig);
             }
-#endif
             else
             {
                 // By default trace all tokens and registers.
@@ -3532,15 +3493,13 @@ uint32* PerfExperiment::WriteUpdateWindowedCounters(
                                                         pCmdStream->GetEngineType(),
                                                         pCmdSpace);
     }
-    else
-    {
-        regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
-        computeEnable.bits.PERFCOUNT_ENABLE = enable;
 
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
-                                                                computeEnable.u32All,
-                                                                pCmdSpace);
-    }
+    regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
+    computeEnable.bits.PERFCOUNT_ENABLE = enable;
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
+                                                            computeEnable.u32All,
+                                                            pCmdSpace);
 
     return pCmdSpace;
 }

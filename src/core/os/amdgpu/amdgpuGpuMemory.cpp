@@ -468,74 +468,63 @@ Result GpuMemory::OpenSharedMemory(
         PAL_ASSERT(m_hSurface != nullptr);
 
         result      = pDevice->QueryBufferInfo(m_hSurface, &bufferInfo);
-        m_heapCount = 1;
+        m_heapCount = 0;
 
-        if (bufferInfo.preferred_heap & AMDGPU_GEM_DOMAIN_GTT)
+        if (bufferInfo.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM)
         {
-            // Check for any unexpected flags
-            PAL_ASSERT((bufferInfo.preferred_heap & ~AMDGPU_GEM_DOMAIN_GTT) == 0);
-
-            if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
-            {
-                m_heaps[0] = GpuHeapGartUswc;
-            }
-            else
-            {
-                // Check for any unexpected flags
-                PAL_ASSERT(bufferInfo.alloc_flags == 0);
-
-                m_heaps[0] = GpuHeapGartCacheable;
-            }
-        }
-        else if (bufferInfo.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM)
-        {
-            // Check for any unexpected flags
-            PAL_ASSERT((bufferInfo.preferred_heap & ~AMDGPU_GEM_DOMAIN_VRAM) == 0);
-
             if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
             {
-                // Check for any unexpected flags
-                PAL_ASSERT((bufferInfo.alloc_flags & ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) == 0);
-                m_heaps[0] = GpuHeapLocal;
+                m_heaps[m_heapCount++] = GpuHeapLocal;
             }
             else if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
             {
-                // Check for any unexpected flags
-                PAL_ASSERT((bufferInfo.alloc_flags & ~AMDGPU_GEM_CREATE_NO_CPU_ACCESS) == 0);
-
-                m_heaps[0] = GpuHeapInvisible;
+                m_heaps[m_heapCount++] = GpuHeapInvisible;
             }
             else
             {
                 PAL_ASSERT_ALWAYS();
             }
         }
-        else
+
+        if (bufferInfo.preferred_heap & AMDGPU_GEM_DOMAIN_GTT)
+        {
+            if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
+            {
+                m_heaps[m_heapCount++] = GpuHeapGartUswc;
+            }
+            else
+            {
+                m_heaps[m_heapCount++] = GpuHeapGartCacheable;
+            }
+        }
+
+        if (m_heapCount == 0)
         {
             PAL_ASSERT_ALWAYS();
         }
 
-        const GpuMemoryHeapProperties& heapProps = pDevice->HeapProperties(m_heaps[0]);
+        m_flags.cpuVisible = 1;
 
-        if (heapProps.flags.cpuVisible == 0)
+        for (uint32 heap = 0; heap < m_heapCount; ++heap)
         {
-            m_flags.cpuVisible = 0;
-        }
+            const GpuMemoryHeapProperties& heapProps = pDevice->HeapProperties(m_heaps[heap]);
 
-        switch (m_heaps[0])
-        {
-            case GpuHeapLocal:
-            case GpuHeapInvisible:
-                m_flags.nonLocalOnly = 0;
-                break;
-            case GpuHeapGartCacheable:
-            case GpuHeapGartUswc:
-                m_flags.localOnly = 0;
-                break;
-            default:
-                break;
-        }
+            m_flags.cpuVisible &= heapProps.flags.cpuVisible;
 
+            switch (m_heaps[heap])
+            {
+                case GpuHeapLocal:
+                case GpuHeapInvisible:
+                    m_flags.nonLocalOnly = 0;
+                    break;
+                case GpuHeapGartCacheable:
+                case GpuHeapGartUswc:
+                    m_flags.localOnly = 0;
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     // handle should be closed here otherwise, the memory would never be freed since it takes one extra refcount.

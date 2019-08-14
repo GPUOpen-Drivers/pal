@@ -55,10 +55,11 @@ union GraphicsStateFlags
                 uint16 inputAssemblyState     : 1; // Gfx6 & Gfx9
                 uint16 triangleRasterState    : 1; // Gfx6 & Gfx9
                 uint16 queryState             : 1; // Gfx6 & Gfx9
+                uint16 lineStippleState       : 1; // Gfx6 & Gfx9
                 uint16 colorTargetView        : 1; // Gfx9 only
                 uint16 depthStencilView       : 1; // Gfx9 only
                 uint16 reservedForFutureHw1   : 2;
-                uint16 reservedValidationBits : 3;
+                uint16 reservedValidationBits : 2;
             };
 
             uint16 u16All;
@@ -142,6 +143,7 @@ struct GraphicsState
     DepthBiasParams             depthBiasState;         // (CmdSetDepthBiasState)
     DepthBoundsParams           depthBoundsState;       // (CmdSetDepthBounds)
     PointLineRasterStateParams  pointLineRasterState;   // (CmdSetPointLineRasterState)
+    LineStippleStateParams      lineStippleState;       // (CmdSetLineStippleState)
     StencilRefMaskParams        stencilRefMaskState;    // (CmdSetStencilRefMasks)
     TriangleRasterStateParams   triangleRasterState;    // (CmdSetTriangleRasterState)
     ViewportParams              viewportState;          // (CmdSetViewports)
@@ -202,6 +204,9 @@ public:
 
     virtual void CmdSetViewInstanceMask(uint32 mask) override;
 
+    virtual void CmdSetLineStippleState(
+        const LineStippleStateParams& params) override;
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
@@ -226,6 +231,8 @@ public:
         m_pDeCmdStream->IncrementSubmitCount();
         m_pCeCmdStream->IncrementSubmitCount();
     }
+
+    virtual uint32 GetUsedSize(CmdAllocType type) const override;
 
     // Current graphics state
     const GraphicsState& GetGraphicsState() const { return m_graphicsState; }

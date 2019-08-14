@@ -78,4 +78,13 @@ Result OpenedQueueSemaphore::Wait(
 {
     return m_pMaster->WaitInternal(pQueue, this, value, pIsStalled);
 }
+
+// =====================================================================================================================
+// Waits-on this Semaphore object using host.
+Result OpenedQueueSemaphore::SignalSemaphoreValue(
+    uint64  value)
+{
+    return m_pMaster->SignalSemaphoreValue(value);
+}
+
 } // Pal

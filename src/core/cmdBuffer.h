@@ -269,6 +269,10 @@ public:
         const PointLineRasterStateParams& params) override
         { PAL_NEVER_CALLED(); }
 
+    virtual void CmdSetLineStippleState(
+        const LineStippleStateParams& params) override
+        { PAL_NEVER_CALLED(); }
+
     virtual void CmdSetDepthBiasState(
         const DepthBiasParams& params) override
         { PAL_NEVER_CALLED(); }
@@ -771,6 +775,8 @@ public:
        const HiSPretests& pretests,
        uint32             firstMip,
        uint32             numMips) override { PAL_NEVER_CALLED(); }
+
+    virtual uint32 GetUsedSize(CmdAllocType type) const override;
 
     // Maximum length of a filename allowed for command buffer dumps
     static constexpr uint32 MaxFilenameLength = 32;

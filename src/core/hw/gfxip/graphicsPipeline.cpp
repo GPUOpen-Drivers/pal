@@ -229,10 +229,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     // Finalize the hash.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 476
     hasher.Finalize(reinterpret_cast<uint8* const>(&m_info.palRuntimeHash));
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
-    m_info.pipelineHash = m_info.palRuntimeHash;
-#endif
 #endif
 
     return result;

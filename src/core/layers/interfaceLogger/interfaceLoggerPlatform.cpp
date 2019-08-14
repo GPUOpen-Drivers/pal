@@ -79,6 +79,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdSetInputAssemblyState,             (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetTriangleRasterState,            (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetPointLineRasterState,           (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdSetLineStippleState,               (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetDepthBiasState,                 (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetStencilRefMasks,                (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetUserClipPlanes,                 (CmdBuild)            },

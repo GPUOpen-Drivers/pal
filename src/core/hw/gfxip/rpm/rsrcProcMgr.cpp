@@ -475,6 +475,9 @@ void RsrcProcMgr::CopyColorImageGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -727,7 +730,8 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF, };
     const TriangleRasterStateParams  triangleRasterState   =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::_None,        // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -743,6 +747,9 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -2004,8 +2011,7 @@ void RsrcProcMgr::CmdScaledCopyImage(
 
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
     // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
-    const bool useGraphicsCopy = ((Image::PreferGraphicsScaledCopy                       &&
-                                  pCmdBuffer->IsGraphicsSupported())                     &&
+    const bool useGraphicsCopy = (pCmdBuffer->IsGraphicsSupported()                      &&
                                   ((srcImageType != ImageType::Tex1d)                    &&
                                    (dstImageType != ImageType::Tex1d)                    &&
                                    (dstInfo.samples == 1)                                &&
@@ -2067,6 +2073,9 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo = {};
     scissorInfo.count = 1;
@@ -3311,7 +3320,8 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const TriangleRasterStateParams  triangleRasterState  =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::None,         // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -3337,6 +3347,9 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -3524,7 +3537,8 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
     const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const TriangleRasterStateParams  triangleRasterState  =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::None,         // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -3541,6 +3555,9 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -3817,7 +3834,8 @@ void RsrcProcMgr::SlowClearGraphics(
     const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const TriangleRasterStateParams  triangleRasterState  =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::None,         // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -3834,6 +3852,9 @@ void RsrcProcMgr::SlowClearGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ColorTargetViewCreateInfo colorViewInfo = { };
     colorViewInfo.swizzledFormat              = viewFormat;
@@ -4499,6 +4520,9 @@ void RsrcProcMgr::LateExpandResolveSrc(
         Pal::SubresRange   range        = {};
         AutoBuffer<BarrierTransition, 32, Platform> transition(regionCount, m_pDevice->GetPlatform());
 
+        const ImageLayoutUsageFlags shaderUsage = (method.shaderCsFmask == 1) ? Pal::LayoutShaderFmaskBasedRead
+                                                                              : Pal::LayoutShaderRead;
+
         for (uint32 i = 0; i < regionCount; i++)
         {
             range.startSubres.aspect     = pRegions[i].srcAspect;
@@ -4507,34 +4531,18 @@ void RsrcProcMgr::LateExpandResolveSrc(
             range.numMips                = 1;
             range.numSlices              = pRegions[i].numSlices;
 
-            transition[i].imageInfo.pImage             = srcImage.GetGfxImage()->Parent();
+            transition[i].imageInfo.pImage             = &srcImage;
             transition[i].imageInfo.oldLayout.usages   = srcImageLayout.usages;
             transition[i].imageInfo.oldLayout.engines  = srcImageLayout.engines;
-            if (method.shaderCsFmask == 1)
-            {
-                transition[i].imageInfo.newLayout.usages   = srcImageLayout.usages | Pal::LayoutShaderFmaskBasedRead;
-            }
-            else
-            {
-                transition[i].imageInfo.newLayout.usages   = srcImageLayout.usages | Pal::LayoutShaderRead;
-            }
+            transition[i].imageInfo.newLayout.usages   = srcImageLayout.usages | shaderUsage;
             transition[i].imageInfo.newLayout.engines  = srcImageLayout.engines;
             transition[i].imageInfo.subresRange        = range;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
-            if (srcImage.GetGfxImage()->Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
-            {
-                PAL_ASSERT(pRegions[i].pQuadSamplePattern != nullptr);
-            }
-            else
-            {
-                PAL_ASSERT(pRegions[i].pQuadSamplePattern == nullptr);
-            }
             transition[i].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
-#else
-            transition[i].imageInfo.pQuadSamplePattern = nullptr;
-#endif
             transition[i].srcCacheMask                 = Pal::CoherResolve;
             transition[i].dstCacheMask                 = Pal::CoherShader;
+
+            PAL_ASSERT((srcImage.GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0) ==
+                       (pRegions[i].pQuadSamplePattern != nullptr));
         }
 
         barrierInfo.pTransitions    = transition.Data();
@@ -4849,9 +4857,10 @@ void RsrcProcMgr::ResolveImageGraphics(
     const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
     const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF, };
-    const TriangleRasterStateParams  triangleRasterState   =
+    const TriangleRasterStateParams  triangleRasterState  =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::_None,        // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -4867,6 +4876,9 @@ void RsrcProcMgr::ResolveImageGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -5517,7 +5529,8 @@ void RsrcProcMgr::ExpandDepthStencil(
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
     const TriangleRasterStateParams  triangleRasterState  =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::None,         // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -5534,6 +5547,9 @@ void RsrcProcMgr::ExpandDepthStencil(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo      = { };
     scissorInfo.count                  = 1;
@@ -5679,7 +5695,8 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
     const TriangleRasterStateParams  triangleRasterState  =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::_None,        // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -5696,6 +5713,9 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo    = { };
     scissorInfo.count                = 1;
@@ -5842,7 +5862,7 @@ void RsrcProcMgr::GenericColorBlit(
                                    (pipeline == RpmGfxPipeline::FastClearElim) ||
                                    (pipeline == RpmGfxPipeline::FmaskDecompress));
 
-    ViewportParams viewportInfo;
+    ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
     viewportInfo.viewports[0].originX  = 0;
     viewportInfo.viewports[0].originY  = 0;
@@ -5853,6 +5873,9 @@ void RsrcProcMgr::GenericColorBlit(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo;
     scissorInfo.count                  = 1;
@@ -5892,7 +5915,8 @@ void RsrcProcMgr::GenericColorBlit(
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
     const TriangleRasterStateParams  triangleRasterState  =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::_None,        // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -6069,7 +6093,8 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const TriangleRasterStateParams  triangleRasterState  =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::_None,        // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -6084,6 +6109,9 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo = { };
     scissorInfo.count = 1;
@@ -6275,7 +6303,8 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
     const TriangleRasterStateParams  triangleRasterState =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::_None,        // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -6287,10 +6316,13 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     viewportInfo.viewports[0].maxDepth = 1.f;
     viewportInfo.viewports[0].origin = PointOrigin::UpperLeft;
 
-    viewportInfo.horzClipRatio = FLT_MAX;
-    viewportInfo.horzDiscardRatio = 1.0f;
-    viewportInfo.vertClipRatio = FLT_MAX;
-    viewportInfo.vertDiscardRatio = 1.0f;
+    viewportInfo.horzClipRatio      = FLT_MAX;
+    viewportInfo.horzDiscardRatio   = 1.0f;
+    viewportInfo.vertClipRatio      = FLT_MAX;
+    viewportInfo.vertDiscardRatio   = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange         = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo = {};
     scissorInfo.count = 1;
@@ -6349,18 +6381,15 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
         pCmdBuffer->CmdSetViewports(viewportInfo);
         pCmdBuffer->CmdSetScissorRects(scissorInfo);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
-        if (srcImage.GetGfxImage()->Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
+        if (srcCreateInfo.flags.sampleLocsAlwaysKnown != 0)
         {
             PAL_ASSERT(pRegions[idx].pQuadSamplePattern != nullptr);
-            pCmdBuffer->CmdSetMsaaQuadSamplePattern(srcImage.GetGfxImage()->Parent()->GetImageCreateInfo().samples,
-                                                    *pRegions[idx].pQuadSamplePattern);
+            pCmdBuffer->CmdSetMsaaQuadSamplePattern(srcCreateInfo.samples, *pRegions[idx].pQuadSamplePattern);
         }
         else
         {
             PAL_ASSERT(pRegions[idx].pQuadSamplePattern == nullptr);
         }
-#endif
 
         for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
         {

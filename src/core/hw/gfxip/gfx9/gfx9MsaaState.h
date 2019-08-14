@@ -134,6 +134,7 @@ public:
 
     bool UsesOverRasterization() const { return (m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT != 0); }
     bool ShaderCanKill() const { return (m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_ENABLE != 0); }
+    bool UsesLineStipple() const { return (m_pm4Image.paScModeCntl0.bits.LINE_STIPPLE_ENABLE != 0); }
 
     uint32 NumSamples() const { return (1 << m_log2Samples); }
     uint32 Log2NumSamples() const { return m_log2Samples; }

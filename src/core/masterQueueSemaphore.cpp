@@ -41,13 +41,21 @@ MasterQueueSemaphore::MasterQueueSemaphore(
     QueueSemaphore(pDevice),
     m_blockedQueues(pDevice->GetPlatform()),
     m_signalCount(0),
-    m_waitCount(0)
+    m_waitCount(0),
+    m_waitThreadEnd(false)
 {
 }
 
 // =====================================================================================================================
 MasterQueueSemaphore::~MasterQueueSemaphore()
 {
+    if (m_waitThread.IsCreated())
+    {
+        m_waitThreadEnd = true;
+        m_threadNotify.Post();
+        PAL_ASSERT(m_waitThread.IsNotCurrentThread());
+        m_waitThread.Join();
+    }
 }
 
 // =====================================================================================================================
@@ -122,36 +130,199 @@ bool MasterQueueSemaphore::IsBlockedBySemaphore(
 }
 
 // =====================================================================================================================
-// Signals the specified Semaphore object associated with this Semaphore from the specified Queue.
-Result MasterQueueSemaphore::SignalInternal(
+// Condistion for direct signal/wait
+bool MasterQueueSemaphore::CanWaitBeforeSubmit() const
+{
+#if PAL_AMDGPU_BUILD
+    // For binary semaphore on Linux, if it's external or shareable, then skip batching system.
+    return (IsTimeline() == false) && (IsExternalOpened() || IsShareable());
+#else
+    // On Windows, if it's external or shareable or timeline, then skip batching system.
+    return (IsExternalOpened() || IsShareable() || IsTimeline());
+#endif
+}
+
+// =====================================================================================================================
+// Condition for Thread signal
+bool MasterQueueSemaphore::ExternalThreadsCanSignal() const
+{
+    return (IsExternalOpened() || IsShareable());
+}
+
+// =====================================================================================================================
+// Releases all Queues currently blocked by this Semaphore because it was just signaled on the value.
+// Return how many elements are left in m_blockedQueues, they wait for future signals.
+Result MasterQueueSemaphore::TimelineReleaseBlockedQueues(
+    uint64          value,
+    size_t*         pNumToRelease)
+{
+    Result result = Result::Success;
+
+    PAL_ASSERT(IsTimeline());
+
+    m_queuesLock.Lock();
+    size_t numToRelease = m_blockedQueues.NumElements();
+    // Iterate all elments in m_blockedQueues
+    while ((numToRelease > 0) && (result == Result::Success))
+    {
+        BlockedInfo info = { };
+        result = m_blockedQueues.PopFront(&info);
+
+        // If this Queue should be released, ask it to execute all of its batched-up commands.
+        if ((result == Result::Success) && (value >= info.value))
+        {
+            PAL_ASSERT(info.pQueue != nullptr);
+            result = OsWait(info.pQueue, info.value);
+
+            // ...it is also safe to submit any batched-up commands to the OS.
+            if (result == Result::Success)
+            {
+                PAL_ASSERT(info.pQueue->WaitingSemaphore() == this);
+                info.pQueue->SetWaitingSemaphore(nullptr);
+                m_queuesLock.Unlock();
+                result = info.pQueue->ReleaseFromStalledState();
+                // During unlock, there could be more waits added to m_blockedQueues.
+                m_queuesLock.Lock();
+                numToRelease = m_blockedQueues.NumElements();
+            }
+        }
+        else
+        {
+            result = m_blockedQueues.PushBack(info);
+            --numToRelease;
+        }
+    }
+    if (pNumToRelease != nullptr)
+    {
+        *pNumToRelease = m_blockedQueues.NumElements();
+    }
+    m_queuesLock.Unlock();
+
+    return result;
+}
+
+// =====================================================================================================================
+// Signals the specified Semaphore object associated with this Semaphore from the specified Queue or Host
+Result MasterQueueSemaphore::SignalHelper(
     Queue*          pQueue,
     QueueSemaphore* pSemaphore,
-    uint64          value)
+    uint64          value,
+    bool            gpuSignal)
 {
     Result result = Result::Success;
 
     PAL_ASSERT((IsTimeline() == false) || (value != 0));
     if (m_pDevice->IsNull() == false)
     {
-        if (IsExternalOpened() || IsShareable() || IsTimeline())
+        if (CanWaitBeforeSubmit())
         {
-            result = OsSignal(pQueue, value);
+            result = gpuSignal ? OsSignal(pQueue, value) : OsSignalSemaphoreValue(value);
         }
-        else
+        else if (IsTimeline())
         {
-            MutexAuto lock(&m_queuesLock);
-
-            ++m_signalCount;
-
+            result = gpuSignal ? OsSignal(pQueue, value) : OsSignalSemaphoreValue(value);
+            //This is Linux only path
+            //if timeline is internal, blockedQueue is executed by sem signal.
+            //if timeline is external or shared, blockedQueue is executed by Thread.
+            if ((ExternalThreadsCanSignal() == false) && (result == Result::Success))
+            {
+                result = TimelineReleaseBlockedQueues(value, nullptr);
+            }
+        }
+        else if (gpuSignal)
+        {
+            m_queuesLock.Lock();
             result = OsSignal(pQueue, value);
+            // binary, internal
+            ++m_signalCount;
             if (result == Result::Success)
             {
-                result = ReleaseBlockedQueues();
+                while ((m_blockedQueues.NumElements() > 0)  && (result == Result::Success))
+                {
+                    BlockedInfo info = { };
+
+                    result = m_blockedQueues.PopFront(&info);
+                    // If this Queue should be released, ask it to execute all of its batched-up commands.
+                    if ((m_signalCount >= info.waitCount) && (result == Result::Success))
+                    {
+                        // The Semaphore has been signaled already by some other Queue, so it is safe to submit the Wait request
+                        // from the OS' perspective.
+                        PAL_ASSERT(info.pQueue != nullptr);
+                        result = OsWait(info.pQueue, info.value);
+
+                        // ...it is also safe to submit any batched-up commands to the OS.
+                        if (result == Result::Success)
+                        {
+                            PAL_ASSERT(info.pQueue->WaitingSemaphore() == this);
+                            info.pQueue->SetWaitingSemaphore(nullptr);
+                            m_queuesLock.Unlock();
+                            result = info.pQueue->ReleaseFromStalledState();
+                            m_queuesLock.Lock();
+                        }
+                    }
+                    else
+                    {
+                        // If the Queue cannot actually be relased, place it back on the list of stalled Queues and abort. No
+                        // other Queues after this one in the list will be release-able.
+                        result = m_blockedQueues.PushFront(info);
+                        break;
+                    }
+                }
             }
+            m_queuesLock.Unlock();
         }
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Signals the specified Semaphore object associated with this Semaphore from the specified Queue.
+Result MasterQueueSemaphore::SignalInternal(
+    Queue*          pQueue,
+    QueueSemaphore* pSemaphore,
+    uint64          value)
+{
+    return SignalHelper(pQueue, pSemaphore, value, true);
+}
+
+// =====================================================================================================================
+// Signals the specified Semaphore object associated with this Semaphore from Host side.
+Result MasterQueueSemaphore::SignalSemaphoreValueInternal(
+    QueueSemaphore* pSemaphore,
+    uint64          value)
+{
+    return SignalHelper(nullptr, pSemaphore, value, false);
+}
+
+// =====================================================================================================================
+// Executes the background thread used to schedule queued jobs
+void MasterQueueSemaphore::RunWaitThread()
+{
+    while (true)
+    {
+        Result result = Result::Success;
+
+        if (result == Result::Success)
+        {
+            result = ThreadReleaseBlockedQueues();
+            PAL_ASSERT(result == Result::Success);
+        }
+        if (m_waitThreadEnd)
+        {
+            m_waitThread.End();
+        }
+    }
+
+    PAL_NEVER_CALLED(); // This area should be unreachable.
+}
+
+// =====================================================================================================================
+// Callback for executing wait thread.
+static void WaitThreadCallback(
+    void* pParameter)   // Opaque pointer to a MasterQueueSemaphore
+{
+    static_cast<MasterQueueSemaphore*>(pParameter)->RunWaitThread();
 }
 
 // =====================================================================================================================
@@ -168,39 +339,73 @@ Result MasterQueueSemaphore::WaitInternal(
     PAL_ASSERT((IsTimeline() == false) || (value != 0));
     if (m_pDevice->IsNull() == false)
     {
-        if (IsExternalOpened() || IsShareable() || IsTimeline())
+        bool blockedOnThread = false;
+
+        MutexAuto lock(&m_queuesLock);
+
+        (*pIsStalled) = false;
+
+        if (CanWaitBeforeSubmit())
         {
-            result = OsWait(pQueue, value);
+            (*pIsStalled) = false;
+        }
+        else if (IsTimeline())
+        {
+            // This is Linux only path.
+
+            // Let the caller know if this operation results in the Queue becoming blocked... if the corresponding
+            // Signal has been issued already the Queue isn't blocked from our perspective. (Although it still may be
+            // from the OS' GPU scheduler's perspective...)
+            (*pIsStalled) = IsWaitBeforeSignal(value);
+
+            if (*pIsStalled)
+            {
+                blockedOnThread = ExternalThreadsCanSignal();
+            }
         }
         else
         {
-            MutexAuto lock(&m_queuesLock);
-
             ++m_waitCount;
 
             // Let the caller know if this operation results in the Queue becoming blocked... if the corresponding
             // Signal has been issued already the Queue isn't blocked from our perspective. (Although it still may be
             // from the OS' GPU scheduler's perspective...)
             (*pIsStalled) = (m_waitCount > m_signalCount);
-            if (*pIsStalled)
+        }
+
+        if (*pIsStalled)
+        {
+            // From our perspective, the Queue is now blocked because we haven't seen the corresponding Signal to
+            // this Wait. Rather than hand the OS the Wait operation now, we'll batch this up and mark the Queue
+            // as blocked.
+            result = AddBlockedQueue(pQueue, pSemaphore, value);
+            if (result == Result::Success)
             {
-                // From our perspective, the Queue is now blocked because we haven't seen the corresponding Signal to
-                // this Wait. Rather than hand the OS the Wait operation now, we'll batch this up and mark the Queue
-                // as blocked.
-                result = AddBlockedQueue(pQueue, pSemaphore, value);
-                if (result == Result::Success)
+                // NOTE: This assertion could trip if the application or client waited on the same Queue with two
+                // separate Semaphores from multiple threads simultaneously.
+                PAL_ASSERT(pQueue->WaitingSemaphore() == nullptr);
+                pQueue->SetWaitingSemaphore(this);
+                if (blockedOnThread)
                 {
-                    // NOTE: This assertion could trip if the application or client waited on the same Queue with two
-                    // separate Semaphores from multiple threads simultaneously.
-                    PAL_ASSERT(pQueue->WaitingSemaphore() == nullptr);
-                    pQueue->SetWaitingSemaphore(this);
+                    if (m_waitThread.IsCreated() == false)
+                    {
+                        result = m_threadNotify.Init(Semaphore::MaximumCountLimit, 0);
+                        if (result == Result::Success)
+                        {
+                            result = m_waitThread.Begin(&WaitThreadCallback, this);
+                        }
+                    }
+                    if (result == Result::Success)
+                    {
+                        m_threadNotify.Post();
+                    }
                 }
             }
-            else
-            {
-                // The Queue isn't blocked from our perspective, so let the operation go down to the GPU scheduler.
-                result = OsWait(pQueue, value);
-            }
+        }
+        else
+        {
+            // The Queue isn't blocked from our perspective, so let the operation go down to the GPU scheduler.
+            result = OsWait(pQueue, value);
         }
     }
 
@@ -237,41 +442,39 @@ Result MasterQueueSemaphore::AddBlockedQueue(
 }
 
 // =====================================================================================================================
-// Releases all Queues currently blocked by this Semaphore because it was just signaled. Expects the queues lock to be
-// held by the caller!
-Result MasterQueueSemaphore::ReleaseBlockedQueues()
+// Releases all Queues currently blocked by this Semaphore because it was just signaled.
+// This is only called by waitThread.
+Result MasterQueueSemaphore::ThreadReleaseBlockedQueues()
 {
     Result result = Result::Success;
 
-    while ((m_blockedQueues.NumElements() > 0) && (result == Result::Success))
+    PAL_ASSERT(IsTimeline() && ExternalThreadsCanSignal());
+
+    uint64 lastPoint    = 0;
+    size_t numToRelease = 0;
+
+    result = OsQuerySemaphoreLastValue(&lastPoint);
+    if (result == Result::Success)
     {
-        BlockedInfo info = { };
-        result = m_blockedQueues.PopFront(&info);
+        result = TimelineReleaseBlockedQueues(lastPoint, &numToRelease);
+    }
 
-        // If this Queue should be released, ask it to execute all of its batched-up commands.
-        if (m_signalCount >= info.waitCount)
+    if (result == Result::Success)
+    {
+        if (numToRelease > 0)
         {
-            // The Semaphore has been signaled already by some other Queue, so it is safe to submit the Wait request
-            // from the OS' perspective.
-            PAL_ASSERT(info.pQueue != nullptr);
-            result = OsWait(info.pQueue, info.value);
-
-            // ...it is also safe to submit any batched-up commands to the OS.
-            if (result == Result::Success)
-            {
-                PAL_ASSERT(info.pQueue->WaitingSemaphore() == this);
-                info.pQueue->SetWaitingSemaphore(nullptr);
-                result = info.pQueue->ReleaseFromStalledState();
-            }
+            uint64 nextLast = lastPoint + 1;
+            // wait for nextLast in waitThread to catch a signal event from kernel.
+            result = WaitSemaphoreValueAvailable(nextLast, UINT64_MAX);
         }
         else
         {
-            // If the Queue cannot actually be relased, place it back on the list of stalled Queues and abort. No
-            // other Queues after this one in the list will be release-able.
-            result = m_blockedQueues.PushFront(info);
-            break;
+            if (m_waitThreadEnd == false)
+            {
+                //if m_blockedQueues is empty, we wait on Util::Semaphore wait.
+                result = m_threadNotify.Wait(UINT32_MAX);
+            }
         }
-
     }
 
     return result;

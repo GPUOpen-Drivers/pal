@@ -293,38 +293,6 @@ Result WindowSystem::DeterminePresentationSupported(
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
-// =====================================================================================================================
-Result WindowSystem::GetConnectorIdFromOutput(
-    Device*         pDevice,
-    OsDisplayHandle hDisplay,
-    uint32          randrOutput,
-    WsiPlatform     wsiPlatform,
-    uint32*         pConnectorId)
-{
-    Result result = Result::ErrorUnavailable;
-    if (SupportedPlatformMask & wsiPlatform)
-    {
-        switch (wsiPlatform)
-        {
-        case WsiPlatform::Xcb:
-        case WsiPlatform::Xlib:
-            result = Dri3WindowSystem::GetConnectorIdFromOutput(pDevice, hDisplay, randrOutput, pConnectorId);
-            break;
-        default:
-            PAL_NOT_IMPLEMENTED();
-            break;
-        }
-    }
-    else
-    {
-        PAL_NOT_IMPLEMENTED();
-    }
-
-    return result;
-}
-#endif
-
 // =====================================================================================================================
 Result WindowSystem::AcquireScreenAccess(
     Device*         pDevice,

@@ -250,6 +250,8 @@ public:
 
     bool Pm4ImmediateOptimizerEnabled() const { return m_flags.optModeImmediate; }
 
+    uint32 GetUsedCmdMemorySize() const;
+
 protected:
     // Internal chunk memory interface:
     // The command stream uses the alloc functions to get chunk space to store commands and embedded data. These

@@ -74,13 +74,11 @@ enum class AmdGpuMachineType : uint8
     Gfx802  = 0x29,  ///< EF_AMDGPU_MACH_AMDGCN_GFX802
     Gfx803  = 0x2a,  ///< EF_AMDGPU_MACH_AMDGCN_GFX803
     Gfx810  = 0x2b,  ///< EF_AMDGPU_MACH_AMDGCN_GFX810
-#if PAL_BUILD_GFX9
     Gfx900  = 0x2c,  ///< EF_AMDGPU_MACH_AMDGCN_GFX900
     Gfx902  = 0x2d,  ///< EF_AMDGPU_MACH_AMDGCN_GFX902
     Gfx904  = 0x2e,  ///< EF_AMDGPU_MACH_AMDGCN_GFX904
     Gfx906  = 0x2f,  ///< EF_AMDGPU_MACH_AMDGCN_GFX906
     Gfx909  = 0x31,  ///< EF_AMDGPU_MACH_AMDGCN_GFX909
-#endif
     Gfx1010 = 0x33,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1010
 };
 
@@ -512,12 +510,8 @@ enum class PipelineMetadataType : uint32
     ApiPsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API pixel shader.
     ApiPsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API pixel shader.
 
-    InternalPipelineHashDword0,    ///< Dword 0 of a 128-bit hash identifying the internal pipeline (stable portion).
-    InternalPipelineHashDword1,    ///< Dword 1 of a 128-bit hash identifying the internal pipeline (stable portion).
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
-    PipelineHashLo = InternalPipelineHashDword0,
-    PipelineHashHi = InternalPipelineHashDword1,
-#endif
+    InternalPipelineHashDword0, ///< Dword 0 of a 128-bit hash identifying the internal pipeline (stable portion).
+    InternalPipelineHashDword1, ///< Dword 1 of a 128-bit hash identifying the internal pipeline (stable portion).
 
     UserDataLimit,         ///< Number of user data entries accessed by this pipeline.
 
@@ -868,8 +862,6 @@ struct PipelineMetadataEntry
 /// programmed by the PAL runtime when executing the pipeline.
 typedef PalMetadataNoteEntry RegisterEntry;
 
-#if PAL_BUILD_GFX9
-
 /// Maximum number of viewports.
 constexpr uint32 MaxViewports = 16;
 
@@ -933,8 +925,6 @@ struct PrimShaderCbLayout
     PrimShaderScissorCb scissorStateCb;
     PrimShaderRenderCb  renderStateCb;
 };
-
-#endif
 
 } //Abi
 } //Pal

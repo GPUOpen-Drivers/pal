@@ -1806,4 +1806,19 @@ void DmaCmdBuffer::CmdUpdateBusAddressableMemoryMarker(
                       static_cast<const GpuMemory*>(&dstGpuMemory)->GetBusAddrMarkerVa() + offset);
 }
 
+// =====================================================================================================================
+uint32 DmaCmdBuffer::GetUsedSize(
+    CmdAllocType type
+    ) const
+{
+    uint32 sizeInBytes = CmdBuffer::GetUsedSize(type);
+
+    if (type == CommandDataAlloc)
+    {
+        sizeInBytes += m_cmdStream.GetUsedCmdMemorySize();
+    }
+
+    return sizeInBytes;
+}
+
 } // Pal

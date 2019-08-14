@@ -120,6 +120,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetInputAssemblyState,                         InterfaceObject::CmdBuffer,            "CmdSetInputAssemblyState"                },
     { InterfaceFunc::CmdBufferCmdSetTriangleRasterState,                        InterfaceObject::CmdBuffer,            "CmdSetTriangleRasterState"               },
     { InterfaceFunc::CmdBufferCmdSetPointLineRasterState,                       InterfaceObject::CmdBuffer,            "CmdSetPointLineRasterState"              },
+    { InterfaceFunc::CmdBufferCmdSetLineStippleState,                           InterfaceObject::CmdBuffer,            "CmdSetLineStippleState"                  },
     { InterfaceFunc::CmdBufferCmdSetDepthBiasState,                             InterfaceObject::CmdBuffer,            "CmdSetDepthBiasState"                    },
     { InterfaceFunc::CmdBufferCmdSetStencilRefMasks,                            InterfaceObject::CmdBuffer,            "CmdSetStencilRefMasks"                   },
     { InterfaceFunc::CmdBufferCmdSetUserClipPlanes,                             InterfaceObject::CmdBuffer,            "CmdSetUserClipPlanes"                    },
@@ -982,9 +983,7 @@ void LogContext::ImageLayoutEngineFlags(
         "LayoutDmaEngine",            // 0x04,
         "LayoutVideoEncodeEngine",    // 0x08,
         "LayoutVideoDecodeEngine",    // 0x10,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 459
         "LayoutVideoJpegDecodeEngine",// 0x20
-#endif
     };
 
     BeginList(false);

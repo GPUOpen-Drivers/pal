@@ -75,6 +75,7 @@ public:
         Queue*         pQueue,
         uint64         value,
         volatile bool* pIsStalled) = 0;
+    virtual Result SignalSemaphoreValue(uint64  value) = 0;
 
     bool IsShareable()      const { return m_flags.shareable;      }
     bool IsShared()         const { return m_flags.shared;         }
@@ -86,11 +87,14 @@ protected:
 
     virtual Result QuerySemaphoreValue(uint64*  pValue) override;
     virtual Result WaitSemaphoreValue(uint64  value, uint64 timeoutNs) override;
-    virtual Result SignalSemaphoreValue(uint64  value) override;
 
     virtual Result OsInit(const QueueSemaphoreCreateInfo& createInfo);
     virtual Result OsSignal(Queue* pQueue, uint64 value);
-    virtual Result OsWait(Queue* pQueue, uint64 value);
+    virtual Result OsWait(Queue* pQueue, uint64 value); // OsWait doesn't actually do a wait, it defers the real wait until the next submit.
+    virtual Result OsSignalSemaphoreValue(uint64  value);
+    virtual bool   IsWaitBeforeSignal(uint64 value);
+    virtual Result OsQuerySemaphoreLastValue(uint64*  pValue);
+    virtual Result WaitSemaphoreValueAvailable(uint64  value, uint64 timeoutNs);
     Device*const  m_pDevice;
 
     uint64  m_maxWaitsPerSignal;  // Upper limit to number of simultaneous unconsumed signals on this semaphore.

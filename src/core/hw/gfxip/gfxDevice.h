@@ -698,7 +698,6 @@ extern Pal::ISettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
 } // Gfx6
 #endif
 
-#if PAL_BUILD_GFX9
 namespace Gfx9
 {
 extern size_t GetDeviceSize(GfxIpLevel  gfxLevel);
@@ -710,6 +709,5 @@ extern Result CreateDevice(
 // Creates SettingsLoader object for Gfx9/10 hardware layer
 extern Pal::ISettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
 } // Gfx9
-#endif
 
 } // Pal

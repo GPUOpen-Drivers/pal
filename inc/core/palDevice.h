@@ -154,9 +154,6 @@ enum class GfxIpLevel : uint32
     GfxIp8_1  = 0x4,
     GfxIp9    = 0x5,
     GfxIp10_1 = 0x7,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 462
-    Count              ///< Count of all supported GfxIp levels.
-#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION
 };
 
 /// Specifies the hardware revision.  Enumerations are in family order (Southern Islands, Sea Islands, Kaveri,
@@ -192,13 +189,11 @@ enum class AsicRevision : uint32
     Polaris11  = 0x15,
     Polaris12  = 0x16,
 
-#if PAL_BUILD_GFX9
     Vega10     = 0x18,
     Vega12     = 0x19,
     Vega20     = 0x1A,
     Raven      = 0x1B,
     Raven2     = 0x1C,
-#endif // PAL_BUILD_GFX9
 
     Navi10     = 0x1F,
 };
@@ -952,93 +947,77 @@ struct DeviceProperties
         uint32 ceRamSize;           ///< Maximum on-chip CE RAM size in bytes.
         uint32 maxPrimgroupSize;    ///< Maximum primitive group size.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
         uint32 gl2UncachedCpuCoherency; ///< If supportGl2Uncached is set, then this is a bitmask of all
                                         ///  CacheCoherencyUsageFlags that will be coherent with CPU reads/writes.
                                         ///  Note that reporting CoherShader only means that GLC accesses will be
                                         ///  CPU coherent.
                                         ///  Note: Only valid if @ref supportGl2Uncached is true.
-#endif
 
         union
         {
             struct
             {
-                uint32 support8bitIndices                       : 1; ///< Hardware natively supports 8bit indices
-                uint32 support16BitInstructions                 : 1; ///< Hardware supports FP16 and INT16 instructions
-                uint32 supportDoubleRate16BitInstructions       : 1; ///< Hardware supports double rate packed math
-                uint32 supportFp16Fetch                         : 1; ///< Hardware supports FP16 texture fetches
-                uint32 supportConservativeRasterization         : 1; ///< Hardware supports conservative rasterization
-                uint32 supportImplicitPrimitiveShader           : 1; ///< Device supports implicit compiling of the
-                                                                     ///  hardware vertex shader as a primitive
-                                                                     ///  shader to perform culling and compaction
-                                                                     ///  optimizations in the shader.
-                uint32 supportPrtBlendZeroMode                  : 1; ///< Blend zero mode support.
-                uint32 supports2BitSignedValues                 : 1; ///< Hardware natively supports 2-bit signed
-                                                                     ///  values.
-                uint32 supportPrimitiveOrderedPs                : 1; ///< Hardware supports primitive ordered UAV
-                                                                     ///  accesses in the PS.
-                uint32 supportPatchTessDistribution             : 1; ///< Hardware supports patch level tessellation
-                                                                     ///  distribution among VGTs.
-                uint32 supportDonutTessDistribution             : 1; ///< Hardware supports donut granularity of
-                                                                     ///  tessellation distribution among VGTs.
-                uint32 supportTrapezoidTessDistribution         : 1; ///< Hardware supports trapezoid granularity of
-                                                                     ///  tessellation distribution among VGTs.
-                uint32 supportPerChannelMinMaxFilter            : 1; ///< Hardware returns min/max value on a
-                                                                     ///  per-channel basis. If not set, min/max
-                                                                     ///  filtering operates on only one channel at
-                                                                     ///  a time.
-                uint32 supportRgpTraces                         : 1; ///< Hardware supports RGP traces.
-                uint32 supportMsaaCoverageOut                   : 1; ///< Set if HW supports MSAA coverage feature
-                uint32 supportPostDepthCoverage                 : 1; ///< Set if HW supports post depth coverage feature
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 452
-                uint32 supportSpiPrefPriority                   : 1; ///< Set if HW supports preference priority.
-#else
-                uint32 placeholder0                             : 1; ///< Placeholder, do not use
-#endif
-                uint32 supportWaveBreakSize                     : 1; ///< The HW supports specifying the wavebreak size
-                                                                     ///  in the pixel shader pipeline.
-                uint32 supportsPerShaderStageWaveSize           : 1; ///< If set, the "waveSize" setting in the
-                                                                     /// PipelineShaderInfo structure is meaningful.
+                uint32 support8bitIndices                  : 1; ///< Hardware natively supports 8bit indices
+                uint32 support16BitInstructions            : 1; ///< Hardware supports FP16 and INT16 instructions
+                uint32 supportDoubleRate16BitInstructions  : 1; ///< Hardware supports double rate packed math
+                uint32 supportFp16Fetch                    : 1; ///< Hardware supports FP16 texture fetches
+                uint32 supportConservativeRasterization    : 1; ///< Hardware supports conservative rasterization
+                uint32 supportImplicitPrimitiveShader      : 1; ///< Device supports implicit compiling of the hardware
+                                                                ///  vertex shader as a primitive shader to perform
+                                                                ///  culling and compaction optimizations in the shader.
+                uint32 supportPrtBlendZeroMode             : 1; ///< Blend zero mode support.
+                uint32 supports2BitSignedValues            : 1; ///< Hardware natively supports 2-bit signed values.
+                uint32 supportPrimitiveOrderedPs           : 1; ///< Hardware supports primitive ordered UAV
+                                                                ///  accesses in the PS.
+                uint32 supportPatchTessDistribution        : 1; ///< Hardware supports patch level tessellation
+                                                                ///  distribution among VGTs.
+                uint32 supportDonutTessDistribution        : 1; ///< Hardware supports donut granularity of
+                                                                ///  tessellation distribution among VGTs.
+                uint32 supportTrapezoidTessDistribution    : 1; ///< Hardware supports trapezoid granularity of
+                                                                ///  tessellation distribution among VGTs.
+                uint32 supportPerChannelMinMaxFilter       : 1; ///< Hardware returns min/max value on a per-channel
+                                                                ///  basis. If not set, min/max filtering operates on
+                                                                ///  only one channel at a time.
+                uint32 supportRgpTraces                    : 1; ///< Hardware supports RGP traces.
+                uint32 supportMsaaCoverageOut              : 1; ///< Set if HW supports MSAA coverage feature
+                uint32 supportPostDepthCoverage            : 1; ///< Set if HW supports post depth coverage feature
+                uint32 supportSpiPrefPriority              : 1; ///< Set if HW supports preference priority.
+                uint32 supportWaveBreakSize                : 1; ///< The HW supports specifying the wavebreak size
+                                                                ///  in the pixel shader pipeline.
+                uint32 supportsPerShaderStageWaveSize      : 1; ///< If set, the "waveSize" setting in the
+                                                                ///  @ref PipelineShaderInfo structure is meaningful.
+                uint32 placeholder2                        : 1; ///< Reserved for future hardware.
+                uint32 supportSpp                          : 1; ///< Hardware supports Shader Profiling for Power.
+                uint32 timestampResetOnIdle                : 1; ///< GFX timestamp resets after idle between
+                                                                ///  submissions. The client cannot assume that
+                                                                ///  timestamps will increase monotonically across
+                                                                ///  command buffer submissions.
+                uint32 support1xMsaaSampleLocations        : 1; ///< HW supports 1xMSAA custom quad sample patterns
 
-                uint32 placeholder2                             : 1; ///< Reserved for future hardware.
-
-                uint32 supportSpp                               : 1; ///< Hardware supports Shader Profiling for Power.
-                uint32 timestampResetOnIdle                     : 1; ///< GFX timestamp resets after idle between
-                                                                     ///  submissions. The client cannot assume that
-                                                                     ///  timestamps will increase monotonically across
-                                                                     ///  command buffer submissions.
-                uint32 support1xMsaaSampleLocations             : 1; ///< HW supports 1xMSAA custom quad sample patterns
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 522
                 /// Indicates that the GFX IP hardware (and PAL) support state inheritance for nested command buffers.
                 /// If true, nested command buffers inherit most API state from the calling root command buffer until
                 /// that state is bound to the nested command buffer itself.  If false, only the currently-bound color
                 /// and depth targets are inherited from the caller for Universal Engines, and no state is inherited
                 /// for other Engine types.
-                uint32 supportNestedCmdBufStateInheritance      : 1;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 457
-                uint32 supportReleaseAcquireInterface           : 1; ///< If true, ASIC supports the new barrier interface
-                                                                     ///  designed for Acquire/Released-based barrier.
-                uint32 supportSplitReleaseAcquire               : 1; ///< If true, ASIC supports split CmdRelease()
-                                                                     ///  and CmdAcquire() to express barrier conditions
-                                                                     ///  instead of CmdReleaseThenAcquire().
-                                                                     ///  Note: Only supported if
-                                                                     ///  @ref supportReleaseAcquireInterface is supported.
-#else
-                uint32 placeholder3                             : 2; ///< Placeholder, do not use
+                uint32 supportNestedCmdBufStateInheritance : 1;
 #endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
-                uint32 supportGl2Uncached                       : 1; ///< Indicates support for the allocation of GPU L2
-                                                                     ///  un-cached memory. @see gl2UncachedCpuCoherency
+                uint32 supportReleaseAcquireInterface      : 1; ///< If true, ASIC supports the new barrier interface
+                                                                ///  designed for Acquire/Released-based barrier.
+                uint32 supportSplitReleaseAcquire          : 1; ///< If true, ASIC supports split CmdRelease()
+                                                                ///  and CmdAcquire() to express barrier conditions
+                                                                ///  instead of CmdReleaseThenAcquire().
+                                                                ///  Note: Only supported if
+                                                                ///  @ref supportReleaseAcquireInterface is supported.
+                uint32 supportGl2Uncached                  : 1; ///< Indicates support for the allocation of GPU L2
+                                                                ///  un-cached memory. @see gl2UncachedCpuCoherency
+                uint32 supportOutOfOrderPrimitives         : 1; ///< HW supports higher throughput for out of order
+                uint32 placeholder5                        : 1; ///< Placeholder, do not use
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
+                uint32 reserved                            : 4; ///< Reserved for future use.
 #else
-                uint32 placeholder4                             : 1; ///< Placeholder, do not use
+                uint32 reserved                            : 3; ///< Reserved for future use.
 #endif
-                uint32 supportOutOfOrderPrimitives              : 1; ///< HW supports higher throughput for out of order
-
-                uint32 placeholder5                             : 1; ///< Placeholder, do not use
-                uint32 reserved                                 : 3; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1782,28 +1761,16 @@ struct SamplerInfo
                                              ///  is written with all 0s when TFE == 0; if set to 1, Treat unmapped
                                              ///  texels as zeros and blend them with other mapped texels, write the
                                              ///  result of this sample instruction to the destination GPRs.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
-            uint32 dx9Mipclamping      : 1;  ///< Specifies whether to follow dx9 spec to clamp mip id in hardware.
-                                             ///  DX10+ requires a 0.5 offset before clamping, while DX9 does not.
-#endif
             uint32 useAnisoThreshold   : 1;  ///< If set, Hw will use the value assigned in anisoThreshold, but
                                              ///  only if preciseAniso is set to 0, also.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448
-            /// This allows the sampler to turn off overriding anisotropic
-            ///  filtering when the resource view contains a single mipmap level.
-            ///  Not all graphics IP supports overriding anisotropic filtering,
-            ///  and this flag will be ignored for such GPUs.
+
+            /// This allows the sampler to turn off overriding anisotropic filtering when the resource view contains a
+            /// single mipmap level.  Not all graphics IP supports overriding anisotropic filtering, and this flag will
+            /// be ignored for such GPUs.
             uint32 disableSingleMipAnisoOverride : 1;
-#endif
 
             uint32 placeholder0        : 1;
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444) || (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448)
-
             uint32 reserved            : 23; ///< Reserved for future use
-#else
-            uint32 reserved            : 24; ///< Reserved for future use
-#endif
         };
         uint32 u32All;                ///< Value of flags bitfield
     } flags;
@@ -4537,25 +4504,6 @@ public:
     /// @returns True if hardware accelerated stereo rendering can be enabled, False otherwise.
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
-#if PAL_AMDGPU_BUILD
-    /// Get connector ID from RandR output object.
-    ///
-    /// @param [in]   hDisplay        Display handle of the window system.
-    /// @param [in]   randrOutput     RandR output object which is going to be leased. The output represents the
-    ///                               underlying display hardware which include encoder and connector.
-    /// @param [in]   wsiPlatform     WSI platform.
-    /// @param [out]  pConnectorId    Connector ID. Connector represents a display connector (HDMI, DP, VGA, DVI...).
-    ///
-    /// @returns Success if the call succeeded.
-    virtual Result GetConnectorIdFromOutput(
-        OsDisplayHandle hDisplay,
-        uint32          randrOutput,
-        WsiPlatform     wsiPlatform,
-        uint32*         pConnectorId) = 0;
-#endif
-#endif
 
     /// Get file path used to put all files for cache purpose
     ///

@@ -236,11 +236,6 @@ void Pipeline::ExtractPipelineInfo(
     // We don't expect the pipeline ABI to report a hash of zero.
     PAL_ALERT((metadata.pipeline.internalPipelineHash[0] | metadata.pipeline.internalPipelineHash[1]) == 0);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
-    m_info.compilerHash = m_info.internalPipelineHash.stable;
-    m_info.pipelineHash = m_info.internalPipelineHash.unique;
-#endif
-
     for (uint32 s = static_cast<uint32>(firstShader); s <= static_cast<uint32>(lastShader); ++s)
     {
         Abi::ApiShaderType shaderType = static_cast<Abi::ApiShaderType>(s);
@@ -450,7 +445,6 @@ Result Pipeline::GetShaderStatsForStage(
         }
 #endif
 
-#if PAL_BUILD_GFX9
         if (gpuInfo.gfxLevel >= GfxIpLevel::GfxIp9)
         {
             pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
@@ -458,7 +452,6 @@ Result Pipeline::GetShaderStatsForStage(
             pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
                                                                                 : gpuInfo.gfx9.numShaderVisibleVgprs;
         }
-#endif
 
         pStats->common.ldsUsageSizeInBytes    = stageMetadata.ldsSize;
         pStats->common.scratchMemUsageInBytes = stageMetadata.scratchMemorySize;

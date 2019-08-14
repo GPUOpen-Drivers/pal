@@ -118,14 +118,6 @@ public:
         OsDisplayHandle     hDisplay,
         int64               visualId);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
-    static Result GetConnectorIdFromOutput(
-        Device*         pDevice,
-        OsDisplayHandle hDisplay,
-        uint32          randrOutput,
-        uint32*         pConnectorId);
-#endif
-
     static Result AcquireScreenAccess(
         OsDisplayHandle hDisplay,
         Device*         pDevice,

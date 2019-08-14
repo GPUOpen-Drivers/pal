@@ -126,8 +126,7 @@ public:
 
     const PlatformProperties& GetProperties() const { return m_properties; }
 
-    virtual bool IsDtifEnabled()      const { return false; }
-            bool IsEmulationEnabled() const { return IsDtifEnabled(); }
+    bool IsEmulationEnabled() const { return false; }
 
     void DeveloperCb(
         uint32                  deviceIndex,

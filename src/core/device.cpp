@@ -44,6 +44,7 @@
 #include "palHashMapImpl.h"
 #include "palIntrusiveListImpl.h"
 #include "palPipeline.h"
+#include "palSettingsFileMgrImpl.h"
 #include "palSysUtil.h"
 #include "palTextWriterImpl.h"
 
@@ -144,13 +145,11 @@ bool Device::DetermineGpuIpLevels(
         pIpLevels->gfx = Gfx6::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 #endif // PAL_BUILD_GFX6
-#if PAL_BUILD_GFX9
     case FAMILY_AI:
     case FAMILY_RV:
     case FAMILY_NV:
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
-#endif // PAL_BUILD_GFX9
 
     default:
         break;
@@ -200,6 +199,8 @@ bool Device::DetermineGpuIpLevels(
 // Initial HashMap element size for referenced GPU memory allocations.
 constexpr uint32 ReferencedMemoryMapElements = 2048;
 
+constexpr char SettingsFileName[] = "amdPalSettings.cfg";
+
 // =====================================================================================================================
 Device::Device(
     Platform*              pPlatform,
@@ -230,6 +231,7 @@ Device::Device(
     m_disableSwapChainAcquireBeforeSignaling(false),
     m_localInvDropCpuWrites(false),
     m_pSettingsLoader(nullptr),
+    m_settingsMgr(SettingsFileName, pPlatform),
     m_copyQueuesLock(),
     m_pInternalCopyQueue(nullptr),
     m_referencedGpuMem(ReferencedMemoryMapElements, pPlatform),
@@ -417,11 +419,13 @@ Result Device::Cleanup()
     if (m_pPlatform->SvmModeEnabled() && (m_pPlatform->GetSvmRangeStart() != 0) &&
         (MemoryProperties().flags.iommuv2Support == 0))
     {
-        auto*const pVaRange = &m_memoryProperties.vaRange[0];
-        if (pVaRange[static_cast<uint32>(VaPartition::Svm)].baseVirtAddr != 0)
+        auto*const  pVaRange   = &m_memoryProperties.vaRange[0];
+        const auto& vaSvmRange = pVaRange[static_cast<uint32>(VaPartition::Svm)];
+
+        if (vaSvmRange.baseVirtAddr != 0)
         {
-            result = VirtualRelease(reinterpret_cast<void*>(pVaRange[static_cast<uint32>(VaPartition::Svm)].baseVirtAddr),
-                                    static_cast<size_t>(pVaRange[static_cast<uint32>(VaPartition::Svm)].size));
+            result = VirtualRelease(reinterpret_cast<void*>(vaSvmRange.baseVirtAddr),
+                                    static_cast<size_t>(vaSvmRange.size));
             m_pPlatform->SetSvmRangeStart(0);
         }
     }
@@ -553,12 +557,10 @@ Result Device::HwlEarlyInit()
         result = Gfx6::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
         break;
 #endif
-#if PAL_BUILD_GFX9
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
         result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
         break;
-#endif
     default:
         PAL_ASSERT(m_hwDeviceSizes.gfx == 0);
         break;
@@ -613,12 +615,10 @@ Result Device::HwlEarlyInit()
 #endif
         }
 
-#if PAL_BUILD_GFX9
         else
         {
             result = AddrMgr2::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
         }
-#endif // PAL_BUILD_GFX9
     }
 
     // Store the function pointers for various functionality.
@@ -667,13 +667,11 @@ void Device::InitPerformanceRatings()
             numSimdPerCu = m_chipProperties.gfx6.numSimdPerCu;
             break;
 #endif
-#if PAL_BUILD_GFX9
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
             numCuPerSh   = m_chipProperties.gfx9.numCuPerSh;
             numSimdPerCu = m_chipProperties.gfx9.numSimdPerCu;
             break;
-#endif
         case GfxIpLevel::None:
             // No Graphics IP block found or recognized!
         default:
@@ -805,13 +803,11 @@ void Device::GetHwIpDeviceSizes(
         gfxAddrMgrSize      = AddrMgr1::GetSize();
         break;
 #endif
-#if PAL_BUILD_GFX9
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
         pHwDeviceSizes->gfx = Gfx9::GetDeviceSize(ipLevels.gfx);
         gfxAddrMgrSize      = AddrMgr2::GetSize();
         break;
-#endif
     default:
         break;
     }
@@ -1940,7 +1936,6 @@ Result Device::GetProperties(
         }
 #endif // PAL_BUILD_GFX6
 
-#if PAL_BUILD_GFX9
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
         {
@@ -1961,10 +1956,9 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
             pInfo->gfxipProperties.flags.supportSpp                       = gfx9Props.supportSpp;
             pInfo->gfxipProperties.flags.timestampResetOnIdle             = gfx9Props.timestampResetOnIdle;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 457
             pInfo->gfxipProperties.flags.supportReleaseAcquireInterface   = gfx9Props.supportReleaseAcquireInterface;
             pInfo->gfxipProperties.flags.supportSplitReleaseAcquire       = gfx9Props.supportSplitReleaseAcquire;
-#endif
+
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numShaderEngines;
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx9Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx9Props.numCuPerSh;
@@ -2000,9 +1994,7 @@ Result Device::GetProperties(
 
             pInfo->gfxipProperties.flags.supportMsaaCoverageOut         = gfx9Props.supportMsaaCoverageOut;
             pInfo->gfxipProperties.flags.supportPostDepthCoverage       = gfx9Props.supportPostDepthCoverage;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 452
             pInfo->gfxipProperties.flags.supportSpiPrefPriority         = gfx9Props.supportSpiPrefPriority;
-#endif
             pInfo->gfxipProperties.flags.supportWaveBreakSize           = gfx9Props.supportCustomWaveBreakSize;
             pInfo->gfxipProperties.flags.supportsPerShaderStageWaveSize = gfx9Props.supportPerShaderStageWaveSize;
 
@@ -2048,7 +2040,6 @@ Result Device::GetProperties(
 #endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 491
             break;
         }
-#endif // PAL_BUILD_GFX9
 
         default:
             // What is this?
@@ -2080,11 +2071,8 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.shaderCore.tccSizeInBytes         = m_chipProperties.gfxip.tccSizeInBytes;
         pInfo->gfxipProperties.shaderCore.tcpSizeInBytes         = m_chipProperties.gfxip.tcpSizeInBytes;
         pInfo->gfxipProperties.shaderCore.maxLateAllocVsLimit    = m_chipProperties.gfxip.maxLateAllocVsLimit;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
         pInfo->gfxipProperties.flags.supportGl2Uncached          = m_chipProperties.gfxip.supportGl2Uncached;
         pInfo->gfxipProperties.gl2UncachedCpuCoherency           = m_chipProperties.gfxip.gl2UncachedCpuCoherency;
-#endif
 
         pInfo->gfxipProperties.srdSizes.bufferView = m_chipProperties.srdSizes.bufferView;
         pInfo->gfxipProperties.srdSizes.imageView  = m_chipProperties.srdSizes.imageView;
@@ -2989,11 +2977,8 @@ Result Device::CreateGpuMemory(
 {
     GpuMemoryInternalCreateInfo internalInfo = {};
     internalInfo.flags.isClient = 1;
-    if (createInfo.flags.busAddressable
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
-        || createInfo.flags.gl2Uncached
-#endif
-        )
+
+    if (createInfo.flags.busAddressable || createInfo.flags.gl2Uncached)
     {
         internalInfo.mtype = MType::Uncached;
     }
@@ -3866,6 +3851,20 @@ bool Device::ReadSetting(
         (settingScope == SettingScope::Driver) ? PrivateDriverKey : PublicCatalystKey;
 
     return ReadSetting(pSettingName, valueType, pValue, internalScope, bufferSz);
+}
+
+// =====================================================================================================================
+// Reads a setting from a configuration file on Linux builds, and does nothing for other OS platforms.  It is up to them
+// to implement another mechanism for reading settings (such as reading Windows registry keys, etc.).
+bool Device::ReadSetting(
+    const char*          pSettingName,
+    Util::ValueType      valueType,
+    void*                pValue,
+    InternalSettingScope settingType,
+    size_t               bufferSz
+    ) const
+{
+    return m_settingsMgr.GetValue(pSettingName, valueType, pValue, bufferSz);
 }
 
 // =====================================================================================================================

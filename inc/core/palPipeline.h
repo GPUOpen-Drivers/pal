@@ -324,6 +324,10 @@ struct GraphicsPipelineCreateInfo
         BinningOverride binningOverride;           ///< Binning setting for this pipeline.
 
         bool            depthClampDisable;         ///< Disable depth clamping to viewport min/max depth
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+        uint8           clipDistMask;              ///< Mask to indicate the clipDistance.
+        bool            forceSampleRateShading;    ///< Force per sample shading
+#endif
     } rsState;             ///< Rasterizer state.
 
     struct
@@ -384,15 +388,6 @@ struct PipelineInfo
     uint64       palRuntimeHash;        ///< Unique 64-bit identifier for the PAL pipeline, composed of compiler
                                         ///  information and PAL-specific runtime-adjacent information. Mapping of
                                         ///  PAL runtime hash to internal pipeline hash is many-to-one.
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
-    uint64 pipelineHash;      ///< Unique 64-bit identifier for the PAL pipeline, composed of compiler information and
-                              ///  PAL-specific runtime-adjacent information.
-    uint64 compilerHash;      ///< 64-bit identifier extracted from this pipeline's ELF binary, composed of the state
-                              ///  the compiler decided was appropriate to identify the compiled shaders.  Pipelines
-                              ///  can have identical compiler hashes but different pipeline hashes.  Note that this
-                              ///  is not computed by taking a hash of the binary blob data.
 #endif
 
     struct

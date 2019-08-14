@@ -86,7 +86,8 @@ Image::Image(
     m_gpuMemAlignment(0),
     m_pPrivateScreen(nullptr),
     m_privateScreenImageId(0),
-    m_privateScreenIndex(0)
+    m_privateScreenIndex(0),
+    m_preferGraphicsScaledCopy(false)
 {
     m_imageInfo.internalCreateInfo     = internalCreateInfo;
     m_imageInfo.resolveMethod.u32All   = 0;
@@ -342,19 +343,6 @@ Result Image::ValidateCreateInfo(
             ret = Result::ErrorInvalidValue;
         }
     }
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446)
-    // view3dAs2dArray is only valid for 3d images.
-    if (ret == Result::Success)
-    {
-        if ((imageInfo.flags.view3dAs2dArray != 0) && (imageInfo.imageType != ImageType::Tex3d))
-        {
-            // If it's a 2D image, the app can't use the view 3d as 2d array feature.
-            ret = Result::ErrorInvalidFlags;
-            PAL_ASSERT_ALWAYS();
-        }
-    }
-#endif
 
     return ret;
 }

@@ -1645,6 +1645,20 @@ void CmdBuffer::CmdSetPointLineRasterState(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetLineStippleState(
+    const LineStippleStateParams& params)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetLineStippleState));
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdSetLineStippleState(params);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdSetDepthBiasState(
     const DepthBiasParams& params)
 {

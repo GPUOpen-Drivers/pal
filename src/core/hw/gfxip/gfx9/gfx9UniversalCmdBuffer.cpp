@@ -908,7 +908,11 @@ void UniversalCmdBuffer::CmdSetViewports(
     const size_t     viewportSize  = (sizeof(params.viewports[0]) * params.count);
     constexpr size_t GuardbandSize = (sizeof(float) * 4);
 
-    m_graphicsState.viewportState.count = params.count;
+    m_graphicsState.viewportState.count      = params.count;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    m_graphicsState.viewportState.depthRange = params.depthRange;
+#endif
+
     memcpy(&m_graphicsState.viewportState.viewports[0],     &params.viewports[0],     viewportSize);
     memcpy(&m_graphicsState.viewportState.horzDiscardRatio, &params.horzDiscardRatio, GuardbandSize);
 
@@ -1751,9 +1755,16 @@ static regPA_SU_SC_MODE_CNTL BuildPaSuScModeCntl(
         static_cast<uint32>(FillMode::Solid)     == 2,
         "FillMode vs. PA_SU_SC_MODE_CNTL.POLY_MODE mismatch");
 
-    paSuScModeCntl.bits.POLY_MODE            = (params.fillMode != FillMode::Solid);
-    paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(params.fillMode);
-    paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(params.fillMode);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 524
+    paSuScModeCntl.bits.POLY_MODE               = (params.fillMode != FillMode::Solid);
+    paSuScModeCntl.bits.POLYMODE_BACK_PTYPE     = static_cast<uint32>(params.fillMode);
+    paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE    = static_cast<uint32>(params.fillMode);
+#else
+    paSuScModeCntl.bits.POLY_MODE               = ((params.frontFillMode != FillMode::Solid) ||
+                                                   (params.backFillMode != FillMode::Solid));
+    paSuScModeCntl.bits.POLYMODE_BACK_PTYPE     = static_cast<uint32>(params.backFillMode);
+    paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE    = static_cast<uint32>(params.frontFillMode);
+#endif
 
     constexpr uint32 FrontCull = static_cast<uint32>(CullMode::Front);
     constexpr uint32 BackCull  = static_cast<uint32>(CullMode::Back);
@@ -1796,7 +1807,8 @@ void UniversalCmdBuffer::CmdSetTriangleRasterState(
 
     if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointWireframe)
     {
-        m_graphicsState.triangleRasterState.fillMode = FillMode::Wireframe;
+        m_graphicsState.triangleRasterState.frontFillMode     = FillMode::Wireframe;
+        m_graphicsState.triangleRasterState.backFillMode      = FillMode::Wireframe;
 
         pParams = &m_graphicsState.triangleRasterState;
     }
@@ -4718,7 +4730,9 @@ uint32* UniversalCmdBuffer::Gfx10ValidateTriangleRasterState(
     //
     //  it should be enabled when POLY_MODE is enabled.  Also, if the driver ever sets PERPENDICULAR_ENDCAP_ENA, that
     //  should follow the same rules
-    if ((m_graphicsState.triangleRasterState.fillMode != FillMode::Solid) || pPipeline->IsPerpEndCapsEnabled())
+    if ((m_graphicsState.triangleRasterState.frontFillMode != FillMode::Solid) ||
+        (m_graphicsState.triangleRasterState.backFillMode  != FillMode::Solid) ||
+        pPipeline->IsPerpEndCapsEnabled())
     {
         pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmPA_SU_SC_MODE_CNTL,
                                                        Gfx10::PA_SU_SC_MODE_CNTL__KEEP_TOGETHER_ENABLE_MASK,
@@ -4853,7 +4867,9 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = UpdateDbCountControl<Pm4OptImmediate>(log2OcclusionQuerySamples, &dbCountControl, pDeCmdSpace);
     }
 
-    if (PipelineDirty || (StateDirty && dirtyFlags.inputAssemblyState) || m_cachedSettings.disableWdLoadBalancing)
+    if (PipelineDirty ||
+        (StateDirty && (dirtyFlags.msaaState || dirtyFlags.inputAssemblyState)) ||
+        m_cachedSettings.disableWdLoadBalancing)
     {
         // Typically, ForceWdSwitchOnEop only depends on the primitive topology and restart state.  However, when we
         // disable the hardware WD load balancing feature, we do need to some draw time parameters that can
@@ -4871,8 +4887,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
         else if (IsGfx10(m_gfxIpLevel))
         {
+            const bool lineStippleEnabled = (pMsaaState != nullptr) ? pMsaaState->UsesLineStipple() : false;
             pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10::mmGE_CNTL,
-                                                             CalcGeCntl<IsNgg>(iaMultiVgtParam),
+                                                             CalcGeCntl<IsNgg>(lineStippleEnabled,
+                                                                               iaMultiVgtParam),
                                                              pDeCmdSpace);
         }
 
@@ -5049,6 +5067,22 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         (PipelineDirty || (StateDirty && dirtyFlags.triangleRasterState)))
     {
         pDeCmdSpace = Gfx10ValidateTriangleRasterState(pPipeline, pDeCmdSpace);
+    }
+
+    if (StateDirty && (dirtyFlags.lineStippleState || dirtyFlags.inputAssemblyState))
+    {
+        regPA_SC_LINE_STIPPLE paScLineStipple  = {};
+        paScLineStipple.bits.REPEAT_COUNT      = m_graphicsState.lineStippleState.lineStippleScale;
+        paScLineStipple.bits.LINE_PATTERN      = m_graphicsState.lineStippleState.lineStippleValue;
+#if BIGENDIAN_CPU
+        paScLineStipple.bits.PATTERN_BIT_ORDER = 1;
+#endif
+        paScLineStipple.bits.AUTO_RESET_CNTL   =
+            (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::LineStrip) ? 2 : 1;
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmPA_SC_LINE_STIPPLE,
+                                                                           paScLineStipple.u32All,
+                                                                           pDeCmdSpace);
     }
 
     // Validate the per-draw HW state.
@@ -5747,11 +5781,23 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         float yScale = (viewport.height * 0.5f);
 
         pScaleOffsetImg->xScale.f32All  = xScale;
-        pScaleOffsetImg->yScale.f32All  = yScale * (viewport.origin == PointOrigin::UpperLeft ? 1.0f : -1.0f);
-        pScaleOffsetImg->zScale.f32All  = (viewport.maxDepth - viewport.minDepth);
         pScaleOffsetImg->xOffset.f32All = (viewport.originX + xScale);
+
+        pScaleOffsetImg->yScale.f32All  = yScale * (viewport.origin == PointOrigin::UpperLeft ? 1.0f : -1.0f);
         pScaleOffsetImg->yOffset.f32All = (viewport.originY + yScale);
-        pScaleOffsetImg->zOffset.f32All = viewport.minDepth;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+        if (params.depthRange == DepthRange::NegativeOneToOne)
+        {
+            pScaleOffsetImg->zScale.f32All  = (viewport.maxDepth - viewport.minDepth) * 0.5f;
+            pScaleOffsetImg->zOffset.f32All = (viewport.maxDepth + viewport.minDepth) * 0.5f;
+        }
+        else
+#endif
+        {
+            pScaleOffsetImg->zScale.f32All  = (viewport.maxDepth - viewport.minDepth);
+            pScaleOffsetImg->zOffset.f32All = viewport.minDepth;
+        }
 
         // Calc the max acceptable X limit for guardband clipping.
         float left  = viewport.originX;
@@ -5893,6 +5939,7 @@ bool UniversalCmdBuffer::NeedsToValidateScissorRects(
                              dirtyFlags.validationBits.inputAssemblyState      ||
                              dirtyFlags.validationBits.triangleRasterState     ||
                              dirtyFlags.validationBits.colorTargetView         ||
+                             dirtyFlags.validationBits.lineStippleState        ||
                              dirtyFlags.nonValidationBits.streamOutTargets     ||
                              dirtyFlags.nonValidationBits.globalScissorState   ||
                              dirtyFlags.nonValidationBits.blendConstState      ||
@@ -6023,7 +6070,8 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
 // Translates the supplied IA_MULTI_VGT_PARAM register to its equivalent GE_CNTL value
 template <bool isNgg>
 uint32 UniversalCmdBuffer::CalcGeCntl(
-    regIA_MULTI_VGT_PARAM  iaMultiVgtParam
+    bool                  usesLineStipple,
+    regIA_MULTI_VGT_PARAM iaMultiVgtParam
     ) const
 {
     const auto*  pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
@@ -6047,8 +6095,9 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
         geCntl.bits.PRIM_GRP_SIZE = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
         geCntl.bits.VERT_GRP_SIZE = vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
     }
-    // Only used for line-stipple which PAL doesn't support
-    geCntl.bits.PACKET_TO_ONE_PA = 0;
+
+    // Only used for line-stipple
+    geCntl.bits.PACKET_TO_ONE_PA = usesLineStipple;
 
     geCntl.bits.BREAK_WAVE_AT_EOI = iaMultiVgtParam.bits.SWITCH_ON_EOI;
     geCntl.bits.PACKET_TO_ONE_PA  = (iaMultiVgtParam.bits.WD_SWITCH_ON_EOP && iaMultiVgtParam.bits.SWITCH_ON_EOP);
@@ -6913,6 +6962,13 @@ void UniversalCmdBuffer::SetGraphicsState(
         CmdBindMsaaState(newGraphicsState.pMsaaState);
     }
 
+    if (memcmp(&newGraphicsState.lineStippleState,
+               &m_graphicsState.lineStippleState,
+               sizeof(LineStippleStateParams)) != 0)
+    {
+        CmdSetLineStippleState(newGraphicsState.lineStippleState);
+    }
+
     if (memcmp(&newGraphicsState.quadSamplePatternState,
                &m_graphicsState.quadSamplePatternState,
                sizeof(MsaaQuadSamplePattern)) != 0)
@@ -6952,6 +7008,9 @@ void UniversalCmdBuffer::SetGraphicsState(
     const auto& currentViewports = m_graphicsState.viewportState;
 
     if ((restoreViewports.count != currentViewports.count) ||
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+        (restoreViewports.depthRange != currentViewports.depthRange) ||
+#endif
         (memcmp(&restoreViewports.viewports[0],
                 &currentViewports.viewports[0],
                 restoreViewports.count * sizeof(restoreViewports.viewports[0])) != 0))
@@ -7775,10 +7834,6 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
             m_rbPlusPm4Img.sxBlendOptEpsilon = cmdBuffer.m_rbPlusPm4Img.sxBlendOptEpsilon;
             m_rbPlusPm4Img.sxBlendOptControl = cmdBuffer.m_rbPlusPm4Img.sxBlendOptControl;
         }
-
-        m_spiPsInControl       = cmdBuffer.m_spiPsInControl;
-        m_paScShaderControl    = cmdBuffer.m_paScShaderControl;
-        m_spiVsOutConfig       = cmdBuffer.m_spiVsOutConfig;
     }
 
     // If the nested command buffer updated PA_SC_CONS_RAST_CNTL, leak its state back to the caller.
@@ -7804,6 +7859,14 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pipelineCtxPm4Hash   = cmdBuffer.m_pipelineCtxPm4Hash;
     m_pipelinePsHash       = cmdBuffer.m_pipelinePsHash;
     m_pipelineFlags.u32All = cmdBuffer.m_pipelineFlags.u32All;
+
+    if (cmdBuffer.m_graphicsState.pipelineState.dirtyFlags.pipelineDirty ||
+        (cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr))
+    {
+        m_spiPsInControl    = cmdBuffer.m_spiPsInControl;
+        m_paScShaderControl = cmdBuffer.m_paScShaderControl;
+        m_spiVsOutConfig    = cmdBuffer.m_spiVsOutConfig;
+    }
 
     m_nggState.flags.state.hasPrimShaderWorkload |= cmdBuffer.m_nggState.flags.state.hasPrimShaderWorkload;
     m_nggState.flags.dirty.u8All                 |= cmdBuffer.m_nggState.flags.dirty.u8All;

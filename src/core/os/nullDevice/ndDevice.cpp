@@ -46,9 +46,7 @@ namespace NullDevice
 {
 
 static constexpr uint32 GfxEngineGfx6 = CIASICIDGFXENGINE_SOUTHERNISLAND;
-#if PAL_BUILD_GFX9
 static constexpr uint32 GfxEngineGfx9 = CIASICIDGFXENGINE_ARCTICISLAND;
-#endif
 
 #define PAL_UNDEFINED_NULL_DEVICE  FAMILY_UNKNOWN, 0, 0, CIASICIDGFXENGINE_UNKNOWN, 0
 
@@ -80,15 +78,9 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { FAMILY_CZ,  CZ_STONEY_A0,         PRID_ST_80,                   GfxEngineGfx6,  DEVICE_ID_ST_98E4               },
 
-#if PAL_BUILD_GFX9
     { FAMILY_AI,  AI_VEGA10_P_A0,       PRID_AI_VEGA10_C3,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA10_P_6860      },
     { FAMILY_RV,  RAVEN_A0,             PRID_RV_81,                   GfxEngineGfx9,  DEVICE_ID_RV_15DD               },
     { FAMILY_AI,  AI_VEGA12_P_A0,       PRID_AI_VEGA12_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA12_P_69A0      },
-#else
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-#endif
     { FAMILY_AI,  AI_VEGA20_P_A0,       PRID_AI_VEGA20_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA20_P_66A0      },
     { FAMILY_RV,  RAVEN2_A0,            PRID_RV_E2,                   GfxEngineGfx9,  DEVICE_ID_RV2_15D8              },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
@@ -132,15 +124,9 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     "STONEY:gfx810",
 
-#if PAL_BUILD_GFX9
     "VEGA10:gfx900",
     "RAVEN:gfx902",
     "VEGA12:gfx904",
-#else
-    nullptr,
-    nullptr,
-    nullptr,
-#endif
     "VEGA20:gfx906",
     "RAVEN2:gfx909",
     nullptr,
@@ -835,7 +821,6 @@ void Device::InitGfx6ChipProperties()
 }
 #endif
 
-#if PAL_BUILD_GFX9
 // =====================================================================================================================
 // Helper method which initializes the GPU chip properties for all hardware families using the GFX9 hardware layer.
 void Device::InitGfx9ChipProperties()
@@ -988,7 +973,6 @@ void Device::InitGfx9ChipProperties()
     // overrode above.
     Gfx9::FinalizeGpuChipProperties(*this, &m_chipProperties);
 }
-#endif
 
 // =====================================================================================================================
 Result Device::EarlyInit(
@@ -1048,7 +1032,6 @@ Result Device::EarlyInit(
                                             &m_engineProperties);
         break;
 #endif
-#if PAL_BUILD_GFX9
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
         m_pFormatPropertiesTable    = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
@@ -1059,7 +1042,6 @@ Result Device::EarlyInit(
                                             m_chipProperties.eRevId,
                                             &m_engineProperties);
         break;
-#endif
     case GfxIpLevel::None:
         // No Graphics IP block found or recognized!
     default:

@@ -118,11 +118,24 @@ Result SettingsFileMgr<Allocator>::Init(
                         // Otherwise, calculate the hashed value for the setting name
                         hashedName = HashString(pToken, strlen(pToken));
                     }
-                    pToken = Strtok(nullptr, ", ", &pBuffer);
-                    SettingValuePair pair = { hashedName, {0}};
-                    PAL_ASSERT(strlen(pToken) < sizeof(pair.strValue));
-                    strncpy(&pair.strValue[0], pToken, sizeof(pair.strValue));
-                    m_settingsList.PushBack(pair);
+
+                    pToken = Strtok(nullptr, ",", &pBuffer);
+                    if (pToken != nullptr)
+                    {
+                        // ignore leading whitespace
+                        while ((*pToken != '\0') && isspace(static_cast<uint8>(*pToken)))
+                        {
+                            pToken++;
+                        }
+
+                        if (strlen(pToken) > 0)
+                        {
+                            SettingValuePair pair = { hashedName, {0} };
+                            PAL_ASSERT(strlen(pToken) < sizeof(pair.strValue));
+                            strncpy(&pair.strValue[0], pToken, sizeof(pair.strValue));
+                            m_settingsList.PushBack(pair);
+                        }
+                    }
                 }
             }
         }

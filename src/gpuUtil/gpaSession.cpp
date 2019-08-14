@@ -215,12 +215,6 @@ static constexpr ThreadTraceTokenConfig SqttTokenConfigMinimal =
     RegType::AllRegWrites
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
-constexpr uint32 SqttTokenMaskAll      = SqttTokenConfigAllTokens.tokenMask;
-constexpr uint32 SqttTokenMaskNoInst   = SqttTokenConfigNoInst.tokenMask;
-constexpr uint32 SqttTokenMaskMinimal  = SqttTokenConfigMinimal.tokenMask;
-#endif
-
 // =====================================================================================================================
 // Helper function to fill in the SqttFileChunkCpuInfo struct based on the hardware in the current system.
 // Required for writing RGP files.
@@ -751,7 +745,9 @@ Result GpaSession::Init()
             }
 
             // Copy code object load event database from srcSession
-            for (auto iter = m_pSrcSession->m_codeObjectLoadEventRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
+            for (auto iter = m_pSrcSession->m_codeObjectLoadEventRecordsCache.Begin();
+                 iter.Get() != nullptr;
+                 iter.Next())
             {
                 m_codeObjectLoadEventRecordsCache.PushBack(*iter.Get());
             }
@@ -2625,7 +2621,8 @@ Result GpaSession::RegisterPipeline(
                 memcpy(pCodeObjectRecord, &record, sizeof(record));
 
                 // Write the pipeline binary.
-                result = pPipeline->GetPipelineElf(&record.recordSize, Util::VoidPtrInc(pCodeObjectRecord, sizeof(record)));
+                result = pPipeline->GetPipelineElf(&record.recordSize,
+                                                   Util::VoidPtrInc(pCodeObjectRecord, sizeof(record)));
 
                 if (result != Result::Success)
                 {
@@ -2708,11 +2705,7 @@ Result GpaSession::AddCodeObjectLoadEvent(
         CodeObjectLoadEventRecord record = { };
         record.eventType      = eventType;
         record.baseAddress    = (gpuSubAlloc.pGpuMemory->Desc().gpuVirtAddr + gpuSubAlloc.offset);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 460
         record.codeObjectHash = { info.internalPipelineHash.stable, info.internalPipelineHash.unique };
-#else
-        record.codeObjectHash = { info.compilerHash, info.compilerHash };
-#endif
         record.timestamp      = static_cast<uint64>(Util::GetPerfCpuTime());
 
         m_registerPipelineLock.LockForWrite();
@@ -3213,25 +3206,13 @@ Result GpaSession::AcquirePerfExperiment(
 
                 // Set up the thread trace token mask. Use the minimal mask if queue timing is enabled. The mask will be
                 // updated to a different value at a later time when sample updates are enabled.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 451
                 const ThreadTraceTokenConfig tokenConfig = skipInstTokens ? SqttTokenConfigNoInst :
                                                                             SqttTokenConfigAllTokens;
 
                 sqttInfo.optionFlags.threadTraceTokenConfig  = 1;
                 sqttInfo.optionValues.threadTraceTokenConfig = m_flags.enableSampleUpdates ? SqttTokenConfigMinimal :
                                                                                              tokenConfig;
-#else
-                const uint32 standardTokenMask = skipInstTokens ? SqttTokenMaskNoInst : SqttTokenMaskAll;
 
-                sqttInfo.optionFlags.threadTraceTokenMask = 1;
-                sqttInfo.optionFlags.threadTraceRegMask   = 1;
-
-                // Request for all registers in the thread trace. This is hardcoded for now.
-                sqttInfo.optionValues.threadTraceRegMask = RegType::AllRegWrites;
-
-                sqttInfo.optionValues.threadTraceTokenMask = m_flags.enableSampleUpdates ? SqttTokenMaskMinimal :
-                                                                                           standardTokenMask;
-#endif
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
                     if (sampleConfig.sqtt.seMask == 0 || Util::TestAnyFlagSet(sampleConfig.sqtt.seMask, 1 << i))
@@ -3770,7 +3751,8 @@ Result GpaSession::DumpRgpData(
                         RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS].majorVersion;
                     loaderEvents.header.minorVersion =
                         RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS].minorVersion;
-                    loaderEvents.recordCount         = static_cast<uint32>(m_curCodeObjectLoadEventRecords.NumElements());
+                    loaderEvents.recordCount         =
+                        static_cast<uint32>(m_curCodeObjectLoadEventRecords.NumElements());
                     loaderEvents.recordSize          = sizeof(SqttCodeObjectLoaderEventRecord);
 
                     loaderEvents.header.sizeInBytes  = static_cast<int32>(chunkTotalSize);

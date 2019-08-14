@@ -239,7 +239,6 @@ public:
 
     static constexpr ClearMethod DefaultSlowClearMethod = ClearMethod::NormalGraphics;
     static constexpr bool PreferGraphicsCopy = true;
-    static constexpr bool PreferGraphicsScaledCopy = true;
     static constexpr bool ForceExpandHiZRangeForResummarize = false;
     static constexpr bool UseCpPacketOcclusionQuery = true;
 
@@ -463,6 +462,9 @@ public:
     bool PreferCbResolve() const
         { return (m_createInfo.flags.repetitiveResolve != 0); }
 
+    bool PreferGraphicsScaledCopy() const { return m_preferGraphicsScaledCopy; };
+    void SetPreferGraphicsScaledCopy(bool val) { m_preferGraphicsScaledCopy = val; };
+
 protected:
     Image(Device*                        pDevice,
           void*                          pGfxImagePlacementAddr,
@@ -504,6 +506,9 @@ private:
     uint32          m_privateScreenImageId;
     // A cached index of private display index, this is to avoid a race condition between submission and hotplug.
     uint32          m_privateScreenIndex;
+    // Whether we should use graphic engine when doing scaled copy. By default, use CS. If the image
+    // has DCC and the hardware does not support compressed shader writes(i.e., GFX6 - 9), use GFX.
+    bool            m_preferGraphicsScaledCopy;
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);

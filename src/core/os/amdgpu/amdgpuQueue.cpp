@@ -530,7 +530,7 @@ Result Queue::SignalSemaphore(
 
     if ((m_pendingWait == true) || (context.LastTimestamp() == 0))
     {
-        result = DummySubmit();
+        result = DummySubmit(true);
     }
 
     if (result == Result::Success)

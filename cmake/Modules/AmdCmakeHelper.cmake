@@ -86,7 +86,8 @@ macro(target_find_headers _target)
         foreach(_include_dir IN ITEMS ${${_target}_INCLUDES_DIRS})
             file(GLOB_RECURSE _include_files
                 LIST_DIRECTORIES false
-                "${_include_dir}/*.h*"
+                "${_include_dir}/*.h"
+                "${_include_dir}/*.hpp"
             )
 
             list(APPEND ${_target}_INCLUDES ${_include_files})

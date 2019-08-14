@@ -42,10 +42,11 @@ namespace Util
 /// simultaneous modes.
 enum FileAccessMode : uint32
 {
-    FileAccessRead   = 0x1,  ///< Read access.
-    FileAccessWrite  = 0x2,  ///< Write access.
-    FileAccessAppend = 0x4,  ///< Append access.
-    FileAccessBinary = 0x8,  ///< Binary access.
+    FileAccessRead      = 0x1,  ///< Read access.
+    FileAccessWrite     = 0x2,  ///< Write access.
+    FileAccessAppend    = 0x4,  ///< Append access.
+    FileAccessBinary    = 0x8,  ///< Binary access.
+    FileAccessNoDiscard = 0x10, ///< Don't discard existing file.
 };
 
 /**

@@ -58,6 +58,7 @@ extern "C"
 }
 
 #include "palFile.h"
+#include "palLibrary.h"
 
 #define XCB_RANDR_SUPPORTS_LEASE ((XCB_RANDR_MAJOR_VERSION > 1) || \
                                   ((XCB_RANDR_MAJOR_VERSION == 1) && (XCB_RANDR_MINOR_VERSION >= 6)))
@@ -248,7 +249,7 @@ typedef xcb_randr_create_lease_reply_t* (*XcbRandrCreateLeaseReply)(
             xcb_generic_error_t**             ppError);
 
 typedef int* (*XcbRandrCreateLeaseReplyFds)(
-            xcb_connection_t *                pConnection,
+            xcb_connection_t*                 pConnection,
             xcb_randr_create_lease_reply_t*   pReply);
 #endif
 
@@ -275,7 +276,7 @@ typedef xcb_randr_get_crtc_info_cookie_t (*XcbRandrGetCrtcInfo)(
 typedef xcb_randr_get_crtc_info_reply_t* (*XcbRandrGetCrtcInfoReply)(
             xcb_connection_t*                 pConnection,
             xcb_randr_get_crtc_info_cookie_t  cookie,
-            xcb_generic_error_t               **ppError);
+            xcb_generic_error_t**             ppError);
 
 typedef xcb_randr_get_output_info_cookie_t (*XcbRandrGetOutputInfo)(
             xcb_connection_t*     pConnection,
@@ -285,13 +286,13 @@ typedef xcb_randr_get_output_info_cookie_t (*XcbRandrGetOutputInfo)(
 typedef xcb_randr_get_output_info_reply_t* (*XcbRandrGetOutputInfoReply)(
             xcb_connection_t*                     pConnection,
             xcb_randr_get_output_info_cookie_t    cookie,
-            xcb_generic_error_t **                ppError);
+            xcb_generic_error_t**                 ppError);
 
 typedef xcb_randr_output_t* (*XcbRandrGetCrtcInfoOutputs)(
-            xcb_randr_get_crtc_info_reply_t   *pCrtcInfoReply);
+            xcb_randr_get_crtc_info_reply_t*  pCrtcInfoReply);
 
 typedef xcb_randr_output_t* (*XcbRandrGetCrtcInfoPossible)(
-            xcb_randr_get_crtc_info_reply_t   *pCrtcInfoReply);
+            xcb_randr_get_crtc_info_reply_t*  pCrtcInfoReply);
 
 typedef xcb_randr_get_output_property_cookie_t (*XcbRandrGetOutputProperty)(
             xcb_connection_t*     pConnection,
@@ -306,7 +307,7 @@ typedef xcb_randr_get_output_property_cookie_t (*XcbRandrGetOutputProperty)(
 typedef uint8_t* (*XcbRandrGetOutputPropertyData)(
             const xcb_randr_get_output_property_reply_t*  pReply);
 
-typedef xcb_randr_get_output_property_reply_t * (*XcbRandrGetOutputPropertyReply)(
+typedef xcb_randr_get_output_property_reply_t* (*XcbRandrGetOutputPropertyReply)(
             xcb_connection_t*                         pConnection,
             xcb_randr_get_output_property_cookie_t    cookie,
             xcb_generic_error_t**                     ppError);
@@ -1254,7 +1255,7 @@ public:
     }
 
     int* pfnXcbRandrCreateLeaseReplyFds(
-            xcb_connection_t *                pConnection,
+            xcb_connection_t*                 pConnection,
             xcb_randr_create_lease_reply_t*   pReply) const;
 
     bool pfnXcbRandrCreateLeaseReplyFdsisValid() const
@@ -1311,7 +1312,7 @@ public:
     xcb_randr_get_crtc_info_reply_t* pfnXcbRandrGetCrtcInfoReply(
             xcb_connection_t*                 pConnection,
             xcb_randr_get_crtc_info_cookie_t  cookie,
-            xcb_generic_error_t               **ppError) const;
+            xcb_generic_error_t**             ppError) const;
 
     bool pfnXcbRandrGetCrtcInfoReplyisValid() const
     {
@@ -1331,7 +1332,7 @@ public:
     xcb_randr_get_output_info_reply_t* pfnXcbRandrGetOutputInfoReply(
             xcb_connection_t*                     pConnection,
             xcb_randr_get_output_info_cookie_t    cookie,
-            xcb_generic_error_t **                ppError) const;
+            xcb_generic_error_t**                 ppError) const;
 
     bool pfnXcbRandrGetOutputInfoReplyisValid() const
     {
@@ -1339,7 +1340,7 @@ public:
     }
 
     xcb_randr_output_t* pfnXcbRandrGetCrtcInfoOutputs(
-            xcb_randr_get_crtc_info_reply_t   *pCrtcInfoReply) const;
+            xcb_randr_get_crtc_info_reply_t*  pCrtcInfoReply) const;
 
     bool pfnXcbRandrGetCrtcInfoOutputsisValid() const
     {
@@ -1347,7 +1348,7 @@ public:
     }
 
     xcb_randr_output_t* pfnXcbRandrGetCrtcInfoPossible(
-            xcb_randr_get_crtc_info_reply_t   *pCrtcInfoReply) const;
+            xcb_randr_get_crtc_info_reply_t*  pCrtcInfoReply) const;
 
     bool pfnXcbRandrGetCrtcInfoPossibleisValid() const
     {
@@ -1377,7 +1378,7 @@ public:
         return (m_pFuncs->pfnXcbRandrGetOutputPropertyData != nullptr);
     }
 
-    xcb_randr_get_output_property_reply_t * pfnXcbRandrGetOutputPropertyReply(
+    xcb_randr_get_output_property_reply_t* pfnXcbRandrGetOutputPropertyReply(
             xcb_connection_t*                         pConnection,
             xcb_randr_get_output_property_cookie_t    cookie,
             xcb_generic_error_t**                     ppError) const;
@@ -1583,36 +1584,37 @@ private:
 class Platform;
 
 // =====================================================================================================================
-// the class is responsible to resolve all external symbols that required by the Dri3WindowSystem.
+// the class is responsible for resolving all external symbols that required by the Dri3WindowSystem.
 class Dri3Loader
 {
 public:
     Dri3Loader();
     ~Dri3Loader();
+
     bool   Initialized() { return m_initialized; }
+
     const Dri3LoaderFuncs& GetProcsTable()const { return m_funcs; }
 #if defined(PAL_DEBUG_PRINTS)
     const Dri3LoaderFuncsProxy& GetProcsTableProxy()const { return m_proxy; }
+
     void SetLogPath(const char* pPath) { m_proxy.Init(pPath); }
 #endif
+
     Result Init(Platform* pPlatform);
 
     xcb_extension_t* GetXcbDri3Id() const;
-
     xcb_extension_t* GetXcbPresentId() const;
-
     xcb_extension_t* GetXcbDri2Id() const;
 
 private:
     xcb_extension_t* m_pXcbDri3Id;
-
     xcb_extension_t* m_pXcbPresentId;
-
     xcb_extension_t* m_pXcbDri2Id;
 
-    void* m_libraryHandles[Dri3LoaderLibrariesCount];
-    bool  m_initialized;
-    Dri3LoaderFuncs m_funcs;
+    Util::Library m_library[Dri3LoaderLibrariesCount];
+    bool          m_initialized;
+
+    Dri3LoaderFuncs      m_funcs;
 #if defined(PAL_DEBUG_PRINTS)
     Dri3LoaderFuncsProxy m_proxy;
 #endif

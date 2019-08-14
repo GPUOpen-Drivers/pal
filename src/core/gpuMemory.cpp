@@ -193,14 +193,12 @@ Result GpuMemory::ValidateCreateInfo(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
     if ((result == Result::Success) && createInfo.flags.gl2Uncached &&
         (pDevice->ChipProperties().gfxip.supportGl2Uncached == 0))
     {
         // The gl2Uncached flag can't be set if the feature isn't supported!
         result = Result::ErrorInvalidFlags;
     }
-#endif
 
     return result;
 }
@@ -335,6 +333,7 @@ Result GpuMemory::Init(
         m_flags.peerWritable     = createInfo.flags.peerWritable;
         m_flags.turboSyncSurface = createInfo.flags.turboSyncSurface;
     }
+
     m_flags.globallyCoherent     = createInfo.flags.globallyCoherent;
     m_flags.xdmaBuffer           = createInfo.flags.xdmaBuffer || internalInfo.flags.xdmaBuffer;
     m_flags.globalGpuVa          = createInfo.flags.globalGpuVa;
@@ -343,13 +342,9 @@ Result GpuMemory::Init(
     m_flags.busAddressable       = createInfo.flags.busAddressable;
     m_flags.isStereo             = createInfo.flags.stereo;
     m_flags.autoPriority         = createInfo.flags.autoPriority;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 455
     m_flags.restrictedContent    = createInfo.flags.restrictedContent;
     m_flags.restrictedAccess     = createInfo.flags.restrictedAccess;
     m_flags.crossAdapter         = createInfo.flags.crossAdapter;
-#endif
-
     m_flags.isClient             = internalInfo.flags.isClient;
     m_flags.pageDirectory        = internalInfo.flags.pageDirectory;
     m_flags.pageTableBlock       = internalInfo.flags.pageTableBlock;
@@ -394,9 +389,10 @@ Result GpuMemory::Init(
         m_pDevice->MemoryProperties().realMemAllocGranularity :
         m_pDevice->MemoryProperties().virtualMemAllocGranularity;
 
-    // If this is not an external object, align size and base alignment to allocGranularity.
-    // If no alignment value was provided, use the allocation granularity.
-    if ((createInfo.flags.sdiExternal == 0) && (createInfo.flags.externalOpened == 0))
+    // If this is not external SDI memory, align size and base alignment to allocGranularity. If no alignment value was
+    // provided, use the allocation granularity. This enforces a general PAL assumption: GPU memory objects have page
+    // aligned addresses and sizes.
+    if (createInfo.flags.sdiExternal == 0)
     {
         m_desc.size      = Pow2Align(createInfo.size, allocGranularity);
         m_desc.alignment = ((createInfo.alignment != 0) ?
@@ -451,15 +447,12 @@ Result GpuMemory::Init(
         // heap selections below, this paradoxical assumption will be corrected.
         m_flags.localOnly    = 1;
         m_flags.nonLocalOnly = 1;
+
         // NOTE: Any memory object not being used as a page-directory or page-table block is considered to be CPU
         // visible as long as all of its selected heaps are CPU visible.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 464
         m_flags.cpuVisible = ((m_flags.pageDirectory  == 0) &&
                               (m_flags.pageTableBlock == 0) &&
                               (createInfo.flags.cpuInvisible == 0));
-#else
-        m_flags.cpuVisible = ((m_flags.pageDirectory == 0) && (m_flags.pageTableBlock == 0));
-#endif
 
         for (uint32 heap = 0; heap < m_heapCount; ++heap)
         {
@@ -725,20 +718,10 @@ Result GpuMemory::Init(
     m_flags.nonLocalOnly = 1; // Pinned allocations always go into a non-local heap.
     m_flags.cpuVisible   = 1; // Pinned allocations are by definition CPU visible.
 
-    m_pPinnedMemory                  = createInfo.pSysMem;
-    m_desc.size                      = createInfo.size;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 450
-    if (createInfo.alignment != 0)
-    {
-        m_desc.alignment             = createInfo.alignment;
-    }
-    else
-#endif
-    {
-        m_desc.alignment             =
-            m_pDevice->MemoryProperties().realMemAllocGranularity;
-    }
+    m_pPinnedMemory  = createInfo.pSysMem;
+    m_desc.size      = createInfo.size;
+    m_desc.alignment = (createInfo.alignment != 0) ? createInfo.alignment
+                                                   : m_pDevice->MemoryProperties().realMemAllocGranularity;
 
     m_vaPartition                    = m_pDevice->ChooseVaPartition(createInfo.vaRange, false);
 

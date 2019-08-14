@@ -65,11 +65,18 @@ Result File::Open(
         case (FileAccessRead | FileAccessWrite):
             // Both r+ and w+ modes might apply here: r+ requires that the file exists beforehand, while w+ does not. w+
             // will create the file if it doesn't exist, like w,a,a+. w+, like w, will discard existing contents of the
-            // file. If we need to expose r+ mode, adding another flag to indicate 'don't overwrite the file'.
+            // file. If we need to expose r+ mode, use FileAccessNoDiscard.
             fileMode[0] = 'w';
             fileMode[1] = '+';
             break;
+        case (FileAccessRead | FileAccessWrite | FileAccessNoDiscard):
+            fileMode[0] = 'r';
+            fileMode[1] = '+';
+            break;
         case (FileAccessRead | FileAccessAppend):
+            // When a file is opened by using the "a" or "a+" access type, all write operations occur at the end of the
+            // file. The file pointer can be repositioned by using fseek or rewind, but it's always moved back to the
+            // end of the file before any write operation is carried out so that existing data cannot be overwritten.
             fileMode[0] = 'a';
             fileMode[1] = '+';
             break;
@@ -83,6 +90,12 @@ Result File::Open(
             break;
         case (FileAccessRead | FileAccessWrite | FileAccessBinary):
             fileMode[0] = 'w';
+            fileMode[1] = 'b';
+            fileMode[2] = '+';
+            fileMode[3] = 'R';
+            break;
+        case (FileAccessRead | FileAccessWrite | FileAccessBinary | FileAccessNoDiscard):
+            fileMode[0] = 'r';
             fileMode[1] = 'b';
             fileMode[2] = '+';
             fileMode[3] = 'R';

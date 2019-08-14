@@ -28,6 +28,8 @@
 #include "core/queueSemaphore.h"
 #include "palDeque.h"
 #include "palMutex.h"
+#include "palSemaphore.h"
+#include "palThread.h"
 
 namespace Pal
 {
@@ -54,6 +56,9 @@ public:
         Queue* pQueue,
         uint64 value) override { return SignalInternal(pQueue, this, value); }
 
+    // Instructs host to signal this semaphore.
+    virtual Result SignalSemaphoreValue(uint64  value) override { return SignalSemaphoreValueInternal(this, value); };
+
     // Instructs a Queue to wait on this Semaphore.
     virtual Result Wait(
         Queue*         pQueue,
@@ -69,6 +74,10 @@ public:
         QueueSemaphore* pSemaphore,
         uint64          value);
 
+    Result SignalSemaphoreValueInternal(
+        QueueSemaphore* pSemaphore,
+        uint64          value);
+
     Result WaitInternal(
         Queue*          pQueue,
         QueueSemaphore* pSemaphore,
@@ -79,12 +88,27 @@ public:
 
     Result EarlySignal();
 
+    void RunWaitThread();
+
 private:
     Result AddBlockedQueue(
         Queue*          pQueue,
         QueueSemaphore* pSemaphore,
         uint64          value);
-    Result ReleaseBlockedQueues();
+    Result ThreadReleaseBlockedQueues();
+
+    Result SignalHelper(
+        Queue*          pQueue,
+        QueueSemaphore* pSemaphore,
+        uint64          value,
+        bool            gpuSignal);
+
+    Result TimelineReleaseBlockedQueues(
+        uint64          value,
+        size_t*         pNumToRelease);
+
+    bool CanWaitBeforeSubmit() const;
+    bool ExternalThreadsCanSignal() const;
 
     Util::Mutex  m_queuesLock;
 
@@ -104,6 +128,10 @@ private:
     // count specified at creation-time.
     uint64  m_signalCount;
     uint64  m_waitCount;
+
+    Util::Semaphore m_threadNotify;         // Notify wait thread to consume semaphore wait.
+    Util::Thread    m_waitThread;           // The wait thread that executes semaphore wait.
+    volatile bool   m_waitThreadEnd;        // Send signal to thread to end thread
 
     PAL_DISALLOW_DEFAULT_CTOR(MasterQueueSemaphore);
     PAL_DISALLOW_COPY_AND_ASSIGN(MasterQueueSemaphore);

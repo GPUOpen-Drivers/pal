@@ -245,7 +245,7 @@ public:
     uint32        EngineId() const { return m_engineId; }
     QueuePriority Priority() const { return m_queuePriority; }
     CmdBuffer*    DummyCmdBuffer() const { return m_pDummyCmdBuffer; }
-    Result        DummySubmit();
+    Result        DummySubmit(bool postBatching);
 
     bool IsExclusiveCompute() const { return (m_engineType == EngineTypeExclusiveCompute); }
     bool IsWindowedPriorBlit() const { return (m_flags.windowedPriorBlit != 0); }

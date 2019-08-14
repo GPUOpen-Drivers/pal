@@ -1249,12 +1249,10 @@ void LogContext::Struct(
         Value("globallyCoherent");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
     if (value.gl2Uncached)
     {
         Value("gl2Uncached");
     }
-#endif
 
     if (value.xdmaBuffer)
     {
@@ -1919,6 +1917,12 @@ void LogContext::Struct(
     {
         Value("enableConservativeRasterization");
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 523
+    if (value.flags.disableAlphaToCoverageDither)
+    {
+        Value("disableAlphaToCoverageDither");
+    }
+#endif
 
     EndList();
     KeyAndValue("coverageSamples", value.coverageSamples);
@@ -1929,7 +1933,9 @@ void LogContext::Struct(
     KeyAndValue("sampleMask", value.sampleMask);
     KeyAndValue("sampleClusters", value.sampleClusters);
     KeyAndValue("alphaToCoverageSamples", value.alphaToCoverageSamples);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 523
     KeyAndValue("disableAlphaToCoverageDither", value.disableAlphaToCoverageDither);
+#endif
     EndMap();
 }
 
@@ -2035,6 +2041,16 @@ void LogContext::Struct(
     KeyAndValue("lineWidth", value.lineWidth);
     KeyAndValue("pointSizeMin", value.pointSizeMin);
     KeyAndValue("pointSizeMax", value.pointSizeMax);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const LineStippleStateParams& value)
+{
+    BeginMap(false);
+    KeyAndValue("lineStippleValue", value.lineStippleValue);
+    KeyAndValue("lineStippleScale", value.lineStippleScale);
     EndMap();
 }
 
@@ -2396,12 +2412,10 @@ void LogContext::Struct(
         Value("shareable");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 458
     if (value.flags.timeline)
     {
         Value("timeline");
     }
-#endif
 
     EndList();
     KeyAndValue("maxCount", value.maxCount);
@@ -2514,13 +2528,6 @@ void LogContext::Struct(
     {
         Value("prtBlendZeroMode");
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
-    if (value.flags.dx9Mipclamping)
-    {
-        Value("dx9Mipclamping");
-    }
-#endif
 
     EndList();
     EndMap();
@@ -2831,7 +2838,8 @@ void LogContext::Struct(
     const TriangleRasterStateParams& value)
 {
     BeginMap(false);
-    KeyAndEnum("fillMode", value.fillMode);
+    KeyAndEnum("frontFillMode", value.frontFillMode);
+    KeyAndEnum("backFillMode", value.backFillMode);
     KeyAndEnum("cullMode", value.cullMode);
     KeyAndEnum("frontFace", value.frontFace);
     KeyAndEnum("provokingVertex", value.provokingVertex);

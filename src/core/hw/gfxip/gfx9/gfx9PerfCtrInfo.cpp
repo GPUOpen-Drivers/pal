@@ -1474,16 +1474,6 @@ static void Gfx10InitBasicBlockInfo(
     pRmi->numGenericSpmModules      = 1; // RMI_PERFCOUNTER0 or RMI_PERFCOUNTER2
     pRmi->numGenericLegacyModules   = 1; // RMI_PERFCOUNTER1 or RMI_PERFCOUNTER3
 
-#if PAL_BUILD_NAVI0_LITE
-    if (IsNavi10Lite(device))
-    {
-        //  We disable virtual sub-instances. There is one perf counter instance for each RMI block instance in the SA.
-        pRmi->numInstances              = 2;
-        pRmi->numGenericSpmModules      = 1; // RMI_PERFCOUNTER0
-        pRmi->numGenericLegacyModules   = 3; // RMI_PERFCOUNTER1-3
-    }
-#endif
-
     pRmi->numSpmWires               = 2;
     pRmi->spmBlockSelect            = Gfx10SpmSeBlockSelectRmi;
     pRmi->maxEventId                = MaxRMIPerfSelGfx10;

@@ -472,6 +472,15 @@ void UniversalCmdBuffer::CmdSetViewInstanceMask(
     m_graphicsState.viewInstanceMask = mask;
 }
 
+// =====================================================================================================================
+// Sets parameters controlling line stippling.
+void UniversalCmdBuffer::CmdSetLineStippleState(
+    const LineStippleStateParams& params)
+{
+    m_graphicsState.lineStippleState = params;
+    m_graphicsState.dirtyFlags.validationBits.lineStippleState = 1;
+}
+
 #if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Dumps this command buffer's DE and CE command streams to the given file with an appropriate header.
@@ -730,6 +739,21 @@ const CmdStream* UniversalCmdBuffer::GetCmdStream(
     PAL_ASSERT(pStream != nullptr);
 
     return pStream;
+}
+
+// =====================================================================================================================
+uint32 UniversalCmdBuffer::GetUsedSize(
+    CmdAllocType type
+    ) const
+{
+    uint32 sizeInBytes = GfxCmdBuffer::GetUsedSize(type);
+
+    if (type == CommandDataAlloc)
+    {
+        sizeInBytes += (m_pDeCmdStream->GetUsedCmdMemorySize() + m_pCeCmdStream->GetUsedCmdMemorySize());
+    }
+
+    return sizeInBytes;
 }
 
 } // Pal

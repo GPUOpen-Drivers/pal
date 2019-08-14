@@ -34,7 +34,6 @@
 #include "core/svmMgr.h"
 #include "palHashMap.h"
 #include "palIntrusiveList.h"
-#include "palSettingsFileMgr.h"
 
 namespace Pal
 {
@@ -142,13 +141,6 @@ public:
     virtual Result GetMultiGpuCompatibility(
             const IDevice&        otherDevice,
             GpuCompatibilityInfo* pInfo) const override;
-
-    virtual bool ReadSetting(
-            const char*          pSettingName,
-            Util::ValueType      valueType,
-            void*                pValue,
-            InternalSettingScope settingType,
-            size_t               bufferSz = 0) const override;
 
     virtual Result QueryApplicationProfile(
             const char*         pFilename,
@@ -418,14 +410,6 @@ public:
 
     virtual Result CheckExecutionState() const override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
-    virtual Result GetConnectorIdFromOutput(
-        OsDisplayHandle hDisplay,
-        uint32          randrOutput,
-        WsiPlatform     wsiPlatform,
-        uint32*         pConnectorId) override;
-#endif
-
     bool IsVmAlwaysValidSupported() const { return m_supportVmAlwaysValid; }
 
     // Access KMD interfaces
@@ -607,6 +591,7 @@ public:
     Result CreateSemaphore(
         bool                     isCreatedSignaled,
         bool                     isCreatedTimeline,
+        uint64                   initialCount,
         amdgpu_semaphore_handle* pSemaphoreHandle) const;
 
     Result DestroySemaphore(
@@ -637,12 +622,18 @@ public:
 
     Result QuerySemaphoreValue(
         amdgpu_semaphore_handle hSemaphore,
-        uint64*                 pValue) const;
+        uint64*                 pValue,
+        uint32                  flags) const;
 
     Result WaitSemaphoreValue(
         amdgpu_semaphore_handle hSemaphore,
         uint64                  value,
+        uint32                  flags,
         uint64                  timeoutNs) const;
+
+    bool IsWaitBeforeSignal(
+        amdgpu_semaphore_handle hSemaphore,
+        uint64                  value) const;
 
     Result SignalSemaphoreValue(
         amdgpu_semaphore_handle  hSemaphore,
@@ -822,10 +813,8 @@ private:
     void InitGfx6CuMask();
 #endif
 
-#if PAL_BUILD_GFX9
     void InitGfx9ChipProperties();
     void InitGfx9CuMask();
-#endif
 
     void InitOutputPaths();
 
@@ -852,19 +841,18 @@ private:
     const uint32          m_deviceNodeIndex;        // The device node index in the system, with this node, driver could
                                                     // open the device with /dev/dri/card+m_deviceNodeIndex.
 
-    uint32 const         m_drmMajorVer;
-    uint32 const         m_drmMinorVer;
-    char                 m_busId[MaxBusIdStringLen];             // Device bus Id name string.
-    char                 m_primaryNodeName[MaxNodeNameLen];      // Name string of primary node.
-    char                 m_renderNodeName[MaxNodeNameLen];       // Name string of render node.
-    amdgpu_gpu_info      m_gpuInfo;                              // Gpu info queried from kernel
-    bool                 m_supportsPresent[QueueTypeCount];      // Indicates if each queue type supports presents.
+    uint32 const     m_drmMajorVer;
+    uint32 const     m_drmMinorVer;
+    char             m_busId[MaxBusIdStringLen];             // Device bus Id name string.
+    char             m_primaryNodeName[MaxNodeNameLen];      // Name string of primary node.
+    char             m_renderNodeName[MaxNodeNameLen];       // Name string of render node.
+    amdgpu_gpu_info  m_gpuInfo;                              // Gpu info queried from kernel
+    bool             m_supportsPresent[QueueTypeCount];      // Indicates if each queue type supports presents.
 
-    bool                 m_useDedicatedVmid;         // Indicate if use per-process VMID.
-    bool                 m_supportExternalSemaphore; // Indicate if external semaphore is supported.
+    bool  m_useDedicatedVmid;         // Indicate if use per-process VMID.
+    bool  m_supportExternalSemaphore; // Indicate if external semaphore is supported.
 
-    const char*                     m_pSettingsPath;
-    Util::SettingsFileMgr<Platform> m_settingsMgr;
+    const char*  m_pSettingsPath;
 
     SvmMgr* m_pSvmMgr;
 
@@ -874,8 +862,8 @@ private:
         amdgpu_va_handle vaHandle;
     };
     typedef Util::HashMap<gpusize, ReservedVaRangeInfo, GenericAllocatorAuto> ReservedVaMap;
-    GenericAllocatorAuto m_mapAllocator;
-    ReservedVaMap m_reservedVaMap;
+    GenericAllocatorAuto  m_mapAllocator;
+    ReservedVaMap         m_reservedVaMap;
 
     // Store information of shader and memory clock.
     // For example(cat /sys/class/drm/card0/device/pp_dpm_mclk):

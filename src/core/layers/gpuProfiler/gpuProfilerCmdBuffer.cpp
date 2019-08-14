@@ -617,6 +617,22 @@ void CmdBuffer::ReplayCmdSetPointLineRasterState(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetLineStippleState(
+    const LineStippleStateParams& params)
+{
+    InsertToken(CmdBufCallId::CmdSetLineStippleState);
+    InsertToken(params);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetLineStippleState(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdSetLineStippleState(ReadTokenVal<LineStippleStateParams>());
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdSetDepthBiasState(
     const DepthBiasParams& params)
 {
@@ -3537,6 +3553,7 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetInputAssemblyState,
         &CmdBuffer::ReplayCmdSetTriangleRasterState,
         &CmdBuffer::ReplayCmdSetPointLineRasterState,
+        &CmdBuffer::ReplayCmdSetLineStippleState,
         &CmdBuffer::ReplayCmdSetDepthBiasState,
         &CmdBuffer::ReplayCmdSetDepthBounds,
         &CmdBuffer::ReplayCmdSetStencilRefMasks,

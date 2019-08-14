@@ -126,12 +126,10 @@ Result GfxDevice::InitHwlSettings(
             m_pSettingsLoader = Gfx6::CreateSettingsLoader(m_pParent);
             break;
 #endif
-#if PAL_BUILD_GFX9
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
             m_pSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
             break;
-#endif // PAL_BUILD_GFX9
         case GfxIpLevel::None:
         default:
             break;
@@ -197,6 +195,7 @@ Result GfxDevice::Finalize()
 
         GpuMemoryInternalCreateInfo internalInfo = { };
         internalInfo.flags.alwaysResident = 1;
+        internalInfo.mtype = MType::Uncached;
 
         GpuMemory* pMemObj   = nullptr;
         gpusize    memOffset = 0;

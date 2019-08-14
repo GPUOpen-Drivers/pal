@@ -737,4 +737,16 @@ void CmdStream::DumpCommands(
 }
 #endif
 
+// =====================================================================================================================
+uint32 CmdStream::GetUsedCmdMemorySize() const
+{
+    uint32 streamSizeInDwords = 0;
+    for (auto iter = m_chunkList.Begin(); iter.IsValid(); iter.Next())
+    {
+        streamSizeInDwords += iter.Get()->DwordsAllocated();
+    }
+
+    return (streamSizeInDwords * sizeof(uint32));
+}
+
 } // Pal

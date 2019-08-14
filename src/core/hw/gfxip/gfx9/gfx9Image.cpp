@@ -542,6 +542,12 @@ Result Image::Finalize(
     // Initialize DCC:
     if (useDcc && (result == Result::Success))
     {
+        // If we have DCC but don't suport shader write(e.g. gfx9), we'll use graphic copy by default for scaled copy.
+        if (IsGfx9(m_device))
+        {
+            m_pParent->SetPreferGraphicsScaledCopy(true);
+        }
+
         // There is nothing mip-level specific about DCC on Gfx9, so we just have one DCC objct that represents the
         // entire DCC allocation.
         m_pDcc = PAL_NEW(Gfx9Dcc, m_device.GetPlatform(), SystemAllocType::AllocObject)(*this);
@@ -1024,25 +1030,28 @@ void Image::InitLayoutStateMasks()
             // Postpone all decompresses for the ResolveSrc state from Barrier-time to Resolve-time.
             compressedLayout.usages |= LayoutResolveSrc;
 
-            // Our copy path has been designed to allow color compressed MSAA copy sources.
-            fmaskDecompressedLayout.usages = LayoutColorTarget | LayoutCopySrc;
+            if (HasFmaskData())
+            {
+                // Our copy path has been designed to allow color compressed MSAA copy sources.
+                fmaskDecompressedLayout.usages = LayoutColorTarget | LayoutCopySrc;
 
-            // Resolve can take 3 different paths inside pal:-
-            // a. FixedFuncHWResolve :- in this case since CB does all the work we can keep everything compressed.
-            // b. ShaderBasedResolve (when format match/native resolve):- We can keep entire color compressed and
-            // hence also in fmaskdecompressed state. If we have a DCC surface but no tc-compatibility even that
-            // case is not a problem since at barrier time we will issue a dccdecompress
-            // c. ShaderBasedResolve (when format don't match) :- we won't have dcc surface in this case and hence
-            //  it is completely fine to keep color into fmaskdecompressed state.
-            fmaskDecompressedLayout.usages |= LayoutResolveSrc;
+                // Resolve can take 3 different paths inside pal:-
+                // a. FixedFuncHWResolve :- in this case since CB does all the work we can keep everything compressed.
+                // b. ShaderBasedResolve (when format match/native resolve):- We can keep entire color compressed and
+                // hence also in fmaskdecompressed state. If we have a DCC surface but no tc-compatibility even that
+                // case is not a problem since at barrier time we will issue a dccdecompress
+                // c. ShaderBasedResolve (when format don't match) :- we won't have dcc surface in this case and hence
+                //  it is completely fine to keep color into fmaskdecompressed state.
+                fmaskDecompressedLayout.usages |= LayoutResolveSrc;
 
-            // We can keep this resource into Fmaskcompressed state since barrier will handle any corresponding
-            // decompress for cases when dcc is present and we are not tc-compatible.
-            fmaskDecompressedLayout.usages |= LayoutShaderFmaskBasedRead;
+                // We can keep this resource into Fmaskcompressed state since barrier will handle any corresponding
+                // decompress for cases when dcc is present and we are not tc-compatible.
+                fmaskDecompressedLayout.usages |= LayoutShaderFmaskBasedRead;
 
-            fmaskDecompressedLayout.engines = LayoutUniversalEngine | LayoutComputeEngine;
+                fmaskDecompressedLayout.engines = LayoutUniversalEngine | LayoutComputeEngine;
+            }
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 461
+
         // If the image is always be fully overwritten when being resolved:
         // a. Fix-function/Compute Shader resolve :- There is no need to issue DccExpand at barrier time.
         // We can do dcc fixup after the resolve.
@@ -1051,7 +1060,7 @@ void Image::InitLayoutStateMasks()
         {
             compressedLayout.usages |= LayoutResolveDst;
         }
-#endif
+
         m_layoutToState.color.compressed        = compressedLayout;
         m_layoutToState.color.fmaskDecompressed = fmaskDecompressedLayout;
 

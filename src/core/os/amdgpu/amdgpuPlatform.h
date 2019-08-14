@@ -69,9 +69,6 @@ public:
     virtual Result TurboSyncControl(
         const TurboSyncControlInput& turboSyncControlInput) override {return Result::ErrorUnavailable;}
 
-    virtual bool      IsDtifEnabled() const override { return m_features.dtifEnabled == 1; }
-    bool              CheckDtifStatus();
-
     bool  IsQueuePrioritySupported() const { return m_features.supportQueuePriority == 1; }
     bool  IsProSemaphoreSupported()  const { return m_features.supportProSemaphore  == 1; }
     bool  IsSyncObjectSupported()    const { return m_features.supportSyncObj       == 1; }
@@ -103,7 +100,6 @@ protected:
     {
         struct
         {
-            uint32 dtifEnabled                  :  1;    // Whether DTIF is enabled
             uint32 supportProSemaphore          :  1;    // Support Pro stack Semaphore
             uint32 supportSyncObj               :  1;    // Support Sync Object Interface
             uint32 supportRawSubmitRoutine      :  1;    // Support raw submit routine
@@ -111,7 +107,7 @@ protected:
             uint32 supportCreateSignaledSyncobj :  1;    // Support creating initial signaled syncobj.
             uint32 supportSyncobjFence          :  1;    // Support fence based on sync object.
             uint32 suportHostMappedForeignMemory:  1;    // Support pin memory which is host-mapped from foreign device.
-            uint32 reserved                     : 24;
+            uint32 reserved                     : 25;
         };
         uint32 u32All;
     } m_features;

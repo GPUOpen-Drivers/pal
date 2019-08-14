@@ -43,12 +43,7 @@
 #include "palVectorImpl.h"
 #include "palIntrusiveListImpl.h"
 #include "core/addrMgr/addrMgr1/addrMgr1.h"
-#if PAL_BUILD_GFX9
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
-#else
-//  NOTE: We need this for address pipe config.
-#include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_enum.h"
-#endif
 // NOTE: We need this chip header for reading registers.
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_offset.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_mask.h"
@@ -105,7 +100,6 @@ static PAL_INLINE Result CheckResult(
 constexpr gpusize _4GB = (1ull << 32u);
 constexpr uint32 GpuPageSize = 4096;
 
-constexpr char SettingsFileName[]             = "amdPalSettings.cfg";
 constexpr char UserDefaultConfigFileSubPath[] = "/.config";
 constexpr char UserDefaultCacheFileSubPath[]  = "/.cache";
 constexpr char UserDefaultDebugFilePath[]     = "/var/tmp";
@@ -352,7 +346,6 @@ Device::Device(
     m_drmMinorVer(constructorParams.drmMinorVer),
     m_useDedicatedVmid(false),
     m_pSettingsPath(constructorParams.pSettingsPath),
-    m_settingsMgr(SettingsFileName, constructorParams.pPlatform),
     m_pSvmMgr(nullptr),
     m_mapAllocator(),
     m_reservedVaMap(32, &m_mapAllocator),
@@ -487,16 +480,19 @@ Result Device::OsLateInit()
     }
 
     // check sync object support status - with parital or complete features
-    CheckSyncObjectSupportStatus();
-
-    // reconfigure Semaphore/Fence Type with m_syncobjSupportState.
-    if ((Settings().disableSyncObject == false) && m_syncobjSupportState.syncobjSemaphore)
+    if (Settings().disableSyncObject == false)
     {
-        m_semType = SemaphoreType::SyncObj;
+        CheckSyncObjectSupportStatus();
 
-        if ((Settings().disableSyncobjFence == false) && m_syncobjSupportState.syncobjFence)
+        // reconfigure Semaphore/Fence Type with m_syncobjSupportState.
+        if (m_syncobjSupportState.syncobjSemaphore)
         {
-            m_fenceType = FenceType::SyncObj;
+            m_semType = SemaphoreType::SyncObj;
+
+            if ((Settings().disableSyncobjFence == false) && m_syncobjSupportState.syncobjFence)
+            {
+                m_fenceType = FenceType::SyncObj;
+            }
         }
     }
 
@@ -504,6 +500,11 @@ Result Device::OsLateInit()
     // - Timestamp Fence + any Semaphore type.
     // - Syncobj Fence + Syncobj Semaphore.
     PAL_ASSERT((m_fenceType != FenceType::SyncObj) || (m_semType == SemaphoreType::SyncObj));
+
+    if ((m_fenceType != FenceType::SyncObj) || (m_semType != SemaphoreType::SyncObj))
+    {
+        m_syncobjSupportState.timelineSemaphore = 0;
+    }
 
     // DrmVersion should be equal or greater than 3.22 in case to support queue priority
     if (static_cast<Platform*>(m_pPlatform)->IsQueuePrioritySupported() && IsDrmVersionOrGreater(3,22))
@@ -616,7 +617,7 @@ Result Device::EarlyInit(
 
         if (result == Result::ErrorUnavailable)
         {
-            //Unavailable means that the file was not found, which is an acceptable failure.
+            // Unavailable means that the file was not found, which is an acceptable failure.
             PAL_ALERT_ALWAYS();
             result = Result::Success;
         }
@@ -818,7 +819,6 @@ Result Device::InitGpuProperties()
                                             &m_engineProperties);
         break;
 #endif
-#if PAL_BUILD_GFX9
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_ARCTICISLAND;
@@ -829,7 +829,6 @@ Result Device::InitGpuProperties()
                                             m_chipProperties.eRevId,
                                             &m_engineProperties);
         break;
-#endif
     case GfxIpLevel::None:
         // No Graphics IP block found or recognized!
     default:
@@ -985,7 +984,6 @@ void Device::InitGfx6CuMask()
 }
 #endif
 
-#if PAL_BUILD_GFX9
 // =====================================================================================================================
 // Helper method which initializes the GPU chip properties for all hardware families using the GFX9 hardware layer.
 void Device::InitGfx9ChipProperties()
@@ -1112,7 +1110,6 @@ void Device::InitGfx9CuMask()
         }
     }
 }
-#endif // PAL_BUILD_GFX9
 
 // =====================================================================================================================
 // Helper method which translate the amdgpu vram type into LocalMemoryType.
@@ -1428,8 +1425,6 @@ Result Device::InitMemQueueInfo()
                 break;
 
             case EngineTypeHighPriorityUniversal:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 459
-#endif
                 // not supported on linux
                 pEngineInfo->numAvailable       = 0;
                 pEngineInfo->startAlign         = 1;
@@ -1615,19 +1610,6 @@ Result Device::GetMultiGpuCompatibility(
     }
 
     return result;
-}
-
-// =====================================================================================================================
-// Reads a setting from a configuration file.
-bool Device::ReadSetting(
-    const char*          pSettingName,
-    Util::ValueType      valueType,
-    void*                pValue,
-    InternalSettingScope settingType,
-    size_t               bufferSz
-    ) const
-{
-    return m_settingsMgr.GetValue(pSettingName, valueType, pValue, bufferSz);
 }
 
 // =====================================================================================================================
@@ -1935,18 +1917,6 @@ uint32 Device::GetSupportedSwapChainModes(
 
     return swapchainModes;
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
-// =====================================================================================================================
-Result Device::GetConnectorIdFromOutput(
-    OsDisplayHandle hDisplay,
-    uint32          randrOutput,
-    WsiPlatform     wsiPlatform,
-    uint32*         pConnectorId)
-{
-    return WindowSystem::GetConnectorIdFromOutput(this, hDisplay, randrOutput, wsiPlatform, pConnectorId);
-}
-#endif
 
 // =====================================================================================================================
 size_t Device::GetSwapChainSize(
@@ -2984,18 +2954,10 @@ static uint32 AmdGpuToPalPipeConfigConversion(
             palPipeConfig = ADDR_SURF_P8_32x64_32x32;
             break;
         case AMDGPU_PIPE_CFG__P16_32x32_8x16:
-#if PAL_BUILD_GFX9
             palPipeConfig = ADDR_SURF_P16_32x32_8x16;
-#else
-            palPipeConfig = ADDR_SURF_P16_32x32_8x16__CI__VI;
-#endif
             break;
         case AMDGPU_PIPE_CFG__P16_32x32_16x16:
-#if PAL_BUILD_GFX9
             palPipeConfig = ADDR_SURF_P16_32x32_16x16;
-#else
-            palPipeConfig = ADDR_SURF_P16_32x32_16x16__CI__VI;
-#endif
             break;
         default:
             palPipeConfig = ADDR_SURF_P2;
@@ -3088,7 +3050,6 @@ void Device::UpdateImageInfo(
             pTileInfo->tileSplitBytes               = pUmdMetaData->tile_config.tile_split_bytes;
             pTileInfo->tileSwizzle                  = pUmdMetaData->pipeBankXor;
         }
-#if PAL_BUILD_GFX9
         else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
         {
             AddrMgr2::TileInfo*const pTileInfo   = static_cast<AddrMgr2::TileInfo*>(pImage->GetSubresourceTileInfo(0));
@@ -3096,7 +3057,6 @@ void Device::UpdateImageInfo(
                                       (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
             pTileInfo->pipeBankXor = pUmdMetaData->pipeBankXor;
         }
-#endif
         else
         {
             PAL_NOT_IMPLEMENTED();
@@ -3187,7 +3147,6 @@ void Device::UpdateMetaData(
 
         metadata.tiling_info = tilingFlags.u64All;
     }
-#if PAL_BUILD_GFX9
     else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
     {
         const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
@@ -3215,7 +3174,6 @@ void Device::UpdateMetaData(
         pUmdMetaData->swizzleMode  = curSwizzleMode;
         pUmdMetaData->resourceType = AMDGPU_ADDR_RSRC_TEX_2D;
     }
-#endif
     else
     {
         PAL_NOT_IMPLEMENTED();
@@ -3350,8 +3308,34 @@ void Device::CheckSyncObjectSupportStatus()
                 m_syncobjSupportState.timelineSemaphore = ((cap == 1)       &&
                     m_drmProcs.pfnAmdgpuCsSyncobjTransferisValid()          &&
                     m_drmProcs.pfnAmdgpuCsSyncobjQueryisValid()             &&
+                    m_drmProcs.pfnAmdgpuCsSyncobjQuery2isValid()            &&
                     m_drmProcs.pfnAmdgpuCsSyncobjTimelineWaitisValid()      &&
-                    m_drmProcs.pfnAmdgpuCsSyncobjTimelineSignalisValid());
+                    m_drmProcs.pfnAmdgpuCsSyncobjTimelineSignalisValid()    &&
+                    m_syncobjSupportState.syncobjFence                      &&
+                    m_syncobjSupportState.syncobjSemaphore);
+
+                if (m_syncobjSupportState.timelineSemaphore)
+                {
+                    amdgpu_syncobj_handle hSyncobj = 0;
+
+                    // Check Basic SyncObject's support with Query2 api.
+                    status = CreateSyncObject(DRM_SYNCOBJ_CREATE_SIGNALED, &hSyncobj);
+                    if (status == Result::Success)
+                    {
+                        uint64 queryValue = 0;
+
+                        status = QuerySemaphoreValue(
+                                reinterpret_cast<amdgpu_semaphore_handle>(hSyncobj),
+                                &queryValue,
+                                DRM_SYNCOBJ_QUERY_FLAGS_LAST_SUBMITTED);
+                        if (status != Result::Success)
+                        {
+                            m_syncobjSupportState.timelineSemaphore = 0;
+                        }
+
+                        DestroySyncObject(hSyncobj);
+                    }
+                }
             }
         }
     }
@@ -3400,12 +3384,14 @@ Result Device::ConveySyncObjectState(
 
     if (m_syncobjSupportState.timelineSemaphore)
     {
+        uint32 flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
+
         ret = m_drmProcs.pfnAmdgpuCsSyncobjTransfer(m_hDevice,
                                                     importSyncObj,
                                                     importPoint,
                                                     exportSyncObj,
                                                     exportPoint,
-                                                    0);
+                                                    flags);
     }
     else
     {
@@ -3494,6 +3480,7 @@ Result Device::ImportSyncObject(
 Result Device::CreateSemaphore(
     bool                     isCreatedSignaled,
     bool                     isCreatedTimeline,
+    uint64                   initialCount,
     amdgpu_semaphore_handle* pSemaphoreHandle
     ) const
 {
@@ -3513,14 +3500,15 @@ Result Device::CreateSemaphore(
     {
         uint32 flags = isCreatedSignaled ? DRM_SYNCOBJ_CREATE_SIGNALED : 0;
 
-        if (isCreatedTimeline)
-        {
-            flags = flags;
-        }
         result = CreateSyncObject(flags, &hSem);
         if (result == Result::Success)
         {
             *pSemaphoreHandle = reinterpret_cast<amdgpu_semaphore_handle>(hSem);
+
+            if (isCreatedTimeline)
+            {
+                result = SignalSemaphoreValue(*pSemaphoreHandle, initialCount);
+            }
         }
     }
     else
@@ -3724,7 +3712,8 @@ Result Device::ImportSemaphore(
 // =====================================================================================================================
 Result Device::QuerySemaphoreValue(
     amdgpu_semaphore_handle  hSemaphore,
-    uint64*                  pValue
+    uint64*                  pValue,
+    uint32                   flags
     ) const
 {
     int32 ret = 0;
@@ -3732,10 +3721,11 @@ Result Device::QuerySemaphoreValue(
     if (m_syncobjSupportState.timelineSemaphore)
     {
         amdgpu_syncobj_handle hSyncobj = reinterpret_cast<uintptr_t>(hSemaphore);
-        ret = m_drmProcs.pfnAmdgpuCsSyncobjQuery(m_hDevice,
-                                                 &hSyncobj,
-                                                 pValue,
-                                                 1);
+        ret = m_drmProcs.pfnAmdgpuCsSyncobjQuery2(m_hDevice,
+                                                  &hSyncobj,
+                                                  pValue,
+                                                  1,
+                                                  flags);
     }
 
     return CheckResult(ret, Result::ErrorUnknown);
@@ -3745,6 +3735,7 @@ Result Device::QuerySemaphoreValue(
 Result Device::WaitSemaphoreValue(
     amdgpu_semaphore_handle  hSemaphore,
     uint64                   value,
+    uint32                   flags,
     uint64                   timeoutNs
     ) const
 {
@@ -3752,9 +3743,6 @@ Result Device::WaitSemaphoreValue(
 
     if (m_syncobjSupportState.timelineSemaphore)
     {
-        int32 flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL |
-            DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
-
         amdgpu_syncobj_handle hSyncobj = reinterpret_cast<uintptr_t>(hSemaphore);
 
         ret = m_drmProcs.pfnAmdgpuCsSyncobjTimelineWait(m_hDevice,
@@ -3767,6 +3755,51 @@ Result Device::WaitSemaphoreValue(
     }
 
     return CheckResult(ret, Result::ErrorUnknown);
+}
+
+// =====================================================================================================================
+bool Device::IsWaitBeforeSignal(
+    amdgpu_semaphore_handle  hSemaphore,
+    uint64                   value
+    ) const
+{
+    bool  waitBeforeSignal = false;
+    int32 ret = 0;
+
+    if (m_syncobjSupportState.timelineSemaphore)
+    {
+        amdgpu_syncobj_handle hSyncobj = reinterpret_cast<uintptr_t>(hSemaphore);
+
+        if (m_drmProcs.pfnAmdgpuCsSyncobjQuery2isValid())
+        {
+            uint64 queryValue = 0;
+
+            ret = m_drmProcs.pfnAmdgpuCsSyncobjQuery2(m_hDevice,
+                                                      &hSyncobj,
+                                                      &queryValue,
+                                                      1,
+                                                      DRM_SYNCOBJ_QUERY_FLAGS_LAST_SUBMITTED);
+            PAL_ASSERT(ret == 0);
+            if (ret == 0)
+            {
+                waitBeforeSignal = queryValue < value ? true : false;
+            }
+        }
+        else
+        {
+            int32 flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE;
+
+            ret = m_drmProcs.pfnAmdgpuCsSyncobjTimelineWait(m_hDevice,
+                                                            &hSyncobj,
+                                                            &value,
+                                                            1,
+                                                            0,
+                                                            flags,
+                                                            nullptr);
+            waitBeforeSignal = ret == -EINVAL ? true : false;
+        }
+    }
+    return waitBeforeSignal;
 }
 
 // =====================================================================================================================
@@ -4407,10 +4440,11 @@ Result Device::SetClockMode(
                     // get stable pstate mclk in Mhz from KMD
                     if (m_supportQuerySensorInfo)
                     {
-                        result = CheckResult(m_drmProcs.pfnAmdgpuQuerySensorInfo(m_hDevice,
-                                                                                 AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_MCLK,
-                                                                                 sizeof(uint32),
-                                                                                 static_cast<void*>(&mClkInMhz)),
+                        result = CheckResult(m_drmProcs.pfnAmdgpuQuerySensorInfo(
+                                                    m_hDevice,
+                                                    AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_MCLK,
+                                                    sizeof(uint32),
+                                                    static_cast<void*>(&mClkInMhz)),
                                              Result::ErrorInvalidValue);
                     }
                     else

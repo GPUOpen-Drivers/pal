@@ -37,6 +37,7 @@
 
 #include "core/os/amdgpu/amdgpuHeaders.h"
 #include "palFile.h"
+#include "palLibrary.h"
 
 namespace Pal
 {
@@ -421,6 +422,13 @@ typedef int32 (*AmdgpuCsSyncobjQuery)(
             const uint32*         pHandles,
             uint64*               points,
             uint32                numHandles);
+
+typedef int32 (*AmdgpuCsSyncobjQuery2)(
+            amdgpu_device_handle  hDevice,
+            const uint32*         pHandles,
+            uint64*               points,
+            uint32                numHandles,
+            uint32                flags);
 
 typedef int32 (*AmdgpuCsCtxCreate2)(
             amdgpu_device_handle      hDevice,
@@ -1039,6 +1047,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuCsSyncobjQueryisValid() const
     {
         return (pfnAmdgpuCsSyncobjQuery != nullptr);
+    }
+
+    AmdgpuCsSyncobjQuery2             pfnAmdgpuCsSyncobjQuery2;
+    bool pfnAmdgpuCsSyncobjQuery2isValid() const
+    {
+        return (pfnAmdgpuCsSyncobjQuery2 != nullptr);
     }
 
     AmdgpuCsCtxCreate2                pfnAmdgpuCsCtxCreate2;
@@ -2043,6 +2057,18 @@ public:
         return (m_pFuncs->pfnAmdgpuCsSyncobjQuery != nullptr);
     }
 
+    int32 pfnAmdgpuCsSyncobjQuery2(
+            amdgpu_device_handle  hDevice,
+            const uint32*         pHandles,
+            uint64*               points,
+            uint32                numHandles,
+            uint32                flags) const;
+
+    bool pfnAmdgpuCsSyncobjQuery2isValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsSyncobjQuery2 != nullptr);
+    }
+
     int32 pfnAmdgpuCsCtxCreate2(
             amdgpu_device_handle      hDevice,
             uint32                    priority,
@@ -2454,26 +2480,30 @@ private:
 class Platform;
 
 // =====================================================================================================================
-// the class is responsible to resolve all external symbols that required by the Dri3WindowSystem.
+// the class is responsible for resolving all external symbols that required by the Dri3WindowSystem.
 class DrmLoader
 {
 public:
     DrmLoader();
     ~DrmLoader();
+
     bool   Initialized() { return m_initialized; }
+
     const DrmLoaderFuncs& GetProcsTable()const { return m_funcs; }
 #if defined(PAL_DEBUG_PRINTS)
     const DrmLoaderFuncsProxy& GetProcsTableProxy()const { return m_proxy; }
+
     void SetLogPath(const char* pPath) { m_proxy.Init(pPath); }
 #endif
-    Result Init(Platform* pPlatform);
 
+    Result Init(Platform* pPlatform);
     void   SpecializedInit(Platform* pPlatform, char*  pDtifLibName);
 
 private:
-    void* m_libraryHandles[DrmLoaderLibrariesCount];
-    bool  m_initialized;
-    DrmLoaderFuncs m_funcs;
+    Util::Library m_library[DrmLoaderLibrariesCount];
+    bool          m_initialized;
+
+    DrmLoaderFuncs      m_funcs;
 #if defined(PAL_DEBUG_PRINTS)
     DrmLoaderFuncsProxy m_proxy;
 #endif

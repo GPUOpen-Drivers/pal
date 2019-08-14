@@ -1966,6 +1966,38 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjQuery(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjQuery2(
+    amdgpu_device_handle  hDevice,
+    const uint32*         pHandles,
+    uint64*               points,
+    uint32                numHandles,
+    uint32                flags
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjQuery2(hDevice,
+                                                   pHandles,
+                                                   points,
+                                                   numHandles,
+                                                   flags);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCsSyncobjQuery2,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCsSyncobjQuery2(%p, %p, %p, %x, %x)\n",
+        hDevice,
+        pHandles,
+        points,
+        numHandles,
+        flags);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate2(
     amdgpu_device_handle    hDevice,
     uint32                  priority,
@@ -2989,21 +3021,12 @@ DrmLoader::DrmLoader()
     :
     m_initialized(false)
 {
-    memset(m_libraryHandles, 0, sizeof(m_libraryHandles));
     memset(&m_funcs, 0, sizeof(m_funcs));
 }
 
 // =====================================================================================================================
 DrmLoader::~DrmLoader()
 {
-    if (m_libraryHandles[LibDrmAmdgpu] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibDrmAmdgpu]);
-    }
-    if (m_libraryHandles[LibDrm] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibDrm]);
-    }
 }
 
 // =====================================================================================================================
@@ -3021,362 +3044,129 @@ Result DrmLoader::Init(
     if (m_initialized == false)
     {
         // resolve symbols from libdrm_amdgpu.so.1
-        m_libraryHandles[LibDrmAmdgpu] = dlopen(LibNames[LibDrmAmdgpu], RTLD_LAZY);
-        if (m_libraryHandles[LibDrmAmdgpu] == nullptr)
+        result = m_library[LibDrmAmdgpu].Load(LibNames[LibDrmAmdgpu]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnAmdgpuQueryHwIpInfo = reinterpret_cast<AmdgpuQueryHwIpInfo>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_query_hw_ip_info"));
-            m_funcs.pfnAmdgpuBoVaOp = reinterpret_cast<AmdgpuBoVaOp>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_va_op"));
-            m_funcs.pfnAmdgpuBoVaOpRaw = reinterpret_cast<AmdgpuBoVaOpRaw>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_va_op_raw"));
-            m_funcs.pfnAmdgpuCsCreateSemaphore = reinterpret_cast<AmdgpuCsCreateSemaphore>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_create_semaphore"));
-            m_funcs.pfnAmdgpuCsSignalSemaphore = reinterpret_cast<AmdgpuCsSignalSemaphore>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_signal_semaphore"));
-            m_funcs.pfnAmdgpuCsWaitSemaphore = reinterpret_cast<AmdgpuCsWaitSemaphore>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_wait_semaphore"));
-            m_funcs.pfnAmdgpuCsDestroySemaphore = reinterpret_cast<AmdgpuCsDestroySemaphore>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_destroy_semaphore"));
-            m_funcs.pfnAmdgpuCsCreateSem = reinterpret_cast<AmdgpuCsCreateSem>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_create_sem"));
-            m_funcs.pfnAmdgpuCsSignalSem = reinterpret_cast<AmdgpuCsSignalSem>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_signal_sem"));
-            m_funcs.pfnAmdgpuCsWaitSem = reinterpret_cast<AmdgpuCsWaitSem>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_wait_sem"));
-            m_funcs.pfnAmdgpuCsExportSem = reinterpret_cast<AmdgpuCsExportSem>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_export_sem"));
-            m_funcs.pfnAmdgpuCsImportSem = reinterpret_cast<AmdgpuCsImportSem>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_import_sem"));
-            m_funcs.pfnAmdgpuCsDestroySem = reinterpret_cast<AmdgpuCsDestroySem>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_destroy_sem"));
-            m_funcs.pfnAmdgpuGetMarketingName = reinterpret_cast<AmdgpuGetMarketingName>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_get_marketing_name"));
-            m_funcs.pfnAmdgpuVaRangeFree = reinterpret_cast<AmdgpuVaRangeFree>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_va_range_free"));
-            m_funcs.pfnAmdgpuVaRangeQuery = reinterpret_cast<AmdgpuVaRangeQuery>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_va_range_query"));
-            m_funcs.pfnAmdgpuVaRangeAlloc = reinterpret_cast<AmdgpuVaRangeAlloc>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_va_range_alloc"));
-            m_funcs.pfnAmdgpuReadMmRegisters = reinterpret_cast<AmdgpuReadMmRegisters>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_read_mm_registers"));
-            m_funcs.pfnAmdgpuDeviceInitialize = reinterpret_cast<AmdgpuDeviceInitialize>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_device_initialize"));
-            m_funcs.pfnAmdgpuDeviceDeinitialize = reinterpret_cast<AmdgpuDeviceDeinitialize>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_device_deinitialize"));
-            m_funcs.pfnAmdgpuBoAlloc = reinterpret_cast<AmdgpuBoAlloc>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_alloc"));
-            m_funcs.pfnAmdgpuBoSetMetadata = reinterpret_cast<AmdgpuBoSetMetadata>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_set_metadata"));
-            m_funcs.pfnAmdgpuBoQueryInfo = reinterpret_cast<AmdgpuBoQueryInfo>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_query_info"));
-            m_funcs.pfnAmdgpuBoExport = reinterpret_cast<AmdgpuBoExport>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_export"));
-            m_funcs.pfnAmdgpuBoImport = reinterpret_cast<AmdgpuBoImport>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_import"));
-            m_funcs.pfnAmdgpuCreateBoFromUserMem = reinterpret_cast<AmdgpuCreateBoFromUserMem>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_create_bo_from_user_mem"));
-            m_funcs.pfnAmdgpuCreateBoFromPhysMem = reinterpret_cast<AmdgpuCreateBoFromPhysMem>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_create_bo_from_phys_mem"));
-            m_funcs.pfnAmdgpuFindBoByCpuMapping = reinterpret_cast<AmdgpuFindBoByCpuMapping>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_find_bo_by_cpu_mapping"));
-            m_funcs.pfnAmdgpuBoFree = reinterpret_cast<AmdgpuBoFree>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_free"));
-            m_funcs.pfnAmdgpuBoCpuMap = reinterpret_cast<AmdgpuBoCpuMap>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_cpu_map"));
-            m_funcs.pfnAmdgpuBoCpuUnmap = reinterpret_cast<AmdgpuBoCpuUnmap>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_cpu_unmap"));
-            m_funcs.pfnAmdgpuBoWaitForIdle = reinterpret_cast<AmdgpuBoWaitForIdle>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_wait_for_idle"));
-            m_funcs.pfnAmdgpuBoListCreate = reinterpret_cast<AmdgpuBoListCreate>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_list_create"));
-            m_funcs.pfnAmdgpuBoListDestroy = reinterpret_cast<AmdgpuBoListDestroy>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_list_destroy"));
-            m_funcs.pfnAmdgpuCsCtxCreate = reinterpret_cast<AmdgpuCsCtxCreate>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_ctx_create"));
-            m_funcs.pfnAmdgpuCsCtxFree = reinterpret_cast<AmdgpuCsCtxFree>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_ctx_free"));
-            m_funcs.pfnAmdgpuCsSubmit = reinterpret_cast<AmdgpuCsSubmit>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_submit"));
-            m_funcs.pfnAmdgpuCsQueryFenceStatus = reinterpret_cast<AmdgpuCsQueryFenceStatus>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_query_fence_status"));
-            m_funcs.pfnAmdgpuCsWaitFences = reinterpret_cast<AmdgpuCsWaitFences>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_wait_fences"));
-            m_funcs.pfnAmdgpuQueryBufferSizeAlignment = reinterpret_cast<AmdgpuQueryBufferSizeAlignment>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_query_buffer_size_alignment"));
-            m_funcs.pfnAmdgpuQueryFirmwareVersion = reinterpret_cast<AmdgpuQueryFirmwareVersion>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_query_firmware_version"));
-            m_funcs.pfnAmdgpuQueryHwIpCount = reinterpret_cast<AmdgpuQueryHwIpCount>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_query_hw_ip_count"));
-            m_funcs.pfnAmdgpuQueryHeapInfo = reinterpret_cast<AmdgpuQueryHeapInfo>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_query_heap_info"));
-            m_funcs.pfnAmdgpuQueryGpuInfo = reinterpret_cast<AmdgpuQueryGpuInfo>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_query_gpu_info"));
-            m_funcs.pfnAmdgpuQuerySensorInfo = reinterpret_cast<AmdgpuQuerySensorInfo>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_query_sensor_info"));
-            m_funcs.pfnAmdgpuQueryInfo = reinterpret_cast<AmdgpuQueryInfo>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_query_info"));
-            m_funcs.pfnAmdgpuQueryPrivateAperture = reinterpret_cast<AmdgpuQueryPrivateAperture>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_query_private_aperture"));
-            m_funcs.pfnAmdgpuQuerySharedAperture = reinterpret_cast<AmdgpuQuerySharedAperture>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_query_shared_aperture"));
-            m_funcs.pfnAmdgpuBoGetPhysAddress = reinterpret_cast<AmdgpuBoGetPhysAddress>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_bo_get_phys_address"));
-            m_funcs.pfnAmdgpuCsReservedVmid = reinterpret_cast<AmdgpuCsReservedVmid>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_reserved_vmid"));
-            m_funcs.pfnAmdgpuCsUnreservedVmid = reinterpret_cast<AmdgpuCsUnreservedVmid>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_unreserved_vmid"));
-            m_funcs.pfnAmdgpuCsCreateSyncobj = reinterpret_cast<AmdgpuCsCreateSyncobj>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_create_syncobj"));
-            m_funcs.pfnAmdgpuCsCreateSyncobj2 = reinterpret_cast<AmdgpuCsCreateSyncobj2>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_create_syncobj2"));
-            m_funcs.pfnAmdgpuCsDestroySyncobj = reinterpret_cast<AmdgpuCsDestroySyncobj>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_destroy_syncobj"));
-            m_funcs.pfnAmdgpuCsExportSyncobj = reinterpret_cast<AmdgpuCsExportSyncobj>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_export_syncobj"));
-            m_funcs.pfnAmdgpuCsImportSyncobj = reinterpret_cast<AmdgpuCsImportSyncobj>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_import_syncobj"));
-            m_funcs.pfnAmdgpuCsSubmitRaw = reinterpret_cast<AmdgpuCsSubmitRaw>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_submit_raw"));
-            m_funcs.pfnAmdgpuCsChunkFenceToDep = reinterpret_cast<AmdgpuCsChunkFenceToDep>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_chunk_fence_to_dep"));
-            m_funcs.pfnAmdgpuCsChunkFenceInfoToData = reinterpret_cast<AmdgpuCsChunkFenceInfoToData>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_chunk_fence_info_to_data"));
-            m_funcs.pfnAmdgpuCsSyncobjImportSyncFile = reinterpret_cast<AmdgpuCsSyncobjImportSyncFile>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_import_sync_file"));
-            m_funcs.pfnAmdgpuCsSyncobjImportSyncFile2 = reinterpret_cast<AmdgpuCsSyncobjImportSyncFile2>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_import_sync_file2"));
-            m_funcs.pfnAmdgpuCsSyncobjExportSyncFile = reinterpret_cast<AmdgpuCsSyncobjExportSyncFile>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_export_sync_file"));
-            m_funcs.pfnAmdgpuCsSyncobjExportSyncFile2 = reinterpret_cast<AmdgpuCsSyncobjExportSyncFile2>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_export_sync_file2"));
-            m_funcs.pfnAmdgpuCsSyncobjWait = reinterpret_cast<AmdgpuCsSyncobjWait>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_wait"));
-            m_funcs.pfnAmdgpuCsSyncobjTimelineWait = reinterpret_cast<AmdgpuCsSyncobjTimelineWait>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_timeline_wait"));
-            m_funcs.pfnAmdgpuCsSyncobjReset = reinterpret_cast<AmdgpuCsSyncobjReset>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_reset"));
-            m_funcs.pfnAmdgpuCsSyncobjSignal = reinterpret_cast<AmdgpuCsSyncobjSignal>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_signal"));
-            m_funcs.pfnAmdgpuCsSyncobjTimelineSignal = reinterpret_cast<AmdgpuCsSyncobjTimelineSignal>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_timeline_signal"));
-            m_funcs.pfnAmdgpuCsSyncobjTransfer = reinterpret_cast<AmdgpuCsSyncobjTransfer>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_transfer"));
-            m_funcs.pfnAmdgpuCsSyncobjQuery = reinterpret_cast<AmdgpuCsSyncobjQuery>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_syncobj_query"));
-            m_funcs.pfnAmdgpuCsCtxCreate2 = reinterpret_cast<AmdgpuCsCtxCreate2>(dlsym(
-                        m_libraryHandles[LibDrmAmdgpu],
-                        "amdgpu_cs_ctx_create2"));
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_hw_ip_info", &m_funcs.pfnAmdgpuQueryHwIpInfo);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_va_op", &m_funcs.pfnAmdgpuBoVaOp);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_va_op_raw", &m_funcs.pfnAmdgpuBoVaOpRaw);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_create_semaphore", &m_funcs.pfnAmdgpuCsCreateSemaphore);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_signal_semaphore", &m_funcs.pfnAmdgpuCsSignalSemaphore);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_wait_semaphore", &m_funcs.pfnAmdgpuCsWaitSemaphore);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_destroy_semaphore", &m_funcs.pfnAmdgpuCsDestroySemaphore);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_create_sem", &m_funcs.pfnAmdgpuCsCreateSem);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_signal_sem", &m_funcs.pfnAmdgpuCsSignalSem);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_wait_sem", &m_funcs.pfnAmdgpuCsWaitSem);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_export_sem", &m_funcs.pfnAmdgpuCsExportSem);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_import_sem", &m_funcs.pfnAmdgpuCsImportSem);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_destroy_sem", &m_funcs.pfnAmdgpuCsDestroySem);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_get_marketing_name", &m_funcs.pfnAmdgpuGetMarketingName);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_va_range_free", &m_funcs.pfnAmdgpuVaRangeFree);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_va_range_query", &m_funcs.pfnAmdgpuVaRangeQuery);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_va_range_alloc", &m_funcs.pfnAmdgpuVaRangeAlloc);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_read_mm_registers", &m_funcs.pfnAmdgpuReadMmRegisters);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_device_initialize", &m_funcs.pfnAmdgpuDeviceInitialize);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_device_deinitialize", &m_funcs.pfnAmdgpuDeviceDeinitialize);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_alloc", &m_funcs.pfnAmdgpuBoAlloc);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_set_metadata", &m_funcs.pfnAmdgpuBoSetMetadata);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_query_info", &m_funcs.pfnAmdgpuBoQueryInfo);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_export", &m_funcs.pfnAmdgpuBoExport);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_import", &m_funcs.pfnAmdgpuBoImport);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_create_bo_from_user_mem", &m_funcs.pfnAmdgpuCreateBoFromUserMem);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_create_bo_from_phys_mem", &m_funcs.pfnAmdgpuCreateBoFromPhysMem);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_find_bo_by_cpu_mapping", &m_funcs.pfnAmdgpuFindBoByCpuMapping);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_free", &m_funcs.pfnAmdgpuBoFree);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_cpu_map", &m_funcs.pfnAmdgpuBoCpuMap);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_cpu_unmap", &m_funcs.pfnAmdgpuBoCpuUnmap);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_wait_for_idle", &m_funcs.pfnAmdgpuBoWaitForIdle);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_create", &m_funcs.pfnAmdgpuBoListCreate);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_destroy", &m_funcs.pfnAmdgpuBoListDestroy);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_create", &m_funcs.pfnAmdgpuCsCtxCreate);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_free", &m_funcs.pfnAmdgpuCsCtxFree);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_submit", &m_funcs.pfnAmdgpuCsSubmit);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_query_fence_status", &m_funcs.pfnAmdgpuCsQueryFenceStatus);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_wait_fences", &m_funcs.pfnAmdgpuCsWaitFences);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_buffer_size_alignment", &m_funcs.pfnAmdgpuQueryBufferSizeAlignment);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_firmware_version", &m_funcs.pfnAmdgpuQueryFirmwareVersion);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_hw_ip_count", &m_funcs.pfnAmdgpuQueryHwIpCount);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_heap_info", &m_funcs.pfnAmdgpuQueryHeapInfo);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_gpu_info", &m_funcs.pfnAmdgpuQueryGpuInfo);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_sensor_info", &m_funcs.pfnAmdgpuQuerySensorInfo);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_info", &m_funcs.pfnAmdgpuQueryInfo);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_private_aperture", &m_funcs.pfnAmdgpuQueryPrivateAperture);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_shared_aperture", &m_funcs.pfnAmdgpuQuerySharedAperture);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_get_phys_address", &m_funcs.pfnAmdgpuBoGetPhysAddress);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_reserved_vmid", &m_funcs.pfnAmdgpuCsReservedVmid);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_unreserved_vmid", &m_funcs.pfnAmdgpuCsUnreservedVmid);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_create_syncobj", &m_funcs.pfnAmdgpuCsCreateSyncobj);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_create_syncobj2", &m_funcs.pfnAmdgpuCsCreateSyncobj2);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_destroy_syncobj", &m_funcs.pfnAmdgpuCsDestroySyncobj);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_export_syncobj", &m_funcs.pfnAmdgpuCsExportSyncobj);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_import_syncobj", &m_funcs.pfnAmdgpuCsImportSyncobj);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_submit_raw", &m_funcs.pfnAmdgpuCsSubmitRaw);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_chunk_fence_to_dep", &m_funcs.pfnAmdgpuCsChunkFenceToDep);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_chunk_fence_info_to_data", &m_funcs.pfnAmdgpuCsChunkFenceInfoToData);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_import_sync_file", &m_funcs.pfnAmdgpuCsSyncobjImportSyncFile);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_import_sync_file2", &m_funcs.pfnAmdgpuCsSyncobjImportSyncFile2);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_export_sync_file", &m_funcs.pfnAmdgpuCsSyncobjExportSyncFile);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_export_sync_file2", &m_funcs.pfnAmdgpuCsSyncobjExportSyncFile2);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_wait", &m_funcs.pfnAmdgpuCsSyncobjWait);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_timeline_wait", &m_funcs.pfnAmdgpuCsSyncobjTimelineWait);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_reset", &m_funcs.pfnAmdgpuCsSyncobjReset);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_signal", &m_funcs.pfnAmdgpuCsSyncobjSignal);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_timeline_signal", &m_funcs.pfnAmdgpuCsSyncobjTimelineSignal);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_transfer", &m_funcs.pfnAmdgpuCsSyncobjTransfer);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_query", &m_funcs.pfnAmdgpuCsSyncobjQuery);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_query2", &m_funcs.pfnAmdgpuCsSyncobjQuery2);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_create2", &m_funcs.pfnAmdgpuCsCtxCreate2);
         }
 
         // resolve symbols from libdrm.so.2
-        m_libraryHandles[LibDrm] = dlopen(LibNames[LibDrm], RTLD_LAZY);
-        if (m_libraryHandles[LibDrm] == nullptr)
+        result = m_library[LibDrm].Load(LibNames[LibDrm]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnDrmGetNodeTypeFromFd = reinterpret_cast<DrmGetNodeTypeFromFd>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmGetNodeTypeFromFd"));
-            m_funcs.pfnDrmGetRenderDeviceNameFromFd = reinterpret_cast<DrmGetRenderDeviceNameFromFd>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmGetRenderDeviceNameFromFd"));
-            m_funcs.pfnDrmGetDevices = reinterpret_cast<DrmGetDevices>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmGetDevices"));
-            m_funcs.pfnDrmFreeDevices = reinterpret_cast<DrmFreeDevices>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmFreeDevices"));
-            m_funcs.pfnDrmGetBusid = reinterpret_cast<DrmGetBusid>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmGetBusid"));
-            m_funcs.pfnDrmFreeBusid = reinterpret_cast<DrmFreeBusid>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmFreeBusid"));
-            m_funcs.pfnDrmModeGetResources = reinterpret_cast<DrmModeGetResources>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeGetResources"));
-            m_funcs.pfnDrmModeFreeResources = reinterpret_cast<DrmModeFreeResources>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeFreeResources"));
-            m_funcs.pfnDrmModeGetConnector = reinterpret_cast<DrmModeGetConnector>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeGetConnector"));
-            m_funcs.pfnDrmModeFreeConnector = reinterpret_cast<DrmModeFreeConnector>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeFreeConnector"));
-            m_funcs.pfnDrmGetCap = reinterpret_cast<DrmGetCap>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmGetCap"));
-            m_funcs.pfnDrmSetClientCap = reinterpret_cast<DrmSetClientCap>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmSetClientCap"));
-            m_funcs.pfnDrmSyncobjCreate = reinterpret_cast<DrmSyncobjCreate>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmSyncobjCreate"));
-            m_funcs.pfnDrmModeFreePlane = reinterpret_cast<DrmModeFreePlane>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeFreePlane"));
-            m_funcs.pfnDrmModeFreePlaneResources = reinterpret_cast<DrmModeFreePlaneResources>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeFreePlaneResources"));
-            m_funcs.pfnDrmModeGetPlaneResources = reinterpret_cast<DrmModeGetPlaneResources>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeGetPlaneResources"));
-            m_funcs.pfnDrmModeGetPlane = reinterpret_cast<DrmModeGetPlane>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeGetPlane"));
-            m_funcs.pfnDrmDropMaster = reinterpret_cast<DrmDropMaster>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmDropMaster"));
-            m_funcs.pfnDrmPrimeFDToHandle = reinterpret_cast<DrmPrimeFDToHandle>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmPrimeFDToHandle"));
-            m_funcs.pfnDrmModeAddFB2 = reinterpret_cast<DrmModeAddFB2>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeAddFB2"));
-            m_funcs.pfnDrmModePageFlip = reinterpret_cast<DrmModePageFlip>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModePageFlip"));
-            m_funcs.pfnDrmModeGetEncoder = reinterpret_cast<DrmModeGetEncoder>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeGetEncoder"));
-            m_funcs.pfnDrmModeFreeEncoder = reinterpret_cast<DrmModeFreeEncoder>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeFreeEncoder"));
-            m_funcs.pfnDrmModeSetCrtc = reinterpret_cast<DrmModeSetCrtc>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeSetCrtc"));
-            m_funcs.pfnDrmModeGetConnectorCurrent = reinterpret_cast<DrmModeGetConnectorCurrent>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeGetConnectorCurrent"));
-            m_funcs.pfnDrmModeGetCrtc = reinterpret_cast<DrmModeGetCrtc>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeGetCrtc"));
-            m_funcs.pfnDrmModeFreeCrtc = reinterpret_cast<DrmModeFreeCrtc>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeFreeCrtc"));
-            m_funcs.pfnDrmCrtcGetSequence = reinterpret_cast<DrmCrtcGetSequence>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmCrtcGetSequence"));
-            m_funcs.pfnDrmCrtcQueueSequence = reinterpret_cast<DrmCrtcQueueSequence>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmCrtcQueueSequence"));
-            m_funcs.pfnDrmHandleEvent = reinterpret_cast<DrmHandleEvent>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmHandleEvent"));
-            m_funcs.pfnDrmIoctl = reinterpret_cast<DrmIoctl>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmIoctl"));
-            m_funcs.pfnDrmModeGetProperty = reinterpret_cast<DrmModeGetProperty>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeGetProperty"));
-            m_funcs.pfnDrmModeFreeProperty = reinterpret_cast<DrmModeFreeProperty>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeFreeProperty"));
-            m_funcs.pfnDrmModeObjectGetProperties = reinterpret_cast<DrmModeObjectGetProperties>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeObjectGetProperties"));
-            m_funcs.pfnDrmModeGetPropertyBlob = reinterpret_cast<DrmModeGetPropertyBlob>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeGetPropertyBlob"));
-            m_funcs.pfnDrmModeFreePropertyBlob = reinterpret_cast<DrmModeFreePropertyBlob>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeFreePropertyBlob"));
-            m_funcs.pfnDrmModeAtomicAlloc = reinterpret_cast<DrmModeAtomicAlloc>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeAtomicAlloc"));
-            m_funcs.pfnDrmModeAtomicFree = reinterpret_cast<DrmModeAtomicFree>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeAtomicFree"));
-            m_funcs.pfnDrmModeAtomicCommit = reinterpret_cast<DrmModeAtomicCommit>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeAtomicCommit"));
-            m_funcs.pfnDrmModeCreatePropertyBlob = reinterpret_cast<DrmModeCreatePropertyBlob>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeCreatePropertyBlob"));
-            m_funcs.pfnDrmModeDestroyPropertyBlob = reinterpret_cast<DrmModeDestroyPropertyBlob>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeDestroyPropertyBlob"));
-            m_funcs.pfnDrmModeAtomicAddProperty = reinterpret_cast<DrmModeAtomicAddProperty>(dlsym(
-                        m_libraryHandles[LibDrm],
-                        "drmModeAtomicAddProperty"));
+            m_library[LibDrm].GetFunction("drmGetNodeTypeFromFd", &m_funcs.pfnDrmGetNodeTypeFromFd);
+            m_library[LibDrm].GetFunction("drmGetRenderDeviceNameFromFd", &m_funcs.pfnDrmGetRenderDeviceNameFromFd);
+            m_library[LibDrm].GetFunction("drmGetDevices", &m_funcs.pfnDrmGetDevices);
+            m_library[LibDrm].GetFunction("drmFreeDevices", &m_funcs.pfnDrmFreeDevices);
+            m_library[LibDrm].GetFunction("drmGetBusid", &m_funcs.pfnDrmGetBusid);
+            m_library[LibDrm].GetFunction("drmFreeBusid", &m_funcs.pfnDrmFreeBusid);
+            m_library[LibDrm].GetFunction("drmModeGetResources", &m_funcs.pfnDrmModeGetResources);
+            m_library[LibDrm].GetFunction("drmModeFreeResources", &m_funcs.pfnDrmModeFreeResources);
+            m_library[LibDrm].GetFunction("drmModeGetConnector", &m_funcs.pfnDrmModeGetConnector);
+            m_library[LibDrm].GetFunction("drmModeFreeConnector", &m_funcs.pfnDrmModeFreeConnector);
+            m_library[LibDrm].GetFunction("drmGetCap", &m_funcs.pfnDrmGetCap);
+            m_library[LibDrm].GetFunction("drmSetClientCap", &m_funcs.pfnDrmSetClientCap);
+            m_library[LibDrm].GetFunction("drmSyncobjCreate", &m_funcs.pfnDrmSyncobjCreate);
+            m_library[LibDrm].GetFunction("drmModeFreePlane", &m_funcs.pfnDrmModeFreePlane);
+            m_library[LibDrm].GetFunction("drmModeFreePlaneResources", &m_funcs.pfnDrmModeFreePlaneResources);
+            m_library[LibDrm].GetFunction("drmModeGetPlaneResources", &m_funcs.pfnDrmModeGetPlaneResources);
+            m_library[LibDrm].GetFunction("drmModeGetPlane", &m_funcs.pfnDrmModeGetPlane);
+            m_library[LibDrm].GetFunction("drmDropMaster", &m_funcs.pfnDrmDropMaster);
+            m_library[LibDrm].GetFunction("drmPrimeFDToHandle", &m_funcs.pfnDrmPrimeFDToHandle);
+            m_library[LibDrm].GetFunction("drmModeAddFB2", &m_funcs.pfnDrmModeAddFB2);
+            m_library[LibDrm].GetFunction("drmModePageFlip", &m_funcs.pfnDrmModePageFlip);
+            m_library[LibDrm].GetFunction("drmModeGetEncoder", &m_funcs.pfnDrmModeGetEncoder);
+            m_library[LibDrm].GetFunction("drmModeFreeEncoder", &m_funcs.pfnDrmModeFreeEncoder);
+            m_library[LibDrm].GetFunction("drmModeSetCrtc", &m_funcs.pfnDrmModeSetCrtc);
+            m_library[LibDrm].GetFunction("drmModeGetConnectorCurrent", &m_funcs.pfnDrmModeGetConnectorCurrent);
+            m_library[LibDrm].GetFunction("drmModeGetCrtc", &m_funcs.pfnDrmModeGetCrtc);
+            m_library[LibDrm].GetFunction("drmModeFreeCrtc", &m_funcs.pfnDrmModeFreeCrtc);
+            m_library[LibDrm].GetFunction("drmCrtcGetSequence", &m_funcs.pfnDrmCrtcGetSequence);
+            m_library[LibDrm].GetFunction("drmCrtcQueueSequence", &m_funcs.pfnDrmCrtcQueueSequence);
+            m_library[LibDrm].GetFunction("drmHandleEvent", &m_funcs.pfnDrmHandleEvent);
+            m_library[LibDrm].GetFunction("drmIoctl", &m_funcs.pfnDrmIoctl);
+            m_library[LibDrm].GetFunction("drmModeGetProperty", &m_funcs.pfnDrmModeGetProperty);
+            m_library[LibDrm].GetFunction("drmModeFreeProperty", &m_funcs.pfnDrmModeFreeProperty);
+            m_library[LibDrm].GetFunction("drmModeObjectGetProperties", &m_funcs.pfnDrmModeObjectGetProperties);
+            m_library[LibDrm].GetFunction("drmModeGetPropertyBlob", &m_funcs.pfnDrmModeGetPropertyBlob);
+            m_library[LibDrm].GetFunction("drmModeFreePropertyBlob", &m_funcs.pfnDrmModeFreePropertyBlob);
+            m_library[LibDrm].GetFunction("drmModeAtomicAlloc", &m_funcs.pfnDrmModeAtomicAlloc);
+            m_library[LibDrm].GetFunction("drmModeAtomicFree", &m_funcs.pfnDrmModeAtomicFree);
+            m_library[LibDrm].GetFunction("drmModeAtomicCommit", &m_funcs.pfnDrmModeAtomicCommit);
+            m_library[LibDrm].GetFunction("drmModeCreatePropertyBlob", &m_funcs.pfnDrmModeCreatePropertyBlob);
+            m_library[LibDrm].GetFunction("drmModeDestroyPropertyBlob", &m_funcs.pfnDrmModeDestroyPropertyBlob);
+            m_library[LibDrm].GetFunction("drmModeAtomicAddProperty", &m_funcs.pfnDrmModeAtomicAddProperty);
         }
 
         if (result == Result::Success)
@@ -3390,8 +3180,9 @@ Result DrmLoader::Init(
     return result;
 }
 
-void
-DrmLoader::SpecializedInit(Platform* pPlatform, char* pDtifLibName)
+void DrmLoader::SpecializedInit(
+    Platform* pPlatform,
+    char*     pDtifLibName)
 {
 }
 

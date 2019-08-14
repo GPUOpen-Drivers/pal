@@ -92,8 +92,8 @@ const RegisterRange ContextShadowRange[] =
          1,
     },
     {
-        (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),                             // 0xA280 - 0xA282
-        (mmPA_SU_LINE_CNTL - mmPA_SU_POINT_SIZE + 1),
+        (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),                             // 0xA280 - 0xA283
+        (mmPA_SC_LINE_STIPPLE - mmPA_SU_POINT_SIZE + 1),
     },
     {
         (mmVGT_HOS_MAX_TESS_LEVEL - CONTEXT_SPACE_START),                       // 0xA286 - 0xA287

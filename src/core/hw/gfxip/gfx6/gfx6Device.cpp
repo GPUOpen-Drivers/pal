@@ -2473,16 +2473,11 @@ void PAL_STDCALL Device::CreateSamplerSrds(
             pSrd->word2.bits.XY_MIN_FILTER = static_cast<uint32>(pInfo->filter.minification);
             pSrd->word2.bits.Z_FILTER      = static_cast<uint32>(pInfo->filter.zFilter);
             pSrd->word2.bits.MIP_FILTER    = static_cast<uint32>(pInfo->filter.mipFilter);
-            pSrd->word2.bits.LOD_BIAS = Math::FloatToSFixed(pInfo->mipLodBias,
-                                                            Gfx6SamplerLodBiasIntBits,
-                                                            Gfx6SamplerLodBiasFracBits);
+            pSrd->word2.bits.LOD_BIAS      = Math::FloatToSFixed(pInfo->mipLodBias,
+                                                                 Gfx6SamplerLodBiasIntBits,
+                                                                 Gfx6SamplerLodBiasFracBits);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
-            pSrd->word2.bits.MIP_POINT_PRECLAMP = (pInfo->flags.dx9Mipclamping == 1) ? 0 : 1;
-#else
             pSrd->word2.bits.MIP_POINT_PRECLAMP = 0;
-#endif
-
             pSrd->word2.bits.DISABLE_LSB_CEIL   = (settings.samplerCeilingLogicEnabled == false);
             pSrd->word2.bits.FILTER_PREC_FIX    = settings.samplerPrecisionFixEnabled;
 
@@ -2592,11 +2587,7 @@ void PAL_STDCALL Device::CreateSamplerSrds(
                 // This allows the sampler to override anisotropic filtering when the resource view contains a single
                 // mipmap level. On SI/CI hardware, SC had to add extra shader instructions to accomplish the same
                 // functionality.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448
                 pSrd->word2.bits.ANISO_OVERRIDE__VI = !pInfo->flags.disableSingleMipAnisoOverride;
-#else
-                pSrd->word2.bits.ANISO_OVERRIDE__VI = 1;
-#endif
             }
         }
 

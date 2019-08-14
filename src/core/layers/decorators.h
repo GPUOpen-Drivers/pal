@@ -1071,17 +1071,6 @@ public:
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const override
         { return m_pNextLayer->DetermineHwStereoRenderingSupported(viewInstancingInfo); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
-#if PAL_AMDGPU_BUILD
-    virtual Result GetConnectorIdFromOutput(
-        OsDisplayHandle hDisplay,
-        uint32          randrOutput,
-        WsiPlatform     wsiPlatform,
-        uint32*         pConnectorId) override
-        { return m_pNextLayer->GetConnectorIdFromOutput(hDisplay, randrOutput, wsiPlatform, pConnectorId); }
-#endif
-#endif
-
     virtual const char* GetCacheFilePath() const override
         { return m_pNextLayer->GetCacheFilePath(); }
 
@@ -1305,6 +1294,10 @@ public:
     virtual void CmdSetPointLineRasterState(
         const PointLineRasterStateParams& params) override
         { m_pNextLayer->CmdSetPointLineRasterState(params); }
+
+    virtual void CmdSetLineStippleState(
+        const LineStippleStateParams& params) override
+        { m_pNextLayer->CmdSetLineStippleState(params); }
 
     virtual void CmdSetDepthBiasState(
         const DepthBiasParams& params) override
@@ -2031,6 +2024,11 @@ public:
         uint32             numMips) override
     {
         m_pNextLayer->CmdUpdateHiSPretests(NextImage(pImage), pretests, firstMip, numMips);
+    }
+
+    virtual uint32 GetUsedSize(CmdAllocType type) const override
+    {
+        return m_pNextLayer->GetUsedSize(type);
     }
 
     // Part of the IDestroyable public interface.

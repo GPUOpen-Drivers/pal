@@ -215,6 +215,8 @@ public:
         gpusize           offset,
         uint32            value) override;
 
+    virtual uint32 GetUsedSize(CmdAllocType type) const override;
+
 protected:
     enum class DmaMemImageCopyMethod
     {

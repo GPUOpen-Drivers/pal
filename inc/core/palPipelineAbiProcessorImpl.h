@@ -135,7 +135,6 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
         m_flags.machineType = (gfxIpMinorVer > 0) ? AmdGpuMachineType::Gfx810 :
             static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx801) + gfxIpStepping - 1);
         break;
-#if PAL_BUILD_GFX9
     case 9:
         switch (gfxIpStepping)
         {
@@ -156,7 +155,6 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
             break;
         }
         break;
-#endif
     case 10:
         switch (gfxIpMinorVer)
         {
@@ -652,7 +650,6 @@ void PipelineAbiProcessor<Allocator>::GetGfxIpVersion(
         *pGfxIpMinorVer = 1;
         *pGfxIpStepping = 0;
         break;
-#if PAL_BUILD_GFX9
     case AmdGpuMachineType::Gfx900:
         *pGfxIpMajorVer = 9;
         *pGfxIpMinorVer = 0;
@@ -678,7 +675,6 @@ void PipelineAbiProcessor<Allocator>::GetGfxIpVersion(
         *pGfxIpMinorVer = 0;
         *pGfxIpStepping = 9;
         break;
-#endif
     case AmdGpuMachineType::Gfx1010:
         *pGfxIpMajorVer = 10;
         *pGfxIpMinorVer = 1;
@@ -1515,13 +1511,6 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
     {
         pOut->pipeline.hardwareStage[Ps].flags.usesUavs = (metadata.At(indices[type]).value != 0);
         pOut->pipeline.hardwareStage[Ps].hasEntry.usesUavs = 1;
-#if (!PAL_BUILD_SCPC) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 456)
-        if (indices[static_cast<uint32>(PipelineMetadataType::PsWritesUavs)] == -1)
-        {
-            pOut->pipeline.hardwareStage[Ps].flags.writesUavs = (metadata.At(indices[type]).value != 0);
-            pOut->pipeline.hardwareStage[Ps].hasEntry.writesUavs = 1;
-        }
-#endif
     }
 
     type = static_cast<uint32>(PipelineMetadataType::PsUsesRovs);

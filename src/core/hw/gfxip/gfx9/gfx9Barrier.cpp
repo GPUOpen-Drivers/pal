@@ -573,8 +573,10 @@ void Device::ExpandColor(
 
     // Issue an MSAA color decompress, if necessary.  This BLT is always performed during the late phase, since it is
     // implied that an fmask decompress BLT would have to be executed first, occupying the early phase.
+    // This routine should only be triggered if the Msaa image does have FMaskData.
     if ((earlyPhase == false)                    &&
         (image.GetImageCreateInfo().samples > 1) &&
+        (gfx9Image.HasFmaskData())               &&
         (oldState != ColorDecompressed)          &&
         (newState == ColorDecompressed))
     {

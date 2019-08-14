@@ -78,7 +78,7 @@ const RegisterRange Nv10ContextShadowRange[] =
     },
     {
         (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),
-        (mmPA_SU_LINE_CNTL - mmPA_SU_POINT_SIZE + 1),
+        (mmPA_SC_LINE_STIPPLE - mmPA_SU_POINT_SIZE + 1),
     },
     {
         (mmVGT_HOS_MAX_TESS_LEVEL - CONTEXT_SPACE_START),

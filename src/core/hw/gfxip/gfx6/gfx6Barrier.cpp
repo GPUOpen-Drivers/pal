@@ -664,6 +664,7 @@ uint32 Device::GetColorBltPerSubres(
 
         if ((earlyPhase == false)                    &&
             (image.GetImageCreateInfo().samples > 1) &&
+            (gfx6Image.HasFmaskData())               &&
             (oldState != ColorDecompressed)          &&
             (newState == ColorDecompressed))
         {

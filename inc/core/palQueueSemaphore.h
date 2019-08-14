@@ -50,15 +50,11 @@ struct QueueSemaphoreCreateInfo
             uint32 shareable         :  1;  ///< This queue semaphore may be opened for use by a different device.
             uint32 sharedViaNtHandle :  1;  ///< This queue semaphore can only be shared through Nt handle.
             uint32 externalOpened    :  1;  ///< Semaphore was created by other APIs
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 458
             /// This queue semaphore is a timeline semaphore. Timeline semaphores have a 64-bit unsigned integer payload
             /// which gets monotonically increased with each Signal operation. A wait on a timeline semaphore blocks the
             /// waiter until the specified payload value has been signaled.
             uint32 timeline          :  1;
             uint32 reserved          : 28;  ///< Reserved for future use.
-#else
-            uint32 reserved          : 29;  ///< Reserved for future use.
-#endif
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.
     } flags;                        ///< Queue semaphore creation flags.

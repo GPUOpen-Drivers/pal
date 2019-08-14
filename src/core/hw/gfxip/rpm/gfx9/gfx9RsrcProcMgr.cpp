@@ -2302,7 +2302,8 @@ void RsrcProcMgr::DepthStencilClearGraphics(
         { stencil, 0xFF, 0xFF, 0x01, stencil, 0xFF, 0xFF, 0x01, 0xFF };
     const TriangleRasterStateParams  triangleRasterState  =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::None,         // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -2319,6 +2320,9 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     viewportInfo.horzDiscardRatio      = 1.0f;
     viewportInfo.vertClipRatio         = FLT_MAX;
     viewportInfo.vertDiscardRatio      = 1.0f;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+#endif
 
     ScissorRectParams scissorInfo      = { };
     scissorInfo.count                  = 1;
@@ -2868,6 +2872,7 @@ void RsrcProcMgr::FmaskColorExpand(
 {
     // MSAA images can only have 1 mip level.
     PAL_ASSERT((range.startSubres.mipLevel == 0) && (range.numMips == 1));
+    PAL_ASSERT(image.HasFmaskData());
 
     const auto& device     = *m_pDevice->Parent();
     const auto& createInfo = image.Parent()->GetImageCreateInfo();
@@ -3095,7 +3100,8 @@ uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
     // CreateCopyStates does not specify CompoundStateCrateInfo.pTriangleRasterParams and it is set here.
     const TriangleRasterStateParams triangleRasterState
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::None,         // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex
@@ -6237,7 +6243,8 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
     // CreateCopyStates does not specify CompoundStateCrateInfo.pTriangleRasterParams and it is set here.
     const TriangleRasterStateParams triangleRasterState
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::None,         // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex

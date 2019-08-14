@@ -130,7 +130,6 @@ enum class RpmComputePipeline : uint32
     YuvToRgb                              = 92,
     Gfx6GenerateCmdDispatch               = 93,
     Gfx6GenerateCmdDraw                   = 94,
-#if PAL_BUILD_GFX9
     Gfx9BuildHtileLookupTable             = 95,
     Gfx9ClearDccMultiSample2d             = 96,
     Gfx9ClearDccOptimized2d               = 97,
@@ -143,11 +142,8 @@ enum class RpmComputePipeline : uint32
     Gfx9Fill4x4Dword                      = 104,
     Gfx9GenerateCmdDispatch               = 105,
     Gfx9GenerateCmdDraw                   = 106,
-#endif
-#if PAL_BUILD_GFX9
     Gfx9HtileCopyAndFixUp                 = 109,
     Gfx9InitCmaskSingleSample             = 110,
-#endif
     Gfx10ClearDccComputeSetFirstPixel     = 111,
     Gfx10ClearDccComputeSetFirstPixelMsaa = 112,
     Gfx10GenerateCmdDispatch              = 113,

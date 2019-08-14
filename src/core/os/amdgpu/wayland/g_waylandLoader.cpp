@@ -37,7 +37,6 @@
 #include "palAssert.h"
 #include "palSysUtil.h"
 
-#include <dlfcn.h>
 #include <string.h>
 
 using namespace Util;
@@ -385,7 +384,6 @@ WaylandLoader::WaylandLoader()
     m_pWlCallbackInterface(nullptr),
     m_initialized(false)
 {
-    memset(m_libraryHandles, 0, sizeof(m_libraryHandles));
     memset(&m_funcs, 0, sizeof(m_funcs));
 }
 
@@ -410,10 +408,6 @@ wl_interface* WaylandLoader::GetWlCallbackInterface() const
 // =====================================================================================================================
 WaylandLoader::~WaylandLoader()
 {
-    if (m_libraryHandles[LibWaylandClient] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibWaylandClient]);
-    }
 }
 
 // =====================================================================================================================
@@ -429,80 +423,48 @@ Result WaylandLoader::Init(
     if (m_initialized == false)
     {
         // resolve symbols from libwayland-client.so.0
-        m_libraryHandles[LibWaylandClient] = dlopen(LibNames[LibWaylandClient], RTLD_LAZY);
-        if (m_libraryHandles[LibWaylandClient] == nullptr)
+        result = m_library[LibWaylandClient].Load(LibNames[LibWaylandClient]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnWlDisplayCreateQueue = reinterpret_cast<WlDisplayCreateQueue>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_display_create_queue"));
-            m_funcs.pfnWlDisplayDispatchQueue = reinterpret_cast<WlDisplayDispatchQueue>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_display_dispatch_queue"));
-            m_funcs.pfnWlDisplayDispatchQueuePending = reinterpret_cast<WlDisplayDispatchQueuePending>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_display_dispatch_queue_pending"));
-            m_funcs.pfnWlDisplayFlush = reinterpret_cast<WlDisplayFlush>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_display_flush"));
-            m_funcs.pfnWlDisplayRoundtripQueue = reinterpret_cast<WlDisplayRoundtripQueue>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_display_roundtrip_queue"));
-            m_funcs.pfnWlEventQueueDestroy = reinterpret_cast<WlEventQueueDestroy>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_event_queue_destroy"));
-            m_funcs.pfnWlProxyAddListener = reinterpret_cast<WlProxyAddListener>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_proxy_add_listener"));
-            m_funcs.pfnWlProxyCreateWrapper = reinterpret_cast<WlProxyCreateWrapper>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_proxy_create_wrapper"));
-            m_funcs.pfnWlProxyDestroy = reinterpret_cast<WlProxyDestroy>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_proxy_destroy"));
-            m_funcs.pfnWlProxyMarshal = reinterpret_cast<WlProxyMarshal>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_proxy_marshal"));
-            m_funcs.pfnWlProxyMarshalConstructor = reinterpret_cast<WlProxyMarshalConstructor>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_proxy_marshal_constructor"));
-            m_funcs.pfnWlProxyMarshalConstructorVersioned = reinterpret_cast<WlProxyMarshalConstructorVersioned>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_proxy_marshal_constructor_versioned"));
-            m_funcs.pfnWlProxySetQueue = reinterpret_cast<WlProxySetQueue>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_proxy_set_queue"));
-            m_funcs.pfnWlProxyWrapperDestroy = reinterpret_cast<WlProxyWrapperDestroy>(dlsym(
-                        m_libraryHandles[LibWaylandClient],
-                        "wl_proxy_wrapper_destroy"));
+            m_library[LibWaylandClient].GetFunction("wl_display_create_queue", &m_funcs.pfnWlDisplayCreateQueue);
+            m_library[LibWaylandClient].GetFunction("wl_display_dispatch_queue", &m_funcs.pfnWlDisplayDispatchQueue);
+            m_library[LibWaylandClient].GetFunction("wl_display_dispatch_queue_pending", &m_funcs.pfnWlDisplayDispatchQueuePending);
+            m_library[LibWaylandClient].GetFunction("wl_display_flush", &m_funcs.pfnWlDisplayFlush);
+            m_library[LibWaylandClient].GetFunction("wl_display_roundtrip_queue", &m_funcs.pfnWlDisplayRoundtripQueue);
+            m_library[LibWaylandClient].GetFunction("wl_event_queue_destroy", &m_funcs.pfnWlEventQueueDestroy);
+            m_library[LibWaylandClient].GetFunction("wl_proxy_add_listener", &m_funcs.pfnWlProxyAddListener);
+            m_library[LibWaylandClient].GetFunction("wl_proxy_create_wrapper", &m_funcs.pfnWlProxyCreateWrapper);
+            m_library[LibWaylandClient].GetFunction("wl_proxy_destroy", &m_funcs.pfnWlProxyDestroy);
+            m_library[LibWaylandClient].GetFunction("wl_proxy_marshal", &m_funcs.pfnWlProxyMarshal);
+            m_library[LibWaylandClient].GetFunction("wl_proxy_marshal_constructor", &m_funcs.pfnWlProxyMarshalConstructor);
+            m_library[LibWaylandClient].GetFunction("wl_proxy_marshal_constructor_versioned", &m_funcs.pfnWlProxyMarshalConstructorVersioned);
+            m_library[LibWaylandClient].GetFunction("wl_proxy_set_queue", &m_funcs.pfnWlProxySetQueue);
+            m_library[LibWaylandClient].GetFunction("wl_proxy_wrapper_destroy", &m_funcs.pfnWlProxyWrapperDestroy);
         }
 
-        if (m_libraryHandles[LibWaylandClient] == nullptr)
+        if (m_library[LibWaylandClient].IsLoaded() == false)
         {
             result = Result::ErrorUnavailable;
         }
         else
         {
-            m_pWlRegistryInterface = reinterpret_cast<wl_interface*>(dlsym(m_libraryHandles[LibWaylandClient], "wl_registry_interface"));
+            m_library[LibWaylandClient].GetFunction("wl_registry_interface", &m_pWlRegistryInterface);
         }
-        if (m_libraryHandles[LibWaylandClient] == nullptr)
+        if (m_library[LibWaylandClient].IsLoaded() == false)
         {
             result = Result::ErrorUnavailable;
         }
         else
         {
-            m_pWlBufferInterface = reinterpret_cast<wl_interface*>(dlsym(m_libraryHandles[LibWaylandClient], "wl_buffer_interface"));
+            m_library[LibWaylandClient].GetFunction("wl_buffer_interface", &m_pWlBufferInterface);
         }
-        if (m_libraryHandles[LibWaylandClient] == nullptr)
+        if (m_library[LibWaylandClient].IsLoaded() == false)
         {
             result = Result::ErrorUnavailable;
         }
         else
         {
-            m_pWlCallbackInterface = reinterpret_cast<wl_interface*>(dlsym(m_libraryHandles[LibWaylandClient], "wl_callback_interface"));
+            m_library[LibWaylandClient].GetFunction("wl_callback_interface", &m_pWlCallbackInterface);
         }
         if (result == Result::Success)
         {

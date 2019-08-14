@@ -340,7 +340,7 @@ Result GraphicsPipeline::HwlInit(
             {
                 m_chunkGs.LateInit(abiProcessor, metadata, registers, loadInfo, &uploader, &hasher);
             }
-            m_chunkVsPs.LateInit(abiProcessor, metadata, registers, loadInfo, &uploader, &hasher);
+            m_chunkVsPs.LateInit(abiProcessor, metadata, registers, loadInfo, createInfo, &uploader, &hasher);
 
             SetupCommonRegisters(createInfo, registers, &uploader);
             SetupNonShaderRegisters(createInfo, registers, &uploader);
@@ -844,6 +844,10 @@ void GraphicsPipeline::SetupCommonRegisters(
     // Hardware team recommendation is to set WALK_FENCE_SIZE to 512 pixels for 4/8/16 pipes and 256 pixels
     // for 2 pipes.
     m_paScModeCntl1.bits.WALK_FENCE_SIZE = ((m_pDevice->GetNumPipesLog2() <= 1) ? 2 : 3);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    m_paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
+#endif
 
     m_info.ps.flags.perSampleShading = m_paScModeCntl1.bits.PS_ITER_SAMPLE;
 

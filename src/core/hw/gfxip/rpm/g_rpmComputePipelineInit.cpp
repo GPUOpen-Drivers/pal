@@ -109,13 +109,11 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTableIceland;
         break;
 
-#if PAL_BUILD_GFX9
     case AsicRevision::Vega10:
     case AsicRevision::Vega12:
     case AsicRevision::Raven:
         pTable = rpmComputeBinaryTableVega10;
         break;
-#endif
 
     case AsicRevision::Vega20:
         pTable = rpmComputeBinaryTableVega20;
@@ -703,7 +701,6 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::Gfx6GenerateCmdDraw, pDevice, pTable, pPipelineMem);
     }
 
-#if PAL_BUILD_GFX9
     if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
     {
         result = CreateRpmComputePipeline(
@@ -775,9 +772,7 @@ Result CreateRpmComputePipelines(
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9GenerateCmdDraw, pDevice, pTable, pPipelineMem);
     }
-#endif
 
-#if PAL_BUILD_GFX9
     if ((properties.gfxLevel == GfxIpLevel::GfxIp9) && (result == Result::Success))
     {
         result = CreateRpmComputePipeline(
@@ -789,7 +784,6 @@ Result CreateRpmComputePipelines(
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx9InitCmaskSingleSample, pDevice, pTable, pPipelineMem);
     }
-#endif
 
     if (IsGfx10(properties.gfxLevel) && (result == Result::Success))
     {

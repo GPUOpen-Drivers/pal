@@ -85,13 +85,11 @@ Pal::Result CreateTimeGraphComputePipelines(
         pTable = timeGraphComputeBinaryTableIceland;
         break;
 
-#if PAL_BUILD_GFX9
     case Pal::AsicRevision::Vega10:
     case Pal::AsicRevision::Vega12:
     case Pal::AsicRevision::Raven:
         pTable = timeGraphComputeBinaryTableVega10;
         break;
-#endif
 
     case Pal::AsicRevision::Vega20:
         pTable = timeGraphComputeBinaryTableVega20;

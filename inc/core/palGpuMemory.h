@@ -119,33 +119,18 @@ union GpuMemoryCreateFlags
         uint32 peerWritable      :  1; ///< The memory can be open as peer memory and be writable.
         uint32 placeholder0      :  1; ///< Placeholder.
         uint32 externalOpened    :  1; ///< Specifies the GPUMemory is opened.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 455
         uint32 restrictedContent :  1; ///< Specifies the GPUMemory is protected content.
         uint32 restrictedAccess  :  1; ///< Specifies the GPUMemory is restricted shared access resource.
         uint32 crossAdapter      :  1; ///< Specifies the GPUMemory is shared cross-adapter resource.
-#else
-        uint32 reserved455       :  3;
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 464
         uint32 cpuInvisible      :  1; ///< By default, PAL makes every allocation CPU visible if all of its preferred
                                        ///< heaps are CPU visible. This flag can be used to override this behavior when
                                        ///< the client knows the memory will never be mapped for CPU access. If this
                                        ///< flag is set, calls to IGpuMemory::Map() on this object will fail.
-#else
-        uint32 reserved464       :  1;
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
         uint32 gl2Uncached       :  1; ///< Specifies the GPU Memory is un-cached on GPU L2 cache. But the memory still
                                        ///  would be cached by other cache hierarchy like L0, RB caches, L1, and L3.
-#else
-        uint32 reserved465       :  1;
-#endif
-
         uint32 reserved          :  9; ///< Reserved for future use.
     };
-    uint32     u32All;                ///< Flags packed as 32-bit uint.
+    uint32     u32All;                 ///< Flags packed as 32-bit uint.
 };
 
 /// Specifies properties of a typed buffer pseudo-object. When this is specified in GpuMemoryCreateInfo along with the
@@ -220,10 +205,9 @@ struct PinnedGpuMemoryCreateInfo
                            ///  realMemAllocGranularity in DeviceProperties.
     size_t      size;      ///< Amount of system memory to pin for GPU access.
     VaRange     vaRange;   ///< Virtual address range for the GPU memory allocation.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 450
-    gpusize     alignment; ///< Byte alignment of the allocation's GPU VA.  If zero, an
-                           ///  alignment matching the Platform's allocation granularity will be used.
-#endif
+    gpusize     alignment; ///< Byte alignment of the allocation's GPU VA.  If zero, an alignment matching the
+                           ///  Platform's allocation granularity will be used.
+
 };
 
 /// Specifies properties for @ref IGpuMemory creation.  Input structure to IDevice::CreateSvmGpuMemory().

@@ -785,8 +785,9 @@ HwLayoutTransition Device::ConvertToColorBlt(
         else if (isMsaaImage)
         {
             // Need FmaskDecompress in preparation for the following full MSAA color decompress.
-            transition = (oldState == ColorCompressed) ? HwLayoutTransition::FmaskDecomprMsaaColorDecompr :
-                                                         HwLayoutTransition::MsaaColorDecompress;
+            transition = ((oldState == ColorCompressed) && gfx9Image.HasFmaskData())
+                ? HwLayoutTransition::FmaskDecomprMsaaColorDecompr
+                : HwLayoutTransition::MsaaColorDecompress;
         }
         else
         {

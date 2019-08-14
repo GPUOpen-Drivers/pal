@@ -92,6 +92,8 @@ public:
         const TriangleRasterStateParams& params) override;
     virtual void CmdSetPointLineRasterState(
         const PointLineRasterStateParams& params) override;
+    virtual void CmdSetLineStippleState(
+        const LineStippleStateParams& params) override;
     virtual void CmdSetDepthBiasState(
         const DepthBiasParams& params) override;
     virtual void CmdSetStencilRefMasks(
@@ -468,6 +470,12 @@ public:
     virtual void CmdStopGpuProfilerLogging() override;
 
     virtual void CmdSetViewInstanceMask(uint32 mask) override;
+
+    virtual uint32 GetUsedSize(CmdAllocType type) const override
+    {
+        // This function is not logged because it doesn't modify the command buffer.
+        return GetNextLayer()->GetUsedSize(type);
+    }
 
     // Public IDestroyable interface methods:
     virtual void Destroy() override;

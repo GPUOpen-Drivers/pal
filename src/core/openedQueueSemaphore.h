@@ -48,6 +48,7 @@ public:
         Queue*         pQueue,
         uint64         value,
         volatile bool* pIsStalled) override;
+    virtual Result SignalSemaphoreValue(uint64  value) override;
 
     // NOTE: Part of the public IQueueSemaphore interface.
     virtual bool HasStalledQueues() override;

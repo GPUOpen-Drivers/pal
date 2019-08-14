@@ -82,9 +82,7 @@ Result Queue::Init(
             createInfo.priority           = GpuMemPriority::VeryLow;
             createInfo.heapCount          = 1;
             createInfo.heaps[0]           = GpuHeap::GpuHeapInvisible;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 464
             createInfo.flags.cpuInvisible = 1;
-#endif
 
             m_pTimestamp = static_cast<IGpuMemory*>(PAL_MALLOC(m_pDevice->GetGpuMemorySize(createInfo, &result),
                                                     pPlatform,

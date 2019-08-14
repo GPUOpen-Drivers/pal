@@ -157,21 +157,18 @@ struct SwapChainCreateInfo
     ImageUsageFlags       imageUsageFlags;     ///< Indicate how the presentation images will be used.
     SurfaceTransformFlags preTransform;        ///< The transform, relative to the device's natural orientation, applied
                                                ///  to the image content prior to presentation.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 445
     CompositeAlphaMode    compositeAlpha;      ///< Indicate the alpha compositing mode to use when this surface is
                                                ///  composited together with other surfaces on certain window systems.
-#endif
     uint32                imageArraySize;      ///< Determines the number of views for multiview/stereo presentation.
     SwapChainMode         swapChainMode;       ///< How to process and queue this swap chain's presentation requests.
     IScreen*              pScreen;             ///< The IScreen object associated with swap chain. It's needed only when
                                                ///  creating a swap chain on DirectDisplay platform, and exclusive
                                                ///  access to the IScreen is required, that is the IScreen needs to call
                                                ///  AcquireScreenAccess before swap chain creation.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 454
+
     IDevice*              pSlaveDevices[XdmaMaxDevices - 1]; ///< Array of up to XdmaMaxDevices minus one for the device
                                                              ///  that is creating this swap chain. These are additional
                                                              ///  devices from which fullscreen presents can be executed
-#endif
 };
 
 /// Specifies the properties of acquiring next presentable image. Input structure to ISwapChain::AcquireNextImage

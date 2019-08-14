@@ -138,11 +138,12 @@ void PipelineChunkVsPs::EarlyInit(
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
 // determining the values of other registers.  Also uploads register state into GPU memory.
 void PipelineChunkVsPs::LateInit(
-    const AbiProcessor&             abiProcessor,
-    const RegisterVector&           registers,
-    const GraphicsPipelineLoadInfo& loadInfo,
-    GraphicsPipelineUploader*       pUploader,
-    MetroHash64*                    pHasher)
+    const AbiProcessor&                 abiProcessor,
+    const RegisterVector&               registers,
+    const GraphicsPipelineLoadInfo&     loadInfo,
+    const GraphicsPipelineCreateInfo&   createInfo,
+    GraphicsPipelineUploader*           pUploader,
+    MetroHash64*                        pHasher)
 {
     const bool useLoadIndexPath = pUploader->EnableLoadIndexPath();
 
@@ -211,6 +212,21 @@ void PipelineChunkVsPs::LateInit(
     m_commands.sh.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.psCuGroupEnabled ? 0 : 1);
 
     m_commands.context.paClVsOutCntl.u32All      = registers.At(mmPA_CL_VS_OUT_CNTL);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    if (createInfo.rsState.clipDistMask != 0)
+    {
+        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_0 &= (createInfo.rsState.clipDistMask & 0x1) != 0;
+        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_1 &= (createInfo.rsState.clipDistMask & 0x2) != 0;
+        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_2 &= (createInfo.rsState.clipDistMask & 0x4) != 0;
+        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_3 &= (createInfo.rsState.clipDistMask & 0x8) != 0;
+        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_4 &= (createInfo.rsState.clipDistMask & 0x10) != 0;
+        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_5 &= (createInfo.rsState.clipDistMask & 0x20) != 0;
+        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_6 &= (createInfo.rsState.clipDistMask & 0x40) != 0;
+        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_7 &= (createInfo.rsState.clipDistMask & 0x80) != 0;
+    }
+#endif
+
     m_commands.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
     m_commands.context.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
 

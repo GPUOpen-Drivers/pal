@@ -119,17 +119,30 @@ public:
         IImage**                            ppImage,
         IGpuMemory**                        ppGpuMemory) override;
 
-    // Gets the sum of the total bytes of video memory allocated for specified heap of all allocation types.
-    gpusize GetVidMemTotalSum(Pal::GpuHeap gpuHeap) const
+    // Sum and cache the total bytes of video memory allocated in each heap for all allocation types.
+    void SumVidMemAllocations()
     {
-        gpusize vidMemSum = 0;
-
-        for (uint32 i = 0; i < AllocTypeCount; i++)
+        for (uint32 heapIdx = 0; heapIdx < GpuHeapCount; heapIdx++)
         {
-            vidMemSum += GetVidMemTotal(static_cast<AllocType>(i), gpuHeap);
-        }
+            gpusize vidMemSum = 0;
+            GpuHeap heapType  = static_cast<GpuHeap>(heapIdx);
 
-        return vidMemSum;
+            for (uint32 i = 0; i < AllocTypeCount; i++)
+            {
+                vidMemSum += GetVidMemTotal(static_cast<AllocType>(i), heapType);
+            }
+
+            m_perHeapMemTotals[heapIdx] = vidMemSum;
+        }
+    }
+
+    // Gets the sum of the total bytes of video memory allocated for specified heap of all allocation types.
+    gpusize GetVidMemTotalSum(Pal::GpuHeap gpuHeap) const { return m_perHeapMemTotals[gpuHeap]; }
+
+    gpusize GetPeakMemTotal(Pal::GpuHeap gpuHeap)
+    {
+        m_peakVidMemTotals[gpuHeap] = Util::Max(m_peakVidMemTotals[gpuHeap], m_perHeapMemTotals[gpuHeap]);
+        return m_peakVidMemTotals[gpuHeap];
     }
 
     // Gets the total bytes of video memory currently allocated preferring the specified heap.
@@ -172,6 +185,9 @@ private:
 
     // Tracks the total bytes of video memory currently allocated via the external client.
     PAL_ALIGN_CACHE_LINE volatile gpusize m_vidMemTotals[AllocTypeCount][GpuHeapCount];
+
+    gpusize m_perHeapMemTotals[GpuHeapCount]; // Represents total sum of allocations of all AllocTypes in each heap.
+    gpusize m_peakVidMemTotals[GpuHeapCount]; // Represents peak sum of allocations of all AllocTypes in each heap.
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

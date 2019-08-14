@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 521
+#define PAL_INTERFACE_MAJOR_VERSION 526
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,13 +53,13 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 2
+#define PAL_INTERFACE_MINOR_VERSION 0
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
 ///
 /// @ingroup LibInit
-#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 443
+#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 465
 
 /// Minimum supported major interface version for gpuopen library. This is the minimum interface version of the gpuopen
 /// library that PAL is backwards compatible to.
@@ -114,11 +114,9 @@ enum class NullGpuId : uint32
     Polaris12  = 0x13,
     Stoney     = 0x15,
 
-#if PAL_BUILD_GFX9
     Vega10     = 0x16,
     Raven      = 0x17,
     Vega12     = 0x18,
-#endif
     Vega20     = 0x19,
     Raven2     = 0x1A,
 
@@ -154,31 +152,27 @@ struct PlatformCreateInfo
     {
         struct
         {
-            uint32 disableGpuTimeout          :  1;      ///< Disables GPU timeout detection (Windows only)
-            uint32 force32BitVaSpace          :  1;      ///< Forces 32bit VA space for the flat address with 32bit ISA
-            uint32 createNullDevice           :  1;      ///< Set to create a null device, so "nullGpuId" below for the
-                                                         ///  ID of the GPU the created device will be based on.  Null
-                                                         ///  devices operate in IFH mode; useful for off-line shader
-                                                         ///  compilations.
-            uint32 enableSvmMode              :  1;      ///< Enable SVM mode. When this bit is set, PAL will reserve
-                                                         ///  cpu va range with size "maxSvmSize", and allow client to
-                                                         ///  to create gpu or pinned memory for use of Svm.
-                                                         ///  For detail of SVM, please refer to CreateSvmGpuMemory
-            uint32 requestShadowDescriptorVaRange : 1;   ///< Requests that PAL provides support for the client to use
-                                                         ///  the @ref VaRange::ShadowDescriptorTable virtual-address
-                                                         ///  range. Some GPU's may not be capable of supporting this,
-                                                         ///  even when requested by the client.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 463
-            uint32 disableInternalResidencyOpts   : 1;   ///< Disables residency optimizations for internal GPU memory
-                                                         ///  allocations.  Some clients may wish to have them turned
-                                                         ///  off to save on system resources.
-            uint32 reserved                   : 26;      ///< Reserved for future use.
-#else
-            uint32 reserved                   : 27;      ///< Reserved for future use.
-#endif
+            uint32 disableGpuTimeout              :  1; ///< Disables GPU timeout detection (Windows only)
+            uint32 force32BitVaSpace              :  1; ///< Forces 32bit VA space for the flat address with 32bit ISA
+            uint32 createNullDevice               :  1; ///< Set to create a null device, so "nullGpuId" below for the
+                                                        ///  ID of the GPU the created device will be based on.  Null
+                                                        ///  devices operate in IFH mode; useful for off-line shader
+                                                        ///  compilations.
+            uint32 enableSvmMode                  :  1; ///< Enable SVM mode. When this bit is set, PAL will reserve
+                                                        ///  cpu va range with size "maxSvmSize", and allow client to
+                                                        ///  to create gpu or pinned memory for use of Svm.
+                                                        ///  For detail of SVM, please refer to CreateSvmGpuMemory
+            uint32 requestShadowDescriptorVaRange :  1; ///< Requests that PAL provides support for the client to use
+                                                        ///  the @ref VaRange::ShadowDescriptorTable virtual-address
+                                                        ///  range. Some GPU's may not be capable of supporting this,
+                                                        ///  even when requested by the client.
+            uint32 disableInternalResidencyOpts   :  1; ///< Disables residency optimizations for internal GPU memory
+                                                        ///  allocations.  Some clients may wish to have them turned
+                                                        ///  off to save on system resources.
+            uint32 reserved                       : 26; ///< Reserved for future use.
         };
-        uint32 u32All;                          ///< Flags packed as 32-bit uint.
-    } flags;                                    ///< Platform-wide creation flags.
+        uint32 u32All;                                  ///< Flags packed as 32-bit uint.
+    } flags;                                            ///< Platform-wide creation flags.
 
     NullGpuId                    nullGpuId;             ///< ID for the null device.  Ignored unless the above
                                                         ///  flags.createNullDevice bit is set.

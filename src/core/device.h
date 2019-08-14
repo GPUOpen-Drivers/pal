@@ -31,19 +31,20 @@
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/ossip/ossDevice.h"
 #include "core/addrMgr/addrMgr.h"
+#include "palCmdAllocator.h"
 #include "palDevice.h"
 #include "palDeque.h"
 #include "palEvent.h"
+#include "palHashMap.h"
 #include "palInlineFuncs.h"
 #include "palIntrusiveList.h"
 #include "palMutex.h"
 #include "palPipeline.h"
+#include "palSettingsFileMgr.h"
 #include "palSysMemory.h"
 #include "palTextWriter.h"
 
 #include "core/hw/amdgpu_asic.h"
-#include "palCmdAllocator.h"
-#include "palHashMap.h"
 
 typedef void* ADDR_HANDLE;
 
@@ -480,7 +481,6 @@ struct Gfx6PerfCounterInfo
 };
 #endif // PAL_BUILD_GFX6
 
-#if PAL_BUILD_GFX9
 // SDMA is a global block with unique registers for each instance; this requires special handling.
 constexpr uint32 Gfx9MaxSdmaInstances   = 2;
 constexpr uint32 Gfx9MaxSdmaPerfModules = 2;
@@ -513,7 +513,6 @@ struct Gfx9PerfCounterInfo
         } perModule[Gfx9MaxUmcchPerfModules];
     } umcchRegAddr[Gfx9MaxUmcchInstances];
 };
-#endif // PAL_BUILD_GFX9
 #endif // PAL_BUILD_GFX
 
 // Everything PAL & its clients would ever need to know about the actual GPU hardware.
@@ -717,7 +716,6 @@ struct GpuChipProperties
             Gfx6PerfCounterInfo perfCounterInfo; // Contains information for perf counters for a specific hardware block
         } gfx6;
 #endif // PAL_BUILD_GFX6
-#if PAL_BUILD_GFX9
         // Hardware-specific information for GFXIP 9+ hardware.
         struct
         {
@@ -823,7 +821,6 @@ struct GpuChipProperties
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
 
         } gfx9;
-#endif // PAL_BUILD_GFX9
     };
 
     // Maximum engine and memory clock speeds (MHz)
@@ -980,7 +977,7 @@ public:
         Util::ValueType      valueType,
         void*                pValue,
         InternalSettingScope settingType,
-        size_t               bufferSz = 0) const = 0;
+        size_t               bufferSz = 0) const;
 
     virtual PalPublicSettings* GetPublicSettings() override;
     virtual Result CommitSettingsAndInit() override;
@@ -1873,6 +1870,8 @@ protected:
     PalPublicSettings      m_publicSettings;
     SettingsLoader*        m_pSettingsLoader;
 
+    Util::SettingsFileMgr<Platform>  m_settingsMgr;
+
     // Get*FilePath need to return a persistent storage
     char m_cacheFilePath[MaxPathStrLen];
     char m_debugFilePath[MaxPathStrLen];
@@ -1982,7 +1981,6 @@ extern void InitializeGpuEngineProperties(
 } // Gfx6
 #endif
 
-#if PAL_BUILD_GFX9
 namespace Gfx9
 {
 // Determines the GFXIP level of an GFXIP 9+ GPU.
@@ -2017,7 +2015,6 @@ extern void InitializeGpuEngineProperties(
     uint32               eRevId,
     GpuEngineProperties* pInfo);
 }
-#endif // PAL_BUILD_GFX9
 
 #if PAL_BUILD_OSS1
 namespace Oss1
@@ -2092,12 +2089,10 @@ PAL_INLINE bool IsGfx8(const Device& device)
         (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp8_1));
 }
 
-#if PAL_BUILD_GFX9
 PAL_INLINE bool IsGfx9(const Device& device)
 {
     return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp9);
 }
-#endif
 
 PAL_INLINE bool IsGfx10(GfxIpLevel gfxLevel)
 {
@@ -2205,7 +2200,6 @@ PAL_INLINE bool IsStoney(const Device& device)
     return AMDGPU_IS_STONEY(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-#if PAL_BUILD_GFX9
 PAL_INLINE bool IsVega10(const Device& device)
 {
     return AMDGPU_IS_VEGA10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
@@ -2232,7 +2226,6 @@ PAL_INLINE bool IsRaven2(const Device& device)
 {
     return AMDGPU_IS_RAVEN2(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-#endif // PAL_BUILD_GFX9
 
 static bool IsNavi(const Device& device)
 {

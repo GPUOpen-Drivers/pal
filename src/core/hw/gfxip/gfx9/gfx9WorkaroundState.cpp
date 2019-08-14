@@ -238,7 +238,8 @@ uint32* WorkaroundState::PreDraw(
          gfxState.dirtyFlags.validationBits.triangleRasterState) &&
         pPipeline->IsTessEnabled()                               &&
         (pPipeline->IsNgg() == false)                            &&
-        (gfxState.triangleRasterState.fillMode == FillMode::Wireframe))
+        ((gfxState.triangleRasterState.frontFillMode == FillMode::Wireframe) ||
+         (gfxState.triangleRasterState.backFillMode == FillMode::Wireframe)))
     {
         pCmdSpace = pDeCmdStream->WriteSetOneContextReg<pm4OptImmediate>(mmVGT_REUSE_OFF,
                                                                          VGT_REUSE_OFF__REUSE_OFF_MASK,

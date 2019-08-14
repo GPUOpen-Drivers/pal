@@ -104,19 +104,19 @@ Queue::Queue(
 
     m_flags.u32All = 0;
 
-    // override the priority here.
-    // the RtCuHighCompute and Exclusive Compute are only supported on Windows now.
-    m_queuePriority = (m_engineType == EngineTypeExclusiveCompute) ?
-                                       QueuePriority::High :
-                                       createInfo.priority;
+    const Pal::EngineSubType engineSubType = m_pDevice->EngineProperties().perEngine[m_engineType].engineSubType[m_engineId];
 
-    const auto engineSubType = m_pDevice->EngineProperties().perEngine[m_engineType].engineSubType[m_engineId];
-    if (engineSubType == EngineSubType::RtCuHighCompute)
+    // Override the priority here.
+    // RtCuHighCompute and Exclusive Compute are only supported on Windows for now.
+    m_queuePriority = (engineSubType == EngineSubType::RtCuHighCompute) ? QueuePriority::Realtime :
+                      (engineSubType == EngineSubType::RtCuMedCompute)  ? QueuePriority::Medium   :
+                      (m_engineType  == EngineTypeExclusiveCompute)     ? QueuePriority::High     :
+                                                                          createInfo.priority;
+
+    if (m_queuePriority == QueuePriority::Realtime)
     {
         m_numReservedCu = createInfo.numReservedCu;
     }
-
-    m_queuePriority = (engineSubType == EngineSubType::RtCuMedCompute) ? QueuePriority::Medium : m_queuePriority;
 
     if (createInfo.windowedPriorBlit != false)
     {
@@ -581,13 +581,10 @@ Result Queue::CreateTrackedCmdBuffer(
         if (result == Result::Success)
         {
             CmdBufferCreateInfo createInfo = {};
-            createInfo.pCmdAllocator       = m_pDevice->InternalCmdAllocator(m_engineType);
-            createInfo.queueType           = m_type;
-            createInfo.engineType          = m_engineType;
-
-    #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 449)
+            createInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator(m_engineType);
+            createInfo.queueType     = m_type;
+            createInfo.engineType    = m_engineType;
             createInfo.engineSubType = m_pDevice->EngineProperties().perEngine[m_engineType].engineSubType[m_engineId];
-    #endif
 
             CmdBufferInternalCreateInfo internalInfo = {};
             internalInfo.flags.isInternal            = 1;
@@ -1453,12 +1450,13 @@ bool Queue::IsPresentModeSupported(
 
 // =====================================================================================================================
 // Perform a dummy submission on this queue.
-Result Queue::DummySubmit()
+Result Queue::DummySubmit(
+    bool  postBatching)
 {
     ICmdBuffer*const pCmdBuffer = DummyCmdBuffer();
     SubmitInfo submitInfo       = {};
     submitInfo.cmdBufferCount   = 1;
     submitInfo.ppCmdBuffers     = &pCmdBuffer;
-    return SubmitInternal(submitInfo, false);
+    return SubmitInternal(submitInfo, postBatching);
 }
 } // Pal

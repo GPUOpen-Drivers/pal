@@ -314,6 +314,7 @@ void Device::SetupWorkarounds()
     else if (IsGfx10(*m_pParent))
     {
         m_waEnableDccCacheFlushAndInvalidate = true;
+
     }
 }
 
@@ -2792,7 +2793,8 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
             actualExtent = pBaseSubResInfo->actualExtentElements;
         }
-        else if (pBaseSubResInfo->bitsPerTexel != Formats::BitsPerPixel(format))
+        else if ((pBaseSubResInfo->bitsPerTexel != Formats::BitsPerPixel(format))
+                )
         {
             // The mismatched bpp checked is intended to catch the 2nd scenario in the above comment. However, YUV422
             // format also hit this. For YUV422 case, we need to apply widthScaleFactor to extent and acutalExtent.
@@ -2910,11 +2912,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         srd.dst_sel_y = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.g);
         srd.dst_sel_z = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.b);
         srd.dst_sel_w = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.a);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446
-        // When view3dAs2dArray is enabled for 3d image, we'll use the same mode for writing and viewing
-        // according to the doc, so we don't need to change it here.
-#endif
         srd.sw_mode   = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
 
         const bool isMultiSampled = (imageCreateInfo.samples > 1);
@@ -3364,17 +3361,12 @@ void PAL_STDCALL Device::Gfx9CreateSamplerSrds(
             pSrd->word2.bits.XY_MIN_FILTER = static_cast<uint32>(pInfo->filter.minification);
             pSrd->word2.bits.Z_FILTER      = static_cast<uint32>(pInfo->filter.zFilter);
             pSrd->word2.bits.MIP_FILTER    = static_cast<uint32>(pInfo->filter.mipFilter);
-            pSrd->word2.bits.LOD_BIAS = Math::FloatToSFixed(pInfo->mipLodBias,
-                                                            Gfx9SamplerLodBiasIntBits,
-                                                            Gfx9SamplerLodBiasFracBits);
+            pSrd->word2.bits.LOD_BIAS      = Math::FloatToSFixed(pInfo->mipLodBias,
+                                                                 Gfx9SamplerLodBiasIntBits,
+                                                                 Gfx9SamplerLodBiasFracBits);
 
             pSrd->word2.bits.BLEND_ZERO_PRT     = pInfo->flags.prtBlendZeroMode;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
-            pSrd->word2.bits.MIP_POINT_PRECLAMP = (pInfo->flags.dx9Mipclamping == 1) ? 0 : 1;
-#else
             pSrd->word2.bits.MIP_POINT_PRECLAMP = 0;
-#endif
             pSrd->word2.bits.FILTER_PREC_FIX    = settings.samplerPrecisionFixEnabled;
 
             // Ensure useAnisoThreshold is only set when preciseAniso is disabled
@@ -3481,11 +3473,7 @@ void PAL_STDCALL Device::Gfx9CreateSamplerSrds(
 
             // This allows the sampler to override anisotropic filtering when the resource view contains a single
             // mipmap level.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448
             pSrd->word2.bits.ANISO_OVERRIDE = !pInfo->flags.disableSingleMipAnisoOverride;
-#else
-            pSrd->word2.bits.ANISO_OVERRIDE = 1;
-#endif
         }
 
         memcpy(pSrdOutput, &tempSamplerSrds[0], (currentSrdIdx * sizeof(SamplerSrd)));
@@ -3560,11 +3548,7 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                                                       Gfx10SamplerLodBiasIntBits,
                                                       Gfx10SamplerLodBiasFracBits);
             pSrd->blend_prt          = pInfo->flags.prtBlendZeroMode;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
-            pSrd->mip_point_preclamp = (pInfo->flags.dx9Mipclamping == 1) ? 0 : 1;
-#else
             pSrd->mip_point_preclamp = 0;
-#endif
 
             // Ensure useAnisoThreshold is only set when preciseAniso is disabled
             PAL_ASSERT((pInfo->flags.preciseAniso == 0) ||
@@ -3665,11 +3649,7 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
 
             // This allows the sampler to override anisotropic filtering when the resource view contains a single
             // mipmap level.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448
             pSrd->aniso_override = (pInfo->flags.disableSingleMipAnisoOverride == 0);
-#else
-            pSrd->aniso_override = 1;
-#endif
 
         } // end loop through temp SRDs
 

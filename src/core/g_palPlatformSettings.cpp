@@ -98,6 +98,7 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.overlayMemoryInfoConfig.reportCmdAllocator = true;
     m_settings.overlayMemoryInfoConfig.reportExternal = true;
     m_settings.overlayMemoryInfoConfig.reportInternal = true;
+    m_settings.overlayMemoryInfoConfig.displayPeakMemUsage = false;
     m_settings.gpuProfilerMode = GpuProfilerDisabled;
     m_settings.gpuProfilerTokenAllocatorSize = 4*1024*1024;
     memset(m_settings.gpuProfilerConfig.logDirectory, 0, 512);
@@ -327,6 +328,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pOverlayMemoryInfoConfig_ReportInternalStr,
                            Util::ValueType::Boolean,
                            &m_settings.overlayMemoryInfoConfig.reportInternal,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pOverlayMemoryInfoConfig_DisplayPeakMemUsageStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.overlayMemoryInfoConfig.displayPeakMemUsage,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerModeStr,
@@ -724,6 +730,11 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.overlayMemoryInfoConfig.reportInternal);
     m_settingsInfoMap.Insert(1276999751, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.overlayMemoryInfoConfig.displayPeakMemUsage;
+    info.valueSize = sizeof(m_settings.overlayMemoryInfoConfig.displayPeakMemUsage);
+    m_settingsInfoMap.Insert(2059768529, info);
+
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerMode;
     info.valueSize = sizeof(m_settings.gpuProfilerMode);
@@ -955,7 +966,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 3529244322;
+            component.settingsDataHash = 1933575272;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

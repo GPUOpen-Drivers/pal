@@ -48,6 +48,7 @@
 #endif
 
 #include "palFile.h"
+#include "palLibrary.h"
 
 using namespace Util;
 
@@ -359,36 +360,37 @@ private:
 class Platform;
 
 // =====================================================================================================================
-// the class is responsible to resolve all external symbols that required by the Dri3WindowSystem.
+// the class is responsible for resolving all external symbols that required by the Dri3WindowSystem.
 class WaylandLoader
 {
 public:
     WaylandLoader();
     ~WaylandLoader();
+
     bool   Initialized() { return m_initialized; }
+
     const WaylandLoaderFuncs& GetProcsTable()const { return m_funcs; }
 #if defined(PAL_DEBUG_PRINTS)
     const WaylandLoaderFuncsProxy& GetProcsTableProxy()const { return m_proxy; }
+
     void SetLogPath(const char* pPath) { m_proxy.Init(pPath); }
 #endif
+
     Result Init(Platform* pPlatform);
 
     wl_interface* GetWlRegistryInterface() const;
-
     wl_interface* GetWlBufferInterface() const;
-
     wl_interface* GetWlCallbackInterface() const;
 
 private:
     wl_interface* m_pWlRegistryInterface;
-
     wl_interface* m_pWlBufferInterface;
-
     wl_interface* m_pWlCallbackInterface;
 
-    void* m_libraryHandles[WaylandLoaderLibrariesCount];
-    bool  m_initialized;
-    WaylandLoaderFuncs m_funcs;
+    Util::Library m_library[WaylandLoaderLibrariesCount];
+    bool          m_initialized;
+
+    WaylandLoaderFuncs      m_funcs;
 #if defined(PAL_DEBUG_PRINTS)
     WaylandLoaderFuncsProxy m_proxy;
 #endif

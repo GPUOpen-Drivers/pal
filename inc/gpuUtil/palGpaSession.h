@@ -606,9 +606,6 @@ public:
     /// @returns Success if the pipeline has been registered with GpaSession successfully.
     ///          + AlreadyExists if a duplicate pipeline is provided.
     Pal::Result RegisterPipeline(const Pal::IPipeline* pPipeline, const RegisterPipelineInfo& clientInfo);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
-    Pal::Result RegisterPipeline(const Pal::IPipeline* pPipeline) { return RegisterPipeline(pPipeline, { }); }
-#endif
 
     /// Unregister pipeline with GpaSession for obtaining unload events in the RGP file.
     /// This should be called immediately before destroying the PAL pipeline object.

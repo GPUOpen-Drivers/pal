@@ -959,20 +959,6 @@ Result PerfExperiment::AddThreadTrace(
         // The buffer size can't be larger than the maximum size and it must be properly aligned.
         result = Result::ErrorInvalidValue;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
-    else if ((traceInfo.optionFlags.threadTraceTokenMask != 0) &&
-             (traceInfo.optionValues.threadTraceTokenMask == 0))
-    {
-        // The thread trace token mask can't be empty.
-        result = Result::ErrorInvalidValue;
-    }
-    else if ((traceInfo.optionFlags.threadTraceRegMask != 0) &&
-             (traceInfo.optionValues.threadTraceRegMask == 0))
-    {
-        // The thread trace reg mask can't be empty.
-        result = Result::ErrorInvalidValue;
-    }
-#else
     else if ((traceInfo.optionFlags.threadTraceTokenConfig != 0) &&
              (traceInfo.optionValues.threadTraceTokenConfig.tokenMask == 0) &&
              (traceInfo.optionValues.threadTraceTokenConfig.regMask == 0))
@@ -980,7 +966,6 @@ Result PerfExperiment::AddThreadTrace(
         // The thread trace token config can't be empty.
         result = Result::ErrorInvalidValue;
     }
-#endif
     else if ((traceInfo.optionFlags.threadTraceTargetSh != 0) &&
              (traceInfo.optionValues.threadTraceTargetSh >= m_chipProps.gfx6.numShaderArrays))
     {
@@ -1037,14 +1022,12 @@ Result PerfExperiment::AddThreadTrace(
         // This feels like a hack.
         result = Result::ErrorInvalidValue;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
     else if ((traceInfo.optionFlags.threadTraceStallBehavior != 1) &&
              (traceInfo.optionValues.threadTraceStallBehavior > GpuProfilerStallNever))
     {
         // The stall mode is invalid.
         result = Result::ErrorInvalidValue;
     }
-#endif
     else
     {
         m_hasThreadTrace = true;
@@ -1146,23 +1129,11 @@ Result PerfExperiment::AddThreadTrace(
         m_sqtt[traceInfo.instance].perfMask.bits.SH1_MASK = (traceInfo.optionFlags.threadTraceSh1CounterMask != 0)
                 ? traceInfo.optionValues.threadTraceSh1CounterMask : SqttPerfCounterCuMask;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
-        if ((traceInfo.optionFlags.threadTraceTokenMask != 0) ||
-            (traceInfo.optionFlags.threadTraceRegMask != 0))
-        {
-            ThreadTraceTokenConfig tokenConfig = {};
-            tokenConfig.tokenMask = traceInfo.optionValues.threadTraceTokenMask;
-            tokenConfig.regMask   = traceInfo.optionValues.threadTraceRegMask;
-
-            m_sqtt[traceInfo.instance].tokenMask.u32All = GetSqttTokenMask(tokenConfig);
-        }
-#else
         if (traceInfo.optionFlags.threadTraceTokenConfig != 0)
         {
             m_sqtt[traceInfo.instance].tokenMask.u32All =
                 GetSqttTokenMask(traceInfo.optionValues.threadTraceTokenConfig);
         }
-#endif
         else
         {
             // By default trace all tokens and registers.
@@ -1170,7 +1141,6 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[traceInfo.instance].tokenMask.bits.REG_MASK   = SqttRegMaskDefault;
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
         // Only override if kernel reports we're actually able to stall.
         if ((traceInfo.optionFlags.threadTraceStallBehavior != 0) &&
             (m_sqtt[traceInfo.instance].mask.bits.SQ_STALL_EN__CI__VI == 1))
@@ -1197,7 +1167,6 @@ Result PerfExperiment::AddThreadTrace(
                 break;
             }
         }
-#endif
     }
 
     return result;
@@ -3079,7 +3048,8 @@ uint32* PerfExperiment::WriteUpdateWindowedCounters(
     {
         pCmdSpace += m_cmdUtil.BuildEventWrite(enable ? PERFCOUNTER_START : PERFCOUNTER_STOP, pCmdSpace);
     }
-    else
+
+    if (m_chipProps.gfxLevel != GfxIpLevel::GfxIp6)
     {
         regCOMPUTE_PERFCOUNT_ENABLE__CI__VI computeEnable = {};
         computeEnable.bits.PERFCOUNT_ENABLE = enable;

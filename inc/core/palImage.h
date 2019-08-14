@@ -191,22 +191,12 @@ union ImageCreateFlags
         uint32 optimalShareable        :  1; ///< Indicates metadata information is to be added into private data on
                                              ///  creation time and honored on open time.
         uint32 sampleLocsAlwaysKnown   :  1; ///< Sample pattern is always known in client driver for MSAA depth image.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446)
-        uint32 view3dAs2dArray         :  1; ///< If set, client can create 2D views of this 3D image, treating
-                                             ///  depth as array slices.
-#else
-        uint32 reserved1               :  1;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 461
-        uint32 fullResolveDstOnly      :  1; ///< Indicates any ICmdBuffer::CmdResolveImage using this image as a desination
-                                             ///  will overwrite the entire image (width and height of resolve region is
-                                             ///  same as width and height of resolve dst).
-#else
-        uint32 reserved2               :  1;
-#endif
-        uint32 reserved                : 12; ///< Reserved for future use.
+        uint32 fullResolveDstOnly      :  1; ///< Indicates any ICmdBuffer::CmdResolveImage using this image as a
+                                             ///  desination will overwrite the entire image (width and height of
+                                             ///  resolve region is same as width and height of resolve dst).
+        uint32 reserved                : 13; ///< Reserved for future use.
     };
-    uint32 u32All;                     ///< Flags packed as 32-bit uint.
+    uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };
 
 /// Specifies a set of ways an image might be used by the GPU (color target, shader read, etc.).
@@ -214,36 +204,36 @@ union ImageUsageFlags
 {
     struct
     {
-        uint32 shaderRead             :  1;  ///< Image will be read from shader (i.e., texture).
-        uint32 shaderWrite            :  1;  ///< Image will be written from a shader (i.e., UAV).
-        uint32 resolveSrc             :  1;  ///< Image will be used as resolve source image
-        uint32 resolveDst             :  1;  ///< Image will be used as resolve dst image
-        uint32 colorTarget            :  1;  ///< Image will be bound as a color target.
-        uint32 depthStencil           :  1;  ///< Image will be bound as a depth/stencil target.
-        uint32 noStencilShaderRead    :  1;  ///< Image will be neither read as stencil nor resolved on stencil aspect.
-                                             ///< Note that if resolveSrc bit has been set to indicate that the image
-                                             ///< could be adopted as a resolveSrc image and there could be stencil
-                                             ///< resolve, noStencilShaderRead must be set to 0, since shader-read
-                                             ///< based stencil resolve might be performed.
-        uint32 hiZNeverInvalid        :  1;  ///< Hint to PAL indicating the client will guarantee that no operations
-                                             ///  performed on this Image while it is in a decompressed state will cause
-                                             ///  Hi-Z metadata to become invalid. This allows PAL to avoid an expensive
-                                             ///  resummarization blit in some resource barriers.
-        uint32 depthAsZ24             :  1;  ///< Use a 24-bit format for HW programming of a native 32-bit surface.
-                                             ///  If set, border color and Z-reference values are treated as Z-24.
-        uint32 firstShaderWritableMip :  4;  ///< Only relevant if the shaderWrite flag is set. Typically set to 0 so
-                                             ///  entire image is writable. If non0, such as an image where only level0
-                                             ///  is used as a color target and compute is used to generate mipmaps,PAL
-                                             ///  may be able to enable additional compression on the baseLevels which
-                                             ///  are used exclusively as color target and shader read.
-        uint32 cornerSampling         :  1; ///< Set if this image will use corner sampling in image-read scenarios.  With
-                                            ///  corner sampling, the extent refers to the number of pixel corners which will
-                                            ///  be one more than the number of pixels.  Border color is ignored when corner
-                                            ///  sampling is enabled.
+        uint32 shaderRead             :  1; ///< Image will be read from shader (i.e., texture).
+        uint32 shaderWrite            :  1; ///< Image will be written from a shader (i.e., UAV).
+        uint32 resolveSrc             :  1; ///< Image will be used as resolve source image
+        uint32 resolveDst             :  1; ///< Image will be used as resolve dst image
+        uint32 colorTarget            :  1; ///< Image will be bound as a color target.
+        uint32 depthStencil           :  1; ///< Image will be bound as a depth/stencil target.
+        uint32 noStencilShaderRead    :  1; ///< Image will be neither read as stencil nor resolved on stencil aspect.
+                                            ///< Note that if resolveSrc bit has been set to indicate that the image
+                                            ///< could be adopted as a resolveSrc image and there could be stencil
+                                            ///< resolve, noStencilShaderRead must be set to 0, since shader-read
+                                            ///< based stencil resolve might be performed.
+        uint32 hiZNeverInvalid        :  1; ///< Hint to PAL indicating the client will guarantee that no operations
+                                            ///  performed on this Image while it is in a decompressed state will cause
+                                            ///  Hi-Z metadata to become invalid. This allows PAL to avoid an expensive
+                                            ///  resummarization blit in some resource barriers.
+        uint32 depthAsZ24             :  1; ///< Use a 24-bit format for HW programming of a native 32-bit surface.
+                                            ///  If set, border color and Z-reference values are treated as Z-24.
+        uint32 firstShaderWritableMip :  4; ///< Only relevant if the shaderWrite flag is set. Typically set to 0 so
+                                            ///  entire image is writable. If non0, such as an image where only level0
+                                            ///  is used as a color target and compute is used to generate mipmaps,PAL
+                                            ///  may be able to enable additional compression on the baseLevels which
+                                            ///  are used exclusively as color target and shader read.
+        uint32 cornerSampling         :  1; ///< Set if this image will use corner sampling in image-read scenarios.
+                                            ///  With corner sampling, the extent refers to the number of pixel corners
+                                            ///  which will be one more than the number of pixels.  Border color is
+                                            ///  ignored when corner sampling is enabled.
         uint32 placeHolder2           :  1;
-        uint32 reserved               : 17;  ///< Reserved for future use.
+        uint32 reserved               : 17; ///< Reserved for future use.
     };
-    uint32 u32All;                 ///< Flags packed as 32-bit uint.
+    uint32 u32All;                          ///< Flags packed as 32-bit uint.
 };
 
 /// Specifies properties for @ref IImage creation.  Input structure to IDevice::CreateImage().

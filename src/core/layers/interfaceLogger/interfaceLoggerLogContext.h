@@ -95,6 +95,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetInputAssemblyState,
     CmdBufferCmdSetTriangleRasterState,
     CmdBufferCmdSetPointLineRasterState,
+    CmdBufferCmdSetLineStippleState,
     CmdBufferCmdSetDepthBiasState,
     CmdBufferCmdSetStencilRefMasks,
     CmdBufferCmdSetUserClipPlanes,
@@ -522,6 +523,7 @@ public:
     void Struct(PipelineCreateFlags value);
     void Struct(const PlatformCreateInfo& value);
     void Struct(const PointLineRasterStateParams& value);
+    void Struct(const LineStippleStateParams& value);
     void Struct(const PowerSwitchInfo& value);
     void Struct(const PresentableImageCreateInfo& value);
     void Struct(const PresentDirectInfo& value);
@@ -761,6 +763,7 @@ public:
     void KeyAndStruct(const char* pKey, PipelineCreateFlags value)                        { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const PlatformCreateInfo& value)                  { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const PointLineRasterStateParams& value)          { Key(pKey); Struct(value); }
+    void KeyAndStruct(const char* pKey, const LineStippleStateParams& value)              { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const PowerSwitchInfo& value)                     { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const PresentableImageCreateInfo& value)          { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const PresentDirectInfo& value)                   { Key(pKey); Struct(value); }

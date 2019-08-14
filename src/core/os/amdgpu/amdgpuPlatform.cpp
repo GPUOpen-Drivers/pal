@@ -90,7 +90,6 @@ size_t Platform::GetScreenObjectSize() const
 Result Platform::ConnectToOsInterface()
 {
     // NOTE: There is nothing to be done here.
-    m_features.dtifEnabled = CheckDtifStatus();
 
     m_features.suportHostMappedForeignMemory = 0;
 
@@ -344,12 +343,6 @@ const WaylandLoader& Platform::GetWaylandLoader()
 #endif
 
 // =====================================================================================================================
-bool Platform::CheckDtifStatus()
-{
-    bool dtifIsEnabled = false;
-
-    return dtifIsEnabled;
-}
 
 // =====================================================================================================================
 // Helper function to translate a AMDGPU_PIXEL_FORMAT enumeration into a PAL format.

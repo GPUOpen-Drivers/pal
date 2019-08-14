@@ -64,11 +64,6 @@ target_compile_definitions(pal PRIVATE PAL_COMPILE_TYPE=${TARGET_ARCHITECTURE_BI
 
 target_compile_definitions(pal PRIVATE ${TARGET_ARCHITECTURE_ENDIANESS}ENDIAN_CPU)
 
-if(PAL_CLOSED_SOURCE)
-    # Public because it is used in the interface.
-    target_compile_definitions(pal PUBLIC PAL_CLOSED_SOURCE)
-endif()
-
 if(PAL_BUILD_GPUOPEN)
     # Public because it is used in the interface.
     target_compile_definitions(pal PUBLIC PAL_BUILD_GPUOPEN)

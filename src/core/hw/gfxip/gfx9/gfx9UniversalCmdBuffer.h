@@ -923,7 +923,9 @@ private:
         uint32      zDim);
 
     template <bool isNgg>
-    uint32 CalcGeCntl(regIA_MULTI_VGT_PARAM iaMultiVgtParam) const;
+    uint32 CalcGeCntl(
+        bool                  usesLineStipple,
+        regIA_MULTI_VGT_PARAM iaMultiVgtParam) const;
 
     uint32* Gfx10ValidateTriangleRasterState(
         const GraphicsPipeline*  pPipeline,

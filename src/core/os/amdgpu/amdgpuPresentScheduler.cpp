@@ -253,11 +253,8 @@ Result PresentScheduler::PreparePresent(
 {
     Result result = Result::Success;
 
-    if (static_cast<Queue*>(pQueue)->IsPendingWait())
-    {
-        SubmitInfo submitInfo = {};
-        result = pQueue->Submit(submitInfo);
-    }
+    SubmitInfo submitInfo = {};
+    result = pQueue->Submit(submitInfo);
 
     return result;
 }

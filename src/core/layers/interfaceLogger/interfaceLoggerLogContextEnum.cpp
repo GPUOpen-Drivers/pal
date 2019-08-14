@@ -1008,15 +1008,9 @@ void LogContext::Enum(
         nullptr,
         "Stoney",
 
-#if PAL_BUILD_GFX9
         "Vega10",
         "Raven",
         "Vega12",
-#else
-        nullptr,
-        nullptr,
-        nullptr,
-#endif
         "Vega20",
         "Raven2",
         nullptr,

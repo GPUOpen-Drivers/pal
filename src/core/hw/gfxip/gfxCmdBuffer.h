@@ -403,6 +403,8 @@ public:
         SwizzledFormat format,
         uint32         targetIndex) = 0;
 
+    virtual uint32 GetUsedSize(CmdAllocType type) const override;
+
     void EnableSpmTrace() { m_spmTraceEnabled = true; }
     bool SpmTraceEnabled() const { return m_spmTraceEnabled; }
 

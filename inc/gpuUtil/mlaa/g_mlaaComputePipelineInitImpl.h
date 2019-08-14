@@ -127,13 +127,11 @@ Pal::Result CreateMlaaComputePipelines(
         pTable = mlaaComputeBinaryTableIceland;
         break;
 
-#if PAL_BUILD_GFX9
     case Pal::AsicRevision::Vega10:
     case Pal::AsicRevision::Vega12:
     case Pal::AsicRevision::Raven:
         pTable = mlaaComputeBinaryTableVega10;
         break;
-#endif
 
     case Pal::AsicRevision::Vega20:
         pTable = mlaaComputeBinaryTableVega20;

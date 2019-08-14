@@ -581,8 +581,11 @@ struct ExternalResourceOpenInfo
     {
         struct
         {
-            uint32 ntHandle :  1; ///< The provided hExternalResource is an NT handle instead of a default KMT handle.
-            uint32 reserved : 31; ///< Reserved for future use.
+            uint32 ntHandle           :  1; ///< The provided hExternalResource is an NT handle instead of a default
+                                            ///  KMT handle.
+            uint32 androidHwBufHandle :  1; ///< The provided hExternalResource is android hardware buffer handle
+                                            ///  instead of fd.
+            uint32 reserved           : 30; ///< Reserved for future use.
         };
         uint32 u32All;            ///< Flags packed as 32-bit uint.
     } flags;                      ///< External resource open flags.

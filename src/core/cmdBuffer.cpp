@@ -110,11 +110,7 @@ CmdBuffer::CmdBuffer(
     :
     m_createInfo(createInfo),
     m_engineType(createInfo.engineType),
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 449)
     m_engineSubType(createInfo.engineSubType),
-#else
-    m_engineSubType(EngineSubType::_None),
-#endif
     m_pCmdAllocator(static_cast<CmdAllocator*>(createInfo.pCmdAllocator)),
     m_pMemAllocator(nullptr),
     m_pMemAllocatorStartPos(nullptr),
@@ -1184,6 +1180,37 @@ void CmdBuffer::VerifyBarrierTransitions(
             } // end check for an image that needs more validation
         } // end loop through all the transitions associated with this barrier
     }
+}
+
+// =====================================================================================================================
+uint32 CmdBuffer::GetUsedSize(
+    CmdAllocType type
+    ) const
+{
+    uint32 sizeInDwords = 0;
+
+    switch (type)
+    {
+    case EmbeddedDataAlloc:
+        for (auto iter = m_embeddedData.chunkList.Begin(); iter.IsValid(); iter.Next())
+        {
+            sizeInDwords += iter.Get()->DwordsAllocated();
+        }
+        break;
+    case GpuScratchMemAlloc:
+        for (auto iter = m_gpuScratchMem.chunkList.Begin(); iter.IsValid(); iter.Next())
+        {
+            sizeInDwords += iter.Get()->DwordsAllocated();
+        }
+        break;
+    case CommandDataAlloc:
+        break;
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    return (sizeInDwords * sizeof(uint32));
 }
 
 } // Pal

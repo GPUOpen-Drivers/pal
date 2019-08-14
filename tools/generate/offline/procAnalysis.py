@@ -269,7 +269,7 @@ class ProcMgr:
     def GenerateClassDeclaration(self, fp, name):
         fp.write("class Platform;\n")
         self.GenerateCommentLine(fp)
-        fp.write("// the class is responsible to resolve all external symbols that required by the Dri3WindowSystem.")
+        fp.write("// the class is responsible for resolving all external symbols that required by the Dri3WindowSystem.")
         fp.write("\nclass " + name + "\n")
         fp.write("{\n")
 
@@ -277,25 +277,29 @@ class ProcMgr:
         # add class definition
         fp.write("public:\n")
         fp.write("    " + name + "();\n")
-        fp.write("    ~" + name + "();\n")
-        fp.write("    bool   Initialized() { return m_initialized; }\n")
+        fp.write("    ~" + name + "();\n\n")
+        fp.write("    bool   Initialized() { return m_initialized; }\n\n")
         fp.write("    const " + name + "Funcs& GetProcsTable()const { return m_funcs; }\n")
         fp.write("#if defined(PAL_DEBUG_PRINTS)\n")
         fp.write("    const " + name + "FuncsProxy& GetProcsTableProxy()const { return m_proxy; }\n")
-        fp.write("    void SetLogPath(const char* pPath) { m_proxy.Init(pPath); }\n")
+        fp.write("\n    void SetLogPath(const char* pPath) { m_proxy.Init(pPath); }\n")
         fp.write("#endif\n")
-        fp.write("    Result Init(Platform* pPlatform);\n\n")
+        fp.write("\n    Result Init(Platform* pPlatform);\n")
         if self.needSpecializedInit:
-            fp.write("    void   SpecializedInit(Platform* pPlatform, char*  pDtifLibName);\n\n")
-        for var in self.var:
-            fp.write("    " + var.GetVarType() + "* Get" + var.GetFormattedName() + "() const;\n\n")
+            fp.write("    void   SpecializedInit(Platform* pPlatform, char*  pDtifLibName);\n")
+        if self.var:
+            fp.write("\n")
+            for var in self.var:
+                fp.write("    " + var.GetVarType() + "* Get" + var.GetFormattedName() + "() const;\n")
         # add library handler
-        fp.write("private:\n")
-        for var in self.var:
-            fp.write("    " + var.GetVarType() + "* m_p" + var.GetFormattedName() +";\n\n")
-        fp.write("    void* m_libraryHandles[" + name + "LibrariesCount];\n")
-        fp.write("    bool  m_initialized;\n")
-        fp.write("    "  + name + "Funcs m_funcs;\n")
+        fp.write("\nprivate:\n")
+        if self.var:
+            for var in self.var:
+                fp.write("    " + var.GetVarType() + "* m_p" + var.GetFormattedName() +";\n")
+            fp.write("\n")
+        fp.write("    Util::Library m_library[" + name + "LibrariesCount];\n")
+        fp.write("    bool          m_initialized;\n\n")
+        fp.write("    "  + name + "Funcs      m_funcs;\n")
         fp.write("#if defined(PAL_DEBUG_PRINTS)\n")
         fp.write("    "  + name + "FuncsProxy m_proxy;\n")
         fp.write("#endif\n\n")
@@ -401,7 +405,6 @@ class ProcMgr:
 
         fp.write("    m_initialized(false)\n")
         fp.write("{\n")
-        fp.write("    " + "memset(m_libraryHandles, 0, sizeof(m_libraryHandles));\n")
         fp.write("    " + "memset(&m_funcs, 0, sizeof(m_funcs));\n")
         fp.write("}\n")
 
@@ -433,25 +436,21 @@ class ProcMgr:
         for key in self.libraries.keys():
             libraryEnum = self.GetFormattedLibraryName(key)
             fp.write("        // resolve symbols from " + key + "\n")
-            fp.write("        m_libraryHandles["+libraryEnum+"] = dlopen(LibNames[" + libraryEnum + "], RTLD_LAZY);\n")
-            fp.write("        if (m_libraryHandles[" + libraryEnum+"] == nullptr)\n")
-            fp.write("        {\n")
-            fp.write("            result = Result::ErrorUnavailable;\n")
-            fp.write("        }\n")
-            fp.write("        else\n")
+            fp.write("        result = m_library[" + libraryEnum + "].Load(LibNames[" + libraryEnum + "]);\n")
+            fp.write("        if (result == Result::Success)\n")
             fp.write("        {\n")
             for entry in self.libraries[key]:
-                fp.write("            m_funcs.pfn" + entry.GetFormattedName() + " = " + "reinterpret_cast<" + entry.GetFormattedName() + ">(dlsym(\n                        m_libraryHandles[" + libraryEnum + "],\n                        \"" + entry.GetFunctionName() + "\"));\n")
+                fp.write("            m_library[" + libraryEnum + "].GetFunction(\"" + entry.GetFunctionName() + "\", &m_funcs.pfn" + entry.GetFormattedName() + ");\n")
             fp.write("        }\n\n")
         for var in self.var:
             libraryEnum = self.GetFormattedLibraryName(var.GetLibrary())
-            fp.write("        if (m_libraryHandles[" + libraryEnum+"] == nullptr)\n")
+            fp.write("        if (m_library[" + libraryEnum + "].IsLoaded() == false)\n")
             fp.write("        {\n")
             fp.write("            result = Result::ErrorUnavailable;\n")
             fp.write("        }\n")
             fp.write("        else\n")
             fp.write("        {\n")
-            fp.write("            m_p" + var.GetFormattedName() + " = reinterpret_cast<" + var.GetVarType() + "*>(dlsym(m_libraryHandles[" + libraryEnum + "], \"" + var.GetVarName() + "\"));\n")
+            fp.write("            m_library[" + libraryEnum + "].GetFunction(\"" + var.GetVarName() + "\", &m_p" + var.GetFormattedName() + ");\n")
             fp.write("        }\n")
         fp.write("        if (result == Result::Success)\n")
         fp.write("        {\n")
@@ -534,15 +533,7 @@ class ProcMgr:
     def GenerateDestructor(self, fp, name):
         # initialize static variables
         self.GenerateCommentLine(fp);
-        fp.write(name + "::~" + name + "()\n")
-        fp.write("{\n")
-        for key in self.libraries.keys():
-            libraryEnum = self.GetFormattedLibraryName(key)
-            fp.write("    if (m_libraryHandles[" + libraryEnum+"] != nullptr)\n")
-            fp.write("    {\n")
-            fp.write("        dlclose(m_libraryHandles[" + libraryEnum+"]);\n")
-            fp.write("    }\n")
-        fp.write("}\n")
+        fp.write(name + "::~" + name + "()\n{\n}\n")
 
     def GenerateHeadFile(self, fp, name):
         self.GenerateFunctionDeclaration(fp, name)

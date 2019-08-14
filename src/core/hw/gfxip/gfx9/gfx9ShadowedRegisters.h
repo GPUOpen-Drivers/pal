@@ -132,8 +132,8 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (Vg12::mmPA_STEREO_CNTL - mmPA_SU_SMALL_PRIM_FILTER_CNTL + 1),          // 0xA20C - 0xA210
     },
     {
-        (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),                             // 0xA280 - 0xA282
-        (mmPA_SU_LINE_CNTL - mmPA_SU_POINT_SIZE + 1),
+        (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),                             // 0xA280 - 0xA283
+        (mmPA_SC_LINE_STIPPLE - mmPA_SU_POINT_SIZE + 1),
     },
     {
         (mmVGT_HOS_MAX_TESS_LEVEL - CONTEXT_SPACE_START),                       // 0xA286 - 0xA287

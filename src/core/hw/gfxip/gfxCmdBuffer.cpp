@@ -1182,4 +1182,25 @@ Result GfxCmdBuffer::AddFceSkippedImageCounter(
     return result;
 }
 
+// =====================================================================================================================
+uint32 GfxCmdBuffer::GetUsedSize(
+    CmdAllocType type
+    ) const
+{
+    uint32 sizeInBytes = CmdBuffer::GetUsedSize(type);
+
+    if (type == CommandDataAlloc)
+    {
+        uint32 cmdDataSizeInDwords = 0;
+        for (auto iter = m_generatedChunkList.Begin(); iter.IsValid(); iter.Next())
+        {
+            cmdDataSizeInDwords += iter.Get()->DwordsAllocated();
+        }
+
+        sizeInBytes += cmdDataSizeInDwords * sizeof(uint32);
+    }
+
+    return sizeInBytes;
+}
+
 } // Pal

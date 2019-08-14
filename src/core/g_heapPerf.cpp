@@ -307,7 +307,6 @@ void SettingsLoader::SetupHeapPerfRatings(
         pSettings->gpuReadPerfForGartCacheable = 4.8f;
     }
     else
-#if PAL_BUILD_GFX9
     if (IsRaven(*(static_cast<Pal::Device*>(m_pDevice))))
     {
         pSettings->cpuWritePerfForLocal = 4.2f;
@@ -326,8 +325,6 @@ void SettingsLoader::SetupHeapPerfRatings(
         pSettings->gpuReadPerfForGartCacheable = 11.f;
     }
     else
-#endif
-#if PAL_BUILD_GFX9 && PAL_BUILD_RAVEN2
     if (IsRaven2(*(static_cast<Pal::Device*>(m_pDevice))))
     {
         pSettings->cpuWritePerfForLocal = 4.2f;
@@ -346,7 +343,6 @@ void SettingsLoader::SetupHeapPerfRatings(
         pSettings->gpuReadPerfForGartCacheable = 11.f;
     }
     else
-#endif
     if (IsSpectre(*(static_cast<Pal::Device*>(m_pDevice))))
     {
         pSettings->cpuWritePerfForLocal = 3.9f;
@@ -433,7 +429,6 @@ void SettingsLoader::SetupHeapPerfRatings(
         pSettings->gpuReadPerfForGartCacheable = 9.5f;
     }
     else
-#if PAL_BUILD_GFX9
     if (IsVega10(*(static_cast<Pal::Device*>(m_pDevice))))
     {
         pSettings->cpuWritePerfForLocal = 6.6f;
@@ -469,8 +464,6 @@ void SettingsLoader::SetupHeapPerfRatings(
         pSettings->gpuReadPerfForGartCacheable = 4.8f;
     }
     else
-#endif
-#if PAL_BUILD_GFX9 && PAL_BUILD_VEGA20
     if (IsVega20(*(static_cast<Pal::Device*>(m_pDevice))))
     {
         pSettings->cpuWritePerfForLocal = 6.6f;
@@ -489,7 +482,6 @@ void SettingsLoader::SetupHeapPerfRatings(
         pSettings->gpuReadPerfForGartCacheable = 9.7f;
     }
     else
-#endif
     {
         PAL_NOT_IMPLEMENTED();
     }

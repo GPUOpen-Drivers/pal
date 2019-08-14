@@ -261,4 +261,19 @@ void ComputeCmdBuffer::LeakNestedCmdBufferState(
     PAL_ASSERT(memcmp(&m_funcTable, &cmdBuffer.m_funcTable, sizeof(m_funcTable)) == 0);
 }
 
+// =====================================================================================================================
+uint32 ComputeCmdBuffer::GetUsedSize(
+    CmdAllocType type
+    ) const
+{
+    uint32 sizeInBytes = GfxCmdBuffer::GetUsedSize(type);
+
+    if (type == CommandDataAlloc)
+    {
+        sizeInBytes += m_pCmdStream->GetUsedCmdMemorySize();
+    }
+
+    return sizeInBytes;
+}
+
 } // Pal

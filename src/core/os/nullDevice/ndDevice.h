@@ -309,15 +309,6 @@ public:
     virtual Result GetVirtualDisplayProperties(
         uint32                    screenTargetId,
         VirtualDisplayProperties* pProperties) override { return Result::Success; }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
-#if PAL_AMDGPU_BUILD
-    virtual Result GetConnectorIdFromOutput(
-        OsDisplayHandle hDisplay,
-        uint32          randrOutput,
-        WsiPlatform     wsiPlatform,
-        uint32*         pConnectorId) override { return Result::Success; }
-#endif
-#endif
 
 protected:
     Device(
@@ -389,9 +380,7 @@ private:
     void InitGfx6ChipProperties();
 #endif
 
-#if PAL_BUILD_GFX9
     void InitGfx9ChipProperties();
-#endif
 
     const NullIdLookup&  m_nullIdLookup;
 

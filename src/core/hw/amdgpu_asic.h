@@ -40,9 +40,7 @@
 #define FAMILY_VI      0x82
 #define FAMILY_POLARIS 0x82
 #define FAMILY_CZ      0x87
-#if PAL_BUILD_GFX9
 #define FAMILY_AI      0x8D
-#endif
 #define FAMILY_RV      0x8E
 #define FAMILY_NV      0x8F
 
@@ -55,9 +53,7 @@
 #define FAMILY_IS_VI(f)      FAMILY_IS(f, VI)
 #define FAMILY_IS_POLARIS(f) FAMILY_IS(f, POLARIS)
 #define FAMILY_IS_CZ(f)      FAMILY_IS(f, CZ)
-#if PAL_BUILD_GFX9
 #define FAMILY_IS_AI(f)      FAMILY_IS(f, AI)
-#endif
 #define FAMILY_IS_RV(f)      FAMILY_IS(f, RV)
 #define FAMILY_IS_NV(f)      FAMILY_IS(f, NV)
 
@@ -89,10 +85,8 @@
 #define AMDGPU_BRISTOL_RANGE    0x10, 0x21
 #define AMDGPU_STONEY_RANGE     0x61, 0xFF
 
-#if PAL_BUILD_GFX9
 #define AMDGPU_VEGA10_RANGE     0x01, 0x14
 #define AMDGPU_VEGA12_RANGE     0x14, 0x28
-#endif
 #define AMDGPU_VEGA20_RANGE     0x28, 0xFF
 
 #define AMDGPU_RAVEN_RANGE      0x01, 0x81
@@ -132,12 +126,10 @@
 #define ASICREV_IS_CARRIZO_BRISTOL(r)  ASICREV_IS(r, BRISTOL)
 #define ASICREV_IS_STONEY(r)           ASICREV_IS(r, STONEY)
 
-#if PAL_BUILD_GFX9
 #define ASICREV_IS_VEGA10_M(r)         ASICREV_IS(r, VEGA10)
 #define ASICREV_IS_VEGA10_P(r)         ASICREV_IS(r, VEGA10)
 #define ASICREV_IS_VEGA12_P(r)         ASICREV_IS(r, VEGA12)
 #define ASICREV_IS_VEGA12_p(r)         ASICREV_IS(r, VEGA12)
-#endif
 #define ASICREV_IS_VEGA20_P(r)         ASICREV_IS(r, VEGA20)
 
 #define ASICREV_IS_RAVEN(r)            ASICREV_IS(r, RAVEN)
@@ -173,10 +165,8 @@
 #define AMDGPU_IS_BRISTOL(f, r)    AMDGPU_IS(f, r, CZ, BRISTOL)
 #define AMDGPU_IS_STONEY(f, r)     AMDGPU_IS(f, r, CZ, STONEY)
 
-#if PAL_BUILD_GFX9
 #define AMDGPU_IS_VEGA10(f, r)     AMDGPU_IS(f, r, AI, VEGA10)
 #define AMDGPU_IS_VEGA12(f, r)     AMDGPU_IS(f, r, AI, VEGA12)
-#endif
 #define AMDGPU_IS_VEGA20(f, r)     AMDGPU_IS(f, r, AI, VEGA20)
 
 #define AMDGPU_IS_RAVEN(f, r)      AMDGPU_IS(f, r, RV, RAVEN)
@@ -211,11 +201,9 @@
 #define DEVICE_ID_VI_POLARIS12_V_699F   0x699F
 #define DEVICE_ID_ST_98E4               0x98E4
 
-#if PAL_BUILD_GFX9
 #define DEVICE_ID_AI_VEGA10_P_6860      0x6860
 #define DEVICE_ID_RV_15DD               0x15DD
 #define DEVICE_ID_AI_VEGA12_P_69A0      0x69A0
-#endif
 #define DEVICE_ID_AI_VEGA20_P_66A0      0x66A0
 #define DEVICE_ID_RV2_15D8              0x15D8
 
@@ -245,11 +233,9 @@
 #define VI_POLARIS12_V_A0          100
 #define CZ_STONEY_A0              0x61
 
-#if PAL_BUILD_GFX9
 #define AI_VEGA10_P_A0               1
 #define RAVEN_A0                     1
 #define AI_VEGA12_P_A0              20
-#endif
 #define AI_VEGA20_P_A0              40
 #define RAVEN2_A0                  0x81
 
@@ -280,11 +266,9 @@
 #define PRID_VI_POLARIS12_C7        0xC7
 #define PRID_ST_80                  0x80
 
-#if PAL_BUILD_GFX9
 #define PRID_AI_VEGA10_C3           0xC3
 #define PRID_RV_81                  0x81
 #define PRID_AI_VEGA12_00           0x00
-#endif
 #define PRID_AI_VEGA20_00           0x00
 #define PRID_RV_E2                  0xE2
 

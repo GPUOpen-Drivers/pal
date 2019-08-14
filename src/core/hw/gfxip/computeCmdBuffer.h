@@ -79,6 +79,8 @@ public:
     virtual void IncrementSubmitCount() override
         { m_pCmdStream->IncrementSubmitCount(); }
 
+    virtual uint32 GetUsedSize(CmdAllocType type) const override;
+
 protected:
     ComputeCmdBuffer(
         const GfxDevice&           device,

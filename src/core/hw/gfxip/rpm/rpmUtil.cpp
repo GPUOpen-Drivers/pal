@@ -691,7 +691,8 @@ void BindBltRasterState(
     constexpr PointLineRasterStateParams PointLineRasterState = { 1.0f, 1.0f };
     constexpr TriangleRasterStateParams  TriangleRasterState =
     {
-        FillMode::Solid,        // fillMode
+        FillMode::Solid,        // frontface fillMode
+        FillMode::Solid,        // backface fillMode
         CullMode::_None,        // cullMode
         FaceOrientation::Cw,    // frontFace
         ProvokingVertex::First  // provokingVertex

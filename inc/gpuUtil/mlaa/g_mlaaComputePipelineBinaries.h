@@ -5318,7 +5318,6 @@ constexpr PipelineBinary mlaaComputeBinaryTableIceland[] =
     {MlaaFindSepEdge_Cs_776C0A11,               sizeof(MlaaFindSepEdge_Cs_776C0A11)},
 };
 
-#if PAL_BUILD_GFX9
 // Table of compute pipeline binaries for Vega10
 constexpr PipelineBinary mlaaComputeBinaryTableVega10[] =
 {
@@ -5329,7 +5328,6 @@ constexpr PipelineBinary mlaaComputeBinaryTableVega10[] =
     {MlaaFinalBlendFast_Cs_3AFC84A4,            sizeof(MlaaFinalBlendFast_Cs_3AFC84A4)},
     {MlaaFindSepEdge_Cs_3AFC84A4,               sizeof(MlaaFindSepEdge_Cs_3AFC84A4)},
 };
-#endif
 
 // Table of compute pipeline binaries for Vega20
 constexpr PipelineBinary mlaaComputeBinaryTableVega20[] =

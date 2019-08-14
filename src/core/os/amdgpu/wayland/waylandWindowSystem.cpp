@@ -529,11 +529,7 @@ Result WaylandWindowSystem::CreatePresentableImage(
     const uint32 height = pSubResInfo->extentTexels.height;
     const uint32 stride = pSubResInfo->rowPitch;
     const uint32 bpp    = pSubResInfo->bitsPerTexel;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 445
     const bool   alpha  = pSwapChain->CreateInfo().compositeAlpha == CompositeAlphaMode::PostMultiplied;
-#else
-    const bool   alpha  = false;
-#endif
 
     wl_drm_format format = PalToWlDrmFormat(pSubResInfo->format.format, alpha);
 

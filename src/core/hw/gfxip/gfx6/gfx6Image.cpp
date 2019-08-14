@@ -345,8 +345,9 @@ Result Image::Finalize(
     bool allowComputeDecompress = (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0);
 
     // Initialize DCC:
-    if (useDcc)
+    if (useDcc && (result == Result::Success))
     {
+        m_pParent->SetPreferGraphicsScaledCopy(true);
         m_pDcc = PAL_NEW_ARRAY(Gfx6Dcc, m_createInfo.mipLevels, m_device.GetPlatform(), SystemAllocType::AllocObject);
         if (m_pDcc != nullptr)
         {
@@ -969,25 +970,27 @@ void Image::InitLayoutStateMasksOneMip(
             // Postpone all decompresses for the ResolveSrc state from Barrier-time to Resolve-time.
             m_layoutToState[mip].color.compressed.usages |= LayoutResolveSrc;
 
-            // Our copy path has been designed to allow color compressed MSAA copy sources.
-            m_layoutToState[mip].color.fmaskDecompressed.usages = LayoutColorTarget | LayoutCopySrc;
+            if (HasFmaskData())
+            {
+                // Our copy path has been designed to allow color compressed MSAA copy sources.
+                m_layoutToState[mip].color.fmaskDecompressed.usages = LayoutColorTarget | LayoutCopySrc;
 
-            // Resolve can take 3 different paths inside pal:-
-            // a. FixedFuncHWResolve :- in this case since CB does all the work we can keep everything compressed.
-            // b. ShaderBasedResolve (when format match/native resolve):- We can keep entire color compressed and
-            // hence also in fmaskdecompressed state. If we have a DCC surface but no tc-compatibility even that
-            // case is not a problem since at barrier time we will issue a dccdecompress
-            // c. ShaderBasedResolve (when format don't match) :- we won't have dcc surface in this case and hence
-            //  it is completely fine to keep color into fmaskdecompressed state.
-            m_layoutToState[mip].color.fmaskDecompressed.usages |= LayoutResolveSrc;
+                // Resolve can take 3 different paths inside pal:-
+                // a. FixedFuncHWResolve :- in this case since CB does all the work we can keep everything compressed.
+                // b. ShaderBasedResolve (when format match/native resolve):- We can keep entire color compressed and
+                // hence also in fmaskdecompressed state. If we have a DCC surface but no tc-compatibility even that
+                // case is not a problem since at barrier time we will issue a dccdecompress
+                // c. ShaderBasedResolve (when format don't match) :- we won't have dcc surface in this case and hence
+                //  it is completely fine to keep color into fmaskdecompressed state.
+                m_layoutToState[mip].color.fmaskDecompressed.usages |= LayoutResolveSrc;
 
-            // We can keep this resource into Fmaskcompressed state since barrier will handle any corresponding
-            // decompress for cases when dcc is present and we are not tc-compatible.
-            m_layoutToState[mip].color.fmaskDecompressed.usages |= LayoutShaderFmaskBasedRead;
+                // We can keep this resource into Fmaskcompressed state since barrier will handle any corresponding
+                // decompress for cases when dcc is present and we are not tc-compatible.
+                m_layoutToState[mip].color.fmaskDecompressed.usages |= LayoutShaderFmaskBasedRead;
 
-            m_layoutToState[mip].color.fmaskDecompressed.engines = LayoutUniversalEngine | LayoutComputeEngine;
+                m_layoutToState[mip].color.fmaskDecompressed.engines = LayoutUniversalEngine | LayoutComputeEngine;
+            }
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 461
         else
         {
             // If the image is always be fully overwritten when being resolved:
@@ -999,7 +1002,6 @@ void Image::InitLayoutStateMasksOneMip(
                 m_layoutToState[mip].color.compressed.usages |= LayoutResolveDst;
             }
          }
-#endif
     } // End check for HasColorMetadata()
     else if (m_pHtile != nullptr)
     {

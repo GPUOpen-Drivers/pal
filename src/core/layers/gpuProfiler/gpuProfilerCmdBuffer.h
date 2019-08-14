@@ -113,6 +113,8 @@ public:
         const TriangleRasterStateParams& params) override;
     virtual void CmdSetPointLineRasterState(
         const PointLineRasterStateParams& params) override;
+    virtual void CmdSetLineStippleState(
+        const LineStippleStateParams& params) override;
     virtual void CmdSetDepthBiasState(
         const DepthBiasParams& params) override;
     virtual void CmdSetDepthBounds(
@@ -488,6 +490,12 @@ public:
 
     virtual void CmdSetViewInstanceMask(uint32 mask) override;
 
+    virtual uint32 GetUsedSize(CmdAllocType type) const override
+    {
+        // Always return 0 used size for GpuProfiler mode as build CMD calls are recorded and may be not replayed yet.
+        return 0;
+    }
+
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
     {
@@ -640,6 +648,7 @@ private:
     void ReplayCmdSetInputAssemblyState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetTriangleRasterState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetPointLineRasterState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSetLineStippleState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetDepthBiasState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetDepthBounds(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetStencilRefMasks(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

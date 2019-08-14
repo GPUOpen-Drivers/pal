@@ -37,7 +37,6 @@
 #include "palAssert.h"
 #include "palSysUtil.h"
 
-#include <dlfcn.h>
 #include <string.h>
 #include <xcb/xcb.h>
 
@@ -1022,7 +1021,7 @@ xcb_randr_create_lease_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrCreateLeaseRepl
 
 // =====================================================================================================================
 int* Dri3LoaderFuncsProxy::pfnXcbRandrCreateLeaseReplyFds(
-    xcb_connection_t *               pConnection,
+    xcb_connection_t*                pConnection,
     xcb_randr_create_lease_reply_t*  pReply
     ) const
 {
@@ -1094,6 +1093,26 @@ xcb_randr_get_screen_resources_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetScre
 }
 
 // =====================================================================================================================
+xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResourcesOutputs(
+    const xcb_randr_get_screen_resources_reply_t*  pScrResReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_output_t* pRet = m_pFuncs->pfnXcbRandrGetScreenResourcesOutputs(pScrResReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetScreenResourcesOutputs,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetScreenResourcesOutputs(%p)\n",
+        pScrResReply);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
 xcb_randr_crtc_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResourcesCrtcs(
     const xcb_randr_get_screen_resources_reply_t*  pScrResReply
     ) const
@@ -1143,43 +1162,23 @@ xcb_randr_get_crtc_info_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfo(
 xcb_randr_get_crtc_info_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfoReply(
     xcb_connection_t*                 pConnection,
     xcb_randr_get_crtc_info_cookie_t  cookie,
-    xcb_generic_error_t               **ppError
+    xcb_generic_error_t**             ppError
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
     xcb_randr_get_crtc_info_reply_t* pRet = m_pFuncs->pfnXcbRandrGetCrtcInfoReply(pConnection,
                                                                                   cookie,
-                                                                                  **ppError);
+                                                                                  ppError);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbRandrGetCrtcInfoReply,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XcbRandrGetCrtcInfoReply(%p, %p, %x)\n",
+        "XcbRandrGetCrtcInfoReply(%p, %p, %p)\n",
         pConnection,
         &cookie,
-        **ppError);
-    m_paramLogger.Flush();
-
-    return pRet;
-}
-
-// =====================================================================================================================
-xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResourcesOutputs(
-    const xcb_randr_get_screen_resources_reply_t*  pScrResReply
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_randr_output_t* pRet = m_pFuncs->pfnXcbRandrGetScreenResourcesOutputs(pScrResReply);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbRandrGetScreenResourcesOutputs,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbRandrGetScreenResourcesOutputs(%p)\n",
-        pScrResReply);
+        ppError);
     m_paramLogger.Flush();
 
     return pRet;
@@ -1212,50 +1211,10 @@ xcb_randr_get_output_info_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputInf
 }
 
 // =====================================================================================================================
-xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfoOutputs(
-    xcb_randr_get_crtc_info_reply_t  *pCrtcInfoReply
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_randr_output_t* pRet = m_pFuncs->pfnXcbRandrGetCrtcInfoOutputs(*pCrtcInfoReply);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbRandrGetCrtcInfoOutputs,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbRandrGetCrtcInfoOutputs(%x)\n",
-        *pCrtcInfoReply);
-    m_paramLogger.Flush();
-
-    return pRet;
-}
-
-// =====================================================================================================================
-xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfoPossible(
-    xcb_randr_get_crtc_info_reply_t  *pCrtcInfoReply
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_randr_output_t* pRet = m_pFuncs->pfnXcbRandrGetCrtcInfoPossible(*pCrtcInfoReply);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbRandrGetCrtcInfoPossible,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbRandrGetCrtcInfoPossible(%x)\n",
-        *pCrtcInfoReply);
-    m_paramLogger.Flush();
-
-    return pRet;
-}
-
-// =====================================================================================================================
 xcb_randr_get_output_info_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputInfoReply(
     xcb_connection_t*                   pConnection,
     xcb_randr_get_output_info_cookie_t  cookie,
-    xcb_generic_error_t **              ppError
+    xcb_generic_error_t**               ppError
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
@@ -1272,6 +1231,46 @@ xcb_randr_get_output_info_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputInf
         pConnection,
         &cookie,
         ppError);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfoOutputs(
+    xcb_randr_get_crtc_info_reply_t*  pCrtcInfoReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_output_t* pRet = m_pFuncs->pfnXcbRandrGetCrtcInfoOutputs(pCrtcInfoReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetCrtcInfoOutputs,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetCrtcInfoOutputs(%p)\n",
+        pCrtcInfoReply);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfoPossible(
+    xcb_randr_get_crtc_info_reply_t*  pCrtcInfoReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_output_t* pRet = m_pFuncs->pfnXcbRandrGetCrtcInfoPossible(pCrtcInfoReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetCrtcInfoPossible,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetCrtcInfoPossible(%p)\n",
+        pCrtcInfoReply);
     m_paramLogger.Flush();
 
     return pRet;
@@ -1339,16 +1338,16 @@ uint8_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputPropertyData(
 }
 
 // =====================================================================================================================
-xcb_randr_get_output_property_reply_t * Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputPropertyReply(
+xcb_randr_get_output_property_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputPropertyReply(
     xcb_connection_t*                       pConnection,
     xcb_randr_get_output_property_cookie_t  cookie,
     xcb_generic_error_t**                   ppError
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    xcb_randr_get_output_property_reply_t * pRet = m_pFuncs->pfnXcbRandrGetOutputPropertyReply(pConnection,
-                                                                                               cookie,
-                                                                                               ppError);
+    xcb_randr_get_output_property_reply_t* pRet = m_pFuncs->pfnXcbRandrGetOutputPropertyReply(pConnection,
+                                                                                              cookie,
+                                                                                              ppError);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbRandrGetOutputPropertyReply,%ld,%ld,%ld\n", begin, end, elapse);
@@ -1854,7 +1853,6 @@ Dri3Loader::Dri3Loader()
     m_pXcbDri2Id(nullptr),
     m_initialized(false)
 {
-    memset(m_libraryHandles, 0, sizeof(m_libraryHandles));
     memset(&m_funcs, 0, sizeof(m_funcs));
 }
 
@@ -1879,42 +1877,6 @@ xcb_extension_t* Dri3Loader::GetXcbDri2Id() const
 // =====================================================================================================================
 Dri3Loader::~Dri3Loader()
 {
-    if (m_libraryHandles[LibX11Xcb] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibX11Xcb]);
-    }
-    if (m_libraryHandles[LibXcb] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibXcb]);
-    }
-    if (m_libraryHandles[LibXshmFence] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibXshmFence]);
-    }
-    if (m_libraryHandles[LibXcbDri3] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibXcbDri3]);
-    }
-    if (m_libraryHandles[LibXcbDri2] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibXcbDri2]);
-    }
-    if (m_libraryHandles[LibXcbRandr] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibXcbRandr]);
-    }
-    if (m_libraryHandles[LibXcbSync] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibXcbSync]);
-    }
-    if (m_libraryHandles[LibX11] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibX11]);
-    }
-    if (m_libraryHandles[LibXcbPresent] != nullptr)
-    {
-        dlclose(m_libraryHandles[LibXcbPresent]);
-    }
 }
 
 // =====================================================================================================================
@@ -1938,339 +1900,157 @@ Result Dri3Loader::Init(
     if (m_initialized == false)
     {
         // resolve symbols from libX11-xcb.so.1
-        m_libraryHandles[LibX11Xcb] = dlopen(LibNames[LibX11Xcb], RTLD_LAZY);
-        if (m_libraryHandles[LibX11Xcb] == nullptr)
+        result = m_library[LibX11Xcb].Load(LibNames[LibX11Xcb]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnXGetXCBConnection = reinterpret_cast<XGetXCBConnection>(dlsym(
-                        m_libraryHandles[LibX11Xcb],
-                        "XGetXCBConnection"));
+            m_library[LibX11Xcb].GetFunction("XGetXCBConnection", &m_funcs.pfnXGetXCBConnection);
         }
 
         // resolve symbols from libxcb.so.1
-        m_libraryHandles[LibXcb] = dlopen(LibNames[LibXcb], RTLD_LAZY);
-        if (m_libraryHandles[LibXcb] == nullptr)
+        result = m_library[LibXcb].Load(LibNames[LibXcb]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnXcbGenerateId = reinterpret_cast<XcbGenerateId>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_generate_id"));
-            m_funcs.pfnXcbRegisterForSpecialXge = reinterpret_cast<XcbRegisterForSpecialXge>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_register_for_special_xge"));
-            m_funcs.pfnXcbUnregisterForSpecialEvent = reinterpret_cast<XcbUnregisterForSpecialEvent>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_unregister_for_special_event"));
-            m_funcs.pfnXcbWaitForSpecialEvent = reinterpret_cast<XcbWaitForSpecialEvent>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_wait_for_special_event"));
-            m_funcs.pfnXcbGetExtensionData = reinterpret_cast<XcbGetExtensionData>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_get_extension_data"));
-            m_funcs.pfnXcbPrefetchExtensionData = reinterpret_cast<XcbPrefetchExtensionData>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_prefetch_extension_data"));
-            m_funcs.pfnXcbRequestCheck = reinterpret_cast<XcbRequestCheck>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_request_check"));
-            m_funcs.pfnXcbGetGeometry = reinterpret_cast<XcbGetGeometry>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_get_geometry"));
-            m_funcs.pfnXcbGetGeometryReply = reinterpret_cast<XcbGetGeometryReply>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_get_geometry_reply"));
-            m_funcs.pfnXcbFreePixmapChecked = reinterpret_cast<XcbFreePixmapChecked>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_free_pixmap_checked"));
-            m_funcs.pfnXcbInternAtomReply = reinterpret_cast<XcbInternAtomReply>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_intern_atom_reply"));
-            m_funcs.pfnXcbInternAtom = reinterpret_cast<XcbInternAtom>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_intern_atom"));
-            m_funcs.pfnXcbScreenAllowedDepthsIterator = reinterpret_cast<XcbScreenAllowedDepthsIterator>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_screen_allowed_depths_iterator"));
-            m_funcs.pfnXcbDepthNext = reinterpret_cast<XcbDepthNext>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_depth_next"));
-            m_funcs.pfnXcbVisualtypeNext = reinterpret_cast<XcbVisualtypeNext>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_visualtype_next"));
-            m_funcs.pfnXcbSetupRootsIterator = reinterpret_cast<XcbSetupRootsIterator>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_setup_roots_iterator"));
-            m_funcs.pfnXcbScreenNext = reinterpret_cast<XcbScreenNext>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_screen_next"));
-            m_funcs.pfnXcbDepthVisualsIterator = reinterpret_cast<XcbDepthVisualsIterator>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_depth_visuals_iterator"));
-            m_funcs.pfnXcbGetSetup = reinterpret_cast<XcbGetSetup>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_get_setup"));
-            m_funcs.pfnXcbFlush = reinterpret_cast<XcbFlush>(dlsym(
-                        m_libraryHandles[LibXcb],
-                        "xcb_flush"));
+            m_library[LibXcb].GetFunction("xcb_generate_id", &m_funcs.pfnXcbGenerateId);
+            m_library[LibXcb].GetFunction("xcb_register_for_special_xge", &m_funcs.pfnXcbRegisterForSpecialXge);
+            m_library[LibXcb].GetFunction("xcb_unregister_for_special_event", &m_funcs.pfnXcbUnregisterForSpecialEvent);
+            m_library[LibXcb].GetFunction("xcb_wait_for_special_event", &m_funcs.pfnXcbWaitForSpecialEvent);
+            m_library[LibXcb].GetFunction("xcb_get_extension_data", &m_funcs.pfnXcbGetExtensionData);
+            m_library[LibXcb].GetFunction("xcb_prefetch_extension_data", &m_funcs.pfnXcbPrefetchExtensionData);
+            m_library[LibXcb].GetFunction("xcb_request_check", &m_funcs.pfnXcbRequestCheck);
+            m_library[LibXcb].GetFunction("xcb_get_geometry", &m_funcs.pfnXcbGetGeometry);
+            m_library[LibXcb].GetFunction("xcb_get_geometry_reply", &m_funcs.pfnXcbGetGeometryReply);
+            m_library[LibXcb].GetFunction("xcb_free_pixmap_checked", &m_funcs.pfnXcbFreePixmapChecked);
+            m_library[LibXcb].GetFunction("xcb_intern_atom_reply", &m_funcs.pfnXcbInternAtomReply);
+            m_library[LibXcb].GetFunction("xcb_intern_atom", &m_funcs.pfnXcbInternAtom);
+            m_library[LibXcb].GetFunction("xcb_screen_allowed_depths_iterator", &m_funcs.pfnXcbScreenAllowedDepthsIterator);
+            m_library[LibXcb].GetFunction("xcb_depth_next", &m_funcs.pfnXcbDepthNext);
+            m_library[LibXcb].GetFunction("xcb_visualtype_next", &m_funcs.pfnXcbVisualtypeNext);
+            m_library[LibXcb].GetFunction("xcb_setup_roots_iterator", &m_funcs.pfnXcbSetupRootsIterator);
+            m_library[LibXcb].GetFunction("xcb_screen_next", &m_funcs.pfnXcbScreenNext);
+            m_library[LibXcb].GetFunction("xcb_depth_visuals_iterator", &m_funcs.pfnXcbDepthVisualsIterator);
+            m_library[LibXcb].GetFunction("xcb_get_setup", &m_funcs.pfnXcbGetSetup);
+            m_library[LibXcb].GetFunction("xcb_flush", &m_funcs.pfnXcbFlush);
         }
 
         // resolve symbols from libxshmfence.so.1
-        m_libraryHandles[LibXshmFence] = dlopen(LibNames[LibXshmFence], RTLD_LAZY);
-        if (m_libraryHandles[LibXshmFence] == nullptr)
+        result = m_library[LibXshmFence].Load(LibNames[LibXshmFence]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnXshmfenceUnmapShm = reinterpret_cast<XshmfenceUnmapShm>(dlsym(
-                        m_libraryHandles[LibXshmFence],
-                        "xshmfence_unmap_shm"));
-            m_funcs.pfnXshmfenceMapShm = reinterpret_cast<XshmfenceMapShm>(dlsym(
-                        m_libraryHandles[LibXshmFence],
-                        "xshmfence_map_shm"));
-            m_funcs.pfnXshmfenceQuery = reinterpret_cast<XshmfenceQuery>(dlsym(
-                        m_libraryHandles[LibXshmFence],
-                        "xshmfence_query"));
-            m_funcs.pfnXshmfenceAwait = reinterpret_cast<XshmfenceAwait>(dlsym(
-                        m_libraryHandles[LibXshmFence],
-                        "xshmfence_await"));
-            m_funcs.pfnXshmfenceAllocShm = reinterpret_cast<XshmfenceAllocShm>(dlsym(
-                        m_libraryHandles[LibXshmFence],
-                        "xshmfence_alloc_shm"));
-            m_funcs.pfnXshmfenceTrigger = reinterpret_cast<XshmfenceTrigger>(dlsym(
-                        m_libraryHandles[LibXshmFence],
-                        "xshmfence_trigger"));
-            m_funcs.pfnXshmfenceReset = reinterpret_cast<XshmfenceReset>(dlsym(
-                        m_libraryHandles[LibXshmFence],
-                        "xshmfence_reset"));
+            m_library[LibXshmFence].GetFunction("xshmfence_unmap_shm", &m_funcs.pfnXshmfenceUnmapShm);
+            m_library[LibXshmFence].GetFunction("xshmfence_map_shm", &m_funcs.pfnXshmfenceMapShm);
+            m_library[LibXshmFence].GetFunction("xshmfence_query", &m_funcs.pfnXshmfenceQuery);
+            m_library[LibXshmFence].GetFunction("xshmfence_await", &m_funcs.pfnXshmfenceAwait);
+            m_library[LibXshmFence].GetFunction("xshmfence_alloc_shm", &m_funcs.pfnXshmfenceAllocShm);
+            m_library[LibXshmFence].GetFunction("xshmfence_trigger", &m_funcs.pfnXshmfenceTrigger);
+            m_library[LibXshmFence].GetFunction("xshmfence_reset", &m_funcs.pfnXshmfenceReset);
         }
 
         // resolve symbols from libxcb-dri3.so.0
-        m_libraryHandles[LibXcbDri3] = dlopen(LibNames[LibXcbDri3], RTLD_LAZY);
-        if (m_libraryHandles[LibXcbDri3] == nullptr)
+        result = m_library[LibXcbDri3].Load(LibNames[LibXcbDri3]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnXcbDri3Open = reinterpret_cast<XcbDri3Open>(dlsym(
-                        m_libraryHandles[LibXcbDri3],
-                        "xcb_dri3_open"));
-            m_funcs.pfnXcbDri3OpenReply = reinterpret_cast<XcbDri3OpenReply>(dlsym(
-                        m_libraryHandles[LibXcbDri3],
-                        "xcb_dri3_open_reply"));
-            m_funcs.pfnXcbDri3OpenReplyFds = reinterpret_cast<XcbDri3OpenReplyFds>(dlsym(
-                        m_libraryHandles[LibXcbDri3],
-                        "xcb_dri3_open_reply_fds"));
-            m_funcs.pfnXcbDri3FenceFromFdChecked = reinterpret_cast<XcbDri3FenceFromFdChecked>(dlsym(
-                        m_libraryHandles[LibXcbDri3],
-                        "xcb_dri3_fence_from_fd_checked"));
-            m_funcs.pfnXcbDri3PixmapFromBufferChecked = reinterpret_cast<XcbDri3PixmapFromBufferChecked>(dlsym(
-                        m_libraryHandles[LibXcbDri3],
-                        "xcb_dri3_pixmap_from_buffer_checked"));
-            m_funcs.pfnXcbDri3QueryVersion = reinterpret_cast<XcbDri3QueryVersion>(dlsym(
-                        m_libraryHandles[LibXcbDri3],
-                        "xcb_dri3_query_version"));
-            m_funcs.pfnXcbDri3QueryVersionReply = reinterpret_cast<XcbDri3QueryVersionReply>(dlsym(
-                        m_libraryHandles[LibXcbDri3],
-                        "xcb_dri3_query_version_reply"));
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_open", &m_funcs.pfnXcbDri3Open);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_open_reply", &m_funcs.pfnXcbDri3OpenReply);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_open_reply_fds", &m_funcs.pfnXcbDri3OpenReplyFds);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_fence_from_fd_checked", &m_funcs.pfnXcbDri3FenceFromFdChecked);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_pixmap_from_buffer_checked", &m_funcs.pfnXcbDri3PixmapFromBufferChecked);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_query_version", &m_funcs.pfnXcbDri3QueryVersion);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_query_version_reply", &m_funcs.pfnXcbDri3QueryVersionReply);
         }
 
         // resolve symbols from libxcb-dri2.so.0
-        m_libraryHandles[LibXcbDri2] = dlopen(LibNames[LibXcbDri2], RTLD_LAZY);
-        if (m_libraryHandles[LibXcbDri2] == nullptr)
+        result = m_library[LibXcbDri2].Load(LibNames[LibXcbDri2]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnXcbDri2Connect = reinterpret_cast<XcbDri2Connect>(dlsym(
-                        m_libraryHandles[LibXcbDri2],
-                        "xcb_dri2_connect"));
-            m_funcs.pfnXcbDri2ConnectDriverNameLength = reinterpret_cast<XcbDri2ConnectDriverNameLength>(dlsym(
-                        m_libraryHandles[LibXcbDri2],
-                        "xcb_dri2_connect_driver_name_length"));
-            m_funcs.pfnXcbDri2ConnectDriverName = reinterpret_cast<XcbDri2ConnectDriverName>(dlsym(
-                        m_libraryHandles[LibXcbDri2],
-                        "xcb_dri2_connect_driver_name"));
-            m_funcs.pfnXcbDri2ConnectReply = reinterpret_cast<XcbDri2ConnectReply>(dlsym(
-                        m_libraryHandles[LibXcbDri2],
-                        "xcb_dri2_connect_reply"));
+            m_library[LibXcbDri2].GetFunction("xcb_dri2_connect", &m_funcs.pfnXcbDri2Connect);
+            m_library[LibXcbDri2].GetFunction("xcb_dri2_connect_driver_name_length", &m_funcs.pfnXcbDri2ConnectDriverNameLength);
+            m_library[LibXcbDri2].GetFunction("xcb_dri2_connect_driver_name", &m_funcs.pfnXcbDri2ConnectDriverName);
+            m_library[LibXcbDri2].GetFunction("xcb_dri2_connect_reply", &m_funcs.pfnXcbDri2ConnectReply);
         }
 
         // resolve symbols from libxcb-randr.so.0
-        m_libraryHandles[LibXcbRandr] = dlopen(LibNames[LibXcbRandr], RTLD_LAZY);
-        if (m_libraryHandles[LibXcbRandr] == nullptr)
-        {
-            result = Result::ErrorUnavailable;
-        }
-        else
+        result = m_library[LibXcbRandr].Load(LibNames[LibXcbRandr]);
+        if (result == Result::Success)
         {
 #if XCB_RANDR_SUPPORTS_LEASE
-            m_funcs.pfnXcbRandrCreateLease = reinterpret_cast<XcbRandrCreateLease>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_create_lease"));
-            m_funcs.pfnXcbRandrCreateLeaseReply = reinterpret_cast<XcbRandrCreateLeaseReply>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_create_lease_reply"));
-            m_funcs.pfnXcbRandrCreateLeaseReplyFds = reinterpret_cast<XcbRandrCreateLeaseReplyFds>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_create_lease_reply_fds"));
+            m_library[LibXcbRandr].GetFunction("xcb_randr_create_lease", &m_funcs.pfnXcbRandrCreateLease);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_create_lease_reply", &m_funcs.pfnXcbRandrCreateLeaseReply);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_create_lease_reply_fds", &m_funcs.pfnXcbRandrCreateLeaseReplyFds);
 #endif
-            m_funcs.pfnXcbRandrGetScreenResources = reinterpret_cast<XcbRandrGetScreenResources>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_screen_resources"));
-            m_funcs.pfnXcbRandrGetScreenResourcesReply = reinterpret_cast<XcbRandrGetScreenResourcesReply>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_screen_resources_reply"));
-            m_funcs.pfnXcbRandrGetScreenResourcesOutputs = reinterpret_cast<XcbRandrGetScreenResourcesOutputs>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_screen_resources_outputs"));
-            m_funcs.pfnXcbRandrGetScreenResourcesCrtcs = reinterpret_cast<XcbRandrGetScreenResourcesCrtcs>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_screen_resources_crtcs"));
-            m_funcs.pfnXcbRandrGetCrtcInfo = reinterpret_cast<XcbRandrGetCrtcInfo>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_crtc_info"));
-            m_funcs.pfnXcbRandrGetCrtcInfoReply = reinterpret_cast<XcbRandrGetCrtcInfoReply>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_crtc_info_reply"));
-            m_funcs.pfnXcbRandrGetOutputInfo = reinterpret_cast<XcbRandrGetOutputInfo>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_output_info"));
-            m_funcs.pfnXcbRandrGetOutputInfoReply = reinterpret_cast<XcbRandrGetOutputInfoReply>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_output_info_reply"));
-            m_funcs.pfnXcbRandrGetCrtcInfoOutputs = reinterpret_cast<XcbRandrGetCrtcInfoOutputs>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_crtc_info_outputs"));
-            m_funcs.pfnXcbRandrGetCrtcInfoPossible = reinterpret_cast<XcbRandrGetCrtcInfoPossible>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_crtc_info_possible"));
-            m_funcs.pfnXcbRandrGetOutputProperty = reinterpret_cast<XcbRandrGetOutputProperty>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_output_property"));
-            m_funcs.pfnXcbRandrGetOutputPropertyData = reinterpret_cast<XcbRandrGetOutputPropertyData>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_output_property_data"));
-            m_funcs.pfnXcbRandrGetOutputPropertyReply = reinterpret_cast<XcbRandrGetOutputPropertyReply>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_output_property_reply"));
-            m_funcs.pfnXcbRandrGetProviders = reinterpret_cast<XcbRandrGetProviders>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_providers"));
-            m_funcs.pfnXcbRandrGetProvidersReply = reinterpret_cast<XcbRandrGetProvidersReply>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_providers_reply"));
-            m_funcs.pfnXcbRandrGetProvidersProviders = reinterpret_cast<XcbRandrGetProvidersProviders>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_providers_providers"));
-            m_funcs.pfnXcbRandrGetProvidersProvidersLength = reinterpret_cast<XcbRandrGetProvidersProvidersLength>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_providers_providers_length"));
-            m_funcs.pfnXcbRandrGetProviderInfo = reinterpret_cast<XcbRandrGetProviderInfo>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_provider_info"));
-            m_funcs.pfnXcbRandrGetProviderInfoReply = reinterpret_cast<XcbRandrGetProviderInfoReply>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_provider_info_reply"));
-            m_funcs.pfnXcbRandrGetProviderInfoName = reinterpret_cast<XcbRandrGetProviderInfoName>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_get_provider_info_name"));
-            m_funcs.pfnXcbRandrQueryVersion = reinterpret_cast<XcbRandrQueryVersion>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_query_version"));
-            m_funcs.pfnXcbRandrQueryVersionReply = reinterpret_cast<XcbRandrQueryVersionReply>(dlsym(
-                        m_libraryHandles[LibXcbRandr],
-                        "xcb_randr_query_version_reply"));
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_screen_resources", &m_funcs.pfnXcbRandrGetScreenResources);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_screen_resources_reply", &m_funcs.pfnXcbRandrGetScreenResourcesReply);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_screen_resources_outputs", &m_funcs.pfnXcbRandrGetScreenResourcesOutputs);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_screen_resources_crtcs", &m_funcs.pfnXcbRandrGetScreenResourcesCrtcs);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_crtc_info", &m_funcs.pfnXcbRandrGetCrtcInfo);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_crtc_info_reply", &m_funcs.pfnXcbRandrGetCrtcInfoReply);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_output_info", &m_funcs.pfnXcbRandrGetOutputInfo);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_output_info_reply", &m_funcs.pfnXcbRandrGetOutputInfoReply);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_crtc_info_outputs", &m_funcs.pfnXcbRandrGetCrtcInfoOutputs);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_crtc_info_possible", &m_funcs.pfnXcbRandrGetCrtcInfoPossible);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_output_property", &m_funcs.pfnXcbRandrGetOutputProperty);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_output_property_data", &m_funcs.pfnXcbRandrGetOutputPropertyData);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_output_property_reply", &m_funcs.pfnXcbRandrGetOutputPropertyReply);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_providers", &m_funcs.pfnXcbRandrGetProviders);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_providers_reply", &m_funcs.pfnXcbRandrGetProvidersReply);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_providers_providers", &m_funcs.pfnXcbRandrGetProvidersProviders);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_providers_providers_length", &m_funcs.pfnXcbRandrGetProvidersProvidersLength);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_provider_info", &m_funcs.pfnXcbRandrGetProviderInfo);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_provider_info_reply", &m_funcs.pfnXcbRandrGetProviderInfoReply);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_provider_info_name", &m_funcs.pfnXcbRandrGetProviderInfoName);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_query_version", &m_funcs.pfnXcbRandrQueryVersion);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_query_version_reply", &m_funcs.pfnXcbRandrQueryVersionReply);
         }
 
         // resolve symbols from libxcb-sync.so.1
-        m_libraryHandles[LibXcbSync] = dlopen(LibNames[LibXcbSync], RTLD_LAZY);
-        if (m_libraryHandles[LibXcbSync] == nullptr)
+        result = m_library[LibXcbSync].Load(LibNames[LibXcbSync]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnXcbSyncTriggerFenceChecked = reinterpret_cast<XcbSyncTriggerFenceChecked>(dlsym(
-                        m_libraryHandles[LibXcbSync],
-                        "xcb_sync_trigger_fence_checked"));
-            m_funcs.pfnXcbSyncDestroyFenceChecked = reinterpret_cast<XcbSyncDestroyFenceChecked>(dlsym(
-                        m_libraryHandles[LibXcbSync],
-                        "xcb_sync_destroy_fence_checked"));
+            m_library[LibXcbSync].GetFunction("xcb_sync_trigger_fence_checked", &m_funcs.pfnXcbSyncTriggerFenceChecked);
+            m_library[LibXcbSync].GetFunction("xcb_sync_destroy_fence_checked", &m_funcs.pfnXcbSyncDestroyFenceChecked);
         }
 
         // resolve symbols from libX11.so.6
-        m_libraryHandles[LibX11] = dlopen(LibNames[LibX11], RTLD_LAZY);
-        if (m_libraryHandles[LibX11] == nullptr)
+        result = m_library[LibX11].Load(LibNames[LibX11]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnXGetVisualInfo = reinterpret_cast<XGetVisualInfo>(dlsym(
-                        m_libraryHandles[LibX11],
-                        "XGetVisualInfo"));
-            m_funcs.pfnXFree = reinterpret_cast<XFree>(dlsym(
-                        m_libraryHandles[LibX11],
-                        "XFree"));
-            m_funcs.pfnXRootWindow = reinterpret_cast<XRootWindow>(dlsym(
-                        m_libraryHandles[LibX11],
-                        "XRootWindow"));
+            m_library[LibX11].GetFunction("XGetVisualInfo", &m_funcs.pfnXGetVisualInfo);
+            m_library[LibX11].GetFunction("XFree", &m_funcs.pfnXFree);
+            m_library[LibX11].GetFunction("XRootWindow", &m_funcs.pfnXRootWindow);
         }
 
         // resolve symbols from libxcb-present.so.0
-        m_libraryHandles[LibXcbPresent] = dlopen(LibNames[LibXcbPresent], RTLD_LAZY);
-        if (m_libraryHandles[LibXcbPresent] == nullptr)
+        result = m_library[LibXcbPresent].Load(LibNames[LibXcbPresent]);
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnavailable;
-        }
-        else
-        {
-            m_funcs.pfnXcbPresentQueryVersion = reinterpret_cast<XcbPresentQueryVersion>(dlsym(
-                        m_libraryHandles[LibXcbPresent],
-                        "xcb_present_query_version"));
-            m_funcs.pfnXcbPresentQueryVersionReply = reinterpret_cast<XcbPresentQueryVersionReply>(dlsym(
-                        m_libraryHandles[LibXcbPresent],
-                        "xcb_present_query_version_reply"));
-            m_funcs.pfnXcbPresentSelectInputChecked = reinterpret_cast<XcbPresentSelectInputChecked>(dlsym(
-                        m_libraryHandles[LibXcbPresent],
-                        "xcb_present_select_input_checked"));
-            m_funcs.pfnXcbPresentPixmapChecked = reinterpret_cast<XcbPresentPixmapChecked>(dlsym(
-                        m_libraryHandles[LibXcbPresent],
-                        "xcb_present_pixmap_checked"));
+            m_library[LibXcbPresent].GetFunction("xcb_present_query_version", &m_funcs.pfnXcbPresentQueryVersion);
+            m_library[LibXcbPresent].GetFunction("xcb_present_query_version_reply", &m_funcs.pfnXcbPresentQueryVersionReply);
+            m_library[LibXcbPresent].GetFunction("xcb_present_select_input_checked", &m_funcs.pfnXcbPresentSelectInputChecked);
+            m_library[LibXcbPresent].GetFunction("xcb_present_pixmap_checked", &m_funcs.pfnXcbPresentPixmapChecked);
         }
 
-        if (m_libraryHandles[LibXcbDri3] == nullptr)
+        if (m_library[LibXcbDri3].IsLoaded() == false)
         {
             result = Result::ErrorUnavailable;
         }
         else
         {
-            m_pXcbDri3Id = reinterpret_cast<xcb_extension_t*>(dlsym(m_libraryHandles[LibXcbDri3], "xcb_dri3_id"));
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_id", &m_pXcbDri3Id);
         }
-        if (m_libraryHandles[LibXcbPresent] == nullptr)
+        if (m_library[LibXcbPresent].IsLoaded() == false)
         {
             result = Result::ErrorUnavailable;
         }
         else
         {
-            m_pXcbPresentId = reinterpret_cast<xcb_extension_t*>(dlsym(m_libraryHandles[LibXcbPresent], "xcb_present_id"));
+            m_library[LibXcbPresent].GetFunction("xcb_present_id", &m_pXcbPresentId);
         }
-        if (m_libraryHandles[LibXcbDri2] == nullptr)
+        if (m_library[LibXcbDri2].IsLoaded() == false)
         {
             result = Result::ErrorUnavailable;
         }
         else
         {
-            m_pXcbDri2Id = reinterpret_cast<xcb_extension_t*>(dlsym(m_libraryHandles[LibXcbDri2], "xcb_dri2_id"));
+            m_library[LibXcbDri2].GetFunction("xcb_dri2_id", &m_pXcbDri2Id);
         }
         if (result == Result::Success)
         {

@@ -110,9 +110,7 @@ Platform::Platform(
     m_flags.createNullDevice             = createInfo.flags.createNullDevice;
     m_flags.enableSvmMode                = createInfo.flags.enableSvmMode;
     m_flags.requestShadowDescVaRange     = createInfo.flags.requestShadowDescriptorVaRange;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 463
     m_flags.disableInternalResidencyOpts = createInfo.flags.disableInternalResidencyOpts;
-#endif
 
     if (createInfo.pLogInfo != nullptr)
     {

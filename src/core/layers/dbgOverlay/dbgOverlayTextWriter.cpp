@@ -247,6 +247,8 @@ void TextWriter::WriteVisualConfirm(
                         AllocTypeCmdAlloc, combinedNonLocal, &overlayText[textLines++][0]);
     }
 
+    m_pDevice->SumVidMemAllocations();
+
     // Report the total used GPU memory.
     const float totalLocalGpuMem    = m_pDevice->GetVidMemTotalSum(GpuHeapLocal)         / OneMb;
     const float totalInvisGpuMem    = m_pDevice->GetVidMemTotalSum(GpuHeapInvisible)     / OneMb;
@@ -259,6 +261,20 @@ void TextWriter::WriteVisualConfirm(
                    "Total Used", totalLocalGpuMem, totalInvisGpuMem,
                    combinedNonLocal ? totalSysCombGpuMem : totalSysUswcGpuMem,
                    totalSysCacheGpuMem);
+
+    if (settings.overlayMemoryInfoConfig.displayPeakMemUsage)
+    {
+        const float peakLocalGpuMem    = m_pDevice->GetPeakMemTotal(GpuHeapLocal)         / OneMb;
+        const float peakInvisGpuMem    = m_pDevice->GetPeakMemTotal(GpuHeapInvisible)     / OneMb;
+        const float peakSysUswcGpuMem  = m_pDevice->GetPeakMemTotal(GpuHeapGartUswc)      / OneMb;
+        const float peakSysCacheGpuMem = m_pDevice->GetPeakMemTotal(GpuHeapGartCacheable) / OneMb;
+        const float peakSysCombGpuMem  = peakSysUswcGpuMem + peakSysCacheGpuMem;
+
+        Util::Snprintf(&overlayText[textLines++][0], BufSize,
+                       pMemFormatString,
+                       "Peak Used", peakLocalGpuMem, peakInvisGpuMem,
+                       combinedNonLocal ? peakSysCombGpuMem : peakSysUswcGpuMem, peakSysCacheGpuMem);
+    }
 
     const float localHeapSize    = m_pDevice->GetMemHeapProps(GpuHeapLocal).heapSize         / OneMb;
     const float invisHeapSize    = m_pDevice->GetMemHeapProps(GpuHeapInvisible).heapSize     / OneMb;

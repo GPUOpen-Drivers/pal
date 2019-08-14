@@ -46,18 +46,13 @@ QueueSemaphore::~QueueSemaphore()
 Result QueueSemaphore::OsInit(
     const QueueSemaphoreCreateInfo& createInfo)
 {
-    Amdgpu::Device*const pAmdgpuDevice = static_cast<Amdgpu::Device*>(m_pDevice);
+    m_flags.shareable      = createInfo.flags.shareable;
+    m_flags.externalOpened = createInfo.flags.externalOpened;
+    m_flags.timeline       = createInfo.flags.timeline;
+    m_maxWaitsPerSignal    = createInfo.maxCount;
 
-    bool isCreateSignaledSemaphore = false;
-    m_flags.shareable         = createInfo.flags.shareable;
-    m_flags.externalOpened    = createInfo.flags.externalOpened;
-
-    m_maxWaitsPerSignal = createInfo.maxCount;
-
-    m_flags.timeline = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 458
-    m_flags.timeline = createInfo.flags.timeline;
-#endif
+    auto*const pAmdgpuDevice = static_cast<Amdgpu::Device*>(m_pDevice);
+    bool       isCreateSignaledSemaphore = false;
 
     if ((pAmdgpuDevice->GetSemaphoreType() == Amdgpu::SemaphoreType::SyncObj) &&
         (pAmdgpuDevice->IsInitialSignaledSyncobjSemaphoreSupported()))
@@ -71,7 +66,10 @@ Result QueueSemaphore::OsInit(
         isCreateSignaledSemaphore = false;
     }
 
-    return pAmdgpuDevice->CreateSemaphore(isCreateSignaledSemaphore, m_flags.timeline, &m_hSemaphore);
+    return pAmdgpuDevice->CreateSemaphore(isCreateSignaledSemaphore,
+                                          m_flags.timeline,
+                                          createInfo.initialCount,
+                                          &m_hSemaphore);
 }
 
 // =====================================================================================================================
@@ -152,7 +150,7 @@ Result QueueSemaphore::QuerySemaphoreValue(
 {
     // Only timeline semaphore supports this method.
     return m_flags.timeline ?
-             static_cast<Amdgpu::Device*>(m_pDevice)->QuerySemaphoreValue(m_hSemaphore, pValue) :
+             static_cast<Amdgpu::Device*>(m_pDevice)->QuerySemaphoreValue(m_hSemaphore, pValue, 0) :
              Result::ErrorInvalidObjectType;
 }
 
@@ -162,21 +160,56 @@ Result QueueSemaphore::WaitSemaphoreValue(
     uint64                   value,
     uint64                   timeoutNs)
 {
+    uint32 flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL |
+        DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
+
     // Only timeline semaphore supports this method.
     return m_flags.timeline ?
-             static_cast<Amdgpu::Device*>(m_pDevice)->WaitSemaphoreValue(m_hSemaphore, value, timeoutNs) :
+             static_cast<Amdgpu::Device*>(m_pDevice)->WaitSemaphoreValue(m_hSemaphore, value, flags, timeoutNs) :
              Result::ErrorInvalidObjectType;
 }
 
 // =====================================================================================================================
-// Signal on timeline specific point
-Result QueueSemaphore::SignalSemaphoreValue(
+// Query last available point of timelien semaphore
+Result QueueSemaphore::OsQuerySemaphoreLastValue(uint64*  pValue)
+{
+
+    return static_cast<Amdgpu::Device*>(m_pDevice)->QuerySemaphoreValue(
+            m_hSemaphore, pValue, DRM_SYNCOBJ_QUERY_FLAGS_LAST_SUBMITTED);
+}
+
+// =====================================================================================================================
+// Wait available on timeline specific point with timeoutNs
+Result QueueSemaphore::WaitSemaphoreValueAvailable(
+    uint64                   value,
+    uint64                   timeoutNs)
+{
+    uint32 flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE |
+        DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
+
+    return static_cast<Amdgpu::Device*>(m_pDevice)->WaitSemaphoreValue(m_hSemaphore, value, flags, timeoutNs);
+
+}
+
+// =====================================================================================================================
+// Query if WaitBeforeSignal happens on timeline specific point.
+bool QueueSemaphore::IsWaitBeforeSignal(
     uint64                   value)
 {
     // Only timeline semaphore supports this method.
     return m_flags.timeline ?
-             static_cast<Amdgpu::Device*>(m_pDevice)->SignalSemaphoreValue(m_hSemaphore, value) :
-             Result::ErrorInvalidObjectType;
+             static_cast<Amdgpu::Device*>(m_pDevice)->IsWaitBeforeSignal(m_hSemaphore, value) :
+             false;
 }
 
+// =====================================================================================================================
+// Signal on timeline specific point
+Result QueueSemaphore::OsSignalSemaphoreValue(
+    uint64                   value)
+{
+    // Only timeline semaphore supports this method.
+    return m_flags.timeline ?
+        static_cast<Amdgpu::Device*>(m_pDevice)->SignalSemaphoreValue(m_hSemaphore, value) :
+        Result::ErrorInvalidObjectType;
+}
 } // Pal

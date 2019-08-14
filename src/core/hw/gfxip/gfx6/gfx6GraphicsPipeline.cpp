@@ -387,7 +387,7 @@ Result GraphicsPipeline::HwlInit(
             {
                 m_chunkEsGs.LateInit(abiProcessor, metadata, registers, loadInfo, &uploader, &hasher);
             }
-            m_chunkVsPs.LateInit(abiProcessor, registers, loadInfo, &uploader, &hasher);
+            m_chunkVsPs.LateInit(abiProcessor, registers, loadInfo, createInfo, &uploader, &hasher);
 
             SetupCommonRegisters(createInfo, registers, &uploader);
             SetupNonShaderRegisters(createInfo, registers, &uploader);
@@ -1022,6 +1022,10 @@ void GraphicsPipeline::SetupCommonRegisters(
         PAL_ASSERT_ALWAYS();
         break;
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
+    m_paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
+#endif
 
     m_info.ps.flags.perSampleShading = m_paScModeCntl1.bits.PS_ITER_SAMPLE;
 

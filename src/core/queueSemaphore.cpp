@@ -53,21 +53,13 @@ Result QueueSemaphore::ValidateInit(
 {
     Result result = Result::ErrorInvalidValue;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 458
-    if (createInfo.flags.timeline)
+    // maxCount does not apply to timeline semaphores.
+    if (createInfo.flags.timeline ||
+        ((createInfo.maxCount > 0)                                  &&
+         (createInfo.maxCount <= pDevice->MaxQueueSemaphoreCount()) &&
+         (createInfo.initialCount <= createInfo.maxCount)))
     {
-        // Timeline does not use maxCount
         result = Result::Success;
-    }
-    else
-#endif
-    {
-        if ((createInfo.maxCount > 0)                                  &&
-            (createInfo.maxCount <= pDevice->MaxQueueSemaphoreCount()) &&
-            (createInfo.initialCount <= createInfo.maxCount))
-        {
-            result = Result::Success;
-        }
     }
 
     return result;

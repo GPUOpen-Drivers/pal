@@ -301,10 +301,6 @@ struct ThreadTraceInfo
             uint32 bufferSize                :  1;
 
             // Thread trace only options
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
-            uint32 threadTraceTokenMask      :  1;
-            uint32 threadTraceRegMask        :  1;
-#endif
             uint32 threadTraceTargetSh       :  1;
             uint32 threadTraceTargetCu       :  1;
             uint32 threadTraceSh0CounterMask :  1;
@@ -316,12 +312,8 @@ struct ThreadTraceInfo
             uint32 threadTraceIssueMask      :  1;
             uint32 threadTraceWrapBuffer     :  1;
             uint32 threadTraceStallBehavior  :  1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 451
             uint32 threadTraceTokenConfig    :  1;
             uint32 reserved                  : 19;
-#else
-            uint32 reserved                  : 18;
-#endif
         };
         uint32 u32All;
     } optionFlags;
@@ -332,12 +324,7 @@ struct ThreadTraceInfo
         size_t                    bufferSize;
 
         // Thread trace only options
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 451
         ThreadTraceTokenConfig    threadTraceTokenConfig;
-#else
-        uint32                    threadTraceTokenMask;
-        uint32                    threadTraceRegMask;
-#endif
         uint32                    threadTraceTargetSh;
         uint32                    threadTraceTargetCu;
         uint32                    threadTraceSh0CounterMask;
