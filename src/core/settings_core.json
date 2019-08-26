@@ -392,6 +392,20 @@
       "Name": "Addr2DisableXorTileMode"
     },
     {
+      "Description": "Disables S swizzle modes for 8bpp color targets.",
+      "Tags": [
+        "General",
+        "Resource Settings"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "addr2DisableSModes8BppColor",
+      "Name": "Addr2DisableSModes8BppColor"
+    },
+    {
       "Name": "OverlayReportHDR",
       "Tags": [
         "General",
@@ -459,7 +473,6 @@
         "General",
         "Debug"
       ],
-      "HashName": 3303637006,
       "Defaults": {
         "Default": false
       },
@@ -1626,9 +1639,9 @@
         "IsEnum": true,
         "Values": [
           {
-            "Name": "Addr2PreferredDefault",
+            "Name": "Addr2PreferredNone",
             "Value": 0,
-            "Description": "Do not request a specific swizzle type preference."
+            "Description": "Addrlib selects its own default swizzle set, this disables PAL's perf tuning."
           },
           {
             "Name": "Addr2PreferredSW_Z",
@@ -1649,6 +1662,11 @@
             "Name": "Addr2PreferredSW_R",
             "Value": 8,
             "Description": "Prefer Rotated swizzle (ADDR_SW_R)."
+          },
+          {
+            "Name": "Addr2PreferredDefault",
+            "Value": 15,
+            "Description": "Prefer all swizzle modes, PAL will selectively disable some modes for performance."
           }
         ],
         "Name": "Addr2PreferredSwizzleTypeSet"
@@ -1658,7 +1676,8 @@
         "Resource Settings"
       ],
       "Flags": {
-        "IsHex": true
+        "IsHex": true,
+        "IsBitmask": true
       },
       "Defaults": {
         "Default": "Addr2PreferredDefault"
@@ -1666,7 +1685,7 @@
       "Scope": "PrivatePalKey",
       "Type": "enum",
       "VariableName": "addr2PreferredSwizzleTypeSet",
-      "Description": "Sets a preferred swizzle type when using AddrLib2."
+      "Description": "PAL's default swizzle type set when using AddrLib2."
     },
     {
       "Name": "PipelinePrefetchEnable",

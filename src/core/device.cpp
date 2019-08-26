@@ -510,7 +510,7 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.longRunningSubmissions = false;
     m_publicSettings.borderColorPaletteSizeLimit = 4096;
     m_publicSettings.disableCommandBufferPreemption = false;
-    m_publicSettings.disableSkipFceOptimization = true;
+    m_publicSettings.disableSkipFceOptimization = false;
     m_publicSettings.dccBitsPerPixelThreshold = UINT_MAX;
     m_publicSettings.largePageMinSizeForAlignmentInBytes =
         m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
@@ -4688,8 +4688,9 @@ bool Device::ValidatePipelineUploadHeap(
     if (preferredHeap == GpuHeap::GpuHeapInvisible)
     {
         // Disable pipeline upload to local invisible memory if clients have chosen to disable internal residency
-        // optimizations. Other heap types don't have any restrictions.
-        valid = (m_pPlatform->InternalResidencyOptsDisabled() == false)
+        // optimizations or there is no DMA engine support. Other heap types don't have any restrictions.
+        valid = (m_pPlatform->InternalResidencyOptsDisabled() == false) &&
+                (EngineProperties().perEngine[EngineTypeDma].numAvailable > 0)
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 514
                  && (m_publicSettings.disablePipelineUploadToLocalInvis == false)
 #endif

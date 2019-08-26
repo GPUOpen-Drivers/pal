@@ -245,11 +245,9 @@ private:
             PM4_ME_CONTEXT_REG_RMW        dbRenderOverride;
             PM4ME_NON_SAMPLE_EVENT_WRITE  flushDfsm;
 
-            PM4PFP_SET_UCONFIG_REG        hdrGePcAlloc;
-            regGE_PC_ALLOC                gePcAlloc;
-
-            PM4PFP_SET_UCONFIG_REG        hdrGeStereoCntl;
+            PM4PFP_SET_UCONFIG_REG        hdrGeStereoCntlGePcAlloc;
             regGE_STEREO_CNTL             geStereoCntl;
+            regGE_PC_ALLOC                gePcAlloc;
 
             // The following is only available on Gfx10.1+.
             PM4PFP_SET_UCONFIG_REG        hdrGeUserVgprEn;

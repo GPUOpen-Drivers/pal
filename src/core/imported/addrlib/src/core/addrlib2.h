@@ -86,25 +86,14 @@ struct Dim3d
 enum AddrBlockType
 {
     AddrBlockMicro     = 0, // Resource uses 256B block
-    AddrBlock4KB       = 1, // Resource uses 4KB block
-    AddrBlock64KB      = 2, // Resource uses 64KB block
-    AddrBlockVar       = 3, // Resource uses var block, only valid for GFX9
-    AddrBlockLinear    = 4, // Resource uses linear swizzle mode
+    AddrBlockThin4KB   = 1, // Resource uses thin 4KB block
+    AddrBlockThick4KB  = 2, // Resource uses thick 4KB block
+    AddrBlockThin64KB  = 3, // Resource uses thin 64KB block
+    AddrBlockThick64KB = 4, // Resource uses thick 64KB block
+    AddrBlockVar       = 5, // Resource uses var block, only valid for GFX9
+    AddrBlockLinear    = 6, // Resource uses linear swizzle mode
 
-    AddrBlockMaxTiledType = AddrBlock64KB + 1,
-};
-
-enum AddrBlockSet
-{
-    AddrBlockSetMicro     = 1 << AddrBlockMicro,
-    AddrBlockSetMacro4KB  = 1 << AddrBlock4KB,
-    AddrBlockSetMacro64KB = 1 << AddrBlock64KB,
-    AddrBlockSetVar       = 1 << AddrBlockVar,
-    AddrBlockSetLinear    = 1 << AddrBlockLinear,
-
-    AddrBlockSetMacro   = AddrBlockSetMacro4KB | AddrBlockSetMacro64KB,
-    AddrBlockSet2dGfx10 = AddrBlockSetMicro    | AddrBlockSetMacro,
-    AddrBlockSet3dGfx10 = AddrBlockSetMacro,
+    AddrBlockMaxTiledType = AddrBlockThick64KB + 1,
 };
 
 enum AddrSwSet
@@ -118,6 +107,14 @@ enum AddrSwSet
     AddrSwSet3dThinGfx10 = AddrSwSetZ | AddrSwSetR,
     AddrSwSetColorGfx10  = AddrSwSetS | AddrSwSetD | AddrSwSetR,
 };
+
+const UINT_32 Size256 = 256u;
+const UINT_32 Size4K  = 4096u;
+const UINT_32 Size64K = 65536u;
+
+const UINT_32 Log2Size256 = 8u;
+const UINT_32 Log2Size4K  = 12u;
+const UINT_32 Log2Size64K = 16u;
 
 /**
 ************************************************************************************************************************

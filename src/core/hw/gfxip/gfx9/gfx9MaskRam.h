@@ -172,6 +172,7 @@ protected:
     const int32           m_metaDataWordSizeLog2;
 
 private:
+    void   CalcMetaEquationGfx9();
     void   CalcDataOffsetEquation(MetaDataAddrEquation* pDataOffset);
     void   CalcPipeEquation(MetaDataAddrEquation* pPipe, MetaDataAddrEquation* pDataOffset, uint32  numPipesLog2);
     uint32 CapPipe() const;

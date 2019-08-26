@@ -5508,5 +5508,15 @@ Result Device::SetHdrMetaData(
     return result;
 }
 
+// =====================================================================================================================
+Result Device::QueryWorkStationCaps(
+    WorkStationCaps* pCaps
+    ) const
+{
+    Result result = Result::ErrorUnavailable;
+
+    return result;
+}
+
 } // Amdgpu
 } // Pal

@@ -352,9 +352,21 @@ void Image::CheckCompToSingle()
         // Setting the first pixel of each DCC block assumes that DCC memory is present...
         PAL_ASSERT(HasDccData());
 
-        const Gfx9PalSettings& settings = GetGfx9Settings(m_device);
-
-        if (imageType == ImageType::Tex3d)
+        const Gfx9PalSettings& settings             = GetGfx9Settings(m_device);
+        const SubResourceInfo*const pBaseSubResInfo = Parent()->SubresourceInfo(0);
+        if (pBaseSubResInfo->bitsPerTexel <= 16)
+        {
+            // comp-to-single expects the clear color to be stored every 256 bytes, but we cheat and store the clear
+            // color on pixel boundaries.  i.e., for an 8bpp surface, every 256 bytes should line up on a 16x16 pixel
+            // grid.  16 * 16 * 1byte = 256 bytes.  However, due to the intricacies of GFX10 addressing, it doesn't
+            // necessarily work out that way (i.e., with the addressing bits XOR'd together, etc).
+            // And the driver can't store the clear color every 256 bytes because we need to be able to individually
+            // clear subresources, so we'd need to know where each subresource begins in DCC memory.
+            const  uint32 neededFlag  = (pBaseSubResInfo->bitsPerTexel == 8) ?
+                                        Gfx10UseCompToSingle8bpp : Gfx10UseCompToSingle16bpp;
+            m_useCompToSingleForFastClears = TestAllFlagsSet(settings.useCompToSingle, neededFlag);
+        }
+        else if (imageType == ImageType::Tex3d)
         {
             // 3d images are easy as they don't have arrays or MSAA.
             m_useCompToSingleForFastClears = TestAnyFlagSet(settings.useCompToSingle, Gfx10UseCompToSingle3D);

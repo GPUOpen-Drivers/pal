@@ -22,7 +22,6 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
@@ -1010,7 +1009,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx6PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx6PalJsonData);
-            component.settingsDataHash = 876003254;
+            component.settingsDataHash = 854593263;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

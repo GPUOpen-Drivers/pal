@@ -149,6 +149,12 @@ const UINT_32 Gfx10Rsrc3dPrtSwModeMask = Gfx10Rsrc2dPrtSwModeMask & ~Gfx10Displa
 const UINT_32 Gfx10Rsrc3dThinSwModeMask = (1u << ADDR_SW_64KB_Z_X) |
                                           (1u << ADDR_SW_64KB_R_X);
 
+const UINT_32 Gfx10Rsrc3dThickSwModeMask = Gfx10Rsrc3dSwModeMask & ~(Gfx10Rsrc3dThinSwModeMask | Gfx10LinearSwModeMask);
+
+const UINT_32 Gfx10Rsrc3dThick4KBSwModeMask = Gfx10Rsrc3dThickSwModeMask & Gfx10Blk4KBSwModeMask;
+
+const UINT_32 Gfx10Rsrc3dThick64KBSwModeMask = Gfx10Rsrc3dThickSwModeMask & Gfx10Blk64KBSwModeMask;
+
 const UINT_32 Gfx10MsaaSwModeMask = Gfx10ZSwModeMask |
                                     Gfx10RenderSwModeMask;
 
@@ -506,14 +512,24 @@ private:
 
     UINT_32 GetMaxNumMipsInTail(UINT_32 blockSizeLog2, BOOL_32 isThin) const;
 
-    static ADDR2_BLOCK_SET GetAllowedBlockSet(ADDR2_SWMODE_SET allowedSwModeSet)
+    static ADDR2_BLOCK_SET GetAllowedBlockSet(ADDR2_SWMODE_SET allowedSwModeSet, AddrResourceType rsrcType)
     {
         ADDR2_BLOCK_SET allowedBlockSet = {};
 
-        allowedBlockSet.micro     = (allowedSwModeSet.value & Gfx10Blk256BSwModeMask) ? TRUE : FALSE;
-        allowedBlockSet.macro4KB  = (allowedSwModeSet.value & Gfx10Blk4KBSwModeMask)  ? TRUE : FALSE;
-        allowedBlockSet.macro64KB = (allowedSwModeSet.value & Gfx10Blk64KBSwModeMask) ? TRUE : FALSE;
-        allowedBlockSet.linear    = (allowedSwModeSet.value & Gfx10LinearSwModeMask)  ? TRUE : FALSE;
+        allowedBlockSet.micro  = (allowedSwModeSet.value & Gfx10Blk256BSwModeMask) ? TRUE : FALSE;
+        allowedBlockSet.linear = (allowedSwModeSet.value & Gfx10LinearSwModeMask)  ? TRUE : FALSE;
+
+        if (rsrcType == ADDR_RSRC_TEX_3D)
+        {
+            allowedBlockSet.macroThick4KB  = (allowedSwModeSet.value & Gfx10Rsrc3dThick4KBSwModeMask)  ? TRUE : FALSE;
+            allowedBlockSet.macroThin64KB  = (allowedSwModeSet.value & Gfx10Rsrc3dThinSwModeMask)      ? TRUE : FALSE;
+            allowedBlockSet.macroThick64KB = (allowedSwModeSet.value & Gfx10Rsrc3dThick64KBSwModeMask) ? TRUE : FALSE;
+        }
+        else
+        {
+            allowedBlockSet.macroThin4KB  = (allowedSwModeSet.value & Gfx10Blk4KBSwModeMask)  ? TRUE : FALSE;
+            allowedBlockSet.macroThin64KB = (allowedSwModeSet.value & Gfx10Blk64KBSwModeMask) ? TRUE : FALSE;
+        }
 
         return allowedBlockSet;
     }

@@ -388,6 +388,16 @@
             "Name": "Gfx10DisableCompToReg",
             "Value": 16,
             "Description": "If set, comp-to-reg rendering will be disabled for images that were cleared with comp-to-single."
+          },
+          {
+            "Name": "Gfx10UseCompToSingle8bpp",
+            "Value": 32,
+            "Description": "If set, use comp-to-single for 8bpp image."
+          },
+          {
+            "Name": "Gfx10UseCompToSingle16bpp",
+            "Value": 64,
+            "Description": "If set, use comp-to-single for 16bpp image."
           }
         ],
         "Name": "Gfx10UseCompToSingle"

@@ -126,11 +126,28 @@ enum HwLayoutTransition : uint32
     FmaskDecompress              = 0x5,
     DccDecompress                = 0x6,
     MsaaColorDecompress          = 0x7,
-    FmaskDecomprMsaaColorDecompr = 0x8, // FmaskDecompress->MsaaColorDecompress
-    DccDecomprMsaaColorDecompr   = 0x9, // DccDecompress->MsaaColorDecompress
 
     // Initialize Color metadata or Depth/stencil Htile.
-    InitMaskRam                  = 0xa,
+    InitMaskRam                  = 0x8,
+};
+
+// Information for layout transition BLT
+struct LayoutTransitionInfo
+{
+    union
+    {
+        struct
+        {
+            uint32 hasSecondPassBlt : 1;  // MSAA surfaces need a second pass BLT (MsaaColorDecompress) after
+                                          // FmaskDecompress/DccDecompress.
+            uint32 useComputePath   : 1;  // For those transition BLTs that could do either graphics or compute path,
+                                          // figure out what path the BLT will use and cache it here.
+            uint32 reserved         : 30; // Reserved for future usage.
+        };
+        uint32 u32All;                    // Flags packed as uint32.
+    } flags;
+
+    HwLayoutTransition blt;
 };
 
 // PAL needs to reserve enough CE RAM space for the stream-out SRD table and for the user-data spill table for each
@@ -495,12 +512,12 @@ public:
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const ImgBarrier&             imgBarrier,
-        HwLayoutTransition            transition,
+        LayoutTransitionInfo          layoutTransInfo,
         Developer::BarrierOperations* pBarrierOps) const;
     void AcqRelDepthStencilTransition(
         GfxCmdBuffer*                 pCmdBuf,
         const ImgBarrier&             imgBarrier,
-        HwLayoutTransition            transition) const;
+        LayoutTransitionInfo          layoutTransInfo) const;
     void DescribeBarrier(
         GfxCmdBuffer*                 pCmdBuf,
         const BarrierTransition*      pTransition,
@@ -610,42 +627,33 @@ private:
 
     TcCacheOp SelectTcCacheOp(uint32* pCacheFlags) const;
 
-    HwLayoutTransition ConvertToColorBlt(
+    LayoutTransitionInfo PrepareColorBlt(
+        GfxCmdBuffer*       pCmdBuf,
+        const Pal::Image&   image,
+        const SubresRange&  subresRange,
+        ImageLayout         oldLayout,
+        ImageLayout         newLayout) const;
+    LayoutTransitionInfo PrepareDepthStencilBlt(
         const GfxCmdBuffer* pCmdBuf,
         const Pal::Image&   image,
         const SubresRange&  subresRange,
         ImageLayout         oldLayout,
         ImageLayout         newLayout) const;
-    HwLayoutTransition ConvertToDepthStencilBlt(
-        const GfxCmdBuffer* pCmdBuf,
-        const Pal::Image&   image,
-        const SubresRange&  subresRange,
-        ImageLayout         oldLayout,
-        ImageLayout         newLayout) const;
-    HwLayoutTransition ConvertToBlt(
-        const GfxCmdBuffer* pCmdBuf,
+    LayoutTransitionInfo PrepareBltInfo(
+        GfxCmdBuffer*       pCmdBuf,
         const ImgBarrier&   imageBarrier) const;
-
-    void GetBltStageAccessInfo(
-        HwLayoutTransition  transition,
-        const GfxCmdBuffer* pCmdBuffer,
-        const Image&        gfxImage,
-        const SubresRange&  range,
-        uint32*             pStageMask,
-        uint32*             pAccessMask) const;
 
     void IssueBlt(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const ImgBarrier*             pImgBarrier,
-        HwLayoutTransition            transition,
+        LayoutTransitionInfo          transition,
         Developer::BarrierOperations* pBarrierOps) const;
 
     bool AcqRelInitMaskRam(
         GfxCmdBuffer*      pCmdBuf,
         CmdStream*         pCmdStream,
-        const ImgBarrier&  imgBarrier,
-        HwLayoutTransition transition) const;
+        const ImgBarrier&  imgBarrier) const;
 
     size_t BuildReleaseSyncPackets(
         EngineType                    engineType,

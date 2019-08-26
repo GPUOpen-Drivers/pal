@@ -395,22 +395,26 @@ void AddrMgr2::InitTilingCaps(
         (Formats::IsYuv(createInfo.swizzledFormat.format) && (createInfo.swizzledFormat.format != ChNumFormat::NV12)))
     {
         // This Image is using linear tiling, so disable all other modes.
-        pBlockSettings->macro4KB  = 1;
-        pBlockSettings->macro64KB = 1;
+        pBlockSettings->macroThin4KB   = 1;
+        pBlockSettings->macroThick4KB  = 1;
+        pBlockSettings->macroThin64KB  = 1;
+        pBlockSettings->macroThick64KB = 1;
     }
     else if (surfaceFlags.prt)
     {
         // Tiled resource must use 64KB block size and all other flags must be set as well (forbidden).
-        pBlockSettings->macro4KB = 1;
-        pBlockSettings->linear   = 1;
+        pBlockSettings->macroThin4KB  = 1;
+        pBlockSettings->macroThick4KB = 1;
+        pBlockSettings->linear        = 1;
     }
     else
     {
         // We have to allow linear as linear format is required for some format types (1D-color and 32-32-32 for
         // some examples).  Address library should guarantee that we don't actually get a linear surface unless
         // it's the only option.
-        pBlockSettings->linear   = 0;
-        pBlockSettings->macro4KB = 0;
+        pBlockSettings->linear        = 0;
+        pBlockSettings->macroThin4KB  = 0;
+        pBlockSettings->macroThick4KB = 0;
 
         // Disable 4kB swizzle mode so more surfaces get DCC memory.
         // Should only set disable4kBSwizzleMode for testing purposes.
@@ -428,7 +432,8 @@ void AddrMgr2::InitTilingCaps(
         if ((pImage->IsDepthStencil() && TestAnyFlagSet(disable4KBSwizzleMode, Addr2Disable4kBSwizzleDepth)) ||
             (pImage->IsRenderTarget() && (disable1D || disable2D || disable3D)))
         {
-            pBlockSettings->macro4KB = 1;
+            pBlockSettings->macroThin4KB  = 1;
+            pBlockSettings->macroThick4KB = 1;
         }
     }
 }
@@ -619,45 +624,75 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
     InitTilingCaps(pImage, surfSettingInput.flags, &surfSettingInput.forbiddenBlock);
 
-    const uint32 addr2PreferredSwizzleTypeSet = settings.addr2PreferredSwizzleTypeSet;
+    // Start by building a permitted set of swizzle types. From there we will apply performance optimizations to come
+    // up with a preferred set. We need a separate permitted set as a fall-back if we can't create our preferred image.
+    ADDR2_SWTYPE_SET permittedSwSet = {};
 
     if (createInfo.tilingPreference != ImageTilingPattern::Default)
     {
-        surfSettingInput.preferredSwSet.sw_Z = (createInfo.tilingPreference == ImageTilingPattern::Interleaved);
-        surfSettingInput.preferredSwSet.sw_S = (createInfo.tilingPreference == ImageTilingPattern::Standard);
-        surfSettingInput.preferredSwSet.sw_D = (createInfo.tilingPreference == ImageTilingPattern::XMajor);
-        surfSettingInput.preferredSwSet.sw_R = (createInfo.tilingPreference == ImageTilingPattern::YMajor);
+        permittedSwSet.sw_Z = (createInfo.tilingPreference == ImageTilingPattern::Interleaved);
+        permittedSwSet.sw_S = (createInfo.tilingPreference == ImageTilingPattern::Standard);
+        permittedSwSet.sw_D = (createInfo.tilingPreference == ImageTilingPattern::XMajor);
+        permittedSwSet.sw_R = (createInfo.tilingPreference == ImageTilingPattern::YMajor);
     }
-    else if (addr2PreferredSwizzleTypeSet != Addr2PreferredDefault)
+    else
     {
-        surfSettingInput.preferredSwSet.sw_Z = TestAnyFlagSet(addr2PreferredSwizzleTypeSet, Addr2PreferredSW_Z);
-        surfSettingInput.preferredSwSet.sw_S = TestAnyFlagSet(addr2PreferredSwizzleTypeSet, Addr2PreferredSW_S);
-        surfSettingInput.preferredSwSet.sw_D = TestAnyFlagSet(addr2PreferredSwizzleTypeSet, Addr2PreferredSW_D);
-        surfSettingInput.preferredSwSet.sw_R = TestAnyFlagSet(addr2PreferredSwizzleTypeSet, Addr2PreferredSW_R);
+        // Otherwise, enable whichever modes are enabled in our setting. By default this should set all bits.
+        permittedSwSet.sw_Z = TestAnyFlagSet(settings.addr2PreferredSwizzleTypeSet, Addr2PreferredSW_Z);
+        permittedSwSet.sw_S = TestAnyFlagSet(settings.addr2PreferredSwizzleTypeSet, Addr2PreferredSW_S);
+        permittedSwSet.sw_D = TestAnyFlagSet(settings.addr2PreferredSwizzleTypeSet, Addr2PreferredSW_D);
+        permittedSwSet.sw_R = TestAnyFlagSet(settings.addr2PreferredSwizzleTypeSet, Addr2PreferredSW_R);
     }
 
-    if (IsGfx101(*m_pDevice)
-       )
+    // The permitted set is finalized.
+    surfSettingInput.preferredSwSet = permittedSwSet;
+
+    // If this workaround is enabled we must avoid using an S swizzle mode on 8bpp color targets because using
+    // blending on such an image can cause corruption on some hardware. In almost all cases we can simply fall back
+    // to another swizzle mode like D. However, on some hardware 3D PRT resources must use S modes.
+    //
+    // In practice this bug is very hard to trigger so we've never actually seen any issues with 3D PRTs using S modes.
+    // Rather than disable 3D PRT support we will modify the preferred set and leave S enabled in our permitted set.
+    // That way we will end up falling back to an S mode instead of returning an error to the client.
+    const bool disableSModes8BppColor =
+        (pImage->IsRenderTarget() && (surfSettingInput.bpp == 8) && settings.addr2DisableSModes8BppColor);
+
+    if (disableSModes8BppColor)
     {
-        if (pImage->IsRenderTarget() && (surfSettingInput.bpp == 8))
-        {
-            surfSettingInput.preferredSwSet.sw_S = 0;
-        }
+        surfSettingInput.preferredSwSet.sw_S = 0;
     }
+
+    // 2D images with 128 bits per pixel should prefer that we do not use any S modes. The 128-bpp S micro tiling uses
+    // the y[0] bit as its first address bit which tends to make neighboring elements non-contiguous. The 128-bpp D
+    // micro tiling would be preferred because it uses x[0] instead, making even/odd pairs contiguous. This has a
+    // significant impact on linear-to-tiled copy speeds and should help in general.
+    //
+    // Note that we must make sure the preferred set is not a power of two before we remove this S bit because we would
+    // otherwise unset the last bit, giving addrlib a value of zero. That's a special value which tells addrlib to pick
+    // its own defaults which is definitely not what the above code intended.
+    if ((createInfo.imageType == ImageType::Tex2d) &&
+        (surfSettingInput.bpp == 128)              &&
+        (IsPowerOfTwo(surfSettingInput.preferredSwSet.value) == false))
+    {
+        surfSettingInput.preferredSwSet.sw_S = 0;
+    }
+
     ADDR_E_RETURNCODE addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), &surfSettingInput, pOut);
 
-    // Retry without tiling preference and preferredSwSet mask.
-    if ((addrRet != ADDR_OK) &&
-        !((createInfo.tilingPreference  == ImageTilingPattern::Default) &&
-          (addr2PreferredSwizzleTypeSet == Addr2PreferredDefault)))
+    // It's possible that we can't get what we preferr so retry using the full permitted mask.
+    if ((addrRet != ADDR_OK) && (surfSettingInput.preferredSwSet.value != permittedSwSet.value))
     {
-        surfSettingInput.preferredSwSet.value = Addr2PreferredDefault;
+        surfSettingInput.preferredSwSet = permittedSwSet;
         addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), &surfSettingInput, pOut);
     }
 
     if (addrRet == ADDR_OK)
     {
         result = Result::Success;
+
+        // Alert if we're supposed to disable S swizzle modes but ended up picking one. See the comment block above
+        // for more details about why this is currently OK but could theoretically cause blending corruption.
+        PAL_ALERT(disableSModes8BppColor && IsStandardSwzzle(pOut->swizzleMode));
 
         if (IsGfx10(*m_pDevice) &&
             Formats::IsMacroPixelPackedRgbOnly(createInfo.swizzledFormat.format))
@@ -701,9 +736,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                 else
                 {
                     // Use linear swizzle mode if it's a render target.
-                    if (pImage->IsRenderTarget() &&
-                        (IsGfx101(*m_pDevice)
-                        ))
+                    if (disableSModes8BppColor)
                     {
                         pOut->swizzleMode = ADDR_SW_LINEAR;
                     }

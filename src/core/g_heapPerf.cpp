@@ -30,7 +30,7 @@
 //
 // When changes are needed, modify the tools generating this module in the tools\generate directory
 // OR the perf logs in the
-// ../../src/core/hw/heapPerf directory.
+// ..\..\src\core\hw\heapPerf\ directory.
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////

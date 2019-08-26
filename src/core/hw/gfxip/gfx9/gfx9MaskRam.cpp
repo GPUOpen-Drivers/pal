@@ -443,7 +443,7 @@ void Gfx9MaskRam::SetRbAppendedBit(
 //
 //          metaOffset |= (b << n)
 //      }
-void Gfx9MaskRam::CalcMetaEquation()
+void Gfx9MaskRam::CalcMetaEquationGfx9()
 {
     const Pal::Image*  pParent = m_image.Parent();
     const Pal::Device* pDevice = m_pGfxDevice->Parent();
@@ -1169,6 +1169,18 @@ bool Gfx9MaskRam::SupportFastColorClear(
            allowShaderWriteableSurfaces                          &&
            (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false) &&
            (SupportsFastColorClear(createInfo.swizzledFormat.format));
+}
+
+// =====================================================================================================================
+void Gfx9MaskRam::CalcMetaEquation()
+{
+    const Pal::Image* pParent = m_image.Parent();
+    const Pal::Device& palDevice = *(m_pGfxDevice->Parent());
+
+    if (IsGfx9(palDevice))
+    {
+        CalcMetaEquationGfx9();
+    }
 }
 
 //=============== Implementation for Gfx9Htile: ========================================================================

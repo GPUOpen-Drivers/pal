@@ -209,7 +209,7 @@ public:
     // Returns true if a clear operation was ever performed with a non-TC compatible clear color.
     bool    HasSeenNonTcCompatibleClearColor() const { return (m_hasSeenNonTcCompatClearColor == true); }
     void    SetNonTcCompatClearFlag(bool value) { m_hasSeenNonTcCompatClearColor = value; }
-    bool    IsFceOptimizationEnabled() { return (m_pNumSkippedFceCounter!= nullptr); };
+    bool    IsFceOptimizationEnabled() const { return (m_pNumSkippedFceCounter!= nullptr); };
     uint32* GetFceRefCounter() const { return m_pNumSkippedFceCounter; }
     uint32  GetFceRefCount() const;
     void    IncrementFceRefCount();

@@ -270,7 +270,7 @@ public:
         CustomPowerProfile* pInfo) override { return Result::ErrorUnavailable; }
 
     virtual Result QueryWorkStationCaps(
-        WorkStationCaps* pCaps) const override { return Result::ErrorUnavailable; }
+        WorkStationCaps* pCaps) const override;
 
     virtual Result QueryDisplayConnectors(
         uint32*                     pConnectorCount,

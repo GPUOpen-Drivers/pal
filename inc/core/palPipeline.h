@@ -195,11 +195,7 @@ union PipelineCreateFlags
 };
 
 /// Constant definining the max number of view instance count that is supported.
-#if PAL_CLIENT_DX11
-constexpr uint32 MaxViewInstanceCount = 32;
-#else
 constexpr uint32 MaxViewInstanceCount = 6;
-#endif
 
 /// Specifies graphic pipeline view instancing state.
 struct ViewInstancingDescriptor

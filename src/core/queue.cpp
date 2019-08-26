@@ -247,15 +247,23 @@ Result Queue::Init(
             break;
         case QueueTypeDma:
             {
-                OssDevice*  pOssDevice = m_pDevice->GetOssDevice();
+                if (m_pDevice->EngineProperties().perEngine[EngineTypeDma].numAvailable > 0)
+                {
+                    OssDevice* pOssDevice = m_pDevice->GetOssDevice();
 
-                if (pOssDevice != nullptr)
-                {
-                    result = pOssDevice->CreateQueueContext(this, pContextPlacementAddr, &m_pQueueContext);
-                }
-                else if ((pGfxDevice != nullptr) && IsGfx10(*m_pDevice))
-                {
-                    result = pGfxDevice->CreateQueueContext(this, m_pEngine, pContextPlacementAddr, &m_pQueueContext);
+                    if (pOssDevice != nullptr)
+                    {
+                        result = pOssDevice->CreateQueueContext(this, pContextPlacementAddr, &m_pQueueContext);
+                    }
+                    else if ((pGfxDevice != nullptr) && IsGfx10(*m_pDevice))
+                    {
+                        result = pGfxDevice->CreateQueueContext(this, m_pEngine,
+                                                                pContextPlacementAddr, &m_pQueueContext);
+                    }
+                    else
+                    {
+                        result = Result::ErrorIncompatibleDevice;
+                    }
                 }
                 else
                 {

@@ -99,17 +99,24 @@ static void SetupCommonPreamble(
     // Enable Compute workloads on all CU's of SE0/SE1 (unless masked).
     pCommonPreamble->computeStaticThreadMgmtSe0.bits.SH0_CU_EN = cuEnableMask;
     pCommonPreamble->computeStaticThreadMgmtSe0.bits.SH1_CU_EN = cuEnableMask;
-    pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH0_CU_EN = cuEnableMask;
-    pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH1_CU_EN = cuEnableMask;
 
-    // On Gfx6, the registers in the 3rd PM4 packet are not present; no need to initialize them.
-    if (chipProps.gfxLevel != GfxIpLevel::GfxIp6)
+    if (chipProps.gfx6.numShaderEngines > 1)
     {
+        pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH0_CU_EN = cuEnableMask;
+        pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH1_CU_EN = cuEnableMask;
+
         // Enable Compute workloads on all CU's of SE2/SE3 (unless masked).
-        pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH0_CU_EN = cuEnableMask;
-        pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH1_CU_EN = cuEnableMask;
-        pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH0_CU_EN = cuEnableMask;
-        pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH1_CU_EN = cuEnableMask;
+        if ((chipProps.gfxLevel != GfxIpLevel::GfxIp6) && (chipProps.gfx6.numShaderEngines > 2))
+        {
+            pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH0_CU_EN = cuEnableMask;
+            pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH1_CU_EN = cuEnableMask;
+
+            if (chipProps.gfx6.numShaderEngines > 3)
+            {
+                pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH0_CU_EN = cuEnableMask;
+                pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH1_CU_EN = cuEnableMask;
+            }
+        }
     }
 }
 

@@ -54,8 +54,9 @@ static void SetupCommonPreamble(
 {
     memset(pCommonPreamble, 0, sizeof(CommonPreamblePm4Img));
 
-    const Gfx9PalSettings& settings = pDevice->Settings();
-    const CmdUtil& cmdUtil          = pDevice->CmdUtil();
+    const auto&            chipProps = pDevice->Parent()->ChipProperties().gfx9;
+    const Gfx9PalSettings& settings  = pDevice->Settings();
+    const CmdUtil&         cmdUtil   = pDevice->CmdUtil();
 
     // First build the PM4 headers.
     if (pDevice->Parent()->EngineSupportsCompute(engineType))
@@ -83,14 +84,25 @@ static void SetupCommonPreamble(
         // Enable Compute workloads on all CU's of SE0/SE1 (unless masked).
         pCommonPreamble->computeStaticThreadMgmtSe0.gfx09.SH0_CU_EN = cuEnableMask;
         pCommonPreamble->computeStaticThreadMgmtSe0.gfx09.SH1_CU_EN = cuEnableMask;
-        pCommonPreamble->computeStaticThreadMgmtSe1.gfx09.SH0_CU_EN = cuEnableMask;
-        pCommonPreamble->computeStaticThreadMgmtSe1.gfx09.SH1_CU_EN = cuEnableMask;
 
-        // Enable Compute workloads on all CU's of SE2/SE3 (unless masked).
-        pCommonPreamble->computeStaticThreadMgmtSe2.gfx09.SH0_CU_EN = cuEnableMask;
-        pCommonPreamble->computeStaticThreadMgmtSe2.gfx09.SH1_CU_EN = cuEnableMask;
-        pCommonPreamble->computeStaticThreadMgmtSe3.gfx09.SH0_CU_EN = cuEnableMask;
-        pCommonPreamble->computeStaticThreadMgmtSe3.gfx09.SH1_CU_EN = cuEnableMask;
+        if (chipProps.numShaderEngines > 1)
+        {
+            pCommonPreamble->computeStaticThreadMgmtSe1.gfx09.SH0_CU_EN = cuEnableMask;
+            pCommonPreamble->computeStaticThreadMgmtSe1.gfx09.SH1_CU_EN = cuEnableMask;
+
+            // Enable Compute workloads on all CU's of SE2/SE3 (unless masked).
+            if (chipProps.numShaderEngines > 2)
+            {
+                pCommonPreamble->computeStaticThreadMgmtSe2.gfx09.SH0_CU_EN = cuEnableMask;
+                pCommonPreamble->computeStaticThreadMgmtSe2.gfx09.SH1_CU_EN = cuEnableMask;
+
+                if (chipProps.numShaderEngines > 3)
+                {
+                    pCommonPreamble->computeStaticThreadMgmtSe3.gfx09.SH0_CU_EN = cuEnableMask;
+                    pCommonPreamble->computeStaticThreadMgmtSe3.gfx09.SH1_CU_EN = cuEnableMask;
+                }
+            }
+        }
     }
 
     pCommonPreamble->spaceNeeded +=

@@ -26,8 +26,7 @@
 import procAnalysis as proc
 import os,sys
 
-if __name__ == '__main__':
-    fileName = sys.argv[1]
+def main(fileName, outputDir="./"):
     # The dict to maintain the mapping between library name and generated enum name.
     # It is better to keep in caller script.
     libraryDict = {"libxcb-sync.so.1"    : "LibXcbSync",
@@ -44,7 +43,7 @@ if __name__ == '__main__':
     intro = "Modify the procsAnalysis.py and dri3Loader.py in the tools/generate directory OR dri3WindowSystem.proc instead"
 
     # let procMgr generate the class named as Dri3Loader
-    fp = open("g_dri3Loader.h",'w')
+    fp = open(os.path.join(outputDir, "g_dri3Loader.h"),'w')
     procMgr.GenerateHeader(fp)
     procMgr.GenerateIntro(fp, intro)
     # adding special include files or customized lines
@@ -83,7 +82,7 @@ if __name__ == '__main__':
     fp.write("} // Pal\n")
     fp.close()
 
-    fp = open("g_dri3Loader.cpp", 'w')
+    fp = open(os.path.join(outputDir, "g_dri3Loader.cpp"), 'w')
     procMgr.GenerateHeader(fp)
     procMgr.GenerateIntro(fp, intro)
     fp.write("#include \"core/os/amdgpu/dri3/g_dri3Loader.h\"\n")
@@ -100,3 +99,6 @@ if __name__ == '__main__':
     fp.write("} // Amdgpu\n")
     fp.write("} // Pal\n")
     fp.close()
+
+if __name__ == '__main__':
+    main(sys.argv[1])

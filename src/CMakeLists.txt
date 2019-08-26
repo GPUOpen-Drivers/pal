@@ -193,7 +193,9 @@ add_subdirectory(${PAL_VAM_PATH} ${PROJECT_BINARY_DIR}/vam)
 target_link_libraries(pal PUBLIC vam)
 
 ### METROHASH ##################################################################
-add_subdirectory(${PAL_METROHASH_PATH} ${PROJECT_BINARY_DIR}/metrohash)
+if(NOT TARGET metrohash)
+    add_subdirectory(${PAL_METROHASH_PATH} ${PROJECT_BINARY_DIR}/metrohash)
+endif()
 target_link_libraries(pal PUBLIC metrohash)
 
 ### CWPACK #####################################################################
@@ -459,6 +461,7 @@ if(PAL_BUILD_CORE)
                 target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10)
                 target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10)
             endif()
+
             target_sources(pal PRIVATE
                 core/hw/gfxip/gfx9/g_gfx9PalSettings.cpp
                 core/hw/gfxip/gfx9/gfx9Barrier.cpp
@@ -685,6 +688,10 @@ endif()
 ### Link Libraries #####################################################################################################
 if(PAL_USE_PTHREAD)
     target_link_libraries(pal INTERFACE pthread)
+endif()
+
+if(UNIX)
+    target_link_libraries(pal PRIVATE dl)
 endif()
 
 ### Find headers and build source groups ###############################################################################

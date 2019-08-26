@@ -45,11 +45,11 @@ namespace Amdgpu
 // ====================================================================================================================a
 // Convert PAL format to Wayland Drm format
 static uint32 PalToDrmFormat(
-    ChNumFormat format)
+    SwizzledFormat format)
 {
     uint32 drmFormat = DRM_FORMAT_XRGB8888;
 
-    switch (format)
+    switch (format.format)
     {
         case ChNumFormat::X8Y8Z8W8_Unorm:
         case ChNumFormat::X8Y8Z8W8_Srgb:
@@ -57,7 +57,18 @@ static uint32 PalToDrmFormat(
             break;
 
         case ChNumFormat::X10Y10Z10W2_Unorm:
-            drmFormat = DRM_FORMAT_XRGB2101010;
+            if ((format.swizzle.r == ChannelSwizzle::Z) &&
+                (format.swizzle.g == ChannelSwizzle::Y) &&
+                (format.swizzle.b == ChannelSwizzle::X) &&
+                (format.swizzle.a == ChannelSwizzle::W))
+            {
+                drmFormat = DRM_FORMAT_XRGB2101010;
+            }
+            else
+            {
+                drmFormat = DRM_FORMAT_XBGR2101010;
+            }
+
             break;
 
         default:
@@ -184,7 +195,18 @@ DisplayWindowSystem::DisplayWindowSystem(
 // =====================================================================================================================
 Result DisplayWindowSystem::Init()
 {
-    Result result = m_waitEventThread.Begin(&EventPolling, this);
+    EventCreateFlags flags  = {};
+
+    flags.manualReset = true;
+    flags.semaphore   = true;
+
+    // m_exitThreadEvent must be inited before m_waitEventThread because the exitThread fd is added in EventPolling
+    Result result = m_exitThreadEvent.Init(flags);
+
+    if (result == Result::Success)
+    {
+        m_waitEventThread.Begin(&EventPolling, this);
+    }
     if (result == Result::Success)
     {
         result = m_waitMutex.Init();
@@ -192,14 +214,6 @@ Result DisplayWindowSystem::Init()
     if (result == Result::Success)
     {
         result = m_flipSemaphore.Init(1, 0);
-    }
-    if (result == Result::Success)
-    {
-        EventCreateFlags flags  = {};
-        flags.manualReset       = true;
-        flags.semaphore         = true;
-
-        result = m_exitThreadEvent.Init(flags);
     }
 
     if ((result == Result::Success) && (m_drmMasterFd == InvalidFd))
@@ -238,7 +252,7 @@ Result DisplayWindowSystem::CreatePresentableImage(
         uint32 pitches[4]   = {};
         uint32 offset[4]    = {};
         uint32 fbId         = 0;
-        uint32 drmFormat    = PalToDrmFormat(pSubResInfo->format.format);
+        uint32 drmFormat    = PalToDrmFormat(pSubResInfo->format);
         const uint32 width  = pSubResInfo->extentTexels.width;
         const uint32 height = pSubResInfo->extentTexels.height;
 

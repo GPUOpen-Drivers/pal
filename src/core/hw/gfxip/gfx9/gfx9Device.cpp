@@ -3688,6 +3688,7 @@ GfxIpLevel DetermineIpLevel(
             PAL_NOT_IMPLEMENTED_MSG("NV_FAMILY Revision %d unsupported", eRevId);
         }
         break;
+
     default:
         PAL_ASSERT_ALWAYS();
         break;

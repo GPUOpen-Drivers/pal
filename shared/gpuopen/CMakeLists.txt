@@ -71,7 +71,7 @@ apply_gpuopen_warnings(${GPUOPEN_LIB_NAME})
 if(UNIX)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
-    target_link_libraries(${GPUOPEN_LIB_NAME} Threads::Threads)
+    target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC Threads::Threads)
 endif()
 
 ### Build Defines ######################################################################################################
@@ -157,16 +157,20 @@ endif()
 # If a MetroHash path is not specified then we fall back to compiling our internal copy
 if (NOT DEFINED METROHASH_PATH)
     set(GPUOPEN_BUILD_METROHASH ON)
-endif()
-
-if (GPUOPEN_BUILD_METROHASH)
     set(METROHASH_PATH "src/imported/metrohash/src")
-    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
-        ${METROHASH_PATH}/metrohash64.cpp
-        ${METROHASH_PATH}/metrohash128.cpp)
 endif()
 
-target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE ${METROHASH_PATH})
+if (NOT TARGET metrohash)
+    if (GPUOPEN_BUILD_METROHASH)
+        target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+            ${METROHASH_PATH}/metrohash64.cpp
+            ${METROHASH_PATH}/metrohash128.cpp)
+    endif()
+    target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE ${METROHASH_PATH})
+else()
+    target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC metrohash)
+endif()
+
 
 ### RapidJson ###
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE

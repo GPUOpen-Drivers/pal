@@ -40,7 +40,7 @@ namespace Amdgpu
 
 enum HdmiMetadataType : uint8
 {
-    HDMI_STATIC_METADATA_TYPE1 = 1,
+    HDMI_STATIC_METADATA_TYPE1 = 0,
 };
 
 enum HdmiEotf : uint8

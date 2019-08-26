@@ -229,12 +229,6 @@ typedef enum _AddrSwizzleMode
     ADDR_SW_VAR_R_X         = 31,
     ADDR_SW_LINEAR_GENERAL  = 32,
     ADDR_SW_MAX_TYPE        = 33,
-
-    // Used for represent block with identical size
-    ADDR_SW_256B            = ADDR_SW_256B_S,
-    ADDR_SW_4KB             = ADDR_SW_4KB_S_X,
-    ADDR_SW_64KB            = ADDR_SW_64KB_S_X,
-    ADDR_SW_VAR             = ADDR_SW_VAR_S_X,
 } AddrSwizzleMode;
 
 /**

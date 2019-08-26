@@ -386,15 +386,6 @@ Result Platform::EarlyInitDevDriver()
 #if PAL_ENABLE_DEVDRIVER_USAGE
     isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
 
-#if (PAL_CLIENT_DX12 || PAL_CLIENT_DX11)
-    // Attempt to fall back to a message bus transport (kernel mode) if a local transport is not available.
-    // This allows us to support developer driver connections from inside DX12 UWP apps.
-    if (isConnectionAvailable == false)
-    {
-        hostInfo = DevDriver::kMessageBus;
-        isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
-    }
-#endif
 #endif
 
     DevDriver::Result devDriverResult = DevDriver::Result::Success;

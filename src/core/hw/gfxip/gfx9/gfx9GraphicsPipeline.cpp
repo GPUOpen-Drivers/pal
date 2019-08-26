@@ -672,10 +672,9 @@ void GraphicsPipeline::BuildPm4Headers(
 
     if (IsGfx10(m_gfxLevel))
     {
-        m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx10::mmGE_PC_ALLOC,
-                                                                      &m_commands.common.hdrGePcAlloc);
-        m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx10::mmGE_STEREO_CNTL,
-                                                                      &m_commands.common.hdrGeStereoCntl);
+        m_commands.common.spaceNeeded += cmdUtil.BuildSetSeqConfigRegs(Gfx10::mmGE_STEREO_CNTL,
+                                                                       Gfx10::mmGE_PC_ALLOC,
+                                                                       &m_commands.common.hdrGeStereoCntlGePcAlloc);
         if (IsGfx101Plus(*m_pDevice->Parent()))
         {
             m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx101Plus::mmGE_USER_VGPR_EN,

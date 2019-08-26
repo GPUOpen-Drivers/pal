@@ -71,6 +71,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.clearAllocatedLfb = false;
     m_settings.addr2Disable4kBSwizzleMode = 0x0;
     m_settings.addr2DisableXorTileMode = false;
+    m_settings.addr2DisableSModes8BppColor = false;
     m_settings.overlayReportHDR = true;
     m_settings.preferredPipelineUploadHeap = PipelineHeapDeferToClient;
     m_settings.insertGuardPageBetweenWddm2VAs = false;
@@ -237,6 +238,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2DisableXorTileModeStr,
                            Util::ValueType::Boolean,
                            &m_settings.addr2DisableXorTileMode,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2DisableSModes8BppColorStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.addr2DisableSModes8BppColor,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOverlayReportHDRStr,
@@ -625,6 +631,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(576052426, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.addr2DisableSModes8BppColor;
+    info.valueSize = sizeof(m_settings.addr2DisableSModes8BppColor);
+    m_settingsInfoMap.Insert(3379142860, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.overlayReportHDR;
     info.valueSize = sizeof(m_settings.overlayReportHDR);
     m_settingsInfoMap.Insert(2354711641, info);
@@ -1005,7 +1016,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 817412607;
+            component.settingsDataHash = 822079200;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

@@ -929,6 +929,7 @@ ChipFamily Gfx10Lib::HwlConvertChipFamily(
             m_settings.isDcn2 = 1;
 
             break;
+
         default:
             ADDR_ASSERT(!"Unknown chip family");
             break;
@@ -2355,13 +2356,14 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
     if (pIn->flags.fmask)
     {
-        pOut->swizzleMode          = ADDR_SW_64KB_Z_X;
-        pOut->resourceType         = ADDR_RSRC_TEX_2D;
-        pOut->validBlockSet.value  = AddrBlockSetMacro64KB;
-        pOut->canXor               = TRUE;
-        pOut->validSwTypeSet.value = AddrSwSetZ;
-        pOut->clientPreferredSwSet = pOut->validSwTypeSet;
-        pOut->validSwModeSet.value = Gfx10ZSwModeMask;
+        pOut->swizzleMode                 = ADDR_SW_64KB_Z_X;
+        pOut->resourceType                = ADDR_RSRC_TEX_2D;
+        pOut->validBlockSet.value         = 0;
+        pOut->validBlockSet.macroThin64KB = 1;
+        pOut->canXor                      = TRUE;
+        pOut->validSwTypeSet.value        = AddrSwSetZ;
+        pOut->clientPreferredSwSet        = pOut->validSwTypeSet;
+        pOut->validSwModeSet.value        = Gfx10ZSwModeMask;
     }
     else
     {
@@ -2414,10 +2416,20 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
         {
             // Forbid swizzle mode(s) by client setting
             ADDR2_SWMODE_SET allowedSwModeSet = {};
-            allowedSwModeSet.value |= pIn->forbiddenBlock.linear    ? 0 : Gfx10LinearSwModeMask;
-            allowedSwModeSet.value |= pIn->forbiddenBlock.micro     ? 0 : Gfx10Blk256BSwModeMask;
-            allowedSwModeSet.value |= pIn->forbiddenBlock.macro4KB  ? 0 : Gfx10Blk4KBSwModeMask;
-            allowedSwModeSet.value |= pIn->forbiddenBlock.macro64KB ? 0 : Gfx10Blk64KBSwModeMask;
+            allowedSwModeSet.value |= pIn->forbiddenBlock.linear ? 0 : Gfx10LinearSwModeMask;
+            allowedSwModeSet.value |= pIn->forbiddenBlock.micro  ? 0 : Gfx10Blk256BSwModeMask;
+            allowedSwModeSet.value |=
+                pIn->forbiddenBlock.macroThin4KB ? 0 :
+                ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? 0 : Gfx10Blk4KBSwModeMask);
+            allowedSwModeSet.value |=
+                pIn->forbiddenBlock.macroThick4KB ? 0 :
+                ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThick4KBSwModeMask : 0);
+            allowedSwModeSet.value |=
+                pIn->forbiddenBlock.macroThin64KB ? 0 :
+                ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThinSwModeMask : Gfx10Blk64KBSwModeMask);
+            allowedSwModeSet.value |=
+                pIn->forbiddenBlock.macroThick64KB ? 0 :
+                ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThick64KBSwModeMask : 0);
 
             if (pIn->preferredSwSet.value != 0)
             {
@@ -2434,17 +2446,17 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
             if (pIn->maxAlign > 0)
             {
-                if (pIn->maxAlign < GetBlockSize(ADDR_SW_64KB))
+                if (pIn->maxAlign < Size64K)
                 {
                     allowedSwModeSet.value &= ~Gfx10Blk64KBSwModeMask;
                 }
 
-                if (pIn->maxAlign < GetBlockSize(ADDR_SW_4KB))
+                if (pIn->maxAlign < Size4K)
                 {
                     allowedSwModeSet.value &= ~Gfx10Blk4KBSwModeMask;
                 }
 
-                if (pIn->maxAlign < GetBlockSize(ADDR_SW_256B))
+                if (pIn->maxAlign < Size256)
                 {
                     allowedSwModeSet.value &= ~Gfx10Blk256BSwModeMask;
                 }
@@ -2537,7 +2549,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                 pOut->resourceType   = pIn->resourceType;
                 pOut->validSwModeSet = allowedSwModeSet;
                 pOut->canXor         = (allowedSwModeSet.value & Gfx10XorSwModeMask) ? TRUE : FALSE;
-                pOut->validBlockSet  = GetAllowedBlockSet(allowedSwModeSet);
+                pOut->validBlockSet  = GetAllowedBlockSet(allowedSwModeSet, pOut->resourceType);
                 pOut->validSwTypeSet = GetAllowedSwSet(allowedSwModeSet);
 
                 pOut->clientPreferredSwSet = pIn->preferredSwSet;
@@ -2556,15 +2568,29 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                     // Always ignore linear swizzle mode if there is other choice.
                     allowedSwModeSet.swLinear = 0;
 
-                    ADDR2_BLOCK_SET allowedBlockSet = GetAllowedBlockSet(allowedSwModeSet);
+                    ADDR2_BLOCK_SET allowedBlockSet = GetAllowedBlockSet(allowedSwModeSet, pOut->resourceType);
 
                     // Determine block size if there is 2 or more block type candidates
                     if (IsPow2(allowedBlockSet.value) == FALSE)
                     {
-                        const AddrSwizzleMode swMode[AddrBlockMaxTiledType]  = {ADDR_SW_256B, ADDR_SW_4KB, ADDR_SW_64KB};
-                        Dim3d                 blkDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}};
-                        Dim3d                 padDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}};
-                        UINT_64               padSize[AddrBlockMaxTiledType] = {0};
+                        AddrSwizzleMode swMode[AddrBlockMaxTiledType] = { ADDR_SW_LINEAR };
+
+                        if (pOut->resourceType == ADDR_RSRC_TEX_3D)
+                        {
+                            swMode[AddrBlockThick4KB]  = ADDR_SW_4KB_S;
+                            swMode[AddrBlockThin64KB]  = ADDR_SW_64KB_R_X;
+                            swMode[AddrBlockThick64KB] = ADDR_SW_64KB_S;
+                        }
+                        else
+                        {
+                            swMode[AddrBlockMicro]    = ADDR_SW_256B_S;
+                            swMode[AddrBlockThin4KB]  = ADDR_SW_4KB_S;
+                            swMode[AddrBlockThin64KB] = ADDR_SW_64KB_S;
+                        }
+
+                        Dim3d   blkDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}};
+                        Dim3d   padDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}};
+                        UINT_64 padSize[AddrBlockMaxTiledType] = {0};
 
                         const UINT_32 ratioLow           = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 3 : 2);
                         const UINT_32 ratioHi            = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 2 : 1);
@@ -2605,21 +2631,34 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
                         if (minSizeBlk == AddrBlockMicro)
                         {
+                            ADDR_ASSERT(pOut->resourceType != ADDR_RSRC_TEX_3D);
                             allowedSwModeSet.value &= Gfx10Blk256BSwModeMask;
                         }
-                        else if (minSizeBlk == AddrBlock4KB)
+                        else if (minSizeBlk == AddrBlockThick4KB)
                         {
+                            ADDR_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
+                            allowedSwModeSet.value &= Gfx10Rsrc3dThick4KBSwModeMask;
+                        }
+                        else if (minSizeBlk == AddrBlockThin4KB)
+                        {
+                            ADDR_ASSERT(pOut->resourceType != ADDR_RSRC_TEX_3D);
                             allowedSwModeSet.value &= Gfx10Blk4KBSwModeMask;
+                        }
+                        else if (minSizeBlk == AddrBlockThick64KB)
+                        {
+                            ADDR_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
+                            allowedSwModeSet.value &= Gfx10Rsrc3dThick64KBSwModeMask;
                         }
                         else
                         {
-                            ADDR_ASSERT(minSizeBlk == AddrBlock64KB)
-                            allowedSwModeSet.value &= Gfx10Blk64KBSwModeMask;
+                            ADDR_ASSERT(minSizeBlk == AddrBlockThin64KB);
+                            allowedSwModeSet.value &= (pOut->resourceType == ADDR_RSRC_TEX_3D) ?
+                                                      Gfx10Rsrc3dThinSwModeMask : Gfx10Blk64KBSwModeMask;
                         }
                     }
 
                     // Block type should be determined.
-                    ADDR_ASSERT(IsPow2(GetAllowedBlockSet(allowedSwModeSet).value));
+                    ADDR_ASSERT(IsPow2(GetAllowedBlockSet(allowedSwModeSet, pOut->resourceType).value));
 
                     ADDR2_SWTYPE_SET allowedSwSet = GetAllowedSwSet(allowedSwModeSet);
 
@@ -2660,7 +2699,9 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                         }
                         else if (pIn->resourceType == ADDR_RSRC_TEX_3D)
                         {
-                            if (pIn->flags.color && GetAllowedBlockSet(allowedSwModeSet).macro64KB && allowedSwSet.sw_D)
+                            if (pIn->flags.color &&
+                                GetAllowedBlockSet(allowedSwModeSet, pOut->resourceType).macroThick64KB &&
+                                allowedSwSet.sw_D)
                             {
                                 allowedSwModeSet.value &= Gfx10DisplaySwModeMask;
                             }
@@ -2703,8 +2744,8 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                     // Swizzle type should be determined.
                     ADDR_ASSERT(IsPow2(GetAllowedSwSet(allowedSwModeSet).value));
 
-                    // Determine swizzle mode now - always select the "largest" swizzle mode for a given block type +
-                    // swizzle type combination. For example, for AddrBlock64KB + ADDR_SW_S, select SW_64KB_S_X(25) if it's
+                    // Determine swizzle mode now. Always select the "largest" swizzle mode for a given block type +
+                    // swizzle type combination. E.g, for AddrBlockThin64KB + ADDR_SW_S, select SW_64KB_S_X(25) if it's
                     // available, or otherwise select SW_64KB_S_T(17) if it's available, or otherwise select SW_64KB_S(9).
                     pOut->swizzleMode = static_cast<AddrSwizzleMode>(Log2NonPow2(allowedSwModeSet.value));
                 }
@@ -3776,7 +3817,7 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceAddrFromCoordMacroTiled(
 */
 UINT_32 Gfx10Lib::HwlComputeMaxBaseAlignments() const
 {
-    return GetBlockSize(ADDR_SW_64KB);
+    return Size64K;
 }
 
 /**

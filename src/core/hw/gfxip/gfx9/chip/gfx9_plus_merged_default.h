@@ -1816,6 +1816,7 @@ namespace Gfx09
     constexpr unsigned int mmCP_STALLED_STAT2_DEFAULT               = 0xCDCDCD05;
     constexpr unsigned int mmCP_STAT_DEFAULT                        = 0xCDCDCC00;
     constexpr unsigned int mmCP_STREAM_OUT_ADDR_LO_DEFAULT          = 0x0000;
+    constexpr unsigned int mmDB_DEBUG2_DEFAULT                      = 0x0000;
     constexpr unsigned int mmDB_DEBUG3_DEFAULT                      = 0x0000;
     constexpr unsigned int mmDB_DEBUG4_DEFAULT                      = 0x0000;
     constexpr unsigned int mmDB_DEPTH_SIZE_DEFAULT                  = 0xDCD0DCD;
@@ -2042,7 +2043,6 @@ namespace Gfx09
     constexpr unsigned int mmRMI_GENERAL_CNTL_DEFAULT               = 0x0000;
     constexpr unsigned int mmRMI_SPARE_1_DEFAULT                    = 0x0000;
     constexpr unsigned int mmRMI_SPARE_DEFAULT                      = 0x0001;
-    constexpr unsigned int mmRPB_ATS_CNTL2_DEFAULT                  = 0x50B13;
     constexpr unsigned int mmSDMA0_PERFCOUNTER0_RESULT_DEFAULT      = 0x0000;
     constexpr unsigned int mmSDMA0_PERFCOUNTER1_RESULT_DEFAULT      = 0x0000;
     constexpr unsigned int mmSDMA0_PERFCOUNTER_TAG_DELAY_RANGE_DEFAULT = 0x640000;
@@ -4278,6 +4278,7 @@ namespace Rv1x
     constexpr unsigned int mmRMI_XBAR_ARBITER_CONFIG_DEFAULT        = 0x8000800;
     constexpr unsigned int mmRPB_ARB_CNTL2_DEFAULT                  = 0x40104;
     constexpr unsigned int mmRPB_ARB_CNTL_DEFAULT                   = 0x40404;
+    constexpr unsigned int mmRPB_ATS_CNTL2_DEFAULT                  = 0x50B13;
     constexpr unsigned int mmRPB_ATS_CNTL_DEFAULT                   = 0x58088422;
     constexpr unsigned int mmRPB_BIF_CNTL_DEFAULT                   = 0x1000404;
     constexpr unsigned int mmRPB_BLOCKLEVEL_CONF_DEFAULT            = 0x00F0;
@@ -4310,6 +4311,7 @@ namespace Rv2x
     constexpr unsigned int mmRMI_XBAR_ARBITER_CONFIG_DEFAULT        = 0x0800;
     constexpr unsigned int mmRPB_ARB_CNTL2_DEFAULT                  = 0x40104;
     constexpr unsigned int mmRPB_ARB_CNTL_DEFAULT                   = 0x40404;
+    constexpr unsigned int mmRPB_ATS_CNTL2_DEFAULT                  = 0x50B13;
     constexpr unsigned int mmRPB_ATS_CNTL_DEFAULT                   = 0x58088422;
     constexpr unsigned int mmRPB_BIF_CNTL_DEFAULT                   = 0x1000404;
     constexpr unsigned int mmRPB_BLOCKLEVEL_CONF_DEFAULT            = 0x00F0;
@@ -4341,6 +4343,7 @@ namespace Vega
     constexpr unsigned int mmRMI_XBAR_ARBITER_CONFIG_DEFAULT        = 0x8000800;
     constexpr unsigned int mmRPB_ARB_CNTL2_DEFAULT                  = 0x40104;
     constexpr unsigned int mmRPB_ARB_CNTL_DEFAULT                   = 0x40404;
+    constexpr unsigned int mmRPB_ATS_CNTL2_DEFAULT                  = 0x50B13;
     constexpr unsigned int mmRPB_ATS_CNTL_DEFAULT                   = 0x58088422;
     constexpr unsigned int mmRPB_BIF_CNTL_DEFAULT                   = 0x1000404;
     constexpr unsigned int mmRPB_BLOCKLEVEL_CONF_DEFAULT            = 0x00F0;

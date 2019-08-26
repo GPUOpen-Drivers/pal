@@ -3560,12 +3560,14 @@ typedef union _ADDR2_BLOCK_SET
 {
     struct
     {
-        UINT_32 micro       : 1;   // 256B block for 2D resource
-        UINT_32 macro4KB    : 1;   // 4KB for 2D/3D resource
-        UINT_32 macro64KB   : 1;   // 64KB for 2D/3D resource
-        UINT_32 var         : 1;   // VAR block
-        UINT_32 linear      : 1;   // Linear block
-        UINT_32 reserved    : 27;
+        UINT_32 micro          : 1;   // 256B block for 2D resource
+        UINT_32 macroThin4KB   : 1;   // Thin 4KB for 2D/3D resource
+        UINT_32 macroThick4KB  : 1;   // Thick 4KB for 3D resource
+        UINT_32 macroThin64KB  : 1;   // Thin 64KB for 2D/3D resource
+        UINT_32 macroThick64KB : 1;   // Thick 64KB for 3D resource
+        UINT_32 var            : 1;   // VAR block
+        UINT_32 linear         : 1;   // Linear block
+        UINT_32 reserved       : 25;
     };
 
     UINT_32 value;

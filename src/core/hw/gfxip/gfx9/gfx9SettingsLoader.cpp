@@ -298,6 +298,11 @@ void SettingsLoader::ValidateSettings(
             m_settings.trapezoidDistributionFactor = Max(m_settings.trapezoidDistributionFactor, 1u);
             m_settings.triDistributionFactor       = Max(m_settings.triDistributionFactor,       1u);
         }
+
+        if (m_settings.gfx9RbPlusEnable)
+        {
+            m_settings.useCompToSingle |= (Gfx10UseCompToSingle8bpp | Gfx10UseCompToSingle16bpp);
+        }
     }
 
     if ((pPalSettings->distributionTessMode == DistributionTessTrapezoidOnly) ||
@@ -355,7 +360,8 @@ static void SetupGfx10Workarounds(
 // Setup workarounds that are necessary for all Gfx10.1 products.
 static void SetupGfx101Workarounds(
     const Pal::Device&  device,
-    Gfx9PalSettings*    pSettings)
+    Gfx9PalSettings*    pSettings,
+    PalSettings*        pCoreSettings)
 {
     pSettings->waVgtFlushNggToLegacyGs = true;
 
@@ -365,6 +371,9 @@ static void SetupGfx101Workarounds(
     // The workaround is to bind an internal index buffer of a single entry and force the index buffer
     // size to one. This applies to all Navi1x products, which are all Gfx10.1 products.
     pSettings->waIndexBufferZeroSize = true;
+
+    // The CB has a bug where blending can be corrupted if the color target is 8bpp and uses an S swizzle mode.
+    pCoreSettings->addr2DisableSModes8BppColor = true;
 
     {
         // The DB has a bug where an attempted depth expand of a Z16_UNORM 1xAA surface that has not had its
@@ -400,13 +409,14 @@ static void SetupGfx101Workarounds(
 // Setup workarounds that only apply to Navi10.
 static void SetupNavi10Workarounds(
     const Pal::Device&  device,
-    Gfx9PalSettings*    pSettings)
+    Gfx9PalSettings*    pSettings,
+    PalSettings*        pCoreSettings)
 {
     // Setup any Gfx10 workarounds.
     SetupGfx10Workarounds(device, pSettings);
 
     // Setup any Gfx10.1 workarounds.
-    SetupGfx101Workarounds(device, pSettings);
+    SetupGfx101Workarounds(device, pSettings, pCoreSettings);
 
     // Setup any Navi10 specific workarounds.
 
@@ -487,7 +497,7 @@ void SettingsLoader::OverrideDefaults(
     {
         if (IsNavi10(device))
         {
-            SetupNavi10Workarounds(device, &m_settings);
+            SetupNavi10Workarounds(device, &m_settings, pSettings);
         }
     }
 

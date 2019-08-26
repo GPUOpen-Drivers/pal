@@ -41,9 +41,15 @@ namespace Pal
 /// Defines ME output format support
 enum class MeOutputFormat :uint32
 {
-    None,                     ///< No output support
-    MotionVectorOnly,         ///< The output only contains motion vectors only.
-    MotionVectorWithMatrics,  ///< The output contains differeence matrix along with motion vectors.
+    None                        = 0x0,                ///< No output support
+    MotionVectorLegacy          = 0x1,                ///< The legacy format ouput contains only motion vectors
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >=527
+    MotionVectorTextureFormat   = 0x2,                ///< MV Output per MB in texture format and no padding
+    MotionVectorWithMatrix      = 0x4,                ///< Output contains difference matrix along with motion vectors.
+#else
+    MotionVectorOnly            = MotionVectorLegacy, ///< The output contains only motion vectors same as legacy
+    MotionVectorWithMatrics     = 0x2,                ///< Output contains difference matrix along with motion vectors
+#endif
     Count
 };
 

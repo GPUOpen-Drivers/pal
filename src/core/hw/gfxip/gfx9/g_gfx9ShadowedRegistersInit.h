@@ -430,6 +430,7 @@ void InitializeContextRegistersGfx9(
     constexpr uint32 PaSuPointSizeGfx9[] = {
         0x0       ,
         0x0       ,
+        0x0       ,
         0x0
     };
     constexpr uint32 VgtHosMaxTessLevelGfx9[] = {
@@ -684,7 +685,7 @@ void InitializeContextRegistersGfx9(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT,Gfx09::mmCB_MRT7_EPITCH, SxPsDownconvertGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL,mmPA_CL_NANINF_CNTL, DbDepthControlGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL,Vg12::mmPA_STEREO_CNTL, PaSuSmallPrimFilterCntlGfx9,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE,mmPA_SU_LINE_CNTL, PaSuPointSizeGfx9,pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE,mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelGfx9,pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
@@ -1091,6 +1092,7 @@ void InitializeContextRegistersNv10(
     constexpr uint32 PaSuPointSizeNv10[] = {
         0x0       ,
         0x0       ,
+        0x0       ,
         0x0
     };
     constexpr uint32 VgtHosMaxTessLevelNv10[] = {
@@ -1402,7 +1404,7 @@ void InitializeContextRegistersNv10(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT,mmCB_BLEND7_CONTROL, SxPsDownconvertNv10,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP,mmPA_CL_NANINF_CNTL, GeMaxOutputPerSubgroupNv10,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL,Gfx10::mmPA_STATE_STEREO_X, PaSuSmallPrimFilterCntlNv10,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE,mmPA_SU_LINE_CNTL, PaSuPointSizeNv10,pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE,mmPA_SC_LINE_STIPPLE, PaSuPointSizeNv10,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelNv10,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_MODE,mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeNv10,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_EN,mmVGT_PRIMITIVEID_EN, VgtPrimitiveidEnNv10,pCmdSpace);

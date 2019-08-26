@@ -6346,7 +6346,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeNggFastLaunchState(
         pDeCmdSpace = m_deCmdStream.WriteSetSeqShRegs(mmSPI_SHADER_USER_DATA_ADDR_LO_GS,
                                                       mmSPI_SHADER_USER_DATA_ADDR_HI_GS,
                                                       ShaderGraphics,
-                                                      &m_graphicsState.iaState.indexAddr,
+                                                      &m_drawTimeHwState.nggIndexBufferBaseAddr,
                                                       pDeCmdSpace);
     }
 

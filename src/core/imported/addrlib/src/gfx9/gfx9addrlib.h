@@ -204,6 +204,16 @@ const UINT_32 Gfx9Rsrc3dPrtSwModeMask = Gfx9Rsrc2dPrtSwModeMask & ~Gfx9RotateSwM
 
 const UINT_32 Gfx9Rsrc3dThinSwModeMask = Gfx9DisplaySwModeMask & ~Gfx9Blk256BSwModeMask;
 
+const UINT_32 Gfx9Rsrc3dThin4KBSwModeMask = Gfx9Rsrc3dThinSwModeMask & Gfx9Blk4KBSwModeMask;
+
+const UINT_32 Gfx9Rsrc3dThin64KBSwModeMask = Gfx9Rsrc3dThinSwModeMask & Gfx9Blk64KBSwModeMask;
+
+const UINT_32 Gfx9Rsrc3dThickSwModeMask = Gfx9Rsrc3dSwModeMask & ~(Gfx9Rsrc3dThinSwModeMask | Gfx9LinearSwModeMask);
+
+const UINT_32 Gfx9Rsrc3dThick4KBSwModeMask = Gfx9Rsrc3dThickSwModeMask & Gfx9Blk4KBSwModeMask;
+
+const UINT_32 Gfx9Rsrc3dThick64KBSwModeMask = Gfx9Rsrc3dThickSwModeMask & Gfx9Blk64KBSwModeMask;
+
 const UINT_32 Gfx9MsaaSwModeMask = Gfx9AllSwModeMask & ~Gfx9Blk256BSwModeMask & ~Gfx9LinearSwModeMask;
 
 const UINT_32 Dce12NonBpp32SwModeMask = (1u << ADDR_SW_LINEAR)   |
@@ -597,15 +607,26 @@ private:
         UINT_32*                                pSlice0PaddedHeight,
         ADDR2_MIP_INFO*                         pMipInfo = NULL) const;
 
-    static ADDR2_BLOCK_SET GetAllowedBlockSet(ADDR2_SWMODE_SET allowedSwModeSet)
+    static ADDR2_BLOCK_SET GetAllowedBlockSet(ADDR2_SWMODE_SET allowedSwModeSet, AddrResourceType rsrcType)
     {
         ADDR2_BLOCK_SET allowedBlockSet = {};
 
-        allowedBlockSet.micro     = (allowedSwModeSet.value & Gfx9Blk256BSwModeMask) ? TRUE : FALSE;
-        allowedBlockSet.macro4KB  = (allowedSwModeSet.value & Gfx9Blk4KBSwModeMask)  ? TRUE : FALSE;
-        allowedBlockSet.macro64KB = (allowedSwModeSet.value & Gfx9Blk64KBSwModeMask) ? TRUE : FALSE;
-        allowedBlockSet.var       = (allowedSwModeSet.value & Gfx9BlkVarSwModeMask)  ? TRUE : FALSE;
-        allowedBlockSet.linear    = (allowedSwModeSet.value & Gfx9LinearSwModeMask)  ? TRUE : FALSE;
+        allowedBlockSet.micro  = (allowedSwModeSet.value & Gfx9Blk256BSwModeMask) ? TRUE : FALSE;
+        allowedBlockSet.var    = (allowedSwModeSet.value & Gfx9BlkVarSwModeMask)  ? TRUE : FALSE;
+        allowedBlockSet.linear = (allowedSwModeSet.value & Gfx9LinearSwModeMask)  ? TRUE : FALSE;
+
+        if (rsrcType == ADDR_RSRC_TEX_3D)
+        {
+            allowedBlockSet.macroThin4KB   = (allowedSwModeSet.value & Gfx9Rsrc3dThin4KBSwModeMask)   ? TRUE : FALSE;
+            allowedBlockSet.macroThick4KB  = (allowedSwModeSet.value & Gfx9Rsrc3dThick4KBSwModeMask)  ? TRUE : FALSE;
+            allowedBlockSet.macroThin64KB  = (allowedSwModeSet.value & Gfx9Rsrc3dThin64KBSwModeMask)  ? TRUE : FALSE;
+            allowedBlockSet.macroThick64KB = (allowedSwModeSet.value & Gfx9Rsrc3dThick64KBSwModeMask) ? TRUE : FALSE;
+        }
+        else
+        {
+            allowedBlockSet.macroThin4KB  = (allowedSwModeSet.value & Gfx9Blk4KBSwModeMask)  ? TRUE : FALSE;
+            allowedBlockSet.macroThin64KB = (allowedSwModeSet.value & Gfx9Blk64KBSwModeMask) ? TRUE : FALSE;
+        }
 
         return allowedBlockSet;
     }
