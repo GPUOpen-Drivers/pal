@@ -25,6 +25,7 @@
 
 #include "core/addrMgr/addrMgr.h"
 #include "core/device.h"
+#include "core/eventDefs.h"
 #include "core/g_palSettings.h"
 #include "core/image.h"
 #include "core/platform.h"
@@ -124,6 +125,21 @@ Image::Image(
 }
 static_assert(ADDR_TM_LINEAR_GENERAL == 0,
               "If ADDR_TM_LINEAR_GENERAL does not equal 0, the default in internalCreateInfo must be set to it.");
+
+// =====================================================================================================================
+Image::~Image()
+{
+    ResourceDestroyEventData data = {};
+    data.pObj = this;
+    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+
+    if (m_pGfxImage != nullptr)
+    {
+        // Since the GfxImage memory is part of the same allocation as the independent layer image we don't need
+        // to call delete, but we still need to give the GfxImage a chance to clean up by calling the destructor.
+        m_pGfxImage->~GfxImage();
+    }
+}
 
 // =====================================================================================================================
 // Creates and initializes a new instance of Image
@@ -653,6 +669,20 @@ Result Image::Init()
         }
     }
 
+    if (result == Result::Success)
+    {
+        ResourceDescriptionImage desc = {};
+        desc.pCreateInfo = &m_createInfo;
+        desc.pMemoryLayout = &m_gpuMemLayout;
+        desc.isPresentable = (m_imageInfo.internalCreateInfo.flags.presentable == 1);
+        ResourceCreateEventData data = {};
+        data.type = ResourceType::Image;
+        data.pResourceDescData = static_cast<void*>(&desc);
+        data.resourceDescSize = sizeof(ResourceDescriptionImage);
+        data.pObj = this;
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    }
+
     return result;
 }
 
@@ -947,6 +977,11 @@ Result Image::BindGpuMemory(
 
         m_vidMem.Update(pGpuMemory, offset);
 
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
+            this,
+            m_gpuMemSize,
+            pGpuMemory,
+            offset);
     }
 
     UpdateMetaDataInfo(pGpuMemory);

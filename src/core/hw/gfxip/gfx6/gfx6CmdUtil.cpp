@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6ShadowedRegisters.h"
+#include "marker_payload.h"
 
 #include <cstdio>
 
@@ -1593,6 +1594,61 @@ size_t CmdUtil::BuildEventWriteQuery(
     pPacket->addressLo     = LowPart(address);
     pPacket->addressHi32   = HighPart(address);
     return PacketSize;
+}
+
+// =====================================================================================================================
+size_t CmdUtil::BuildExecutionMarker(
+    gpusize markerAddr,
+    uint32  markerVal,
+    uint64  clientHandle,
+    uint32  markerType,
+    void*   pBuffer
+    ) const
+{
+    size_t packetSize = BuildEventWriteEop(BOTTOM_OF_PIPE_TS,
+                                           markerAddr,
+                                           EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
+                                           markerVal,
+                                           false,
+                                           pBuffer);
+    pBuffer = VoidPtrInc(pBuffer, packetSize * sizeof(uint32));
+
+    if (markerType == RGD_EXECUTION_BEGIN_MARKER_GUARD)
+    {
+        constexpr size_t BeginPayloadSize = sizeof(RgdExecutionBeginMarker) / sizeof(uint32);
+        packetSize += BuildNop(BeginPayloadSize + PM4_CMD_NOP_DWORDS, pBuffer);
+
+        auto* pPayload =
+            reinterpret_cast<RgdExecutionBeginMarker*>(VoidPtrInc(pBuffer, PM4_CMD_NOP_DWORDS * sizeof(uint32)));
+        pPayload->guard         = RGD_EXECUTION_BEGIN_MARKER_GUARD;
+        pPayload->marker_buffer = markerAddr;
+        pPayload->client_handle = clientHandle;
+        pPayload->counter       = markerVal;
+    }
+    else if (markerType == RGD_EXECUTION_MARKER_GUARD)
+    {
+        PAL_ASSERT(clientHandle == 0);
+        constexpr size_t MarkerPayloadSize = sizeof(RgdExecutionMarker) / sizeof(uint32);
+        packetSize += BuildNop(MarkerPayloadSize + PM4_CMD_NOP_DWORDS, pBuffer);
+
+        auto* pPayload =
+            reinterpret_cast<RgdExecutionMarker*>(VoidPtrInc(pBuffer, PM4_CMD_NOP_DWORDS * sizeof(uint32)));
+        pPayload->guard   = RGD_EXECUTION_MARKER_GUARD;
+        pPayload->counter = markerVal;
+    }
+    else if (markerType == RGD_EXECUTION_END_MARKER_GUARD)
+    {
+        PAL_ASSERT(clientHandle == 0);
+        constexpr size_t EndPayloadSize = sizeof(RgdExecutionEndMarker) / sizeof(uint32);
+        packetSize += BuildNop(EndPayloadSize + PM4_CMD_NOP_DWORDS, pBuffer);
+
+        auto* pPayload =
+            reinterpret_cast<RgdExecutionEndMarker*>(VoidPtrInc(pBuffer, PM4_CMD_NOP_DWORDS * sizeof(uint32)));
+        pPayload->guard = RGD_EXECUTION_END_MARKER_GUARD;
+        pPayload->counter = markerVal;
+    }
+
+    return packetSize;
 }
 
 // =====================================================================================================================

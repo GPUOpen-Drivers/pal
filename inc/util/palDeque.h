@@ -112,7 +112,7 @@ public:
     /// Constructor.
     ///
     /// @param [in] pAllocator The allocator that will allocate memory if required.
-    Deque(Allocator*const pAllocator);
+    Deque(Allocator*const pAllocator, size_t numElementsPerBlock = 256);
     ~Deque();
 
     /// Returns the number of elements in the deque.
@@ -194,17 +194,18 @@ private:
     // we'd need to have a specialization explicitly declared.
     void CleanupElement(T* pData) const { }
 
-    size_t            m_numElements;      // Number of elements
+    size_t            m_numElements;         // Number of elements
+    const size_t      m_numElementsPerBlock; // Block granularity when we need to alloc a new one
 
-    DequeBlockHeader* m_pFrontHeader;     // First block of data elements,  null for empty deques.
-    DequeBlockHeader* m_pBackHeader;      // Last block of data elements, null for empty deques/
+    DequeBlockHeader* m_pFrontHeader;        // First block of data elements,  null for empty deques.
+    DequeBlockHeader* m_pBackHeader;         // Last block of data elements, null for empty deques/
 
-    T*                m_pFront;           // First data element, null for empty deques.
-    T*                m_pBack;            // Last data element, null for empty deques.
+    T*                m_pFront;              // First data element, null for empty deques.
+    T*                m_pBack;               // Last data element, null for empty deques.
 
-    DequeBlockHeader* m_pLazyFreeHeader;  // Cached pointer to the most-recently freed block.
+    DequeBlockHeader* m_pLazyFreeHeader;     // Cached pointer to the most-recently freed block.
 
-    Allocator*const   m_pAllocator;        // Pointer to the allocator for this deque.
+    Allocator*const   m_pAllocator;          // Pointer to the allocator for this deque.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Deque);
 
@@ -217,9 +218,11 @@ private:
 // =====================================================================================================================
 template<typename T, typename Allocator>
 PAL_INLINE Deque<T, Allocator>::Deque(
-    Allocator*const pAllocator)
+    Allocator*const pAllocator,
+    size_t          numElementsPerBlock)
     :
     m_numElements(0),
+    m_numElementsPerBlock(numElementsPerBlock),
     m_pFrontHeader(nullptr),
     m_pBackHeader(nullptr),
     m_pFront(nullptr),

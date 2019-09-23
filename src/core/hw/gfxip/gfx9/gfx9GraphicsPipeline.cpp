@@ -1610,9 +1610,12 @@ Result GraphicsPipeline::GetShaderStats(
                 pShaderStats->common.gpuVirtAddress = m_chunkHs.LsProgramGpuVa();
                 break;
             case Abi::HardwareStage::Gs:
-                pShaderStats->shaderStageMask =
-                    (ApiShaderStageGeometry | (IsTessEnabled() ? ApiShaderStageDomain : ApiShaderStageVertex));
+                pShaderStats->shaderStageMask       = (IsTessEnabled() ? ApiShaderStageDomain : ApiShaderStageVertex);
                 pShaderStats->common.gpuVirtAddress = m_chunkGs.EsProgramGpuVa();
+                if (IsGsEnabled())
+                {
+                    pShaderStats->shaderStageMask  |= ApiShaderStageGeometry;
+                }
                 if (IsNgg() == false)
                 {
                     pShaderStats->copyShader.gpuVirtAddress        = m_chunkVsPs.VsProgramGpuVa();

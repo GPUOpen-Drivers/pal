@@ -412,14 +412,6 @@ const RegisterRange NonShadowedRangesGfx8[] =
         mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3__CI__VI - mmVGT_STRMOUT_BUFFER_FILLED_SIZE_0__CI__VI + 1
     },
     {
-        mmPA_SC_SCREEN_EXTENT_MIN_0__CI__VI,
-        mmPA_SC_SCREEN_EXTENT_MIN_1__CI__VI - mmPA_SC_SCREEN_EXTENT_MIN_0__CI__VI + 1
-    },
-    {
-        mmPA_SC_SCREEN_EXTENT_MAX_1__CI__VI,
-        1
-    },
-    {
         mmDB_OCCLUSION_COUNT0_LOW__CI__VI,
         mmDB_OCCLUSION_COUNT3_HI__CI__VI - mmDB_OCCLUSION_COUNT0_LOW__CI__VI + 1
     },

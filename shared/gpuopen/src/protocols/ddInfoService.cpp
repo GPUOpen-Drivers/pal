@@ -126,14 +126,14 @@ Result InfoService::RegisterInfoSource(
         {
             // Verify that the source name doesn't already exist in the map of registered sources.
             const bool isAlreadyRegistered = m_registeredInfoSources.Contains(sourceInfo.name);
-            DD_ALERT(!isAlreadyRegistered);
+            DD_WARN(!isAlreadyRegistered);
             if (!isAlreadyRegistered)
             {
                 // Insert the new info source parameters into the map of registered sources.
                 result = m_registeredInfoSources.Insert(sourceInfo.name, sourceInfo);
                 if (result != Result::Success)
                 {
-                    DD_ALERT_ALWAYS();
+                    DD_WARN_ALWAYS();
                 }
             }
             else
@@ -165,7 +165,7 @@ void InfoService::UnregisterInfoSource(
     // Lock access to the registered sources map.
     Platform::LockGuard<Platform::Mutex> infoSourcesLock(m_infoSourceMutex);
 
-    DD_ALERT(pName != nullptr);
+    DD_WARN(pName != nullptr);
     if (pName != nullptr)
     {
         // If the source is already registered, remove it.
@@ -245,7 +245,7 @@ Result InfoService::HandleGetInfoSourceByName(
 {
     Result result = Result::InfoUriSourceNameInvalid;
 
-    DD_ALERT(pName != nullptr);
+    DD_WARN(pName != nullptr);
     if (pName != nullptr)
     {
         // Lock access to the registered info sources map.

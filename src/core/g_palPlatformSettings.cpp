@@ -22,6 +22,7 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
 //
@@ -70,6 +71,11 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.alertsEnabled = false;
 #endif
 
+    m_settings.enableEventLogFile = false;
+    memset(m_settings.eventLogDirectory, 0, 512);
+    strncpy(m_settings.eventLogDirectory, "amdpal/", 512);
+    memset(m_settings.eventLogFilename, 0, 512);
+    strncpy(m_settings.eventLogFilename, "PalEventLog.json", 512);
     m_settings.debugOverlayEnabled = false;
     m_settings.debugOverlayConfig.visualConfirmEnabled = true;
     m_settings.debugOverlayConfig.timeGraphEnabled = false;
@@ -213,6 +219,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            &m_settings.alertsEnabled,
                            InternalSettingScope::PrivatePalKey);
 #endif
+
+    pDevice->ReadSetting(pEnableEventLogFileStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.enableEventLogFile,
+                           InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pDebugOverlayEnabledStr,
                            Util::ValueType::Boolean,
@@ -620,6 +631,21 @@ void PlatformSettingsLoader::InitSettingsInfo()
 #endif
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.enableEventLogFile;
+    info.valueSize = sizeof(m_settings.enableEventLogFile);
+    m_settingsInfoMap.Insert(3288205286, info);
+
+    info.type      = SettingType::String;
+    info.pValuePtr = &m_settings.eventLogDirectory;
+    info.valueSize = sizeof(m_settings.eventLogDirectory);
+    m_settingsInfoMap.Insert(3789517094, info);
+
+    info.type      = SettingType::String;
+    info.pValuePtr = &m_settings.eventLogFilename;
+    info.valueSize = sizeof(m_settings.eventLogFilename);
+    m_settingsInfoMap.Insert(3387502554, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.debugOverlayEnabled;
     info.valueSize = sizeof(m_settings.debugOverlayEnabled);
     m_settingsInfoMap.Insert(3362163801, info);
@@ -965,7 +991,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 1933575272;
+            component.settingsDataHash = 1587645904;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

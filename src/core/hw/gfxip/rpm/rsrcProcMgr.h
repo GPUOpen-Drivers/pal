@@ -103,10 +103,14 @@ public:
         uint32                       regionCount,
         const TypedBufferCopyRegion* pRegions) const;
 
-    virtual void CmdScaledCopyImage(
+    void CmdScaledCopyImage(
         GfxCmdBuffer*           pCmdBuffer,
         const ScaledCopyInfo&   copyInfo,
         ScaledCopyInternalFlags flags) const;
+
+    void CmdGenerateMipmaps(
+        GfxCmdBuffer*         pCmdBuffer,
+        const GenMipmapsInfo& genInfo) const;
 
     void CmdColorSpaceConversionCopy(
         GfxCmdBuffer*                     pCmdBuffer,
@@ -590,6 +594,11 @@ private:
         const ImageResolveRegion* pRegions,
         uint32                    regionCount,
         ResolveMethod             method) const;
+
+    bool ScaledCopyImageUseGraphics(
+        GfxCmdBuffer*           pCmdBuffer,
+        const ScaledCopyInfo&   copyInfo,
+        ScaledCopyInternalFlags flags) const;
 
     GfxDevice*const  m_pDevice;
     uint32           m_srdAlignment; // All SRDs must be offset and size aligned to this many DWORDs.

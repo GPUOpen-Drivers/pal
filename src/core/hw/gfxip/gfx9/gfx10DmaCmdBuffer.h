@@ -59,11 +59,17 @@ public:
         ImmediateDataWidth dataSize,
         gpusize            address) override;
 
+    virtual uint32 CmdInsertExecutionMarker() override;
+
 protected:
     virtual ~DmaCmdBuffer() {}
 
     virtual Result AddPreamble() override;
     virtual Result AddPostamble() override;
+
+    virtual bool SupportsExecutionMarker() { return true; }
+    virtual void BeginExecutionMarker(uint64 clientHandle) override;
+    virtual void EndExecutionMarker() override;
 
     virtual void SetupDmaInfoExtent(DmaImageInfo*  pImageInfo) const override;
 

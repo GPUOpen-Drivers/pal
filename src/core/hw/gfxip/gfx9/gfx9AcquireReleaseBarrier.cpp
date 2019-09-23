@@ -262,10 +262,10 @@ static uint32 Gfx9ConvertToReleaseSyncFlags(
 // Fill in a given BarrierOperations struct with info about a layout transition
 static BarrierTransition AcqRelBuildTransition(
     const ImgBarrier*             pBarrier,
-    HwLayoutTransition            transition,
+    LayoutTransitionInfo          transitionInfo,
     Developer::BarrierOperations* pBarrierOps)
 {
-    switch (transition)
+    switch (transitionInfo.blt)
     {
     case ExpandDepthStencil:
         pBarrierOps->layoutTransitions.depthStencilExpand = 1;
@@ -277,7 +277,10 @@ static BarrierTransition AcqRelBuildTransition(
         pBarrierOps->layoutTransitions.depthStencilResummarize = 1;
         break;
     case FastClearEliminate:
-        pBarrierOps->layoutTransitions.fastClearEliminate = 1;
+        if (transitionInfo.flags.fceIsSkipped == false)
+        {
+            pBarrierOps->layoutTransitions.fastClearEliminate = 1;
+        }
         break;
     case FmaskDecompress:
         pBarrierOps->layoutTransitions.fmaskDecompress = 1;
@@ -351,44 +354,6 @@ static void UpdateCmdBufStateFromAcquire(
 }
 
 // =====================================================================================================================
-// Translate acquire's accessMask to CoherCntl.
-static uint32 Gfx10BuildAcquireCoherCntl(
-    EngineType                    engineType,
-    uint32                        accessMask,
-    Developer::BarrierOperations* pBarrierOps)
-{
-    PAL_ASSERT(pBarrierOps != nullptr);
-    // K$ and I$ and all previous tcCacheOp controlled caches are moved to GCR fields, set in CalcAcquireMemGcrCntl().
-    regCP_COHER_CNTL cpCoherCntl = {};
-
-    // We do direct conversion from accessMask to hardware cache sync bits to avoid the unnecessary transition to
-    // cacheSyncFlags. We don't want transition gfx10's accessMask to cacheSyncFlags because cacheSyncFlags are Gfx9
-    // style.
-    const bool wbInvCbData = TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear | CoherColorTarget);
-    const bool wbInvDb     = TestAnyFlagSet(accessMask, CoherCopy    |
-                                                        CoherResolve |
-                                                        CoherClear   |
-                                                        CoherDepthStencilTarget);
-
-    if (wbInvCbData)
-    {
-        cpCoherCntl.bits.CB_ACTION_ENA = 1;
-        pBarrierOps->caches.invalCb    = 1;
-        pBarrierOps->caches.flushCb    = 1;
-    }
-    if (wbInvDb)
-    {
-        cpCoherCntl.bits.DB_ACTION_ENA      = 1;
-        pBarrierOps->caches.invalDb         = 1;
-        pBarrierOps->caches.flushDb         = 1;
-        pBarrierOps->caches.invalDbMetadata = 1;
-        pBarrierOps->caches.flushDbMetadata = 1;
-    }
-
-    return cpCoherCntl.u32All;
-}
-
-// =====================================================================================================================
 // Look up for the stage and access mask associate with the transition.
 static void GetBltStageAccessInfo(
     LayoutTransitionInfo info,
@@ -429,6 +394,12 @@ static void GetBltStageAccessInfo(
         break;
 
     case HwLayoutTransition::FastClearEliminate:
+        if (info.flags.fceIsSkipped == false)
+        {
+            *pStageMask  = PipelineStageColorTarget;
+            *pAccessMask = CoherColorTarget;
+        }
+        break;
     case HwLayoutTransition::FmaskDecompress:
         *pStageMask  = PipelineStageColorTarget;
         *pAccessMask = CoherColorTarget;
@@ -600,12 +571,13 @@ void Device::AcqRelColorTransition(
                 PAL_ASSERT(layoutTransInfo.blt == HwLayoutTransition::FastClearEliminate);
 
                 // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
-                bool isSubmitted = RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                                                    pCmdStream,
-                                                                    gfx9Image,
-                                                                    pMsaaState,
-                                                                    imgBarrier.pQuadSamplePattern,
-                                                                    imgBarrier.subresRange);
+                const bool isSubmitted = RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                                                          pCmdStream,
+                                                                          gfx9Image,
+                                                                          pMsaaState,
+                                                                          imgBarrier.pQuadSamplePattern,
+                                                                          imgBarrier.subresRange);
+                layoutTransInfo.flags.fceIsSkipped = (isSubmitted == false);
             }
 
             pMsaaState->Destroy();
@@ -622,8 +594,7 @@ void Device::AcqRelColorTransition(
         uint32 accessMask = 0;
 
         // Prepare release info for first pass BLT.
-        const LayoutTransitionInfo FirstPassBltInfo = { {}, layoutTransInfo.blt };
-        GetBltStageAccessInfo(FirstPassBltInfo, &stageMask, &accessMask);
+        GetBltStageAccessInfo(layoutTransInfo, &stageMask, &accessMask);
 
         const IGpuEvent* pEvent = pCmdBuf->GetInternalEvent();
         pCmdBuf->CmdResetEvent(*pEvent, HwPipePostIndexFetch);
@@ -632,8 +603,7 @@ void Device::AcqRelColorTransition(
         IssueReleaseSync(pCmdBuf, pCmdStream, stageMask, accessMask, false, pEvent, pBarrierOps);
 
         // Prepare second pass info.
-        const HwLayoutTransition   MsaaBlt     = HwLayoutTransition::MsaaColorDecompress;
-        const LayoutTransitionInfo MsaaBltInfo = { {}, MsaaBlt };
+        constexpr LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress };
 
         GetBltStageAccessInfo(MsaaBltInfo, &stageMask, &accessMask);
 
@@ -650,7 +620,7 @@ void Device::AcqRelColorTransition(
                          pBarrierOps);
 
         // Tell RGP about this transition
-        BarrierTransition rgpTransition = AcqRelBuildTransition(&imgBarrier, MsaaBlt, pBarrierOps);
+        BarrierTransition rgpTransition = AcqRelBuildTransition(&imgBarrier, MsaaBltInfo, pBarrierOps);
         DescribeBarrier(pCmdBuf, &rgpTransition, pBarrierOps);
 
         // And clear it so it can differentiate sync and async flushes
@@ -774,7 +744,8 @@ void Device::IssueAcquireSync(
 
     if (accessMask != 0)
     {
-        accessMask = OptimizeBltCacheAccess(pCmdBuf, accessMask);
+        // OptimizeBltCacheAccess() doesn't apply to acquire-sync. Acquire is for the future state, however the state
+        // tracking mechanism tracks past operations.
         pCmdSpace += BuildAcquireSyncPackets(engineType,
                                              stageMask,
                                              accessMask,
@@ -1290,7 +1261,7 @@ void Device::BarrierRelease(
 
                     if (transition.layoutTransInfo.flags.hasSecondPassBlt != 0)
                     {
-                        const LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress };
+                        constexpr LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress};
                         GetBltStageAccessInfo(MsaaBltInfo, &stageMask, &accessMask);
                     }
                     else
@@ -1447,7 +1418,7 @@ void Device::BarrierAcquire(
 
                     if (transition.layoutTransInfo.flags.hasSecondPassBlt != 0)
                     {
-                        const LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress };
+                        constexpr LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress };
                         GetBltStageAccessInfo(MsaaBltInfo, &stageMask, &accessMask);
                     }
                     else
@@ -1652,7 +1623,7 @@ void Device::IssueBlt(
     PAL_ASSERT(pBarrierOps != nullptr);
 
     // Tell RGP about this transition
-    BarrierTransition rgpTransition = AcqRelBuildTransition(pImgBarrier, layoutTransInfo.blt, pBarrierOps);
+    BarrierTransition rgpTransition = AcqRelBuildTransition(pImgBarrier, layoutTransInfo, pBarrierOps);
     DescribeBarrier(pCmdBuf, &rgpTransition, pBarrierOps);
 
     // And clear it so it can differentiate sync and async flushes
@@ -1691,6 +1662,9 @@ size_t Device::BuildReleaseSyncPackets(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
+    // OptimizeBltCacheAccess() should've been called to convert these BLT coherency flags to more specific ones.
+    PAL_ASSERT(TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear) == false);
+
     PAL_ASSERT(pBarrierOps != nullptr);
 
     // Issue RELEASE_MEM packets to flush caches (optional) and signal gpuEvent.
@@ -1707,7 +1681,7 @@ size_t Device::BuildReleaseSyncPackets(
     // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
     // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
     // flush CB metadata.
-    if (TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear | CoherColorTarget | CoherDepthStencilTarget))
+    if (TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget))
     {
         // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
         vgtEvents[vgtEventCount++] = CACHE_FLUSH_AND_INV_TS_EVENT;
@@ -1949,9 +1923,8 @@ size_t Device::BuildAcquireSyncPackets(
     {
         uint32 cacheSyncFlags = Gfx9ConvertToAcquireSyncFlags(accessMask, engineType, invalidateLlc, pBarrierOps);
 
-        // If there's no graphics support on this engine we shouldn't see gfx-specific requests.
-        PAL_ASSERT(TestAnyFlagSet(cacheSyncFlags, CacheSyncFlushAndInvRb) ==
-                   Pal::Device::EngineSupportsGraphics(engineType));
+        // "acquire" deson't need to invalidate RB because "release" always flush & invalidate RB.
+        cacheSyncFlags &= ~CacheSyncFlushAndInvRb;
 
         while (cacheSyncFlags != 0)
         {
@@ -1959,16 +1932,12 @@ size_t Device::BuildAcquireSyncPackets(
 
             regCP_COHER_CNTL cpCoherCntl = {};
             cpCoherCntl.u32All                       = Gfx9TcCacheOpConversionTable[tcCacheOp];
-            cpCoherCntl.bits.CB_ACTION_ENA           = TestAnyFlagSet(cacheSyncFlags, CacheSyncFlushAndInvCbData);
-            cpCoherCntl.bits.DB_ACTION_ENA           = TestAnyFlagSet(cacheSyncFlags, CacheSyncFlushAndInvDb);
             cpCoherCntl.bits.SH_KCACHE_ACTION_ENA    = TestAnyFlagSet(cacheSyncFlags, CacheSyncInvSqK$);
             cpCoherCntl.bits.SH_ICACHE_ACTION_ENA    = TestAnyFlagSet(cacheSyncFlags, CacheSyncInvSqI$);
             cpCoherCntl.bits.SH_KCACHE_WB_ACTION_ENA = TestAnyFlagSet(cacheSyncFlags, CacheSyncFlushSqK$);
 
-            cacheSyncFlags &= ~(CacheSyncFlushAndInvCbData |
-                                CacheSyncFlushAndInvDb     |
-                                CacheSyncInvSqK$           |
-                                CacheSyncInvSqI$           |
+            cacheSyncFlags &= ~(CacheSyncInvSqK$ |
+                                CacheSyncInvSqI$ |
                                 CacheSyncFlushSqK$);
 
             acquireMemInfo.coherCntl = cpCoherCntl.u32All;
@@ -1980,11 +1949,6 @@ size_t Device::BuildAcquireSyncPackets(
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
-        {
-            acquireMemInfo.coherCntl = Gfx10BuildAcquireCoherCntl(engineType, accessMask, pBarrierOps);
-        }
-
         // The only difference between the GFX9 and GFX10 versions of this packet are that GFX10
         // added a new "gcr_cntl" field.
         acquireMemInfo.gcrCntl = Gfx10BuildAcquireGcrCntl(accessMask,
@@ -1994,9 +1958,14 @@ size_t Device::BuildAcquireSyncPackets(
                                                           (acquireMemInfo.coherCntl != 0),
                                                           pBarrierOps);
 
-        // Build ACQUIRE_MEM packet.
-        dwordsWritten += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo,
-                                                           VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
+        // "acquire" deson't need to invalidate RB because "release" always flush & invalidate RB. GFX10's COHER_CNTL
+        // only controls RB flush/inv, so we never need to set COHER_CNTL here.
+        if (acquireMemInfo.gcrCntl != 0)
+        {
+            // Build ACQUIRE_MEM packet.
+            dwordsWritten += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo,
+                                                               VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
+        }
     }
 
     return dwordsWritten;

@@ -173,7 +173,9 @@ public:
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset) override;
     virtual void CmdScaledCopyImage(
-        const ScaledCopyInfo&        copyInfo) override;
+        const ScaledCopyInfo& copyInfo) override;
+    virtual void CmdGenerateMipmaps(
+        const GenMipmapsInfo& genInfo) override;
     virtual void CmdColorSpaceConversionCopy(
         const IImage&                     srcImage,
         ImageLayout                       srcImageLayout,
@@ -465,6 +467,7 @@ public:
 
     virtual void CmdCommentString(
         const char* pComment) override;
+    virtual uint32 CmdInsertExecutionMarker() override;
     virtual void CmdXdmaWaitFlipPending() override;
     virtual void CmdStartGpuProfilerLogging() override;
     virtual void CmdStopGpuProfilerLogging() override;

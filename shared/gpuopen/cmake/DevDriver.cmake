@@ -79,7 +79,11 @@ macro(apply_gpuopen_warnings _target)
         endif()
 
     else()
-        set_property(TARGET ${_target} PROPERTY CXX_STANDARD 11)
+        if (WIN32)
+            set_property(TARGET ${_target} PROPERTY CXX_STANDARD 14)
+        else()
+            set_property(TARGET ${_target} PROPERTY CXX_STANDARD 11)
+        endif()
     endif()
 
     # Do not fallback to c++98 if the compiler does not support 11/17.
@@ -135,3 +139,30 @@ macro(apply_gpuopen_warnings _target)
     endif()
 endmacro()
 
+function(devdriver_target name)
+
+    amd_target(${name} ${ARGN})
+    apply_gpuopen_warnings(${name})
+
+endfunction()
+
+function(devdriver_executable name)
+
+    amd_executable(${name} ${ARGN})
+    apply_gpuopen_warnings(${name})
+
+endfunction()
+
+function(devdriver_library name type)
+
+    amd_library(${name} ${type} ${ARGN})
+    apply_gpuopen_warnings(${name})
+
+endfunction()
+
+function(devdriver_um_library name type)
+
+    amd_um_library(${name} ${type} ${ARGN})
+    apply_gpuopen_warnings(${name})
+
+endfunction()

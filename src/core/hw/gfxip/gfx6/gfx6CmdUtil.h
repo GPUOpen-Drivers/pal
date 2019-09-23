@@ -268,6 +268,13 @@ public:
 
     size_t BuildEventWriteQuery(VGT_EVENT_TYPE eventType, gpusize address, void* pBuffer) const;
 
+    size_t BuildExecutionMarker(
+        gpusize markerAddr,
+        uint32  markerVal,
+        uint64  clientHandle,
+        uint32  markerType,
+        void*   pBuffer) const;
+
     size_t BuildGenericSync(
         regCP_COHER_CNTL cpCoherCntl,
         uint32           syncEngine,

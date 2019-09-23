@@ -247,13 +247,13 @@ public:
     CmdBuffer*    DummyCmdBuffer() const { return m_pDummyCmdBuffer; }
     Result        DummySubmit(bool postBatching);
 
-    bool IsExclusiveCompute() const { return (m_engineType == EngineTypeExclusiveCompute); }
-    bool IsWindowedPriorBlit() const { return (m_flags.windowedPriorBlit != 0); }
+    bool UsesDispatchTunneling()      const { return (m_flags.dispatchTunneling      != 0); }
+    bool IsWindowedPriorBlit()        const { return (m_flags.windowedPriorBlit      != 0); }
     bool UsesPhysicalModeSubmission() const { return (m_flags.physicalModeSubmission != 0); }
-    bool IsPreemptionSupported() const { return (m_flags.midCmdBufPreemption != 0); }
+    bool IsPreemptionSupported()      const { return (m_flags.midCmdBufPreemption    != 0); }
 
     uint32 PersistentCeRamOffset() const { return m_persistentCeRamOffset; }
-    uint32 PersistentCeRamSize() const { return m_persistentCeRamSize; }
+    uint32 PersistentCeRamSize()   const { return m_persistentCeRamSize; }
 
     IQueueSemaphore* WaitingSemaphore() const { return m_pWaitingSemaphore; }
     void SetWaitingSemaphore(IQueueSemaphore* pQueueSemaphore) { m_pWaitingSemaphore = pQueueSemaphore; }
@@ -330,7 +330,8 @@ protected:
             uint32  windowedPriorBlit      :  1;
             uint32  placeholder0           :  1;
             uint32  placeholder1           :  1;
-            uint32  reserved               : 27;
+            uint32  dispatchTunneling      :  1;
+            uint32  reserved               : 26;
         };
         uint32  u32All;
     }  m_flags; // Flags describing properties of this Queue.

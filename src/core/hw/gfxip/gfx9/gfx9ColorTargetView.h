@@ -51,9 +51,9 @@ class ColorTargetView : public Pal::IColorTargetView
 {
 public:
     ColorTargetView(
-        const Device*                            pDevice,
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo);
+        const Device*                     pDevice,
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo);
 
     virtual uint32* WriteCommands(
         uint32      slot,
@@ -83,6 +83,8 @@ public:
 
     TargetExtent2d GetExtent() const { return m_extent; }
 
+    bool IsRotatedSwizzleOverwriteCombinerDisabled() const { return m_flags.disableRotateSwizzleOC != 0; }
+
 protected:
     virtual ~ColorTargetView()
     {
@@ -107,12 +109,12 @@ protected:
 
     template <typename Pm4ImgType, typename CbColorViewType>
     void InitCommonImageView(
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo,
-        const Extent3d&                          baseExtent,
-        Pm4ImgType*                              pPm4Img,
-        regCB_COLOR0_INFO*                       pCbColorInfo,
-        CbColorViewType*                         pCbColorView) const;
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo,
+        const Extent3d&                   baseExtent,
+        Pm4ImgType*                       pPm4Img,
+        regCB_COLOR0_INFO*                pCbColorInfo,
+        CbColorViewType*                  pCbColorView) const;
 
     template <typename Pm4ImgType>
     void UpdateImageVa(Pm4ImgType* pPm4Img) const;
@@ -121,17 +123,21 @@ protected:
     {
         struct
         {
-            uint32 isBufferView          :  1; // Indicates that this is a buffer view instead of an image view. Note
-                                               // that none of the metadata flags will be set if isBufferView is set.
-            uint32 viewVaLocked          :  1; // Whether the view's VA range is locked and won't change. This will
-                                               // always be set for buffer views.
-            uint32 hasCmaskFmask         :  1; // set if the associated image contains fMask and cMask meta data
-            uint32 hasDcc                :  1; // set if the associated image contains DCC meta data
-            uint32 hasDccStateMetaData   :  1; // set if the associated image contains DCC state metadata.
-            uint32 isDccDecompress       :  1; // Indicates if dcc metadata need to be set to decompress state.
-            uint32 waitOnMetadataMipTail :  1; // Set if the CmdBindTargets should insert a stall when binding this
-                                               // view object.
-            uint32 reserved              : 25;
+            uint32 isBufferView           :  1; // Indicates that this is a buffer view instead of an image view. Note
+                                                // that none of the metadata flags will be set if isBufferView is set.
+            uint32 viewVaLocked           :  1; // Whether the view's VA range is locked and won't change. This will
+                                                // always be set for buffer views.
+            uint32 hasCmaskFmask          :  1; // set if the associated image contains fMask and cMask meta data
+            uint32 hasDcc                 :  1; // set if the associated image contains DCC meta data
+            uint32 hasDccStateMetaData    :  1; // set if the associated image contains DCC state metadata.
+            uint32 isDccDecompress        :  1; // Indicates if dcc metadata need to be set to decompress state.
+            uint32 waitOnMetadataMipTail  :  1; // Set if the CmdBindTargets should insert a stall when binding this
+                                                // view object.
+            uint32 useSubresBaseAddr      :  1; // Indicates that this view's base address is subresource based.
+            uint32 disableRotateSwizzleOC :  1; // Indicate that the for the assocaited image, whether the
+                                                // Overwrite Combiner (OC) needs to be disabled
+
+            uint32 reserved               : 23;
         };
 
         uint32 u32All;
@@ -196,9 +202,9 @@ class Gfx9ColorTargetView : public ColorTargetView
 {
 public:
     Gfx9ColorTargetView(
-        const Device*                            pDevice,
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo);
+        const Device*                     pDevice,
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo);
 
     virtual uint32* WriteCommands(
         uint32      slot,
@@ -217,8 +223,8 @@ protected:
 private:
     void BuildPm4Headers();
     void InitRegisters(
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo);
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo);
 
     // Image of PM4 commands used to write this View to hardware for buffer views or for image views with full
     // compression enabled.
@@ -273,9 +279,9 @@ class Gfx10ColorTargetView : public ColorTargetView
 {
 public:
     Gfx10ColorTargetView(
-        const Device*                            pDevice,
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo);
+        const Device*                     pDevice,
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo);
 
     virtual uint32* WriteCommands(
         uint32      slot,
@@ -298,8 +304,8 @@ protected:
 private:
     void BuildPm4Headers();
     void InitRegisters(
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo);
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo);
 
     // Image of PM4 commands used to write this View to hardware for buffer views or for image views with full
     // compression enabled.
@@ -313,6 +319,7 @@ private:
         struct
         {
             uint32 placeholder0 :  2;
+            uint32 placeholder1 :  1;
             uint32 reserved     : 30;
         };
         uint32 u32All;

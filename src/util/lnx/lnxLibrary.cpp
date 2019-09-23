@@ -58,11 +58,10 @@ void Library::Close()
 
 // =====================================================================================================================
 // Intended as an alternative to Close() on Windows platforms because it is unsafe in Windows to unload a DLL when your
-// DLL is possible already being unloaded.
+// DLL is possible already being unloaded.  On Linux, however, this just calls Close() because that problem doesn't
+// exist here.
 void Library::ReleaseWithoutClosing()
 {
-    // The amdgpu back-end has no real use for calling this function to begin with, but its safest to simply call close
-    // in case we ever get here.
     Close();
 }
 

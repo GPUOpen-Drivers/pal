@@ -234,6 +234,8 @@ Device::Device(
     m_settingsMgr(SettingsFileName, pPlatform),
     m_copyQueuesLock(),
     m_pInternalCopyQueue(nullptr),
+    m_copyCmdBufferLock(),
+    m_pInternalCopyCmdBuffer(nullptr),
     m_referencedGpuMem(ReferencedMemoryMapElements, pPlatform),
     m_referencedGpuMemLock(),
     m_pAddrMgr(nullptr),
@@ -307,6 +309,11 @@ Device::~Device()
     {
         m_pAddrMgr->Destroy();
         m_pAddrMgr = nullptr;
+    }
+
+    if (m_pInternalCopyCmdBuffer != nullptr)
+    {
+        m_pInternalCopyCmdBuffer->DestroyInternal();
     }
 
     PAL_SAFE_DELETE(m_pSettingsLoader, m_pPlatform);
@@ -479,6 +486,11 @@ Result Device::EarlyInit(
         result = m_copyQueuesLock.Init();
     }
 
+    if (result == Result::Success)
+    {
+        result = m_copyCmdBufferLock.Init();
+    }
+
     return result;
 }
 
@@ -639,21 +651,21 @@ Result Device::HwlEarlyInit()
 void Device::InitPerformanceRatings()
 {
     // Performance rating denominator.
-    constexpr uint32 PerfRatingDenominator = 100;
-
-    // Memory performance multipliers.
-    constexpr uint32 MemPerfMultiplierGddr5 = 4;
-    constexpr uint32 MemPerfMultiplierOther = 2;
+    constexpr uint64 PerfRatingDenominator = 100;
 
     // CU performance multiplier.
-    constexpr uint32 DGpuCuPerfMultiplier = 115;
-    constexpr uint32 IGpuCuPerfMultiplier = 100;
+    constexpr float DGpuCuPerfMultiplier = 1.15f;
+    constexpr float IGpuCuPerfMultiplier = 1.0f;
 
-    // compute engine performance rating
-    const uint32 cuMultiplier = (m_chipProperties.gpuType == GpuType::Integrated) ? IGpuCuPerfMultiplier
+    // Compute engine performance rating
+    const float cuMultiplier  = (m_chipProperties.gpuType == GpuType::Integrated) ? IGpuCuPerfMultiplier
                                                                                   : DGpuCuPerfMultiplier;
-    uint32 numCuPerSh   = 0;
-    uint32 numSimdPerCu = 0;
+    uint32 simdWidthMultiplier = 16;
+    uint32 numShaderEngines    = 0;
+    uint32 numShaderArrays     = 1;
+    uint32 numCuPerSh          = 0;
+    uint32 numSimdPerCu        = 0;
+    uint32 numWavesPerSimd     = 0;
 
 #if PAL_BUILD_GFX
     switch (m_chipProperties.gfxLevel)
@@ -663,14 +675,27 @@ void Device::InitPerformanceRatings()
         case GfxIpLevel::GfxIp7:
         case GfxIpLevel::GfxIp8:
         case GfxIpLevel::GfxIp8_1:
-            numCuPerSh   = m_chipProperties.gfx6.numCuPerSh;
-            numSimdPerCu = m_chipProperties.gfx6.numSimdPerCu;
+            numShaderEngines = m_chipProperties.gfx6.numShaderEngines;
+            numShaderArrays  = m_chipProperties.gfx6.numShaderArrays;
+            numCuPerSh       = m_chipProperties.gfx6.numCuPerSh;
+            numSimdPerCu     = m_chipProperties.gfx6.numSimdPerCu;
+            numWavesPerSimd  = m_chipProperties.gfx6.numWavesPerSimd;
             break;
 #endif
         case GfxIpLevel::GfxIp9:
+            numShaderEngines = m_chipProperties.gfx9.numShaderEngines;
+            numShaderArrays  = m_chipProperties.gfx9.numShaderArrays;
+            numCuPerSh       = m_chipProperties.gfx9.numCuPerSh;
+            numSimdPerCu     = m_chipProperties.gfx9.numSimdPerCu;
+            numWavesPerSimd  = m_chipProperties.gfx9.numWavesPerSimd;
+            break;
         case GfxIpLevel::GfxIp10_1:
-            numCuPerSh   = m_chipProperties.gfx9.numCuPerSh;
-            numSimdPerCu = m_chipProperties.gfx9.numSimdPerCu;
+            simdWidthMultiplier = 32;
+            numShaderEngines    = m_chipProperties.gfx9.numShaderEngines;
+            numShaderArrays     = m_chipProperties.gfx9.numShaderArrays;
+            numCuPerSh          = m_chipProperties.gfx9.numCuPerSh;
+            numSimdPerCu        = m_chipProperties.gfx9.numSimdPerCu;
+            numWavesPerSimd     = m_chipProperties.gfx9.numWavesPerSimd;
             break;
         case GfxIpLevel::None:
             // No Graphics IP block found or recognized!
@@ -679,13 +704,18 @@ void Device::InitPerformanceRatings()
     }
 #endif
 
-    m_chipProperties.enginePerfRating = (m_chipProperties.maxEngineClock * numCuPerSh * numSimdPerCu * cuMultiplier)
-                                                            / PerfRatingDenominator;
-    // compute memory performance rating
-    const uint32 memMultiplier = (m_memoryProperties.localMemoryType == LocalMemoryType::Gddr5) ?
-                                                        MemPerfMultiplierGddr5 : MemPerfMultiplierOther;
+    const uint64 numSimdWaveSlots     = numShaderEngines *
+                                        numShaderArrays  *
+                                        numCuPerSh       *
+                                        numSimdPerCu     *
+                                        numWavesPerSimd;
+    const uint64 simdPerf             = static_cast<uint64>(numSimdWaveSlots * simdWidthMultiplier * cuMultiplier);
+    const uint64 maxEngineClock       = m_chipProperties.maxEngineClock;
+    m_chipProperties.enginePerfRating = static_cast<uint32>((simdPerf * maxEngineClock) / PerfRatingDenominator);
 
-    uint32 memoryPerfValue = m_chipProperties.maxMemoryClock * m_memoryProperties.vramBusBitWidth * memMultiplier;
+    uint32 memoryPerfValue = m_chipProperties.maxMemoryClock    *
+                             m_memoryProperties.vramBusBitWidth *
+                             m_memoryProperties.memOpsPerClock;
 
     if (m_chipProperties.gpuType == GpuType::Integrated)
     {
@@ -1516,7 +1546,9 @@ Result Device::CreateEngine(
     {
     case EngineTypeUniversal:
     case EngineTypeCompute:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     case EngineTypeExclusiveCompute:
+#endif
 #if PAL_BUILD_GFX
         if (m_pGfxDevice != nullptr)
         {
@@ -1582,7 +1614,9 @@ Result Device::CreateDummyCommandStreams()
 #if PAL_BUILD_GFX
             case EngineTypeUniversal:
             case EngineTypeCompute:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
             case EngineTypeExclusiveCompute:
+#endif
                 if (m_pGfxDevice != nullptr)
                 {
                     result = m_pGfxDevice->CreateDummyCommandStream(engineType, &m_pDummyCommandStreams[engineType]);
@@ -1708,7 +1742,7 @@ Result Device::GetProperties(
         for (uint32 i = 0; i < EngineTypeCount; ++i)
         {
             const auto& engineInfo  = m_engineProperties.perEngine[i];
-            auto*       pEngineInfo = &pInfo->engineProperties[i];
+            auto*const  pEngineInfo = &pInfo->engineProperties[i];
 
             pEngineInfo->engineCount                   = engineInfo.numAvailable;
             pEngineInfo->queueSupport                  = engineInfo.queueSupport;
@@ -1751,7 +1785,17 @@ Result Device::GetProperties(
 
             for (uint32 engineIdx = 0; engineIdx < MaxAvailableEngines; engineIdx++)
             {
-                pEngineInfo->engineSubType[engineIdx] = engineInfo.engineSubType[engineIdx];
+                const auto& capabilitiesInfo  = engineInfo.capabilities[engineIdx];
+                auto*const  pCapabilitiesInfo = &pEngineInfo->capabilities[engineIdx];
+
+                pCapabilitiesInfo->flags.exclusive                  = capabilitiesInfo.flags.exclusive;
+                pCapabilitiesInfo->flags.mustUseDispatchTunneling   = capabilitiesInfo.flags.mustUseDispatchTunneling;
+                pCapabilitiesInfo->queuePrioritySupport             = capabilitiesInfo.queuePrioritySupport;
+                pCapabilitiesInfo->dispatchTunnelingPrioritySupport = capabilitiesInfo.dispatchTunnelingPrioritySupport;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
+                pEngineInfo->engineSubType[engineIdx]        = engineInfo.engineSubType[engineIdx];
+#endif
             }
 
             for (uint32 j = 0; j < CmdAllocatorTypeCount; j++)
@@ -1860,6 +1904,9 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.u32All                         = 0;
             pInfo->gfxipProperties.flags.support8bitIndices             = gfx6Props.support8bitIndices;
             pInfo->gfxipProperties.flags.support16BitInstructions       = gfx6Props.support16BitInstructions;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
+            pInfo->gfxipProperties.flags.support64BitInstructions       = gfx6Props.support64BitInstructions;
+#endif
             pInfo->gfxipProperties.flags.supports2BitSignedValues       = gfx6Props.supports2BitSignedValues;
             pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter  = 0; // GFX6-8 only support single channel
                                                                              // min/max filter
@@ -1945,6 +1992,9 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.support8bitIndices               = 0;
             pInfo->gfxipProperties.flags.supportFp16Fetch                   = gfx9Props.supportFp16Fetch;
             pInfo->gfxipProperties.flags.support16BitInstructions           = gfx9Props.support16BitInstructions;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
+            pInfo->gfxipProperties.flags.support64BitInstructions           = gfx9Props.support64BitInstructions;
+#endif
             pInfo->gfxipProperties.flags.supportDoubleRate16BitInstructions =
                 gfx9Props.supportDoubleRate16BitInstructions;
             pInfo->gfxipProperties.flags.supportConservativeRasterization = gfx9Props.supportConservativeRasterization;
@@ -2999,6 +3049,11 @@ Result Device::CreateGpuMemory(
         }
 
         (*ppGpuMemory) = pGpuMemory;
+
+        m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(
+            pGpuMemory,
+            result,
+            false);
     }
 
     return result;
@@ -3052,6 +3107,11 @@ Result Device::CreateInternalGpuMemory(
             (*ppGpuMemory)->Destroy();
             (*ppGpuMemory) = nullptr;
         }
+
+        m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(
+            (*ppGpuMemory),
+            result,
+            (internalInfo.flags.isClient == false));
     }
 
     return result;
@@ -3100,6 +3160,10 @@ Result Device::CreatePinnedGpuMemory(
         }
 
         (*ppGpuMemory) = pGpuMemory;
+        m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(
+            pGpuMemory,
+            result,
+            false);
     }
 
     return result;
@@ -3150,6 +3214,10 @@ Result Device::CreateSvmGpuMemory(
         }
 
         (*ppGpuMemory) = pGpuMemory;
+        m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(
+            pGpuMemory,
+            result,
+            false);
     }
 
     return result;
@@ -3395,12 +3463,14 @@ Result Device::CreateColorTargetView(
 // =====================================================================================================================
 // Creates and initializes a new color target view for PAL internal use
 Result Device::CreateInternalColorTargetView(
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo,
-    void*                                    pPlacementAddr,
-    IColorTargetView**                       ppColorTargetView
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo,
+    void*                             pPlacementAddr,
+    IColorTargetView**                ppColorTargetView
     ) const
 {
+    static_assert(sizeof(ColorTargetViewInternalCreateInfo) <= sizeof(uint64), "Consider passing by ref.");
+
     return (m_pGfxDevice != nullptr) ?
         m_pGfxDevice->CreateColorTargetView(createInfo, internalInfo, pPlacementAddr, ppColorTargetView) :
         Result::ErrorUnavailable;
@@ -4065,6 +4135,29 @@ Result Device::AddGpuMemoryReferences(
     uint32              flags
     )
 {
+    m_pPlatform->GetEventProvider()->LogGpuMemoryAddReferencesEvent(gpuMemRefCount, pGpuMemoryRefs, pQueue, flags);
+    return AddToReferencedMemoryTotals(gpuMemRefCount, pGpuMemoryRefs);
+}
+
+// =====================================================================================================================
+Result Device::RemoveGpuMemoryReferences(
+    uint32            gpuMemoryCount,
+    IGpuMemory*const* ppGpuMemory,
+    IQueue*           pQueue
+    )
+{
+    m_pPlatform->GetEventProvider()->LogGpuMemoryRemoveReferencesEvent(gpuMemoryCount, ppGpuMemory, pQueue);
+    return SubtractFromReferencedMemoryTotals(gpuMemoryCount, ppGpuMemory, false);
+}
+
+// =====================================================================================================================
+// For each GPU memory object:
+// - Increment its refcount
+// - If it wasn't referenced before, update its preferred heap's total size.
+Result Device::AddToReferencedMemoryTotals(
+    uint32              gpuMemRefCount,
+    const GpuMemoryRef* pGpuMemoryRefs)
+{
     Result result = Result::Success;
 
     MutexAuto lock(&m_referencedGpuMemLock);
@@ -4101,13 +4194,16 @@ Result Device::AddGpuMemoryReferences(
 }
 
 // =====================================================================================================================
-Result Device::RemoveGpuMemoryReferences(
+// For each GPU memory object:
+// - Decrement its refcount
+// - If all references are released, update its preferred heap's total size.
+// forceSubtract forces this function to release all references and update the heap size. We expect this to be used
+// when GPU memory objects are destroyed.
+Result Device::SubtractFromReferencedMemoryTotals(
     uint32            gpuMemoryCount,
     IGpuMemory*const* ppGpuMemory,
-    IQueue*           pQueue
-    )
+    bool              forceSubtract)
 {
-
     MutexAuto lock(&m_referencedGpuMemLock);
 
     for (uint32 i = 0; i < gpuMemoryCount; i++)
@@ -4116,7 +4212,7 @@ Result Device::RemoveGpuMemoryReferences(
         if (pValue != nullptr)
         {
             PAL_ASSERT(*pValue > 0);
-            if (--(*pValue) == 0)
+            if ((--(*pValue) == 0) || forceSubtract)
             {
                 m_referencedGpuMem.Erase(ppGpuMemory[i]);
 
@@ -4354,7 +4450,19 @@ void Device::ApplyDevOverlay(
                                      letterHeight);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
-        // Print the Client Id on screen
+        // Print the client string and Client Id on screen
+        static const char* pClientStr = "AMD Vulkan Driver";
+        Util::Snprintf(overlayTextBuffer,
+            OverlayTextBufferSize,
+            "Client: %s",
+            pClientStr);
+        m_pTextWriter->DrawDebugText(dstImage,
+            pCmdBuffer,
+            overlayTextBuffer,
+            0,
+            letterHeight);
+        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+
         Util::Snprintf(overlayTextBuffer,
                        OverlayTextBufferSize,
                        "Client Id: %d",
@@ -4418,11 +4526,14 @@ void Device::ApplyDevOverlay(
 bool Device::EngineSupportsCompute(
     EngineType  engineType)
 {
-    bool  supportsCompute = ((engineType == EngineTypeCompute)   ||
-                             (engineType == EngineTypeUniversal) ||
-                             (engineType == EngineTypeExclusiveCompute));
-
-    supportsCompute |= (engineType == EngineTypeHighPriorityUniversal);
+    const bool supportsCompute = ((engineType == EngineTypeCompute)   ||
+                                  (engineType == EngineTypeUniversal)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
+                                                                             ||
+                                  (engineType == EngineTypeExclusiveCompute) ||
+                                  (engineType == EngineTypeHighPriorityUniversal)
+#endif
+                                  );
 
     return supportsCompute;
 }
@@ -4431,11 +4542,13 @@ bool Device::EngineSupportsCompute(
 bool Device::EngineSupportsGraphics(
     EngineType  engineType)
 {
-    bool  supportsGraphics = (engineType == EngineTypeUniversal);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
+    const bool supportsGfx = (engineType == EngineTypeUniversal);
+#else
+    const bool supportsGfx = (engineType == EngineTypeUniversal) || (engineType == EngineTypeHighPriorityUniversal);
+#endif
 
-    supportsGraphics |= (engineType == EngineTypeHighPriorityUniversal);
-
-    return supportsGraphics;
+    return supportsGfx;
 }
 
 // =====================================================================================================================
@@ -4624,6 +4737,23 @@ Result Device::CreateInternalQueue(
 }
 
 // =====================================================================================================================
+// Creates internal copy command buffer for serialized internal DMA operations.
+Result Device::CreateInternalCopyCmdBuffer()
+{
+    Result result = Result::Success;
+
+    CmdBufferCreateInfo cmdBufCreateInfo = { };
+    cmdBufCreateInfo.engineType          = EngineType::EngineTypeDma;
+    cmdBufCreateInfo.queueType           = QueueType::QueueTypeDma;
+    cmdBufCreateInfo.pCmdAllocator       = InternalCmdAllocator(EngineType::EngineTypeDma);
+
+    CmdBufferInternalCreateInfo cmdBufInternalCreateInfo = { };
+    cmdBufInternalCreateInfo.flags.isInternal            = true;
+
+    return CreateInternalCmdBuffer(cmdBufCreateInfo, cmdBufInternalCreateInfo, &m_pInternalCopyCmdBuffer);
+}
+
+// =====================================================================================================================
 // Creates a DMA queue and fence which are meant for uploading pipeline binaries to local invisible heap.
 Result Device::CreateInternalCopyQueues()
 {
@@ -4634,11 +4764,98 @@ Result Device::CreateInternalCopyQueues()
     QueueCreateInfo queueCreateInfo = { };
     queueCreateInfo.queueType       = QueueType::QueueTypeDma;
     queueCreateInfo.engineType      = EngineType::EngineTypeDma;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
+    queueCreateInfo.priority        = QueuePriority::Normal;
+#else
     queueCreateInfo.priority        = QueuePriority::Low;
+#endif
     queueCreateInfo.engineIndex     = numEnginesAvailable - 1;
 
     result = CreateInternalQueue(queueCreateInfo, &m_pInternalCopyQueue);
     PAL_ASSERT(result == Result::Success);
+
+    return result;
+}
+
+// =====================================================================================================================
+// Performs a CP DMA copy from a cpu accessible buffer to gpu memory.
+Result Device::CopyUsingEmbeddedData(
+    const void* pSrcMem,
+    gpusize     copySize,
+    gpusize     destOffset,
+    GpuMemory*  pDstGpuMemory)
+{
+    PAL_ASSERT(pSrcMem != nullptr);
+
+    MutexAuto lock(&m_copyCmdBufferLock);
+    Result result = Result::Success;
+
+    if (m_pInternalCopyCmdBuffer == nullptr)
+    {
+        result = CreateInternalCopyCmdBuffer();
+    }
+
+    if ((result == Result::Success) && (copySize > 0))
+    {
+        CmdBufferBuildFlags flags     = { };
+        flags.optimizeExclusiveSubmit = true;
+        flags.optimizeOneTimeSubmit   = true;
+
+        CmdBufferBuildInfo buildInfo = { };
+        buildInfo.flags              = flags;
+        m_pInternalCopyCmdBuffer->Begin(buildInfo);
+
+        int64 bytesLeft                = copySize;
+        const uint32 embeddedDataLimit = m_pInternalCopyCmdBuffer->GetEmbeddedDataLimit() * sizeof(uint32);
+        gpusize dstOffset              = destOffset;
+        size_t srcOffset               = 0;
+
+        do
+        {
+            const gpusize allocSize = (embeddedDataLimit >= bytesLeft) ? bytesLeft : embeddedDataLimit;
+
+            GpuMemory* pGpuMem   = nullptr;
+            gpusize gpuMemOffset = 0;
+
+            void*const pEmbeddedData = m_pInternalCopyCmdBuffer->CmdAllocateEmbeddedData(
+                NumBytesToNumDwords(static_cast<uint32>(allocSize)), 1, &pGpuMem, &gpuMemOffset);
+
+            PAL_ASSERT(pEmbeddedData != nullptr);
+
+            const void*const pSrcData = VoidPtrInc(pSrcMem, srcOffset);
+            memcpy(pEmbeddedData, pSrcData, static_cast<size_t>(allocSize));
+
+            MemoryCopyRegion copyRegion = { };
+            copyRegion.copySize         = allocSize;
+            copyRegion.dstOffset        = dstOffset;
+            copyRegion.srcOffset        = gpuMemOffset;
+
+            m_pInternalCopyCmdBuffer->CmdCopyMemory(*pGpuMem, *pDstGpuMemory, 1, &copyRegion);
+
+            dstOffset += allocSize;
+            srcOffset += static_cast<size_t>(allocSize);
+            bytesLeft -= embeddedDataLimit;
+
+        } while (bytesLeft > 0);
+
+        result = m_pInternalCopyCmdBuffer->End();
+
+        if (result == Result::Success)
+        {
+            ICmdBuffer*const pSubmitCmdBuffer = m_pInternalCopyCmdBuffer;
+
+            SubmitInfo submitInfo     = { };
+            submitInfo.cmdBufferCount = 1;
+            submitInfo.ppCmdBuffers   = &pSubmitCmdBuffer;
+
+            result = InternalDmaSubmit(submitInfo);
+        }
+
+        PAL_ASSERT(result == Result::Success);
+
+        // Reset the command buffer after the submission.
+        m_pInternalCopyCmdBuffer->Reset(nullptr, true);
+    }
 
     return result;
 }

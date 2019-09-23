@@ -27,7 +27,7 @@
 
 #include "gpuopen.h"
 
-#define DRIVERCONTROL_PROTOCOL_VERSION 4
+#define DRIVERCONTROL_PROTOCOL_VERSION 6
 
 #define DRIVERCONTROL_PROTOCOL_MINIMUM_VERSION 1
 
@@ -35,6 +35,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  6.0    | Added ability to query device clock frequencies for a given clock mode.                                  |
 *|  5.0    | Cleaned up the driver facing interface.                                                                  |
 *|  4.0    | Added HaltedOnPostDeviceInit state.                                                                      |
 *|  3.0    | Added QueryClientInfoRequest support.                                                                    |
@@ -44,6 +45,7 @@
 ***********************************************************************************************************************
 */
 
+#define DRIVERCONTROL_QUERY_DEVICE_CLOCKS_BY_MODE_VERSION  6
 #define DRIVERCONTROL_DRIVER_INTERFACE_CLEANUP_VERSION 5
 #define DRIVERCONTROL_HALTEDPOSTDEVICEINIT_VERSION 4
 #define DRIVERCONTROL_QUERYCLIENTINFO_VERSION 3
@@ -83,6 +85,8 @@ namespace DevDriver
             StepDriverResponse,
             QueryClientInfoRequest,
             QueryClientInfoResponse,
+            QueryDeviceClockByModeRequest,
+            QueryDeviceClockByModeResponse,
             Count
         };
 
@@ -308,6 +312,43 @@ namespace DevDriver
         };
 
         DD_CHECK_SIZE(QueryDeviceClockResponsePayload, sizeof(DriverControlHeader) + 12);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Query Device Clock By Mode Request/Response
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        DD_NETWORK_STRUCT(QueryDeviceClockByModeRequestPayload, 4)
+        {
+            DriverControlHeader header;
+            uint32 gpuIndex;
+            DeviceClockMode deviceClockMode;
+
+            constexpr QueryDeviceClockByModeRequestPayload(uint32 gpuIndex, DeviceClockMode clockMode)
+                : header(DriverControlMessage::QueryDeviceClockByModeRequest)
+                , gpuIndex(gpuIndex)
+                , deviceClockMode(clockMode)
+            {
+            }
+        };
+
+        DD_CHECK_SIZE(QueryDeviceClockByModeRequestPayload, sizeof(DriverControlHeader) + 8);
+
+        DD_NETWORK_STRUCT(QueryDeviceClockByModeResponsePayload, 4)
+        {
+            DriverControlHeader header;
+            Result result;
+            float gpuClock;
+            float memClock;
+
+            constexpr QueryDeviceClockByModeResponsePayload(Result result, float gpuClock, float memClock)
+                : header(DriverControlMessage::QueryDeviceClockByModeResponse)
+                , result(result)
+                , gpuClock(gpuClock)
+                , memClock(memClock)
+            {
+            }
+        };
+
+        DD_CHECK_SIZE(QueryDeviceClockByModeResponsePayload, sizeof(DriverControlHeader) + 12);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Query Max Device Clock Request/Response

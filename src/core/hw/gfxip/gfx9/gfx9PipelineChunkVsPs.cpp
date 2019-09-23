@@ -694,7 +694,7 @@ void PipelineChunkVsPs::BuildPm4Headers(
                                                          &m_commands.sh.vs.hdrShaderReqCtrlVs);
     }
 
-    m_commands.context.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmSPI_SHADER_Z_FORMAT,
+    m_commands.context.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
                                                                     mmSPI_SHADER_COL_FORMAT,
                                                                     &m_commands.context.hdrSpiShaderFormat);
 
@@ -710,9 +710,6 @@ void PipelineChunkVsPs::BuildPm4Headers(
 
     m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SC_BINNER_CNTL_1,
                                                                     &m_commands.context.hdrPaScBinnerCntl1);
-
-    m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmSPI_SHADER_POS_FORMAT,
-                                                                    &m_commands.context.hdrSpiShaderPosFormat);
 
     m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
                                                                     &m_commands.context.hdrPaClVsOutCntl);

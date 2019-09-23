@@ -517,9 +517,6 @@ void PipelineChunkGs::BuildPm4Headers(
     m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_GS_MAX_VERT_OUT,
                                                                     &m_commands.context.hdrVgtGsMaxVertOut);
 
-    m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_GS_OUT_PRIM_TYPE,
-                                                                    &m_commands.context.hdrVgtGsOutPrimType);
-
     m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_GS_INSTANCE_CNT,
                                                                     &m_commands.context.hdrVgtGsInstanceCnt);
 
@@ -527,12 +524,9 @@ void PipelineChunkGs::BuildPm4Headers(
                                                                      mmVGT_GSVS_RING_ITEMSIZE,
                                                                      &m_commands.context.hdrEsGsVsRingItemSize);
 
-    m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmVGT_GSVS_RING_OFFSET_1,
-                                                                     mmVGT_GSVS_RING_OFFSET_3,
-                                                                     &m_commands.context.hdrVgtGsVsRingOffset);
-
-    m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_GS_PER_VS,
-                                                                    &m_commands.context.hdrVgtGsPerVs);
+    m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmVGT_GS_PER_VS,
+                                                                     mmVGT_GS_OUT_PRIM_TYPE,
+                                                                     &m_commands.context.hdrVgtGsPerVsRingsPrimType);
 
     m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmVGT_GS_VERT_ITEMSIZE,
                                                                      mmVGT_GS_VERT_ITEMSIZE_3,

@@ -25,8 +25,6 @@
 
 #include "protocols/loggingServer.h"
 #include "msgChannel.h"
-#include <cstring>
-#include <cstdio>
 
 #define LOGGING_SERVER_MIN_VERSION 2
 #define LOGGING_SERVER_MAX_VERSION 3

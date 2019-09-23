@@ -29,6 +29,7 @@
 #include "core/hw/ossip/oss4/oss4DmaCmdBuffer.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
 #include "core/hw/ossip/oss4/sdma40_pkt_struct.h"
+#include "marker_payload.h"
 #include "palFormatInfo.h"
 
 using namespace Util;
@@ -37,6 +38,8 @@ namespace Pal
 {
 namespace Oss4
 {
+
+constexpr size_t NopSizeDwords = sizeof(SDMA_PKT_NOP) / sizeof(uint32);
 
 // =====================================================================================================================
 DmaCmdBuffer::DmaCmdBuffer(
@@ -215,6 +218,84 @@ Result DmaCmdBuffer::AddPostamble()
     m_cmdStream.CommitCommands(pCmdSpace);
 
     return Result::Success;
+}
+
+// =====================================================================================================================
+void DmaCmdBuffer::BeginExecutionMarker(
+    uint64 clientHandle)
+{
+    CmdBuffer::BeginExecutionMarker(clientHandle);
+
+    CmdWriteImmediate(HwPipePoint::HwPipeBottom,
+                      m_executionMarkerCount,
+                      ImmediateDataWidth::ImmediateData32Bit,
+                      m_executionMarkerAddr);
+
+    constexpr size_t BeginPayloadSize = sizeof(RgdExecutionBeginMarker) / sizeof(uint32);
+
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    BuildNops(pCmdSpace, BeginPayloadSize + NopSizeDwords);
+
+    auto* pPayload          = reinterpret_cast<RgdExecutionBeginMarker*>(pCmdSpace + NopSizeDwords);
+    pPayload->guard         = RGD_EXECUTION_BEGIN_MARKER_GUARD;
+    pPayload->marker_buffer = m_executionMarkerAddr;
+    pPayload->client_handle = clientHandle;
+    pPayload->counter       = m_executionMarkerCount;
+
+    pCmdSpace += BeginPayloadSize + NopSizeDwords;
+    m_cmdStream.CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
+uint32 DmaCmdBuffer::CmdInsertExecutionMarker()
+{
+    uint32 returnVal = UINT_MAX;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+    if (m_buildFlags.enableExecutionMarkerSupport == 1)
+    {
+        PAL_ASSERT(m_executionMarkerAddr != 0);
+        CmdWriteImmediate(HwPipePoint::HwPipeBottom,
+                          ++m_executionMarkerCount,
+                          ImmediateDataWidth::ImmediateData32Bit,
+                          m_executionMarkerAddr);
+
+        constexpr size_t MarkerPayloadSize = sizeof(RgdExecutionMarker) / sizeof(uint32);
+
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+        BuildNops(pCmdSpace, MarkerPayloadSize + NopSizeDwords);
+
+        auto* pPayload          = reinterpret_cast<RgdExecutionMarker*>(pCmdSpace + NopSizeDwords);
+        pPayload->guard         = RGD_EXECUTION_MARKER_GUARD;
+        pPayload->counter       = m_executionMarkerCount;
+
+        pCmdSpace += MarkerPayloadSize + NopSizeDwords;
+        m_cmdStream.CommitCommands(pCmdSpace);
+
+        returnVal = m_executionMarkerCount;
+    }
+#endif
+    return returnVal;
+}
+
+// =====================================================================================================================
+void DmaCmdBuffer::EndExecutionMarker()
+{
+    CmdWriteImmediate(HwPipePoint::HwPipeBottom,
+                      ++m_executionMarkerCount,
+                      ImmediateDataWidth::ImmediateData32Bit,
+                      m_executionMarkerAddr);
+
+    constexpr size_t EndPayloadSize = sizeof(RgdExecutionEndMarker) / sizeof(uint32);
+
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    BuildNops(pCmdSpace, EndPayloadSize + NopSizeDwords);
+
+    auto* pPayload          = reinterpret_cast<RgdExecutionEndMarker*>(pCmdSpace + NopSizeDwords);
+    pPayload->guard         = RGD_EXECUTION_END_MARKER_GUARD;
+    pPayload->counter       = m_executionMarkerCount;
+
+    pCmdSpace += EndPayloadSize + NopSizeDwords;
+    m_cmdStream.CommitCommands(pCmdSpace);
 }
 
 // =====================================================================================================================

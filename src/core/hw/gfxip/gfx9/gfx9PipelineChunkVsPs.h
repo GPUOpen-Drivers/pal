@@ -220,9 +220,10 @@ private:
 
         struct
         {
-            PM4_PFP_SET_CONTEXT_REG   hdrSpiShaderFormat;
-            regSPI_SHADER_Z_FORMAT    spiShaderZFormat;
-            regSPI_SHADER_COL_FORMAT  spiShaderColFormat;
+            PM4_PFP_SET_CONTEXT_REG  hdrSpiShaderFormat;
+            regSPI_SHADER_POS_FORMAT spiShaderPosFormat;
+            regSPI_SHADER_Z_FORMAT   spiShaderZFormat;
+            regSPI_SHADER_COL_FORMAT spiShaderColFormat;
 
             PM4_PFP_SET_CONTEXT_REG  hdrSpiBarycCntl;
             regSPI_BARYC_CNTL        spiBarycCntl;
@@ -236,9 +237,6 @@ private:
 
             PM4_PFP_SET_CONTEXT_REG  hdrPaScBinnerCntl1;
             regPA_SC_BINNER_CNTL_1   paScBinnerCntl1;
-
-            PM4_PFP_SET_CONTEXT_REG   hdrSpiShaderPosFormat;
-            regSPI_SHADER_POS_FORMAT  spiShaderPosFormat;
 
             PM4_PFP_SET_CONTEXT_REG  hdrPaClVsOutCntl;
             regPA_CL_VS_OUT_CNTL     paClVsOutCntl;

@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#pragma once
+
 #include "palDevice.h"
 #include "palPipeline.h"
 #include "palSysMemory.h"

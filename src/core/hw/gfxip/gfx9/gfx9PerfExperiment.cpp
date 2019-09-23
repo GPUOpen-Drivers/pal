@@ -215,10 +215,10 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
     const bool   aluExecExclude     = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::AluExec);
     const bool   valuInstExclude    = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::ValuInst);
     const bool   waveRdyExclude     = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::WaveRdy);
-    const bool   immed1Exclude      = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Immed1);
     const bool   immediateExclude   = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Immediate);
     const bool   utilCounterExclude = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::UtilCounter);
     const bool   waveAllocExclude   = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::WaveAlloc);
+    bool         immed1Exclude      = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Immed1);
 
     // Perf counters through thread trace is expected to be deprecated.
     const bool perfExclude = true;
@@ -236,20 +236,25 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
                                                            ThreadTraceTokenTypeFlags::InstPc |
                                                            ThreadTraceTokenTypeFlags::InstUserData);
 
+#if PAL_BUILD_NAVI_LITE || PAL_BUILD_NAVI12_LITE || PAL_BUILD_NAVI21_LITE
+    static_assert(SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__NV10 == SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__GFX10BARD,
+                  "GetGfx10SqttTokenMask needs to be updated!");
+#endif
+
     SetSqttTokenExclude(device,
                         &value,
-                        ((vmemExecExclude    << SQ_TT_TOKEN_EXCLUDE_VMEMEXEC_SHIFT)  |
-                         (aluExecExclude     << SQ_TT_TOKEN_EXCLUDE_ALUEXEC_SHIFT)   |
-                         (valuInstExclude    << SQ_TT_TOKEN_EXCLUDE_VALUINST_SHIFT)  |
-                         (waveRdyExclude     << SQ_TT_TOKEN_EXCLUDE_WAVERDY_SHIFT)   |
-                         (immed1Exclude      << SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT)    |
-                         (immediateExclude   << SQ_TT_TOKEN_EXCLUDE_IMMEDIATE_SHIFT) |
-                         (utilCounterExclude << SQ_TT_TOKEN_EXCLUDE_UTILCTR_SHIFT)   |
-                         (waveAllocExclude   << SQ_TT_TOKEN_EXCLUDE_WAVEALLOC_SHIFT) |
-                         (regExclude         << SQ_TT_TOKEN_EXCLUDE_REG_SHIFT)       |
-                         (eventExclude       << SQ_TT_TOKEN_EXCLUDE_EVENT_SHIFT)     |
-                         (instExclude        << SQ_TT_TOKEN_EXCLUDE_INST_SHIFT)      |
-                         (perfExclude        << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT)));
+                        ((vmemExecExclude     << SQ_TT_TOKEN_EXCLUDE_VMEMEXEC_SHIFT)     |
+                         (aluExecExclude      << SQ_TT_TOKEN_EXCLUDE_ALUEXEC_SHIFT)      |
+                         (valuInstExclude     << SQ_TT_TOKEN_EXCLUDE_VALUINST_SHIFT)     |
+                         (waveRdyExclude      << SQ_TT_TOKEN_EXCLUDE_WAVERDY_SHIFT)      |
+                         (immed1Exclude       << SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__NV10) |
+                         (immediateExclude    << SQ_TT_TOKEN_EXCLUDE_IMMEDIATE_SHIFT)    |
+                         (utilCounterExclude  << SQ_TT_TOKEN_EXCLUDE_UTILCTR_SHIFT)      |
+                         (waveAllocExclude    << SQ_TT_TOKEN_EXCLUDE_WAVEALLOC_SHIFT)    |
+                         (regExclude          << SQ_TT_TOKEN_EXCLUDE_REG_SHIFT)          |
+                         (eventExclude        << SQ_TT_TOKEN_EXCLUDE_EVENT_SHIFT)        |
+                         (instExclude         << SQ_TT_TOKEN_EXCLUDE_INST_SHIFT)         |
+                         (perfExclude         << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT)));
 
     // Compute Register include mask. Obtain reg mask from combined legacy (TT 2.3 and below) and the newer (TT 3.0)
     // register types.

@@ -38,7 +38,7 @@
 
 #include <type_traits>
 
-#include "../../src/util/imported/cwpack/inc/cwpack.h"
+#include "cwpack.h"
 
 namespace Util
 {

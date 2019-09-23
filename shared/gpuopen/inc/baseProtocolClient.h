@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -174,6 +174,44 @@ namespace DevDriver
                     result = ReceivePayload(pPayload, timeoutInMs, retryInMs);
                 }
             }
+            return result;
+        }
+
+        Result SendPayloadContainer(
+            const SizedPayloadContainer& container,
+            uint32                       timeoutInMs = kDefaultCommunicationTimeoutInMs,
+            uint32                       retryInMs   = kDefaultRetryTimeoutInMs)
+        {
+            return SendSizedPayload(container.payload,
+                                    container.payloadSize,
+                                    timeoutInMs,
+                                    retryInMs);
+        }
+
+        Result ReceivePayloadContainer(
+            SizedPayloadContainer* pContainer,
+            uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
+            uint32                 retryInMs   = kDefaultRetryTimeoutInMs)
+        {
+
+            return ReceiveSizedPayload(pContainer->payload,
+                                       sizeof(pContainer->payload),
+                                       &pContainer->payloadSize,
+                                       timeoutInMs,
+                                       retryInMs);
+        }
+
+        Result TransactPayloadContainer(
+            SizedPayloadContainer* pContainer,
+            uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
+            uint32                 retryInMs   = kDefaultRetryTimeoutInMs)
+        {
+            Result result = SendPayloadContainer(*pContainer, timeoutInMs, retryInMs);
+            if (result == Result::Success)
+            {
+                result = ReceivePayloadContainer(pContainer, timeoutInMs, retryInMs);
+            }
+
             return result;
         }
 

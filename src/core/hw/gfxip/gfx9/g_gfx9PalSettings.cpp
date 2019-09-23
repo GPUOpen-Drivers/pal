@@ -22,6 +22,7 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
@@ -141,19 +142,9 @@ void SettingsLoader::SetupDefaults()
     m_settings.gfx9OffChipHsSkipDataCopyNullPatch = true;
     m_settings.gfx9OffChipHsMultiWavePatchDataCopy = false;
     m_settings.gfx9OptimizeDsDataFetch = false;
-    m_settings.nggEnableMode = NggPipelineTypeAll;
-    m_settings.nggSubgroupSize = NggSubgroupSizeAuto;
-    m_settings.nggPrimsPerSubgroup = 256;
-    m_settings.nggVertsPerSubgroup = 256;
+    m_settings.nggSupported = true;
     m_settings.nggLateAllocGs = 127;
-    m_settings.enableBackfaceCullMask = NggPipelineTypeDisabled;
-    m_settings.enableAccurateFrustumCullMask = NggPipelineTypeDisabled;
-    m_settings.enableSmallPrimFilterMask = NggPipelineTypeDisabled;
-    m_settings.nggEnableFasterLaunchRate = false;
-    m_settings.enableOrderedIdMode = true;
     m_settings.nggRingSize = 32;
-    m_settings.nggDisableCullingVmemInstrThreshold = 0.0;
-    m_settings.nggDisableCullingValuInstrThreshold = 0.0;
     m_settings.binningMode = Gfx9DeferredBatchBinAccurate;
     m_settings.customBatchBinSize = 0x800080;
     m_settings.minBatchBinSize.width = 0;
@@ -621,24 +612,9 @@ void SettingsLoader::ReadSettings()
                            &m_settings.gfx9OptimizeDsDataFetch,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggEnableModeStr,
-                           Util::ValueType::Uint,
-                           &m_settings.nggEnableMode,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSubgroupSizeStr,
-                           Util::ValueType::Uint,
-                           &m_settings.nggSubgroupSize,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggPrimsPerSubgroupStr,
-                           Util::ValueType::Uint,
-                           &m_settings.nggPrimsPerSubgroup,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggVertsPerSubgroupStr,
-                           Util::ValueType::Uint,
-                           &m_settings.nggVertsPerSubgroup,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSupportedStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.nggSupported,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggLateAllocGsStr,
@@ -646,44 +622,9 @@ void SettingsLoader::ReadSettings()
                            &m_settings.nggLateAllocGs,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableBackfaceCullMaskStr,
-                           Util::ValueType::Uint,
-                           &m_settings.enableBackfaceCullMask,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableAccurateFrustumCullMaskStr,
-                           Util::ValueType::Uint,
-                           &m_settings.enableAccurateFrustumCullMask,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableSmallPrimFilterMaskStr,
-                           Util::ValueType::Uint,
-                           &m_settings.enableSmallPrimFilterMask,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggEnableFasterLaunchRateStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.nggEnableFasterLaunchRate,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableOrderedIdModeStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.enableOrderedIdMode,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggRingSizeStr,
                            Util::ValueType::Uint,
                            &m_settings.nggRingSize,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggDisableCullingVmemInstrThresholdStr,
-                           Util::ValueType::Float,
-                           &m_settings.nggDisableCullingVmemInstrThreshold,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggDisableCullingValuInstrThresholdStr,
-                           Util::ValueType::Float,
-                           &m_settings.nggDisableCullingValuInstrThreshold,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDeferredBatchBinModeStr,
@@ -1522,25 +1463,10 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gfx9OptimizeDsDataFetch);
     m_settingsInfoMap.Insert(2405308569, info);
 
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.nggEnableMode;
-    info.valueSize = sizeof(m_settings.nggEnableMode);
-    m_settingsInfoMap.Insert(1973955291, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.nggSubgroupSize;
-    info.valueSize = sizeof(m_settings.nggSubgroupSize);
-    m_settingsInfoMap.Insert(2078497267, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.nggPrimsPerSubgroup;
-    info.valueSize = sizeof(m_settings.nggPrimsPerSubgroup);
-    m_settingsInfoMap.Insert(958458130, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.nggVertsPerSubgroup;
-    info.valueSize = sizeof(m_settings.nggVertsPerSubgroup);
-    m_settingsInfoMap.Insert(2005944793, info);
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.nggSupported;
+    info.valueSize = sizeof(m_settings.nggSupported);
+    m_settingsInfoMap.Insert(2715700875, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.nggLateAllocGs;
@@ -1548,44 +1474,9 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(3217915194, info);
 
     info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.enableBackfaceCullMask;
-    info.valueSize = sizeof(m_settings.enableBackfaceCullMask);
-    m_settingsInfoMap.Insert(1669167072, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.enableAccurateFrustumCullMask;
-    info.valueSize = sizeof(m_settings.enableAccurateFrustumCullMask);
-    m_settingsInfoMap.Insert(1388275830, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.enableSmallPrimFilterMask;
-    info.valueSize = sizeof(m_settings.enableSmallPrimFilterMask);
-    m_settingsInfoMap.Insert(2981395067, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.nggEnableFasterLaunchRate;
-    info.valueSize = sizeof(m_settings.nggEnableFasterLaunchRate);
-    m_settingsInfoMap.Insert(2148773048, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.enableOrderedIdMode;
-    info.valueSize = sizeof(m_settings.enableOrderedIdMode);
-    m_settingsInfoMap.Insert(2883144017, info);
-
-    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.nggRingSize;
     info.valueSize = sizeof(m_settings.nggRingSize);
     m_settingsInfoMap.Insert(3858230864, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.nggDisableCullingVmemInstrThreshold;
-    info.valueSize = sizeof(m_settings.nggDisableCullingVmemInstrThreshold);
-    m_settingsInfoMap.Insert(2329541169, info);
-
-    info.type      = SettingType::Float;
-    info.pValuePtr = &m_settings.nggDisableCullingValuInstrThreshold;
-    info.valueSize = sizeof(m_settings.nggDisableCullingValuInstrThreshold);
-    m_settingsInfoMap.Insert(742646984, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.binningMode;
@@ -1893,7 +1784,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3975239666;
+            component.settingsDataHash = 364588167;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

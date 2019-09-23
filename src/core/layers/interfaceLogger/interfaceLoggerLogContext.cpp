@@ -149,6 +149,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdCopyTypedBuffer,                               InterfaceObject::CmdBuffer,            "CmdCopyTypedBuffer"                      },
     { InterfaceFunc::CmdBufferCmdCopyRegisterToMemory,                          InterfaceObject::CmdBuffer,            "CmdCopyRegisterToMemory"                 },
     { InterfaceFunc::CmdBufferCmdScaledCopyImage,                               InterfaceObject::CmdBuffer,            "CmdScaledCopyImage"                      },
+    { InterfaceFunc::CmdBufferCmdGenerateMipmaps,                               InterfaceObject::CmdBuffer,            "CmdGenerateMipmaps"                      },
     { InterfaceFunc::CmdBufferCmdColorSpaceConversionCopy,                      InterfaceObject::CmdBuffer,            "CmdColorSpaceConversionCopy"             },
     { InterfaceFunc::CmdBufferCmdCloneImageData,                                InterfaceObject::CmdBuffer,            "CmdCloneImageData"                       },
     { InterfaceFunc::CmdBufferCmdUpdateMemory,                                  InterfaceObject::CmdBuffer,            "CmdUpdateMemory"                         },
@@ -203,6 +204,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetMarker,                                     InterfaceObject::CmdBuffer,            "CmdSetMarker"                            },
     { InterfaceFunc::CmdBufferCmdPresent,                                       InterfaceObject::CmdBuffer,            "CmdPresent"                              },
     { InterfaceFunc::CmdBufferCmdCommentString,                                 InterfaceObject::CmdBuffer,            "CmdCommentString"                        },
+    { InterfaceFunc::CmdBufferCmdInsertExecutionMarker,                         InterfaceObject::CmdBuffer,            "CmdInsertExecutionMarker"                },
     { InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending,                           InterfaceObject::CmdBuffer,            "CmdXdmaWaitFlipPending"                  },
     { InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging,                       InterfaceObject::CmdBuffer,            "CmdStartGpuProfilerLogging"              },
     { InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging,                        InterfaceObject::CmdBuffer,            "CmdStopGpuProfilerLogging"               },
@@ -1202,11 +1204,17 @@ const char* LogContext::GetEngineName(
     {
         "Universal",        // EngineTypeUniversal
         "Compute",          // EngineTypeCompute
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
         "ExclusiveCompute", // EngineTypeExclusiveCompute
+#else
+        nullptr,
+#endif
         "Dma",              // EngineTypeDma
         "Timer",            // EngineTypeTimer
 
+#if   PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530 // NOT PAL_BUILD_VIDEO
         "HpUniversal",      // EngineTypeHighPriorityUniversal
+#endif // PAL_BUILD_VIDEO
     };
 
     static_assert(ArrayLen(StringTable) == EngineTypeCount,

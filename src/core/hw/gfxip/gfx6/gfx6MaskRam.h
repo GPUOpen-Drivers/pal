@@ -123,16 +123,10 @@ public:
 
     static bool UseHtileForImage(const Pal::Device& device, const Image& image, bool metaDataTexFetchSupported);
 
-    void ComputeClearData(
-        uint32             clearMask,
-        float              depthValue,
-        uint32*            pHtileValue,
-        uint32*            pHtileMask) const;
-
-    void ComputeResummarizeData(
-        uint32             aspectMask,
-        uint32*            pHtileValue,
-        uint32*            pHtileMask) const;
+    uint32 GetInitialValue() const;
+    uint32 GetClearValue(float depthValue) const;
+    uint32 GetAspectMask(uint32 aspectFlags) const;
+    uint32 GetAspectMask(ImageAspect aspect) const;
 
     Result Init(
         const Pal::Device& device,
@@ -149,13 +143,6 @@ public:
     const regDB_HTILE_SURFACE& DbHtileSurface() const { return m_dbHtileSurface; }
     const regDB_PRELOAD_CONTROL& DbPreloadControl() const { return m_dbPreloadControl; }
     HtileContents GetHtileContents() const { return m_htileContents; }
-
-    uint32 GetInitialValue() const;
-
-    void GetAspectInitialValue(
-        ImageAspect aspect,
-        uint32*     pHtileData,
-        uint32*     pHtileMask) const;
 
 private:
 

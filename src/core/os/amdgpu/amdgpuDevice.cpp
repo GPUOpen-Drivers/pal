@@ -791,9 +791,11 @@ Result Device::InitGpuProperties()
         {
         case EngineTypeUniversal:
         case EngineTypeCompute:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
         case EngineTypeExclusiveCompute:
-        case EngineTypeDma:
         case EngineTypeHighPriorityUniversal:
+#endif
+        case EngineTypeDma:
             m_engineProperties.perEngine[i].flags.supportsTrackBusyChunks = 1;
             break;
         default:
@@ -879,6 +881,28 @@ Result Device::InitGpuProperties()
 
 }
 
+// =====================================================================================================================
+// Helper method which tests validity of cu_ao_bitmap in device information structure.
+static bool TestCuAlwaysOnBitmap(
+    struct drm_amdgpu_info_device* pDeviceInfo)
+{
+    bool result = false;
+
+    for (uint32 seIndex = 0; (result == false) && (seIndex < pDeviceInfo->num_shader_engines); seIndex++)
+    {
+        for (uint32 shIndex = 0; shIndex < pDeviceInfo->num_shader_arrays_per_engine; shIndex++)
+        {
+            if (pDeviceInfo->cu_ao_bitmap[seIndex][shIndex] != 0)
+            {
+                result = true;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
 #if PAL_BUILD_GFX6
 // =====================================================================================================================
 // Helper method which initializes the GPU chip properties for all hardware families using the GFX6 hardware layer.
@@ -891,7 +915,6 @@ void Device::InitGfx6ChipProperties()
     memcpy(&pChipInfo->gbMacroTileMode[0], &m_gpuInfo.gb_macro_tile_mode[0], sizeof(pChipInfo->gbMacroTileMode));
 
     Gfx6::InitializeGpuChipProperties(m_engineProperties.cpUcodeVersion, &m_chipProperties);
-    InitGfx6CuMask();
 
     if (!m_drmProcs.pfnAmdgpuBoVaOpRawisValid())
     {
@@ -933,6 +956,12 @@ void Device::InitGfx6ChipProperties()
     {
         pChipInfo->doubleOffchipLdsBuffers = deviceInfo.gc_double_offchip_lds_buf;
     }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    InitGfx6CuMask(&deviceInfo);
 
     Gfx6::FinalizeGpuChipProperties(*this, &m_chipProperties);
     Gfx6::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
@@ -950,9 +979,13 @@ void Device::InitGfx6ChipProperties()
 
 // =====================================================================================================================
 // Helper method which gets the CuMasks and always on cu masks.
-void Device::InitGfx6CuMask()
+void Device::InitGfx6CuMask(
+    struct drm_amdgpu_info_device* pDeviceInfo)
 {
     auto*const pChipInfo = &m_chipProperties.gfx6;
+
+    PAL_ASSERT(pDeviceInfo != nullptr);
+    const bool hasValidAoBitmap = TestCuAlwaysOnBitmap(pDeviceInfo);
 
     for (uint32 seIndex = 0; seIndex < m_gpuInfo.num_shader_engines; seIndex++)
     {
@@ -972,12 +1005,14 @@ void Device::InitGfx6CuMask()
             {
                 const uint32 aoMask = (aoSeMask >> (shIndex * AlwaysOnShMaskSize)) & AlwaysOnShMask;
                 pChipInfo->activeCuMaskGfx6[seIndex][shIndex]   = m_gpuInfo.cu_bitmap[seIndex][shIndex];
-                pChipInfo->alwaysOnCuMaskGfx6[seIndex][shIndex] = aoMask;
+                pChipInfo->alwaysOnCuMaskGfx6[seIndex][shIndex] =
+                    hasValidAoBitmap ? pDeviceInfo->cu_ao_bitmap[seIndex][shIndex] : aoMask;
             }
             else
             {
                 pChipInfo->activeCuMaskGfx7[seIndex]   = m_gpuInfo.cu_bitmap[seIndex][shIndex];
-                pChipInfo->alwaysOnCuMaskGfx7[seIndex] = aoSeMask;
+                pChipInfo->alwaysOnCuMaskGfx7[seIndex] =
+                    hasValidAoBitmap ? pDeviceInfo->cu_ao_bitmap[seIndex][shIndex] : aoSeMask;
             }
         }
     }
@@ -991,7 +1026,6 @@ void Device::InitGfx9ChipProperties()
     auto*const                    pChipInfo  = &m_chipProperties.gfx9;
     struct drm_amdgpu_info_device deviceInfo = {};
 
-    InitGfx9CuMask();
     // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
     Gfx9::InitializeGpuChipProperties(GetPlatform(), m_engineProperties.cpUcodeVersion, &m_chipProperties);
 
@@ -1021,6 +1055,8 @@ void Device::InitGfx9ChipProperties()
     {
         PAL_ASSERT_ALWAYS();
     }
+
+    InitGfx9CuMask(&deviceInfo);
 
     // Get the disabled render backend mask. m_gpuInfo.backend_disable is per se, m_gpuInfo.backend_disable[0]
     // is for se[0]. However backendDisableMask is in following organization if RbPerSe is 4,
@@ -1066,20 +1102,33 @@ void Device::InitGfx9ChipProperties()
 
 // =====================================================================================================================
 // Helper method which gets the CuMasks and always on cu masks.
-void Device::InitGfx9CuMask()
+void Device::InitGfx9CuMask(
+    struct drm_amdgpu_info_device* pDeviceInfo)
 {
     auto*const pChipInfo = &m_chipProperties.gfx9;
+
+    PAL_ASSERT(pDeviceInfo != nullptr);
+    const bool hasValidAoBitmap = TestCuAlwaysOnBitmap(pDeviceInfo);
+
     for (uint32 seIndex = 0; seIndex < m_gpuInfo.num_shader_engines; seIndex++)
     {
         for (uint32 shIndex = 0; shIndex < m_gpuInfo.num_shader_arrays_per_engine; shIndex++)
         {
             pChipInfo->activeCuMask[seIndex][shIndex] = m_gpuInfo.cu_bitmap[seIndex][shIndex];
 
-            constexpr uint32 AlwaysOnSeMaskSize = 16;
-            constexpr uint32 AlwaysOnSeMask     = (1ul << AlwaysOnSeMaskSize) - 1;
+            if (hasValidAoBitmap)
+            {
+                pChipInfo->alwaysOnCuMask[seIndex][shIndex] = pDeviceInfo->cu_ao_bitmap[seIndex][shIndex];
+            }
+            else
+            {
+                constexpr uint32 AlwaysOnSeMaskSize = 16;
+                constexpr uint32 AlwaysOnSeMask     = (1ul << AlwaysOnSeMaskSize) - 1;
 
-            const uint32 aoSeMask = (m_gpuInfo.cu_ao_mask >> (seIndex * AlwaysOnSeMaskSize)) & AlwaysOnSeMask;
-            pChipInfo->alwaysOnCuMask[seIndex][shIndex] = aoSeMask;
+                const uint32 aoSeMask = (m_gpuInfo.cu_ao_mask >> (seIndex * AlwaysOnSeMaskSize)) & AlwaysOnSeMask;
+
+                pChipInfo->alwaysOnCuMask[seIndex][shIndex] = aoSeMask;
+            }
         }
     }
     if (IsGfx10(m_chipProperties.gfxLevel))
@@ -1393,12 +1442,14 @@ Result Device::InitMemQueueInfo()
                 }
                 break;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
             case EngineTypeExclusiveCompute:
                 // NOTE: amdgpu doesn't support the ExclusiveCompute Queue.
                 pEngineInfo->numAvailable = 0;
                 pEngineInfo->startAlign = 8;
                 pEngineInfo->sizeAlignInDwords = 1;
                 break;
+#endif
 
             case EngineTypeDma:
                 if ((m_chipProperties.ossLevel != OssIpLevel::None)
@@ -1424,7 +1475,9 @@ Result Device::InitMemQueueInfo()
                 pEngineInfo->sizeAlignInDwords = 1;
                 break;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
             case EngineTypeHighPriorityUniversal:
+#endif
                 // not supported on linux
                 pEngineInfo->numAvailable       = 0;
                 pEngineInfo->startAlign         = 1;
@@ -2301,23 +2354,32 @@ Result Device::CreateCommandSubmissionContext(
     {
         if (m_supportQueuePriority)
         {
-            // for exisiting logic, the QueuePriority::Low refer to the default state.
-            // Therefore the mapping between Pal and amdgpu should be adjusted as:
-            constexpr int OsPriority[] =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
+            constexpr int32 QueuePriorityToAmdgpuPriority[] =
             {
-                AMDGPU_CTX_PRIORITY_NORMAL,     ///< QueuePriority::Low        = 0,
-                AMDGPU_CTX_PRIORITY_HIGH,       ///< QueuePriority::Medium     = 1,
-                AMDGPU_CTX_PRIORITY_VERY_HIGH,  ///< QueuePriority::High       = 2,
-                AMDGPU_CTX_PRIORITY_LOW,        ///< QueuePriority::VeryLow    = 3,
+                AMDGPU_CTX_PRIORITY_NORMAL,     // QueuePriority::Normal     = 0,
+                AMDGPU_CTX_PRIORITY_LOW,        // QueuePriority::Idle       = 1,
+                AMDGPU_CTX_PRIORITY_HIGH,       // QueuePriority::Medium     = 2,
+                AMDGPU_CTX_PRIORITY_VERY_HIGH,  // QueuePriority::High       = 3,
             };
 
-            static_assert((static_cast<uint32>(QueuePriority::Low) == 0)    &&
-                          (static_cast<uint32>(QueuePriority::Medium) == 1) &&
-                          (static_cast<uint32>(QueuePriority::High) == 2)   &&
-                          (static_cast<uint32>(QueuePriority::VeryLow) == 3), "QueuePriority definition changed");
+            static_assert((static_cast<uint32>(QueuePriority::Normal) == 0) &&
+                          (static_cast<uint32>(QueuePriority::Idle)   == 1) &&
+                          (static_cast<uint32>(QueuePriority::Medium) == 2) &&
+                          (static_cast<uint32>(QueuePriority::High)   == 3),
+                          "The QueuePriorityToAmdgpuPriority table needs to be updated.");
+#else
+            constexpr int32 QueuePriorityToAmdgpuPriority[] =
+            {
+                AMDGPU_CTX_PRIORITY_NORMAL,     // QueuePriority::Low        = 0,
+                AMDGPU_CTX_PRIORITY_HIGH,       // QueuePriority::Medium     = 1,
+                AMDGPU_CTX_PRIORITY_VERY_HIGH,  // QueuePriority::High       = 2,
+                AMDGPU_CTX_PRIORITY_LOW,        // QueuePriority::VeryLow    = 3,
+            };
+#endif
 
             if (m_drmProcs.pfnAmdgpuCsCtxCreate2(m_hDevice,
-                                                 OsPriority[static_cast<uint32>(priority)],
+                                                 QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
                                                  pContextHandle) != 0)
             {
                 result = Result::ErrorInvalidValue;
@@ -3836,18 +3898,7 @@ Result Device::AddGpuMemoryReferences(
     {
         if (pQueue == nullptr)
         {
-            {
-                // Queue-list operations need to be protected.
-                MutexAuto lock(&m_queueLock);
-
-                for (auto iter = m_queues.Begin(); iter.IsValid(); iter.Next())
-                {
-                    Queue*const pLinuxQueue = static_cast<Queue*>(iter.Get());
-                    result = pLinuxQueue->AddGpuMemoryReferences(gpuMemRefCount, pGpuMemoryRefs);
-                }
-            }
-
-            AddToGlobalList(gpuMemRefCount, pGpuMemoryRefs);
+            result = AddGlobalReferences(gpuMemRefCount, pGpuMemoryRefs);
         }
         else
         {
@@ -3872,23 +3923,12 @@ Result Device::RemoveGpuMemoryReferences(
     {
         if (pQueue == nullptr)
         {
-            {
-                // Queue-list operations need to be protected.
-                MutexAuto lock(&m_queueLock);
-
-                for (auto iter = m_queues.Begin(); iter.IsValid(); iter.Next())
-                {
-                    Queue*const pLinuxQueue = static_cast<Queue*>(iter.Get());
-                    pLinuxQueue->RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory);
-                }
-            }
-
-            RemoveFromGlobalList(gpuMemoryCount, ppGpuMemory);
+            RemoveGlobalReferences(gpuMemoryCount, ppGpuMemory, false);
         }
         else
         {
             Queue* pLinuxQueue = static_cast<Queue*>(pQueue);
-            pLinuxQueue->RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory);
+            pLinuxQueue->RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory, false);
         }
     }
 
@@ -3896,58 +3936,91 @@ Result Device::RemoveGpuMemoryReferences(
 }
 
 // =====================================================================================================================
-// Adds GPU memory objects to this device's global memory list
-void Device::AddToGlobalList(
+// Adds GPU memory objects to this device's global memory list and all per-queue lists.
+Result Device::AddGlobalReferences(
     uint32              gpuMemRefCount,
     const GpuMemoryRef* pGpuMemoryRefs)
 {
-    MutexAuto lock(&m_globalRefLock);
-    Result ret = Result::Success;
-    for (uint32 i = 0; i < gpuMemRefCount; i++)
-    {
-        IGpuMemory* pGpuMemory = pGpuMemoryRefs[i].pGpuMemory;
-        bool alreadyExists = false;
-        uint32* pRefCount = nullptr;
+    Result result = Result::Success;
 
-        ret = m_globalRefMap.FindAllocate(pGpuMemory, &alreadyExists, &pRefCount);
-        if (ret != Result::Success)
+    // First take the queue lock in isolation.
+    {
+        MutexAuto lock(&m_queueLock);
+
+        for (auto iter = m_queues.Begin(); iter.IsValid(); iter.Next())
         {
-            // Not enough room or some other error, so just abort
-            PAL_ASSERT_ALWAYS();
-            break;
+            Queue*const pLinuxQueue = static_cast<Queue*>(iter.Get());
+            result = pLinuxQueue->AddGpuMemoryReferences(gpuMemRefCount, pGpuMemoryRefs);
         }
-        else
+    }
+
+    // Then take the global ref lock in isolation.
+    if (result == Result::Success)
+    {
+        MutexAuto lock(&m_globalRefLock);
+
+        for (uint32 i = 0; (i < gpuMemRefCount) && (result == Result::Success); i++)
         {
-            PAL_ASSERT(pRefCount != nullptr);
-            if (alreadyExists)
+            IGpuMemory* pGpuMemory    = pGpuMemoryRefs[i].pGpuMemory;
+            bool        alreadyExists = false;
+            uint32*     pRefCount     = nullptr;
+
+            result = m_globalRefMap.FindAllocate(pGpuMemory, &alreadyExists, &pRefCount);
+
+            if (result == Result::Success)
             {
-                ++(*pRefCount);
-            }
-            else
-            {
-                (*pRefCount) = 1;
+                PAL_ASSERT(pRefCount != nullptr);
+
+                if (alreadyExists)
+                {
+                    ++(*pRefCount);
+                }
+                else
+                {
+                    (*pRefCount) = 1;
+                }
             }
         }
     }
+
+    return result;
 }
 
 // =====================================================================================================================
-// Removes GPU memory objects from this device's global memory list
-void Device::RemoveFromGlobalList(
+// Removes GPU memory objects from this device's global memory list and all per-queue lists.
+void Device::RemoveGlobalReferences(
     uint32            gpuMemoryCount,
-    IGpuMemory*const* ppGpuMemory)
+    IGpuMemory*const* ppGpuMemory,
+    bool              forceRemove)
 {
-    MutexAuto lock(&m_globalRefLock);
-    for (uint32 i = 0; i < gpuMemoryCount; i++)
+    // First take the queue lock in isolation.
     {
-        IGpuMemory* pGpuMemory = ppGpuMemory[i];
-        uint32* pRefCount = m_globalRefMap.FindKey(pGpuMemory);
-        if (pRefCount != nullptr)
+        MutexAuto lock(&m_queueLock);
+
+        for (auto iter = m_queues.Begin(); iter.IsValid(); iter.Next())
         {
-            PAL_ALERT(*pRefCount <= 0);
-            if (--(*pRefCount) == 0)
+            Queue*const pLinuxQueue = static_cast<Queue*>(iter.Get());
+            pLinuxQueue->RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory, forceRemove);
+        }
+    }
+
+    // Then take the global ref lock in isolation.
+    {
+        MutexAuto lock(&m_globalRefLock);
+
+        for (uint32 i = 0; i < gpuMemoryCount; i++)
+        {
+            IGpuMemory* pGpuMemory = ppGpuMemory[i];
+            uint32*     pRefCount  = m_globalRefMap.FindKey(pGpuMemory);
+
+            if (pRefCount != nullptr)
             {
-                m_globalRefMap.Erase(pGpuMemory);
+                PAL_ALERT(*pRefCount <= 0);
+
+                if ((--(*pRefCount) == 0) || forceRemove)
+                {
+                    m_globalRefMap.Erase(pGpuMemory);
+                }
             }
         }
     }

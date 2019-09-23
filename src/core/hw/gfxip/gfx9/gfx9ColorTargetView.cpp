@@ -54,9 +54,9 @@ constexpr uint32 CbColorInfoDecompressedMask = (CB_COLOR0_INFO__DCC_ENABLE_MASK 
 
 // =====================================================================================================================
 ColorTargetView::ColorTargetView(
-    const Device*                            pDevice,
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo)
+    const Device*                     pDevice,
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo)
     :
     m_pDevice(pDevice),
     m_pImage((createInfo.flags.isBufferView == 0) ? GetGfx9Image(createInfo.imageInfo.pImage) : nullptr),
@@ -68,17 +68,19 @@ ColorTargetView::ColorTargetView(
 
     m_flags.u32All = 0;
     // Note that buffew views have their VA ranges locked because they cannot have their memory rebound.
-    m_flags.isBufferView = createInfo.flags.isBufferView;
-    m_flags.viewVaLocked = (createInfo.flags.imageVaLocked | createInfo.flags.isBufferView);
-    m_swizzledFormat     = createInfo.swizzledFormat;
+    m_flags.isBufferView            = createInfo.flags.isBufferView;
+    m_flags.viewVaLocked            = (createInfo.flags.imageVaLocked | createInfo.flags.isBufferView);
+    m_swizzledFormat                = createInfo.swizzledFormat;
 
     if (m_flags.isBufferView == 0)
     {
         PAL_ASSERT(m_pImage != nullptr);
 
+        const ImageCreateInfo& imageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
+
         // If this assert triggers the caller is probably trying to select z slices using the subresource range
         // instead of the zRange as required by the PAL interface.
-        PAL_ASSERT((m_pImage->Parent()->GetImageCreateInfo().imageType != ImageType::Tex3d) ||
+        PAL_ASSERT((imageCreateInfo.imageType != ImageType::Tex3d) ||
                    ((createInfo.imageInfo.baseSubRes.arraySlice == 0) && (createInfo.imageInfo.arraySize == 1)));
 
         // Sets the base subresource for this mip. Note that this is not fixed to the first slice like in gfx6.
@@ -104,6 +106,37 @@ ColorTargetView::ColorTargetView(
         }
 
         m_layoutToState = m_pImage->LayoutToColorCompressionState();
+
+        // The Y and UV planes of a YUV-planar Image are interleaved, so we need to include padding
+        // when we set up a color-target view so that the HW will correctly span all planes when
+        // addressin nonzero array slices. This padding can cause problems with because
+        // the HW thinks each plane is larger than it actually is.
+        // A better solution for single-slice views is to use the subresource address for
+        // the color address instead of the slice0 base address.
+        if (Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format) &&
+            (imageCreateInfo.mipLevels == 1)                            &&
+            (imageCreateInfo.imageType == ImageType::Tex2d)             &&
+            (createInfo.imageInfo.arraySize == 1))
+        {
+            PAL_ASSERT(m_flags.hasDcc == 0);
+            PAL_ASSERT(m_flags.hasCmaskFmask == 0);
+            m_flags.useSubresBaseAddr = 1;
+        }
+
+        // Determine whether Overwrite Combiner (OC) should be to be disabled or not
+        if (m_pDevice->Settings().waRotatedSwizzleDisablesOverwriteCombiner)
+        {
+            const auto* pPalImage = m_pImage->Parent();
+            const SubresId  subResId = { ImageAspect::Color, MipLevel(), 0 };
+            const auto*     pSubResInfo = pPalImage->SubresourceInfo(subResId);
+            const auto&     surfSettings = m_pImage->GetAddrSettings(pSubResInfo);
+
+            // Disable overwrite-combiner for rotated swizzle modes
+            if (AddrMgr2::IsRotatedSwizzle(surfSettings.swizzleMode))
+            {
+                m_flags.disableRotateSwizzleOC = 1;
+            }
+        }
     }
     else
     {
@@ -247,10 +280,6 @@ void ColorTargetView::InitCommonBufferView(
     // From testing this is not the padded mip height/width, but the pixel height/width specified by the client.
     pPm4Img->cbColorAttrib2.bits.MIP0_HEIGHT = 0;
     pPm4Img->cbColorAttrib2.bits.MIP0_WIDTH  = (createInfo.bufferInfo.extent - 1);
-
-    pPm4Img->cbColorAttrib.bits.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
-    pPm4Img->cbColorAttrib.bits.NUM_SAMPLES       = 0;
-    pPm4Img->cbColorAttrib.bits.NUM_FRAGMENTS     = 0;
 }
 
 // =====================================================================================================================
@@ -292,22 +321,18 @@ regCB_COLOR0_INFO ColorTargetView::InitCommonCbColorInfo(
 // =====================================================================================================================
 template <typename Pm4ImgType, typename CbColorViewType>
 void ColorTargetView::InitCommonImageView(
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo,
-    const Extent3d&                          baseExtent,
-    Pm4ImgType*                              pPm4Img,
-    regCB_COLOR0_INFO*                       pCbColorInfo,
-    CbColorViewType*                         pCbColorView
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo,
+    const Extent3d&                   baseExtent,
+    Pm4ImgType*                       pPm4Img,
+    regCB_COLOR0_INFO*                pCbColorInfo,
+    CbColorViewType*                  pCbColorView
     ) const
 {
     const Pal::Device*      pParentDevice   = m_pDevice->Parent();
     const ImageCreateInfo&  imageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
     const ImageType         imageType       = m_pImage->GetOverrideImageType();
     const auto&             settings        = GetGfx9Settings(*pParentDevice);
-
-    pPm4Img->cbColorAttrib.bits.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
-    pPm4Img->cbColorAttrib.bits.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
-    pPm4Img->cbColorAttrib.bits.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
 
     // According to the other UMDs, this is the absolute max mip level. For one mip level, the MAX_MIP is mip #0.
     pPm4Img->cbColorAttrib2.bits.MAX_MIP = (imageCreateInfo.mipLevels - 1);
@@ -317,6 +342,12 @@ void ColorTargetView::InitCommonImageView(
         pCbColorView->SLICE_START = createInfo.zRange.offset;
         pCbColorView->SLICE_MAX   = (createInfo.zRange.offset + createInfo.zRange.extent - 1);
         pCbColorView->MIP_LEVEL   = createInfo.imageInfo.baseSubRes.mipLevel;
+    }
+    else if (m_flags.useSubresBaseAddr != 0)
+    {
+        pCbColorView->SLICE_START = 0;
+        pCbColorView->SLICE_MAX   = 0;
+        pCbColorView->MIP_LEVEL   = 0;
     }
     else
     {
@@ -383,38 +414,53 @@ void ColorTargetView::UpdateImageVa(
     // the associated image yet, so don't do anything if it's not safe
     if (boundMem.IsBound())
     {
-        // Program Color Buffer base address
-        pPm4Img->cbColorBase.bits.BASE_256B = m_pImage->GetSubresource256BAddrSwizzled(m_subresource);
-        PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_subresource) == 0);
-
-        // On GFX9, only DCC can be used for fast clears.  The load-meta-data packet updates the cb color regs to
-        // indicate what the clear color is.  (See Gfx9FastColorClearMetaData in gfx9MaskRam.h).
-        if (m_flags.hasDcc)
+        if (m_flags.useSubresBaseAddr != 0)
         {
-            // Program fast-clear metadata base address.
-            gpusize metaDataVirtAddr = m_pImage->FastClearMetaDataAddr(MipLevel());
-            PAL_ASSERT((metaDataVirtAddr & 0x3) == 0);
+            // Get the base address of each array slice.
+            const gpusize subresBaseAddr = m_pImage->Parent()->GetSubresourceBaseAddr(m_subresource);
 
-            pPm4Img->loadMetaDataIndex.bitfields2.mem_addr_lo = (LowPart(metaDataVirtAddr) >> 2);
-            pPm4Img->loadMetaDataIndex.mem_addr_hi            = HighPart(metaDataVirtAddr);
+            const auto*   pTileInfo   = AddrMgr2::GetTileInfo(m_pImage->Parent(), m_subresource);
+            const gpusize pipeBankXor = pTileInfo->pipeBankXor;
+            const gpusize addrWithXor = subresBaseAddr | (pipeBankXor << 8);
 
-            // Tell the HW where the DCC surface is
-            pPm4Img->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr();
+            pPm4Img->cbColorBase.bits.BASE_256B = Get256BAddrLo(addrWithXor);
+            PAL_ASSERT(Get256BAddrHi(addrWithXor) == 0);
         }
-
-        if (m_flags.hasCmaskFmask)
+        else
         {
-            pPm4Img->cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
-            pPm4Img->cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
+            // Program Color Buffer base address
+            pPm4Img->cbColorBase.bits.BASE_256B = m_pImage->GetSubresource256BAddrSwizzled(m_subresource);
+            PAL_ASSERT(m_pImage->GetSubresource256BAddrSwizzledHi(m_subresource) == 0);
+
+            // On GFX9, only DCC can be used for fast clears.  The load-meta-data packet updates the cb color regs to
+            // indicate what the clear color is.  (See Gfx9FastColorClearMetaData in gfx9MaskRam.h).
+            if (m_flags.hasDcc)
+            {
+                // Program fast-clear metadata base address.
+                gpusize metaDataVirtAddr = m_pImage->FastClearMetaDataAddr(MipLevel());
+                PAL_ASSERT((metaDataVirtAddr & 0x3) == 0);
+
+                pPm4Img->loadMetaDataIndex.bitfields2.mem_addr_lo = (LowPart(metaDataVirtAddr) >> 2);
+                pPm4Img->loadMetaDataIndex.mem_addr_hi            = HighPart(metaDataVirtAddr);
+
+                // Tell the HW where the DCC surface is
+                pPm4Img->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr();
+            }
+
+            if (m_flags.hasCmaskFmask)
+            {
+                pPm4Img->cbColorCmask.bits.BASE_256B = m_pImage->GetCmask256BAddr();
+                pPm4Img->cbColorFmask.bits.BASE_256B = m_pImage->GetFmask256BAddr();
+            }
         }
     }
 }
 
 // =====================================================================================================================
 Gfx9ColorTargetView::Gfx9ColorTargetView(
-    const Device*                            pDevice,
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo)
+    const Device*                     pDevice,
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo)
     :
     ColorTargetView(pDevice, createInfo, internalInfo)
 {
@@ -455,8 +501,8 @@ void Gfx9ColorTargetView::BuildPm4Headers()
 // =====================================================================================================================
 // Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
 void Gfx9ColorTargetView::InitRegisters(
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo)
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo)
 {
     const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(GfxIpLevel::GfxIp9);
 
@@ -473,14 +519,17 @@ void Gfx9ColorTargetView::InitRegisters(
         m_extent.width  = createInfo.bufferInfo.extent;
         m_extent.height = 1;
 
-        m_pm4Cmds.cbColorAttrib.gfx09.MIP0_DEPTH    = 0; // what is this?
-        m_pm4Cmds.cbColorAttrib.gfx09.COLOR_SW_MODE = SW_LINEAR;
-        m_pm4Cmds.cbColorAttrib.gfx09.RESOURCE_TYPE = static_cast<uint32>(ImageType::Tex1d); // no HW enums
-        m_pm4Cmds.cbColorAttrib.gfx09.RB_ALIGNED    = 0;
-        m_pm4Cmds.cbColorAttrib.gfx09.PIPE_ALIGNED  = 0;
-        m_pm4Cmds.cbColorAttrib.gfx09.FMASK_SW_MODE = SW_LINEAR; // ignored as there is no fmask
-        m_pm4Cmds.cbColorAttrib.gfx09.META_LINEAR   = 0;         // linear meta surfaces not supported on gfx9
-        m_pm4Cmds.cbMrtEpitch.bits.EPITCH           = (createInfo.bufferInfo.extent - 1);
+        m_pm4Cmds.cbColorAttrib.core.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
+        m_pm4Cmds.cbColorAttrib.core.NUM_SAMPLES       = 0;
+        m_pm4Cmds.cbColorAttrib.core.NUM_FRAGMENTS     = 0;
+        m_pm4Cmds.cbColorAttrib.gfx09.MIP0_DEPTH       = 0; // what is this?
+        m_pm4Cmds.cbColorAttrib.gfx09.COLOR_SW_MODE    = SW_LINEAR;
+        m_pm4Cmds.cbColorAttrib.gfx09.RESOURCE_TYPE    = static_cast<uint32>(ImageType::Tex1d); // no HW enums
+        m_pm4Cmds.cbColorAttrib.gfx09.RB_ALIGNED       = 0;
+        m_pm4Cmds.cbColorAttrib.gfx09.PIPE_ALIGNED     = 0;
+        m_pm4Cmds.cbColorAttrib.gfx09.FMASK_SW_MODE    = SW_LINEAR; // ignored as there is no fmask
+        m_pm4Cmds.cbColorAttrib.gfx09.META_LINEAR      = 0;         // linear meta surfaces not supported on gfx9
+        m_pm4Cmds.cbMrtEpitch.bits.EPITCH              = (createInfo.bufferInfo.extent - 1);
     }
     else
     {
@@ -530,7 +579,8 @@ void Gfx9ColorTargetView::InitRegisters(
             extent.width     >>= 1;
             modifiedYuvExtent  = true;
         }
-        else if (Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format) &&
+        else if ((m_flags.useSubresBaseAddr == 0)                            &&
+                 Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format) &&
                  ((createInfo.imageInfo.arraySize > 1) || (createInfo.imageInfo.baseSubRes.arraySlice != 0)))
         {
             baseExtent = pBaseSubResInfo->actualExtentTexels;
@@ -558,6 +608,9 @@ void Gfx9ColorTargetView::InitRegisters(
         m_extent.width  = extent.width;
         m_extent.height = extent.height;
 
+        m_pm4Cmds.cbColorAttrib.core.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
+        m_pm4Cmds.cbColorAttrib.core.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
+        m_pm4Cmds.cbColorAttrib.core.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
         m_pm4Cmds.cbColorAttrib.gfx09.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;
         m_pm4Cmds.cbColorAttrib.gfx09.COLOR_SW_MODE = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
@@ -664,9 +717,9 @@ uint32* Gfx9ColorTargetView::WriteCommands(
 
 // =====================================================================================================================
 Gfx10ColorTargetView::Gfx10ColorTargetView(
-    const Device*                            pDevice,
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo)
+    const Device*                     pDevice,
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo)
     :
     ColorTargetView(pDevice, createInfo, internalInfo)
 {
@@ -722,8 +775,8 @@ void Gfx10ColorTargetView::BuildPm4Headers()
 // =====================================================================================================================
 // Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
 void Gfx10ColorTargetView::InitRegisters(
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo)
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo)
 {
     const auto&            palDevice   = *m_pDevice->Parent();
     const auto*const       pFmtInfoTbl = MergedChannelFlatFmtInfoTbl(palDevice.ChipProperties().gfxLevel);
@@ -750,6 +803,12 @@ void Gfx10ColorTargetView::InitRegisters(
 
         // Specifying a non-zero buffer offset only works with linear-general surfaces
         cbColorInfo.gfx10.LINEAR_GENERAL            = 1;
+        {
+            m_pm4Cmds.cbColorAttrib.core.FORCE_DST_ALPHA_1 =
+                Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
+            m_pm4Cmds.cbColorAttrib.core.NUM_SAMPLES       = 0;
+            m_pm4Cmds.cbColorAttrib.core.NUM_FRAGMENTS     = 0;
+        }
     }
     else
     {
@@ -808,7 +867,8 @@ void Gfx10ColorTargetView::InitRegisters(
             extent.width     >>= 1;
             modifiedYuvExtent  = true;
         }
-        else if (Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format) &&
+        else if ((m_flags.useSubresBaseAddr == 0)                            &&
+                 Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format) &&
                  ((createInfo.imageInfo.arraySize > 1) || (createInfo.imageInfo.baseSubRes.arraySlice != 0)))
         {
             baseExtent = pBaseSubResInfo->actualExtentTexels;
@@ -837,8 +897,14 @@ void Gfx10ColorTargetView::InitRegisters(
 
         //  Not setting this can lead to functional issues.   It's not a performance measure.   Due to multiple mip
         //  levels possibly being within same 1K address space, CB can get confused
-        m_pm4Cmds.cbColorAttrib.gfx10.LIMIT_COLOR_FETCH_TO_256B_MAX =
-            settings.waForce256bCbFetch && (m_subresource.mipLevel >= pAddrOutput->firstMipIdInTail);
+        {
+            m_pm4Cmds.cbColorAttrib.core.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
+            m_pm4Cmds.cbColorAttrib.core.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
+            m_pm4Cmds.cbColorAttrib.core.FORCE_DST_ALPHA_1 =
+                Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
+            m_pm4Cmds.cbColorAttrib.gfx10Core.LIMIT_COLOR_FETCH_TO_256B_MAX =
+                settings.waForce256bCbFetch && (m_subresource.mipLevel >= pAddrOutput->firstMipIdInTail);
+        }
 
         m_pm4Cmds.cbColorAttrib3.bits.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;
@@ -868,11 +934,15 @@ void Gfx10ColorTargetView::InitRegisters(
              (settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable &&
               cbColorInfo.bits.FMASK_COMPRESSION_DISABLE)))
         {
-            m_pm4Cmds.cbColorAttrib.gfx10.DISABLE_FMASK_NOFETCH_OPT = 1;
+            {
+                m_pm4Cmds.cbColorAttrib.gfx10Core.DISABLE_FMASK_NOFETCH_OPT = 1;
+            }
         }
     }
 
-    m_pm4Cmds.cbColorAttrib3.bits.RESOURCE_LEVEL = 1;
+    {
+        m_pm4Cmds.cbColorAttrib3.gfx10Core.RESOURCE_LEVEL = 1;
+    }
 
     // The CB_COLOR0_INFO RMW packet requires a mask. We want everything but these two bits,
     // so we'll use the inverse of them.

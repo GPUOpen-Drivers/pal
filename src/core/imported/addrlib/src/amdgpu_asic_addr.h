@@ -104,7 +104,7 @@
 #if ADDR_RAVEN1_BUILD
 #define AMDGPU_RAVEN_RANGE      0x01, 0x81
 #endif
-#define AMDGPU_RAVEN2_RANGE     0x81, 0xFF
+#define AMDGPU_RAVEN2_RANGE     0x81, 0x90
 
 #define AMDGPU_NAVI10_RANGE     0x01, 0xFF
 

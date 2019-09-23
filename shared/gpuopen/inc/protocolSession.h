@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -31,10 +31,9 @@
 
 #pragma once
 
-#include "gpuopen.h"
-#include "ddPlatform.h"
-#include "util/template.h"
-#include "util/sharedptr.h"
+#include <gpuopen.h>
+#include <ddPlatform.h>
+#include <util/sharedptr.h>
 
 namespace DevDriver
 {

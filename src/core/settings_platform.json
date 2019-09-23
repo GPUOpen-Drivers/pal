@@ -97,6 +97,57 @@
       "Description": "Enables driver alerts."
     },
     {
+      "Name": "EnableEventLogFile",
+      "Tags": [
+        "Event Logging"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "DriverState": [
+        "HaltedOnPlatformInit",
+        "HaltedOnDeviceInit",
+        "HaltedPostDeviceInit",
+        "Paused",
+        "Running"
+      ],
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "enableEventLogFile",
+      "Description": "Enables logging of events to a file."
+    },
+    {
+      "Description": "Relative directory where event log file will be placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
+      "Flags": {
+        "IsPath": true
+      },
+      "Tags": [
+        "Event Logging"
+      ],
+      "Defaults": {
+        "Default": "amdpal/",
+        "WinDefault": "C:\\PalLog\\",
+        "LnxDefault": "amdpal/"
+      },
+      "Size": "MaxPathStrLen",
+      "Type": "string",
+      "VariableName": "eventLogDirectory",
+      "Name": "EventLogDirectory"
+    },
+    {
+      "Description": "Filename and extension of the event log file.",
+      "Defaults": {
+        "Default": "PalEventLog.json"
+      },
+      "Tags": [
+        "Event Logging"
+      ],
+      "Size": "MaxPathStrLen",
+      "Type": "string",
+      "VariableName": "eventLogFilename",
+      "Name": "EventLogFilename"
+    },
+    {
       "Name": "DebugOverlayEnabled",
       "Tags": [
         "Debug Overlay"

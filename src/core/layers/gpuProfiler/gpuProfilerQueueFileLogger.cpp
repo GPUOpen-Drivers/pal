@@ -28,10 +28,10 @@
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
-#include "gpuUtil/sqtt_file_format.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 #include "palGpaSession.h"
+#include "sqtt_file_format.h"
 
 using namespace Util;
 
@@ -44,10 +44,16 @@ constexpr const char* EngineTypeStrings[] =
 {
     "Gfx",
     "Ace",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     "XAce",
+#else
+    "Unknown",
+#endif
     "Dma",
     "Timer",
+#if   PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530 // NOT PAL_BUILD_VIDEO
     "HpUniversal",
+#endif
 };
 
 static_assert(ArrayLen(EngineTypeStrings) == EngineTypeCount, "Missing entry in EngineTypeStrings.");

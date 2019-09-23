@@ -54,6 +54,11 @@ GpuMemory::~GpuMemory()
 
     Result  result  = Result::Success;
 
+    // The amdgpu device tracks per-allocation residency information which we must force it to remove because the
+    // client might not call RemoveGpuMemoryReferences once for each time they call AddGpuMemoryReferences.
+    IGpuMemory* pGpuMemory = this;
+    pDevice->RemoveGlobalReferences(1, &pGpuMemory, true);
+
     if (m_desc.flags.isExternPhys)
     {
         result = pDevice->FreeSdiSurface(this);

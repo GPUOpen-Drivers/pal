@@ -196,6 +196,30 @@ DevDriver::Result PlatformSettingsLoader::PerformSetValue(
     }
 #endif
 
+    // Enable/Disable of the event log file is allowed at any point and we perform the enable/disable when the setting is changed
+    constexpr uint32 EnableEventLogFileHash = 3288205286;
+    if (hash == EnableEventLogFileHash)
+    {
+        auto* pInfo = m_settingsInfoMap.FindKey(hash);
+        if (pInfo != nullptr)
+        {
+            // First update the value in the settings struct
+            memcpy(pInfo->pValuePtr, settingValue.pValuePtr, settingValue.valueSize);
+
+            // Then perform the enable/disable
+            if (m_settings.enableEventLogFile)
+            {
+                m_pPlatform->EnableEventLoggingToFile();
+            }
+            else
+            {
+                m_pPlatform->DisableEventLoggingToFile();
+            }
+
+            ret = DevDriver::Result::Success;
+        }
+    }
+
     return ret;
 }
 

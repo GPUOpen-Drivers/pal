@@ -254,7 +254,8 @@ struct GpuMemoryProperties
             uint32 autoPrioritySupport        :  1; // Indiciates that the platform supports automatic allocation
                                                     // priority management.
             uint32 placeholder0               :  1; // Placeholder.
-            uint32 reserved                   : 17;
+            uint32 placeholder1               :  1; // Placeholder
+            uint32 reserved                   : 16;
         };
         uint32 u32All;
     } flags;
@@ -351,7 +352,28 @@ struct GpuEngineProperties
             uint32 u32All;
         } flags;
 
-        EngineSubType engineSubType[MaxAvailableEngines];
+        struct
+        {
+            union
+            {
+                struct
+                {
+                    uint32 exclusive                :  1;
+                    uint32 mustUseDispatchTunneling :  1;
+                    uint32 reserved                 : 30;
+                };
+                uint32 u32All;
+            } flags;
+
+            uint32 queuePrioritySupport;              // Mask of QueuePrioritySupport flags indicating which queue
+                                                      // priority levels are supported.
+            uint32 dispatchTunnelingPrioritySupport;  // Mask of QueuePrioritySupport flags indicating which queue
+                                                      // priority levels support dispatch tunneling.
+        } capabilities[MaxAvailableEngines];
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
+        EngineSubType  engineSubType[MaxAvailableEngines];
+#endif
 
         /// Specifies the suggested heap preference clients should use when creating an @ref ICmdAllocator that will
         /// allocate command space for this engine type.  These heap preferences should be specified in the allocHeap
@@ -622,7 +644,8 @@ struct GpuChipProperties
         {
             uint32 supportGl2Uncached          :  1; // Indicates support for the allocation of GPU L2
                                                      // un-cached memory. See gl2UncachedCpuCoherency
-            uint32 reserved                    : 31;
+            uint32 reserved1                   :  1;
+            uint32 reserved                    : 30;
         };
     } gfxip;
 #endif
@@ -694,6 +717,7 @@ struct GpuChipProperties
                 uint32 sqgEventsEnabled                         :  1;
                 uint32 support8bitIndices                       :  1;
                 uint32 support16BitInstructions                 :  1;
+                uint32 support64BitInstructions                 :  1;
                 uint32 supportIndexAttribIndirectPkt            :  1;  // Indicates support for INDEX_ATTRIB_INDIRECT
                 uint32 supportSetShIndexPkt                     :  1;  // Indicates support for packet SET_SH_REG_INDEX
                 uint32 supportLoadRegIndexPkt                   :  1;  // Indicates support for LOAD_*_REG_INDEX packets
@@ -710,7 +734,7 @@ struct GpuChipProperties
                 uint32 supportRgpTraces                         :  1; // HW supports RGP traces.
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
                 uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
-                uint32 reserved                                 : 13;
+                uint32 reserved                                 : 12;
             };
 
             Gfx6PerfCounterInfo perfCounterInfo; // Contains information for perf counters for a specific hardware block
@@ -778,6 +802,7 @@ struct GpuChipProperties
                                                                       // per SE
                 uint32 supportFp16Fetch                         :  1;
                 uint32 support16BitInstructions                 :  1;
+                uint32 support64BitInstructions                 :  1;
                 uint32 supportDoubleRate16BitInstructions       :  1;
                 uint32 rbPlus                                   :  1;
                 uint32 supportConservativeRasterization         :  1;
@@ -815,7 +840,7 @@ struct GpuChipProperties
                 uint32 overrideDefaultSpiConfigCntl             :  1; // KMD provides default value for SPI_CONFIG_CNTL.
                 uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
                 uint32 placeholder3                             :  1;
-                uint32 reserved                                 :  2;
+                uint32 reserved                                 :  1;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
@@ -1134,10 +1159,10 @@ public:
         IColorTargetView**               ppColorTargetView) const override;
 
     Result CreateInternalColorTargetView(
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo,
-        void*                                    pPlacementAddr,
-        IColorTargetView**                       ppColorTargetView) const;
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo,
+        void*                             pPlacementAddr,
+        IColorTargetView**                ppColorTargetView) const;
 
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetDepthStencilViewSize(
@@ -1495,6 +1520,8 @@ public:
     const HwsInfo& GetHwsInfo() const { return m_hwsInfo; }
     const PerfExperimentProperties& PerfProperties() const { return m_perfExperimentProperties; }
 
+    SchedulerMode GetSchedulerMode() const { return m_hwsInfo.mode; }
+
     InternalMemMgr* MemMgr() { return &m_memMgr; }
 
     // Returns the internal tracked command allocator except for engines that do not support tracking.
@@ -1704,6 +1731,18 @@ public:
 
     virtual bool ValidatePipelineUploadHeap(const GpuHeap& preferredHeap) const;
     Result InternalDmaSubmit(const SubmitInfo& submitInfo);
+    Result CopyUsingEmbeddedData(const void* pSrcData, gpusize copySize, gpusize dstOffset, GpuMemory* pDstGpuMem);
+
+    // Add or subtract some memory from our per-heap totals. We refcount each added GPU memory object so it's safe
+    // to add memory multiple times or subtract it multiple times.
+    Result AddToReferencedMemoryTotals(
+        uint32              gpuMemRefCount,
+        const GpuMemoryRef* pGpuMemoryRefs);
+
+    Result SubtractFromReferencedMemoryTotals(
+        uint32            gpuMemoryCount,
+        IGpuMemory*const* ppGpuMemory,
+        bool              forceSubtract);
 
 protected:
     Device(
@@ -1779,6 +1818,7 @@ protected:
         { return m_deviceIndex; }
 
     // Helpers for creating queues for PAL internal use.
+    Result CreateInternalCopyCmdBuffer();
     Result CreateInternalCopyQueues();
     Result CreateInternalQueue(const QueueCreateInfo& queueCreatInfo,
                                Queue**                ppQueue,
@@ -1878,6 +1918,9 @@ protected:
 
     Util::Mutex m_copyQueuesLock;
     Queue* m_pInternalCopyQueue;
+
+    Util::Mutex m_copyCmdBufferLock;
+    CmdBuffer* m_pInternalCopyCmdBuffer;
 
 private:
     Result HwlEarlyInit();

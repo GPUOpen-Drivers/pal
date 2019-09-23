@@ -201,13 +201,12 @@ struct GpuMemoryCreateInfo
 /// See the @ref IGpuMemory for additional restrictions on the size and vaRange fields.
 struct PinnedGpuMemoryCreateInfo
 {
-    const void* pSysMem;   ///< Pointer to the system memory that should be pinned for GPU access.  Must be aligned to
-                           ///  realMemAllocGranularity in DeviceProperties.
-    size_t      size;      ///< Amount of system memory to pin for GPU access.
-    VaRange     vaRange;   ///< Virtual address range for the GPU memory allocation.
-    gpusize     alignment; ///< Byte alignment of the allocation's GPU VA.  If zero, an alignment matching the
-                           ///  Platform's allocation granularity will be used.
-
+    const void*       pSysMem;   ///< Pointer to the system memory that should be pinned for GPU access.  Must be
+                                 ///  aligned to realMemAllocGranularity in DeviceProperties.
+    size_t            size;      ///< Amount of system memory to pin for GPU access.
+    VaRange           vaRange;   ///< Virtual address range for the GPU memory allocation.
+    gpusize           alignment; ///< Byte alignment of the allocation's GPU VA.  If zero, an alignment matching the
+                                 ///  Platform's allocation granularity will be used.
 };
 
 /// Specifies properties for @ref IGpuMemory creation.  Input structure to IDevice::CreateSvmGpuMemory().

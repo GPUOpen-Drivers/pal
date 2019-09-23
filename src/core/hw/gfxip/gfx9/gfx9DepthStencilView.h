@@ -178,7 +178,6 @@ struct Gfx9DepthStencilViewPm4Img
     regDB_Z_WRITE_BASE_HI        dbZWriteBaseHi;
     regDB_STENCIL_WRITE_BASE     dbStencilWriteBase;
     regDB_STENCIL_WRITE_BASE_HI  dbStencilWriteBaseHi;
-    regDB_DFSM_CONTROL           dbDfsmControl;
 
     PM4PFP_SET_CONTEXT_REG      hdrDbZInfo2ToStencilInfo2;
     regDB_Z_INFO2               dbZInfo2;
@@ -282,9 +281,6 @@ struct Gfx10DepthStencilViewPm4Img
     //        DB_DEPTH_SIZE that PAL will not be writing.
     PM4PFP_SET_CONTEXT_REG            hdrDbDepthSize;
     regDB_DEPTH_SIZE_XY               dbDepthSize;
-
-    PM4PFP_SET_CONTEXT_REG            hdrDbDfsmControl;
-    regDB_DFSM_CONTROL                dbDfsmControl;
 
     PM4ME_CONTEXT_REG_RMW             dbDepthInfo;
 

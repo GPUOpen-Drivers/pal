@@ -548,12 +548,19 @@ void GfxCmdBuffer::CmdCopyTypedBuffer(
 
 // =====================================================================================================================
 void GfxCmdBuffer::CmdScaledCopyImage(
-    const ScaledCopyInfo&        copyInfo)
+    const ScaledCopyInfo& copyInfo)
 {
     constexpr ScaledCopyInternalFlags NullInternalFlags = {};
 
     PAL_ASSERT(copyInfo.pRegions != nullptr);
     m_device.RsrcProcMgr().CmdScaledCopyImage(this, copyInfo, NullInternalFlags);
+}
+
+// =====================================================================================================================
+void GfxCmdBuffer::CmdGenerateMipmaps(
+    const GenMipmapsInfo& genInfo)
+{
+    m_device.RsrcProcMgr().CmdGenerateMipmaps(this, genInfo);
 }
 
 // =====================================================================================================================
@@ -667,7 +674,7 @@ void GfxCmdBuffer::CmdFillMemory(
     uint32            data)
 {
     m_device.RsrcProcMgr().CmdFillMemory(this,
-                                         (m_computeStateFlags == 0),
+                                         (IsComputeStateSaved() == false),
                                          static_cast<const GpuMemory&>(dstGpuMemory),
                                          dstOffset,
                                          fillSize,
@@ -836,7 +843,7 @@ void GfxCmdBuffer::CmdResolveImage(
 void GfxCmdBuffer::CmdSaveComputeState(
     uint32 stateFlags)
 {
-    PAL_ASSERT(m_computeStateFlags == 0);
+    PAL_ASSERT(IsComputeStateSaved() == false);
     m_computeStateFlags = stateFlags;
 
     if (TestAnyFlagSet(stateFlags, ComputeStatePipelineAndUserData))

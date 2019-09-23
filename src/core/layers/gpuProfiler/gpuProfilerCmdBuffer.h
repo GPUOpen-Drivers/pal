@@ -193,7 +193,9 @@ public:
         const ImageCopyRegion* pRegions,
         uint32                 flags) override;
     virtual void CmdScaledCopyImage(
-        const ScaledCopyInfo&        copyInfo) override;
+        const ScaledCopyInfo& copyInfo) override;
+    virtual void CmdGenerateMipmaps(
+        const GenMipmapsInfo& genInfo) override;
     virtual void CmdColorSpaceConversionCopy(
         const IImage&                     srcImage,
         ImageLayout                       srcImageLayout,
@@ -465,6 +467,7 @@ public:
     virtual void CmdFlglDisable() override;
     virtual void CmdCommentString(
         const char* pComment) override;
+    virtual uint32 CmdInsertExecutionMarker() override;
     virtual void CmdPostProcessFrame(
         const CmdPostProcessFrameInfo& postProcessInfo,
         bool*                          pAddedGpuWork) override;
@@ -679,6 +682,7 @@ private:
     void ReplayCmdCopyRegisterToMemory(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdScaledCopyImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdGenerateMipmaps(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdColorSpaceConversionCopy(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCloneImageData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyMemoryToImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -730,6 +734,7 @@ private:
     void ReplayCmdSaveComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdRestoreComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCommentString(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdInsertExecutionMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdPostProcessFrame(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserClipPlanes(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetClipRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

@@ -338,8 +338,11 @@ struct CmdBufferCreateInfo
                                                  ///  before calling ICmdBuffer::Begin.
     QueueType                     queueType;     ///< Type of queue commands in this command buffer will target.
                                                  ///  This defines the set of allowed actions in the command buffer.
+    QueuePriority                 queuePriority; ///< Priority level of the queue this command buffer will target.
     EngineType                    engineType;    ///< Type of engine the queue commands will run on.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     EngineSubType                 engineSubType; ///< Sub type of engine the queue commands will run on.
+#endif
 
     union
     {
@@ -360,8 +363,11 @@ struct CmdBufferCreateInfo
             /// Dedicated CUs are reserved for this queue. Thus we have to skip CU mask programming.
             uint32  realtimeComputeUnits :  1;
 
+            /// Target queue uses dispatch tunneling.
+            uint32  dispatchTunneling    :  1;
+
             /// Reserved for future use.
-            uint32  reserved             : 30;
+            uint32  reserved             : 29;
         };
 
         /// Flags packed as 32-bit uint.
@@ -453,8 +459,16 @@ union CmdBufferBuildFlags
         /// the optimizeExclusiveSubmit flag is also set. This flag is ignored for root command buffers.
         uint32 disallowNestedLaunchViaIb2   :  1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+        /// Enables execution marker support, which adds structured NOPs and timestamps to the command buffer to allow
+        /// for fine-grained hang identification.
+        uint32 enableExecutionMarkerSupport :  1;
+#else
+        uint32 reserved0                     :  1;  ///< Reserved for future use.
+#endif
+
         /// Reserved for future use.
-        uint32 reserved                     : 24;
+        uint32 reserved                      : 23;
     };
 
     /// Flags packed as 32-bit uint.
@@ -487,6 +501,10 @@ struct CmdBufferBuildInfo
     ///   before calling Begin() or PAL will accidentally free it.
     Util::VirtualLinearAllocator* pMemAllocator;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+    uint64 execMarkerClientHandle; ///< Client/app data handle. This can have an arbitrary value and is used to uniquely
+                                   ///  identify this command buffer.
+#endif
 };
 
 /// Specifies info on how a compute shader should use resources.
@@ -1630,6 +1648,22 @@ struct ScaledCopyInfo
     ScaledCopyFlags                 flags;          ///< Copy flags, identifies the type of blt to peform.
 };
 
+/// Input structure to @ref ICmdBuffer::CmdGenerateMipmaps. Specifies parameters needed to execute CmdGenerateMipmaps.
+struct GenMipmapsInfo
+{
+    const IImage*  pImage;         ///< Populate mips in this image by reading from existing higher-level mips.
+    ImageLayout    baseMipLayout;  ///< The layout of all slices in the read-only base mip; must include LayoutCopySrc.
+    ImageLayout    genMipLayout;   ///< The layout of all slices and mips that will be generated; must include
+                                   ///  LayoutCopySrc and LayoutCopyDst.
+    SubresRange    range;          ///< Which subresources should be generated from earlier mips. The starting mipLevel
+                                   ///  must never be zero because there would be no larger mip to read.
+    TexFilter      filter;         ///< Controls texture sampling during mip generation. Linear texture filtering is
+                                   ///  only supported for images with non-integer formats.
+    SwizzledFormat swizzledFormat; ///< If not Undefined, reinterpret all subresources using this format and swizzle.
+                                   ///  The specified format needs to have been included in the "pViewFormats" list
+                                   ///  specified at image-creation time, otherwise the result might be incorrect.
+};
+
 /**
  ***********************************************************************************************************************
  * @interface ICmdBuffer
@@ -2463,7 +2497,14 @@ public:
     /// @param [in] copyInfo       Specifies parameters needed to execute CmdScaledCopyImage. See
     ///                            @ref ScaledCopyInfo for more information.
     virtual void CmdScaledCopyImage(
-        const ScaledCopyInfo&        copyInfo) = 0;
+        const ScaledCopyInfo& copyInfo) = 0;
+
+    /// Automatically generates texture data for a range of subresources such that they may be used as intermediate
+    /// images in a mipmap chain. The existing values in mip N are used to generate mip N+1.
+    ///
+    /// @param [in] genInfo The parameters for CmdGenerateMipmaps. See @ref GenMipmapsInfo for more information.
+    virtual void CmdGenerateMipmaps(
+        const GenMipmapsInfo& genInfo) = 0;
 
     /// Copies multiple scaled regions from one image to another, converting between RGB and YUV color spaces during
     /// the copy.  The exact conversion between YUV and RGB is controlled by a caller-specified color-space-conversion
@@ -3450,6 +3491,12 @@ public:
     /// @param [in] pComment        Pointer to NUL-terminated string that will be inserted into the command buffer.
     virtual void CmdCommentString(
         const char* pComment) = 0;
+
+    /// Inserts a bottom-of-pipe timestamp and embedded payload inside of a NOP packet that allows crash-dump analysis
+    /// tools to identify how far command buffer execution has progressed before a crash or hang.
+    ///
+    /// @returns Counter value of the embedded execution marker.
+    virtual uint32 CmdInsertExecutionMarker() = 0;
 
     /// Copy from present back buffer to a packed pixel surface. To support packed pixel on win8/10 in full screen mode,
     /// client will create a scratch surface, convert rendered contents from application primaries into packed pixel

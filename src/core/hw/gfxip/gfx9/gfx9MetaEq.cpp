@@ -1061,5 +1061,64 @@ uint32 MetaDataAddrEquation::GetNumComponents(
     return numComponents;
 }
 
+// =====================================================================================================================
+void MetaDataAddrEquation::AdjustPipe(
+    int32  numPipesLog2,
+    int32  offset,
+    bool   undo)
+{
+    const int32 i = offset;
+    const int32 j = offset + numPipesLog2 - 1;
+    const int32 r = (undo) ? 1 : -1;
+
+    Rotate(r, i, j);
+}
+
+// =====================================================================================================================
+void MetaDataAddrEquation::Rotate(
+    int32 amount,
+    int32 start,
+    int32 end)
+{
+    if (end == -1)
+    {
+        // Go with the first empty bit in the equation.  "GetNumValidBits" is the total number of possible bits
+        // in the equation.  Go backwards since the first couple bits will be empty.
+        bool  lastValidFound = false;
+        for (end = GetNumValidBits() - 1; ((lastValidFound == false) && (end >= 0)); end--)
+        {
+            lastValidFound = (IsEmpty(end) == false);
+        }
+
+        // "end" is now the last non-empty bit in the equation; we want the first empty bit.
+        end++;
+    }
+
+    const int32 size = 1 + end - start;
+    MetaDataAddrEquation  rotCopy(size, "rotCopy");
+
+    Copy(&rotCopy, start, size);
+    for (int32 i = 0; i < size; i++)
+    {
+        int32 src = (i - amount);
+        if (src < 0)
+        {
+            src = -src % size;
+            src = size - src;
+        }
+        else
+        {
+            src = src % size;
+        }
+
+        const uint32  dstBitPos = start + i;
+        ClearBitPos(dstBitPos);
+        for (uint32 compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
+        {
+            SetMask(dstBitPos, compType, rotCopy.Get(src, compType));
+        }
+    }
+}
+
 } // Gfx9
 } // Pal

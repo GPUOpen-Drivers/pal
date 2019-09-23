@@ -44,6 +44,21 @@ public:
     BitSet() { ResetBits(); }
     ~BitSet() {}
 
+    // Returns a pointer to the internal bit data
+    const void* GetBitData() const { return m_bitDwords; }
+
+    // Returns the size of the internal bit data in bytes
+    size_t GetBitDataSize() const { return sizeof(m_bitDwords); }
+
+    // Updates the internal bit data using the data provided by the caller
+    // This effectively just copies the caller's data over the internal data and discards all unnecessary data.
+    void UpdateBitData(const void* pBitData, size_t bitDataSize)
+    {
+        const size_t copySize = Platform::Min(sizeof(m_bitDwords), bitDataSize);
+
+        memcpy(m_bitDwords, pBitData, copySize);
+    }
+
     // Returns the number of bits in the set
     size_t GetNumBits() const { return NumBits; }
 

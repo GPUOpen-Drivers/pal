@@ -181,6 +181,8 @@ public:
     virtual void CmdCommentString(
         const char* pComment) override;
 
+    virtual uint32 CmdInsertExecutionMarker() override;
+
     virtual CmdStreamChunk* GetChunkForCmdGeneration(
         const Pal::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,
@@ -217,6 +219,9 @@ protected:
 
     virtual Result AddPreamble() override;
     virtual Result AddPostamble() override;
+
+    virtual void BeginExecutionMarker(uint64 clientHandle) override;
+    virtual void EndExecutionMarker() override;
 
     virtual void ResetState() override;
 

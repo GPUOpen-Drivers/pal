@@ -266,8 +266,6 @@ void DepthStencilView::InitCommonImageView(
     pPm4Img->dbStencilInfo.bits.FORMAT             = HwStencilFmt(pFmtInfo, sFmt);
     pPm4Img->dbStencilInfo.bits.PARTIALLY_RESIDENT = pPm4Img->dbZInfo.bits.PARTIALLY_RESIDENT;
 
-    pPm4Img->dbDfsmControl.u32All = m_device.GetDbDfsmControl();
-
     // For 4xAA and 8xAA need to decompress on flush for better performance
     pPm4Img->dbRenderOverride2.bits.DECOMPRESS_Z_ON_FLUSH       = (imageCreateInfo.samples > 2) ? 1 : 0;
     pPm4Img->dbRenderOverride2.bits.DISABLE_COLOR_ON_VALIDATION = settings.dbDisableColorOnValidation;
@@ -593,7 +591,7 @@ void Gfx9DepthStencilView::BuildPm4Headers()
     CommonBuildPm4Headers(&m_pm4Cmds);
 
     size_t spaceNeeded = cmdUtil.BuildSetSeqContextRegs(Gfx09::mmDB_Z_INFO,
-                                                        Gfx09::mmDB_DFSM_CONTROL,
+                                                        Gfx09::mmDB_STENCIL_WRITE_BASE_HI,
                                                         &m_pm4Cmds.hdrDbZInfoToDfsmControl);
 
     spaceNeeded += cmdUtil.BuildSetSeqContextRegs(Gfx09::mmDB_Z_INFO2,
@@ -754,8 +752,6 @@ void Gfx10DepthStencilView::BuildPm4Headers()
 
     spaceNeeded += cmdUtil.BuildSetOneContextReg(Gfx10::mmDB_DEPTH_SIZE_XY, &m_pm4Cmds.hdrDbDepthSize);
 
-    spaceNeeded += cmdUtil.BuildSetOneContextReg(Gfx10::mmDB_DFSM_CONTROL,
-                                                 &m_pm4Cmds.hdrDbDfsmControl);
     spaceNeeded += cmdUtil.BuildSetSeqContextRegs(Gfx10::mmDB_Z_INFO,
                                                   Gfx10::mmDB_STENCIL_WRITE_BASE,
                                                   &m_pm4Cmds.hdrDbZInfo);

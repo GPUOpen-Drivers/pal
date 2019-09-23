@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,6 @@
 #include "ddPlatform.h"
 #include "memory.h"
 #include "hashFunc.h"
-#include <cstring>
 
 namespace DevDriver
 {
@@ -413,7 +412,7 @@ namespace DevDriver
 
                 if (pBucket == nullptr)
                 {
-                    DD_ALERT_REASON("Failed to allocate bucket");
+                    DD_WARN_REASON("Failed to allocate bucket");
                     break;
                 }
 

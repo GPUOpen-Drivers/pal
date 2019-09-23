@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -40,9 +40,11 @@ namespace DevDriver
     {
         DD_STATIC_CONST uint32 kMaxNumGpus = 16;
 
+        typedef Result(*SetDeviceClockModeCallback)(uint32 gpuIndex, DeviceClockMode clockMode, void* pUserdata);
+
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION
         typedef Result(*QueryDeviceClockCallback)(uint32 gpuIndex, float* pGpuClock, float* pMemClock, void* pUserdata);
         typedef Result(*QueryMaxDeviceClockCallback)(uint32 gpuIndex, float* pMaxGpuClock, float* pMaxMemClock, void* pUserdata);
-        typedef Result(*SetDeviceClockModeCallback)(uint32 gpuIndex, DeviceClockMode clockMode, void* pUserdata);
 
         struct DeviceClockCallbackInfo
         {
@@ -51,6 +53,16 @@ namespace DevDriver
             SetDeviceClockModeCallback  setCallback;
             void*                       pUserdata;
         };
+#else
+        typedef Result(*QueryDeviceClockCallback)(uint32 gpuIndex, DevDriver::DriverControlProtocol::DeviceClockMode clockMode, float* pGpuClock, float* pMemClock, void* pUserdata);
+
+        struct DeviceClockCallbackInfo
+        {
+            QueryDeviceClockCallback    queryClockCallback;
+            SetDeviceClockModeCallback  setCallback;
+            void*                       pUserdata;
+        };
+#endif
 
         enum class SessionState;
 
@@ -112,6 +124,7 @@ namespace DevDriver
             SessionState HandleQueryDeviceClockModeRequest(SizedPayloadContainer& container);
             SessionState HandleSetDeviceClockModeRequest(SizedPayloadContainer& container);
             SessionState HandleQueryDeviceClockRequest(SizedPayloadContainer& container);
+            SessionState HandleQueryDeviceClockByModeRequest(SizedPayloadContainer& container);
             SessionState HandleQueryMaxDeviceClockRequest(SizedPayloadContainer& container);
             SessionState HandleQueryNumGpusRequest(SizedPayloadContainer& container);
             SessionState HandleQueryDriverStatusRequest(SizedPayloadContainer& container, const Version sessionVersion);

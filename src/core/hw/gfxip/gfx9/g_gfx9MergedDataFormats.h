@@ -69,6 +69,7 @@ namespace Gfx9
 //   w    = write
 //   a    = atomics
 //   fl   = filter linear
+//   fmm  = filter min max
 constexpr FormatFeatureFlags None                     = static_cast<FormatFeatureFlags>(0);
 constexpr FormatFeatureFlags Copy                     = static_cast<FormatFeatureFlags>(FormatFeatureCopy);
 constexpr FormatFeatureFlags Xd                       = static_cast<FormatFeatureFlags>(FormatFeatureFormatConversionDst);
@@ -92,6 +93,7 @@ constexpr FormatFeatureFlags IrXsIfl                  = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIflIfmm              = static_cast<FormatFeatureFlags>(IrXsIfl | Ifmm);
 constexpr FormatFeatureFlags IrXsIw                   = static_cast<FormatFeatureFlags>(IrXs | Iw);
 constexpr FormatFeatureFlags IrXsIwIfl                = static_cast<FormatFeatureFlags>(IrXs | Iw | Ifl);
+constexpr FormatFeatureFlags IrXsIwIflIfmm            = static_cast<FormatFeatureFlags>(IrXs | Iw | Ifl | Ifmm);
 constexpr FormatFeatureFlags IrXsIa                   = static_cast<FormatFeatureFlags>(IrXs | Ia);
 constexpr FormatFeatureFlags IrXsIaIfl                = static_cast<FormatFeatureFlags>(IrXs | Ia | Ifl);
 constexpr FormatFeatureFlags IrXsIaIflIfmm            = static_cast<FormatFeatureFlags>(IrXsIaIfl | Ifmm);

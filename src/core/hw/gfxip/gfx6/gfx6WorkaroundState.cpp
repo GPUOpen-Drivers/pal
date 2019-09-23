@@ -102,9 +102,21 @@ uint32* WorkaroundState::PreDraw(
         }
     }
 
-    if (m_device.WaMiscDccOverwriteComb() &&
-        stateDirty &&
-        (gfxState.dirtyFlags.validationBits.colorTargetView || gfxState.dirtyFlags.validationBits.colorBlendState))
+    const bool targetsDirty = gfxState.dirtyFlags.validationBits.colorTargetView ||
+                              gfxState.dirtyFlags.validationBits.colorBlendState;
+
+    const bool ocDisableWorkaroundsActive = m_device.WaMiscDccOverwriteComb() ||
+                                            m_settings.waRotatedSwizzleDisablesOverwriteCombiner;
+
+    // the pipeline is only dirty if it is in fact dirty and the setting that is affected by a dirty
+    // pipeline is active.
+    const bool ocDisableLogicOp = m_settings.waLogicOpDisablesOverwriteCombiner;
+    const bool pipelineDirty    =  ocDisableLogicOp &&
+                                   stateDirty       &&
+                                   gfxState.pipelineState.dirtyFlags.pipelineDirty;
+
+    if (pipelineDirty  ||
+        (stateDirty && targetsDirty && ocDisableWorkaroundsActive))
     {
         // Apply the "Color Cache Controller Can Evict Invalid Sectors" workaround:
         // When MSAA and blending are enabled with DCC, the overwrite combiner marks something as overwritten
@@ -122,7 +134,7 @@ uint32* WorkaroundState::PreDraw(
         // PAL requires pMsaaState->NumShaderExportMaskSamples() to be larger or equal to the max fragment count in all
         // the render targets. Therefore using pMsaaState->NumShaderExportMaskSamples() for this WA is safe,
         // though it may overly apply the WA if pMsaaState->NumShaderExportMaskSamples() > 1 but fragment count is 1.
-        const bool   isMsaaTarget = ((pMsaaState != nullptr) && (pMsaaState->NumShaderExportMaskSamples() > 1));
+        const bool   isMsaaTarget    = ((pMsaaState != nullptr) && (pMsaaState->NumShaderExportMaskSamples() > 1));
         const uint32 blendEnableMask = ((pBlendState != nullptr) && pBlendState->BlendEnableMask());
 
         if (m_isNested == false)
@@ -133,10 +145,22 @@ uint32* WorkaroundState::PreDraw(
                 const auto*const pView =
                     static_cast<const ColorTargetView*>(bindInfo.colorTargets[slot].pColorTargetView);
                 regCB_COLOR0_DCC_CONTROL__VI cbDccControl = { };
-                cbDccControl.bits.OVERWRITE_COMBINER_DISABLE =
-                    (isMsaaTarget &&
-                     (((blendEnableMask >> slot) & 1) != 0) &&
-                     (pView != nullptr) && (pView->IsDccEnabled(bindInfo.colorTargets[slot].imageLayout)));
+
+                if (pView != nullptr)
+                {
+                    const bool  rop3Enabled     = (ocDisableLogicOp && (pPipeline->GetLogicOp() != LogicOp::Copy));
+                    const bool  blendingEnabled = (((blendEnableMask >> slot) & 1) != 0);
+                    if (isMsaaTarget &&
+                        (rop3Enabled || blendingEnabled)  &&
+                        (pView->IsDccEnabled(bindInfo.colorTargets[slot].imageLayout)))
+                    {
+                        cbDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
+                    }
+                    else if (pView->IsRotatedSwizzleOverwriteCombinerDisabled() == 1)
+                    {
+                        cbDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
+                    }
+                }
 
                 if (cbDccControl.bits.OVERWRITE_COMBINER_DISABLE !=
                     ((m_dccOverwriteCombinerDisableMask >> slot) & 1))
@@ -160,12 +184,23 @@ uint32* WorkaroundState::PreDraw(
             {
                 for (uint32 slot = 0; slot < gfxState.inheritedState.colorTargetCount; ++slot)
                 {
-                    const bool isMsaaSurface = (gfxState.inheritedState.sampleCount[slot] > 1);
+                    const bool isMsaaSurface   = (gfxState.inheritedState.sampleCount[slot] > 1);
+                    const bool blendingEnabled = (((blendEnableMask >> slot) & 1) != 0);
+                    const bool rop3Enabled     = (ocDisableLogicOp && (pPipeline->GetLogicOp() != LogicOp::Copy));
 
                     regCB_COLOR0_DCC_CONTROL__VI cbDccControl = {};
-                    cbDccControl.bits.OVERWRITE_COMBINER_DISABLE =
-                        (isMsaaSurface &&
-                         (((blendEnableMask >> slot) & 1) != 0)) ? 1 : 0;
+                    if (isMsaaTarget && (blendingEnabled || rop3Enabled))
+                    {
+                        cbDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
+                    }
+                    else if (m_settings.waRotatedSwizzleDisablesOverwriteCombiner)
+                    {
+                        // When a nested command buffer inherits the bound color-targets from the caller,
+                        // the command buffer itself doesn't know whether the active targets use Rotated swizzle
+                        // or not. This means we need to be conservative and disable the DCC overwrite combiner
+                        // just to be safe.
+                        cbDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
+                    }
 
                     if (cbDccControl.bits.OVERWRITE_COMBINER_DISABLE !=
                         ((m_dccOverwriteCombinerDisableMask >> slot) & 1))
@@ -184,12 +219,15 @@ uint32* WorkaroundState::PreDraw(
                 // Nested command buffers aren't guaranteed to know the state of the actively bound color-target
                 // views, so we need to be conservative and assume that all bound views are susceptible to the
                 // hardware issue.
-                const uint32 combinerDisableMask = (isMsaaTarget ? blendEnableMask : 0);
+                const bool  rop3Enabled          = (ocDisableLogicOp && (pPipeline->GetLogicOp() != LogicOp::Copy));
+                const uint32 combinerDisableMask = (isMsaaTarget ? (blendEnableMask || rop3Enabled) : 0);
+
                 for (uint32 slot = 0; slot < MaxColorTargets; ++slot)
                 {
-
                     regCB_COLOR0_DCC_CONTROL__VI cbDccControl = {};
-                    cbDccControl.bits.OVERWRITE_COMBINER_DISABLE = ((combinerDisableMask >> slot) & 1);
+                    cbDccControl.bits.OVERWRITE_COMBINER_DISABLE =
+                        ((combinerDisableMask >> slot) & 1) ||
+                        m_settings.waRotatedSwizzleDisablesOverwriteCombiner;
 
                     if (cbDccControl.bits.OVERWRITE_COMBINER_DISABLE !=
                         ((m_dccOverwriteCombinerDisableMask >> slot) & 1))

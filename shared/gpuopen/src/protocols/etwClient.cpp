@@ -25,7 +25,6 @@
 
 #include "protocols/etwClient.h"
 #include "msgChannel.h"
-#include <cstring>
 
 namespace DevDriver
 {

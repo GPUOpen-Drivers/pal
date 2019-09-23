@@ -31,6 +31,8 @@
 #include "util/ddMetroHash.h"
 #include "ddPlatform.h"
 
+#include <stdlib.h>
+
 namespace DevDriver
 {
 namespace SettingsURIService
@@ -144,7 +146,7 @@ Result SettingsService::HandleGetComponents(
     if (result == Result::Success)
     {
         pWriter->BeginMap();
-        pWriter->KeyAndBeginList("components");
+        pWriter->KeyAndBeginList(Components_ComponentsKey);
 
         for (const auto& entry : m_registeredComponents)
         {
@@ -242,7 +244,7 @@ bool SettingsService::GetValue(
 
         // The only other result we should expect is insuffient memory, in that case the required memory
         // size is returned in the valueSize field.  Allocate a buffer big enough to hold the struct and the associated data
-        pValueBuffer = DD_MALLOC((pSettingValue->valueSize + sizeof(SettingValue)), DD_DEFAULT_ALIGNMENT, m_allocCb);
+        pValueBuffer = m_allocCb.Alloc((pSettingValue->valueSize + sizeof(SettingValue)), false);
         if (pValueBuffer != nullptr)
         {
             needsCleanup = true;

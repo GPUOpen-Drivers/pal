@@ -357,7 +357,11 @@ public:
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdScaledCopyImage(
-        const ScaledCopyInfo&        copyInfo) override
+        const ScaledCopyInfo& copyInfo) override
+        { PAL_NEVER_CALLED(); }
+
+    virtual void CmdGenerateMipmaps(
+        const GenMipmapsInfo& genInfo) override
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdColorSpaceConversionCopy(
@@ -754,6 +758,8 @@ public:
     virtual void CmdCommentString(
         const char* pComment) override { PAL_NEVER_CALLED(); }
 
+    virtual uint32 CmdInsertExecutionMarker() override { PAL_NEVER_CALLED(); return UINT_MAX; }
+
     virtual void CmdXdmaWaitFlipPending() override { PAL_NEVER_CALLED(); }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 509
@@ -804,14 +810,23 @@ public:
     CmdBufferRecordState RecordState() const { return m_recordState; }
 
     QueueType       GetQueueType()      const { return m_createInfo.queueType; }
+    QueuePriority   GetQueuePriority()  const { return m_createInfo.queuePriority; }
     EngineType      GetEngineType()     const { return m_engineType; }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     EngineSubType   GetEngineSubType()  const { return m_engineSubType; }
+#endif
 
-    bool IsNested() const { return (m_createInfo.flags.nested != 0); }
+    bool IsNested()               const { return (m_createInfo.flags.nested               != 0); }
     bool IsRealtimeComputeUnits() const { return (m_createInfo.flags.realtimeComputeUnits != 0); }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
+    bool UsesDispatchTunneling()  const { return (m_createInfo.flags.dispatchTunneling    != 0); }
+#else
+    bool UsesDispatchTunneling()  const
+        { return (GetEngineSubType() == EngineSubType::VrHighPriority) || (m_createInfo.flags.dispatchTunneling != 0); }
+#endif
 
-    bool IsExclusiveSubmit() const { return (m_buildFlags.optimizeExclusiveSubmit != 0); }
-    bool IsOneTimeSubmit() const { return (m_buildFlags.optimizeOneTimeSubmit != 0); }
+    bool IsExclusiveSubmit() const { return (m_buildFlags.optimizeExclusiveSubmit    != 0); }
+    bool IsOneTimeSubmit()   const { return (m_buildFlags.optimizeOneTimeSubmit      != 0); }
     bool AllowLaunchViaIb2() const { return (m_buildFlags.disallowNestedLaunchViaIb2 == 0); }
 
     uint64 LastPagingFence() const { return m_lastPagingFence; }
@@ -878,6 +893,10 @@ protected:
 
     virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, HwPipePoint pipePoint, uint32 data) = 0;
 
+    virtual bool SupportsExecutionMarker() { return false; }
+    virtual void BeginExecutionMarker(uint64 clientHandle);
+    virtual void EndExecutionMarker() { PAL_NEVER_CALLED(); }
+
     // Helper function for switching the CmdSetUserData callback for a specific pipeline type.
     void SwitchCmdSetUserDataFunc(
         PipelineBindPoint  bindPoint,
@@ -938,13 +957,18 @@ protected:
     CmdBufferInternalCreateInfo   m_internalInfo;
     CmdBufferBuildFlags           m_buildFlags;
     const EngineType              m_engineType;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     const EngineSubType           m_engineSubType;
+#endif
 
     CmdAllocator*                 m_pCmdAllocator;
 
     Util::VirtualLinearAllocator* m_pMemAllocator;
     void*                         m_pMemAllocatorStartPos;
     Result                        m_status;
+
+    gpusize                       m_executionMarkerAddr;
+    uint32                        m_executionMarkerCount;
 
     struct ChunkData
     {

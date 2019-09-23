@@ -1685,7 +1685,7 @@ void CmdBuffer::ReplayCmdCopyImage(
 
 // =====================================================================================================================
 void CmdBuffer::CmdScaledCopyImage(
-    const ScaledCopyInfo&        copyInfo)
+    const ScaledCopyInfo& copyInfo)
 {
     InsertToken(CmdBufCallId::CmdScaledCopyImage);
     InsertToken(copyInfo.pSrcImage);
@@ -1700,6 +1700,14 @@ void CmdBuffer::CmdScaledCopyImage(
     {
         InsertTokenArray(copyInfo.pColorKey,1);
     }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdGenerateMipmaps(
+    const GenMipmapsInfo& genInfo)
+{
+    InsertToken(CmdBufCallId::CmdGenerateMipmaps);
+    InsertToken(genInfo);
 }
 
 // =====================================================================================================================
@@ -1730,6 +1738,20 @@ void CmdBuffer::ReplayCmdScaledCopyImage(
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdScaledCopyImage);
     pTgtCmdBuffer->CmdScaledCopyImage(copyInfo);
+    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdGenerateMipmaps(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    GenMipmapsInfo genInfo = ReadTokenVal<GenMipmapsInfo>();
+
+    LogItem logItem = {};
+
+    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdGenerateMipmaps);
+    pTgtCmdBuffer->CmdGenerateMipmaps(genInfo);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -3404,6 +3426,23 @@ void CmdBuffer::ReplayCmdCommentString(
 }
 
 // =====================================================================================================================
+uint32 CmdBuffer::CmdInsertExecutionMarker()
+{
+    InsertToken(CmdBufCallId::CmdInsertExecutionMarker);
+
+    // We need to let this call go downwards to have the appropriate value to return back to the client.
+    return m_pNextLayer->CmdInsertExecutionMarker();
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdInsertExecutionMarker(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdInsertExecutionMarker();
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdPostProcessFrame(
     const CmdPostProcessFrameInfo& postProcessInfo,
     bool*                          pAddedGpuWork)
@@ -3584,6 +3623,7 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdCopyRegisterToMemory,
         &CmdBuffer::ReplayCmdCopyImage,
         &CmdBuffer::ReplayCmdScaledCopyImage,
+        &CmdBuffer::ReplayCmdGenerateMipmaps,
         &CmdBuffer::ReplayCmdColorSpaceConversionCopy,
         &CmdBuffer::ReplayCmdCloneImageData,
         &CmdBuffer::ReplayCmdCopyMemoryToImage,
@@ -3637,6 +3677,7 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdRestoreComputeState,
         &CmdBuffer::ReplayCmdSetUserClipPlanes,
         &CmdBuffer::ReplayCmdCommentString,
+        &CmdBuffer::ReplayCmdInsertExecutionMarker,
         &CmdBuffer::ReplayCmdXdmaWaitFlipPending,
         &CmdBuffer::ReplayCmdCopyMemoryToTiledImage,
         &CmdBuffer::ReplayCmdCopyTiledImageToMemory,

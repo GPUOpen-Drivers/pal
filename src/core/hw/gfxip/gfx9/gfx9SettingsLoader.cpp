@@ -282,7 +282,7 @@ void SettingsLoader::ValidateSettings(
             m_settings.forceWaveBreakSize = Gfx10ForceWaveBreakSizeClient;
         }
 
-        if ((m_settings.waLateAllocGs0) && (m_settings.nggEnableMode != NggPipelineTypeDisabled))
+        if ((m_settings.waLateAllocGs0) && m_settings.nggSupported)
         {
             m_settings.nggLateAllocGs = 0;
 
@@ -317,12 +317,9 @@ void SettingsLoader::ValidateSettings(
         m_settings.primGroupSize = Min(253u, m_settings.primGroupSize);
     }
 
-    m_settings.nggPrimsPerSubgroup = Min(m_settings.nggPrimsPerSubgroup, MaxGsThreadsPerSubgroup);
-    m_settings.nggVertsPerSubgroup = Min(m_settings.nggVertsPerSubgroup, MaxGsThreadsPerSubgroup);
-
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
-        m_settings.nggEnableMode = NggPipelineTypeDisabled;
+        m_settings.nggSupported = false;
     }
 
     // Set default value for DCC BPP Threshold unless it was already overriden
@@ -443,7 +440,7 @@ void SettingsLoader::OverrideDefaults(
     // Enable workarounds which are common to all Gfx9 hardware.
     if (IsGfx9(device))
     {
-        m_settings.nggEnableMode = NggPipelineTypeDisabled;
+        m_settings.nggSupported = false;
 
         m_settings.waColorCacheControllerInvalidEviction = true;
 
@@ -481,7 +478,7 @@ void SettingsLoader::OverrideDefaults(
             m_settings.waDisableDfsmWithEqaa = true;
         }
 
-        if (device.ChipProperties().gfx9.rbPlus)
+        if (device.ChipProperties().gfx9.rbPlus != 0)
         {
             m_settings.waRotatedSwizzleDisablesOverwriteCombiner = true;
         }

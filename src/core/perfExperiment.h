@@ -54,7 +54,7 @@ public:
 
 protected:
     PerfExperiment(Device* pDevice, const PerfExperimentCreateInfo& createInfo, gpusize memAlignment);
-    virtual ~PerfExperiment() {}
+    virtual ~PerfExperiment();
 
     const Device&                  m_device;
     const PerfExperimentCreateInfo m_createInfo;

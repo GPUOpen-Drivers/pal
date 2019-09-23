@@ -2132,6 +2132,27 @@ void CmdBufferFwdDecorator::CmdExecuteNestedCmdBuffers(
 }
 
 // =====================================================================================================================
+void CmdBufferFwdDecorator::CmdScaledCopyImage(
+    const ScaledCopyInfo& copyInfo)
+{
+    ScaledCopyInfo nextCopyInfo = copyInfo;
+    nextCopyInfo.pSrcImage      = NextImage(copyInfo.pSrcImage);
+    nextCopyInfo.pDstImage      = NextImage(copyInfo.pDstImage);
+
+    m_pNextLayer->CmdScaledCopyImage(nextCopyInfo);
+}
+
+// =====================================================================================================================
+void CmdBufferFwdDecorator::CmdGenerateMipmaps(
+    const GenMipmapsInfo& genInfo)
+{
+    GenMipmapsInfo nextGenInfo = genInfo;
+    nextGenInfo.pImage         = NextImage(genInfo.pImage);
+
+    m_pNextLayer->CmdGenerateMipmaps(nextGenInfo);
+}
+
+// =====================================================================================================================
 // This constructor must be called after pNextGpuMem has been fully initialized.
 GpuMemoryDecorator::GpuMemoryDecorator(
     IGpuMemory*            pNextGpuMem,

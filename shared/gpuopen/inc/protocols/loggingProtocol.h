@@ -26,7 +26,6 @@
 #pragma once
 
 #include "gpuopen.h"
-#include <cstring>
 
 #define LOGGING_PROTOCOL_VERSION 3
 

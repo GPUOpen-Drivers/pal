@@ -1919,7 +1919,8 @@ typedef struct PM4_ME_RELEASE_MEM__GFX10
         struct
         {
             uint32_t                         event_type : 6;
-            uint32_t                          reserved1 : 2;
+            uint32_t                          reserved1 : 1;
+            uint32_t                           wait_dma : 1;
             ME_RELEASE_MEM_event_index_enum event_index : 4;
             uint32_t                           gcr_cntl : 12;
             uint32_t                          reserved2 : 1;

@@ -45,7 +45,6 @@ class DevModeControlDevice
 public:
     DevModeControlDevice(const AllocCb& allocCb)
         : m_allocCb(allocCb)
-        , m_pIoCtlDevice(nullptr)
     {
     }
 
@@ -63,24 +62,32 @@ public:
     ///
     /// This is a convience overload to prevent errors with DevModeCmds.
     /// Prefer this to the non-templated overload.
-    template <typename Data>
+    template <typename Request>
     DD_NODISCARD
-        Result MakeDevModeRequest(
-            Data* pInOutBuffer
-        )
+    Result MakeDevModeRequest(
+        Request* pInOutBuffer
+    )
     {
-        DD_ASSERT(pInOutBuffer != nullptr);
-        // Make sure the header is the right offset.
-        static_assert(offsetof(Data, header) == 0, "Expected header field at offset 0");
-        // Make sure the header is the right type.
-        const DevModeResponseHeader& header = pInOutBuffer->header;
-        DD_UNUSED(header);
+        Result result = Result::InvalidParameter;
 
-        return MakeDevModeRequestRaw(
-            Data::kCmd,
-            sizeof(*pInOutBuffer),
-            pInOutBuffer
-        );
+        // Buffer must be valid and contain a DevModeResponseHeader.
+        if (IsInitialized() && (pInOutBuffer != nullptr))
+        {
+            // Make sure the header is the right offset. This is a compile-time check.
+            static_assert(offsetof(Request, header) == 0, "Expected header field at offset 0");
+
+            // Make sure the header is the right type. This is a compile-time check.
+            const DevModeResponseHeader& header = pInOutBuffer->header;
+            DD_UNUSED(header);
+
+            result = MakeDevModeRequestRaw(
+                Request::kCmd,
+                sizeof(*pInOutBuffer),
+                pInOutBuffer
+            );
+        }
+
+        return result;
     }
 
 private:
@@ -88,14 +95,31 @@ private:
     ///
     /// Prefer calling the typed-wrapper instead of this whenever possible.
     DD_NODISCARD
-        Result MakeDevModeRequestRaw(
-            DevModeCmd cmd,
-            size_t     bufferSize,
-            void*      pBuffer
-        );
+    Result MakeDevModeRequestRaw(
+        DevModeCmd cmd,
+        size_t     bufferSize,
+        void*      pBuffer
+    );
 
-    AllocCb       m_allocCb;
-    IIoCtlDevice* m_pIoCtlDevice;
+    DD_NODISCARD
+    Result HandlePostIoCtlWork(DevModeCmd cmd, void* pBuffer);
+
+    bool IsInitialized() const
+    {
+        // This should not happen. Auto is resolved to UserMode or KernelMode at init time.
+        DD_ASSERT(m_ioCtlDeviceType != DevModeBusType::Auto);
+        return ((m_pIoCtlDevice != nullptr) && (m_ioCtlDeviceType != DevModeBusType::Unknown));
+    }
+
+    // Allocation callbacks
+    AllocCb        m_allocCb;
+
+    // Device to issue ioctl commands through. May be user-mode or kernel mode depending on the platform.
+    IIoCtlDevice*  m_pIoCtlDevice = nullptr;
+
+    // Type of IoCtlDevice stored in m_pIoCtlDevice
+    // This may be Unknown, UserMode, or KernelMode, but will never be Auto. Unknown represents and uninitialized object.
+    DevModeBusType m_ioCtlDeviceType = DevModeBusType::Unknown;
 };
 
 }

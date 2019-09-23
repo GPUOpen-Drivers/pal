@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/device.h"
+#include "core/eventDefs.h"
 #include "core/g_palSettings.h"
 #include "core/gpuEvent.h"
 #include "palAssert.h"
@@ -69,6 +70,10 @@ GpuEvent::GpuEvent(
 // =====================================================================================================================
 GpuEvent::~GpuEvent()
 {
+    ResourceDestroyEventData data = {};
+    data.pObj = this;
+    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+
     if (m_gpuMemory.IsBound())
     {
         if (m_createInfo.flags.gpuAccessOnly == 0)
@@ -134,6 +139,19 @@ Result GpuEvent::Init()
                 result       = Reset();
             }
         }
+    }
+
+    if (result == Result::Success)
+    {
+        ResourceDescriptionGpuEvent desc = {};
+        desc.pCreateInfo = &m_createInfo;
+
+        ResourceCreateEventData data = {};
+        data.type = ResourceType::GpuEvent;
+        data.pResourceDescData = static_cast<void*>(&desc);
+        data.resourceDescSize = sizeof(ResourceDescriptionGpuEvent);
+        data.pObj = this;
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
     }
 
     return result;
@@ -306,6 +324,12 @@ Result GpuEvent::BindGpuMemory(
                 result       = Reset();
             }
         }
+
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
+            this,
+            gpuRequiredMemSizeInBytes,
+            pGpuMemory,
+            offset);
     }
 
     return result;

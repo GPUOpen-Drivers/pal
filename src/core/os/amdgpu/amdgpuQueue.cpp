@@ -75,7 +75,9 @@ static uint32 GetIpType(
         ipType = AMDGPU_HW_IP_GFX;
         break;
     case EngineTypeCompute:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     case EngineTypeExclusiveCompute:
+#endif
         ipType = AMDGPU_HW_IP_COMPUTE;
         break;
     case EngineTypeDma:
@@ -192,12 +194,13 @@ Queue::Queue(
     m_hResourceList(nullptr),
     m_hDummyResourceList(nullptr),
     m_pDummyCmdStream(nullptr),
-    m_memListDirty(true),
+    m_globalRefMap(m_pDevice->EngineProperties().maxUserMemRefsPerSubmission,
+                   m_pDevice->GetPlatform()),
+    m_globalRefDirty(true),
     m_internalMgrTimestamp(0),
     m_appMemRefCount(0),
     m_pendingWait(false),
     m_pCmdUploadRing(nullptr),
-    m_memList(pDevice->GetPlatform()),
     m_numIbs(0),
     m_lastSignaledSyncObject(0),
     m_waitSemList(pDevice->GetPlatform())
@@ -232,13 +235,6 @@ Queue::~Queue()
     {
         static_cast<Device*>(m_pDevice)->DestroySyncObject(m_lastSignaledSyncObject);
     }
-
-    auto memListIterator = m_memList.Begin();
-
-    while ((memListIterator.Get() != nullptr))
-    {
-        m_memList.Erase(&memListIterator);
-    }
 }
 
 // =====================================================================================================================
@@ -259,7 +255,12 @@ Result Queue::Init(
 
     if (result == Result::Success)
     {
-        result = m_memListLock.Init();
+        result = m_globalRefMap.Init();
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_globalRefLock.Init();
     }
 
     // Note that the presence of the command upload ring will be used later to determine if these conditions are true.
@@ -329,30 +330,29 @@ Result Queue::AddGpuMemoryReferences(
     const GpuMemoryRef* pGpuMemoryRefs)
 {
     Result result = Result::Success;
-    RWLockAuto<RWLock::ReadWrite> lock(&m_memListLock);
 
-    for (uint32 idx = 0; idx < gpuMemRefCount; ++idx)
+    RWLockAuto<RWLock::ReadWrite> lock(&m_globalRefLock);
+
+    for (uint32 idx = 0; (idx < gpuMemRefCount) && (result == Result::Success); ++idx)
     {
-        bool found = false;
-        auto listIterator = m_memList.Begin();
+        uint32* pRefCount     = nullptr;
+        bool    alreadyExists = false;
 
-        while (listIterator.Get() != nullptr)
+        result = m_globalRefMap.FindAllocate(pGpuMemoryRefs[idx].pGpuMemory, &alreadyExists, &pRefCount);
+
+        if (result == Result::Success)
         {
-            IGpuMemory* pMem = (*listIterator.Get());
-
-            if (pGpuMemoryRefs[idx].pGpuMemory == pMem)
+            if (alreadyExists)
             {
-                found = true;
-                break;
+                // The reference is already in the map, increment the ref count.
+                (*pRefCount)++;
             }
-
-            listIterator.Next();
-        }
-
-        if (found == false)
-        {
-            m_memList.PushFront(pGpuMemoryRefs[idx].pGpuMemory);
-            m_memListDirty = true;
+            else
+            {
+                // Initialize the new value with one reference.
+                *pRefCount       = 1;
+                m_globalRefDirty = true;
+            }
         }
     }
 
@@ -361,35 +361,29 @@ Result Queue::AddGpuMemoryReferences(
 
 // =====================================================================================================================
 // Decrements the GPU memory reference count and if necessary removes it from the per-queue global list.
-Result Queue::RemoveGpuMemoryReferences(
+void Queue::RemoveGpuMemoryReferences(
     uint32            gpuMemoryCount,
-    IGpuMemory*const* ppGpuMemory)
+    IGpuMemory*const* ppGpuMemory,
+    bool              forceRemove)
 {
-    Result result = Result::Success;
-    RWLockAuto<RWLock::ReadWrite> lock(&m_memListLock);
+    RWLockAuto<RWLock::ReadWrite> lock(&m_globalRefLock);
 
     for (uint32 idx = 0; idx < gpuMemoryCount; ++idx)
     {
-        auto listIterator = m_memList.Begin();
+        uint32* pRefCount = m_globalRefMap.FindKey(ppGpuMemory[idx]);
 
-        while (listIterator.Get() != nullptr)
+        if (pRefCount != nullptr)
         {
-            IGpuMemory* pMem = (*listIterator.Get());
+            PAL_ASSERT(*pRefCount > 0);
+            (*pRefCount)--;
 
-            if (ppGpuMemory[idx] == pMem)
+            if ((*pRefCount == 0) || forceRemove)
             {
-                // Erase will advance the iterator.
-                m_memList.Erase(&listIterator);
-                m_memListDirty = true;
-            }
-            else
-            {
-                listIterator.Next();
+                m_globalRefMap.Erase(ppGpuMemory[idx]);
+                m_globalRefDirty = true;
             }
         }
     }
-
-    return result;
 }
 
 // =====================================================================================================================
@@ -1058,9 +1052,9 @@ Result Queue::UpdateResourceList(
     {
         // Serialize access to internalMgr and queue memory list
         RWLockAuto<RWLock::ReadOnly> lockMgr(pMemMgr->GetRefListLock());
-        RWLockAuto<RWLock::ReadOnly> lock(&m_memListLock);
+        RWLockAuto<RWLock::ReadOnly> lock(&m_globalRefLock);
 
-        const bool reuseResourceList = (m_memListDirty == false)                                 &&
+        const bool reuseResourceList = (m_globalRefDirty == false)                               &&
                                        (pMemMgr->ReferenceWatermark() == m_internalMgrTimestamp) &&
                                        (memRefCount == 0)                                        &&
                                        (m_appMemRefCount == 0)                                   &&
@@ -1077,7 +1071,7 @@ Result Queue::UpdateResourceList(
                 m_hResourceList = nullptr;
             }
 
-            bool memListDirty = m_memListDirty;
+            bool memListDirty = m_globalRefDirty;
 
             // First add all of the global memory references.
             if (result == Result::Success)
@@ -1085,28 +1079,26 @@ Result Queue::UpdateResourceList(
                 // If the global memory references haven't been modified since the last submit,
                 // the resources in our UMD-side list (m_pResourceList) should be up to date.
                 // So, there is no need to re-walk through m_memList.
-                if (m_memListDirty == false)
+                if (m_globalRefDirty == false)
                 {
                     m_numResourcesInList += m_memListResourcesInList;
                 }
                 else
                 {
-                    m_memListDirty = false;
+                    m_globalRefDirty = false;
 
-                    auto listIterator = m_memList.Begin();
-
-                    while (listIterator.Get() != nullptr)
+                    for (auto iter = m_globalRefMap.Begin(); iter.Get() != nullptr; iter.Next())
                     {
-                        const GpuMemory* pGpuMemory = static_cast<GpuMemory*>(*listIterator.Get());
+                        const auto*const pGpuMemory = static_cast<const GpuMemory*>(iter.Get()->key);
 
                         result = AppendResourceToList(pGpuMemory);
+
                         if (result != Result::_Success)
                         {
-                            m_memListDirty = true;
+                            // We didn't rebuild the whole list so keep it marked as dirty.
+                            m_globalRefDirty = true;
                             break;
                         }
-
-                        listIterator.Next();
                     }
 
                     m_memListResourcesInList = m_numResourcesInList;
@@ -1293,7 +1285,7 @@ Result Queue::SubmitIbsRaw(
     }
     else
     {
-	memset(pMemory, 0, syncobjChunkSize);
+        memset(pMemory, 0, syncobjChunkSize);
         // kernel requires IB chunk goes ahead of others.
         for (uint32 i = 0; i < m_numIbs; i++)
         {

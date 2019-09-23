@@ -54,6 +54,8 @@ public:
         gpusize           dataSize,
         const uint32*     pData) override;
 
+    virtual uint32 CmdInsertExecutionMarker() override;
+
     static uint32* BuildNops(uint32* pCmdSpace, uint32 numDwords);
 
 protected:
@@ -61,6 +63,10 @@ protected:
 
     virtual Result AddPreamble() override;
     virtual Result AddPostamble() override;
+
+    virtual bool SupportsExecutionMarker() { return true; }
+    virtual void BeginExecutionMarker(uint64 clientHandle) override;
+    virtual void EndExecutionMarker() override;
 
     virtual void SetupDmaInfoExtent(DmaImageInfo*  pImageInfo) const override;
 

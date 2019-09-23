@@ -54,9 +54,8 @@ namespace DevDriver
             if (IsConnected() && (m_pCrashDump == nullptr))
             {
                 // Attempt to acquire memory for the crash data.
-                m_pCrashDump = reinterpret_cast<uint8*>(DD_MALLOC(crashDumpSize,
-                                                                  DD_DEFAULT_ALIGNMENT,
-                                                                  m_pMsgChannel->GetAllocCb()));
+                m_pCrashDump = reinterpret_cast<uint8*>(m_pMsgChannel->GetAllocCb().Alloc(crashDumpSize, false));
+
                 if (m_pCrashDump != nullptr)
                 {
                     // Copy the crash data into the memory.

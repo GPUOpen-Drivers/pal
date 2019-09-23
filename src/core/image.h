@@ -259,15 +259,7 @@ public:
         const Device&          device,
         const ImageCreateInfo& createInfo);
 
-    virtual ~Image()
-    {
-        if (m_pGfxImage != nullptr)
-        {
-            // Since the GfxImage memory is part of the same allocation as the independent layer image we don't need
-            // to call delete, but we still need to give the GfxImage a chance to clean up by calling the destructor.
-            m_pGfxImage->~GfxImage();
-        }
-    }
+    virtual ~Image();
 
     virtual Result Init();
 

@@ -74,6 +74,7 @@ static DeviceClockMode PalDeviceClockModeTable[] =
     DeviceClockMode::Peak           // Peak          = 5
 };
 
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION
 // =====================================================================================================================
 // Callback function which returns the current device clock for the requested gpu.
 DevDriver::Result QueryClockCallback(
@@ -115,7 +116,62 @@ DevDriver::Result QueryClockCallback(
 
     return result;
 }
+#else
+// =====================================================================================================================
+// Callback function which returns the current device clock for the requested gpu.
+DevDriver::Result QueryClockCallback(
+    uint32                                            gpuIndex,
+    DevDriver::DriverControlProtocol::DeviceClockMode clockMode,
+    float*                                            pGpuClock,
+    float*                                            pMemClock,
+    void*                                             pUserData)
+{
+    DevDriver::Result result     = DevDriver::Result::Error;
+    Platform*         pPlatform  = reinterpret_cast<Platform*>(pUserData);
+    Device*           pPalDevice = nullptr;
+    if (gpuIndex < pPlatform->GetDeviceCount())
+    {
+        pPalDevice = pPlatform->GetDevice(gpuIndex);
+    }
 
+    if (pPalDevice != nullptr)
+    {
+        const GpuChipProperties& chipProps = pPalDevice->ChipProperties();
+        DeviceClockMode inputMode = DeviceClockMode::Default;
+
+        switch (clockMode)
+        {
+        case DevDriver::DriverControlProtocol::DeviceClockMode::Default:
+            inputMode = DeviceClockMode::Query;
+            break;
+        case DevDriver::DriverControlProtocol::DeviceClockMode::Profiling:
+            inputMode = DeviceClockMode::QueryProfiling;
+            break;
+        case DevDriver::DriverControlProtocol::DeviceClockMode::Peak:
+            inputMode = DeviceClockMode::QueryPeak;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+        }
+
+        SetClockModeInput clockModeInput = {};
+        clockModeInput.clockMode = inputMode;
+
+        SetClockModeOutput clockModeOutput = {};
+        Result palResult = pPalDevice->SetClockMode(clockModeInput, &clockModeOutput);
+
+        if (palResult == Result::Success)
+        {
+            *pGpuClock = (static_cast<float>(chipProps.maxEngineClock) * clockModeOutput.engineClockRatioToPeak);
+            *pMemClock = (static_cast<float>(chipProps.maxMemoryClock) * clockModeOutput.memoryClockRatioToPeak);
+
+            result = DevDriver::Result::Success;
+        }
+    }
+
+    return result;
+}
+#endif
 // =====================================================================================================================
 // Callback function which returns the max device clock for the requested gpu.
 DevDriver::Result QueryMaxClockCallback(

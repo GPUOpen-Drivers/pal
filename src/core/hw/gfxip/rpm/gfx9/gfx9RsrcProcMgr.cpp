@@ -1943,7 +1943,9 @@ bool RsrcProcMgr::HwlCanDoFixedFuncResolve(
         canDoFixedFuncResolve =
             ((memcmp(&pSrcSubResInfo->format, &pDstSubResInfo->format, sizeof(SwizzledFormat)) == 0) &&
              (memcmp(&imageRegion.srcOffset, &imageRegion.dstOffset, sizeof(Offset3d)) == 0)         &&
-             (srcAddrSettings.swizzleMode == dstAddrSettings.swizzleMode));
+             (srcAddrSettings.swizzleMode == dstAddrSettings.swizzleMode)                            &&
+             // CB ignores the slice_start field in MRT1, and instead uses the value from MRT0 when writing to MRT1.
+             (srcSubResId.arraySlice == dstSubResId.arraySlice));
 
         if (canDoFixedFuncResolve == false)
         {
@@ -3088,8 +3090,8 @@ uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
             // Write the new register value to the command stream
             regPA_SC_TILE_STEERING_OVERRIDE  paScTileSteeringOverride = {};
             paScTileSteeringOverride.bits.ENABLE        = 1;
-            paScTileSteeringOverride.bits.NUM_SE        = Log2(numNeededSes);
-            paScTileSteeringOverride.bits.NUM_RB_PER_SE = Log2(numNeededRbsPerSe);
+            paScTileSteeringOverride.core.NUM_SE        = Log2(numNeededSes);
+            paScTileSteeringOverride.core.NUM_RB_PER_SE = Log2(numNeededRbsPerSe);
             CommitBeginEndGfxCopy(pCmdStream, paScTileSteeringOverride.u32All);
 
             // Let EndGraphcisCopy know that it has work to do
@@ -3421,13 +3423,14 @@ void Gfx9RsrcProcMgr::ClearDccCompute(
     // Save the command buffer's state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
-    const Pal::Image*      pPalImage  = dstImage.Parent();
-    const Pal::Device*     pDevice    = pPalImage->GetDevice();
-    const Gfx9PalSettings& settings   = GetGfx9Settings(*pDevice);
-    const auto&            createInfo = pPalImage->GetImageCreateInfo();
-    const auto*            pDcc       = dstImage.GetDcc();
-    const auto&            dccMipInfo = pDcc->GetAddrMipInfo(clearRange.startSubres.mipLevel);
-
+    const Pal::Image*      pPalImage               = dstImage.Parent();
+    const Pal::Device*     pDevice                 = pPalImage->GetDevice();
+    const Gfx9PalSettings& settings                = GetGfx9Settings(*pDevice);
+    const auto&            createInfo              = pPalImage->GetImageCreateInfo();
+    const auto*            pDcc                    = dstImage.GetDcc();
+    const auto&            dccMipInfo              = pDcc->GetAddrMipInfo(clearRange.startSubres.mipLevel);
+    // Allow optimized fast clears for either single-sample images, or MSAA images with CMask and FMaskData
+    const bool             allowOptimizedFastClear = (createInfo.fragments == 1) || (dstImage.HasFmaskData());
     // For now just find out here if this resource can do Optimized DCC clear (for all kind of color surfaces
     // 2D/3D/mips/singlesample/multisample etc. except those whose metadata is part of miptail)
     // Since OptimizedFastClear only clears compressed Fragments and doesn't touch uncompressed fragments, this
@@ -3435,7 +3438,8 @@ void Gfx9RsrcProcMgr::ClearDccCompute(
     const bool canDoDccOptimizedClear = ((clearPurpose == DccClearPurpose::FastClear)  &&
                                          (dccMipInfo.inMiptail == 0)                   &&
                                          (settings.processMetaEquationViaCpu == false) &&
-                                         TestAnyFlagSet(settings.optimizedFastClear, Gfx9OptimizedFastClearColorDcc));
+                                         TestAnyFlagSet(settings.optimizedFastClear, Gfx9OptimizedFastClearColorDcc) &&
+                                         allowOptimizedFastClear);
 
     if (canDoDccOptimizedClear)
     {
@@ -4674,11 +4678,8 @@ void Gfx9RsrcProcMgr::HwlResummarizeHtileCompute(
     const Gfx9Htile*const pHtile = gfx9Image.GetHtile();
     PAL_ASSERT(pHtile != nullptr);
 
-    const uint32 hTileValue  = pHtile->ComputeResummarizeData();
-    const ImageAspect aspect = range.startSubres.aspect;
-    PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
-    const uint32 clearFlags  = (aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil;
-    const uint32 hTileMask   = pHtile->GetAspectMask(clearFlags);
+    const uint32 hTileValue = pHtile->GetInitialValue();
+    const uint32 hTileMask  = pHtile->GetAspectMask(range.startSubres.aspect);
 
     ExecuteHtileEquation(pCmdBuffer,
                          gfx9Image,
@@ -4707,20 +4708,19 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
     struct FixUpRegion
     {
         const ImageResolveRegion* pResolveRegion;
-        bool resolveDepth;
-        bool resolveStencil;
+        uint32 aspectFlags;
 
         void FillAspect(ImageAspect aspect)
         {
             if (aspect == ImageAspect::Depth)
             {
-                PAL_ASSERT(resolveDepth == false);
-                resolveDepth = true;
+                PAL_ASSERT(TestAnyFlagSet(aspectFlags, HtileAspectDepth) == false);
+                aspectFlags |= HtileAspectDepth;
             }
             else if (aspect == ImageAspect::Stencil)
             {
-                PAL_ASSERT(resolveStencil == false);
-                resolveStencil = true;
+                PAL_ASSERT(TestAnyFlagSet(aspectFlags, HtileAspectStencil) == false);
+                aspectFlags |= HtileAspectStencil;
             }
             else
             {
@@ -4855,22 +4855,7 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
             const uint32  htileExtentX = (Pow2Align(pCurRegion->extent.width, HtileTexelAlign) / HtileTexelAlign);
             const uint32  htileExtentY = (Pow2Align(pCurRegion->extent.height, HtileTexelAlign) / HtileTexelAlign);
             const uint32  htileExtentZ = pCurRegion->numSlices;
-
-            uint32 coveredAspects = 0;
-
-            if (fixUpRegionList[i].resolveDepth)
-            {
-                coveredAspects |= HtileAspectMask::HtileAspectDepth;
-            }
-
-            if (fixUpRegionList[i].resolveStencil)
-            {
-                coveredAspects |= HtileAspectMask::HtileAspectStencil;
-            }
-
-            const uint32 htileMask = pDstHtile->GetAspectMask(coveredAspects);
-
-            uint32 htileExpandValue = 0;
+            const uint32  htileMask    = pDstHtile->GetAspectMask(fixUpRegionList[i].aspectFlags);
 
             const uint32 constData[] =
             {
@@ -5549,11 +5534,8 @@ void Gfx10RsrcProcMgr::HwlResummarizeHtileCompute(
     const Gfx9Htile*const pHtile = gfx9Image.GetHtile();
     PAL_ASSERT(pHtile != nullptr);
 
-    const uint32 hTileValue  = pHtile->ComputeResummarizeData();
-    const ImageAspect aspect = range.startSubres.aspect;
-    PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
-    const uint32 clearFlags  = (aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil;
-    uint32 hTileMask         = pHtile->GetAspectMask(clearFlags);
+    const uint32 hTileValue = pHtile->GetInitialValue();
+    uint32 hTileMask        = pHtile->GetAspectMask(range.startSubres.aspect);
 
     InitHtileData(pCmdBuffer, gfx9Image, range, hTileValue, hTileMask);
 }

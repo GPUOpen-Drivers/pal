@@ -31,7 +31,8 @@
 
 #pragma once
 
-#include "gpuopen.h"
+#include <gpuopen.h>
+#include <ddPlatform.h>
 
 namespace DevDriver
 {

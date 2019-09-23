@@ -57,6 +57,7 @@ Gfx9MaskRam::Gfx9MaskRam(
     MaskRam(),
     m_image(image),
     m_pGfxDevice(static_cast<const Device*>(image.Parent()->GetDevice()->GetGfxDevice())),
+    m_pipeDist(m_pGfxDevice->Parent()->ChipProperties().gfx9.rbPlus ? PipeDist16x16 : PipeDist8x8),
     m_meta(27, "meta"),
     m_metaDataWordSizeLog2(metaDataSizeLog2),
     m_firstUploadBit(firstUploadBit),
@@ -427,22 +428,6 @@ void Gfx9MaskRam::SetRbAppendedBit(
 }
 
 // =====================================================================================================================
-// Calculates the meta equation for this mask-ram.  The meta-equation is ultimately used by a compute shader for
-// determining the real location of any coordinates within the meta-data.
-//
-// Compute shader pseudo-code:
-//      metaOffset = 0
-//      for (n = 0; n < numBitsInEquation; n++)
-//      {
-//          // Yes, there is an IL instruction called "countBits".  It does exactly what we need.  :-)
-//          b =        countBits(m_equation[n][MetaDataAddrCompX] & x) & 0x1
-//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompY] & y) & 0x1)
-//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompZ] & z) & 0x1)
-//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompS] & s) & 0x1)
-//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompM] & m) & 0x1)
-//
-//          metaOffset |= (b << n)
-//      }
 void Gfx9MaskRam::CalcMetaEquationGfx9()
 {
     const Pal::Image*  pParent = m_image.Parent();
@@ -742,6 +727,71 @@ void Gfx9MaskRam::CalcMetaEquationGfx9()
         // samples associated with the data-surface.  Still seems to work...
         PAL_ALERT (m_effectiveSamples != (1u << numSamplesLog2));
     }
+}
+
+// =====================================================================================================================
+// Mainly to use this function to get the block size.
+// For calculating the meta-block dimensions(pExtent), GetMetaBlkSize in address library can provide the same result.
+//
+uint32 Gfx9MaskRam::GetMetaBlockSize(
+    Gfx9MaskRamBlockSize* pExtent
+    ) const
+{
+    uint32 blockSize = 0, blockBits = 0;
+
+    const Pal::Device*     pPalDevice            = m_pGfxDevice->Parent();
+    const AddrSwizzleMode  swizzleMode           = GetSwizzleMode();
+    const uint32           bppLog2               = GetBytesPerPixelLog2();
+    const uint32           numSamplesLog2        = GetNumSamplesLog2();
+    uint32                 numPipesLog2          = m_pGfxDevice->GetNumPipesLog2();
+    const uint32           effectiveNumPipesLog2 = GetEffectiveNumPipes();
+    const uint32           pipeInterleaveLog2    = m_pGfxDevice->GetPipeInterleaveLog2();
+    const uint32           maxFragsLog2          = m_pGfxDevice->GetMaxFragsLog2();
+    const uint32           maxCompFragsLog2      = Min(numSamplesLog2, maxFragsLog2);
+    const uint32           metaElementSize       = m_metaDataWordSizeLog2 - 1;
+    const uint32           metaCachelineSize     = GetMetaCachelineSize();
+    const uint32           pipeRotateAmount      = GetPipeRotateAmount();
+    const uint32           compBlockSize         = IsColor() ? 8 : (6 + numSamplesLog2 + bppLog2);
+    const uint32           samplesInMetaBlock    = IsZSwizzle(swizzleMode) ? numSamplesLog2 : maxCompFragsLog2;
+
+    if (numPipesLog2 >= 4)
+    {
+        blockSize = metaCachelineSize + GetMetaOverlap() + numPipesLog2;
+
+        blockSize = Max(pipeInterleaveLog2 + numPipesLog2, blockSize);
+
+        if ((m_pipeDist == PipeDist16x16) &&
+            IsRotatedSwizzle(swizzleMode) &&
+            (numPipesLog2   == 6)         &&
+            (numSamplesLog2 == 3)         &&
+            (maxFragsLog2   == 3)         &&
+            (blockSize      < 15))
+        {
+            blockSize = 15;
+        }
+    }
+    else
+    {
+        blockSize = pipeInterleaveLog2 + numPipesLog2;
+        blockSize = Max(12u, blockSize);
+    }
+
+    if (IsRotatedSwizzle(swizzleMode) &&
+        (maxCompFragsLog2 > 1)        &&
+        (pipeRotateAmount >= 1))
+    {
+        uint32 newBlockSize = 8 + numPipesLog2 + ((pipeRotateAmount > (maxCompFragsLog2 - 1)) ?
+                                                    pipeRotateAmount : (maxCompFragsLog2 - 1));
+        blockSize = Max(newBlockSize, blockSize);
+    }
+
+    blockBits = blockSize + compBlockSize - bppLog2 - samplesInMetaBlock - metaElementSize;
+
+    pExtent->width  = (blockBits >> 1) + (blockBits & 1);
+    pExtent->height = (blockBits >> 1);
+    pExtent->depth  = 0;
+
+    return blockSize;
 }
 
 // =====================================================================================================================
@@ -1172,15 +1222,1255 @@ bool Gfx9MaskRam::SupportFastColorClear(
 }
 
 // =====================================================================================================================
+// Calculates the meta equation for this mask-ram.  The meta-equation is ultimately used by a compute shader for
+// determining the real location of any coordinates within the meta-data.
+//
+// Compute shader pseudo-code:
+//      metaOffset = 0
+//      for (n = 0; n < numBitsInEquation; n++)
+//      {
+//          // Yes, there is an IL instruction called "countBits".  It does exactly what we need.  :-)
+//          b =        countBits(m_equation[n][MetaDataAddrCompX] & x) & 0x1
+//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompY] & y) & 0x1)
+//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompZ] & z) & 0x1)
+//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompS] & s) & 0x1)
+//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompM] & m) & 0x1)
+//
+//          metaOffset |= (b << n)
+//      }
 void Gfx9MaskRam::CalcMetaEquation()
 {
-    const Pal::Image* pParent = m_image.Parent();
+    const Pal::Image*  pParent   = m_image.Parent();
     const Pal::Device& palDevice = *(m_pGfxDevice->Parent());
 
     if (IsGfx9(palDevice))
     {
         CalcMetaEquationGfx9();
     }
+    else if (IsGfx10(palDevice))
+    {
+        CalcMetaEquationGfx10();
+    }
+}
+
+// =====================================================================================================================
+void Gfx9MaskRam::AddMetaPipeBits(
+    MetaDataAddrEquation* pPipe,
+    int32                 offset)
+{
+    Gfx9MaskRamBlockSize microBlockLog2 = {};
+    GetMicroBlockSize(&microBlockLog2);
+
+    Gfx9MaskRamBlockSize compBlockLog2 = {};
+    CalcCompBlkSizeLog2(&compBlockLog2);
+
+    Gfx9MaskRamBlockSize pixelBlockLog2 = {};
+    GetPixelBlockSize(&pixelBlockLog2);
+
+    const Pal::Device*     pPalDevice                  = m_pGfxDevice->Parent();
+    const AddrSwizzleMode  swizzleMode                 = GetSwizzleMode();
+    const uint32           blockSizeLog2               = Log2(AddrMgr2::GetBlockSize(swizzleMode));
+    const uint32           bppLog2                     = GetBytesPerPixelLog2();
+    const uint32           effectiveNumPipesLog2       = GetEffectiveNumPipes();
+    const uint32           numPipesLog2                = m_pGfxDevice->GetNumPipesLog2();
+    const uint32           numSamplesLog2              = GetNumSamplesLog2();
+    const uint32           pipeInterleaveLog2          = m_pGfxDevice->GetPipeInterleaveLog2();
+    const uint32           startBase                   = 8;
+    const uint32           endBase                     = startBase + effectiveNumPipesLog2;
+    const uint32           isEvenEffectiveNumPipesLog2 = ((effectiveNumPipesLog2 % 2) == 0);
+
+    CompPair cx = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, microBlockLog2.width);
+    CompPair cy = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, microBlockLog2.height);
+
+    {
+        Data2dParams  params = {};
+        GetData2DParams(&params);
+
+        uint32 sRestart   = (params.xRestart < params.yRestart) ? params.xRestart : params.yRestart;
+        uint32 maxRestart = (params.xRestart > params.yRestart) ? params.xRestart : params.yRestart;
+
+        uint32 restart = 0;
+        uint32 s       = 0;
+        uint32 pos     = 0;
+
+        bool pipeXBit = false;
+        bool xBit     = false;
+        bool sBit     = false;
+
+        PAL_ASSERT(startBase <= sRestart);
+        uint32 numZBits = sRestart - startBase;
+
+        if ((maxRestart - sRestart) > 1)
+        {
+            numZBits++;
+        }
+
+        int32 zBitsToRotate = numZBits + numSamplesLog2 - 6;
+
+        // If rbPlus is the only condition which results in PipeDist16x16, then the following
+        // block of logic would never happen, keep here for awareness
+        if ((m_pipeDist == PipeDist16x16) &&
+            ((effectiveNumPipesLog2 + numSamplesLog2) >= 6))
+        {
+            zBitsToRotate++;
+        }
+
+        zBitsToRotate = Max(0, zBitsToRotate);
+
+        PAL_ASSERT(numZBits >= (uint32)(zBitsToRotate));
+        CompPair cz = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompZ, numZBits - zBitsToRotate);
+
+        // This hack is to ensure that htile addressing is the same regardless of bpp
+        // without it the pipe can differ in z bits.  This only addresses bpp <= 2 (which covers all depth modes)
+        // and when pipes are less than or equal to 64 pipes.  Greater than this will mean that x/y bits can also
+        // affect the pipe, and can be different based on bpp, so we cannot make this assurance
+        uint32 maxZPos = endBase;
+
+        if (IsDepth()                    &&
+            (effectiveNumPipesLog2 <= 6) &&
+            (bppLog2 <= 2))
+        {
+            PAL_ASSERT(numSamplesLog2 <= 14); // This assert should never failed, but in case.
+            maxZPos = 14 - numSamplesLog2;
+        }
+
+        uint32 ord = cx.compPos;
+        if ((ord == 3) && params.flipX3Y3)
+        {
+            cx.compPos++;
+            ord++;
+        }
+        if ((ord == 4) && (params.flipX4Y4 == false))
+        {
+            cx.compPos++;
+            ord++;
+        }
+
+        ord = cy.compPos;
+        if ((ord == 3) && (params.flipX3Y3 == false))
+        {
+            cy.compPos++;
+            ord++;
+        }
+        if ((ord == 4) && params.flipX4Y4)
+        {
+            cy.compPos++;
+            ord++;
+        }
+
+        for (uint32 i = startBase; i < endBase; i++)
+        {
+            pipeXBit = ((i & 1) != 0);
+            xBit     = pipeXBit;
+
+            if (params.flipPipeXY)
+            {
+                xBit = (pipeXBit == false);
+            }
+
+            sBit = ((i >= sRestart)                  &&
+                    (s < numSamplesLog2)             &&
+                    (IsZSwizzle(swizzleMode) == false));
+
+            if (params.flipYBias &&
+                ((i >= (endBase + isEvenEffectiveNumPipesLog2)) || (sRestart < endBase)))
+            {
+                xBit = (xBit == false);
+            }
+
+            pos = i - 8 + pipeInterleaveLog2 + offset;
+
+            if (params.flipPipeFill != 0)
+            {
+                if (i == sRestart)
+                {
+                    pos += params.flipPipeFill;
+                }
+                else if (i == (sRestart + params.flipPipeFill))
+                {
+                    pos -= params.flipPipeFill;
+                }
+            }
+            restart = pipeXBit ? params.xRestart : params.yRestart;
+
+            if (i >= restart)
+            {
+                if (sBit)
+                {
+                    s++;
+                }
+                else
+                {
+                    if (xBit)
+                    {
+                        ord = cx.compPos;
+                        if (ord >= microBlockLog2.width)
+                        {
+                            pPipe->SetBit(pos, cx); //meta_data_eq[pos].add(cx);
+                        }
+                        cx.compPos++;
+                        ord = cx.compPos;
+                        if ((ord == 3) && params.flipX3Y3)
+                        {
+                            cx.compPos++;
+                            ord++;
+                        }
+                        if ((ord == 4) && (params.flipX4Y4 == false))
+                        {
+                            cx.compPos++;
+                            ord++;
+                        }
+                    }
+                    else
+                    {
+                        ord = cy.compPos;
+                        if (ord >= microBlockLog2.height)
+                        {
+                            if (params.flipY1Y2)
+                            {
+                                switch (ord)
+                                {
+                                case 1:
+                                    cy.compPos++;
+                                    break;
+                                case 2:
+                                    cy.compPos--;
+                                    break;
+                                }
+                            }
+                            pPipe->SetBit(pos, cy);
+                            if (params.flipY1Y2)
+                            {
+                                switch (ord)
+                                {
+                                case 1:
+                                    cy.compPos--;
+                                    break;
+                                case 2:
+                                    cy.compPos++;
+                                    break;
+                                }
+                            }
+                        }
+                        cy.compPos++;
+                        ord = cy.compPos;
+                        if ((ord == 3) && (params.flipX3Y3 == false))
+                        {
+                            cy.compPos++;
+                            ord++;
+                        }
+                        if ((ord == 4) && params.flipX4Y4)
+                        {
+                            cy.compPos++;
+                            ord++;
+                        }
+                    }
+                }
+            }
+            else if (i < maxZPos)
+            {
+                if (cz.compPos > 0)
+                {
+                    cz.compPos--;
+                }
+                else
+                {
+                    PAL_ASSERT(numZBits >= 1);
+                    cz = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompZ, numZBits - 1);
+                }
+                pPipe->SetBit(pos, cz);
+            }
+        }
+    }
+
+    pPipe->PrintEquation(m_pGfxDevice->Parent());
+
+    AddRbBits(pPipe, offset);
+}
+
+// =====================================================================================================================
+void Gfx9MaskRam::AddRbBits(
+    MetaDataAddrEquation* pPipe,
+    int32                 offset)
+{
+    CompPair  cx = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, 3);
+    CompPair  cy = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, 3);
+
+    const int32  numPipesLog2       = GetEffectiveNumPipes();
+    const uint32 pipeInterleaveLog2 = m_pGfxDevice->GetPipeInterleaveLog2();
+    int32 scStart                   = 2;
+    const uint32 pipeRotateAmount   = GetPipeRotateAmount();
+
+    if (m_pipeDist == PipeDist16x16)
+    {
+        cx.compPos++;
+        cy.compPos++;
+        scStart = 1;
+    }
+
+    int32 pos = pipeInterleaveLog2 + offset + pipeRotateAmount;
+    for (int32 i = 0; ((i < numPipesLog2) && (i < scStart)); i++)
+    {
+        pPipe->SetBit(pos, cx);
+        pPipe->SetBit(pos, cy);
+
+        cx.compPos++;
+        cy.compPos++;
+        pos++;
+    }
+
+    if (numPipesLog2 > scStart)
+    {
+        int32 start = pipeInterleaveLog2 + scStart      + offset + pipeRotateAmount;
+        int32 end   = pipeInterleaveLog2 + numPipesLog2 + offset + pipeRotateAmount;
+
+        pPipe->Mort2d(m_pGfxDevice, &cy, &cx, start, end - 1);
+
+        int32 oddPipe = (numPipesLog2 & 1);
+        if (m_pipeDist == PipeDist16x16)
+        {
+            oddPipe = (~oddPipe) & 0x1;
+        }
+
+        if (oddPipe == 1)
+        {
+            pPipe->Mort2d(m_pGfxDevice, &cx, &cy, end - 1, start);
+        }
+        else
+        {
+            pPipe->Mort2d(m_pGfxDevice, &cy, &cx, end - 1, start);
+        }
+    }
+
+    pPipe->PrintEquation(m_pGfxDevice->Parent());
+}
+
+// =====================================================================================================================
+static uint32 CalcBitsToFill(
+    uint32  pixelBlockLog2,
+    uint32  pipeAnchorLog2,
+    uint32  microBlockLog2)
+{
+    uint32  bitsToFill = 0;
+    if (pixelBlockLog2 >= pipeAnchorLog2)
+    {
+        PAL_ASSERT((4 + pixelBlockLog2) >= (pipeAnchorLog2 + microBlockLog2));
+
+        bitsToFill = pixelBlockLog2 - pipeAnchorLog2 - microBlockLog2 + 4;
+    }
+
+    return bitsToFill;
+}
+
+// =====================================================================================================================
+void Gfx9MaskRam::GetData2DParams(
+    Data2dParams* pParams
+    ) const
+{
+    Gfx9MaskRamBlockSize microBlockLog2 = {};
+    GetMicroBlockSize(&microBlockLog2);
+
+    Gfx9MaskRamBlockSize pixelBlockLog2 = {};
+    GetPixelBlockSize(&pixelBlockLog2);
+
+    Extent2d pipeAnchorLog2 = {};
+    GetPipeAnchorSize(&pipeAnchorLog2);
+
+    const AddrSwizzleMode  swizzleMode    = GetSwizzleMode();
+    const uint32           bppLog2        = GetBytesPerPixelLog2();
+    const uint32           numPipesLog2   = GetEffectiveNumPipes();
+    const uint32           numSamplesLog2 = GetNumSamplesLog2();
+    const uint32           blockSizeLog2  = Log2(AddrMgr2::GetBlockSize(swizzleMode));
+
+    const Pal::Device* pPalDevice = m_pGfxDevice->Parent();
+
+    if (m_pipeDist == PipeDist16x16)
+    {
+        if ((numPipesLog2 >= 2)                            &&
+            ((numPipesLog2 & 1) == 0)                      &&
+            (pipeAnchorLog2.width > pipeAnchorLog2.height) &&
+            (pixelBlockLog2.width < pixelBlockLog2.height))
+        {
+            pipeAnchorLog2.width--;
+            pipeAnchorLog2.height++;
+        }
+    }
+    else
+    {
+        if ((numPipesLog2 > 2)                                   &&
+            ((numPipesLog2 & 1) != 0)                            &&
+            (pipeAnchorLog2.width == (pixelBlockLog2.width - 1)) &&
+            (pixelBlockLog2.height < pipeAnchorLog2.height))
+        {
+            pipeAnchorLog2.width++;
+            pipeAnchorLog2.height--;
+        }
+    }
+
+    if (m_pipeDist == PipeDist16x16)
+    {
+        pParams->flipX4Y4 = ((numPipesLog2          >= 2) &&
+                             ((numPipesLog2 & 1)    == 0) &&
+                             (pixelBlockLog2.width  == 4) &&
+                             (pixelBlockLog2.height == 5));
+    }
+    else
+    {
+        pParams->flipX4Y4 = ((numPipesLog2          >= 2) &&
+                             (pixelBlockLog2.width  == 4) &&
+                             (pixelBlockLog2.height == 5));
+    }
+
+    int32 xBitsToFill = ((pixelBlockLog2.width < pipeAnchorLog2.width)
+                         ? 0
+                         : (pixelBlockLog2.width - pipeAnchorLog2.width))
+                        - microBlockLog2.width + 4;
+
+    int32 yBitsToFill = ((pixelBlockLog2.height < pipeAnchorLog2.height)
+                         ? 0
+                         : (pixelBlockLog2.height - pipeAnchorLog2.height))
+                        - microBlockLog2.height + 4 - pParams->flipX4Y4;
+
+    if ((m_pipeDist == PipeDist16x16) && (numPipesLog2 > 1))
+    {
+        xBitsToFill++;
+    }
+
+    int32 xAnchorsSubsumed = 0;
+    int32 yAnchorsSubsumed = 0;
+
+    if (pixelBlockLog2.width < pipeAnchorLog2.width)
+    {
+        xAnchorsSubsumed = pipeAnchorLog2.width - pixelBlockLog2.width - pParams->flipX4Y4;
+    }
+
+    if (pixelBlockLog2.height < pipeAnchorLog2.height)
+    {
+        yAnchorsSubsumed = pipeAnchorLog2.height - pixelBlockLog2.height;
+    }
+
+    pParams->xRestart = 8 + numPipesLog2;
+    pParams->yRestart = 8 + numPipesLog2;
+
+    int32 jumpY = (numPipesLog2 & 1);
+    if (xAnchorsSubsumed > 0)
+    {
+        pParams->xRestart -= (xAnchorsSubsumed * 2 - ((~jumpY) & 0x1));
+    }
+
+    if (yAnchorsSubsumed > 0)
+    {
+        pParams->yRestart -= (yAnchorsSubsumed * 2 - jumpY);
+    }
+
+    pParams->upperSampleBits = numSamplesLog2 - xAnchorsSubsumed - yAnchorsSubsumed;
+    pParams->upperSampleBits = ((pParams->upperSampleBits < 0) || IsZSwizzle(swizzleMode))
+                               ? 0
+                               : pParams->upperSampleBits;
+
+    pParams->tileSplitBits = 0;
+    if (IsZSwizzle(swizzleMode))
+    {
+        pParams->tileSplitBits = (3 - microBlockLog2.width ) +
+                                 (3 - microBlockLog2.height) -
+                                 xAnchorsSubsumed            -
+                                 yAnchorsSubsumed;
+
+        pParams->tileSplitBits = Max(0, pParams->tileSplitBits);
+
+        if (pParams->tileSplitBits > static_cast<int32>(numSamplesLog2))
+        {
+            pParams->tileSplitBits = numSamplesLog2;
+        }
+    }
+
+    int32 xyRestartDiff, xyRestartGap;
+    xyRestartDiff = pParams->xRestart - pParams->yRestart;
+    xyRestartDiff = (xyRestartDiff < 0) ? -xyRestartDiff : xyRestartDiff;
+    xyRestartDiff = (xyRestartDiff / 2);
+
+    // in SW_R MSAA, the gap only affects the sample bits, so need to count it
+    xyRestartGap = ((IsZSwizzle(swizzleMode) == false) && (numSamplesLog2 > 0)) ? 0 : xyRestartDiff;
+    if (m_pipeDist == PipeDist16x16)
+    {
+        xyRestartGap = 0;
+    }
+
+    int32 oddSample = ((IsRotatedSwizzle(swizzleMode)) && ((numSamplesLog2 & 1) != 0)) ? 1 : 0;
+    if (pParams->flipX4Y4)
+    {
+        oddSample++;
+    }
+
+    if ((m_pipeDist == PipeDist16x16) && (xBitsToFill == (yBitsToFill + oddSample)))
+    {
+        if (numSamplesLog2 & 1)
+        {
+            pParams->flipPipeFill = (xyRestartDiff == 0) ? 0 : 1;
+        }
+        else
+        {
+            pParams->flipPipeFill = (xyRestartDiff == 0) ? -1 : 0;
+        }
+    }
+
+    pParams->flipPipeXY = (((blockSizeLog2 - pParams->upperSampleBits -
+                           xBitsToFill - yBitsToFill - xyRestartGap) & 1) != 0)
+                          ? (yBitsToFill > xBitsToFill)
+                          : (xBitsToFill > yBitsToFill);
+
+    if ((m_pipeDist  == PipeDist16x16)              &&
+        (xBitsToFill == (yBitsToFill + oddSample))  &&
+        ((numSamplesLog2 & 1) != 0))
+    {
+        pParams->flipPipeXY = true;
+    }
+    pParams->flipYBias = (IsZSwizzle(swizzleMode)                &&
+                          (yBitsToFill > xBitsToFill)            &&
+                          (((xBitsToFill + yBitsToFill) & 1) == 0));
+
+    int32 posOffset = (static_cast<int32>(pParams->flipYBias)  ^
+                       static_cast<int32>(pParams->flipPipeXY) ^
+                       (pParams->upperSampleBits & 1));
+
+    int32 posX3 = (blockSizeLog2 - pParams->upperSampleBits)   -
+                  2 * (xBitsToFill - 3 + microBlockLog2.width) +
+                  ((~posOffset) & 0x1);
+
+    int32 posY4 = (blockSizeLog2 - pParams->upperSampleBits)    -
+                  2 * (yBitsToFill - 3 + microBlockLog2.height) +
+                  posOffset;
+
+    int32 posXNext = (blockSizeLog2 - pParams->upperSampleBits)   -
+                     2 * (xBitsToFill - 4 + microBlockLog2.width) +
+                     ((~posOffset) & 0x1);
+
+    if (m_pipeDist == PipeDist16x16)
+    {
+        bool temp = pParams->flipX4Y4;
+        pParams->flipX3Y3 = false;
+        pParams->flipX4Y4 |= ((numSamplesLog2 & 1)                        &&
+                              (numPipesLog2   & 1)                        &&
+                              ((xAnchorsSubsumed + yAnchorsSubsumed) & 1)) ? false : true;
+
+        pParams->flipX4Y4 = ((IsRotatedSwizzle(swizzleMode))    &&
+                             (numSamplesLog2 & 1)               &&
+                             (numPipesLog2 == 6)                &&
+                             ((bppLog2 == 2) || (bppLog2 == 4))) ? temp : pParams->flipX4Y4;
+    }
+    else
+    {
+        pParams->flipX3Y3 = ((numPipesLog2          > 1) &&
+                             (microBlockLog2.width  < 4) &&
+                             (microBlockLog2.height < 4) &&
+                             (pixelBlockLog2.width  > 4) &&
+                             ((posX3 - posY4)      == 1));
+
+        pParams->flipX4Y4 |= pParams->flipX3Y3;
+
+        if ((numPipesLog2 > 2)      &&
+            (numPipesLog2 & 1)      &&
+            ((posY4 - posXNext) == 1))
+        {
+            pipeAnchorLog2.width++;
+            pipeAnchorLog2.height--;
+            pParams->flipX4Y4 = true;
+        }
+    }
+
+    pParams->flipY1Y2 = ((microBlockLog2.height <= 1) &&
+                         ((xAnchorsSubsumed + yAnchorsSubsumed) > (2 * (int32)(1 ^ microBlockLog2.height))));
+
+    pParams->pipeAnchorHeightLog2 = pipeAnchorLog2.height;
+    pParams->pipeAnchorWidthLog2  = pipeAnchorLog2.width;
+}
+
+// =====================================================================================================================
+void Gfx9MaskRam::GetData2DParamsNew(
+    Data2dParamsNew*  pParams
+    ) const
+{
+    Gfx9MaskRamBlockSize microBlockLog2 = {};
+    GetMicroBlockSize(&microBlockLog2);
+
+    Gfx9MaskRamBlockSize pixelBlockLog2 = {};
+    GetPixelBlockSize(&pixelBlockLog2);
+
+    Extent2d  pipeAnchorLog2 = {};
+    GetPipeAnchorSize(&pipeAnchorLog2);
+
+    const AddrSwizzleMode  swizzleMode    = GetSwizzleMode();
+    const uint32           blockSizeLog2  = Log2(AddrMgr2::GetBlockSize(swizzleMode));
+    const uint32           bppLog2        = GetBytesPerPixelLog2();
+    const uint32           numPipesLog2   = GetEffectiveNumPipes();
+    const uint32           numSamplesLog2 = GetNumSamplesLog2();
+
+    if (pipeAnchorLog2.width != pipeAnchorLog2.height)
+    {
+        if (pipeAnchorLog2.width > pipeAnchorLog2.height)
+        {
+            if ((pixelBlockLog2.width == (pipeAnchorLog2.width - 1)) &&
+                (pixelBlockLog2.height >= (pipeAnchorLog2.height + 1)))
+            {
+                pipeAnchorLog2.height++;
+                pipeAnchorLog2.width--;
+            }
+        }
+        else
+        {
+            if ((pixelBlockLog2.height == (pipeAnchorLog2.height - 1)) &&
+                (pixelBlockLog2.width  >= (pipeAnchorLog2.width + 1)))
+            {
+                pipeAnchorLog2.width++;
+                pipeAnchorLog2.height--;
+            }
+        }
+    }
+
+    uint32 xBitsToFill = CalcBitsToFill(pixelBlockLog2.width,  pipeAnchorLog2.width,  microBlockLog2.width);
+    uint32 yBitsToFill = CalcBitsToFill(pixelBlockLog2.height, pipeAnchorLog2.height, microBlockLog2.height);
+    uint32 sBitsToFill = 0;
+
+    if ((numPipesLog2 > 1) && (pixelBlockLog2.width > 4))
+    {
+        yBitsToFill++;
+    }
+
+    if (pixelBlockLog2.width < 4)
+    {
+        xBitsToFill -= 4u - pixelBlockLog2.width;
+    }
+
+    pParams->pipeRotateAmount = GetPipeRotateAmount();
+
+    // Some hackery for 16Bpe 8xaa
+    if ((numPipesLog2 >= 1) && (pixelBlockLog2.width == 4))
+    {
+        if (pParams->pipeRotateAmount > 0)
+        {
+            yBitsToFill++;
+        }
+    }
+
+    pParams->restart = blockSizeLog2    - xBitsToFill - yBitsToFill - sBitsToFill;
+    int32 overlap    = 8 + numPipesLog2 - pParams->restart;
+
+    pParams->upperSampleBits = 0;
+
+    const int32 tempTileSplitBits = (3 - static_cast<int32>(microBlockLog2.width))  +
+                                    (3 - static_cast<int32>(microBlockLog2.height)) -
+                                    overlap;
+
+    pParams->tileSplitBits   = static_cast<uint32>(Max(0, tempTileSplitBits));
+    pParams->tileSplitBits   = Min(numSamplesLog2, pParams->tileSplitBits);
+
+    int32 pipeSampleBits = 0;
+
+    bool  restartPipeBaseIsX = ((pParams->restart & 1) == 0);
+    int32 restartPipeOrd     = (pParams->restart == 8) ? 4 : 5 + (pParams->restart - 9) / 2;
+
+    pParams->flipPipeFill = 0;
+    int32 ord = (restartPipeBaseIsX) ? pixelBlockLog2.width : pixelBlockLog2.height;
+    if ((ord == (restartPipeOrd + 1)) && (overlap > 0))
+    {
+        pParams->flipPipeFill = -1;
+    }
+
+    if (yBitsToFill > xBitsToFill)
+    {
+        pParams->yBias = yBitsToFill - xBitsToFill;
+    }
+    else
+    {
+        pParams->yBias = 0;
+    }
+
+    if ((pParams->yBias == 0) && (microBlockLog2.height < microBlockLog2.width))
+    {
+        pParams->yBias = 1;
+    }
+
+    pParams->skipY3 = false;
+
+    pParams->pipeRotateBit0 = 0;
+    pParams->pipeRotateBit1 = 0;
+
+    if (pParams->pipeRotateAmount > 0)
+    {
+        pParams->pipeRotateBit0 = pParams->restart + pipeSampleBits - pParams->tileSplitBits;
+        pParams->pipeRotateBit0 += ((4 - microBlockLog2.height) < pParams->yBias)
+                                      ? (4 - microBlockLog2.height)
+                                      : 1 + (2 * (4 - microBlockLog2.height) - pParams->yBias);
+
+        // This prevents sub-tile bits from going into the pipe in SW_Z, and prevents going outside the block in SW_R
+        if (pParams->pipeRotateBit0 >= blockSizeLog2 - pParams->tileSplitBits)
+        {
+            pParams->pipeRotateBit0 = blockSizeLog2 - pParams->tileSplitBits - 1;
+        }
+    }
+
+    if (pParams->pipeRotateAmount > 1)
+    {
+        bool useY = ((numSamplesLog2 & 1) != 0);
+        if (numPipesLog2 == 6)
+        {
+            useY = false;
+        }
+
+        // This is needed to make sure that pipe are identical up to 32bpp.  This is needed for htile writes by the GL2
+        if (useY)
+        {
+            pParams->pipeRotateBit1 = pParams->restart + pipeSampleBits - pParams->tileSplitBits;
+            pParams->pipeRotateBit1 += ((5 - microBlockLog2.height) < pParams->yBias)
+                                        ? (5 - microBlockLog2.height)
+                                        : 1 + (2 * (5 - microBlockLog2.height) - pParams->yBias);
+
+            // This prevents sub-tile bits from going into the pipe in SW_Z
+        }
+
+        if ((useY == false)        ||
+             ((numSamplesLog2 & 1) &&
+              (bppLog2 <= 2)       &&
+              (pParams->pipeRotateBit1 > (blockSizeLog2 - 1 - pParams->tileSplitBits - ((bppLog2 <= 0) ? 2 : 0)))))
+        {
+            pParams->pipeRotateBit1 = pParams->restart                +
+                                      pipeSampleBits                  +
+                                      2 * (4 - microBlockLog2.width ) +
+                                      pParams->yBias                  -
+                                      pParams->tileSplitBits;
+        }
+
+        // This is needed to make sure that pipe are identical up to 32bpp.  This is needed for htile writes by the GL2
+        if (pParams->pipeRotateBit1 >= (blockSizeLog2 - pParams->tileSplitBits))
+        {
+            pParams->pipeRotateBit1 = blockSizeLog2 - 1;
+
+            if ((numSamplesLog2 == 3)                &&
+                (blockSizeLog2 - numPipesLog2 == 11) &&
+                ((bppLog2 & 1) == 0))
+            {
+               pParams->pipeRotateBit1--;
+            }
+        }
+
+        // This makes sure that the msb sample bits get into the pipe if any sample bits are needed in SW_R
+        if (pParams->pipeRotateBit1 >= (blockSizeLog2 - pParams->upperSampleBits))
+        {
+            pParams->pipeRotateBit1 = blockSizeLog2 - 1;
+
+            // For block size > 64KB or VAR, don't use fragment bit
+            if ((blockSizeLog2 > 16) || (blockSizeLog2 == 0))
+            {
+                pParams->pipeRotateBit1 = blockSizeLog2 - pParams->upperSampleBits - 1;
+            }
+        }
+
+        // Don't use the same bit as pipe0
+        if (pParams->pipeRotateBit1 == pParams->pipeRotateBit0)
+        {
+            pParams->pipeRotateBit1--;
+        }
+    }
+
+    pParams->yBias += pipeSampleBits;
+
+    pParams->pipeAnchorHeightLog2 = pipeAnchorLog2.height;
+    pParams->pipeAnchorWidthLog2  = pipeAnchorLog2.width;
+}
+
+// =====================================================================================================================
+// Calculates the pixel dimensions of one tile block of the image associated with this hTile.  i.e., what are the
+// pixel dimensions of a 64KB tile block?
+//
+void Gfx9MaskRam::GetPixelBlockSize(
+    Gfx9MaskRamBlockSize* pBlockSize
+    ) const
+{
+    const AddrSwizzleMode  swizzleMode    = GetSwizzleMode();
+    const uint32           blockSizeLog2  = Log2(AddrMgr2::GetBlockSize(swizzleMode));
+    const uint32           bppLog2        = GetBytesPerPixelLog2();
+    const uint32           numSamplesLog2 = GetNumSamplesLog2();
+
+    // 2^19 =    0001_00011 => 0000_1001  = 9 - 1 = 8 for width
+    pBlockSize->width  = (blockSizeLog2 >> 1) - (bppLog2 >> 1) - (numSamplesLog2 >> 1) - (numSamplesLog2 &  1);
+    pBlockSize->height = (blockSizeLog2 >> 1) - (bppLog2 >> 1) - (bppLog2 & 1)         - (numSamplesLog2 >> 1);
+    pBlockSize->depth  = 0;
+
+    if ((blockSizeLog2 & 1) != 0)
+    {
+        // Odd block sizes need to add 1 to either width or height
+        if (pBlockSize->height < pBlockSize->width)
+        {
+            pBlockSize->height++;
+        }
+        else
+        {
+            pBlockSize->width++;
+        }
+    }
+}
+
+// =====================================================================================================================
+uint32 Gfx9MaskRam::GetPipeBlockSize() const
+{
+    return GetEffectiveNumPipes() + 4;
+}
+
+// =====================================================================================================================
+uint32 Gfx9MaskRam::GetEffectiveNumPipes() const
+{
+    const uint32 numPipesLog2 = m_pGfxDevice->GetNumPipesLog2();
+
+    uint32 effectiveNumPipes = 0;
+
+    if (m_pipeDist == PipeDist8x8)
+    {
+        effectiveNumPipes = numPipesLog2;
+    }
+
+    return effectiveNumPipes;
+}
+
+// =====================================================================================================================
+int32 Gfx9MaskRam::GetMetaOverlap() const
+{
+    const uint32 bppLog2        = GetBytesPerPixelLog2();
+    const uint32 numSamplesLog2 = GetNumSamplesLog2();
+
+    Gfx9MaskRamBlockSize compBlockLog2  = {};
+    CalcCompBlkSizeLog2(&compBlockLog2);
+    const uint32 compSize = compBlockLog2.width + compBlockLog2.height + compBlockLog2.depth;
+
+    Gfx9MaskRamBlockSize microBlockLog2 = {};
+    GetMicroBlockSize(&microBlockLog2);
+    const uint32 microSize = microBlockLog2.width + microBlockLog2.height + microBlockLog2.depth;
+
+    const uint32 maxSize = Max(compSize, microSize);
+    int32 numPipesLog2 = GetEffectiveNumPipes();
+
+    int32 overlap = numPipesLog2 - maxSize;
+    if ((numPipesLog2 > 1) && (m_pipeDist == PipeDist16x16))
+    {
+        overlap++;
+    }
+
+    // In 16Bpp 8xaa, we lose 1 overlap bit because the block size reduction eats into a pipe anchor bit (y4)
+    if ((bppLog2 == 4) && (numSamplesLog2 == 3))
+    {
+        overlap--;
+    }
+
+    return Max(0, overlap);
+}
+
+// =====================================================================================================================
+void Gfx9MaskRam::GetMetaPipeAnchorSize(
+    Extent2d*  pAnchorSize
+    ) const
+{
+    const uint32 numPipesLog2 = GetEffectiveNumPipes();
+
+    pAnchorSize->width  = 4 + (numPipesLog2 >> 1) + (numPipesLog2 & 1);
+    pAnchorSize->height = 4 + (numPipesLog2 >> 1);
+
+    if ((m_pipeDist == PipeDist16x16) && (numPipesLog2 > 1))
+    {
+        if (pAnchorSize->height < pAnchorSize->width)
+        {
+            pAnchorSize->height++;
+        }
+        else
+        {
+            pAnchorSize->width++;
+        }
+    }
+
+    if (numPipesLog2 == 0)
+    {
+        pAnchorSize->width  = 0;
+        pAnchorSize->height = 0;
+    }
+}
+
+// =====================================================================================================================
+void Gfx9MaskRam::GetMicroBlockSize(
+    Gfx9MaskRamBlockSize* pMicroBlockSize
+    ) const
+{
+    const uint32           bppLog2        = GetBytesPerPixelLog2();
+    const uint32           numSamplesLog2 = GetNumSamplesLog2();
+    const AddrSwizzleMode  swizzleMode    = GetSwizzleMode();
+    uint32                 blockBits      = 8 - bppLog2;
+
+    if (IsZSwizzle(swizzleMode))
+    {
+        blockBits -= numSamplesLog2;
+    }
+
+    pMicroBlockSize->width  = (blockBits >> 1) + (blockBits & 1);
+    pMicroBlockSize->height = (blockBits >> 1);
+    pMicroBlockSize->depth  = 0;
+}
+
+// =====================================================================================================================
+void Gfx9MaskRam::GetPipeAnchorSize(
+    Extent2d*  pAnchorSize
+    ) const
+{
+    const uint32       numPipesLog2 = GetEffectiveNumPipes();
+    const Pal::Device* pPalDevice   = m_pGfxDevice->Parent();
+
+    pAnchorSize->width  = 4 + (numPipesLog2 >> 1);
+    pAnchorSize->height = pAnchorSize->width;
+
+    if (pPalDevice->ChipProperties().gfx9.rbPlus)
+    {
+        pAnchorSize->width += (numPipesLog2 & 1);
+
+        if ((m_pipeDist == PipeDist16x16) && (numPipesLog2 > 1))
+        {
+            pAnchorSize->height++;
+        }
+    }
+    else
+    {
+        pAnchorSize->height += (numPipesLog2 & 1);
+
+        if ((m_pipeDist == PipeDist16x16) && (numPipesLog2 > 1))
+        {
+            pAnchorSize->width++;
+        }
+
+        if (numPipesLog2 == 0)
+        {
+            pAnchorSize->width  = 0;
+            pAnchorSize->height = 0;
+        }
+    }
+}
+
+// =====================================================================================================================
+uint32 Gfx9MaskRam::GetPipeRotateAmount() const
+{
+    const Pal::Device*  pPalDevice   = m_pGfxDevice->Parent();
+    const uint32        numPipesLog2 = m_pGfxDevice->GetNumPipesLog2();
+    uint32  pipeRotateAmount = 0;
+
+    {
+        {
+            pipeRotateAmount = 0;
+        }
+    }
+
+    return pipeRotateAmount;
+}
+
+// =====================================================================================================================
+void Gfx9MaskRam::CalcMetaEquationGfx10()
+{
+    Gfx9MaskRamBlockSize   metaBlockSizeLog2 = {};
+
+    const Pal::Device*     pPalDevice            = m_pGfxDevice->Parent();
+    const AddrSwizzleMode  swizzleMode           = GetSwizzleMode();
+    const uint32           blockSizeLog2         = GetMetaBlockSize(&metaBlockSizeLog2);
+    const uint32           bppLog2               = GetBytesPerPixelLog2();
+    const uint32           numSamplesLog2        = GetNumSamplesLog2();
+    const uint32           numPipesLog2          = m_pGfxDevice->GetNumPipesLog2();
+    uint32                 modNumPipesLog2       = numPipesLog2;
+    const uint32           effectiveNumPipesLog2 = GetEffectiveNumPipes();
+    const uint32           cachelineSize         = GetMetaCachelineSize();
+    const uint32           pipeInterleaveLog2    = m_pGfxDevice->GetPipeInterleaveLog2();
+    const uint32           maxFragsLog2          = m_pGfxDevice->GetMaxFragsLog2();
+    const uint32           maxCompFragsLog2      = (numSamplesLog2 < maxFragsLog2) ? numSamplesLog2 : maxFragsLog2;
+
+    MetaDataAddrEquation  pipe(27, "pipe");
+
+    PAL_ASSERT(GetMetaFlags(m_image).pipeAligned != 0);
+
+    constexpr uint32 nibbleOffset = 1;
+    PAL_ASSERT(m_meta.GetNumValidBits() >= (blockSizeLog2 + nibbleOffset));
+
+    Gfx9MaskRamBlockSize compBlockLog2 = {};
+    CalcCompBlkSizeLog2(&compBlockLog2);
+
+    Gfx9MaskRamBlockSize pixelBlockLog2 = {};
+    GetPixelBlockSize(&pixelBlockLog2);
+
+    Extent2d  pipeAnchorLog2 = {};
+    GetMetaPipeAnchorSize(&pipeAnchorLog2);
+
+    int32 metaOverlap = GetMetaOverlap();
+
+    CompPair  cx = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, compBlockLog2.width);
+    CompPair  cy = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, compBlockLog2.height);
+    CompPair  cz = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompZ, compBlockLog2.depth);
+    CompPair  cs = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompS, 0);
+
+    uint32  start  = 0;
+    uint32  end    = 0;
+    bool    flipXY = false;
+
+    if (IsStandardSwzzle(swizzleMode) || IsDisplayableSwizzle(swizzleMode) ||
+        IsRotatedSwizzle(swizzleMode) || IsZSwizzle(swizzleMode))
+    {
+        start = m_metaDataWordSizeLog2 + nibbleOffset;
+        end = start;
+
+        if (IsZSwizzle(swizzleMode) == false)
+        {
+            end = start + maxCompFragsLog2;
+            for (uint32 i = start; i < end; i++)
+            {
+                m_meta.SetBit(i, cs);
+                cs.compPos++;
+            }
+        }
+
+        PAL_ASSERT(pipe.GetNumValidBits() >= (blockSizeLog2 + nibbleOffset));
+
+        AddMetaPipeBits(&pipe, nibbleOffset);
+
+        uint32 pos1 = pipeInterleaveLog2 + nibbleOffset;
+
+        start = end;
+        end = (8 - compBlockLog2.width - compBlockLog2.height - compBlockLog2.depth) +
+              (((2 - static_cast<int32>(effectiveNumPipesLog2)) < 0) ?
+               0 : 2 - effectiveNumPipesLog2);
+
+        if ((m_pipeDist == PipeDist16x16) && (effectiveNumPipesLog2 > 1))
+        {
+            end++;
+        }
+
+        end += start;
+        flipXY = (compBlockLog2.height < compBlockLog2.width) ? true : false;
+
+        const uint32 pipeRotateAmount = GetPipeRotateAmount();
+
+        // This is needed to make htile pipe the same for all bpp modes under 32bpp
+        if ((pipeRotateAmount >= 2)           &&
+            (pipe.GetNumComponents(pos1) > 2) &&
+            IsDepth()                         &&
+            (bppLog2 <= 2)                    &&
+            (((numSamplesLog2 == 1) && (modNumPipesLog2 >= 6)) ||
+             ((numSamplesLog2 == 2) && (modNumPipesLog2 >= 5))))
+        {
+            {
+                pipe.Remove(pipe.GetFirst(pos1), pos1);
+            }
+        }
+
+        // In 16Bpe 8xaa, we have an extra overlap bit
+        if ((pipeRotateAmount > 0) && (pixelBlockLog2.width == 4))
+        {
+            {
+                metaOverlap++;
+            }
+        }
+
+        // Because y bits get into the overlap before x bits, we may need to swap an x/y bit pair
+        // where the overlap bits end
+        // 128 pipe is a little funky because although y3 starts the overlap, x3 is used in its place in the equation,
+        // so no need to swap
+        // In 16Bpp 8xaa, we lose 1 overlap bit, which is y2, so we don't need to do this swap
+        bool swapOverlapEnd = ((metaOverlap & 1) != 0)                           &&
+                              (flipXY == false)                                  &&
+                              (effectiveNumPipesLog2 != 7)                       &&
+                              (((bppLog2 == 4) && (numSamplesLog2 == 3)) == false);
+
+        // This is to handle a particular case SW_Z DCC 8 Bpp in 4xaa in 32 pipes
+        // This is the only case where we have "gap" in the overlap which requires two y bits, instead of interleaving
+        // y and x.  Other cases that have a gap end in y3/x4 which naturally works out with interleaved x/y's
+        swapOverlapEnd = swapOverlapEnd           ||
+                         (IsZSwizzle(swizzleMode) &&
+                         (bppLog2 == 3)           &&
+                         (numSamplesLog2 == 2)    &&
+                         IsColor()                &&
+                         (effectiveNumPipesLog2 == 5));
+
+        // Note: this section of flipY1Y2 only affects SW_Z DCC MSAA addressing (which is not needed in gfx10)
+        int32 posY1 = 3 - compBlockLog2.width - compBlockLog2.height;
+        int32 posY2 = posY1 + 2;
+        if (swapOverlapEnd && (posY1 <= 1))
+        {
+            posY1 = 1 ^ posY1;
+        }
+
+        bool flipY1Y2 = ((compBlockLog2.height <  2    ) &&
+                         (metaOverlap          >  posY1) &&
+                         (metaOverlap          <= posY2));
+
+        if (m_pipeDist == PipeDist16x16)
+        {
+            flipY1Y2 = false;
+        }
+
+        uint32 tileSplitBits = 0;
+        uint32 tileOrd = (m_pipeDist == PipeDist8x8) ? 3 : 4;
+
+        for (uint32 i = start; i < end; i++)
+        {
+            if (static_cast<bool>((i - start) & 1) == flipXY)
+            {
+                {
+                    if ((cx.compPos == 4)           &&
+                        (effectiveNumPipesLog2 > 1) &&
+                        (m_pipeDist == PipeDist8x8))
+                    {
+                        cx.compPos++;
+                    }
+                    m_meta.SetBit(i, cx);
+                    cx.compPos++;
+                }
+            }
+            else
+            {
+                uint32 ord = cy.compPos;
+                if ((ord == tileOrd) && (effectiveNumPipesLog2 > 0))
+                {
+                    cy.compPos++;
+                }
+
+                if (flipY1Y2)
+                {
+                    switch (ord)
+                    {
+                    case 1:
+                        cy.compPos++;
+                        break;
+                    case 2:
+                        cy.compPos--;
+                        break;
+                    }
+                }
+
+                m_meta.SetBit(i, cy);
+
+                if (flipY1Y2)
+                {
+                    switch (ord)
+                    {
+                    case 1:
+                        cy.compPos--;
+                        break;
+                    case 2:
+                        cy.compPos++;
+                        break;
+                    }
+                }
+                cy.compPos++;
+            }
+        }
+
+        start = end;
+        end   = blockSizeLog2 - effectiveNumPipesLog2 + nibbleOffset;
+        cx    = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, Max(5u, pipeAnchorLog2.width));
+        cy    = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, Max(5u, pipeAnchorLog2.height));
+
+        uint32 shiftBit0 = 0;
+        uint32 shiftBit1 = 0;
+
+        {
+            const uint32 pipe_block_ord = GetPipeBlockSize();
+            shiftBit0 = start + 2 * (pipe_block_ord - cy.compPos); // start + 2*(pipe_block_ord - cy.getord());
+            shiftBit1 = shiftBit0;
+
+            if (end > start)
+            {
+                if (cy.compPos < cx.compPos)
+                {
+                    m_meta.Mort2d(m_pGfxDevice, &cy, &cx, start, end - 1);
+                    shiftBit1++;
+                }
+                else
+                {
+                    m_meta.Mort2d(m_pGfxDevice, &cx, &cy, start, end - 1);
+                    shiftBit0++;
+                }
+            }
+
+            if (shiftBit0 == (blockSizeLog2 - numPipesLog2 + pipeRotateAmount + nibbleOffset))
+            {
+                shiftBit0--;
+            }
+
+            if (shiftBit0 >= (blockSizeLog2 - numPipesLog2 + pipeRotateAmount + nibbleOffset))
+            {
+                shiftBit0 = 2 * (4 - compBlockLog2.width) + nibbleOffset;
+                if (compBlockLog2.height < compBlockLog2.width)
+                {
+                    shiftBit0++;
+                }
+                if (IsRotatedSwizzle(swizzleMode))
+                {
+                    shiftBit0 += maxFragsLog2;
+                }
+            }
+
+            if (shiftBit1 >= (blockSizeLog2 - numPipesLog2 + pipeRotateAmount + nibbleOffset))
+            {
+                CompPair c = pipe.GetFirst(pos1);
+                if (c.compType == MetaDataAddrCompX)
+                {
+                    shiftBit1 = 2 * (c.compPos - compBlockLog2.width) + nibbleOffset;
+                    if (compBlockLog2.height < compBlockLog2.width)
+                    {
+                        shiftBit1++;
+                    }
+                }
+                else
+                {
+                    shiftBit1 = 2 * (c.compPos - compBlockLog2.height) + nibbleOffset;
+                    if (compBlockLog2.height >= compBlockLog2.width)
+                    {
+                        shiftBit1++;
+                    }
+                }
+                if (IsRotatedSwizzle(swizzleMode))
+                {
+                    shiftBit1 += maxFragsLog2;
+                }
+            }
+        }
+
+        if ((pipeRotateAmount >= 2) && (shiftBit1 > shiftBit0))
+        {
+            Swap(shiftBit0, shiftBit1);
+        }
+
+        if (pipeRotateAmount > 0)
+        {
+            m_meta.Shift(-1, shiftBit0);
+        }
+
+        if (pipeRotateAmount > 1)
+        {
+            m_meta.Shift(-1, shiftBit1);
+        }
+
+        start = m_metaDataWordSizeLog2 + nibbleOffset + (IsZSwizzle(swizzleMode) ? 0 : maxCompFragsLog2);
+
+        if (swapOverlapEnd)
+        {
+            m_meta.Rotate(1, start + metaOverlap - 1, start + metaOverlap);
+        }
+
+        end = cachelineSize + metaOverlap;
+
+        end += nibbleOffset;
+
+        m_meta.Rotate(-metaOverlap, start, end - 1);
+
+        start = pipeInterleaveLog2 + nibbleOffset;
+        m_meta.Shift(modNumPipesLog2, start);
+
+        m_meta.XorIn(&pipe);
+    }
+
+    // The equation is currently 32-bits long, but on GFX10, the equation is an offset into one meta-block
+    // (unlike on GFX9 where the equation is an offset into the entire mask-ram), so trim this down to the
+    // the log2 of one meta-block.
+    FinalizeMetaEquation(AddrMgr2::GetBlockSize(swizzleMode));
 }
 
 //=============== Implementation for Gfx9Htile: ========================================================================
@@ -1489,7 +2779,7 @@ void Gfx9Htile::CalcCompBlkSizeLog2(
     // For non-color surfaces, compressed block size is always 8x8
     pBlockSize->width  = 3;
     pBlockSize->height = 3;
-    pBlockSize->depth  = 3;
+    pBlockSize->depth  = 0;
 }
 
 // =====================================================================================================================
@@ -1508,7 +2798,7 @@ void Gfx9Htile::CalcMetaBlkSizeLog2(
 // =====================================================================================================================
 // Computes a value for updating the HTile buffer for a fast depth clear.
 uint32 Gfx9Htile::GetClearValue(
-    float  depthValue
+    float depthValue
     ) const
 {
     // Maximum 14-bit UINT value.
@@ -1593,110 +2883,87 @@ uint32 Gfx9Htile::GetAspectMask(
 }
 
 // =====================================================================================================================
-// Computes a mask and value for updating the HTile buffer for a "fast" resummarize operation. The "fast" resummarize is
-// quicker than a normal resummarize, but less precise because we are updating HTile to indicate the full zRange is
-// included in each tile.
-uint32 Gfx9Htile::ComputeResummarizeData() const
+// A helper function for when the caller just wants the aspect mask for a single image aspect.
+uint32 Gfx9Htile::GetAspectMask(
+    ImageAspect aspect
+    ) const
 {
-    constexpr uint32 Uint14Max = 0x3FFF; // Maximum value of a 14bit integer.
+    PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
 
-    // Convert the trivial z bounds to 14-bit zmin/zmax uint values.
-    constexpr uint32 ZMin = 0;
-    constexpr uint32 ZMax = Uint14Max;
-
-    // The depth buffer was expanded at some point prior to this being executed, so we need to set the HTile's zMask
-    // to indicate that no z planes are stored (each depth value is directly stored in the surface).
-    constexpr uint32 ZMask = 15;
-
-    uint32 htileData = 0;
-
-    if (TileStencilDisabled() == false)
-    {
-        // If stencil is present, each HTILE is laid out as-follows, according to the DB spec:
-        // |31       12|11 10|9    8|7   6|5   4|3     0|
-        // +-----------+-----+------+-----+-----+-------+
-        // |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
-
-        // The base value for zRange is either zMax or zMin, depending on ZRANGE_PRECISION. Currently, PAL programs
-        // ZRANGE_PRECISION to 1 (zMax is the base) because there's no easy way to track that state across command
-        // buffers build on many threads.
-        //
-        // zRange is encoded as follows: the high 14 bits are the base z value (zMax in our case). The low 6 bits
-        // are a code represending the abs(zBase - zOther). In our case, we need to select a delta code representing
-        // abs(zMax - zMin), which is always 0x3FFF (maximum 14 bit uint value). According to setion 9.1.3 of the DB
-        // spec, the delta code in our case would be 0x3F (all 6 bits set).
-        constexpr uint32 Delta  = 0x3F;
-        constexpr uint32 ZRange = ((ZMax << 6) | Delta);
-        // We set SMem to 0x3 to indicate the stencil buffer was expanded.
-        constexpr uint32 SMem   = 0x3;
-        // In case of resummarize, we set both sr0 and sr1 to 0x3, which means both may_pass bit and may_fail bit.
-        constexpr uint32 SR1    = 0x3;
-        constexpr uint32 SR0    = 0x3;
-
-        htileData = ( ((ZRange & 0xFFFFF) << 12) |
-                      ((ZMask  &     0xF) <<  0) |
-                      ((SMem   &     0x3) <<  8) |
-                      ((SR1    &     0x3) <<  6) |
-                      ((SR0    &     0x3) <<  4));
-    }
-    else
-    {
-        // If stencil is absent, each HTILE is laid out as follows, according to the DB spec:
-        // |31     18|17      4|3     0|
-        // +---------+---------+-------+
-        // |  Max Z  |  Min Z  | ZMask |
-
-        htileData = ( ((ZMax  & Uint14Max) << 18) |
-                      ((ZMin  & Uint14Max) <<  4) |
-                      ((ZMask &       0xF) <<  0) );
-    }
-    return htileData;
+    return GetAspectMask((aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil);
 }
 
 // =====================================================================================================================
-// Computes the initial value of the htile which depends on whether or not tile stencil is disabled.
+// Computes the initial value of the htile which depends on whether or not tile stencil is disabled. We want this
+// initial value to disable all HTile-based optimizations so that the image is in a trivially valid state. This should
+// work well for inits and also for "fast" resummarize blits where we just want the HW to see the base data values.
 uint32 Gfx9Htile::GetInitialValue() const
 {
-    // These are the possible layouts of hTile memory:
+    constexpr uint32 Uint14Max = 0x3FFF; // Maximum value of a 14bit integer.
 
-    // Z and stencil:
-    //      |31       12|11 10|9    8|7   6|5   4|3     0|
-    //      +-----------+-----+------+-----+-----+-------+
-    //      |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
-    //
-    //
-    // Z only (no stencil):
-    //      |31     18|17      4|3     0|
-    //      +---------+---------+-------+
-    //      |  Max Z  |  Min Z  | ZMask |
-    //
-
-    // Initial values for a fully decompressed/expanded htile
-    constexpr uint32 ZMaskExpanded            = 0xf;
-    constexpr uint32 SMemExpanded             = 0x3;
-    constexpr uint32 SR1                      = 0x3;
-    constexpr uint32 SR0                      = 0x3;
-    constexpr uint32 InitialValueDepthOnly    = (ZMaskExpanded  << 0);
-    constexpr uint32 InitialValueDepthStencil = ((SMemExpanded  << 8) |
-                                                 (SR1           << 6) |
-                                                 (SR0           << 4) |
-                                                 (ZMaskExpanded << 0));
+    // Convert the trivial z bounds to 14-bit zmin/zmax uint values. These values will give us HiZ bounds that cover
+    // all Z values, effectively disabling HiZ.
+    constexpr uint32 ZMin  = 0;
+    constexpr uint32 ZMax  = Uint14Max;
+    constexpr uint32 ZMask = 0xf;        // No Z compression.
 
     uint32 initialValue;
 
     if (TileStencilDisabled())
     {
-        initialValue = InitialValueDepthOnly;
+        // Z only (no stencil):
+        //      |31     18|17      4|3     0|
+        //      +---------+---------+-------+
+        //      |  Max Z  |  Min Z  | ZMask |
+
+        initialValue = (((ZMax  & Uint14Max) << 18) |
+                        ((ZMin  & Uint14Max) <<  4) |
+                        ((ZMask &       0xF) <<  0));
     }
     else
     {
-        initialValue = InitialValueDepthStencil;
+        // Z and stencil:
+        //      |31       12|11 10|9    8|7   6|5   4|3     0|
+        //      +-----------+-----+------+-----+-----+-------+
+        //      |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
+        //
+
+        // The base value for zRange is either zMax or zMin, depending on ZRANGE_PRECISION. Currently, PAL programs
+        // ZRANGE_PRECISION to 1 (zMax is the base) by default. Sometimes we switch to 0 if we detect a fast-clear to
+        // Z = 0 but that will rewrite HTile so we can ignore that case when we compute our initial value.
+        //
+        // zRange is encoded as follows: the high 14 bits are the base z value (zMax in our case). The low 6 bits
+        // are a code represending the abs(zBase - zOther). In our case, we need to select a delta code representing
+        // abs(zMax - zMin), which is always 0x3FFF (maximum 14 bit uint value). The delta code in our case would be
+        // 0x3F (all 6 bits set).
+        constexpr uint32 Delta  = 0x3F;
+        constexpr uint32 ZRange = ((ZMax << 6) | Delta);
+        constexpr uint32 SMem   = 0x3; // No stencil compression.
+        constexpr uint32 SR1    = 0x3; // Unknown stencil test result.
+        constexpr uint32 SR0    = 0x3; // Unknown stencil test result.
+
+        initialValue = (((ZRange & 0xFFFFF) << 12) |
+                        ((SMem   &     0x3) <<  8) |
+                        ((SR1    &     0x3) <<  6) |
+                        ((SR0    &     0x3) <<  4) |
+                        ((ZMask  &     0xF) <<  0));
 
     }
 
     return initialValue;
 }
 
+// =====================================================================================================================
+// Calculates the meta-block dimensions.
+//
+uint32 Gfx9Htile::GetMetaBlockSize(
+    Gfx9MaskRamBlockSize* pExtent
+    ) const
+{
+    CalcMetaBlkSizeLog2(pExtent);
+
+    return Log2(m_addrOutput.baseAlign);
+}
 //=============== Implementation for Gfx9Dcc: ==========================================================================
 
 // =====================================================================================================================
@@ -1725,6 +2992,9 @@ uint32 Gfx9Dcc::GetNumEffectiveSamples(
     uint32  numSamples = Gfx9MaskRam::GetNumEffectiveSamples();
     if (clearPurpose == DccClearPurpose::FastClear)
     {
+        // Using max_compressed_frag on MSAA image requires CMask / FMask always be on.
+        PAL_ASSERT((numSamples == 1) || m_image.HasFmaskData());
+
         //    The idea of max_compressed_frag is we lose a lot of benefit from the DCC compression when we go beyond
         //    compressing the first fragment or two.   Beyond a certain fragment we're unlikely to have a lot of
         //    pixels touching it.   Thus any compression will likely be poor compression (e.g. 8:7 compression).
@@ -2583,8 +3853,12 @@ Result Gfx9Cmask::Init(
         // overall image size with every mip level as the entire size of cMask is computed all at once.
         UpdateGpuMemOffset(pGpuOffset);
 
-        // The addressing equation is the same for all sub-resources, so only bother to calculate it once
-        CalcMetaEquation();
+        // GFX10 has no use for the cmask addressing equation, so save the CPU cycles needed to generate it.
+        if (IsGfx9(*(m_pGfxDevice->Parent())))
+        {
+            // The addressing equation is the same for all sub-resources, so only bother to calculate it once
+            CalcMetaEquation();
+        }
 
         if (hasEqGpuAccess)
         {

@@ -347,8 +347,6 @@ public:
     { }
     virtual ~GraphicsPipelineUploader() { }
 
-    bool EnableLoadIndexPath() const { return ((CtxRegisterCount() + ShRegisterCount()) != 0); }
-
     // Add a context register to GPU memory for use with LOAD_CONTEXT_REG_INDEX.
     PAL_INLINE void AddCtxReg(uint16 address, uint32 value)
         { Pal::PipelineUploader::AddCtxRegister(address - CONTEXT_SPACE_START, value); }

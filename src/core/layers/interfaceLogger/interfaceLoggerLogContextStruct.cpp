@@ -640,6 +640,13 @@ void LogContext::Struct(
         Value("disallowNestedLaunchViaIb2");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+    if (value.flags.enableExecutionMarkerSupport)
+    {
+        Value("enableExecutionMarkerSupport");
+    }
+#endif
+
     EndList();
 
     if (value.pInheritedState != nullptr)
@@ -659,6 +666,10 @@ void LogContext::Struct(
     {
         KeyAndNullValue("stateInheritCmdBuffer");
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+    KeyAndValue("execMarkerClientHandle", value.execMarkerClientHandle);
+#endif
 
     EndMap();
 }
@@ -2618,6 +2629,20 @@ void LogContext::Struct(
     }
 
     KeyAndStruct("flags", value.flags);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const GenMipmapsInfo& value)
+{
+    BeginMap(false);
+    KeyAndObject("image", value.pImage);
+    KeyAndStruct("baseMipLayout", value.baseMipLayout);
+    KeyAndStruct("genMipLayout", value.genMipLayout);
+    KeyAndStruct("range", value.range);
+    KeyAndStruct("filter", value.filter);
+    KeyAndStruct("swizzledFormat", value.swizzledFormat);
     EndMap();
 }
 

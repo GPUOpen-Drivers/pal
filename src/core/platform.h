@@ -28,6 +28,7 @@
 #include "palLib.h"
 #include "palPlatform.h"
 #include "platformSettingsLoader.h"
+#include "core/eventProvider.h"
 #include "core/g_palSettings.h"
 #include "core/g_palPlatformSettings.h"
 #include "ver.h"
@@ -154,6 +155,16 @@ public:
                             const char*     pFormat,
                             va_list         args) override;
 
+    EventProvider* GetEventProvider() { return &m_eventProvider; }
+
+    virtual void LogEvent(
+        PalEvent    eventId,
+        const void* pEventData,
+        uint32      eventDataSize) override;
+
+    void EnableEventLoggingToFile();
+    void DisableEventLoggingToFile() { m_eventProvider.DisableFileLogging(); }
+
 protected:
     Platform(const PlatformCreateInfo& createInfo, const Util::AllocCallbacks& allocCb);
 
@@ -248,6 +259,7 @@ private:
     gpusize                m_svmRangeStart;
     gpusize                m_maxSvmSize;
     Util::LogCallbackInfo  m_logCb;
+    EventProvider          m_eventProvider;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Platform);
 };

@@ -104,10 +104,6 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (mmPA_SC_TILE_STEERING_OVERRIDE - mmPA_SC_WINDOW_OFFSET + 1),
     },
     {
-        (Gfx09::mmPA_SC_RIGHT_VERT_GRID - CONTEXT_SPACE_START),                 // 0xA0E8 - 0xA0EC
-        (Gfx09::mmPA_SC_FOV_WINDOW_TB - Gfx09::mmPA_SC_RIGHT_VERT_GRID + 1),
-    },
-    {
         (mmVGT_MULTI_PRIM_IB_RESET_INDX - CONTEXT_SPACE_START),                 // 0xA103
          1,
     },
@@ -401,14 +397,6 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
     },
     {
-        mmPA_SC_SCREEN_EXTENT_MIN_0,
-        mmPA_SC_SCREEN_EXTENT_MIN_1 - mmPA_SC_SCREEN_EXTENT_MIN_0 + 1
-    },
-    {
-        mmPA_SC_SCREEN_EXTENT_MAX_1,
-        1
-    },
-    {
         mmDB_OCCLUSION_COUNT0_LOW,
         mmDB_OCCLUSION_COUNT3_HI - mmDB_OCCLUSION_COUNT0_LOW + 1
     },
@@ -634,14 +622,6 @@ const RegisterRange Gfx91NonShadowedRanges[] =
     {
         mmVGT_INDEX_TYPE,
         mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
-    },
-    {
-        mmPA_SC_SCREEN_EXTENT_MIN_0,
-        mmPA_SC_SCREEN_EXTENT_MIN_1 - mmPA_SC_SCREEN_EXTENT_MIN_0 + 1
-    },
-    {
-        mmPA_SC_SCREEN_EXTENT_MAX_1,
-        1
     },
     {
         mmDB_OCCLUSION_COUNT0_LOW,

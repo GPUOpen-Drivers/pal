@@ -160,42 +160,42 @@ enum class GfxIpLevel : uint32
 /// Carrizo, Volcanic Islands, etc.)
 enum class AsicRevision : uint32
 {
-    Unknown    = 0x00,
+    Unknown     = 0x00,
 
-    Tahiti     = 0x01,
-    Pitcairn   = 0x02,
-    Capeverde  = 0x03,
-    Oland      = 0x04,
-    Hainan     = 0x05,
+    Tahiti      = 0x01,
+    Pitcairn    = 0x02,
+    Capeverde   = 0x03,
+    Oland       = 0x04,
+    Hainan      = 0x05,
 
-    Bonaire    = 0x06,
-    Hawaii     = 0x07,
-    HawaiiPro  = 0x08,
+    Bonaire     = 0x06,
+    Hawaii      = 0x07,
+    HawaiiPro   = 0x08,
 
-    Kalindi    = 0x0A,
-    Godavari   = 0x0B,
-    Spectre    = 0x0C,
-    Spooky     = 0x0D,
+    Kalindi     = 0x0A,
+    Godavari    = 0x0B,
+    Spectre     = 0x0C,
+    Spooky      = 0x0D,
 
-    Carrizo    = 0x0E,
-    Bristol    = 0x0F,
-    Stoney     = 0x10,
+    Carrizo     = 0x0E,
+    Bristol     = 0x0F,
+    Stoney      = 0x10,
 
-    Iceland    = 0x11,
-    Tonga      = 0x12,
-    Fiji       = 0x13,
+    Iceland     = 0x11,
+    Tonga       = 0x12,
+    Fiji        = 0x13,
 
-    Polaris10  = 0x14,
-    Polaris11  = 0x15,
-    Polaris12  = 0x16,
+    Polaris10   = 0x14,
+    Polaris11   = 0x15,
+    Polaris12   = 0x16,
 
-    Vega10     = 0x18,
-    Vega12     = 0x19,
-    Vega20     = 0x1A,
-    Raven      = 0x1B,
-    Raven2     = 0x1C,
+    Vega10      = 0x18,
+    Vega12      = 0x19,
+    Vega20      = 0x1A,
+    Raven       = 0x1B,
+    Raven2      = 0x1C,
 
-    Navi10     = 0x1F,
+    Navi10      = 0x1F,
 };
 
 /// Specifies which operating-system-support IP level (OSSIP) this device has.
@@ -588,15 +588,16 @@ enum class SettingScope
     Global,   ///< For global settings controlled by CCC
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
 /// The engine subtype is used to indicate engine's purpose.
 enum class EngineSubType : uint32
 {
-    _None = 0x0,        ///< @internal The device does not have an OSSIP block, or its level cannot be determined
+    _None = 0x0,        ///< Engine has no special properties.
 
     // Unfortunately for Linux clients, X.h includes a "#define None 0" macro.  Clients have their choice of either
     // undefing None before including this header or using _None when dealing with PAL.
 #ifndef None
-    None = _None,       ///< The device does not have an OSSIP block, or its level cannot be determined
+    None = _None,       ///< Engine has no special properties.
 #endif
     RtCuHighCompute,    ///< Engine is for real time audio with high priority and
                         ///  compute unit reservation.
@@ -605,6 +606,7 @@ enum class EngineSubType : uint32
     VrHighPriority,     ///< Engine is for VR with high priority.
     Count,
 };
+#endif
 
 /// Big Software (BigSW) Release information structure
 /// Software release management uses this version # to control a rollout of big SW features together.
@@ -737,7 +739,31 @@ struct DeviceProperties
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< Engines property flags.
+
+        struct
+        {
+            union
+            {
+                struct
+                {
+                    uint32 exclusive                :  1;  ///< Engine is exclusively owned by one client at a time.
+                    uint32 mustUseDispatchTunneling :  1;  ///< Queues created on this engine must use dispatch
+                                                           ///  tunneling.
+                    uint32 reserved                 : 30;  ///< Reserved for future use.
+                };
+                uint32 u32All;                        ///< Flags packed as 32-bit uint.
+            } flags;                                  ///< Capabilities property flags.
+
+            uint32 queuePrioritySupport;              ///< Mask of QueuePrioritySupport flags indicating which queue
+                                                      ///  priority levels are supported by this engine.
+            uint32 dispatchTunnelingPrioritySupport;  ///< Mask of QueuePrioritySupport flags indicating which queue
+                                                      ///  priority levels support dispatch tunneling on this engine.
+        } capabilities[MaxAvailableEngines];          ///< Lists each engine of this type (up to engineCount) and their
+                                                      ///  properties.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
         EngineSubType engineSubType[MaxAvailableEngines]; ///< Engines subtype.
+#endif
 
         uint32   engineCount;                   ///< Number available engines of this type.
         uint32   queueSupport;                  ///< Mask of QueueTypeSupport flags indicating which queues are
@@ -834,8 +860,10 @@ struct DeviceProperties
                 uint32 pageMigrationEnabled             :  1;
                 /// Placeholder.
                 uint32 placeholder0                     :  1;
+
+                uint32 placeholder1                     : 1;
                 /// Reserved for future use.
-                uint32 reserved                         : 21;
+                uint32 reserved                         : 20;
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< GPU memory property flags.
@@ -1013,10 +1041,17 @@ struct DeviceProperties
                                                                 ///  un-cached memory. @see gl2UncachedCpuCoherency
                 uint32 supportOutOfOrderPrimitives         : 1; ///< HW supports higher throughput for out of order
                 uint32 placeholder5                        : 1; ///< Placeholder, do not use
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
-                uint32 reserved                            : 4; ///< Reserved for future use.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
+                uint32 support64BitInstructions            : 1; ///< Hardware supports 64b instructions
 #else
+                uint32 placeholder6                        : 1; ///< Placeholder, do not use
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
                 uint32 reserved                            : 3; ///< Reserved for future use.
+#else
+                uint32 reserved                            : 2; ///< Reserved for future use.
 #endif
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
@@ -1694,10 +1729,12 @@ struct ImageViewInfo
             uint32 placeholder0    : 1;
 #endif
 
+            uint32 placeholder1    : 2;  ///< Reserved for future HW
+
             uint32 zRangeValid     : 1;  ///< whether z offset/ range value is valid.
             uint32 includePadding  : 1;  ///< Whether internal padding should be included in the view range.
 
-            uint32 reserved        : 29; ///< Reserved for future use
+            uint32 reserved        : 27; ///< Reserved for future use
         };
         uint32 u32All;                  ///< Value of flags bitfield
     } flags;                            ///< Image view flags.

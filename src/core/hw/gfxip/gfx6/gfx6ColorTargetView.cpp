@@ -60,9 +60,9 @@ constexpr uint32 CbColorInfoDecompressedMask = (CB_COLOR0_INFO__DCC_ENABLE_MASK_
 
 // =====================================================================================================================
 ColorTargetView::ColorTargetView(
-    const Device&                            device,
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo)
+    const Device&                     device,
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo)
     :
     m_pImage(nullptr)
 {
@@ -100,6 +100,20 @@ ColorTargetView::ColorTargetView(
         m_flags.dccCompressionEnabled = (m_flags.hasDcc && m_pImage->GetDcc(m_subresource)->IsCompressionEnabled());
 
         m_layoutToState = m_pImage->LayoutToColorCompressionState(m_subresource);
+
+        // Determine whether Overwrite Combiner (OC) should be to be disabled or not
+        if (device.Settings().waRotatedSwizzleDisablesOverwriteCombiner)
+        {
+            const SubresId  subResId = { ImageAspect::Color, MipLevel(), 0 };
+
+            const auto*         pTileInfo = AddrMgr1::GetTileInfo(m_pImage->Parent(), subResId);
+            const AddrTileType  tileType
+                = AddrMgr1::AddrTileTypeFromHwMicroTileMode(pTileInfo->tileType);
+            if (tileType == ADDR_ROTATED)
+            {
+                m_flags.disableRotateSwizzleOC = 1;
+            }
+        }
     }
     else
     {
@@ -187,9 +201,9 @@ void ColorTargetView::BuildPm4Headers(
 // =====================================================================================================================
 // Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
 void ColorTargetView::InitRegisters(
-    const Device&                            device,
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo)
+    const Device&                     device,
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo)
 {
     // By default, assume linear general tiling and no Fmask texture fetches.
     int32  baseTileIndex        = TileIndexLinearGeneral;

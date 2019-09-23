@@ -118,6 +118,13 @@ void SettingsLoader::OverrideDefaults()
         m_settings.enableUswcHeapAllAllocations = true;
     }
 
+    // Since APUs don't have real local memory it's better to use a GART heap instead
+    // of allocating out of the limited carveout space.
+    if (m_pDevice->ChipProperties().gpuType == GpuType::Integrated)
+    {
+        m_settings.preferredPipelineUploadHeap = PipelineHeapGartUswc;
+    }
+
     m_state = SettingsLoaderState::LateInit;
 }
 
@@ -217,6 +224,11 @@ void SettingsLoader::ValidateSettings()
         Snprintf(pPlatformSettings->interfaceLoggerConfig.logDirectory,
                  sizeof(pPlatformSettings->interfaceLoggerConfig.logDirectory),
                  "%s/%s", pRootPath, subDir);
+
+        Strncpy(subDir, pPlatformSettings->eventLogDirectory, sizeof(subDir));
+        Snprintf(pPlatformSettings->eventLogDirectory,
+            sizeof(pPlatformSettings->eventLogDirectory),
+            "%s/%s", pRootPath, subDir);
 
     }
 

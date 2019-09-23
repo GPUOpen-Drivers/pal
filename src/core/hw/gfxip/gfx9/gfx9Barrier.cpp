@@ -1305,6 +1305,24 @@ void Device::Barrier(
 
                     if (gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData())
                     {
+                        if (pCmdBuf->IsGraphicsSupported() &&
+                            gfx9Image.HasHtileData()       &&
+                            (gfx9Image.GetHtile()->TileStencilDisabled() == false))
+                        {
+                            // If HTile encodes depth and stencil data we must idle any prior draws that bound this
+                            // image as a depth-stencil target and flush/invalidate the DB caches because we always
+                            // use compute to initialize HTile. That compute shader could attempt to do a read-modify-
+                            // write of HTile on one aspect (e.g., stencil) while reading in HTile values with stale
+                            // data for the other aspect (e.g., depth) which will clobber the correct values.
+                            SyncReqs sharedHtileSync = {};
+                            sharedHtileSync.cpMeCoherCntl.bits.DB_DEST_BASE_ENA = 1;
+                            sharedHtileSync.cpMeCoherCntl.bits.DEST_BASE_0_ENA  = 1;
+                            sharedHtileSync.cacheFlags |= CacheSyncFlushAndInvDb;
+
+                            IssueSyncs(pCmdBuf, pCmdStream, sharedHtileSync, barrier.waitPoint,
+                                       image.GetGpuVirtualAddr(), gfx9Image.GetGpuMemSyncSize(), &barrierOps);
+                        }
+
                         barrierOps.layoutTransitions.initMaskRam = 1;
                         DescribeBarrier(pCmdBuf,
                                         &barrier.pTransitions[i],

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -63,11 +63,16 @@ namespace DevDriver
             // Sets the current device clock mode
             Result SetDeviceClockMode(uint32 gpuIndex, DeviceClockMode clockMode);
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION)
+            // Returns the device clock values in MHz for the given device clock mode.
+            Result QueryDeviceClock(uint32 gpuIndex, DeviceClockMode clockMode, float* pGpuClock, float* pMemClock);
+#else
             // Returns the current device clock values in MHz
             Result QueryDeviceClock(uint32 gpuIndex, float* pGpuClock, float* pMemClock);
 
             // Returns the max device clock values in MHz
             Result QueryMaxDeviceClock(uint32 gpuIndex, float* pMaxGpuClock, float* pMaxMemClock);
+#endif
 
             // Returns the current status of the driver.
             Result QueryDriverStatus(DriverStatus* pDriverStatus);

@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/device.h"
+#include "core/eventDefs.h"
 #include "core/perfExperiment.h"
 
 namespace Pal
@@ -47,6 +48,14 @@ PerfExperiment::PerfExperiment(
     m_spmRingOffset(0),
     m_totalMemSize(0)
 {
+}
+
+// =====================================================================================================================
+PerfExperiment::~PerfExperiment()
+{
+    ResourceDestroyEventData data = {};
+    data.pObj = this;
+    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 }
 
 // =====================================================================================================================
@@ -80,6 +89,33 @@ Result PerfExperiment::BindGpuMemory(
 {
     Result result = Result::Success;
 
+    // We delay resource description until memory bind time so we know the GPU mem sizes of various experiment data.
+    ResourceDescriptionPerfExperiment desc = {};
+    if (m_hasGlobalCounters)
+    {
+        // We have begin and end offsets for global counter data
+        desc.perfCounterSize = m_globalEndOffset - m_globalBeginOffset + 1;
+    }
+
+    if (m_hasThreadTrace)
+    {
+        // SQTT data is between SPM and global counters
+        desc.sqttSize = m_spmRingOffset - m_globalEndOffset + 1;
+    }
+
+    if (m_hasSpmTrace)
+    {
+        // SPM goes last in the GPU memory allocation, so just subtract the offset from the total size
+        desc.spmSize = m_totalMemSize - m_spmRingOffset + 1;
+    }
+
+    ResourceCreateEventData data = {};
+    data.type = ResourceType::PerfExperiment;
+    data.pResourceDescData = static_cast<void*>(&desc);
+    data.resourceDescSize = sizeof(ResourceDescriptionPerfExperiment);
+    data.pObj = this;
+    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+
     if (m_isFinalized == false)
     {
         // The perf experiment must be finalized first.
@@ -93,6 +129,12 @@ Result PerfExperiment::BindGpuMemory(
     if (result == Result::Success)
     {
         m_gpuMemory.Update(pGpuMemory, offset);
+
+        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
+            this,
+            m_totalMemSize,
+            pGpuMemory,
+            offset);
     }
 
     return result;

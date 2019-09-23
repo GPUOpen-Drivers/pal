@@ -705,7 +705,9 @@ Result Device::CreateEngine(
         pEngine = PAL_NEW(UniversalEngine, GetPlatform(), AllocInternal)(this, engineType, engineIndex);
         break;
     case EngineTypeCompute:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     case EngineTypeExclusiveCompute:
+#endif
         pEngine = PAL_NEW(ComputeEngine, GetPlatform(), AllocInternal)(this, engineType, engineIndex);
         break;
     default:
@@ -894,6 +896,19 @@ Result Device::CreateComputePipeline(
 
     *ppPipeline = pPipeline;
 
+    if (result == Result::Success)
+    {
+        ResourceDescriptionPipeline desc = {};
+        desc.pPipelineInfo = &pPipeline->GetInfo();
+        desc.pCreateFlags = &createInfo.flags;
+        ResourceCreateEventData data = {};
+        data.type = ResourceType::Pipeline;
+        data.pResourceDescData = static_cast<void*>(&desc);
+        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
+        data.pObj = pPipeline;
+        m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    }
+
     return result;
 }
 
@@ -934,6 +949,19 @@ Result Device::CreateGraphicsPipeline(
         {
             *ppPipeline = pPipeline;
         }
+    }
+
+    if (result == Result::Success)
+    {
+        ResourceDescriptionPipeline desc = {};
+        desc.pPipelineInfo = &pPipeline->GetInfo();
+        desc.pCreateFlags = &createInfo.flags;
+        ResourceCreateEventData data = {};
+        data.type = ResourceType::Pipeline;
+        data.pResourceDescData = static_cast<void*>(&desc);
+        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
+        data.pObj = pPipeline;
+        m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
     }
 
     return result;
@@ -1366,10 +1394,10 @@ size_t Device::GetColorTargetViewSize(
 // =====================================================================================================================
 // Creates a Gfx6 implementation of Pal::IColorTargetView
 Result Device::CreateColorTargetView(
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo,
-    void*                                    pPlacementAddr,
-    IColorTargetView**                       ppColorTargetView
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo,
+    void*                             pPlacementAddr,
+    IColorTargetView**                ppColorTargetView
     ) const
 {
     (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetView(*this, createInfo, internalInfo);
@@ -2744,6 +2772,7 @@ void InitializeGpuChipProperties(
 
     // All GFXIP 6-8 hardware cannot support 2-bit signed values.
     pInfo->gfx6.supports2BitSignedValues = 0;
+    pInfo->gfx6.support64BitInstructions = 1;
 
     // Out of order primitives was added in Hawaii, but it has a hardware bug where the hardware can hang when a
     // multi-cycle primitive is processed when out of order is enabled. This is fixed for GFXIP 8.
@@ -3406,9 +3435,11 @@ void InitializeGpuEngineProperties(
         pCompute->gdsSizePerEngine   = 4096;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     // Copy the compute properties into the exclusive compute engine properties
     auto*const pExclusiveCompute = &pInfo->perEngine[EngineTypeExclusiveCompute];
     memcpy(pExclusiveCompute, pCompute, sizeof(pInfo->perEngine[EngineTypeExclusiveCompute]));
+#endif
 }
 
 // =====================================================================================================================

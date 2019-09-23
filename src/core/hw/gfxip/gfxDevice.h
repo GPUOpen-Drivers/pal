@@ -455,10 +455,10 @@ public:
     virtual size_t GetColorTargetViewSize(
         Result* pResult) const = 0;
     virtual Result CreateColorTargetView(
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo,
-        void*                                    pPlacementAddr,
-        IColorTargetView**                       ppColorTargetView) const = 0;
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo,
+        void*                             pPlacementAddr,
+        IColorTargetView**                ppColorTargetView) const = 0;
 
     virtual size_t GetDepthStencilViewSize(
         Result* pResult) const = 0;

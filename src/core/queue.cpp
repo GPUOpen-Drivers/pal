@@ -90,7 +90,11 @@ Queue::Queue(
     m_engineMembershipNode(this),
     m_lastFrameCnt(0),
     m_submitIdPerFrame(0),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
+    m_queuePriority(QueuePriority::Normal),
+#else
     m_queuePriority(QueuePriority::Low),
+#endif
     m_persistentCeRamOffset(0),
     m_persistentCeRamSize(0)
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
@@ -104,6 +108,9 @@ Queue::Queue(
 
     m_flags.u32All = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
+    m_queuePriority = createInfo.priority;
+#else
     const Pal::EngineSubType engineSubType = m_pDevice->EngineProperties().perEngine[m_engineType].engineSubType[m_engineId];
 
     // Override the priority here.
@@ -112,10 +119,20 @@ Queue::Queue(
                       (engineSubType == EngineSubType::RtCuMedCompute)  ? QueuePriority::Medium   :
                       (m_engineType  == EngineTypeExclusiveCompute)     ? QueuePriority::High     :
                                                                           createInfo.priority;
+#endif
 
     if (m_queuePriority == QueuePriority::Realtime)
     {
         m_numReservedCu = createInfo.numReservedCu;
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
+    if (createInfo.dispatchTunneling != 0)
+#else
+    if (engineSubType == EngineSubType::VrHighPriority)
+#endif
+    {
+        m_flags.dispatchTunneling = 1;
     }
 
     if (createInfo.windowedPriorBlit != false)

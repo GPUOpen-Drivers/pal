@@ -39,7 +39,7 @@ enum class PipelineBindPoint : uint32;
 class BorderColorPalette : public IBorderColorPalette
 {
 public:
-    virtual ~BorderColorPalette() { }
+    virtual ~BorderColorPalette();
 
     // NOTE: Part of the public IDestroyable interface.
     virtual void Destroy() override { this->~BorderColorPalette(); }

@@ -821,12 +821,14 @@ void CmdBuffer::CmdRelease(
 
         for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
         {
+            memoryBarriers[i]                   = releaseInfo.pMemoryBarriers[i];
             memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
         }
         nextReleaseInfo.pMemoryBarriers = &memoryBarriers[0];
 
         for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
         {
+            imageBarriers[i]        = releaseInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(releaseInfo.pImageBarriers[i].pImage);
         }
         nextReleaseInfo.pImageBarriers = &imageBarriers[0];
@@ -874,12 +876,14 @@ void CmdBuffer::CmdAcquire(
 
         for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
         {
+            memoryBarriers[i]                   = acquireInfo.pMemoryBarriers[i];
             memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
         }
         nextAcquireInfo.pMemoryBarriers = &memoryBarriers[0];
 
         for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
         {
+            imageBarriers[i]        = acquireInfo.pImageBarriers[i];
             imageBarriers[i].pImage = NextImage(acquireInfo.pImageBarriers[i].pImage);
         }
         nextAcquireInfo.pImageBarriers = &imageBarriers[0];
@@ -1289,6 +1293,31 @@ void CmdBuffer::CmdScaledCopyImage(
     {
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("copyInfo", copyInfo);
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdGenerateMipmaps(
+    const GenMipmapsInfo& genInfo)
+{
+    GenMipmapsInfo nextGenInfo = genInfo;
+    nextGenInfo.pImage         = NextImage(genInfo.pImage);
+
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdGenerateMipmaps;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdGenerateMipmaps(nextGenInfo);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndStruct("genInfo", genInfo);
         pLogContext->EndInput();
 
         m_pPlatform->LogEndFunc(pLogContext);
@@ -3070,6 +3099,25 @@ void CmdBuffer::CmdCommentString(
 
         m_pPlatform->LogEndFunc(pLogContext);
     }
+}
+
+// =====================================================================================================================
+uint32 CmdBuffer::CmdInsertExecutionMarker()
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdInsertExecutionMarker;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const uint32 executionMarker = m_pNextLayer->CmdInsertExecutionMarker();
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+
+    return executionMarker;
 }
 
 // =====================================================================================================================

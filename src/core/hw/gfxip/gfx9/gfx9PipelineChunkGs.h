@@ -142,9 +142,6 @@ private:
             PM4_PFP_SET_CONTEXT_REG  hdrVgtGsMaxVertOut;
             regVGT_GS_MAX_VERT_OUT   vgtGsMaxVertOut;
 
-            PM4_PFP_SET_CONTEXT_REG  hdrVgtGsOutPrimType;
-            regVGT_GS_OUT_PRIM_TYPE  vgtGsOutPrimType;
-
             PM4_PFP_SET_CONTEXT_REG  hdrVgtGsInstanceCnt;
             regVGT_GS_INSTANCE_CNT   vgtGsInstanceCnt;
 
@@ -152,13 +149,12 @@ private:
             regVGT_ESGS_RING_ITEMSIZE  esGsRingItemSize;
             regVGT_GSVS_RING_ITEMSIZE  gsVsRingItemSize;
 
-            PM4_PFP_SET_CONTEXT_REG    hdrVgtGsVsRingOffset;
+            PM4_PFP_SET_CONTEXT_REG    hdrVgtGsPerVsRingsPrimType;
+            regVGT_GS_PER_VS           vgtGsPerVs;
             regVGT_GSVS_RING_OFFSET_1  vgtGsVsRingOffset1;
             regVGT_GSVS_RING_OFFSET_2  vgtGsVsRingOffset2;
             regVGT_GSVS_RING_OFFSET_3  vgtGsVsRingOffset3;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrVgtGsPerVs;
-            regVGT_GS_PER_VS         vgtGsPerVs;
+            regVGT_GS_OUT_PRIM_TYPE    vgtGsOutPrimType;
 
             PM4_PFP_SET_CONTEXT_REG    hdrVgtGsVertItemSize;
             regVGT_GS_VERT_ITEMSIZE    vgtGsVertItemSize0;

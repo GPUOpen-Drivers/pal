@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +39,7 @@
 #include "protocols/settingsServer.h"
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
+#include "protocols/ddEventServer.h"
 #include "protocols/typemap.h"
 
     #include "socketMsgTransport.h"
@@ -74,7 +75,7 @@ namespace DevDriver
         else
         {
             // Invalid transport type
-            DD_ALERT_REASON("Invalid transport type specified");
+            DD_WARN_REASON("Invalid transport type specified");
         }
 
         if (m_pMsgChannel != nullptr)
@@ -125,6 +126,11 @@ namespace DevDriver
         if (m_createInfo.servers.rgp)
         {
             FinalizeProtocol(Protocol::RGP);
+        }
+
+        if (m_createInfo.servers.event)
+        {
+            FinalizeProtocol(Protocol::Event);
         }
     }
 
@@ -187,6 +193,10 @@ namespace DevDriver
         return GetServer<Protocol::RGP>();
     }
 
+    EventProtocol::EventServer* DevDriverServer::GetEventServer()
+    {
+        return GetServer<Protocol::Event>();
+    }
     SettingsURIService::SettingsService* DevDriverServer::GetSettingsService()
     {
         return m_pSettingsService;
@@ -231,6 +241,10 @@ namespace DevDriver
         {
             result = RegisterProtocol<Protocol::RGP>();
         }
+        if (m_createInfo.servers.event)
+        {
+            result = RegisterProtocol<Protocol::Event>();
+        }
 
         // Always create the Info service.
         m_pInfoService = DD_NEW(InfoURIService::InfoService, m_allocCb)(m_allocCb);
@@ -269,6 +283,11 @@ namespace DevDriver
         {
             UnregisterProtocol(Protocol::RGP);
         }
+
+        if (m_createInfo.servers.event)
+        {
+            UnregisterProtocol(Protocol::Event);
+        }
     }
 
     Result DevDriverServer::RegisterProtocol(Protocol protocol)
@@ -296,9 +315,14 @@ namespace DevDriver
             result = RegisterProtocol<Protocol::RGP>();
             break;
         }
+        case Protocol::Event:
+        {
+            result = RegisterProtocol<Protocol::Event>();
+            break;
+        }
         default:
         {
-            DD_ALERT_REASON("Invalid protocol specified");
+            DD_WARN_REASON("Invalid protocol specified");
             break;
         }
         }
@@ -338,7 +362,7 @@ namespace DevDriver
                 break;
             default:
                 // Invalid value passed to the function
-                DD_ALERT_REASON("Invalid transport type specified");
+                DD_WARN_REASON("Invalid transport type specified");
                 break;
         }
         return (result == Result::Success);

@@ -46,7 +46,8 @@ function(amd_target name)
         target_compile_options(${name} PRIVATE
             -Wall    # Enable warnings about questionable language constructs.
             -Wextra  # Enable extra warnings that are not enabled by -Wall.
-            -Werror) # Turn warnings into errors.
+            -Werror  # Turn warnings into errors.
+        )
 
 endfunction()
 
@@ -71,3 +72,12 @@ function(amd_library name type)
     amd_um_library(${name} ${type} ${ARGN} "")
 
 endfunction()
+
+# Indicate target architecture bits
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(TARGET_ARCHITECTURE_BITS "64")
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+    set(TARGET_ARCHITECTURE_BITS "32")
+else()
+    message(FATAL_ERROR "Unsupported target architecture - pointers must be 4 or 8 bytes, not ${CMAKE_SIZEOF_VOID_P}")
+endif()

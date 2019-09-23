@@ -96,6 +96,30 @@ void WorkaroundState::HandleZeroIndexBuffer(
 }
 
 // =====================================================================================================================
+void WorkaroundState::HandleFirstIndexSmallerThanIndexCount(
+    uint32*         pFirstIndex,
+    const uint32    indexCount
+    ) const
+{
+    if (*pFirstIndex >= indexCount)
+    {
+        // The caller (UniversalCmdBuffer::CmdDrawIndexed) request pFirstIndex to be no greater than indexCount.
+        if (m_settings.waIndexBufferZeroSize)
+        {
+            // In Gfx10 there is a hardware bug (see settings.waIndexBufferZeroSize),
+            // In the event that this workaround is active, we need to modify "pFirstIndex" as "indexCount - 1",
+            // so the caller can set the maxSize / validIndexCount to 1.
+            *pFirstIndex = indexCount - 1;
+        }
+        else
+        {
+            // Modify the "pFirstIndex" to be "indexCount", so the caller can clamp the "validIndexCount" to 0.
+            *pFirstIndex = indexCount;
+        }
+    }
+}
+
+// =====================================================================================================================
 // Performs pre-draw validation specifically for hardware workarounds which must be evaluated at draw-time.
 // Returns the next unused DWORD in pCmdSpace.
 template <bool indirect, bool stateDirty, bool pm4OptImmediate>
@@ -124,12 +148,13 @@ uint32* WorkaroundState::PreDraw(
     const bool colorBlendWorkaroundsActive = m_settings.waColorCacheControllerInvalidEviction ||
                                              m_settings.waRotatedSwizzleDisablesOverwriteCombiner;
 
+    const bool targetsDirty = dirtyFlags.validationBits.colorTargetView ||
+                              dirtyFlags.validationBits.colorBlendState;
+
     // If the pipeline is dirty and it matters, then we have to look at all the bound targets
     if (pipelineDirty  ||
         // Otherwise, if the view and/or blend states are important, look at all the bound targets
-        (colorBlendWorkaroundsActive &&
-         stateDirty                  &&
-         (dirtyFlags.validationBits.colorTargetView || dirtyFlags.validationBits.colorBlendState)))
+        (colorBlendWorkaroundsActive && stateDirty && targetsDirty))
     {
         for (uint32  cbIdx = 0; cbIdx < gfxState.bindTargets.colorTargetCount; cbIdx++)
         {
@@ -159,17 +184,9 @@ uint32* WorkaroundState::PreDraw(
                     {
                         cbColorDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
                     }
-                    else if (m_settings.waRotatedSwizzleDisablesOverwriteCombiner)
+                    else if (pView->IsRotatedSwizzleOverwriteCombinerDisabled())
                     {
-                        const SubresId  subResId     = { ImageAspect::Color, pView->MipLevel(), 0 };
-                        const auto*     pSubResInfo  = pPalImage->SubresourceInfo(subResId);
-                        const auto&     surfSettings = pGfxImage->GetAddrSettings(pSubResInfo);
-
-                        // Disable overwrite-combiner for rotated swizzle modes
-                        if (AddrMgr2::IsRotatedSwizzle(surfSettings.swizzleMode))
-                        {
-                            cbColorDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
-                        }
+                        cbColorDccControl.bits.OVERWRITE_COMBINER_DISABLE = 1;
                     }
 
                     pCmdSpace = pDeCmdStream->WriteContextRegRmw<pm4OptImmediate>(
@@ -207,7 +224,7 @@ uint32* WorkaroundState::PreDraw(
 
         pCmdSpace = pDeCmdStream->WriteContextRegRmw<pm4OptImmediate>(
             m_device.CmdUtil().GetRegInfo().mmDbDfsmControl,
-            DB_DFSM_CONTROL__POPS_DRAIN_PS_ON_OVERLAP_MASK,
+            Core::DB_DFSM_CONTROL__POPS_DRAIN_PS_ON_OVERLAP_MASK,
             dbDfsmControl.u32All,
             pCmdSpace);
     }

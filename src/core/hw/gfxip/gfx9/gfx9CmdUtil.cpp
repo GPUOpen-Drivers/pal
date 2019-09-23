@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "marker_payload.h"
 #include "palMath.h"
 
 using namespace Util;
@@ -359,6 +360,7 @@ CmdUtil::CmdUtil(
             m_registerInfo.mmVgtTfMemBase                   = Nv10::mmVGT_TF_MEMORY_BASE_UMD;
             m_registerInfo.mmVgtTfMemBaseHi                 = Nv10::mmVGT_TF_MEMORY_BASE_HI_UMD;
             m_registerInfo.mmSpiConfigCntl                  = Nv10::mmSPI_CONFIG_CNTL_REMAP;
+            m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
 
         }
         else
@@ -374,7 +376,6 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmMcVmL2PerfResultCntl     = Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmRpbPerfResultCntl        = Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmVgtGsMaxPrimsPerSubGroup = Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP;
-        m_registerInfo.mmDbDfsmControl            = Gfx10::mmDB_DFSM_CONTROL;
         m_registerInfo.mmComputeShaderChksum      = Gfx10::mmCOMPUTE_SHADER_CHKSUM;
         m_registerInfo.mmPaStereoCntl             = Gfx10::mmPA_STEREO_CNTL;
         m_registerInfo.mmPaStateStereoX           = Gfx10::mmPA_STATE_STEREO_X;
@@ -404,7 +405,11 @@ uint32 CmdUtil::ChainSizeInDwords(
     {
         sizeInBytes = sizeof(PM4PFP_INDIRECT_BUFFER);
     }
-    else if ((engineType == EngineTypeCompute) || (engineType == EngineTypeExclusiveCompute))
+    else if ((engineType == EngineTypeCompute)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
+             || (engineType == EngineTypeExclusiveCompute)
+#endif
+             )
     {
         sizeInBytes = sizeof(PM4MEC_INDIRECT_BUFFER);
     }
@@ -1165,13 +1170,13 @@ size_t CmdUtil::BuildCopyData(
 // Builds a DISPATCH_DIRECT packet. Returns the size of the PM4 command assembled, in DWORDs.
 template <bool dimInThreads, bool forceStartAt000>
 size_t CmdUtil::BuildDispatchDirect(
-    uint32          xDim,      // Thread groups (or threads) to launch (X dimension).
-    uint32          yDim,      // Thread groups (or threads) to launch (Y dimension).
-    uint32          zDim,      // Thread groups (or threads) to launch (Z dimension).
-    Pm4Predicate    predicate, // Predication enable control. Must be PredDisable on the Compute Engine.
-    bool            isWave32,  // Meaingful for GFX10 only, set if wave-size is 32 for bound compute shader
-    EngineSubType   engineSubType,
-    void*           pBuffer    // [out] Build the PM4 packet in this buffer.
+    uint32          xDim,         // Thread groups (or threads) to launch (X dimension).
+    uint32          yDim,         // Thread groups (or threads) to launch (Y dimension).
+    uint32          zDim,         // Thread groups (or threads) to launch (Z dimension).
+    Pm4Predicate    predicate,    // Predication enable control. Must be PredDisable on the Compute Engine.
+    bool            isWave32,     // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader
+    bool            useTunneling, // Meaningful for GFX10 only, set if dispatch tunneling should be used (VR)
+    void*           pBuffer       // [out] Build the PM4 packet in this buffer.
     ) const
 {
     regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator;
@@ -1182,7 +1187,7 @@ size_t CmdUtil::BuildDispatchDirect(
     dispatchInitiator.gfx10.CS_W32_EN            = isWave32;
     if (IsGfx10(m_gfxIpLevel))
     {
-        dispatchInitiator.gfx10.TUNNEL_ENABLE    = ((engineSubType == EngineSubType::VrHighPriority) ? 1 : 0);
+        dispatchInitiator.gfx10.TUNNEL_ENABLE    = useTunneling;
     }
 
     // Set unordered mode to allow waves launch faster. This bit is related to the QoS (Quality of service) feature and
@@ -1212,7 +1217,7 @@ size_t CmdUtil::BuildDispatchDirect<true, true>(
     uint32          zDim,
     Pm4Predicate    predicate,
     bool            isWave32,
-    EngineSubType   engineSubType,
+    bool            useTunneling,
     void*           pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchDirect<false, false>(
@@ -1221,7 +1226,7 @@ size_t CmdUtil::BuildDispatchDirect<false, false>(
     uint32          zDim,
     Pm4Predicate    predicate,
     bool            isWave32,
-    EngineSubType   engineSubType,
+    bool            useTunneling,
     void*           pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchDirect<false, true>(
@@ -1230,7 +1235,7 @@ size_t CmdUtil::BuildDispatchDirect<false, true>(
     uint32          zDim,
     Pm4Predicate    predicate,
     bool            isWave32,
-    EngineSubType   engineSubType,
+    bool            useTunneling,
     void*           pBuffer) const;
 
 // =====================================================================================================================
@@ -1239,7 +1244,7 @@ size_t CmdUtil::BuildDispatchDirect<false, true>(
 size_t CmdUtil::BuildDispatchIndirectGfx(
     gpusize      byteOffset, // Offset from the address specified by the set-base packet where the compute params are
     Pm4Predicate predicate,  // Predication enable control
-    bool         isWave32,   // Meaingful for GFX10 only, set if wave-size is 32 for bound compute shader
+    bool         isWave32,   // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader
     void*        pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
     // We accept a 64-bit offset but the packet can only handle a 32-bit offset.
@@ -1265,10 +1270,10 @@ size_t CmdUtil::BuildDispatchIndirectGfx(
 // Builds a DISPATCH_INDIRECT packet for the MEC. Returns the size of the PM4 command assembled, in DWORDs.
 // This packet has different sizes between ME compute and ME gfx.
 size_t CmdUtil::BuildDispatchIndirectMec(
-    gpusize       address,   // Address of the indirect args data.
-    bool          isWave32,  // Meaingful for GFX10 only, set if wave-size is 32 for bound compute shader
-    EngineSubType engineSubType,
-    void*         pBuffer    // [out] Build the PM4 packet in this buffer.
+    gpusize       address,      // Address of the indirect args data.
+    bool          isWave32,     // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader
+    bool          useTunneling, // Meaningful for GFX10 only, set if dispatch tunneling should be used (VR)
+    void*         pBuffer       // [out] Build the PM4 packet in this buffer.
     ) const
 {
     // Address must be 32-bit aligned
@@ -1285,7 +1290,7 @@ size_t CmdUtil::BuildDispatchIndirectMec(
     dispatchInitiator.gfx10.CS_W32_EN          = isWave32;
     if (IsGfx10(m_gfxIpLevel))
     {
-        dispatchInitiator.gfx10.TUNNEL_ENABLE  = ((engineSubType == EngineSubType::VrHighPriority) ? 1 : 0);
+        dispatchInitiator.gfx10.TUNNEL_ENABLE  = useTunneling;
     }
 
     pPacket->header.u32All      = Type3Header(IT_DISPATCH_INDIRECT, PacketSize);
@@ -1795,6 +1800,66 @@ size_t CmdUtil::BuildSampleEventWrite(
     pPacket->address_hi             = HighPart(gpuAddr);
 
     return PacketSize;
+}
+
+// =====================================================================================================================
+size_t CmdUtil::BuildExecutionMarker(
+    gpusize markerAddr,
+    uint32  markerVal,
+    uint64  clientHandle,
+    uint32  markerType,
+    void*   pBuffer
+    ) const
+{
+    ReleaseMemInfo releaseInfo = {};
+    releaseInfo.engineType     = EngineTypeUniversal;
+    releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
+    releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+    releaseInfo.dstAddr        = markerAddr;
+    releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.data           = markerVal;
+
+    size_t packetSize = BuildReleaseMem(releaseInfo, pBuffer);
+    pBuffer = VoidPtrInc(pBuffer, packetSize * sizeof(uint32));
+
+    constexpr uint32 NopSizeDwords = sizeof(PM4PFP_NOP) / sizeof(uint32);
+
+    if (markerType == RGD_EXECUTION_BEGIN_MARKER_GUARD)
+    {
+        constexpr size_t BeginPayloadSize = sizeof(RgdExecutionBeginMarker) / sizeof(uint32);
+        packetSize += BuildNop(BeginPayloadSize + NopSizeDwords, pBuffer);
+
+        auto* pPayload =
+            reinterpret_cast<RgdExecutionBeginMarker*>(VoidPtrInc(pBuffer, NopSizeDwords * sizeof(uint32)));
+        pPayload->guard         = RGD_EXECUTION_BEGIN_MARKER_GUARD;
+        pPayload->marker_buffer = markerAddr;
+        pPayload->client_handle = clientHandle;
+        pPayload->counter       = markerVal;
+    }
+    else if (markerType == RGD_EXECUTION_MARKER_GUARD)
+    {
+        PAL_ASSERT(clientHandle == 0);
+        constexpr size_t MarkerPayloadSize = sizeof(RgdExecutionMarker) / sizeof(uint32);
+        packetSize += BuildNop(MarkerPayloadSize + NopSizeDwords, pBuffer);
+
+        auto* pPayload =
+            reinterpret_cast<RgdExecutionMarker*>(VoidPtrInc(pBuffer, NopSizeDwords * sizeof(uint32)));
+        pPayload->guard   = RGD_EXECUTION_MARKER_GUARD;
+        pPayload->counter = markerVal;
+    }
+    else if (markerType == RGD_EXECUTION_END_MARKER_GUARD)
+    {
+        PAL_ASSERT(clientHandle == 0);
+        constexpr size_t EndPayloadSize = sizeof(RgdExecutionEndMarker) / sizeof(uint32);
+        packetSize += BuildNop(EndPayloadSize + NopSizeDwords, pBuffer);
+
+        auto* pPayload =
+            reinterpret_cast<RgdExecutionEndMarker*>(VoidPtrInc(pBuffer, NopSizeDwords * sizeof(uint32)));
+        pPayload->guard = RGD_EXECUTION_END_MARKER_GUARD;
+        pPayload->counter = markerVal;
+    }
+
+    return packetSize;
 }
 
 // =====================================================================================================================
@@ -2926,14 +2991,15 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
 size_t CmdUtil::BuildRewind(
     bool  offloadEnable,
     bool  valid,
-    void* pBuffer)
+    void* pBuffer
+    ) const
 {
     // This packet in PAL is only supported on compute queues.
     // The packet is supported on the PFP engine (PM4_PFP_REWIND) but offload_enable is not defined for PFP.
     constexpr size_t PacketSize = sizeof(PM4_MEC_REWIND) / sizeof(uint32);
     auto*const       pPacket    = static_cast<PM4_MEC_REWIND*>(pBuffer);
 
-    pPacket->header.u32All             = Type3Header(IT_REWIND, PacketSize, false, ShaderCompute);
+    pPacket->header.u32All             = Type3Header(IT_REWIND__CORE, PacketSize, false, ShaderCompute);
     pPacket->ordinal2                  = 0;
     pPacket->bitfields2.offload_enable = offloadEnable;
     pPacket->bitfields2.valid          = valid;

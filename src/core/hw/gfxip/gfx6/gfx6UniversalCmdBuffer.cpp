@@ -41,6 +41,7 @@
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
 #include "core/g_palPlatformSettings.h"
+#include "marker_payload.h"
 #include "palMath.h"
 #include "palIntervalTreeImpl.h"
 #include "palVectorImpl.h"
@@ -392,6 +393,59 @@ void UniversalCmdBuffer::SetUserDataValidationFunctions(
 }
 
 // =====================================================================================================================
+void UniversalCmdBuffer::BeginExecutionMarker(
+    uint64 clientHandle)
+{
+    CmdBuffer::BeginExecutionMarker(clientHandle);
+    PAL_ASSERT(m_executionMarkerAddr != 0);
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+                                                  m_executionMarkerCount,
+                                                  clientHandle,
+                                                  RGD_EXECUTION_BEGIN_MARKER_GUARD,
+                                                  pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
+uint32 UniversalCmdBuffer::CmdInsertExecutionMarker()
+{
+    uint32 returnVal = UINT_MAX;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+    if (m_buildFlags.enableExecutionMarkerSupport == 1)
+    {
+        PAL_ASSERT(m_executionMarkerAddr != 0);
+
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+        pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+                                                      ++m_executionMarkerCount,
+                                                      0,
+                                                      RGD_EXECUTION_MARKER_GUARD,
+                                                      pDeCmdSpace);
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+        returnVal = m_executionMarkerCount;
+    }
+#endif
+    return returnVal;
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::EndExecutionMarker()
+{
+    PAL_ASSERT(m_executionMarkerAddr != 0);
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+                                                  ++m_executionMarkerCount,
+                                                  0,
+                                                  RGD_EXECUTION_MARKER_GUARD,
+                                                  pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
 // Resets all of the state tracked by this command buffer
 void UniversalCmdBuffer::ResetState()
 {
@@ -411,7 +465,8 @@ void UniversalCmdBuffer::ResetState()
     SetUserDataValidationFunctions(false, false);
 
     m_vgtDmaIndexType.u32All = 0;
-    m_vgtDmaIndexType.bits.SWAP_MODE = VGT_DMA_SWAP_NONE;
+    m_vgtDmaIndexType.bits.SWAP_MODE  = VGT_DMA_SWAP_NONE;
+    m_vgtDmaIndexType.bits.INDEX_TYPE = VgtIndexTypeLookup[0];
 
     if (chipProps.gfxLevel >= GfxIpLevel::GfxIp8)
     {
@@ -1864,6 +1919,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     {
         auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
+        // The "validIndexCount" (set later in the code) will eventually be used to program the max_size
+        // field in the draw packet, which is used to clamp how much of the index buffer can be read.
+        //
+        // If the firstIndex parameter of the draw command is greater than the currently IB's indexCount,
+        // the validIndexCount will underflow and end up way too big.
+        firstIndex = (firstIndex > pThis->m_graphicsState.iaState.indexCount) ?
+                     pThis->m_graphicsState.iaState.indexCount : firstIndex;
+
         PAL_ASSERT(firstIndex <= pThis->m_graphicsState.iaState.indexCount);
 
         ValidateDrawInfo drawInfo;
@@ -2779,6 +2842,8 @@ Result UniversalCmdBuffer::AddPostamble()
         SetGfxCmdBufCpBltState(false);
     }
 
+    bool didWaitForIdle = false;
+
     if ((m_ceCmdStream.GetNumChunks() > 0) &&
         (m_ceCmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0))
     {
@@ -2791,6 +2856,15 @@ Result UniversalCmdBuffer::AddPostamble()
 
         pDeCmdSpace += m_cmdUtil.BuildWaitOnCeCounter(false, pDeCmdSpace);
         pDeCmdSpace += m_cmdUtil.BuildIncrementDeCounter(pDeCmdSpace);
+
+        // We also need a wait-for-idle before the atomic increment because command memory might be read or written
+        // by draws or dispatches. If we don't wait for idle then the driver might reset and write over that memory
+        // before the shaders are done executing.
+        didWaitForIdle = true;
+        pDeCmdSpace += m_cmdUtil.BuildWaitOnGenericEopEvent(BOTTOM_OF_PIPE_TS,
+                                                            TimestampGpuVirtAddr(),
+                                                            false,
+                                                            pDeCmdSpace);
 
         // The following ATOMIC_MEM packet increments the done-count for the CE command stream, so that we can probe
         // when the command buffer has completed execution on the GPU.
@@ -2810,6 +2884,15 @@ Result UniversalCmdBuffer::AddPostamble()
     // an EOP event which flushes and invalidates the caches in between command buffers.
     if (m_deCmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0)
     {
+        // If we didn't have a CE tracker we still need this wait-for-idle. See the comment above for the reason.
+        if (didWaitForIdle == false)
+        {
+            pDeCmdSpace += m_cmdUtil.BuildWaitOnGenericEopEvent(BOTTOM_OF_PIPE_TS,
+                                                                TimestampGpuVirtAddr(),
+                                                                false,
+                                                                pDeCmdSpace);
+        }
+
         pDeCmdSpace += m_cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
                                                 m_deCmdStream.GetFirstChunk()->BusyTrackerGpuAddr(),
                                                 1,

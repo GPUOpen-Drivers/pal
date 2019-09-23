@@ -298,6 +298,13 @@ GpuMemory::GpuMemory(
 // =====================================================================================================================
 GpuMemory::~GpuMemory()
 {
+    // We need to force-remove this allocation from the device's per-heap memory totals because the client might not
+    // call RemoveGpuMemoryReferences once for each time they call AddGpuMemoryReferences.
+    IGpuMemory*const pGpuMemory = this;
+    m_pDevice->SubtractFromReferencedMemoryTotals(1, &pGpuMemory, true);
+
+    m_pDevice->GetPlatform()->GetEventProvider()->LogDestroyGpuMemoryEvent(this);
+
     Developer::GpuMemoryData data = {};
     data.size                     = m_desc.size;
     data.heap                     = m_heaps[0];
@@ -972,6 +979,11 @@ Result GpuMemory::Map(
             (*ppData) = nullptr;
             result = Result::ErrorNotMappable;
         }
+
+        if (result == Result::Success)
+        {
+            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryCpuMapEvent(this);
+        }
     }
 
     return result;
@@ -1001,6 +1013,11 @@ Result GpuMemory::Unmap()
     else if (IsVirtual())
     {
         result = Result::ErrorUnavailable;
+    }
+
+    if (result == Result::Success)
+    {
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryCpuUnmapEvent(this);
     }
 
     return result;

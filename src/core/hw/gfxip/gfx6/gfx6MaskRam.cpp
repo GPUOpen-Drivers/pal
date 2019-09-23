@@ -356,13 +356,10 @@ Result Gfx6Htile::Init(
 }
 
 // =====================================================================================================================
-// Computes a mask and value for updating the HTile buffer for a fast depth clear.
-void Gfx6Htile::ComputeClearData(
-    uint32  clearMask,
-    float   depthValue,
-    uint32* pHtileData, // [out] HTile clear data
-    uint32* pHtileMask  // [out] HTile write mask
-    )  const
+// Computes a value for updating the HTile buffer for a fast depth clear.
+uint32 Gfx6Htile::GetClearValue(
+    float depthValue
+    ) const
 {
     // Maximum 14-bit UINT value.
     constexpr uint32 MaxZVal = 0x3FFF;
@@ -375,8 +372,7 @@ void Gfx6Htile::ComputeClearData(
     const uint32 zMin = static_cast<uint32>((depthValue * MaxZVal) + 0.5f);
     const uint32 zMax = zMin;
 
-    const bool  clearDepth   = TestAnyFlagSet(clearMask, HtileAspectDepth);
-    const bool  clearStencil = TestAnyFlagSet(clearMask, HtileAspectStencil);
+    uint32 htileValue;
 
     if (TileStencilDisabled() == false)
     {
@@ -398,107 +394,10 @@ void Gfx6Htile::ComputeClearData(
         // For fast-clear, the default value of sr0 and sr1 are both 0x3.
         constexpr uint32 SResults = 0xf;
 
-        (*pHtileData) = ( ((zRange   & 0xFFFFF) << 12) |
-                          ((SMem     &     0x3) <<  8) |
-                          ((SResults &     0xF) <<  4) |
-                          ((ZMask    &     0xF) <<  0) );
-        // The second condition indicates that though there's stencil fields in htile layout,
-        // stencil fields will never be used.
-        if ((clearDepth && clearStencil) || (m_htileContents == HtileContents::DepthOnly))
-        {
-            (*pHtileMask) = UINT_MAX;
-        }
-        else if (clearDepth)
-        {
-            // Only update the HTile bits used to encode depth compression.
-            (*pHtileMask) = Gfx6HtileDepthMask;
-        }
-        else
-        {
-            (*pHtileMask) = Gfx6HtileStencilMask;
-        }
-    }
-    else if (clearDepth)
-    {
-        // If stencil is absent, each HTILE is laid out as follows, according to the DB spec:
-        // |31     18|17      4|3     0|
-        // +---------+---------+-------+
-        // |  Max Z  |  Min Z  | ZMask |
-
-        (*pHtileData) = ( ((zMax  & 0x3FFF) << 18) |
-                          ((zMin  & 0x3FFF) <<  4) |
-                          ((ZMask &    0xF) <<  0) );
-
-        // Always update the entire HTile for depth-only Images.
-        (*pHtileMask) = UINT_MAX;
-    }
-}
-
-// =====================================================================================================================
-// Computes a mask and value for updating the HTile buffer for a "fast" resummarize operation. The "fast" resummarize is
-// quicker than a normal resummarize, but less precise because we are updating HTile to indicate the full zRange is
-// included in each tile.
-void Gfx6Htile::ComputeResummarizeData(
-    uint32  aspectMask,
-    uint32* pHtileData,
-    uint32* pHtileMask
-    )  const
-{
-    constexpr uint32 Uint14Max = 0x3FFF; // Maximum value of a 14bit integer.
-
-    // Convert the trivial z bounds to 14-bit zmin/zmax uint values.
-    constexpr uint32 ZMin = 0;
-    constexpr uint32 ZMax = Uint14Max;
-
-    // The depth buffer was expanded at some point prior to this being executed, so we need to set the HTile's zMask
-    // to indicate that no z planes are stored (each depth value is directly stored in the surface).
-    constexpr uint32 ZMask = 15;
-
-    const bool  updateDepth   = TestAnyFlagSet(aspectMask, HtileAspectDepth);
-    const bool  updateStencil = TestAnyFlagSet(aspectMask, HtileAspectStencil);
-
-    if (TileStencilDisabled() == false)
-    {
-        // If stencil is present, each HTILE is laid out as-follows, according to the DB spec:
-        // |31       12|11 10|9    8|7   6|5   4|3     0|
-        // +-----------+-----+------+-----+-----+-------+
-        // |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
-
-        // The base value for zRange is either zMax or zMin, depending on ZRANGE_PRECISION. Currently, PAL programs
-        // ZRANGE_PRECISION to 1 (zMax is the base) because there's no easy way to track that state across command
-        // buffers build on many threads.
-        //
-        // zRange is encoded as follows: the high 14 bits are the base z value (zMax in our case). The low 6 bits
-        // are a code represending the abs(zBase - zOther). In our case, we need to select a delta code representing
-        // abs(zMax - zMin), which is always 0x3FFF (maximum 14 bit uint value). According to setion 9.1.3 of the DB
-        // spec, the delta code in our case would be 0x3F (all 6 bits set).
-        constexpr uint32 Delta  = 0x3F;
-        constexpr uint32 ZRange = ((ZMax << 6) | Delta);
-        // We set SMem to 0x3 to indicate the stencil buffer was expanded.
-        constexpr uint32 SMem   = 0x3;
-        // In case of resummarize, we set both sr0 and sr1 to 0x3, which means both may_pass bit and may_fail bit.
-        constexpr uint32 SR1    = 0x3;
-        constexpr uint32 SR0    = 0x3;
-
-        (*pHtileData) = ( ((ZRange & 0xFFFFF) << 12) |
-                          ((ZMask  &     0xF) <<  0) |
-                          ((SMem   &     0x3) <<  8) |
-                          ((SR1    &     0x3) <<  6) |
-                          ((SR0    &     0x3) <<  4) );
-
-        if ((updateDepth && updateStencil) || (m_htileContents == HtileContents::DepthOnly))
-        {
-            (*pHtileMask) = UINT_MAX;
-        }
-        else if(updateDepth)
-        {
-            // Only update the HTile bits used to encode depth compression.
-            (*pHtileMask) = Gfx6HtileDepthMask;
-        }
-        else
-        {
-            (*pHtileMask) = Gfx6HtileStencilMask;
-        }
+        htileValue = ( ((zRange   & 0xFFFFF) << 12) |
+                       ((SMem     &     0x3) <<  8) |
+                       ((SResults &     0xF) <<  4) |
+                       ((ZMask    &     0xF) <<  0) );
     }
     else
     {
@@ -507,13 +406,59 @@ void Gfx6Htile::ComputeResummarizeData(
         // +---------+---------+-------+
         // |  Max Z  |  Min Z  | ZMask |
 
-        (*pHtileData) = ( ((ZMax  & Uint14Max) << 18) |
-                          ((ZMin  & Uint14Max) <<  4) |
-                          ((ZMask &       0xF) <<  0) );
-
-        // Always update the entire HTile for depth-only Images.
-        (*pHtileMask) = UINT_MAX;
+        htileValue = ( ((zMax  & 0x3FFF) << 18) |
+                       ((zMin  & 0x3FFF) <<  4) |
+                       ((ZMask &    0xF) <<  0) );
     }
+
+    return htileValue;
+}
+
+// =====================================================================================================================
+// Computes a mask for updating the specified aspects of the HTile buffer
+uint32 Gfx6Htile::GetAspectMask(
+    uint32 aspectFlags
+    ) const
+{
+    uint32 htileMask;
+
+    if (TileStencilDisabled() == false)
+    {
+        const bool updateDepth   = TestAnyFlagSet(aspectFlags, HtileAspectDepth);
+        const bool updateStencil = TestAnyFlagSet(aspectFlags, HtileAspectStencil);
+
+        if ((updateDepth && updateStencil) || (m_htileContents == HtileContents::DepthOnly))
+        {
+            htileMask = UINT_MAX;
+        }
+        else if(updateDepth)
+        {
+            // Only update the HTile bits used to encode depth compression.
+            htileMask = Gfx6HtileDepthMask;
+        }
+        else
+        {
+            htileMask = Gfx6HtileStencilMask;
+        }
+    }
+    else
+    {
+        // Always update the entire HTile for depth-only Images.
+        htileMask = UINT_MAX;
+    }
+
+    return htileMask;
+}
+
+// =====================================================================================================================
+// A helper function for when the caller just wants the aspect mask for a single image aspect.
+uint32 Gfx6Htile::GetAspectMask(
+    ImageAspect aspect
+    ) const
+{
+    PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
+
+    return GetAspectMask((aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil);
 }
 
 // =====================================================================================================================
@@ -575,70 +520,61 @@ Result Gfx6Htile::ComputeHtileInfo(
 }
 
 // =====================================================================================================================
-// Computes the initial value of the htile which depends on whether or not tile stencil is disabled.
+// Computes the initial value of the htile which depends on whether or not tile stencil is disabled. We want this
+// initial value to disable all HTile-based optimizations so that the image is in a trivially valid state. This should
+// work well for inits and also for "fast" resummarize blits where we just want the HW to see the base data values.
 uint32 Gfx6Htile::GetInitialValue() const
 {
-    // Initial values for a fully decompressed/expanded htile
-    constexpr uint32 ZMaskExpanded            = 0xf;
-    constexpr uint32 SMemExpanded             = 0x3;
-    constexpr uint32 SR1                      = 0x3;
-    constexpr uint32 SR0                      = 0x3;
-    constexpr uint32 InitialValueDepthOnly    = (ZMaskExpanded << 0);
-    constexpr uint32 InitialValueDepthStencil = ((SMemExpanded << 8) |
-                                                 (SR1 << 6)          |
-                                                 (SR0 << 4)          |
-                                                 (ZMaskExpanded << 0));
+    constexpr uint32 Uint14Max = 0x3FFF; // Maximum value of a 14bit integer.
+
+    // Convert the trivial z bounds to 14-bit zmin/zmax uint values. These values will give us HiZ bounds that cover
+    // all Z values, effectively disabling HiZ.
+    constexpr uint32 ZMin  = 0;
+    constexpr uint32 ZMax  = Uint14Max;
+    constexpr uint32 ZMask = 0xf;        // No Z compression.
 
     uint32 initialValue;
 
     if (TileStencilDisabled())
     {
-        initialValue = InitialValueDepthOnly;
+        // Z only (no stencil):
+        //      |31     18|17      4|3     0|
+        //      +---------+---------+-------+
+        //      |  Max Z  |  Min Z  | ZMask |
+
+        initialValue = (((ZMax  & Uint14Max) << 18) |
+                        ((ZMin  & Uint14Max) <<  4) |
+                        ((ZMask &       0xF) <<  0));
     }
     else
     {
-        initialValue = InitialValueDepthStencil;
+        // Z and stencil:
+        //      |31       12|11 10|9    8|7   6|5   4|3     0|
+        //      +-----------+-----+------+-----+-----+-------+
+        //      |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
+
+        // The base value for zRange is either zMax or zMin, depending on ZRANGE_PRECISION. Currently, PAL programs
+        // ZRANGE_PRECISION to 1 (zMax is the base) by default. Sometimes we switch to 0 if we detect a fast-clear to
+        // Z = 0 but that will rewrite HTile so we can ignore that case when we compute our initial value.
+        //
+        // zRange is encoded as follows: the high 14 bits are the base z value (zMax in our case). The low 6 bits
+        // are a code represending the abs(zBase - zOther). In our case, we need to select a delta code representing
+        // abs(zMax - zMin), which is always 0x3FFF (maximum 14 bit uint value). The delta code in our case would be
+        // 0x3F (all 6 bits set).
+        constexpr uint32 Delta  = 0x3F;
+        constexpr uint32 ZRange = ((ZMax << 6) | Delta);
+        constexpr uint32 SMem   = 0x3; // No stencil compression.
+        constexpr uint32 SR1    = 0x3; // Unknown stencil test result.
+        constexpr uint32 SR0    = 0x3; // Unknown stencil test result.
+
+        initialValue = (((ZRange & 0xFFFFF) << 12) |
+                        ((SMem   &     0x3) <<  8) |
+                        ((SR1    &     0x3) <<  6) |
+                        ((SR0    &     0x3) <<  4) |
+                        ((ZMask  &     0xF) <<  0));
     }
 
     return initialValue;
-}
-
-// =====================================================================================================================
-// Computes the initial value for one aspect of the HTile
-void Gfx6Htile::GetAspectInitialValue(
-    ImageAspect aspect,
-    uint32*     pHtileData, // [out] HTile init data
-    uint32*     pHtileMask // [out] HTile write mask
-    ) const
-{
-    // Initial values for each aspect of a fully decompressed/expanded htile
-    constexpr uint32 ZMaskExpanded           = 0xf;
-    constexpr uint32 SMemExpanded            = 0x3;
-    constexpr uint32 SR1                     = 0x3;
-    constexpr uint32 SR0                     = 0x3;
-    constexpr uint32 InitialValueDepthOnly   = (ZMaskExpanded << 0);
-    constexpr uint32 InitialValueStencilOnly = ((SMemExpanded << 8) | (SR1 << 6) | (SR0 << 4));
-
-    if (TileStencilDisabled() == false)
-    {
-        if (aspect == ImageAspect::Depth)
-        {
-            *pHtileData = InitialValueDepthOnly;
-            *pHtileMask = Gfx6HtileDepthMask;
-        }
-        else
-        {
-            PAL_ASSERT(aspect == ImageAspect::Stencil);
-
-            *pHtileData = InitialValueStencilOnly;
-            *pHtileMask = Gfx6HtileStencilMask;
-        }
-    }
-    else
-    {
-        *pHtileData = InitialValueDepthOnly;
-        *pHtileMask = UINT_MAX;
-    }
 }
 
 // =====================================================================================================================

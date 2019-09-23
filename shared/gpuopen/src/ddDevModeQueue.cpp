@@ -254,7 +254,7 @@ Result CreateMessageQueue(QueueInfo &messageQueue, const uint32 queueLength, con
         }
     }
 
-    DD_ALERT(status == Result::Success);
+    DD_WARN(status == Result::Success);
 
     return status;
 }

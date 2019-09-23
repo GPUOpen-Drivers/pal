@@ -23,14 +23,14 @@
  *
  **********************************************************************************************************************/
 
-#include "ddPlatform.h"
-#include "protocols/ddPipelineUriService.h"
-#include "protocols/ddURIProtocol.h"
+#include <ddPlatform.h>
+#include <protocols/ddPipelineUriService.h>
+#include <protocols/ddURIProtocol.h>
 
-#include "util/ddByteReader.h"
-#include "util/template.h"
-#include "util/vector.h"
+#include <util/ddByteReader.h>
+#include <util/vector.h>
 
+#include <stdlib.h>
 #include <cctype>
 
 namespace DevDriver

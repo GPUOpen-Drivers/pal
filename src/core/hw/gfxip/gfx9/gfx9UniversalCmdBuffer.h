@@ -109,27 +109,13 @@ struct NullDepthStencilPm4Img
         {
             regDB_Z_INFO                 dbZInfo;
             regDB_STENCIL_INFO           dbStencilInfo;
-            regDB_Z_READ_BASE            dbZReadBase;
-            regDB_Z_READ_BASE_HI         dbZReadBaseHi;
-            regDB_STENCIL_READ_BASE      dbStencilReadBase;
-            regDB_STENCIL_READ_BASE_HI   dbStencilReadBaseHi;
-            regDB_Z_WRITE_BASE           dbZWriteBase;
-            regDB_Z_WRITE_BASE_HI        dbZWriteBaseHi;
-            regDB_STENCIL_WRITE_BASE     dbStencilWriteBase;
-            regDB_STENCIL_WRITE_BASE_HI  dbStencilWriteBaseHi;
-            regDB_DFSM_CONTROL           dbDfsmControl;
         } gfx9;
 
         struct
         {
-            regDB_DFSM_CONTROL           dbDfsmControl;
             uint32                       dbDepthInfo;
             regDB_Z_INFO                 dbZInfo;
             regDB_STENCIL_INFO           dbStencilInfo;
-            regDB_Z_READ_BASE            dbZReadBase;
-            regDB_STENCIL_READ_BASE      dbStencilReadBase;
-            regDB_Z_WRITE_BASE           dbZWriteBase;
-            regDB_STENCIL_WRITE_BASE     dbStencilWriteBase;
 
             ///@note Writing HI base addresses in the preamble as they are known to be 0 always.
         } gfx10;
@@ -713,6 +699,8 @@ public:
 
     virtual void CmdCommentString(const char* pComment) override;
 
+    virtual uint32 CmdInsertExecutionMarker() override;
+
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,
         const IGpuMemory&            gpuMemory,
@@ -764,6 +752,9 @@ protected:
 
     virtual Result AddPreamble() override;
     virtual Result AddPostamble() override;
+
+    virtual void BeginExecutionMarker(uint64 clientHandle) override;
+    virtual void EndExecutionMarker() override;
 
     virtual void ResetState() override;
 
@@ -1194,6 +1185,7 @@ private:
     regPA_SC_BINNER_CNTL_0       m_paScBinnerCntl0;
     regPA_SC_BINNER_CNTL_0       m_savedPaScBinnerCntl0; // Value of PA_SC_BINNER_CNTL0 selected by settings
     uint32                       m_log2NumSamples;       // Last written value of PA_SC_AA_CONFIG.MSAA_NUM_SAMPLES.
+    regDB_DFSM_CONTROL           m_dbDfsmControl;
 
     BinningMode      m_binningMode;                      // Last value programmed into paScBinnerCntl0.BINNING_MODE
     BinningOverride  m_pbbStateOverride;                 // Sets PBB on/off as per dictated by the new bound pipeline.
@@ -1231,7 +1223,8 @@ private:
                                                     // reduce context rolls.
             uint32 prefetchIndexBufferForNgg  :  1; // Prefetch index buffers to workaround misses in UTCL2 with NGG
             uint32 reserved1                  :  1;
-            uint32 reserved                   :  8;
+            uint32 reserved2                  :  1;
+            uint32 reserved                   :  7;
         };
         uint32 u32All;
     } m_cachedSettings;

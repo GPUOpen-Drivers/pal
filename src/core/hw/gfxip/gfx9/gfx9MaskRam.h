@@ -98,6 +98,45 @@ union HtileUsageFlags
     uint32  value;
 };
 
+// A collection of parameters needed to calculate the pipe equation for gfxip with rbPlus
+struct Data2dParamsNew
+{
+    bool    skipY3;
+    uint32  yBias;
+    int32   flipPipeFill;
+    uint32  pipeRotateAmount;
+    uint32  pipeRotateBit0;
+    uint32  pipeRotateBit1;
+    uint32  restart;
+    uint32  pipeAnchorWidthLog2;
+    uint32  pipeAnchorHeightLog2;
+    uint32  upperSampleBits;
+    uint32  tileSplitBits;
+};
+
+// A collection of parameters needed to calculate the pipe equation for no rbPlus gfxip
+struct Data2dParams
+{
+    bool    flipPipeXY;
+    bool    flipX3Y3;
+    bool    flipX4Y4;
+    bool    flipYBias;
+    bool    flipY1Y2;
+    uint32  flipPipeFill;
+    uint32  xRestart;
+    uint32  yRestart;
+    uint32  pipeAnchorWidthLog2;
+    uint32  pipeAnchorHeightLog2;
+    int32   upperSampleBits;
+    int32   tileSplitBits;
+};
+
+enum PipeDist : uint32
+{
+    PipeDist8x8,
+    PipeDist16x16,
+};
+
 // =====================================================================================================================
 // Anything that affects all GFX9 mask ram types goes here.  Most importantly, this class provides functions for
 // calculating the meta data addressing equation -- i.e., how to turn an x,y,z coordinate into an offset into a
@@ -147,6 +186,8 @@ public:
     static bool IsPipeAligned(const Image*  pImage);
     bool IsMetaEquationValid() const { return m_metaEquationValid; }
 
+    virtual uint32 GetMetaBlockSize(Gfx9MaskRamBlockSize* pExtent) const;
+
 protected:
     void                    InitEqGpuAccess(gpusize*  pGpuSize);
     virtual void            CalcMetaEquation();
@@ -162,9 +203,29 @@ protected:
     // two-outta-three, the associated surface is not a color image.
     virtual bool  IsColor() const { return false; }
 
+    // Only hTile is associated with depth, So if one returns false with IsColor()||IsDepth(),
+    // then it should be CMask.
+    virtual bool  IsDepth() const { return false; }
+
+    void   AddMetaPipeBits(MetaDataAddrEquation* pPipe, int32 offset);
+    void   AddRbBits(MetaDataAddrEquation* pPipe, int32 offset);
+    void   GetData2DParams(Data2dParams* pParams) const;
+    void   GetData2DParamsNew(Data2dParamsNew* pParams) const;
+    uint32 GetEffectiveNumPipes() const;
+    int32  GetMetaOverlap() const;
+    void   GetMetaPipeAnchorSize(Extent2d* pAnchorSize) const;
+    void   GetMicroBlockSize(Gfx9MaskRamBlockSize* pMicroBlockSize) const;
+    void   GetPipeAnchorSize(Extent2d* pAnchorSize) const;
+    uint32 GetPipeRotateAmount() const;
+    void   GetPixelBlockSize(Gfx9MaskRamBlockSize* pBlockSize) const;
+    uint32 GetPipeBlockSize() const;
+
+    virtual uint32 GetMetaCachelineSize() const = 0;
+
     const Image&          m_image;
     const Device*         m_pGfxDevice;
 
+    const PipeDist        m_pipeDist;
     // Equations used for calculating locations within this meta-surface
     MetaDataAddrEquation  m_meta;
 
@@ -173,6 +234,7 @@ protected:
 
 private:
     void   CalcMetaEquationGfx9();
+    void   CalcMetaEquationGfx10();
     void   CalcDataOffsetEquation(MetaDataAddrEquation* pDataOffset);
     void   CalcPipeEquation(MetaDataAddrEquation* pPipe, MetaDataAddrEquation* pDataOffset, uint32  numPipesLog2);
     uint32 CapPipe() const;
@@ -182,10 +244,8 @@ private:
 
     uint32 GetRbAppendedBit(uint32  bitPos) const;
     void   SetRbAppendedBit(uint32  bitPos, uint32  bitVal);
-
     virtual void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const = 0;
     virtual void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const = 0;
-
     MetaEquationParam     m_metaEqParam;
 
     const uint32          m_firstUploadBit;
@@ -208,14 +268,10 @@ public:
 
     static HtileUsageFlags UseHtileForImage(const Pal::Device& device, const Image& image);
 
-    uint32 GetClearValue(float  depthValue) const;
-
-    uint32 GetAspectMask(
-        uint32   aspectFlags) const;
-
-    uint32 ComputeResummarizeData() const;
-
     uint32 GetInitialValue() const;
+    uint32 GetClearValue(float depthValue) const;
+    uint32 GetAspectMask(uint32 aspectFlags) const;
+    uint32 GetAspectMask(ImageAspect aspect) const;
 
     virtual uint32  GetPipeBankXor(ImageAspect   aspect) const override;
 
@@ -232,15 +288,18 @@ public:
     const ADDR2_COMPUTE_HTILE_INFO_OUTPUT&  GetAddrOutput() const { return m_addrOutput; }
     HtileUsageFlags  GetHtileUsage() const { return m_hTileUsage; }
 
+    uint32 GetMetaBlockSize(Gfx9MaskRamBlockSize*  pExtent) const override;
     static constexpr uint32 Sr1Mask = (3u << 6);
 
 protected:
     virtual uint32  GetNumSamplesLog2() const override;
-
+    virtual uint32  GetMetaCachelineSize() const override { return 8; }
 private:
     Result ComputeHtileInfo(const SubResourceInfo* pSubResInfo);
 
     void SetupHtilePreload(uint32 mipLevel);
+
+    virtual bool   IsDepth() const override { return true; }
 
     virtual void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
     virtual void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
@@ -366,7 +425,7 @@ public:
 
 protected:
     virtual uint32  GetNumSamplesLog2() const override;
-
+    virtual uint32  GetMetaCachelineSize() const override { return 6; }
 private:
     ADDR2_COMPUTE_DCCINFO_OUTPUT  m_addrOutput;
     regCB_COLOR0_DCC_CONTROL      m_dccControl;
@@ -413,7 +472,7 @@ protected:
 
     // Returns the swizzle mode of the associated fmask surface
     AddrSwizzleMode GetSwizzleMode() const override;
-
+    virtual uint32  GetMetaCachelineSize() const override { return 8; }
 private:
     ADDR2_COMPUTE_CMASK_INFO_OUTPUT  m_addrOutput;
 

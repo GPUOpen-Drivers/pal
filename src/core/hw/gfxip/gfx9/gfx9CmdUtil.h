@@ -418,7 +418,7 @@ public:
         uint32          zDim,
         Pm4Predicate    predicate,
         bool            isWave32,
-        EngineSubType   engineSubType,
+        bool            useTunneling,
         void*           pBuffer) const;
     static size_t BuildDispatchIndirectGfx(
         gpusize      byteOffset,
@@ -428,7 +428,7 @@ public:
     size_t BuildDispatchIndirectMec(
         gpusize         address,
         bool            isWave32,
-        EngineSubType   engineSubType,
+        bool            useTunneling,
         void*           pBuffer) const;
     static size_t BuildDrawIndex2(
         uint32       indexCount,
@@ -497,6 +497,12 @@ public:
         EngineType      engineType,
         gpusize         gpuAddr,
         void*           pBuffer);
+    size_t BuildExecutionMarker(
+        gpusize markerAddr,
+        uint32  markerVal,
+        uint64  clientHandle,
+        uint32  markerType,
+        void*   pBuffer) const;
     static size_t BuildIncrementCeCounter(void* pBuffer);
     static size_t BuildIncrementDeCounter(void* pBuffer);
     static size_t BuildIndexAttributesIndirect(gpusize baseAddr, uint16 index, void* pBuffer);
@@ -603,10 +609,10 @@ public:
         void*                         pBuffer,
         uint32                        gdsAddr = 0,
         uint32                        gdsSize = 0) const;
-    static size_t BuildRewind(
+    size_t BuildRewind(
         bool  offloadEnable,
         bool  valid,
-        void* pBuffer);
+        void* pBuffer) const;
     static size_t BuildSetBase(
         gpusize                      address,
         PFP_SET_BASE_base_index_enum baseIndex,

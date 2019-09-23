@@ -30,7 +30,8 @@
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx10DmaCmdBuffer.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
-#include "chip/gfx10_sdma_pkt_struct.h"
+#include "chip/gfx10_merged_sdma_packets.h"
+#include "marker_payload.h"
 #include "palFormatInfo.h"
 
 using namespace Util;
@@ -39,6 +40,8 @@ namespace Pal
 {
 namespace Gfx9
 {
+
+constexpr size_t NopSizeDwords = sizeof(SDMA_PKT_NOP) / sizeof(uint32);
 
 // The SDMA_PKT_WRITE_UNTILED definition contains space for one dword of data.  To make things a little simpler, we
 // consider the packetHeader size to be the packet size without any associated data.
@@ -116,8 +119,6 @@ void DmaCmdBuffer::WriteTimestampCmd(
     packet.HEADER_UNION.sub_op                  = SDMA_SUBOP_TIMESTAMP_GET_GLOBAL;
     packet.WRITE_ADDR_LO_UNION.DW_1_DATA        = LowPart(dstAddr);
     packet.WRITE_ADDR_HI_UNION.write_addr_63_32 = HighPart(dstAddr);
-
-    PAL_ASSERT (packet.WRITE_ADDR_LO_UNION.reserved_0 == 0);
 
     *pPacket = packet;
 
@@ -207,6 +208,86 @@ Result DmaCmdBuffer::AddPostamble()
 }
 
 // =====================================================================================================================
+void DmaCmdBuffer::BeginExecutionMarker(
+    uint64 clientHandle)
+{
+    CmdBuffer::BeginExecutionMarker(clientHandle);
+    PAL_ASSERT(m_executionMarkerAddr != 0);
+
+    CmdWriteImmediate(HwPipePoint::HwPipeBottom,
+                      m_executionMarkerCount,
+                      ImmediateDataWidth::ImmediateData32Bit,
+                      m_executionMarkerAddr);
+
+    constexpr size_t BeginPayloadSize = sizeof(RgdExecutionBeginMarker) / sizeof(uint32);
+
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    BuildNops(pCmdSpace, BeginPayloadSize + NopSizeDwords);
+
+    auto* pPayload          = reinterpret_cast<RgdExecutionBeginMarker*>(pCmdSpace + NopSizeDwords);
+    pPayload->guard         = RGD_EXECUTION_BEGIN_MARKER_GUARD;
+    pPayload->marker_buffer = m_executionMarkerAddr;
+    pPayload->client_handle = clientHandle;
+    pPayload->counter       = m_executionMarkerCount;
+
+    pCmdSpace += BeginPayloadSize + NopSizeDwords;
+    m_cmdStream.CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
+uint32 DmaCmdBuffer::CmdInsertExecutionMarker()
+{
+    uint32 returnVal = UINT_MAX;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+    if (m_buildFlags.enableExecutionMarkerSupport == 1)
+    {
+        PAL_ASSERT(m_executionMarkerAddr != 0);
+        CmdWriteImmediate(HwPipePoint::HwPipeBottom,
+                          ++m_executionMarkerCount,
+                          ImmediateDataWidth::ImmediateData32Bit,
+                          m_executionMarkerAddr);
+
+        constexpr size_t MarkerPayloadSize = sizeof(RgdExecutionMarker) / sizeof(uint32);
+
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+        BuildNops(pCmdSpace, MarkerPayloadSize + NopSizeDwords);
+
+        auto* pPayload          = reinterpret_cast<RgdExecutionMarker*>(pCmdSpace + NopSizeDwords);
+        pPayload->guard         = RGD_EXECUTION_MARKER_GUARD;
+        pPayload->counter       = m_executionMarkerCount;
+
+        pCmdSpace += MarkerPayloadSize + NopSizeDwords;
+        m_cmdStream.CommitCommands(pCmdSpace);
+
+        returnVal = m_executionMarkerCount;
+    }
+#endif
+    return returnVal;
+}
+
+// =====================================================================================================================
+void DmaCmdBuffer::EndExecutionMarker()
+{
+    PAL_ASSERT(m_executionMarkerAddr != 0);
+    CmdWriteImmediate(HwPipePoint::HwPipeBottom,
+                      ++m_executionMarkerCount,
+                      ImmediateDataWidth::ImmediateData32Bit,
+                      m_executionMarkerAddr);
+
+    constexpr size_t EndPayloadSize = sizeof(RgdExecutionEndMarker) / sizeof(uint32);
+
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    BuildNops(pCmdSpace, EndPayloadSize + NopSizeDwords);
+
+    auto* pPayload          = reinterpret_cast<RgdExecutionEndMarker*>(pCmdSpace + NopSizeDwords);
+    pPayload->guard         = RGD_EXECUTION_END_MARKER_GUARD;
+    pPayload->counter       = m_executionMarkerCount;
+
+    pCmdSpace += EndPayloadSize + NopSizeDwords;
+    m_cmdStream.CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
 // Writes a COND_EXE packet to predicate the next packets based on a memory value. Returns the next unused DWORD in
 // pCmdSpace.
 //
@@ -263,9 +344,10 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
     ) const
 {
     // The count field of the copy packet is 22 bits wide.
-    constexpr gpusize MaxCopySize = (1ull << 22ull);
+    const uint32  maxCopyBits = 22;
+    const gpusize maxCopySize = (1ull << maxCopyBits);
 
-    *pBytesCopied = Min(copySize, MaxCopySize);
+    *pBytesCopied = Min(copySize, maxCopySize);
 
     if (IsPow2Aligned(srcGpuAddr, sizeof(uint32)) &&
         IsPow2Aligned(dstGpuAddr, sizeof(uint32)) &&
@@ -286,8 +368,13 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
     packet.HEADER_UNION.op                  = SDMA_OP_COPY;
     packet.HEADER_UNION.sub_op              = SDMA_SUBOP_COPY_LINEAR;
     packet.COUNT_UNION.DW_1_DATA            = 0;
-    packet.COUNT_UNION.count                = *pBytesCopied - 1;
+
+    {
+        packet.COUNT_UNION.nv10.count      = *pBytesCopied - 1;
+    }
+
     packet.PARAMETER_UNION.DW_2_DATA        = 0;
+
     packet.SRC_ADDR_LO_UNION.src_addr_31_0  = LowPart(srcGpuAddr);
     packet.SRC_ADDR_HI_UNION.src_addr_63_32 = HighPart(srcGpuAddr);
     packet.DST_ADDR_LO_UNION.dst_addr_31_0  = LowPart(dstGpuAddr);

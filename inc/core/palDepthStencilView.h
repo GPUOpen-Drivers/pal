@@ -54,7 +54,8 @@ struct DepthStencilViewCreateInfo
                                             ///  Absolute depth bias: depth bias will be added to z value directly.
                                             ///  Scaled depth bias: before adding to z value, depth bias will be
                                             ///  multiplied to minimum representable z value.
-            uint32 reserved          : 28;  ///< Reserved for future use.
+            uint32 reserved0         :  1;  ///< Reserved for future HW
+            uint32 reserved          : 27;  ///< Reserved for future use.
         };
         uint32 u32All;                    ///< Flags packed as 32-bit uint.
     } flags;                              ///< Depth/stencil view creation flags.

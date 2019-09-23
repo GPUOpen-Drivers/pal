@@ -40,6 +40,7 @@
 #include "core/hw/gfxip/queryPool.h"
 #include "core/g_palPlatformSettings.h"
 #include "core/settingsLoader.h"
+#include "marker_payload.h"
 #include "palMath.h"
 #include "palIntervalTreeImpl.h"
 #include "palVectorImpl.h"
@@ -410,7 +411,7 @@ Result UniversalCmdBuffer::Init(
     m_uavExportTable.state.ceRamOffset  = ceRamOffset;
     ceRamOffset += sizeof(m_uavExportTable.srd);
 
-    if (m_device.Settings().nggEnableMode != NggPipelineTypeDisabled)
+    if (m_device.Settings().nggSupported)
     {
         const uint32 nggTableBytes = Pow2Align<uint32>(sizeof(Abi::PrimShaderCbLayout), 256);
 
@@ -554,7 +555,8 @@ void UniversalCmdBuffer::ResetState()
         false);
 
     m_vgtDmaIndexType.u32All = 0;
-    m_vgtDmaIndexType.bits.SWAP_MODE = VGT_DMA_SWAP_NONE;
+    m_vgtDmaIndexType.bits.SWAP_MODE  = VGT_DMA_SWAP_NONE;
+    m_vgtDmaIndexType.bits.INDEX_TYPE = VgtIndexTypeLookup[0];
 
     // For IndexBuffers - default to STREAM cache policy so that they get evicted from L2 as soon as possible.
     if (IsGfx10(m_gfxIpLevel))
@@ -571,6 +573,7 @@ void UniversalCmdBuffer::ResetState()
     m_spiPsInControl.u32All    = 0;
     m_paScShaderControl.u32All = 0xFFFFFFFF; ///< Initialize to a known bad value to ensure it is flushed on 1st draw
     m_binningMode              = FORCE_BINNING_ON; // set a value that we would never use
+    m_dbDfsmControl.u32All     = m_device.GetDbDfsmControl();
 
     // Reset the command buffer's HWL state tracking
     m_state.flags.u32All                            = 0;
@@ -1474,6 +1477,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     bool waitOnMetadataMipTail = false;
 
     uint32 bppMoreThan64 = 0;
+
     TargetExtent2d surfaceExtent = { MaxScissorExtent, MaxScissorExtent }; // Default to fully open
 
     // Bind all color targets.
@@ -1507,6 +1511,9 @@ void UniversalCmdBuffer::CmdBindTargets(
 
             // Set the bit means this color target slot is not bound to a NULL target.
             newColorTargetMask |= (1 << slot);
+
+            const auto* pImage        = pNewView->GetImage();
+            auto*       pGfx10NewView = static_cast<const Gfx10ColorTargetView*>(pNewView);
 
             validViewFound = true;
         }
@@ -2220,6 +2227,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
+    // The "validIndexCount" (set later in the code) will eventually be used to program the max_size
+    // field in the draw packet, which is used to clamp how much of the index buffer can be read.
+    //
+    // If the firstIndex parameter of the draw command is greater than the currently IB's indexCount,
+    // the validIndexCount will underflow and end up way too big.
+    pThis->m_workaroundState.HandleFirstIndexSmallerThanIndexCount(&firstIndex,
+                                                                   pThis->m_graphicsState.iaState.indexCount);
+
     PAL_ASSERT(firstIndex <= pThis->m_graphicsState.iaState.indexCount);
 
     ValidateDrawInfo drawInfo;
@@ -2610,7 +2625,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
     pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
                                                                      pThis->PacketPredicate(),
                                                                      pThis->m_pSignatureCs->flags.isWave32,
-                                                                     pThis->GetEngineSubType(),
+                                                                     pThis->UsesDispatchTunneling(),
                                                                      pDeCmdSpace);
 
     if (IssueSqttMarkerEvent)
@@ -2711,7 +2726,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
                                                                       zDim,
                                                                       pThis->PacketPredicate(),
                                                                       pThis->m_pSignatureCs->flags.isWave32,
-                                                                      pThis->GetEngineSubType(),
+                                                                      pThis->UsesDispatchTunneling(),
                                                                       pDeCmdSpace);
 
     if (IssueSqttMarkerEvent)
@@ -2997,36 +3012,22 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
         cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(Gfx09::mmDB_Z_INFO,
-                                                      Gfx09::mmDB_DFSM_CONTROL,
+                                                      Gfx09::mmDB_STENCIL_INFO,
                                                       &pm4Commands.hdrDbInfo);
 
-        pm4Commands.gfx9.dbZInfo.u32All              = 0;
-        pm4Commands.gfx9.dbStencilInfo.u32All        = 0;
-        pm4Commands.gfx9.dbZReadBase.u32All          = 0;
-        pm4Commands.gfx9.dbZReadBaseHi.u32All        = 0;
-        pm4Commands.gfx9.dbStencilReadBase.u32All    = 0;
-        pm4Commands.gfx9.dbStencilReadBaseHi.u32All  = 0;
-        pm4Commands.gfx9.dbZWriteBase.u32All         = 0;
-        pm4Commands.gfx9.dbZWriteBaseHi.u32All       = 0;
-        pm4Commands.gfx9.dbStencilWriteBase.u32All   = 0;
-        pm4Commands.gfx9.dbStencilWriteBaseHi.u32All = 0;
-        pm4Commands.gfx9.dbDfsmControl.u32All        = m_device.GetDbDfsmControl();
+        pm4Commands.gfx9.dbZInfo.u32All       = 0;
+        pm4Commands.gfx9.dbStencilInfo.u32All = 0;
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(Gfx10::mmDB_DFSM_CONTROL,
-                                                      Gfx10::mmDB_STENCIL_WRITE_BASE,
+        // DB_DEPTH_INFO does not exist on some GFX10 configs. When it does, it preceeds DB_Z_INFO.
+        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs((Gfx10::mmDB_Z_INFO - 1),
+                                                      Gfx10::mmDB_STENCIL_INFO,
                                                       &pm4Commands.hdrDbInfo);
-
-        pm4Commands.gfx10.dbDfsmControl.u32All      = m_device.GetDbDfsmControl();
 
         pm4Commands.gfx10.dbDepthInfo               = 0;
         pm4Commands.gfx10.dbZInfo.u32All            = 0;
         pm4Commands.gfx10.dbStencilInfo.u32All      = 0;
-        pm4Commands.gfx10.dbZReadBase.u32All        = 0;
-        pm4Commands.gfx10.dbStencilReadBase.u32All  = 0;
-        pm4Commands.gfx10.dbZWriteBase.u32All       = 0;
-        pm4Commands.gfx10.dbStencilWriteBase.u32All = 0;
 
     }
     else
@@ -3323,6 +3324,10 @@ Result UniversalCmdBuffer::AddPreamble()
         pDeCmdSpace += Util::NumBytesToNumDwords(sizeof(ScreenScissorReg));
     }
 
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
+                                                           m_dbDfsmControl.u32All,
+                                                           pDeCmdSpace);
+
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
     // Clients may not bind a PointLineRasterState until they intend to do wireframe rendering. This means that the
@@ -3355,6 +3360,8 @@ Result UniversalCmdBuffer::AddPostamble()
         SetGfxCmdBufCpBltState(false);
     }
 
+    bool didWaitForIdle = false;
+
     if ((m_ceCmdStream.GetNumChunks() > 0) &&
         (m_ceCmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0))
     {
@@ -3367,6 +3374,16 @@ Result UniversalCmdBuffer::AddPostamble()
 
         pDeCmdSpace += CmdUtil::BuildWaitOnCeCounter(false, pDeCmdSpace);
         pDeCmdSpace += CmdUtil::BuildIncrementDeCounter(pDeCmdSpace);
+
+        // We also need a wait-for-idle before the atomic increment because command memory might be read or written
+        // by draws or dispatches. If we don't wait for idle then the driver might reset and write over that memory
+        // before the shaders are done executing.
+        didWaitForIdle = true;
+        pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(GetEngineType(),
+                                                            BOTTOM_OF_PIPE_TS,
+                                                            TcCacheOp::Nop,
+                                                            TimestampGpuVirtAddr(),
+                                                            pDeCmdSpace);
 
         // The following ATOMIC_MEM packet increments the done-count for the CE command stream, so that we can probe
         // when the command buffer has completed execution on the GPU.
@@ -3386,6 +3403,16 @@ Result UniversalCmdBuffer::AddPostamble()
     // an EOP event which flushes and invalidates the caches in between command buffers.
     if (m_deCmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0)
     {
+        // If we didn't have a CE tracker we still need this wait-for-idle. See the comment above for the reason.
+        if (didWaitForIdle == false)
+        {
+            pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(GetEngineType(),
+                                                                BOTTOM_OF_PIPE_TS,
+                                                                TcCacheOp::Nop,
+                                                                TimestampGpuVirtAddr(),
+                                                                pDeCmdSpace);
+        }
+
         pDeCmdSpace += CmdUtil::BuildAtomicMem(AtomicOp::AddInt32,
                                                m_deCmdStream.GetFirstChunk()->BusyTrackerGpuAddr(),
                                                1,
@@ -3395,6 +3422,59 @@ Result UniversalCmdBuffer::AddPostamble()
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
     return Result::Success;
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::BeginExecutionMarker(
+    uint64 clientHandle)
+{
+    CmdBuffer::BeginExecutionMarker(clientHandle);
+    PAL_ASSERT(m_executionMarkerAddr != 0);
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+                                                  m_executionMarkerCount,
+                                                  clientHandle,
+                                                  RGD_EXECUTION_BEGIN_MARKER_GUARD,
+                                                  pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
+uint32 UniversalCmdBuffer::CmdInsertExecutionMarker()
+{
+    uint32 returnVal = UINT_MAX;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+    if (m_buildFlags.enableExecutionMarkerSupport == 1)
+    {
+        PAL_ASSERT(m_executionMarkerAddr != 0);
+
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+        pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+                                                      ++m_executionMarkerCount,
+                                                      0,
+                                                      RGD_EXECUTION_MARKER_GUARD,
+                                                      pDeCmdSpace);
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+        returnVal = m_executionMarkerCount;
+    }
+#endif
+    return returnVal;
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::EndExecutionMarker()
+{
+    PAL_ASSERT(m_executionMarkerAddr != 0);
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+                                                  ++m_executionMarkerCount,
+                                                  0,
+                                                  RGD_EXECUTION_MARKER_GUARD,
+                                                  pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
 // =====================================================================================================================
@@ -4990,14 +5070,16 @@ uint32* UniversalCmdBuffer::ValidateDraw(
             disableDfsm = true;
         }
 
-        if (disableDfsm)
+        regDB_DFSM_CONTROL dbDfsmControl;
+        dbDfsmControl.u32All             = m_dbDfsmControl.u32All;
+        dbDfsmControl.bits.PUNCHOUT_MODE = (disableDfsm ? DfsmPunchoutModeForceOff : DfsmPunchoutModeAuto);
+
+        if (dbDfsmControl.u32All != m_dbDfsmControl.u32All)
         {
-            pDeCmdSpace += m_cmdUtil.BuildContextRegRmw(
-                m_cmdUtil.GetRegInfo().mmDbDfsmControl,
-                DB_DFSM_CONTROL__PUNCHOUT_MODE_MASK,
-                (DfsmPunchoutModeDisable << DB_DFSM_CONTROL__PUNCHOUT_MODE__SHIFT),
-                pDeCmdSpace);
-            m_deCmdStream.SetContextRollDetected<true>();
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
+                                                                   dbDfsmControl.u32All,
+                                                                   pDeCmdSpace);
+            m_dbDfsmControl.u32All = dbDfsmControl.u32All;
         }
     }
 
@@ -7842,6 +7924,11 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     {
         m_paScConsRastCntl.u32All = cmdBuffer.m_paScConsRastCntl.u32All;
     }
+
+    // DB_DFSM_CONTROL is written at AddPreamble time for all CmdBuffer states and potentially turned off
+    // at draw-time based on Pipeline, MsaaState and DepthStencil Buffer. Always leak back since the nested
+    // cmd buffer always updated the register.
+    m_dbDfsmControl.u32All = cmdBuffer.m_dbDfsmControl.u32All;
 
     if (cmdBuffer.HasStreamOutBeenSet())
     {

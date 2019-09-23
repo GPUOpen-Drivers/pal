@@ -1619,6 +1619,38 @@
       "Type": "bool",
       "VariableName": "waMiscGsNullPrim",
       "Name": "WaMiscGsNullPrim"
+    },
+    {
+      "Description": "If the workaround is enabled, then rotated swizzle modes will disable the DCC overwrite combiner.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx6Key",
+      "Type": "bool",
+      "VariableName": "waRotatedSwizzleDisablesOverwriteCombiner",
+      "Name": "WaRotatedSwizzleDisablesOverwriteCombiner"
+    },
+    {
+      "Description": "If the workaround is enabled, then non-copy ROP3 will disable the DCC overwrite combiner.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx6Key",
+      "Type": "bool",
+      "VariableName": "waLogicOpDisablesOverwriteCombiner",
+      "Name": "WaLogicOpDisablesOverwriteCombiner"
     }
   ]
 }

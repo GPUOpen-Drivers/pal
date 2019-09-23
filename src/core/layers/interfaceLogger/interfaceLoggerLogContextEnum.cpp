@@ -535,24 +535,7 @@ void LogContext::Enum(
 void LogContext::Enum(
     EngineType value)
 {
-    const char*const StringTable[] =
-    {
-        "EngineTypeUniversal",        // 0x0,
-        "EngineTypeCompute",          // 0x1,
-        "EngineTypeExclusiveCompute", // 0x2,
-        "EngineTypeDma",              // 0x3,
-        "EngineTypeTimer",            // 0x4,
-
-        "EngineTypeHpUniversal",      // 0x5,
-    };
-
-    static_assert(ArrayLen(StringTable) == EngineTypeCount,
-        "The EngineType string table needs to be updated.");
-
-    const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < EngineTypeCount);
-
-    Value(StringTable[idx]);
+    Value(GetEngineName(value));
 }
 
 // =====================================================================================================================
@@ -1018,6 +1001,7 @@ void LogContext::Enum(
         nullptr,
         nullptr,
         "Navi10",
+        nullptr,
         nullptr,
         nullptr,
         nullptr,

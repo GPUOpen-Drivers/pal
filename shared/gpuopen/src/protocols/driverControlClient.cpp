@@ -252,6 +252,43 @@ namespace DevDriver
             return result;
         }
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION)
+        Result DriverControlClient::QueryDeviceClock(uint32 gpuIndex, DeviceClockMode clockMode, float* pGpuClock, float* pMemClock)
+        {
+            Result result = Result::Error;
+
+            if (IsConnected() && (pGpuClock != nullptr) && (pMemClock != nullptr))
+            {
+                SizedPayloadContainer container = {};
+                container.CreatePayload<QueryDeviceClockByModeRequestPayload>(gpuIndex, clockMode);
+
+                result = TransactDriverControlPayload(&container);
+                if (result == Result::Success)
+                {
+                    const QueryDeviceClockByModeResponsePayload& response =
+                        container.GetPayload<QueryDeviceClockByModeResponsePayload>();
+
+                    if (response.header.command == DriverControlMessage::QueryDeviceClockByModeResponse)
+                    {
+                        result = response.result;
+                        if (result == Result::Success)
+                        {
+                            *pGpuClock = response.gpuClock;
+                            *pMemClock = response.memClock;
+                        }
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+#else
         Result DriverControlClient::QueryDeviceClock(uint32 gpuIndex, float* pGpuClock, float* pMemClock)
         {
             Result result = Result::Error;
@@ -321,6 +358,7 @@ namespace DevDriver
 
             return result;
         }
+#endif
 
         Result DriverControlClient::QueryDriverStatus(DriverStatus* pDriverStatus)
         {

@@ -62,7 +62,7 @@ namespace DevDriver
         else
         {
             // Invalid transport type
-            DD_ALERT_REASON("Invalid transport type specified");
+            DD_WARN_REASON("Invalid transport type specified");
         }
 
         return result;
@@ -99,7 +99,7 @@ namespace DevDriver
             else
             {
                 // Invalid transport type
-                DD_ALERT_REASON("Invalid transport type specified");
+                DD_WARN_REASON("Invalid transport type specified");
             }
 
             if (pMsgChannel != nullptr)

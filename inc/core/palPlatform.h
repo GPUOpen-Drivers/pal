@@ -50,6 +50,7 @@ namespace Pal
 class  IDevice;
 class  IScreen;
 struct PalPlatformSettings;
+enum class PalEvent : uint32;
 
 /// Maximum number of Devices possibly attached to a system.
 constexpr uint32 MaxDevices = 16;
@@ -520,6 +521,11 @@ public:
         LogMessage(level, categoryMask, pFormat, args);
         va_end(args);
     }
+
+    virtual void LogEvent(
+        PalEvent    eventId,
+        const void* pEventData,
+        uint32      eventDataSize) {}
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

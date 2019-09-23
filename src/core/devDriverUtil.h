@@ -44,12 +44,20 @@ namespace DevDriver
 
 namespace Pal
 {
-
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION
 DevDriver::Result QueryClockCallback(
-    uint32 gpuIndex,
-    float* pGpuClock,
-    float* pMemClock,
-    void*  pUserData);
+    uint32                                            gpuIndex,
+    float*                                            pGpuClock,
+    float*                                            pMemClock,
+    void*                                             pUserData);
+#else
+DevDriver::Result QueryClockCallback(
+    uint32                                            gpuIndex,
+    DevDriver::DriverControlProtocol::DeviceClockMode clockMode,
+    float*                                            pGpuClock,
+    float*                                            pMemClock,
+    void*                                             pUserData);
+#endif
 
 DevDriver::Result QueryMaxClockCallback(
     uint32 gpuIndex,

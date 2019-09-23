@@ -94,6 +94,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 };
@@ -134,6 +135,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
 
     nullptr,
     "NAVI10:gfx1010",
+    nullptr,
     nullptr,
     nullptr,
     nullptr,
@@ -1007,9 +1009,11 @@ Result Device::EarlyInit(
         {
         case EngineTypeUniversal:
         case EngineTypeCompute:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
         case EngineTypeExclusiveCompute:
-        case EngineTypeDma:
         case EngineTypeHighPriorityUniversal:
+#endif
+        case EngineTypeDma:
             m_engineProperties.perEngine[i].flags.supportsTrackBusyChunks = 1;
             break;
         default:

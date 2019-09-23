@@ -142,7 +142,8 @@ struct LayoutTransitionInfo
                                           // FmaskDecompress/DccDecompress.
             uint32 useComputePath   : 1;  // For those transition BLTs that could do either graphics or compute path,
                                           // figure out what path the BLT will use and cache it here.
-            uint32 reserved         : 30; // Reserved for future usage.
+            uint32 fceIsSkipped     : 1;  // Set if a FastClearEliminate BLT is skipped.
+            uint32 reserved         : 29; // Reserved for future usage.
         };
         uint32 u32All;                    // Flags packed as uint32.
     } flags;
@@ -304,10 +305,10 @@ public:
     virtual size_t GetColorTargetViewSize(
         Result* pResult) const override;
     virtual Result CreateColorTargetView(
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo,
-        void*                                    pPlacementAddr,
-        IColorTargetView**                       ppColorTargetView) const override;
+        const ColorTargetViewCreateInfo&   createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo,
+        void*                             pPlacementAddr,
+        IColorTargetView**                ppColorTargetView) const override;
 
     virtual size_t GetDepthStencilViewSize(
         Result* pResult) const override;

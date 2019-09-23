@@ -68,10 +68,11 @@ Result Queue::Submit(
     {
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginMap("submitInfo", false);
-        pLogContext->KeyAndBeginMap("cmdBuffers", false);
+        pLogContext->KeyAndBeginList("cmdBuffers", false);
 
         for (uint32 idx = 0; idx < submitInfo.cmdBufferCount; ++idx)
         {
+            pLogContext->BeginMap(false);
             pLogContext->KeyAndObject("object", submitInfo.ppCmdBuffers[idx]);
 
             if ((submitInfo.pCmdBufInfoList != nullptr) && submitInfo.pCmdBufInfoList[idx].isValid)
@@ -82,9 +83,11 @@ Result Queue::Submit(
             {
                 pLogContext->KeyAndNullValue("info");
             }
+
+            pLogContext->EndMap();
         }
 
-        pLogContext->EndMap();
+        pLogContext->EndList();
         pLogContext->KeyAndBeginList("gpuMemoryRefs", false);
 
         for (uint32 idx = 0; idx < submitInfo.gpuMemRefCount; ++idx)

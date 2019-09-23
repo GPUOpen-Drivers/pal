@@ -81,8 +81,8 @@ namespace DevDriver
 
     DD_NETWORK_STRUCT(RegisterClientOutput, 8)
     {
-        QueueInfo       messageQueueSend;
-        QueueInfo       messageQueueReceive;
+        QueueInfo       sendQueue;
+        QueueInfo       receiveQueue;
         ClientId        clientId;
         // pad out to 8 bytes for alignment requirements
         uint8           padding[6];

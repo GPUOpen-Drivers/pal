@@ -80,21 +80,6 @@ enum class SubmitOptMode : uint32
     Count
 };
 
-/// Defines the execution priority for a queue, specified either at queue creation or via IQueue::SetExecutionPriority()
-/// on platforms that support it.
-/// QueuePriority::Low corresponds to the default priority,
-/// so clients should be careful when converting API enums to this enum
-/// (e.g., VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_EXT is specified to mean default priority,
-///  so should be translated to QueuePriority::Low).
-enum class QueuePriority : uint32
-{
-    Low      =  0,    ///< The low priority - Default one.
-    Medium   =  1,    ///< The medium priority
-    High     =  2,    ///< The High priority
-    VeryLow  =  3,    ///< The lowest priority.
-    Realtime =  4,    ///< Real time priority.
-};
-
 /// Specifies properties for @ref IQueue creation.  Input structure to IDevice::CreateQueue().
 struct QueueCreateInfo
 {
@@ -119,7 +104,8 @@ struct QueueCreateInfo
 #else
         uint32 placeholder3              :  1; ///< Reserved field. Set to 0.
 #endif
-        uint32 reserved                  : 28; ///< Reserved for future use.
+        uint32 dispatchTunneling         :  1; ///< This queue uses compute dispatch tunneling.
+        uint32 reserved                  : 27; ///< Reserved for future use.
     };
 
     uint32 numReservedCu;           ///< The number of reserved compute units for RT CU queue

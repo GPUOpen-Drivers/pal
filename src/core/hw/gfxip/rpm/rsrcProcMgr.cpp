@@ -1973,15 +1973,15 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
 }
 
 // =====================================================================================================================
-void RsrcProcMgr::CmdScaledCopyImage(
+bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     GfxCmdBuffer*           pCmdBuffer,
     const ScaledCopyInfo&   copyInfo,
     ScaledCopyInternalFlags flags
     ) const
 {
-    const auto&      srcInfo = copyInfo.pSrcImage->GetImageCreateInfo();
-    const auto&      dstInfo = copyInfo.pDstImage->GetImageCreateInfo();
-    const auto*      pDstImage = static_cast<const Image*>(copyInfo.pDstImage);
+    const auto&      srcInfo      = copyInfo.pSrcImage->GetImageCreateInfo();
+    const auto&      dstInfo      = copyInfo.pDstImage->GetImageCreateInfo();
+    const auto*      pDstImage    = static_cast<const Image*>(copyInfo.pDstImage);
     const ImageType  srcImageType = srcInfo.imageType;
     const ImageType  dstImageType = dstInfo.imageType;
 
@@ -1999,16 +1999,6 @@ void RsrcProcMgr::CmdScaledCopyImage(
     const bool p2pBltWa     = m_pDevice->Parent()->ChipProperties().p2pBltWaInfo.required &&
                               pDstImage->GetBoundGpuMemory().Memory()->AccessesPeerMemory();
 
-    SwizzledFormat dstFormat = pDstImage->SubresourceInfo(copyInfo.pRegions[0].dstSubres)->format;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
-    if (Formats::IsUndefined(copyInfo.pRegions[0].swizzledFormat.format) == false)
-    {
-        dstFormat = copyInfo.pRegions[0].swizzledFormat;
-    }
-#endif
-    const bool enableGammaConversion =
-        (Formats::IsSrgb(dstFormat.format) && (flags.srcSrgbAsUnorm == 0)) ? 1 : 0;
-
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
     // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
     const bool useGraphicsCopy = (pCmdBuffer->IsGraphicsSupported()                      &&
@@ -2020,15 +2010,161 @@ void RsrcProcMgr::CmdScaledCopyImage(
                                    (isDepth == false)                                    &&
                                    (p2pBltWa == false)));
 
+    return useGraphicsCopy;
+}
+
+// =====================================================================================================================
+void RsrcProcMgr::CmdScaledCopyImage(
+    GfxCmdBuffer*           pCmdBuffer,
+    const ScaledCopyInfo&   copyInfo,
+    ScaledCopyInternalFlags flags
+    ) const
+{
+    const bool useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo, flags);
+
     if (useGraphicsCopy)
     {
+        // Save current command buffer state.
+        pCmdBuffer->PushGraphicsState();
         ScaledCopyImageGraphics(pCmdBuffer, copyInfo, flags);
+        // Restore original command buffer state.
+        pCmdBuffer->PopGraphicsState();
     }
     else
     {
+        // Save current command buffer state and bind the pipeline.
+        pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
         ScaledCopyImageCompute(pCmdBuffer, copyInfo, flags);
+        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
     }
 }
+
+// =====================================================================================================================
+void RsrcProcMgr::CmdGenerateMipmaps(
+    GfxCmdBuffer*        pCmdBuffer,
+    const GenMipmapsInfo& genInfo
+    ) const
+{
+    const Pal::Image*      pImage     = static_cast<const Pal::Image*>(genInfo.pImage);
+    const ImageCreateInfo& createInfo = pImage->GetImageCreateInfo();
+
+    // The range cannot start at mip zero and cannot extend past the last mip level.
+    PAL_ASSERT((genInfo.range.startSubres.mipLevel >= 1) &&
+               ((genInfo.range.startSubres.mipLevel + genInfo.range.numMips) <= createInfo.mipLevels));
+
+    // Until the optimal path is ready we will use scaled image copies to generate each mip. Most of the copy state is
+    // identical but we must adjust the copy region for each generated subresource.
+    ImageScaledCopyRegion region = {};
+    region.srcSubres.aspect     = genInfo.range.startSubres.aspect;
+    region.srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
+    region.dstSubres.aspect     = genInfo.range.startSubres.aspect;
+    region.dstSubres.arraySlice = genInfo.range.startSubres.arraySlice;
+    region.numSlices            = genInfo.range.numSlices;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
+    region.swizzledFormat       = genInfo.swizzledFormat;
+#endif
+
+    ScaledCopyInfo copyInfo = {};
+    copyInfo.pSrcImage      = pImage;
+    copyInfo.srcImageLayout = genInfo.baseMipLayout;
+    copyInfo.pDstImage      = pImage;
+    copyInfo.dstImageLayout = genInfo.genMipLayout;
+    copyInfo.regionCount    = 1;
+    copyInfo.pRegions       = &region;
+    copyInfo.filter         = genInfo.filter;
+    copyInfo.rotation       = ImageRotation::Ccw0;
+
+    constexpr ScaledCopyInternalFlags NullInternalFlags = {};
+    const bool useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo, NullInternalFlags);
+
+    // We need an internal barrier between each mip-level's scaled copy because the destination of the prior copy is
+    // the source of the next copy. Note that we can't use CoherCopy here because we optimize it away in the barrier
+    // code but that optimization requires that we pop all state before calling CmdBarrier. That's very slow so instead
+    // we use implementation dependent cache masks.
+    BarrierTransition transition = {};
+    transition.srcCacheMask = useGraphicsCopy ? CoherColorTarget : CoherShader;
+    transition.dstCacheMask = useGraphicsCopy ? CoherColorTarget : CoherShader;
+
+    // We will specify the base subresource later on.
+    transition.imageInfo.pImage                = pImage;
+    transition.imageInfo.subresRange.numMips   = 1;
+    transition.imageInfo.subresRange.numSlices = genInfo.range.numSlices;
+    transition.imageInfo.oldLayout             = genInfo.genMipLayout;
+    transition.imageInfo.newLayout             = genInfo.genMipLayout;
+
+    const HwPipePoint postBlt = useGraphicsCopy ? HwPipeBottom : HwPipePostCs;
+    BarrierInfo       barrier = {};
+
+    barrier.waitPoint          = HwPipePostIndexFetch;
+    barrier.pipePointWaitCount = 1;
+    barrier.pPipePoints        = &postBlt;
+    barrier.transitionCount    = 1;
+    barrier.pTransitions       = &transition;
+
+    // Save current command buffer state.
+    if (useGraphicsCopy)
+    {
+        pCmdBuffer->PushGraphicsState();
+    }
+    else
+    {
+        pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+    }
+
+    // Issue one CmdScaledCopyImage for each mip in the generation range.
+    uint32       destMip = genInfo.range.startSubres.mipLevel;
+    const uint32 lastMip = destMip + genInfo.range.numMips - 1;
+
+    while (destMip <= lastMip)
+    {
+        region.srcSubres.mipLevel = destMip - 1;
+        region.dstSubres.mipLevel = destMip;
+
+        // We want to generate all texels in the target subresource so copy the full extent from the first array slice
+        // in the current source and destination mips.
+        const SubResourceInfo& srcSubresInfo = *pImage->SubresourceInfo(region.srcSubres);
+        const SubResourceInfo& dstSubresInfo = *pImage->SubresourceInfo(region.dstSubres);
+
+        region.srcExtent.width  = srcSubresInfo.extentTexels.width;
+        region.srcExtent.height = srcSubresInfo.extentTexels.height;
+        region.srcExtent.depth  = srcSubresInfo.extentTexels.depth;
+        region.dstExtent.width  = dstSubresInfo.extentTexels.width;
+        region.dstExtent.height = dstSubresInfo.extentTexels.height;
+        region.dstExtent.depth  = dstSubresInfo.extentTexels.depth;
+
+        if (useGraphicsCopy)
+        {
+            ScaledCopyImageGraphics(pCmdBuffer, copyInfo, NullInternalFlags);
+        }
+        else
+        {
+            ScaledCopyImageCompute(pCmdBuffer, copyInfo, NullInternalFlags);
+        }
+
+        // If we're going to loop again...
+        if (++destMip <= lastMip)
+        {
+            // Update the copy's source layout.
+            copyInfo.srcImageLayout = genInfo.genMipLayout;
+
+            // Issue the barrier between this iteration's writes and the next iteration's reads.
+            transition.imageInfo.subresRange.startSubres = region.dstSubres;
+
+            pCmdBuffer->CmdBarrier(barrier);
+        }
+    }
+
+    // Restore original command buffer state.
+    if (useGraphicsCopy)
+    {
+        pCmdBuffer->PopGraphicsState();
+    }
+    else
+    {
+        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    }
+}
+
 // =====================================================================================================================
 void RsrcProcMgr::ScaledCopyImageGraphics(
     GfxCmdBuffer*           pCmdBuffer,
@@ -2096,8 +2232,10 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
     bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
 
-    // Save current command buffer state.
-    pCmdBuffer->PushGraphicsState();
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT(static_cast<const UniversalCmdBuffer*>(pCmdBuffer)->IsGraphicsStatePushed());
+#endif
+
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
     pCmdBuffer->CmdSetDepthBiasState(depthBias);
@@ -2490,10 +2628,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     }
     // Call back to the gfxip layer so it can restore any state it modified previously.
     HwlEndGraphicsCopy(pStream, restoreMask);
-
-    // Restore original command buffer state.
-    pCmdBuffer->PopGraphicsState();
-
 }
 
 // =====================================================================================================================
@@ -2542,8 +2676,8 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     uint32 threadsPerGroup[3] = {0};
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
-    // Save current command buffer state and bind the pipeline.
-    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+    PAL_ASSERT(pCmdBuffer->IsComputeStateSaved());
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 #else
@@ -2832,8 +2966,6 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                                     RpmUtil::MinThreadGroups(zGroups,    threadsPerGroup[2]));
         }
     }
-
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================

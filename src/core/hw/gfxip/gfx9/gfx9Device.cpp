@@ -339,10 +339,7 @@ void Device::FinalizeChipProperties(
 
     GfxDevice::FinalizeChipProperties(pChipProperties);
 
-    if (settings.nggEnableMode == NggPipelineTypeDisabled)
-    {
-        pChipProperties->gfx9.supportImplicitPrimitiveShader = 0;
-    }
+    pChipProperties->gfx9.supportImplicitPrimitiveShader = settings.nggSupported;
 
     switch (settings.offchipLdsBufferSize)
     {
@@ -596,13 +593,16 @@ Result Device::CreateEngine(
 
     switch (engineType)
     {
-        // Assume (for now) that the UniversalEngine will work for the purposes of high-priority gfx engines as well
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     case EngineTypeHighPriorityUniversal:
+#endif
     case EngineTypeUniversal:
         pEngine = PAL_NEW(UniversalEngine, GetPlatform(), AllocInternal)(this, engineType, engineIndex);
         break;
     case EngineTypeCompute:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     case EngineTypeExclusiveCompute:
+#endif
         pEngine = PAL_NEW(ComputeEngine, GetPlatform(), AllocInternal)(this, engineType, engineIndex);
         break;
     case EngineTypeDma:
@@ -816,6 +816,20 @@ Result Device::CreateComputePipeline(
     }
 
     *ppPipeline = pPipeline;
+
+    if (result == Result::Success)
+    {
+        ResourceDescriptionPipeline desc = {};
+        desc.pPipelineInfo = &pPipeline->GetInfo();
+        desc.pCreateFlags = &createInfo.flags;
+        ResourceCreateEventData data = {};
+        data.type = ResourceType::Pipeline;
+        data.pResourceDescData = static_cast<void*>(&desc);
+        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
+        data.pObj = pPipeline;
+        m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    }
+
     return result;
 }
 
@@ -852,6 +866,19 @@ Result Device::CreateGraphicsPipeline(
     else
     {
         *ppPipeline = pPipeline;
+    }
+
+    if (result == Result::Success)
+    {
+        ResourceDescriptionPipeline desc = {};
+        desc.pPipelineInfo = &pPipeline->GetInfo();
+        desc.pCreateFlags = &createInfo.flags;
+        ResourceCreateEventData data = {};
+        data.type = ResourceType::Pipeline;
+        data.pResourceDescData = static_cast<void*>(&desc);
+        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
+        data.pObj = pPipeline;
+        m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
     }
 
     return result;
@@ -1399,10 +1426,10 @@ size_t Device::GetColorTargetViewSize(
 // =====================================================================================================================
 // Creates a Gfx9 implementation of Pal::IColorTargetView
 Result Device::CreateColorTargetView(
-    const ColorTargetViewCreateInfo&         createInfo,
-    const ColorTargetViewInternalCreateInfo& internalInfo,
-    void*                                    pPlacementAddr,
-    IColorTargetView**                       ppColorTargetView
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo,
+    void*                             pPlacementAddr,
+    IColorTargetView**                ppColorTargetView
     ) const
 {
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
@@ -2922,11 +2949,13 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         switch (viewType)
         {
         case ImageViewType::Tex1d:
-            srd.type = SQ_RSRC_IMG_1D_ARRAY;
+            srd.type = ((imageCreateInfo.arraySize == 1) ? SQ_RSRC_IMG_1D : SQ_RSRC_IMG_1D_ARRAY);
             break;
         case ImageViewType::Tex2d:
         case ImageViewType::TexQuilt: // quilted textures must be 2D
-            srd.type = (isMultiSampled) ? SQ_RSRC_IMG_2D_MSAA_ARRAY : SQ_RSRC_IMG_2D_ARRAY;
+            srd.type = ((imageCreateInfo.arraySize == 1)
+                        ? (isMultiSampled ? SQ_RSRC_IMG_2D_MSAA       : SQ_RSRC_IMG_2D)
+                        : (isMultiSampled ? SQ_RSRC_IMG_2D_MSAA_ARRAY : SQ_RSRC_IMG_2D_ARRAY));
             break;
         case ImageViewType::Tex3d:
             srd.type = SQ_RSRC_IMG_3D;
@@ -2956,6 +2985,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         }
 
         srd.depth      = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
+
         srd.bc_swizzle = GetBcSwizzle(viewInfo);
 
         //   The array_pitch resource field is defined so that setting it to zero disables quilting and behavior
@@ -3786,6 +3816,8 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportImplicitPrimitiveShader     = 1;
     pInfo->gfx9.supportFp16Fetch                   = 1;
     pInfo->gfx9.support16BitInstructions           = 1;
+    pInfo->gfx9.support64BitInstructions =
+        1;
     pInfo->gfx9.supportDoubleRate16BitInstructions = 1;
 
     if (
@@ -4222,9 +4254,11 @@ void InitializeGpuEngineProperties(
     pCompute->availableGdsSize   = 0xFC0;
     pCompute->gdsSizePerEngine   = 0xFC0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     // Copy the compute properties into the exclusive compute engine properties
     auto*const pExclusiveCompute = &pInfo->perEngine[EngineTypeExclusiveCompute];
     memcpy(pExclusiveCompute, pCompute, sizeof(pInfo->perEngine[EngineTypeExclusiveCompute]));
+#endif
 }
 
 // =====================================================================================================================
@@ -4237,7 +4271,7 @@ uint32  Device::GetDbDfsmControl() const
     const bool disableDfsm = gfx9Settings.disableDfsm;
 
     // Force off DFSM if requested by the settings
-    dbDfsmControl.bits.PUNCHOUT_MODE = (disableDfsm ? DfsmPunchoutModeDisable : DfsmPunchoutModeEnable);
+    dbDfsmControl.bits.PUNCHOUT_MODE = (disableDfsm ? DfsmPunchoutModeForceOff : DfsmPunchoutModeAuto);
 
     // Setup POPS as requested by the settings as well.
     dbDfsmControl.bits.POPS_DRAIN_PS_ON_OVERLAP = gfx9Settings.drainPsOnOverlap;

@@ -25,7 +25,6 @@
 
 #include "protocols/settingsServer.h"
 #include "msgChannel.h"
-#include <cstring>
 
 #define SETTINGS_SERVER_MIN_VERSION 1
 #define SETTINGS_SERVER_MAX_VERSION 2

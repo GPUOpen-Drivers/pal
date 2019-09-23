@@ -2387,11 +2387,8 @@ typedef union PA_SC_ENHANCE_INTERNAL                             regPA_SC_ENHANC
 typedef union PA_SC_FIFO_DEPTH_CNTL                              regPA_SC_FIFO_DEPTH_CNTL;
 typedef union PA_SC_FIFO_SIZE                                    regPA_SC_FIFO_SIZE;
 typedef union PA_SC_FORCE_EOV_MAX_CNTS                           regPA_SC_FORCE_EOV_MAX_CNTS;
-typedef union PA_SC_FOV_WINDOW_LR                                regPA_SC_FOV_WINDOW_LR;
-typedef union PA_SC_FOV_WINDOW_TB                                regPA_SC_FOV_WINDOW_TB;
 typedef union PA_SC_GENERIC_SCISSOR_BR                           regPA_SC_GENERIC_SCISSOR_BR;
 typedef union PA_SC_GENERIC_SCISSOR_TL                           regPA_SC_GENERIC_SCISSOR_TL;
-typedef union PA_SC_HORIZ_GRID                                   regPA_SC_HORIZ_GRID;
 typedef union PA_SC_HP3D_TRAP_SCREEN_COUNT                       regPA_SC_HP3D_TRAP_SCREEN_COUNT;
 typedef union PA_SC_HP3D_TRAP_SCREEN_H                           regPA_SC_HP3D_TRAP_SCREEN_H;
 typedef union PA_SC_HP3D_TRAP_SCREEN_HV_EN                       regPA_SC_HP3D_TRAP_SCREEN_HV_EN;
@@ -2399,7 +2396,6 @@ typedef union PA_SC_HP3D_TRAP_SCREEN_HV_LOCK                     regPA_SC_HP3D_T
 typedef union PA_SC_HP3D_TRAP_SCREEN_OCCURRENCE                  regPA_SC_HP3D_TRAP_SCREEN_OCCURRENCE;
 typedef union PA_SC_HP3D_TRAP_SCREEN_V                           regPA_SC_HP3D_TRAP_SCREEN_V;
 typedef union PA_SC_IF_FIFO_SIZE                                 regPA_SC_IF_FIFO_SIZE;
-typedef union PA_SC_LEFT_VERT_GRID                               regPA_SC_LEFT_VERT_GRID;
 typedef union PA_SC_LINE_CNTL                                    regPA_SC_LINE_CNTL;
 typedef union PA_SC_LINE_STIPPLE                                 regPA_SC_LINE_STIPPLE;
 typedef union PA_SC_LINE_STIPPLE_STATE                           regPA_SC_LINE_STIPPLE_STATE;
@@ -2441,12 +2437,6 @@ typedef union PA_SC_PERFCOUNTER7_SELECT                          regPA_SC_PERFCO
 typedef union PA_SC_PKR_WAVE_TABLE_CNTL                          regPA_SC_PKR_WAVE_TABLE_CNTL;
 typedef union PA_SC_RASTER_CONFIG                                regPA_SC_RASTER_CONFIG;
 typedef union PA_SC_RASTER_CONFIG_1                              regPA_SC_RASTER_CONFIG_1;
-typedef union PA_SC_RIGHT_VERT_GRID                              regPA_SC_RIGHT_VERT_GRID;
-typedef union PA_SC_SCREEN_EXTENT_CONTROL                        regPA_SC_SCREEN_EXTENT_CONTROL;
-typedef union PA_SC_SCREEN_EXTENT_MAX_0                          regPA_SC_SCREEN_EXTENT_MAX_0;
-typedef union PA_SC_SCREEN_EXTENT_MAX_1                          regPA_SC_SCREEN_EXTENT_MAX_1;
-typedef union PA_SC_SCREEN_EXTENT_MIN_0                          regPA_SC_SCREEN_EXTENT_MIN_0;
-typedef union PA_SC_SCREEN_EXTENT_MIN_1                          regPA_SC_SCREEN_EXTENT_MIN_1;
 typedef union PA_SC_SCREEN_SCISSOR_BR                            regPA_SC_SCREEN_SCISSOR_BR;
 typedef union PA_SC_SCREEN_SCISSOR_TL                            regPA_SC_SCREEN_SCISSOR_TL;
 typedef union PA_SC_SHADER_CONTROL                               regPA_SC_SHADER_CONTROL;
@@ -4425,7 +4415,6 @@ typedef union VGT_HOS_REUSE_DEPTH                                regVGT_HOS_REUS
 typedef union VGT_HS_OFFCHIP_PARAM                               regVGT_HS_OFFCHIP_PARAM;
 typedef union VGT_HS_OFFCHIP_PARAM_UMD                           regVGT_HS_OFFCHIP_PARAM_UMD;
 typedef union VGT_IMMED_DATA                                     regVGT_IMMED_DATA;
-typedef union VGT_INDEX_PAYLOAD_CNTL                             regVGT_INDEX_PAYLOAD_CNTL;
 typedef union VGT_INDEX_TYPE                                     regVGT_INDEX_TYPE;
 typedef union VGT_INDX_OFFSET                                    regVGT_INDX_OFFSET;
 typedef union VGT_INSTANCE_BASE_ID                               regVGT_INSTANCE_BASE_ID;

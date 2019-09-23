@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -34,8 +34,6 @@
 #include "msgChannel.h"
 #include "protocolServer.h"
 #include "protocolClient.h"
-#include <cstring>
-#include <cstdio>
 
 using namespace DevDriver::SessionProtocol;
 using namespace DevDriver::Platform;
@@ -279,7 +277,7 @@ namespace DevDriver
         }
         else
         {
-            DD_ALERT_REASON("Attempted to unregister an unknown protocol server");
+            DD_WARN_REASON("Attempted to unregister an unknown protocol server");
         }
 
         return result;

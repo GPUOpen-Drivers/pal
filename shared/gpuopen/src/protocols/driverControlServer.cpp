@@ -25,7 +25,6 @@
 
 #include "protocols/driverControlServer.h"
 #include "msgChannel.h"
-#include <cstring>
 #include "protocols/systemProtocols.h"
 
 #define DRIVERCONTROL_SERVER_MIN_VERSION 1
@@ -185,7 +184,11 @@ void DriverControlServer::UpdateSession(const SharedPointer<ISession>& pSession)
                     container.CreatePayload<QueryClientInfoResponsePayload>(m_pMsgChannel->GetClientInfo());
                     pSessionData->state = SessionState::SendPayload;
                     break;
-
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION
+                case DriverControlMessage::QueryDeviceClockByModeRequest:
+                    pSessionData->state = HandleQueryDeviceClockByModeRequest(container);
+                    break;
+#endif
                 default:
                     DD_UNREACHABLE();
                     break;
@@ -366,10 +369,18 @@ SessionState DriverControlServer::HandleQueryDeviceClockRequest(
     {
         if (m_deviceClockCallbackInfo.queryClockCallback != nullptr)
         {
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION
             result = m_deviceClockCallbackInfo.queryClockCallback(gpuIndex,
                 &gpuClock,
                 &memClock,
                 m_deviceClockCallbackInfo.pUserdata);
+#else
+            result = m_deviceClockCallbackInfo.queryClockCallback(gpuIndex,
+                DeviceClockMode::Default,
+                &gpuClock,
+                &memClock,
+                m_deviceClockCallbackInfo.pUserdata);
+#endif
         }
     }
 
@@ -378,6 +389,40 @@ SessionState DriverControlServer::HandleQueryDeviceClockRequest(
     container.CreatePayload<QueryDeviceClockResponsePayload>(result, gpuClock, memClock);
     return SessionState::SendPayload;
 }
+
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION
+SessionState DriverControlServer::HandleQueryDeviceClockByModeRequest(
+    SizedPayloadContainer& container)
+{
+    Result result = Result::Error;
+
+    float gpuClock = 0.0f;
+    float memClock = 0.0f;
+
+    const auto& payload = container.GetPayload<QueryDeviceClockByModeRequestPayload>();
+
+    LockData();
+
+    const uint32 gpuIndex = payload.gpuIndex;
+    if (gpuIndex < m_numGpus)
+    {
+        if (m_deviceClockCallbackInfo.queryClockCallback != nullptr)
+        {
+            result = m_deviceClockCallbackInfo.queryClockCallback(gpuIndex,
+                payload.deviceClockMode,
+                &gpuClock,
+                &memClock,
+                m_deviceClockCallbackInfo.pUserdata);
+        }
+    }
+
+    UnlockData();
+
+    container.CreatePayload<QueryDeviceClockByModeResponsePayload>(result, gpuClock, memClock);
+
+    return SessionState::SendPayload;
+}
+#endif
 
 SessionState DriverControlServer::HandleQueryMaxDeviceClockRequest(
     SizedPayloadContainer& container)
@@ -394,12 +439,20 @@ SessionState DriverControlServer::HandleQueryMaxDeviceClockRequest(
     const uint32 gpuIndex = payload.gpuIndex;
     if (gpuIndex < m_numGpus)
     {
-        if (m_deviceClockCallbackInfo.queryMaxClockCallback != nullptr)
+        if (m_deviceClockCallbackInfo.queryClockCallback != nullptr)
         {
-            result = m_deviceClockCallbackInfo.queryMaxClockCallback(gpuIndex,
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION
+            result = m_deviceClockCallbackInfo.queryClockCallback(gpuIndex,
+                DeviceClockMode::Peak,
                 &maxGpuClock,
                 &maxMemClock,
                 m_deviceClockCallbackInfo.pUserdata);
+#else
+            result = m_deviceClockCallbackInfo.queryClockCallback(gpuIndex,
+                &maxGpuClock,
+                &maxMemClock,
+                m_deviceClockCallbackInfo.pUserdata);
+#endif
         }
     }
 

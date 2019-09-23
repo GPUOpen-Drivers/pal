@@ -267,8 +267,9 @@ constexpr uint32 FastUserDataEntriesByStage[] =
 
 // HW doesn't provide enumerations for the values of the DB_DFSM_CONTROL.PUNCHOUT_MODE field.  Give
 // some nice names here.
-constexpr uint32 DfsmPunchoutModeEnable  = 0;
-constexpr uint32 DfsmPunchoutModeDisable = 2;
+constexpr uint32 DfsmPunchoutModeAuto     = 0;
+constexpr uint32 DfsmPunchoutModeForceOn  = 1;
+constexpr uint32 DfsmPunchoutModeForceOff = 2;
 
 // Number of PS input semantic registers.
 constexpr uint32 MaxPsInputSemantics = 32;

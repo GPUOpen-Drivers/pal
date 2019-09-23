@@ -34,6 +34,7 @@
 #include "core/cmdAllocator.h"
 #include "core/g_palPlatformSettings.h"
 #include "core/settingsLoader.h"
+#include "marker_payload.h"
 #include "palInlineFuncs.h"
 #include "palVectorImpl.h"
 
@@ -226,7 +227,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
     pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
                                                                    PredDisable,
                                                                    pThis->m_pSignatureCs->flags.isWave32,
-                                                                   pThis->GetEngineSubType(),
+                                                                   pThis->UsesDispatchTunneling(),
                                                                    pCmdSpace);
 
     if (issueSqttMarkerEvent)
@@ -268,7 +269,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 
     pCmdSpace += pThis->m_cmdUtil.BuildDispatchIndirectMec(gpuVirtAddr,
                                                            pThis->m_pSignatureCs->flags.isWave32,
-                                                           pThis->GetEngineSubType(),
+                                                           pThis->UsesDispatchTunneling(),
                                                            pCmdSpace);
 
     if (issueSqttMarkerEvent)
@@ -323,7 +324,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
     pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, false>(ends[0], ends[1], ends[2],
                                                                     PredDisable,
                                                                     pThis->m_pSignatureCs->flags.isWave32,
-                                                                    pThis->GetEngineSubType(),
+                                                                    pThis->UsesDispatchTunneling(),
                                                                     pCmdSpace);
 
     if (issueSqttMarkerEvent)
@@ -1048,6 +1049,10 @@ Result ComputeCmdBuffer::AddPostamble()
     // an EOP event which flushes and invalidates the caches in between command buffers.
     if (m_cmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0)
     {
+        // We also need a wait-for-idle before the atomic increment because command memory might be read or written
+        // by dispatches. If we don't wait for idle then the driver might reset and write over that memory before the
+        // shaders are done executing.
+        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeCompute, pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
                                               m_cmdStream.GetFirstChunk()->BusyTrackerGpuAddr(),
                                               1,
@@ -1057,6 +1062,59 @@ Result ComputeCmdBuffer::AddPostamble()
     m_cmdStream.CommitCommands(pCmdSpace);
 
     return Result::Success;
+}
+
+// =====================================================================================================================
+void ComputeCmdBuffer::BeginExecutionMarker(
+    uint64 clientHandle)
+{
+    CmdBuffer::BeginExecutionMarker(clientHandle);
+    PAL_ASSERT(m_executionMarkerAddr != 0);
+
+    uint32* pDeCmdSpace = m_cmdStream.ReserveCommands();
+    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+                                                  m_executionMarkerCount,
+                                                  clientHandle,
+                                                  RGD_EXECUTION_BEGIN_MARKER_GUARD,
+                                                  pDeCmdSpace);
+    m_cmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
+uint32 ComputeCmdBuffer::CmdInsertExecutionMarker()
+{
+    uint32 returnVal = UINT_MAX;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+    if (m_buildFlags.enableExecutionMarkerSupport == 1)
+    {
+        PAL_ASSERT(m_executionMarkerAddr != 0);
+
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+        pCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+                                                    ++m_executionMarkerCount,
+                                                    0,
+                                                    RGD_EXECUTION_MARKER_GUARD,
+                                                    pCmdSpace);
+        m_cmdStream.CommitCommands(pCmdSpace);
+
+        returnVal = m_executionMarkerCount;
+    }
+#endif
+    return returnVal;
+}
+
+// =====================================================================================================================
+void ComputeCmdBuffer::EndExecutionMarker()
+{
+    PAL_ASSERT(m_executionMarkerAddr != 0);
+
+    uint32* pDeCmdSpace = m_cmdStream.ReserveCommands();
+    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+                                                  ++m_executionMarkerCount,
+                                                  0,
+                                                  RGD_EXECUTION_MARKER_GUARD,
+                                                  pDeCmdSpace);
+    m_cmdStream.CommitCommands(pDeCmdSpace);
 }
 
 // =====================================================================================================================
@@ -1279,7 +1337,8 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeCompute, pCmdSpace);
     pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
 
-    // PFP_SYNC_ME cannot be used on an async compute engine, so we need to use REWIND packet instead.
+    // PFP_SYNC_ME cannot be used on an async compute engine
+    // so we need to use REWIND packet instead.
     pCmdSpace += m_cmdUtil.BuildRewind(false, true, pCmdSpace);
 
     // Just like a normal direct/indirect dispatch, we need to perform state validation before executing the

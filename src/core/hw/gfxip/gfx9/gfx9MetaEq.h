@@ -222,6 +222,9 @@ public:
         const CompPair&           pair1,
         MetaDataAddrCompareTypes  compareType);
 
+    void AdjustPipe(int32  num_pipes_log2, int32  offset, bool   undo = false);
+    void Rotate(int32 amount, int32 start, int32 end);
+
 private:
     void ClearBitPos(uint32  bitPos);
     void FilterOneCompType(

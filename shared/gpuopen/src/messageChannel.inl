@@ -1,7 +1,7 @@
 ﻿/*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -205,9 +205,15 @@ namespace DevDriver
                 break;
             }
 
+            case Protocol::Event:
+            {
+                enabledProtocols.event = true;
+                break;
+            }
+
             default:
             {
-                DD_ALERT_REASON("Registered protocol server for unknown protocol");
+                DD_WARN_REASON("Registered protocol server for unknown protocol");
                 break;
             }
             }
@@ -723,7 +729,7 @@ namespace DevDriver
         if (result != Result::Success)
         {
             m_msgThreadParams.active = false;
-            DD_ALERT_REASON("Thread creation failed");
+            DD_WARN_REASON("Thread creation failed");
         }
 
         return DD_SANITIZE_RESULT(result);

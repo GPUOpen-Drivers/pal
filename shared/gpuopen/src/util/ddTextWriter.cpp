@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -68,9 +68,10 @@ void TextWriter::WriteText(const char* pString, uint32 length)
         if ((pString != nullptr) && (length > 0))
         {
             length = static_cast<uint32>(strnlen(pString, length));
+
             for (uint32 i = 0; i < length; i += 1)
             {
-                unsigned char c = pString[i];
+                const unsigned char c = pString[i];
                 if (!(isprint(c) || isspace(c)))
                 {
                     DD_PRINT(LogLevel::Debug, "Attempting to write non-writable character \"%c\" (0x%x)\n", c, c);

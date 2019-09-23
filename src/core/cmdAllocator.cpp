@@ -188,6 +188,15 @@ CmdAllocator::CmdAllocator(
     // memory heaps selected.
     m_sysAllocInfo.allocCreateInfo = m_gpuAllocInfo[CommandDataAlloc].allocCreateInfo;
     m_sysAllocInfo.allocCreateInfo.memObjCreateInfo.heapCount = 0;
+
+    ResourceDescriptionCmdAllocator desc = {};
+    desc.pCreateInfo = &createInfo;
+    ResourceCreateEventData data = {};
+    data.type = ResourceType::CmdAllocator;
+    data.pResourceDescData = static_cast<void*>(&desc);
+    data.resourceDescSize = sizeof(ResourceDescriptionCmdAllocator);
+    data.pObj = this;
+    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 }
 
 // =====================================================================================================================
@@ -195,6 +204,10 @@ CmdAllocator::CmdAllocator(
 // all chunks by now; if not they will suddenly find themselves without any valid chunks.
 CmdAllocator::~CmdAllocator()
 {
+    ResourceDestroyEventData data = {};
+    data.pObj = this;
+    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+
     // We must explicitly invoke the mutexes' destructors because we created them using placement new.
     if (m_pChunkLock != nullptr)
     {
@@ -778,7 +791,11 @@ void CmdAllocator::LogCommit(
     {
         0,        // EngineTypeUniversal
         2,        // EngineTypeCompute
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
         2,        // EngineTypeExclusiveCompute
+#else
+        UINT_MAX,
+#endif
         3,        // EngineTypeDma,
         UINT_MAX, // EngineTypeTimer
     };

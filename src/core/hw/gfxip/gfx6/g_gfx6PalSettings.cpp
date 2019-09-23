@@ -22,6 +22,7 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
@@ -139,6 +140,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.gfx8CheckMetaDataFetchFromStartMip = 0x3;
     m_settings.gfx8IgnoreMipInterleave = false;
     m_settings.waMiscGsNullPrim = false;
+    m_settings.waRotatedSwizzleDisablesOverwriteCombiner = false;
+    m_settings.waLogicOpDisablesOverwriteCombiner = false;
     m_settings.numSettings = g_gfx6PalNumSettings;
 }
 
@@ -557,6 +560,16 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waMiscGsNullPrim,
                            InternalSettingScope::PrivatePalGfx6Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaRotatedSwizzleDisablesOverwriteCombinerStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waRotatedSwizzleDisablesOverwriteCombiner,
+                           InternalSettingScope::PrivatePalGfx6Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLogicOpDisablesOverwriteCombinerStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waLogicOpDisablesOverwriteCombiner,
+                           InternalSettingScope::PrivatePalGfx6Key);
+
 }
 
 // =====================================================================================================================
@@ -568,6 +581,16 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaMiscGsNullPrimStr,
                            Util::ValueType::Boolean,
                            &m_settings.waMiscGsNullPrim,
+                           InternalSettingScope::PrivatePalGfx6Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaRotatedSwizzleDisablesOverwriteCombinerStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waRotatedSwizzleDisablesOverwriteCombiner,
+                           InternalSettingScope::PrivatePalGfx6Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLogicOpDisablesOverwriteCombinerStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waLogicOpDisablesOverwriteCombiner,
                            InternalSettingScope::PrivatePalGfx6Key);
 
 }
@@ -988,6 +1011,16 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.waMiscGsNullPrim);
     m_settingsInfoMap.Insert(203570314, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waRotatedSwizzleDisablesOverwriteCombiner;
+    info.valueSize = sizeof(m_settings.waRotatedSwizzleDisablesOverwriteCombiner);
+    m_settingsInfoMap.Insert(863498563, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waLogicOpDisablesOverwriteCombiner;
+    info.valueSize = sizeof(m_settings.waLogicOpDisablesOverwriteCombiner);
+    m_settingsInfoMap.Insert(2566203469, info);
+
 }
 
 // =====================================================================================================================
@@ -1009,7 +1042,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx6PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx6PalJsonData);
-            component.settingsDataHash = 854593263;
+            component.settingsDataHash = 1039112311;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

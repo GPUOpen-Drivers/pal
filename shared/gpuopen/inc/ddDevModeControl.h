@@ -74,10 +74,10 @@ DD_NETWORK_STRUCT(DevModeResponseHeader, 4)
     DevModeCmd cmd       = DevModeCmd::Unknown; /// The devmode command to be executed
     Result     result    = Result::Error;       /// The result of the devmode command execution
 
-    uint32     reserved0 = 0;                   /// Reserved for future use (Program to zero)
     uint32     reserved1 = 0;                   /// Reserved for future use (Program to zero)
+    uint32     reserved0 = 0;                   /// Reserved for future use (Program to zero)
 
-    static constexpr DevModeResponseHeader FromCmd(DevModeCmd devModeCmd)
+    static DevModeResponseHeader FromCmd(DevModeCmd devModeCmd)
     {
         DevModeResponseHeader header;
         header.cmd = devModeCmd;
@@ -130,6 +130,12 @@ union DeveloperModeFlags
         uint32 reserved             : 30; // Reserved for future use
     } flags;
     uint32 u32All;
+
+    constexpr DeveloperModeFlags()
+        : u32All(0)
+    {
+    }
+
 };
 
 ///////////////////////

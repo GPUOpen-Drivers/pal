@@ -1380,7 +1380,7 @@
         "Command Buffer"
       ],
       "Defaults": {
-        "Default": "CmdBufForceCpuUpdatePathDefault"
+        "Default": "CmdBufForceCpuUpdatePathOn"
       },
       "Scope": "PrivatePalKey",
       "Type": "enum",

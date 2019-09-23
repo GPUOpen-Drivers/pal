@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "palAssert.h"
+#include "core/eventDefs.h"
 #include "core/device.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/indirectCmdGenerator.h"
@@ -141,11 +142,22 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     memset(&m_propertiesSrd[0], 0, sizeof(m_propertiesSrd));
     memset(&m_paramBufSrd[0], 0, sizeof(m_paramBufSrd));
     memset(&m_touchedUserData[0], 0, sizeof(m_touchedUserData));
+
+    ResourceCreateEventData data = {};
+    data.type = ResourceType::IndirectCmdGenerator;
+    data.pResourceDescData = nullptr;
+    data.resourceDescSize = 0;
+    data.pObj = this;
+    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 }
 
 // =====================================================================================================================
 void IndirectCmdGenerator::Destroy()
 {
+    ResourceDestroyEventData data = {};
+    data.pObj = this;
+    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+
     this->~IndirectCmdGenerator();
 }
 
@@ -175,6 +187,12 @@ Result IndirectCmdGenerator::BindGpuMemory(
     if (result == Result::Success)
     {
         m_gpuMemory.Update(pGpuMemory, offset);
+
+        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
+            this,
+            m_gpuMemSize,
+            pGpuMemory,
+            offset);
     }
 
     return result;

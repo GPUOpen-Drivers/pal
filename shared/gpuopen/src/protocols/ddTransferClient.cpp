@@ -24,7 +24,6 @@
  **********************************************************************************************************************/
 
 #include "protocols/ddTransferClient.h"
-#include <cstring>
 
 #define TRANSFER_CLIENT_MIN_VERSION 1
 #define TRANSFER_CLIENT_MAX_VERSION 2
@@ -223,7 +222,7 @@ namespace DevDriver
                             else
                             {
                                 // Failed to receive a transfer data chunk. Fail the transfer.
-                                DD_ALERT_REASON("Pull transfer session received invalid data");
+                                DD_WARN_REASON("Pull transfer session received invalid data");
                                 m_transferContext.state = TransferState::Error;
                             }
                         }

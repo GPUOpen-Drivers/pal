@@ -99,7 +99,8 @@ Platform::Platform(
     m_pClientPrivateData(nullptr),
     m_svmRangeStart(0),
     m_maxSvmSize(createInfo.maxSvmSize),
-    m_logCb()
+    m_logCb(),
+    m_eventProvider(this)
 {
     memset(&m_pDevice[0], 0, sizeof(m_pDevice));
     memset(&m_properties, 0, sizeof(m_properties));
@@ -377,6 +378,20 @@ Result Platform::Init()
 }
 
 // =====================================================================================================================
+//
+void Platform::EnableEventLoggingToFile()
+{
+    const auto& settings = PlatformSettings();
+    char fileNameAndPath[1024] = {};
+    Util::Snprintf(&fileNameAndPath[0],
+        sizeof(fileNameAndPath),
+        "%s%s",
+        &settings.eventLogDirectory[0],
+        &settings.eventLogFilename);
+    m_eventProvider.EnableFileLogging(&fileNameAndPath[0]);
+}
+
+// =====================================================================================================================
 // Initializes a connection with the developer driver message bus if it's currently enabled on the system.
 // This function should be called before device enumeration.
 Result Platform::EarlyInitDevDriver()
@@ -470,12 +485,35 @@ Result Platform::EarlyInitDevDriver()
         }
     }
 
-    // Initialize Platform settings
+    // Initialize Platform settings and the event provider
     Result ret = m_settingsLoader.Init();
+
+    if (ret == Result::Success)
+    {
+        ret = m_eventProvider.Init();
+
+        // Check the setting to determine if we should turn on event logging to file
+        if (ret == Result::Success)
+        {
+            if (PlatformSettings().enableEventLogFile == true)
+            {
+                EnableEventLoggingToFile();
+            }
+        }
+    }
 
     if (m_pDevDriverServer != nullptr)
     {
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
         m_pDevDriverServer->StartDeviceInit();
+#else
+        DevDriver::DriverControlProtocol::DriverControlServer* pDriverControlServer =
+            m_pDevDriverServer->GetDriverControlServer();
+
+        PAL_ASSERT(pDriverControlServer != nullptr);
+
+        pDriverControlServer->StartEarlyDeviceInit();
+#endif
     }
 
     return ret;
@@ -496,13 +534,21 @@ void Platform::LateInitDevDriver()
         // during initialization, the associated object should always be valid.
         PAL_ASSERT(pDriverControlServer != nullptr);
 
-        // Set up the callbacks for changing the device clock
+        // Set up the callbacks for changing the device clock.
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION
         DevDriver::DriverControlProtocol::DeviceClockCallbackInfo deviceClockCallbackInfo = {};
 
         deviceClockCallbackInfo.queryClockCallback = QueryClockCallback;
         deviceClockCallbackInfo.queryMaxClockCallback = QueryMaxClockCallback;
         deviceClockCallbackInfo.setCallback = SetClockModeCallback;
         deviceClockCallbackInfo.pUserdata = this;
+#else
+        DevDriver::DriverControlProtocol::DeviceClockCallbackInfo deviceClockCallbackInfo = {};
+
+        deviceClockCallbackInfo.queryClockCallback = QueryClockCallback;
+        deviceClockCallbackInfo.setCallback = SetClockModeCallback;
+        deviceClockCallbackInfo.pUserdata = this;
+#endif
 
         pDriverControlServer->SetNumGpus(m_deviceCount);
 
@@ -521,6 +567,20 @@ void Platform::LateInitDevDriver()
     // And then before finishing init we have an opportunity to override the settings default values based on
     // runtime info
     m_settingsLoader.OverrideDefaults();
+
+    // Late init only needs to be performed if we actually set up the developer driver object earlier.
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
+    if (m_pDevDriverServer != nullptr)
+    {
+        DevDriver::DriverControlProtocol::DriverControlServer* pDriverControlServer =
+            m_pDevDriverServer->GetDriverControlServer();
+
+        PAL_ASSERT(pDriverControlServer != nullptr);
+
+        // Step the driver control server into the Late Device Init stage.
+        pDriverControlServer->StartLateDeviceInit();
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -535,6 +595,50 @@ void Platform::DestroyDevDriver()
 
         m_pDevDriverServer->Destroy();
         PAL_SAFE_DELETE(m_pDevDriverServer, this);
+    }
+}
+
+// =====================================================================================================================
+// Forwards event logging calls to the event provider.
+void Platform::LogEvent(
+    PalEvent    eventId,
+    const void* pEventData,
+    uint32      eventDataSize)
+{
+    switch(eventId)
+    {
+    case PalEvent::CreateGpuMemory:
+    case PalEvent::DestroyGpuMemory:
+    case PalEvent::GpuMemoryResourceBind:
+    case PalEvent::GpuMemoryCpuMap:
+    case PalEvent::GpuMemoryCpuUnmap:
+    case PalEvent::GpuMemoryAddReference:
+    case PalEvent::GpuMemoryRemoveReference:
+        // These functions are not currently supported/expected through the PAL interface
+        PAL_ASSERT_ALWAYS();
+        break;
+    case PalEvent::GpuMemoryResourceCreate:
+        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(ResourceCreateEventData)));
+        m_eventProvider.LogGpuMemoryResourceCreateEvent(*(static_cast<const ResourceCreateEventData*>(pEventData)));
+        break;
+    case PalEvent::GpuMemoryResourceDestroy:
+        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(ResourceDestroyEventData)));
+        m_eventProvider.LogGpuMemoryResourceDestroyEvent(*(static_cast<const ResourceDestroyEventData*>(pEventData)));
+        break;
+    case PalEvent::GpuMemoryMisc:
+        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(MiscEventData)));
+        m_eventProvider.LogGpuMemoryMiscEvent(*(static_cast<const MiscEventData*>(pEventData)));
+        break;
+    case PalEvent::GpuMemorySnapshot:
+        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(GpuMemorySnapshotEventData)));
+        m_eventProvider.LogGpuMemorySnapshotEvent(*(static_cast<const GpuMemorySnapshotEventData*>(pEventData)));
+        break;
+    case PalEvent::DebugName:
+        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(DebugNameEventData)));
+        m_eventProvider.LogDebugNameEvent(*(static_cast<const DebugNameEventData*>(pEventData)));
+        break;
+    default:
+        PAL_ASSERT_ALWAYS_MSG("Unhandled PalEvent type");
     }
 }
 

@@ -309,6 +309,12 @@ public:
     IPlatform* GetNextLayer() const { return m_pNextLayer; }
     const char* LogDirPath() const { return m_logDirPath; }
 
+    virtual void LogEvent(
+        PalEvent    eventId,
+        const void* pEventData,
+        uint32      eventDataSize) override
+    { m_pNextLayer->LogEvent(eventId, pEventData, eventDataSize); }
+
 protected:
     virtual ~PlatformDecorator();
 
@@ -1448,23 +1454,10 @@ public:
     }
 
     virtual void CmdScaledCopyImage(
-        const ScaledCopyInfo&        copyInfo) override
-    {
-        ScaledCopyInfo nextCopyInfo = {};
+        const ScaledCopyInfo& copyInfo) override;
 
-        nextCopyInfo.pSrcImage      = NextImage(copyInfo.pSrcImage);
-        nextCopyInfo.srcImageLayout = copyInfo.srcImageLayout;
-        nextCopyInfo.pDstImage      = NextImage(copyInfo.pDstImage);
-        nextCopyInfo.dstImageLayout = copyInfo.dstImageLayout;
-        nextCopyInfo.regionCount    = copyInfo.regionCount;
-        nextCopyInfo.pRegions       = copyInfo.pRegions;
-        nextCopyInfo.filter         = copyInfo.filter;
-        nextCopyInfo.rotation       = copyInfo.rotation;
-        nextCopyInfo.pColorKey      = copyInfo.pColorKey;
-        nextCopyInfo.flags          = copyInfo.flags;
-
-        m_pNextLayer->CmdScaledCopyImage(nextCopyInfo);
-    }
+    virtual void CmdGenerateMipmaps(
+        const GenMipmapsInfo& genInfo) override;
 
     virtual void CmdColorSpaceConversionCopy(
         const IImage&                     srcImage,
@@ -1954,6 +1947,9 @@ public:
 
     virtual void CmdCommentString(const char* pComment) override
         { return m_pNextLayer->CmdCommentString(pComment); }
+
+    virtual uint32 CmdInsertExecutionMarker() override
+        { return m_pNextLayer->CmdInsertExecutionMarker(); }
 
     virtual void CmdPostProcessFrame(
         const CmdPostProcessFrameInfo& postProcessInfo,

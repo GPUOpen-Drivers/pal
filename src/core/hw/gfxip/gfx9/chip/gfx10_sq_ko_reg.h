@@ -37,7 +37,7 @@ union sq_buf_rsrc_t {
         uint64_t dst_sel_z                                                    :  3;
         uint64_t dst_sel_w                                                    :  3;
         uint64_t format                                                       :  7;
-        uint64_t _reserved_116_115                                            :  2;
+        uint64_t                                                              :  2;
         uint64_t index_stride                                                 :  2;
         uint64_t add_tid_enable                                               :  1;
         uint64_t resource_level                                               :  1;
@@ -45,12 +45,6 @@ union sq_buf_rsrc_t {
         uint64_t oob_select                                                   :  2;
         uint64_t type                                                         :  2;
     };
-    struct {
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 57;
-        uint64_t _reserved_123_121                                            :  3;
-        uint64_t                                                              :  4;
-    } nv10;
     uint64_t u64All[2];
 
 };
@@ -60,11 +54,11 @@ union sq_img_rsrc_t {
         uint64_t base_address                                                 : 40;
         uint64_t min_lod                                                      : 12;
         uint64_t format                                                       :  9;
-        uint64_t _reserved_61_61                                              :  1;
+        uint64_t                                                              :  1;
         uint64_t width_lo                                                     :  2;
         uint64_t width_hi                                                     : 14;
         uint64_t height                                                       : 16;
-        uint64_t _reserved_94_94                                              :  1;
+        uint64_t                                                              :  1;
         uint64_t resource_level                                               :  1;
         uint64_t dst_sel_x                                                    :  3;
         uint64_t dst_sel_y                                                    :  3;
@@ -103,20 +97,10 @@ union sq_img_rsrc_t {
         uint64_t                                                              : 64;
         uint64_t                                                              : 58;
         uint64_t prt_default                                                  :  1;
-        uint64_t _reserved_190_187                                            :  4;
+        uint64_t                                                              :  4;
         uint64_t big_page                                                     :  1;
         uint64_t                                                              : 64;
     } gfx101Plus;
-    struct {
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 56;
-        uint64_t _reserved_184_184                                            :  1;
-        uint64_t                                                              :  7;
-        uint64_t                                                              :  8;
-        uint64_t _reserved_201_200                                            :  2;
-        uint64_t                                                              : 54;
-    } nv10;
     uint64_t u64All[4];
 
 };
@@ -192,13 +176,6 @@ union sq_img_samp_t {
         uint64_t                                                              : 18;
         uint64_t border_color_type                                            :  2;
     };
-    struct {
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 44;
-        unsigned int                                                              : 16;
-        uint64_t _reserved_125_124                                            :  2;
-        uint64_t                                                              :  2;
-    } taGradAdj;
     uint64_t u64All[2];
 
 };

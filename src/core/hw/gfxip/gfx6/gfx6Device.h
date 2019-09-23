@@ -214,10 +214,10 @@ public:
     virtual size_t GetColorTargetViewSize(
         Result* pResult) const override;
     virtual Result CreateColorTargetView(
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo,
-        void*                                    pPlacementAddr,
-        IColorTargetView**                       ppColorTargetView) const override;
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo,
+        void*                             pPlacementAddr,
+        IColorTargetView**                ppColorTargetView) const override;
 
     virtual size_t GetDepthStencilViewSize(
         Result* pResult) const override;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,9 @@ namespace SettingsURIService
 DD_STATIC_CONST uint32 kMaxComponentNameStrLen = 64;
 // Set a reasonable max size limit for setting value of 1MB
 DD_STATIC_CONST uint32 kMaxSettingValueSize = 0x100000;
+
+// Key name for the JSON response to the components command
+DD_STATIC_CONST const char* Components_ComponentsKey = "components";
 
 // We define the basic data types in this struct, components are free to extend this enumeration to include
 // additional/custom types.

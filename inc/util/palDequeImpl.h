@@ -43,8 +43,6 @@ namespace Util
 template<typename T, typename Allocator>
 PAL_INLINE DequeBlockHeader* Deque<T, Allocator>::AllocateNewBlock()
 {
-    constexpr size_t ElementsPerBlock = 256;
-
     DequeBlockHeader* pNewBlock = nullptr;
 
     if (m_pLazyFreeHeader != nullptr)
@@ -59,7 +57,7 @@ PAL_INLINE DequeBlockHeader* Deque<T, Allocator>::AllocateNewBlock()
     }
     else
     {
-        const size_t blockSize   = ElementsPerBlock * sizeof(T);
+        const size_t blockSize   = m_numElementsPerBlock * sizeof(T);
         const size_t sizeToAlloc = sizeof(DequeBlockHeader) + blockSize;
 
         pNewBlock = static_cast<DequeBlockHeader*>(PAL_MALLOC(sizeToAlloc, m_pAllocator, AllocInternal));

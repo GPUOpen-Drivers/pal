@@ -227,7 +227,10 @@ public:
         const TypedBufferCopyRegion* pRegions) override;
 
     virtual void CmdScaledCopyImage(
-        const ScaledCopyInfo&        copyInfo) override;
+        const ScaledCopyInfo& copyInfo) override;
+
+    virtual void CmdGenerateMipmaps(
+        const GenMipmapsInfo& genInfo) override;
 
     virtual void CmdColorSpaceConversionCopy(
         const IImage&                     srcImage,
@@ -399,6 +402,8 @@ public:
     bool IsGraphicsSupported() const
         { return Util::TestAnyFlagSet(m_engineSupport, CmdBufferEngineSupport::Graphics); }
 
+    bool IsComputeStateSaved() const { return (m_computeStateFlags != 0); }
+
     virtual void CmdOverwriteRbPlusFormatForBlits(
         SwizzledFormat format,
         uint32         targetIndex) = 0;
@@ -486,6 +491,8 @@ protected:
     void SetComputeState(const ComputeState& newComputeState, uint32 stateFlags);
 
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) = 0;
+
+    virtual bool SupportsExecutionMarker() { return true; }
 
     uint32            m_engineSupport;       // Indicates which engines are supported by the command buffer.
                                              // Populated by the GFXIP-specific layer.

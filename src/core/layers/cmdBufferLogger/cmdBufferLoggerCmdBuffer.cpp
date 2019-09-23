@@ -1796,6 +1796,93 @@ static const char* HwPipePointToString(
 }
 
 // =====================================================================================================================
+static const void AppendPipelineStageFlagToString(
+    char*  pString,
+    uint32 pipeStages)
+{
+    const char* PipeStageNames[] =
+    {
+        "PipelineStageTopOfPipe",
+        "PipelineStageFetchIndirectArgs",
+        "PipelineStageFetchIndices",
+        "PipelineStageVs",
+        "PipelineStageHs",
+        "PipelineStageDs",
+        "PipelineStageGs",
+        "PipelineStagePs",
+        "PipelineStageEarlyDsTarget",
+        "PipelineStageLateDsTarget",
+        "PipelineStageColorTarget",
+        "PipelineStageCs",
+        "PipelineStageBlt",
+        "PipelineStageBottomOfPipe",
+    };
+
+    bool firstOneDumped = false;
+
+    for (uint32 i = 0; i < ArrayLen(PipeStageNames); i++)
+    {
+        if ((pipeStages & (1 << i)) != 0)
+        {
+            const char*  pDelimiter    = firstOneDumped ? " || " : "";
+            const size_t currentLength = strlen(pString);
+            Snprintf(pString + currentLength, StringLength - currentLength, "%s%s", pDelimiter, PipeStageNames[i]);
+            firstOneDumped = true;
+        }
+    }
+
+    if (firstOneDumped == false)
+    {
+        const size_t currentLength = strlen(pString);
+        Snprintf(pString + currentLength, StringLength - currentLength, "None");
+    }
+}
+
+// =====================================================================================================================
+static const void AppendCacheCoherencyUsageToString(
+    char*  pString,
+    uint32 accessMask)
+{
+    const char* CacheCoherUsageNames[] =
+    {
+        "CoherCpu",
+        "CoherShader",
+        "CoherCopy",
+        "CoherColorTarget",
+        "CoherDepthStencilTarget",
+        "CoherResolve",
+        "CoherClear",
+        "CoherIndirectArgs",
+        "CoherIndexData",
+        "CoherQueueAtomic",
+        "CoherTimestamp",
+        "CoherCeLoad",
+        "CoherCeDump",
+        "CoherStreamOut",
+        "CoherMemory",
+    };
+
+    bool firstOneDumped = false;
+
+    for (uint32 i = 0; i < ArrayLen(CacheCoherUsageNames); i++)
+    {
+        if ((accessMask & (1 << i)) != 0)
+        {
+            const char*  pDelimiter    = firstOneDumped ? " || " : "";
+            const size_t currentLength = strlen(pString);
+            Snprintf(pString + currentLength, StringLength - currentLength, "%s%s", pDelimiter, CacheCoherUsageNames[i]);
+            firstOneDumped = true;
+        }
+    }
+
+    if (firstOneDumped == false)
+    {
+        const size_t currentLength = strlen(pString);
+        Snprintf(pString + currentLength, StringLength - currentLength, "None");
+    }
+}
+
+// =====================================================================================================================
 static const char* BarrierReasonToString(
     uint32 reason)
 {
@@ -2047,7 +2134,7 @@ static void CmdBarrierToString(
     }
     else
     {
-        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X", barrierInfo.reason);
+        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
@@ -2376,24 +2463,26 @@ static void MemoryBarrierTransitionToString(
     Snprintf(&string[0], StringLength, "barrierInfo.pMemoryBarriers[%u] = {", index);
     pCmdBuffer->CmdCommentString(&string[0]);
 
-    pCmdBuffer->CmdCommentString("\tmemory = [");
+    pCmdBuffer->CmdCommentString("\tGpuMemSubAllocInfo = [");
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
     DumpGpuMemoryInfo(pCmdBuffer, transition.memory.pGpuMemory, "Bound GpuMemory", "\t\t");
 
-    Snprintf(pString, StringLength, "%s\t offset = 0x%016llX", "Bound GpuMemory", transition.memory.offset);
+    Snprintf(pString, StringLength, "\t\t%s offset = 0x%016llX", "Bound GpuMemory", transition.memory.offset);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-    Snprintf(pString, StringLength, "%s\t Size   = 0x%016llX", "Bound GpuMemory", transition.memory.size);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    pCmdBuffer->CmdCommentString("\t]");
-
-    Snprintf(pString, StringLength, "srcAccessMask = 0x%0X", transition.srcAccessMask);
+    Snprintf(pString, StringLength, "\t\t%s Size   = 0x%016llX", "Bound GpuMemory", transition.memory.size);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "dstAccessMask = 0x%0X", transition.dstAccessMask);
+    pCmdBuffer->CmdCommentString("\t] // GpuMemSubAllocInfo");
+
+    Snprintf(pString, StringLength, "\tsrcAccessMask = ");
+    AppendCacheCoherencyUsageToString(pString, transition.srcAccessMask);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "\tdstAccessMask = ");
+    AppendCacheCoherencyUsageToString(pString, transition.dstAccessMask);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
     pCmdBuffer->CmdCommentString("}");
@@ -2423,21 +2512,23 @@ static void ImageBarrierTransitionToString(
         Snprintf(&string[0], StringLength, "\t\tsubresRange = %s", pString);
         pNextCmdBuffer->CmdCommentString(&string[0]);
 
-        pNextCmdBuffer->CmdCommentString("\tBox = {");
+        pNextCmdBuffer->CmdCommentString("\t\tBox = {");
 
-        Snprintf(pString, StringLength, "\t\t");
+        Snprintf(pString, StringLength, "\t\t\t");
         Offset3dToString(transition.box.offset, pString);
         pNextCmdBuffer->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "\t\t");
+        Snprintf(pString, StringLength, "\t\t\t");
         Extent3dToString(transition.box.extent, pString);
         pNextCmdBuffer->CmdCommentString(pString);
 
-        pNextCmdBuffer->CmdCommentString("\t}");
+        pNextCmdBuffer->CmdCommentString("\t\t}");
 
-        Snprintf(pString, StringLength, "srcAccessMask = 0x%0X", transition.srcAccessMask);
+        Snprintf(pString, StringLength, "\t\tsrcAccessMask = ");
+        AppendCacheCoherencyUsageToString(pString, transition.srcAccessMask);
         pNextCmdBuffer->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "dstAccessMask = 0x%0X", transition.dstAccessMask);
+        Snprintf(pString, StringLength, "\t\tdstAccessMask = ");
+        AppendCacheCoherencyUsageToString(pString, transition.dstAccessMask);
         pNextCmdBuffer->CmdCommentString(pString);
 
         Snprintf(&string[0], StringLength, "\t\toldLayout = ");
@@ -2472,18 +2563,20 @@ static void CmdReleaseToString(
     const IGpuEvent*          pGpuEvent)
 {
     ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
-    pNextCmdBuffer->CmdCommentString("AcquireReleaseInfo:");
+    pNextCmdBuffer->CmdCommentString("ReleaseInfo:");
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.srcStageMask = 0x%0X", barrierInfo.srcStageMask);
+    Snprintf(pString, StringLength, "acquireReleaseInfo.srcStageMask = ");
+    AppendPipelineStageFlagToString(pString, barrierInfo.srcStageMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.srcGlobalAccessMask = 0x%0X", barrierInfo.srcGlobalAccessMask);
+    Snprintf(pString, StringLength, "releaseInfo.srcGlobalAccessMask = ");
+    AppendCacheCoherencyUsageToString(pString, barrierInfo.srcGlobalAccessMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "barrierInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
+    Snprintf(pString, StringLength, "releaseInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
     pNextCmdBuffer->CmdCommentString(pString);
 
     for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
@@ -2491,7 +2584,7 @@ static void CmdReleaseToString(
         MemoryBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pMemoryBarriers[i], pString);
     }
 
-    Snprintf(pString, StringLength, "barrierInfo.imageBarrierCount = %u", barrierInfo.imageBarrierCount);
+    Snprintf(pString, StringLength, "releaseInfo.imageBarrierCount = %u", barrierInfo.imageBarrierCount);
     pNextCmdBuffer->CmdCommentString(pString);
 
     for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
@@ -2508,11 +2601,11 @@ static void CmdReleaseToString(
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
     {
-        Snprintf(pString, StringLength, "barrierInfo.reason = %s", pReasonStr);
+        Snprintf(pString, StringLength, "releaseInfo.reason = %s", pReasonStr);
     }
     else
     {
-        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X", barrierInfo.reason);
+        Snprintf(pString, StringLength, "releaseInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 #endif
@@ -2528,23 +2621,33 @@ static void CmdAcquireToString(
     const IGpuEvent*const*    ppGpuEvents)
 {
     ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
-    pNextCmdBuffer->CmdCommentString("AcquireReleaseInfo:");
+    pNextCmdBuffer->CmdCommentString("AcquireInfo:");
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.dstStageMask = 0x%0X", barrierInfo.dstStageMask);
+    Snprintf(pString, StringLength, "acquireReleaseInfo.dstStageMask = ");
+    AppendPipelineStageFlagToString(pString, barrierInfo.dstStageMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.dstGlobalAccessMask = 0x%0X", barrierInfo.dstGlobalAccessMask);
+    Snprintf(pString, StringLength, "acquireInfo.dstGlobalAccessMask = ");
+    AppendCacheCoherencyUsageToString(pString, barrierInfo.dstGlobalAccessMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "barrierInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
+    Snprintf(pString, StringLength, "acquireInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
     pNextCmdBuffer->CmdCommentString(pString);
 
     for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
     {
         MemoryBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pMemoryBarriers[i], pString);
+    }
+
+    Snprintf(pString, StringLength, "acquireInfo.imageBarrierCount = %u", barrierInfo.imageBarrierCount);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+    {
+        ImageBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pImageBarriers[i], pString);
     }
 
     Snprintf(pString, StringLength, "gpuEventCount = %u", gpuEventCount);
@@ -2562,11 +2665,11 @@ static void CmdAcquireToString(
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
     {
-        Snprintf(pString, StringLength, "barrierInfo.reason = %s", pReasonStr);
+        Snprintf(pString, StringLength, "acquireInfo.reason = %s", pReasonStr);
     }
     else
     {
-        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X", barrierInfo.reason);
+        Snprintf(pString, StringLength, "acquireInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 #endif
@@ -2585,16 +2688,20 @@ static void CmdAcquireReleaseToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.srcStageMask = 0x%0X", barrierInfo.srcStageMask);
+    Snprintf(pString, StringLength, "acquireReleaseInfo.srcStageMask = ");
+    AppendPipelineStageFlagToString(pString, barrierInfo.srcStageMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.dstStageMask = 0x%0X", barrierInfo.dstStageMask);
+    Snprintf(pString, StringLength, "acquireReleaseInfo.dstStageMask = ");
+    AppendPipelineStageFlagToString(pString, barrierInfo.dstStageMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.srcGlobalAccessMask = 0x%0X", barrierInfo.srcGlobalAccessMask);
+    Snprintf(pString, StringLength, "acquireReleaseInfo.srcGlobalAccessMask = ");
+    AppendCacheCoherencyUsageToString(pString, barrierInfo.srcGlobalAccessMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.dstGlobalAccessMask = 0x%0X", barrierInfo.dstGlobalAccessMask);
+    Snprintf(pString, StringLength, "acquireReleaseInfo.dstGlobalAccessMask = ");
+    AppendCacheCoherencyUsageToString(pString, barrierInfo.dstGlobalAccessMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "barrierInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
@@ -2621,7 +2728,7 @@ static void CmdAcquireReleaseToString(
     }
     else
     {
-        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X", barrierInfo.reason);
+        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 #endif
@@ -2732,8 +2839,6 @@ void CmdBuffer::CmdAcquire(
         {
             ppNextGpuEvents[i] = NextGpuEvent(ppGpuEvents[i]);
         }
-
-        nextAcquireInfo.pImageBarriers = pImageBarriers;
     }
 
     GetNextLayer()->CmdAcquire(nextAcquireInfo, gpuEventCount, ppNextGpuEvents);
@@ -3410,7 +3515,7 @@ void CmdBuffer::CmdCopyImage(
 
 // =====================================================================================================================
 void CmdBuffer::CmdScaledCopyImage(
-    const ScaledCopyInfo&        copyInfo)
+    const ScaledCopyInfo& copyInfo)
 {
     if (m_annotations.logCmdBlts)
     {
@@ -3423,20 +3528,41 @@ void CmdBuffer::CmdScaledCopyImage(
         // TODO: Add comment string.
     }
 
-    ScaledCopyInfo nextCopyInfo = {};
-
+    ScaledCopyInfo nextCopyInfo = copyInfo;
     nextCopyInfo.pSrcImage      = NextImage(copyInfo.pSrcImage);
-    nextCopyInfo.srcImageLayout = copyInfo.srcImageLayout;
     nextCopyInfo.pDstImage      = NextImage(copyInfo.pDstImage);
-    nextCopyInfo.dstImageLayout = copyInfo.dstImageLayout;
-    nextCopyInfo.regionCount    = copyInfo.regionCount;
-    nextCopyInfo.pRegions       = copyInfo.pRegions;
-    nextCopyInfo.filter         = copyInfo.filter;
-    nextCopyInfo.rotation       = copyInfo.rotation;
-    nextCopyInfo.pColorKey      = copyInfo.pColorKey;
-    nextCopyInfo.flags          = copyInfo.flags;
 
     GetNextLayer()->CmdScaledCopyImage(nextCopyInfo);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdGenerateMipmaps(
+    const GenMipmapsInfo& genInfo)
+{
+    if (m_annotations.logCmdBlts)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdGenerateMipmaps));
+        DumpImageInfo(this, genInfo.pImage, "image", "");
+        DumpImageLayout(this, genInfo.baseMipLayout, "baseMipLayout");
+        DumpImageLayout(this, genInfo.genMipLayout, "genMipLayout");
+
+        // TODO: Add comment string.
+    }
+
+    GenMipmapsInfo nextGenInfo = genInfo;
+    nextGenInfo.pImage         = NextImage(genInfo.pImage);
+
+    GetNextLayer()->CmdGenerateMipmaps(nextGenInfo);
 
     if (m_singleStep.waitIdleBlts)
     {
@@ -4929,6 +5055,16 @@ void CmdBuffer::CmdCommentString(
     const char* pComment)
 {
     GetNextLayer()->CmdCommentString(pComment);
+}
+
+// =====================================================================================================================
+uint32 CmdBuffer::CmdInsertExecutionMarker()
+{
+    if (m_annotations.logMiscellaneous)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdInsertExecutionMarker));
+    }
+    return GetNextLayer()->CmdInsertExecutionMarker();
 }
 
 // =====================================================================================================================

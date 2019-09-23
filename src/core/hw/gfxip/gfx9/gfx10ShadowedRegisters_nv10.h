@@ -49,10 +49,6 @@ const RegisterRange Nv10ContextShadowRange[] =
         (mmPA_SC_TILE_STEERING_OVERRIDE - mmPA_SC_WINDOW_OFFSET + 1),
     },
     {
-        (Gfx101::mmPA_SC_RIGHT_VERT_GRID - CONTEXT_SPACE_START),
-        (Gfx101::mmPA_SC_FOV_WINDOW_TB - Gfx101::mmPA_SC_RIGHT_VERT_GRID + 1),
-    },
-    {
         (mmVGT_MULTI_PRIM_IB_RESET_INDX - CONTEXT_SPACE_START),
         (Gfx10::mmCB_RMI_GL2_CACHE_CONTROL - mmVGT_MULTI_PRIM_IB_RESET_INDX + 1),
     },

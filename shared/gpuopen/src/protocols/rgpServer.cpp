@@ -25,7 +25,6 @@
 
 #include "protocols/rgpServer.h"
 #include "msgChannel.h"
-#include <cstring>
 
 #include "util/queue.h"
 
@@ -456,7 +455,7 @@ namespace DevDriver
                                 else
                                 {
                                     // We should only ever receive abort requests in this state.
-                                    DD_ALERT_ALWAYS();
+                                    DD_WARN_ALWAYS();
                                 }
                             }
                         }

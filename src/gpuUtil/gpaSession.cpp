@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "gpaSessionPerfSample.h"
 #include "palCmdAllocator.h"
 #include "palCmdBuffer.h"
 #include "palDequeImpl.h"
@@ -37,8 +38,7 @@
 #include "palSysMemory.h"
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
-#include "gpaSessionPerfSample.h"
-#include "gpuUtil/sqtt_file_format.h"
+#include "sqtt_file_format.h"
 #include <ctime>
 
 using namespace Pal;
@@ -139,10 +139,16 @@ static const SqttEngineType PalEngineTypeToSqttEngineType[] =
 {
     SQTT_ENGINE_TYPE_UNIVERSAL,               // EngineTypeUniversal
     SQTT_ENGINE_TYPE_COMPUTE,                 // EngineTypeCompute
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     SQTT_ENGINE_TYPE_EXCLUSIVE_COMPUTE,       // EngineTypeExclusiveCompute
+#else
+    SQTT_ENGINE_TYPE_UNKNOWN,
+#endif
     SQTT_ENGINE_TYPE_DMA,                     // EngineTypeDma
     SQTT_ENGINE_TYPE_UNKNOWN,                 // EngineTypeTimer
+#if   PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     SQTT_ENGINE_TYPE_HIGH_PRIORITY_UNIVERSAL, // EngineTypeHighPriorityUniversal
+#endif
 };
 
 static_assert(Util::ArrayLen(PalEngineTypeToSqttEngineType) == Pal::EngineTypeCount,

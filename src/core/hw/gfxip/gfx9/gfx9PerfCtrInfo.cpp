@@ -102,40 +102,6 @@ enum Gfx10SpmSeBlockSelect : uint32
     Gfx10SpmSeBlockSelectGl1cg = 13
 };
 
-// =====================================================================================================================
-// A helper function which finds the proper SC max event ID.
-static uint32 GetScMaxEventId(
-    const Pal::Device& device)
-{
-    uint32 maxEventId = 0;
-
-    if (IsGfx9(device))
-    {
-        if (IsVega12(device))
-        {
-            maxEventId = MaxScPerfcntSelVg12;
-        }
-        else if (IsVega20(device))
-        {
-            maxEventId = MaxScPerfcntSelVg20;
-        }
-        else if (IsRaven2(device))
-        {
-            maxEventId = MaxScPerfcntSelRv2x;
-        }
-        else
-        {
-            maxEventId = MaxScPerfcntSelGfx09_0;
-        }
-    }
-    else
-    {
-        maxEventId = MaxScPerfcntSelGfx101Plus;
-    }
-
-    return maxEventId;
-}
-
 // There's a terrifyingly large number of UMCCH registers. This macro makes UpdateUmcchBlockInfo much more sane.
 #define SET_UMCCH_INSTANCE_REGS(Ns, Idx) \
     pInfo->umcchRegAddr[Idx].perfMonCtlClk = Ns::mmUMCCH##Idx##_PerfMonCtlClk; \
@@ -152,16 +118,11 @@ static void UpdateUmcchBlockInfo(
     Gfx9PerfCounterInfo*  pInfo,
     PerfCounterBlockInfo* pBlockInfo)
 {
-    // The first instance's registers are common to all ASICs, the rest are a total mess.
-    pInfo->umcchRegAddr[0].perfMonCtlClk = mmUMCCH0_PerfMonCtlClk;
-    pInfo->umcchRegAddr[0].perModule[0] = { mmUMCCH0_PerfMonCtl1, mmUMCCH0_PerfMonCtr1_Lo, mmUMCCH0_PerfMonCtr1_Hi };
-    pInfo->umcchRegAddr[0].perModule[1] = { mmUMCCH0_PerfMonCtl2, mmUMCCH0_PerfMonCtr2_Lo, mmUMCCH0_PerfMonCtr2_Hi };
-    pInfo->umcchRegAddr[0].perModule[2] = { mmUMCCH0_PerfMonCtl3, mmUMCCH0_PerfMonCtr3_Lo, mmUMCCH0_PerfMonCtr3_Hi };
-    pInfo->umcchRegAddr[0].perModule[3] = { mmUMCCH0_PerfMonCtl4, mmUMCCH0_PerfMonCtr4_Lo, mmUMCCH0_PerfMonCtr4_Hi };
-    pInfo->umcchRegAddr[0].perModule[4] = { mmUMCCH0_PerfMonCtl5, mmUMCCH0_PerfMonCtr5_Lo, mmUMCCH0_PerfMonCtr5_Hi };
 
     if (IsGfx9(device))
     {
+        // The first instance's registers are common to all ASICs, the rest are a total mess.
+        SET_UMCCH_INSTANCE_REGS(Core, 0);
         if (device.ChipProperties().familyId == FAMILY_AI)
         {
             SET_UMCCH_INSTANCE_REGS(Vega, 1);
@@ -218,21 +179,22 @@ static void UpdateUmcchBlockInfo(
     }
     else
     {
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 1);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 2);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 3);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 4);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 5);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 6);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 7);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 8);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 9);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 10);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 11);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 12);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 13);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 14);
-        SET_UMCCH_INSTANCE_REGS(Gfx10, 15);
+        SET_UMCCH_INSTANCE_REGS(Core,      0);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 1);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 2);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 3);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 4);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 5);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 6);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 7);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 8);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 9);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 10);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 11);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 12);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 13);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 14);
+        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 15);
     }
 
     // We should have one UMC channel per SDP interface. We also should have a full set of registers for each of those
@@ -265,44 +227,40 @@ static void UpdateUmcchBlockInfo(
     }
 }
 
-// =====================================================================================================================
-// A helper function which finds the proper CB max event ID.
-static uint32 Gfx9GetCbMaxEventId(
-    const Pal::Device& device)
-{
-    uint32 maxEventId = 0;
-
-    {
-        static_assert(MaxCBPerfSelVega == MaxCBPerfSelRv1x, "Max CB perf counter ID doesn't match!");
-        static_assert(MaxCBPerfSelVega == MaxCBPerfSelRv2x, "Max CB perf counter ID doesn't match!");
-
-        maxEventId = MaxCBPerfSelVega;
-    }
-
-    return maxEventId;
-}
+typedef unsigned int MaxEventIds[MaxPerfCtrId];
+constexpr MaxEventIds UnknownMaxEventIds = {};
 
 // =====================================================================================================================
-// A helper function which finds the proper CPG max event ID.
-static uint32 Gfx9GetCpgMaxEventId(
+// Get an array with the maximum values of each perfcounter for this device
+static const MaxEventIds& GetEventLimits(
     const Pal::Device& device)
 {
-    uint32 maxEventId = 0;
-
-    if (IsRaven(device))
+    const MaxEventIds* pOut = nullptr;
+    switch(device.ChipProperties().revision)
     {
-        maxEventId = MaxCpgPerfcountSelRv1x;
+    case Pal::AsicRevision::Vega10:
+        pOut = &Vg10MaxPerfEventIds;
+        break;
+    case Pal::AsicRevision::Vega12:
+        pOut = &Vg12MaxPerfEventIds;
+        break;
+    case Pal::AsicRevision::Vega20:
+        pOut = &Vg20MaxPerfEventIds;
+        break;
+    case Pal::AsicRevision::Raven:
+        pOut = &Rv1xMaxPerfEventIds;
+        break;
+    case Pal::AsicRevision::Raven2:
+        pOut = &Rv2xMaxPerfEventIds;
+        break;
+    case Pal::AsicRevision::Navi10:
+        pOut = &Nv10MaxPerfEventIds;
+        break;
+    default:
+        PAL_ASSERT_ALWAYS(); // What chip is this?
+        pOut = &UnknownMaxEventIds;
     }
-    else if (IsRaven2(device))
-    {
-        maxEventId = MaxCpgPerfcountSelRv2x;
-    }
-    else
-    {
-        maxEventId = MaxCpgPerfcountSelVega;
-    }
-
-    return maxEventId;
+    return *pOut;
 }
 
 // =====================================================================================================================
@@ -325,20 +283,6 @@ static void Gfx9UpdateRpbBlockInfo(
 }
 
 // =====================================================================================================================
-// A helper function which finds the proper TD max event ID.
-static uint32 Gfx10GetTdMaxEventId(
-    const Pal::Device& device)
-{
-    uint32 maxEventId = 0;
-
-    {
-        maxEventId = MaxTdPerfcountSelNv10;
-    }
-
-    return maxEventId;
-}
-
-// =====================================================================================================================
 // A helper function which updates the TCP's block info with device-specific data.
 static void Gfx10UpdateTcpBlockInfo(
     const Pal::Device&    device,
@@ -355,21 +299,6 @@ static void Gfx10UpdateTcpBlockInfo(
             { Gfx101::mmTCP_PERFCOUNTER3_SELECT, 0,                          mmTCP_PERFCOUNTER3_LO, mmTCP_PERFCOUNTER3_HI },
         }};
     }
-}
-
-// =====================================================================================================================
-// A helper function which finds the proper DB max event ID.
-static uint32 Gfx10GetDbMaxEventId(
-    const Pal::Device& device)
-{
-    uint32 maxEventId = 0;
-
-    {
-
-        maxEventId = MaxPerfcounterValsNv10;
-    }
-
-    return maxEventId;
 }
 
 // =====================================================================================================================
@@ -423,94 +352,6 @@ static void Gfx10UpdateEaBlockInfo(
 }
 
 // =====================================================================================================================
-// A helper function which finds the proper GE max event ID.
-static uint32 Gfx10GetGeMaxEventId(
-    const Pal::Device& device)
-{
-    uint32 maxEventId = 0;
-
-    {
-
-        maxEventId = MaxGePerfcountSelectNv10;
-    }
-
-    return maxEventId;
-}
-
-// =====================================================================================================================
-// A helper function which finds the proper GL1A max event ID.
-static uint32 Gfx10GetGl1aMaxEventId(
-    const Pal::Device& device)
-{
-    uint32 maxEventId = 0;
-
-    {
-
-        maxEventId = MaxGl1aPerfSelNv10;
-    }
-
-    return maxEventId;
-}
-
-// =====================================================================================================================
-// A helper function which finds the proper CHA max event ID.
-static uint32 Gfx10GetChaMaxEventId(
-    const Pal::Device& device)
-{
-    uint32 maxEventId = 0;
-
-    {
-
-        maxEventId = MaxChaPerfSelNv10;
-    }
-
-    return maxEventId;
-}
-
-// =====================================================================================================================
-// A helper function which finds the proper CHC max event ID.
-static uint32 Gfx10GetChcMaxEventId(
-    const Pal::Device& device)
-{
-    uint32 maxEventId = 0;
-
-    {
-        maxEventId = MaxChcPerfSelGfx101;
-    }
-
-    return maxEventId;
-}
-
-// =====================================================================================================================
-// A helper function which find the proper CHCG max event ID.
-static uint32 Gfx10GetChcgMaxEventId(
-    const Pal::Device& device)
-{
-    uint32 maxEventId = 0;
-
-    {
-        maxEventId = MaxChcgPerfSelGfx101;
-    }
-
-    return maxEventId;
-}
-
-// =====================================================================================================================
-// A helper function which finds the proper GCR max event ID.
-static uint32 Gfx10GetGcrMaxEventId(
-    const Pal::Device& device)
-{
-    uint32 maxEventId = 0;
-
-    if (IsGfx101(device))
-    {
-        maxEventId = MaxGCRPerfSelGfx101;
-    }
-
-    return maxEventId;
-}
-
-// =====================================================================================================================
 // A helper function which updates the GUS's block info with device-specific data.
 static void Gfx10UpdateGusBlockInfo(
     const Pal::Device&    device,
@@ -534,6 +375,7 @@ static void Gfx9InitBasicBlockInfo(
 {
     Gfx9PerfCounterInfo*const pInfo    = &pProps->gfx9.perfCounterInfo;
     const bool                isGfx9_0 = (IsVega10(device) || IsRaven(device));
+    const MaxEventIds&        maxIds   = GetEventLimits(device);
 
     // Pull in the generic gfx9 registers to make it easier to read the register tables.
     using namespace Gfx09;
@@ -620,7 +462,7 @@ static void Gfx9InitBasicBlockInfo(
     pSc->numGenericLegacyModules   = 7; // PA_SC_PERFCOUNTER1-7
     pSc->numSpmWires               = 2;
     pSc->spmBlockSelect            = Gfx9SpmSeBlockSelectSc;
-    pSc->maxEventId                = GetScMaxEventId(device);
+    pSc->maxEventId                = maxIds[ScPerfcntSelId];
 
     pSc->regAddr = { 0, {
         { mmPA_SC_PERFCOUNTER0_SELECT, mmPA_SC_PERFCOUNTER0_SELECT1, mmPA_SC_PERFCOUNTER0_LO, mmPA_SC_PERFCOUNTER0_HI },
@@ -795,7 +637,7 @@ static void Gfx9InitBasicBlockInfo(
     pCb->numGenericLegacyModules   = 3; // CB_PERFCOUNTER1-3
     pCb->numSpmWires               = 2;
     pCb->spmBlockSelect            = Gfx9SpmSeBlockSelectCb;
-    pCb->maxEventId                = Gfx9GetCbMaxEventId(device);
+    pCb->maxEventId                = maxIds[CBPerfSelId];
 
     pCb->regAddr = { 0, {
         { mmCB_PERFCOUNTER0_SELECT, mmCB_PERFCOUNTER0_SELECT1, mmCB_PERFCOUNTER0_LO, mmCB_PERFCOUNTER0_HI },
@@ -811,7 +653,7 @@ static void Gfx9InitBasicBlockInfo(
     pGds->numGenericLegacyModules   = 3; // GDS_PERFCOUNTER1-3
     pGds->numSpmWires               = 2;
     pGds->spmBlockSelect            = Gfx9SpmGlobalBlockSelectGds;
-    pGds->maxEventId                = MaxGdsPerfcountSelect;
+    pGds->maxEventId                = MaxGdsPerfcountSelectCore;
 
     pGds->regAddr = { 0, {
         { mmGDS_PERFCOUNTER0_SELECT, mmGDS_PERFCOUNTER0_SELECT1, mmGDS_PERFCOUNTER0_LO, mmGDS_PERFCOUNTER0_HI },
@@ -897,7 +739,7 @@ static void Gfx9InitBasicBlockInfo(
     pCpg->numGenericLegacyModules   = 1; // CPG_PERFCOUNTER1
     pCpg->numSpmWires               = 2;
     pCpg->spmBlockSelect            = Gfx9SpmGlobalBlockSelectCpg;
-    pCpg->maxEventId                = Gfx9GetCpgMaxEventId(device);
+    pCpg->maxEventId                = maxIds[CpgPerfcountSelId];
 
     pCpg->regAddr = { 0, {
         { mmCPG_PERFCOUNTER0_SELECT, mmCPG_PERFCOUNTER0_SELECT1, mmCPG_PERFCOUNTER0_LO, mmCPG_PERFCOUNTER0_HI },
@@ -1069,6 +911,7 @@ static void Gfx10InitBasicBlockInfo(
     GpuChipProperties* pProps)
 {
     Gfx9PerfCounterInfo*const pInfo      = &pProps->gfx9.perfCounterInfo;
+    const MaxEventIds& maxIds = GetEventLimits(device);
 
     // Pull in the generic gfx10 registers to make it easier to read the register tables.
     using namespace Gfx10;
@@ -1091,7 +934,7 @@ static void Gfx10InitBasicBlockInfo(
     pCpf->numGenericLegacyModules   = 1; // CPF_PERFCOUNTER1
     pCpf->numSpmWires               = 2;
     pCpf->spmBlockSelect            = Gfx10SpmGlobalBlockSelectCpf;
-    pCpf->maxEventId                = MaxCpfPerfcountSelGfx10;
+    pCpf->maxEventId                = maxIds[CpfPerfcountSelId];
 
     pCpf->regAddr = { 0, {
         { mmCPF_PERFCOUNTER0_SELECT, mmCPF_PERFCOUNTER0_SELECT1, mmCPF_PERFCOUNTER0_LO, mmCPF_PERFCOUNTER0_HI },
@@ -1105,7 +948,7 @@ static void Gfx10InitBasicBlockInfo(
     pPa->numGenericLegacyModules   = 0;
     pPa->numSpmWires               = 8;
     pPa->spmBlockSelect            = Gfx10SpmSeBlockSelectPa;
-    pPa->maxEventId                = MaxSuPerfcntSelGfx10; // Note that the PA uses the SU select enum.
+    pPa->maxEventId                = maxIds[SuPerfcntSelId];
 
     pPa->regAddr = { 0, {
         { mmPA_SU_PERFCOUNTER0_SELECT, mmPA_SU_PERFCOUNTER0_SELECT1, mmPA_SU_PERFCOUNTER0_LO, mmPA_SU_PERFCOUNTER0_HI },
@@ -1124,7 +967,7 @@ static void Gfx10InitBasicBlockInfo(
     pSc->numGenericLegacyModules   = 7; // PA_SC_PERFCOUNTER1-7
     pSc->numSpmWires               = 2;
     pSc->spmBlockSelect            = Gfx10SpmSeBlockSelectSc;
-    pSc->maxEventId                = GetScMaxEventId(device);
+    pSc->maxEventId                = maxIds[ScPerfcntSelId];
 
     pSc->regAddr = { 0, {
         { mmPA_SC_PERFCOUNTER0_SELECT, mmPA_SC_PERFCOUNTER0_SELECT1, mmPA_SC_PERFCOUNTER0_LO, mmPA_SC_PERFCOUNTER0_HI },
@@ -1144,7 +987,7 @@ static void Gfx10InitBasicBlockInfo(
     pSpi->numGenericLegacyModules   = 2; // SPI_PERFCOUNTER4-5
     pSpi->numSpmWires               = 8;
     pSpi->spmBlockSelect            = Gfx10SpmSeBlockSelectSpi;
-    pSpi->maxEventId                = MaxSpiPerfcntSelGfx101Plus;
+    pSpi->maxEventId                = maxIds[SpiPerfcntSelId];
 
     pSpi->regAddr = { 0, {
         { mmSPI_PERFCOUNTER0_SELECT, mmSPI_PERFCOUNTER0_SELECT1, mmSPI_PERFCOUNTER0_LO, mmSPI_PERFCOUNTER0_HI },
@@ -1196,7 +1039,7 @@ static void Gfx10InitBasicBlockInfo(
     pSx->numGenericLegacyModules   = 2; // SX_PERFCOUNTER2-3
     pSx->numSpmWires               = 4;
     pSx->spmBlockSelect            = Gfx10SpmSeBlockSelectSx;
-    pSx->maxEventId                = MaxSxPerfcounterValsGfx101Plus;
+    pSx->maxEventId                = maxIds[SxPerfcounterValsId];
 
     pSx->regAddr = { 0, {
         { mmSX_PERFCOUNTER0_SELECT, mmSX_PERFCOUNTER0_SELECT1, mmSX_PERFCOUNTER0_LO, mmSX_PERFCOUNTER0_HI },
@@ -1212,7 +1055,7 @@ static void Gfx10InitBasicBlockInfo(
     pTa->numGenericLegacyModules   = 1; // TA_PERFCOUNTER1
     pTa->numSpmWires               = 2;
     pTa->spmBlockSelect            = Gfx10SpmSeBlockSelectTa;
-    pTa->maxEventId                = MaxTaPerfcountSelGfx10;
+    pTa->maxEventId                = maxIds[TaPerfcountSelId];
 
     pTa->regAddr = { 0, {
         { mmTA_PERFCOUNTER0_SELECT, mmTA_PERFCOUNTER0_SELECT1, mmTA_PERFCOUNTER0_LO, mmTA_PERFCOUNTER0_HI },
@@ -1226,7 +1069,7 @@ static void Gfx10InitBasicBlockInfo(
     pTd->numGenericLegacyModules   = 1; // TD_PERFCOUNTER1
     pTd->numSpmWires               = 2;
     pTd->spmBlockSelect            = Gfx10SpmSeBlockSelectTd;
-    pTd->maxEventId                = Gfx10GetTdMaxEventId(device);
+    pTd->maxEventId                = maxIds[TdPerfcountSelId];
 
     pTd->regAddr = { 0, {
         { mmTD_PERFCOUNTER0_SELECT, mmTD_PERFCOUNTER0_SELECT1, mmTD_PERFCOUNTER0_LO, mmTD_PERFCOUNTER0_HI },
@@ -1239,7 +1082,7 @@ static void Gfx10InitBasicBlockInfo(
     pTcp->numGenericSpmModules      = 2; // TCP_PERFCOUNTER0-1
     pTcp->numSpmWires               = 4;
     pTcp->spmBlockSelect            = Gfx10SpmSeBlockSelectTcp;
-    pTcp->maxEventId                = MaxTcpPerfcountSelectGfx10;
+    pTcp->maxEventId                = maxIds[TcpPerfcountSelectId];
 
     // Sets numGenericLegacyModules and the register addresses.
     Gfx10UpdateTcpBlockInfo(device, pTcp);
@@ -1251,7 +1094,7 @@ static void Gfx10InitBasicBlockInfo(
     pDb->numGenericLegacyModules   = 2; // DB_PERFCOUNTER2-3
     pDb->numSpmWires               = 4;
     pDb->spmBlockSelect            = Gfx10SpmSeBlockSelectDb;
-    pDb->maxEventId                = Gfx10GetDbMaxEventId(device);
+    pDb->maxEventId                = maxIds[PerfcounterValsId];
 
     pDb->regAddr = { 0, {
         { mmDB_PERFCOUNTER0_SELECT, mmDB_PERFCOUNTER0_SELECT1, mmDB_PERFCOUNTER0_LO, mmDB_PERFCOUNTER0_HI },
@@ -1283,7 +1126,7 @@ static void Gfx10InitBasicBlockInfo(
     pGds->numGenericLegacyModules   = 3; // GDS_PERFCOUNTER1-3
     pGds->numSpmWires               = 2;
     pGds->spmBlockSelect            = Gfx10SpmGlobalBlockSelectGds;
-    pGds->maxEventId                = MaxGdsPerfcountSelect;
+    pGds->maxEventId                = maxIds[GdsPerfcountSelectId];
 
     pGds->regAddr = { 0, {
         { mmGDS_PERFCOUNTER0_SELECT, mmGDS_PERFCOUNTER0_SELECT1, mmGDS_PERFCOUNTER0_LO, mmGDS_PERFCOUNTER0_HI },
@@ -1344,12 +1187,12 @@ static void Gfx10InitBasicBlockInfo(
 
     PerfCounterBlockInfo*const pDma = &pInfo->block[static_cast<uint32>(GpuBlock::Dma)];
     pDma->distribution              = PerfCounterDistribution::GlobalBlock;
-    pDma->numInstances              = 2;
+    pDma->numInstances              = device.EngineProperties().perEngine[EngineTypeDma].numAvailable;
     pDma->numGenericSpmModules      = 2; // SDMA#_PERFCOUNTER0-1
     pDma->numGenericLegacyModules   = 0;
     pDma->numSpmWires               = 4;
     pDma->spmBlockSelect            = Gfx10SpmGlobalBlockSelectSdma;
-    pDma->maxEventId                = MaxSdmaPerfSelGfx10;
+    pDma->maxEventId                = maxIds[SdmaPerfSelId];
 
     // Sets the register addresses.
     Gfx10UpdateSdmaBlockInfo(device, pInfo);
@@ -1361,26 +1204,29 @@ static void Gfx10InitBasicBlockInfo(
     pCpg->numGenericLegacyModules   = 1; // CPG_PERFCOUNTER1
     pCpg->numSpmWires               = 2;
     pCpg->spmBlockSelect            = Gfx10SpmGlobalBlockSelectCpg;
-    pCpg->maxEventId                = MaxCpgPerfcountSelGfx10;
+    pCpg->maxEventId                = maxIds[CpgPerfcountSelId];
 
     pCpg->regAddr = { 0, {
         { mmCPG_PERFCOUNTER0_SELECT, mmCPG_PERFCOUNTER0_SELECT1, mmCPG_PERFCOUNTER0_LO, mmCPG_PERFCOUNTER0_HI },
         { mmCPG_PERFCOUNTER1_SELECT, 0,                          mmCPG_PERFCOUNTER1_LO, mmCPG_PERFCOUNTER1_HI },
     }};
 
-    PerfCounterBlockInfo*const pCpc = &pInfo->block[static_cast<uint32>(GpuBlock::Cpc)];
-    pCpc->distribution              = PerfCounterDistribution::GlobalBlock;
-    pCpc->numInstances              = 1;
-    pCpc->numGenericSpmModules      = 1; // CPC_PERFCOUNTER0
-    pCpc->numGenericLegacyModules   = 1; // CPC_PERFCOUNTER1
-    pCpc->numSpmWires               = 2;
-    pCpc->spmBlockSelect            = Gfx10SpmGlobalBlockSelectCpc;
-    pCpc->maxEventId                = MaxCpcPerfcountSelGfx10;
+    if (device.EngineProperties().perEngine[EngineTypeCompute].numAvailable > 0)
+    {
+        PerfCounterBlockInfo*const pCpc = &pInfo->block[static_cast<uint32>(GpuBlock::Cpc)];
+        pCpc->distribution              = PerfCounterDistribution::GlobalBlock;
+        pCpc->numInstances              = 1;
+        pCpc->numGenericSpmModules      = 1; // CPC_PERFCOUNTER0
+        pCpc->numGenericLegacyModules   = 1; // CPC_PERFCOUNTER1
+        pCpc->numSpmWires               = 2;
+        pCpc->spmBlockSelect            = Gfx10SpmGlobalBlockSelectCpc;
+        pCpc->maxEventId                = maxIds[CpcPerfcountSelId];
 
-    pCpc->regAddr = { 0, {
-        { mmCPC_PERFCOUNTER0_SELECT, mmCPC_PERFCOUNTER0_SELECT1, mmCPC_PERFCOUNTER0_LO, mmCPC_PERFCOUNTER0_HI },
-        { mmCPC_PERFCOUNTER1_SELECT, 0,                          mmCPC_PERFCOUNTER1_LO, mmCPC_PERFCOUNTER1_HI },
-    }};
+        pCpc->regAddr = { 0, {
+            { mmCPC_PERFCOUNTER0_SELECT, mmCPC_PERFCOUNTER0_SELECT1, mmCPC_PERFCOUNTER0_LO, mmCPC_PERFCOUNTER0_HI },
+            { mmCPC_PERFCOUNTER1_SELECT, 0,                          mmCPC_PERFCOUNTER1_LO, mmCPC_PERFCOUNTER1_HI },
+        }};
+    }
 
     PerfCounterBlockInfo*const pAtc = &pInfo->block[static_cast<uint32>(GpuBlock::Atc)];
     pAtc->distribution              = PerfCounterDistribution::GlobalBlock;
@@ -1485,21 +1331,23 @@ static void Gfx10InitBasicBlockInfo(
             { mmRMI_PERFCOUNTER3_SELECT, 0,                          mmRMI_PERFCOUNTER3_LO, mmRMI_PERFCOUNTER3_HI },
     }};
 
-    // The UMCCH has a unique programming model. It defines a fixed number of global counters for each instance.
-    PerfCounterBlockInfo*const pUmcch = &pInfo->block[static_cast<uint32>(GpuBlock::Umcch)];
-    pUmcch->distribution              = PerfCounterDistribution::GlobalBlock;
-    pUmcch->numGlobalOnlyCounters     = Gfx9MaxUmcchPerfModules;
-    pUmcch->numGenericSpmModules      = 0;
-    pUmcch->numGenericLegacyModules   = 0;
-    pUmcch->numSpmWires               = 0;
-    pUmcch->maxEventId                = 39; // BeqEdcErr
+    {
+        // The UMCCH has a unique programming model. It defines a fixed number of global counters for each instance.
+        PerfCounterBlockInfo*const pUmcch = &pInfo->block[static_cast<uint32>(GpuBlock::Umcch)];
+        pUmcch->distribution              = PerfCounterDistribution::GlobalBlock;
+        pUmcch->numGlobalOnlyCounters     = Gfx9MaxUmcchPerfModules;
+        pUmcch->numGenericSpmModules      = 0;
+        pUmcch->numGenericLegacyModules   = 0;
+        pUmcch->numSpmWires               = 0;
+        pUmcch->maxEventId                = 39; // BeqEdcErr
 
-    // Note that this function also sets numInstances.
-    UpdateUmcchBlockInfo(device, pInfo, pUmcch);
+        // Note that this function also sets numInstances.
+        UpdateUmcchBlockInfo(device, pInfo, pUmcch);
 
-    // A quick check to make sure we have registers for all instances. The fact that the number of instances varies
-    // per ASIC doesn't mesh well with our register header scheme. If this triggers UpdateUmcchBlockInfo needs fixing.
-    PAL_ASSERT(pInfo->umcchRegAddr[pUmcch->numInstances - 1].perfMonCtlClk != 0);
+        // A quick check to make sure we have registers for all instances. The fact that the number of instances varies
+        // per ASIC doesn't mesh well with our register header scheme. If this hits UpdateUmcchBlockInfo needs fixing.
+        PAL_ASSERT(pInfo->umcchRegAddr[pUmcch->numInstances - 1].perfMonCtlClk != 0);
+    }
 
     // The following blocks are new or renamed in gfx10.
     if (IsGfx101(device)
@@ -1512,7 +1360,7 @@ static void Gfx10InitBasicBlockInfo(
         pGe->numGenericLegacyModules   = 8; // GE_PERFCOUNTER4-11
         pGe->numSpmWires               = 8;
         pGe->spmBlockSelect            = Gfx10SpmGlobalBlockSelectGe;
-        pGe->maxEventId                = Gfx10GetGeMaxEventId(device);
+        pGe->maxEventId                = maxIds[GePerfcountSelectId];
 
         pGe->regAddr = { 0, {
             { Nv10::mmGE_PERFCOUNTER0_SELECT,  Nv10::mmGE_PERFCOUNTER0_SELECT1, Nv10::mmGE_PERFCOUNTER0_LO,  Nv10::mmGE_PERFCOUNTER0_HI  },
@@ -1537,7 +1385,7 @@ static void Gfx10InitBasicBlockInfo(
     pGl1a->numGenericLegacyModules   = 3; // GL1A_PERFCOUNTER1-3
     pGl1a->numSpmWires               = 2;
     pGl1a->spmBlockSelect            = Gfx10SpmSeBlockSelectGl1a;
-    pGl1a->maxEventId                = Gfx10GetGl1aMaxEventId(device);
+    pGl1a->maxEventId                = maxIds[Gl1aPerfSelId];
 
     pGl1a->regAddr = { 0, {
         { mmGL1A_PERFCOUNTER0_SELECT, mmGL1A_PERFCOUNTER0_SELECT1, mmGL1A_PERFCOUNTER0_LO, mmGL1A_PERFCOUNTER0_HI },
@@ -1553,7 +1401,7 @@ static void Gfx10InitBasicBlockInfo(
     pGl1c->numGenericLegacyModules   = 3; // GL1C_PERFCOUNTER1-3
     pGl1c->numSpmWires               = 2;
     pGl1c->spmBlockSelect            = Gfx10SpmSeBlockSelectGl1c;
-    pGl1c->maxEventId                = MaxGl1cPerfSelGfx101Plus;
+    pGl1c->maxEventId                = maxIds[Gl1cPerfSelId];
 
     pGl1c->regAddr = { 0, {
         { mmGL1C_PERFCOUNTER0_SELECT, mmGL1C_PERFCOUNTER0_SELECT1, mmGL1C_PERFCOUNTER0_LO, mmGL1C_PERFCOUNTER0_HI },
@@ -1570,7 +1418,7 @@ static void Gfx10InitBasicBlockInfo(
     pGl2a->numGenericLegacyModules   = 2; // Gl2A_PERFCOUNTER2-3
     pGl2a->numSpmWires               = 4;
     pGl2a->spmBlockSelect            = Gfx10SpmGlobalBlockSelectGl2a;
-    pGl2a->maxEventId                = MaxGl2aPerfSelGfx101Plus;
+    pGl2a->maxEventId                = maxIds[Gl2aPerfSelId];
 
     pGl2a->regAddr = { 0, {
         { mmGL2A_PERFCOUNTER0_SELECT, mmGL2A_PERFCOUNTER0_SELECT1, mmGL2A_PERFCOUNTER0_LO, mmGL2A_PERFCOUNTER0_HI },
@@ -1586,7 +1434,7 @@ static void Gfx10InitBasicBlockInfo(
     pGl2c->numGenericLegacyModules   = 2; // Gl2C_PERFCOUNTER2-3
     pGl2c->numSpmWires               = 4;
     pGl2c->spmBlockSelect            = Gfx10SpmGlobalBlockSelectGl2c;
-    pGl2c->maxEventId                = MaxGl2cPerfSelGfx101Plus;
+    pGl2c->maxEventId                = maxIds[Gl2cPerfSelId];
 
     pGl2c->regAddr = { 0, {
         { mmGL2C_PERFCOUNTER0_SELECT, mmGL2C_PERFCOUNTER0_SELECT1, mmGL2C_PERFCOUNTER0_LO, mmGL2C_PERFCOUNTER0_HI },
@@ -1602,7 +1450,7 @@ static void Gfx10InitBasicBlockInfo(
     pCha->numGenericLegacyModules   = 3; // CHA_PERFCOUNTER1-3
     pCha->numSpmWires               = 2;
     pCha->spmBlockSelect            = Gfx10SpmGlobalBlockSelectCha;
-    pCha->maxEventId                = Gfx10GetChaMaxEventId(device);
+    pCha->maxEventId                = maxIds[ChaPerfSelId];
 
     pCha->regAddr = { 0, {
         { mmCHA_PERFCOUNTER0_SELECT, mmCHA_PERFCOUNTER0_SELECT1, mmCHA_PERFCOUNTER0_LO, mmCHA_PERFCOUNTER0_HI },
@@ -1619,7 +1467,7 @@ static void Gfx10InitBasicBlockInfo(
     pChc->numGenericLegacyModules   = 3; // CHC_PERFCOUNTER1-3
     pChc->numSpmWires               = 2;
     pChc->spmBlockSelect            = Gfx10SpmGlobalBlockSelectChc;
-    pChc->maxEventId                = Gfx10GetChcMaxEventId(device);
+    pChc->maxEventId                = maxIds[ChcPerfSelId];
 
     pChc->regAddr = { 0, {
         { mmCHC_PERFCOUNTER0_SELECT, mmCHC_PERFCOUNTER0_SELECT1, mmCHC_PERFCOUNTER0_LO, mmCHC_PERFCOUNTER0_HI },
@@ -1635,7 +1483,7 @@ static void Gfx10InitBasicBlockInfo(
     pGcr->numGenericLegacyModules   = 1; // GCR_PERFCOUNTER1
     pGcr->numSpmWires               = 2;
     pGcr->spmBlockSelect            = Gfx10SpmGlobalBlockSelectGcr;
-    pGcr->maxEventId                = Gfx10GetGcrMaxEventId(device);
+    pGcr->maxEventId                = maxIds[GCRPerfSelId];
 
     pGcr->regAddr = { 0, {
         { mmGCR_PERFCOUNTER0_SELECT, mmGCR_PERFCOUNTER0_SELECT1, mmGCR_PERFCOUNTER0_LO, mmGCR_PERFCOUNTER0_HI },
@@ -1649,7 +1497,7 @@ static void Gfx10InitBasicBlockInfo(
     pPh->numGenericLegacyModules   = 4; // PA_PH_PERFCOUNTER4-7
     pPh->numSpmWires               = 8;
     pPh->spmBlockSelect            = Gfx10SpmGlobalBlockSelectPh;
-    pPh->maxEventId                = MaxPhPerfcntSelGfx101Plus;
+    pPh->maxEventId                = maxIds[PhPerfcntSelId];
 
     pPh->regAddr = { 0, {
         { mmPA_PH_PERFCOUNTER0_SELECT, mmPA_PH_PERFCOUNTER0_SELECT1, mmPA_PH_PERFCOUNTER0_LO, mmPA_PH_PERFCOUNTER0_HI },
@@ -1669,7 +1517,7 @@ static void Gfx10InitBasicBlockInfo(
     pUtcl1->numGenericLegacyModules   = 2; // UTCL1_PERFCOUNTER0-1
     pUtcl1->numSpmWires               = 0;
     pUtcl1->numGenericSpmModules      = 0;
-    pUtcl1->maxEventId                = MaxUTCL1PerfSel;
+    pUtcl1->maxEventId                = maxIds[UTCL1PerfSelId];
 
     pUtcl1->regAddr = { 0, {
         { mmUTCL1_PERFCOUNTER0_SELECT, 0, mmUTCL1_PERFCOUNTER0_LO, mmUTCL1_PERFCOUNTER0_HI },
@@ -1685,7 +1533,7 @@ static void Gfx10InitBasicBlockInfo(
         pChcg->numGenericLegacyModules   = 3; // CHCG_PERFCOUNTER1-3
         pChcg->numSpmWires               = 2;
         pChcg->spmBlockSelect            = Gfx10SpmGlobalBlockSelectChcg;
-        pChcg->maxEventId                = Gfx10GetChcgMaxEventId(device);
+        pChcg->maxEventId                = maxIds[ChcgPerfSelId];
 
         pChcg->regAddr = { 0, {
             { Gfx101::mmCHCG_PERFCOUNTER0_SELECT, Gfx101::mmCHCG_PERFCOUNTER0_SELECT1, Gfx101::mmCHCG_PERFCOUNTER0_LO, Gfx101::mmCHCG_PERFCOUNTER0_HI },

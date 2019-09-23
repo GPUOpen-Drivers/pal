@@ -748,6 +748,10 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
             {
                 InitializeContextRegistersNv10(&cmdStream,   1, &regOffset, &chipProps.gfx9.paScTileSteeringOverride);
             }
+            else
+            {
+                PAL_ASSERT_ALWAYS_MSG("Need to update shadow memory init for new chip!");
+            }
         }
     } // if initShadowMemory
 }

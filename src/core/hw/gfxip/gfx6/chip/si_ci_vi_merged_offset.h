@@ -5179,11 +5179,6 @@
 #define mmPA_SC_PERFCOUNTER7_SELECT__SI                 0x22A7
 #define mmPA_SC_RASTER_CONFIG                           0xA0D4
 #define mmPA_SC_RASTER_CONFIG_1__CI__VI                 0xA0D5
-#define mmPA_SC_SCREEN_EXTENT_CONTROL__CI__VI           0xA0D6
-#define mmPA_SC_SCREEN_EXTENT_MAX_0__CI__VI             0xC285
-#define mmPA_SC_SCREEN_EXTENT_MAX_1__CI__VI             0xC28B
-#define mmPA_SC_SCREEN_EXTENT_MIN_0__CI__VI             0xC284
-#define mmPA_SC_SCREEN_EXTENT_MIN_1__CI__VI             0xC286
 #define mmPA_SC_SCREEN_SCISSOR_BR                       0xA00D
 #define mmPA_SC_SCREEN_SCISSOR_TL                       0xA00C
 #define mmPA_SC_TRAP_SCREEN_COUNT__CI__VI               0xC2B4

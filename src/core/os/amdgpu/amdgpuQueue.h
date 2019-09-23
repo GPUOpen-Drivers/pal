@@ -27,7 +27,7 @@
 
 #include "core/queue.h"
 #include "core/os/amdgpu/amdgpuHeaders.h"
-#include "palList.h"
+#include "palHashMap.h"
 #include "palVector.h"
 
 // It is a temporary solution while we are waiting for open source promotion.
@@ -116,14 +116,6 @@ public:
     virtual Result Init(void* pContextPlacementAddr) override;
 
     // NOTE: Part of the public IQueue interface.
-    Result AddGpuMemoryReferences(
-        uint32              gpuMemRefCount,
-        const GpuMemoryRef* pGpuMemoryRefs);
-
-    Result RemoveGpuMemoryReferences(
-        uint32            gpuMemoryCount,
-        IGpuMemory*const* ppGpuMemory);
-
     virtual Result RemapVirtualMemoryPages(
         uint32                         rangeCount,
         const VirtualMemoryRemapRange* pRangeList,
@@ -151,6 +143,15 @@ public:
 
     void  AssociateFenceWithContext(
         IFence* pFence);
+
+    Result AddGpuMemoryReferences(
+        uint32              gpuMemRefCount,
+        const GpuMemoryRef* pGpuMemoryRefs);
+
+    void RemoveGpuMemoryReferences(
+        uint32            gpuMemoryCount,
+        IGpuMemory*const* ppGpuMemory,
+        bool              forceRemove);
 
 protected:
     virtual Result OsDelay(float delay, const IPrivateScreen* pScreen) override;
@@ -221,20 +222,22 @@ private:
         const InternalSubmitInfo& internalSubmitInfo,
         bool                      isDummySubmission);
 
+    // Tracks global memory references for this queue. Each key is a GPU memory object and each value is a refcount.
+    typedef Util::HashMap<IGpuMemory*, uint32, Pal::Platform> MemoryRefMap;
+
     // Kernel object representing a list of GPU memory allocations referenced by a submit.
     // Stored as a member variable to prevent re-creating the kernel object on every submit
     // in the common case where the set of resident allocations doesn't change.
     amdgpu_bo_list_handle m_hResourceList;
     amdgpu_bo_list_handle m_hDummyResourceList;   // The dummy resource list used by dummy submission.
     Pal::CmdStream*       m_pDummyCmdStream;      // The dummy command stream used by dummy submission.
-    bool                  m_memListDirty;         // Indicates m_memList has changed since the last submit.
-    Util::RWLock          m_memListLock;          // Protect m_memListLock from muli-thread access.
+    MemoryRefMap          m_globalRefMap;         // A hashmap acting as a refcounted list of memory references.
+    bool                  m_globalRefDirty;       // Indicates m_globalRefMap has changed since the last submit.
+    Util::RWLock          m_globalRefLock;        // Protect m_globalRefMap from muli-thread access.
     uint32                m_internalMgrTimestamp; // Store timestamp of internal memory mgr.
     uint32                m_appMemRefCount;       // Store count of application's submission memory references.
     bool                  m_pendingWait;          // Queue needs a dummy submission between wait and signal.
     CmdUploadRing*        m_pCmdUploadRing;       // Uploads gfxip command streams to a large local memory buffer.
-
-    Util::List<IGpuMemory*, Platform> m_memList;  // List of memory which is referenced by Queue.
 
     // These IBs will be sent to the kernel when SubmitIbs is called.
     uint32                m_numIbs;

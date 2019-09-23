@@ -89,7 +89,7 @@ namespace DevDriver
         }
         else
         {
-            DD_ALERT_REASON("Session version queried without a valid session. Did your session disconnect?");
+            DD_WARN_REASON("Session version queried without a valid session. Did your session disconnect?");
         }
         return version;
     }

@@ -32,6 +32,7 @@ namespace DevDriver
 
 // ================================================================================================================
 // Tests to see if the client can connect to the utility driver through this transport
+// @TODO:  This function can and should be rewritten as to not included an allocCb
 Result LocalNgMsgTransport::TestConnection(const AllocCb& allocCb)
 {
     DevModeControlDevice device(allocCb);
@@ -56,6 +57,7 @@ LocalNgMsgTransport::LocalNgMsgTransport(
     , m_allocCb(allocCb)
     , m_sharedQueue()
 {
+    DD_UNUSED(m_allocCb);
 }
 
 LocalNgMsgTransport::~LocalNgMsgTransport()
@@ -106,8 +108,8 @@ Result LocalNgMsgTransport::Connect(ClientId* pClientId, uint32 timeoutInMs)
         // Return the new client id to the caller
         *pClientId = request.output.clientId;
 
-        m_sharedQueue.SetSendQueue(request.output.messageQueueSend);
-        m_sharedQueue.SetReceiveQueue(request.output.messageQueueReceive);
+        m_sharedQueue.SetSendQueue(request.output.sendQueue);
+        m_sharedQueue.SetReceiveQueue(request.output.receiveQueue);
     }
     else
     {

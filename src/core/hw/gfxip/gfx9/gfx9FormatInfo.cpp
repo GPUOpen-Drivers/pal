@@ -71,7 +71,11 @@ const MergedFlatFmtInfo* MergedChannelFlatFmtInfoTbl(
     GfxIpLevel gfxIpLevel)
 {
     PAL_ASSERT(IsGfx10(gfxIpLevel));
-    const MergedFlatFmtInfo*  pFlatFmtInfo = Gfx10MergedChannelFmtInfoTbl;
+    const MergedFlatFmtInfo*  pFlatFmtInfo = nullptr;
+
+    {
+        pFlatFmtInfo = Gfx10MergedChannelFmtInfoTbl;
+    }
 
     return pFlatFmtInfo;
 }

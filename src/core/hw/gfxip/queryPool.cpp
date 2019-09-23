@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/device.h"
+#include "core/eventDefs.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/queryPool.h"
 
@@ -48,6 +49,22 @@ QueryPool::QueryPool(
     m_device(device),
     m_timestampStartOffset(m_createInfo.numSlots * m_gpuResultSizePerSlotInBytes)
 {
+    ResourceDescriptionQueryPool desc = {};
+    desc.pCreateInfo = &m_createInfo;
+    ResourceCreateEventData data = {};
+    data.type = ResourceType::QueryPool;
+    data.pResourceDescData = static_cast<void*>(&desc);
+    data.resourceDescSize = sizeof(ResourceDescriptionQueryPool);
+    data.pObj = this;
+    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+}
+
+// =====================================================================================================================
+QueryPool::~QueryPool()
+{
+    ResourceDestroyEventData data = {};
+    data.pObj = this;
+    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 }
 
 // =====================================================================================================================
@@ -194,6 +211,12 @@ Result QueryPool::BindGpuMemory(
     if (result == Result::Success)
     {
         m_gpuMemory.Update(pGpuMemory, offset);
+
+        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
+            this,
+            m_boundSizeInBytes,
+            pGpuMemory,
+            offset);
     }
 
     return result;

@@ -40,16 +40,9 @@ endif()
 
 ### Create GpuOpen Library #############################################################################################
 
-    amd_um_library(${GPUOPEN_LIB_NAME} STATIC)
-
-# Install the library into "${CMAKE_INSTALL_PREFIX}/lib"
-install(TARGETS ${GPUOPEN_LIB_NAME} DESTINATION lib)
+    devdriver_um_library(${GPUOPEN_LIB_NAME} STATIC)
 
 ### Cached Project Options #############################################################################################
-
-option(DEVDRIVER_SHOW_DEBUG_LABELS "Show debug labels in various log outputs?" ON)
-
-set(DEVDRIVER_LOG_LEVEL ${DEVDRIVER_LOG_LEVEL} CACHE STRING "Developer driver mode log level? [0-4]")
 
 if(NOT DEFINED GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION)
     file(STRINGS inc/gpuopen.h GPUOPEN_MAJOR_VERSION REGEX "^#define GPUOPEN_INTERFACE_MAJOR_VERSION [0-9]+")
@@ -64,62 +57,25 @@ if(NOT DEFINED GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION)
 endif()
 message(STATUS "Building gpuopen lib as ${GPUOPEN_LIB_NAME} GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION}")
 
-# Apply the standard gpuopen warnings to the library.
-apply_gpuopen_warnings(${GPUOPEN_LIB_NAME})
-
-### Compiler Options ###################################################################################################
-if(UNIX)
-    set(THREADS_PREFER_PTHREAD_FLAG ON)
-    find_package(Threads REQUIRED)
-    target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC Threads::Threads)
+### Core Component #####################################################################################################
+# WA: Check that this target hasn't already been added (Only until we have a global CMake context)
+if(NOT TARGET ddCore)
+    add_subdirectory(core)
 endif()
+target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC ddCore)
+
+### Third Party Components #############################################################################################
+add_subdirectory(third_party)
+
+target_link_libraries(${GPUOPEN_LIB_NAME} PRIVATE mpack)
+target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  rapidjson)
+target_link_libraries(${GPUOPEN_LIB_NAME} PRIVATE metrohash)
 
 ### Build Defines ######################################################################################################
 target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION})
 
 # Add NDEBUG flag in release builds since several code files depend on it.
 target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE $<$<CONFIG:Release>:NDEBUG>)
-
-# Also enable these features from CMake
-option(DEVDRIVER_ASSERTS_ENABLE     "Print info when asserts fail" OFF)
-option(DEVDRIVER_ASSERTS_DEBUGBREAK "Trigger a debug break when asserts fail - implies DEVDRIVER_ASSERTS_ENABLE" OFF)
-
-# Enable features with debug builds unconditionally
-target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC
-        $<$<CONFIG:Debug>:DEVDRIVER_ASSERTS_ENABLE>
-        $<$<CONFIG:Debug>:DEVDRIVER_ASSERTS_DEBUGBREAK>)
-
-if (DEVDRIVER_ASSERTS_DEBUGBREAK)
-    set(DEVDRIVER_ASSERTS_ENABLE ON)
-    target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DEVDRIVER_ASSERTS_DEBUGBREAK)
-endif()
-
-if (DEVDRIVER_ASSERTS_ENABLE)
-    target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DEVDRIVER_ASSERTS_ENABLE)
-endif()
-
-if (GPUOPEN_PRINT_TO_CONSOLE)
-    target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DEVDRIVER_PRINT_TO_CONSOLE)
-endif()
-
-if(DEVDRIVER_LOG_LEVEL)
-    target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DEVDRIVER_LOG_LEVEL=${DEVDRIVER_LOG_LEVEL})
-endif()
-
-if(DEVDRIVER_SHOW_DEBUG_LABELS)
-    target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE $<$<CONFIG:Debug>:         DEVDRIVER_SHOW_DEBUG_LABELS>
-                                                           $<$<CONFIG:RelWithDebInfo>:DEVDRIVER_SHOW_DEBUG_LABELS>)
-endif()
-
-# Indicate target architecture bits
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    set(TARGET_ARCHITECTURE_BITS "64")
-elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-    set(TARGET_ARCHITECTURE_BITS "32")
-else()
-    message(FATAL_ERROR "Unsupported target architecture - pointers must be 4 or 8 bytes, not ${CMAKE_SIZEOF_VOID_P}")
-endif()
-target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE "DD_CPU_BITS=${TARGET_ARCHITECTURE_BITS}")
 
 ### Include Directories ################################################################################################
 target_include_directories(${GPUOPEN_LIB_NAME} PUBLIC inc)
@@ -139,64 +95,21 @@ target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     src/ddTransferManager.cpp
     src/ddClientURIService.cpp
     src/ddURIRequestContext.cpp
-    src/ddPlatform.cpp
     ## Protocols
     src/protocols/ddTransferServer.cpp
     src/protocols/ddTransferClient.cpp
     src/protocols/ddURIServer.cpp
+    src/protocols/ddEventClient.cpp
+    src/protocols/ddEventServer.cpp
+    src/protocols/ddEventServerSession.cpp
     ## Utility functions and classes
     src/util/ddTextWriter.cpp
-    src/util/ddMemory.cpp
+    src/util/ddStructuredReader.cpp
 )
 
-# If the client doesn't specify, default to building internal metrohash library
-if (NOT DEFINED GPUOPEN_BUILD_METROHASH)
-    set(GPUOPEN_BUILD_METROHASH ON)
-endif()
-
-# If a MetroHash path is not specified then we fall back to compiling our internal copy
-if (NOT DEFINED METROHASH_PATH)
-    set(GPUOPEN_BUILD_METROHASH ON)
-    set(METROHASH_PATH "src/imported/metrohash/src")
-endif()
-
-if (NOT TARGET metrohash)
-    if (GPUOPEN_BUILD_METROHASH)
-        target_sources(${GPUOPEN_LIB_NAME} PRIVATE
-            ${METROHASH_PATH}/metrohash64.cpp
-            ${METROHASH_PATH}/metrohash128.cpp)
-    endif()
-    target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE ${METROHASH_PATH})
-else()
-    target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC metrohash)
-endif()
-
-
-### RapidJson ###
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE
         src/util/ddJsonWriter.cpp
     )
-    target_include_directories(${GPUOPEN_LIB_NAME} PUBLIC "inc/imported/rapidjson/include")
-
-### Platform ###
-
-    target_compile_definitions(${GPUOPEN_LIB_NAME}
-        PUBLIC
-            "-DDD_PLATFORM_STRING=\"${CMAKE_SYSTEM_NAME} User Mode\""
-    )
-
-if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-
-    target_compile_definitions(${GPUOPEN_LIB_NAME}
-        PUBLIC
-            "DD_PLATFORM_LINUX_UM=(1)"
-            "DD_PLATFORM_IS_UM=(1)"
-            "DD_PLATFORM_IS_GNU=(1)")
-    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/posix/ddPosixPlatform.cpp)
-
-else()
-    message(FATAL_ERROR "Unrecognized platform: ${CMAKE_SYSTEM_NAME} - cannot build platform abstraction")
-endif()
 
 ### Local Transport ###
 # Local transports are always supported

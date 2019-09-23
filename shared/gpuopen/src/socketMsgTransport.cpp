@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,6 @@
 #include "socketMsgTransport.h"
 #include "protocols/systemProtocols.h"
 #include "ddPlatform.h"
-#include <cstring>
 
 using namespace DevDriver::ClientManagementProtocol;
 
@@ -45,7 +44,7 @@ namespace DevDriver
             result = SocketType::Udp;
             break;
         default:
-            DD_ALERT_REASON("Invalid transport type specified");
+            DD_WARN_REASON("Invalid transport type specified");
             break;
         }
         return result;

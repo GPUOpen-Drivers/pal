@@ -42,7 +42,7 @@ class GfxCmdBuffer;
 class QueryPool : public IQueryPool
 {
 public:
-    virtual ~QueryPool() {};
+    virtual ~QueryPool();
 
     // NOTE: Part of the IDestroyable interface.
     virtual void Destroy() override { this->~QueryPool(); }

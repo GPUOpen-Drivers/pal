@@ -138,7 +138,7 @@ namespace DevDriver
                         else
                         {
                             // We should only ever receive crash notifications in this state.
-                            DD_ALERT_REASON("Invalid message received while waiting on crash dump acknowledgement");
+                            DD_WARN_REASON("Invalid message received while waiting on crash dump acknowledgement");
 
                             // Ignore the message.
                         }
@@ -225,7 +225,7 @@ namespace DevDriver
                                 pSessionData->state = SessionState::WaitForCrashDump;
 
                                 // This should never happen. If we hit this, the remote client is sending more chunks than necessary.
-                                DD_ALERT_REASON("Server received more chunks than expected");
+                                DD_WARN_REASON("Server received more chunks than expected");
                             }
                         }
                         else if (pSessionData->payload.command == GpuCrashDumpMessage::GpuCrashDataSentinel)
@@ -244,7 +244,7 @@ namespace DevDriver
                             pSessionData->state = SessionState::WaitForCrashDump;
 
                             // Invalid command?
-                            DD_ALERT_REASON("Invalid command received");
+                            DD_WARN_REASON("Invalid command received");
                         }
                     }
                     else if (result != Result::NotReady)

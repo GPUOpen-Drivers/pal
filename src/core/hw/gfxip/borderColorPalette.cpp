@@ -25,6 +25,7 @@
 
 #include "core/hw/gfxip/borderColorPalette.h"
 #include "core/device.h"
+#include "palEventDefs.h"
 
 using namespace Util;
 
@@ -45,6 +46,22 @@ BorderColorPalette::BorderColorPalette(
     m_gpuMemSize(createInfo.paletteSize * EntrySize),
     m_gpuMemAlignment(gpuMemAlign)
 {
+    ResourceDescriptionBorderColorPalette desc = {};
+    desc.pCreateInfo = &createInfo;
+    ResourceCreateEventData data = {};
+    data.type = ResourceType::BorderColorPalette;
+    data.pResourceDescData = static_cast<void*>(&desc);
+    data.resourceDescSize = sizeof(ResourceDescriptionBorderColorPalette);
+    data.pObj = this;
+    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+}
+
+// =====================================================================================================================
+BorderColorPalette::~BorderColorPalette()
+{
+    ResourceDestroyEventData data = {};
+    data.pObj = this;
+    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 }
 
 // =====================================================================================================================
@@ -112,6 +129,12 @@ Result BorderColorPalette::BindGpuMemory(
         {
             UpdateGpuMemoryBinding(static_cast<gpusize>(m_gpuMemory.GpuVirtAddr()));
         }
+
+        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
+            this,
+            m_gpuMemSize,
+            pGpuMemory,
+            offset);
     }
 
     return result;

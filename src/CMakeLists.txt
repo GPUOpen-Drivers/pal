@@ -129,6 +129,7 @@ target_include_directories(pal
         ${PROJECT_SOURCE_DIR}/inc/core
         ${PROJECT_SOURCE_DIR}/inc/gpuUtil
         ${PROJECT_SOURCE_DIR}/inc/util
+        ${PROJECT_SOURCE_DIR}/shared/inc
     PRIVATE
         ${PROJECT_SOURCE_DIR}/res
         ${PROJECT_SOURCE_DIR}/src
@@ -199,7 +200,9 @@ endif()
 target_link_libraries(pal PUBLIC metrohash)
 
 ### CWPACK #####################################################################
-add_subdirectory(${PAL_CWPACK_PATH} ${PROJECT_BINARY_DIR}/cwpack)
+if(NOT TARGET cwpack)
+    add_subdirectory(${PAL_CWPACK_PATH} ${PROJECT_BINARY_DIR}/cwpack)
+endif()
 target_link_libraries(pal PUBLIC cwpack)
 
 ### GPUOPEN ####################################################################
@@ -233,6 +236,7 @@ if(PAL_BUILD_CORE)
         core/cmdStreamAllocation.cpp
         core/device.cpp
         core/engine.cpp
+        core/eventProvider.cpp
         core/fence.cpp
         core/formatInfo.cpp
         core/gpuEvent.cpp
@@ -461,7 +465,6 @@ if(PAL_BUILD_CORE)
                 target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10)
                 target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10)
             endif()
-
             target_sources(pal PRIVATE
                 core/hw/gfxip/gfx9/g_gfx9PalSettings.cpp
                 core/hw/gfxip/gfx9/gfx9Barrier.cpp
@@ -658,25 +661,33 @@ endif()
 
 ### PAL util ###################################################################
 target_sources(pal PRIVATE
+    util/assert.cpp
     util/dbgPrint.cpp
+    util/cacheLayerBase.cpp
     util/file.cpp
+    util/fileArchiveCacheLayer.cpp
     util/jsonWriter.cpp
     util/math.cpp
-    util/assert.cpp
     util/md5.cpp
     util/memMapFile.cpp
+    util/memoryCacheLayer.cpp
     util/sysMemory.cpp
     util/sysUtil.cpp
+    util/trackingCacheLayer.cpp
+    util/platformKey.cpp
 )
 
 if(UNIX)
 ### PAL util/lnx ###############################################################
     target_sources(pal PRIVATE
+        util/lnx/lnxArchiveFile.cpp
         util/lnx/lnxConditionVariable.cpp
         util/lnx/lnxEvent.cpp
         util/lnx/lnxFileMap.cpp
+        util/lnx/lnxHashProvider.cpp
         util/lnx/lnxLibrary.cpp
         util/lnx/lnxMutex.cpp
+        util/lnx/lnxOpenssl.cpp
         util/lnx/lnxSemaphore.cpp
         util/lnx/lnxSysMemory.cpp
         util/lnx/lnxSysUtil.cpp

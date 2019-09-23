@@ -755,6 +755,18 @@ public:
         uint32             connectorId,
         HdrOutputMetadata* pHdrMetaData) const;
 
+    // NOTE: There are no API level residency functions on the queue and so references are added/removed by the device.
+    //       Only submit-level residency model is supported so we need to populate the device global list to the queue.
+    //       Then, at submit time the queue will submit it's own allocation list
+    Result AddGlobalReferences(
+        uint32              gpuMemRefCount,
+        const GpuMemoryRef* pGpuMemoryRefs);
+
+    void RemoveGlobalReferences(
+        uint32            gpuMemoryCount,
+        IGpuMemory*const* ppGpuMemory,
+        bool              forceRemove);
+
 protected:
     virtual void FinalizeQueueProperties() override;
 
@@ -810,11 +822,13 @@ private:
     Result InitScreen();
 #if PAL_BUILD_GFX6
     void InitGfx6ChipProperties();
-    void InitGfx6CuMask();
+    void InitGfx6CuMask(
+        struct drm_amdgpu_info_device* pDeviceInfo);
 #endif
 
     void InitGfx9ChipProperties();
-    void InitGfx9CuMask();
+    void InitGfx9CuMask(
+        struct drm_amdgpu_info_device* pDeviceInfo);
 
     void InitOutputPaths();
 
@@ -884,12 +898,6 @@ private:
 
     static Result ParseClkInfo(const char* pFilePath, ClkInfo* pClkInfo, uint32* pCurIndex);
     Result        InitClkInfo();
-
-    // NOTE: There are no API level residency functions on the queue and so references are added/removed by the device.
-    //       Only submit-level residency model is supported so we need to populate the device global list to the queue.
-    //       Then, at submit time the queue will submit it's own allocation list
-    void RemoveFromGlobalList(uint32 gpuMemoryCount, IGpuMemory*const* ppGpuMemory);
-    void AddToGlobalList(uint32 gpuMemRefCount, const GpuMemoryRef* pGpuMemoryRefs);
 
     typedef Util::HashMap<IGpuMemory*, uint32, Pal::Platform> MemoryRefMap;
     MemoryRefMap m_globalRefMap;

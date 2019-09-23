@@ -110,10 +110,15 @@ CmdBuffer::CmdBuffer(
     :
     m_createInfo(createInfo),
     m_engineType(createInfo.engineType),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     m_engineSubType(createInfo.engineSubType),
+#endif
     m_pCmdAllocator(static_cast<CmdAllocator*>(createInfo.pCmdAllocator)),
     m_pMemAllocator(nullptr),
     m_pMemAllocatorStartPos(nullptr),
+    m_status(Result::Success),
+    m_executionMarkerAddr(0),
+    m_executionMarkerCount(0),
     m_embeddedData(device.GetPlatform()),
     m_gpuScratchMem(device.GetPlatform()),
     m_gpuScratchMemAllocLimit(0),
@@ -130,7 +135,6 @@ CmdBuffer::CmdBuffer(
 {
     m_buildFlags.u32All = 0;
     m_flags.u32All      = 0;
-    m_status            = Result::Success;
 
     // Initialize all draw/dispatch funcs to invalid stubs.  HWIP command buffer classes that support these interfaces
     // will overwrite the function pointers.
@@ -299,6 +303,17 @@ Result CmdBuffer::Begin(
                 m_numCmdBufsBegun++;
 #endif
             }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+            if (SupportsExecutionMarker() && (m_buildFlags.enableExecutionMarkerSupport == 1))
+            {
+                BeginExecutionMarker(info.execMarkerClientHandle);
+            }
+            else
+            {
+                m_buildFlags.enableExecutionMarkerSupport = 0;
+            }
+#endif
         }
     }
 
@@ -322,6 +337,14 @@ Result CmdBuffer::BeginCommandStreams(
 }
 
 // =====================================================================================================================
+void CmdBuffer::BeginExecutionMarker(
+    uint64 clientHandle)
+{
+    constexpr size_t MarkerSize = sizeof(uint64) / sizeof(uint32);
+    m_executionMarkerAddr = AllocateGpuScratchMem(MarkerSize, MarkerSize);
+}
+
+// =====================================================================================================================
 // Completes recording of a command buffer in the building state, making it executable.
 Result CmdBuffer::End()
 {
@@ -333,6 +356,12 @@ Result CmdBuffer::End()
     }
     else if (m_recordState == CmdBufferRecordState::Building)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 533
+        if (m_buildFlags.enableExecutionMarkerSupport == 1)
+        {
+            EndExecutionMarker();
+        }
+#endif
         result = AddPostamble();
 
         // Update the last paging fence to reflect that of the command allocator and of all nested command buffers
@@ -385,8 +414,11 @@ Result CmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
-    m_recordState = CmdBufferRecordState::Reset;
-    m_lastPagingFence = 0;
+    m_recordState          = CmdBufferRecordState::Reset;
+    m_lastPagingFence      = 0;
+
+    m_executionMarkerCount = 0;
+    m_executionMarkerAddr  = 0;
 
     // We must attempt to return our linear allocator in the case that the client reset this command buffer while it was
     // in the building state. In normal operation this call will do nothing and take no locks.

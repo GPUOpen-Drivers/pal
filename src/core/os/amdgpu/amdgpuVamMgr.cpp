@@ -583,9 +583,10 @@ Result VamMgrSingleton::GetReservedVaRange(
                     &info.baseVirtualAddr[partIndex],
                     &info.allocatedVa[partIndex],
                     0);
+                // Warn if we get a VA space that wasn't what was requested
                 PAL_ASSERT((pMemoryProperties->vaRange[partIndex].baseVirtAddr == 0)  ||
                            ((pMemoryProperties->vaRange[partIndex].baseVirtAddr != 0) &&
-                           (pMemoryProperties->vaRange[partIndex].baseVirtAddr == info.baseVirtualAddr[partIndex])));
+                            (pMemoryProperties->vaRange[partIndex].baseVirtAddr == info.baseVirtualAddr[partIndex])));
                 pMemoryProperties->vaRange[partIndex].baseVirtAddr = info.baseVirtualAddr[partIndex];
             }
         }

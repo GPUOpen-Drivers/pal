@@ -55,7 +55,8 @@ struct ColorTargetViewCreateInfo
             uint32 imageVaLocked :  1;  ///< Whether or not the image's virtual address range is locked and never
                                         ///< changes.  It is ignored by buffer views because their address can't change.
             uint32 zRangeValid   :  1;  ///< whether z offset/ range value is valid.
-            uint32 reserved      : 29;  ///< Reserved for future use
+            uint32 reserved0     :  1;  ///< Reserved for future HW
+            uint32 reserved      : 28;  ///< Reserved for future use
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;                            ///< Color target view creation flags.

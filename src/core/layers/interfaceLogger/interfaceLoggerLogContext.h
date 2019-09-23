@@ -124,6 +124,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdCopyTypedBuffer,
     CmdBufferCmdCopyRegisterToMemory,
     CmdBufferCmdScaledCopyImage,
+    CmdBufferCmdGenerateMipmaps,
     CmdBufferCmdColorSpaceConversionCopy,
     CmdBufferCmdCloneImageData,
     CmdBufferCmdUpdateMemory,
@@ -178,6 +179,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetMarker,
     CmdBufferCmdPresent,
     CmdBufferCmdCommentString,
+    CmdBufferCmdInsertExecutionMarker,
     CmdBufferCmdXdmaWaitFlipPending,
     CmdBufferCmdStartGpuProfilerLogging,
     CmdBufferCmdStopGpuProfilerLogging,
@@ -550,6 +552,7 @@ public:
     void Struct(SamplePos value);
     void Struct(ScaledCopyFlags value);
     void Struct(const ScaledCopyInfo& value);
+    void Struct(const GenMipmapsInfo& value);
     void Struct(const ScissorRectParams& value);
     void Struct(const SetClockModeInput& value);
     void Struct(const SetClockModeOutput& value);
@@ -790,6 +793,7 @@ public:
     void KeyAndStruct(const char* pKey, SamplePos value)                                  { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, ScaledCopyFlags value)                            { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const ScaledCopyInfo& value)                      { Key(pKey); Struct(value); }
+    void KeyAndStruct(const char* pKey, const GenMipmapsInfo& value)                      { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const ScissorRectParams& value)                   { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const SetClockModeInput& value)                   { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const SetClockModeOutput& value)                  { Key(pKey); Struct(value); }

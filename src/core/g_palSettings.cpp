@@ -123,7 +123,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.cmdAllocatorFreeOnReset = false;
     m_settings.cmdBufOptimizePm4 = Pm4OptDefaultEnable;
     m_settings.cmdBufOptimizePm4Mode = Pm4OptModeImmediate;
-    m_settings.cmdBufForceCpuUpdatePath = CmdBufForceCpuUpdatePathDefault;
+    m_settings.cmdBufForceCpuUpdatePath = CmdBufForceCpuUpdatePathOn;
     m_settings.cmdBufForceOneTimeSubmit = CmdBufForceOneTimeSubmitDefault;
     m_settings.cmdBufPreemptionMode = CmdBufPreemptModeEnable;
     m_settings.commandBufferForceCeRamDumpInPostamble = false;
@@ -1016,7 +1016,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 822079200;
+            component.settingsDataHash = 2372099885;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

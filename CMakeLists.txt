@@ -36,8 +36,6 @@ include(AmdCmakeHelper)
 # We would have to override the options using cmake generator expressions and possibly include an
 # option to disable overrides such as PAL_DISABLE_INTERNAL_OPTION_OVERRIDES
 
-option(PAL_CLOSED_SOURCE "Build closed source PAL?" OFF)
-
 option(PAL_BUILD_GPUOPEN "Build GPUOpen developer driver support?" OFF)
 
 option(PAL_DBG_COMMAND_COMMENTS "Command with comments" OFF)
@@ -146,6 +144,7 @@ set(PAL_VAM_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/vam CACHE PATH "Specify
 if(PAL_BUILD_GPUOPEN)
     set(PAL_GPUOPEN_PATH ${PROJECT_SOURCE_DIR}/shared/gpuopen CACHE PATH "Specify the path to the GPUOPEN_PATH project.")
     set(GPUOPEN_BUILD_METROHASH OFF CACHE BOOL "PAL override to build GPUOpen without the Metrohash library since PAL has its own." FORCE)
+    set(METROHASH_PATH ${PAL_METROHASH_PATH}/src CACHE PATH "Specify the path to the MetroHash module.")
     set(GPUOPEN_BUILD_SERVER_HELPERS ON CACHE BOOL "PAL override to build GPUOpen with server helper classes." FORCE)
     set(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON CACHE BOOL "PAL override to build GPUOpen with support for the standard driver protocols." FORCE)
 endif()

@@ -204,7 +204,7 @@ namespace DevDriver
 
                 case TransferMessage::TransferStatus:
                 {
-                    DD_ALERT(m_scratchPayload.GetPayload<TransferStatus>().result == Result::Aborted);
+                    DD_WARN(m_scratchPayload.GetPayload<TransferStatus>().result == Result::Aborted);
                     // It's possible that we may receive a transfer abort request after we've already sent
                     // all the transfer data to the remote client successfully. This can happen when the
                     // remaining amount of data for the transfer fits into the entire send window.
@@ -287,14 +287,14 @@ namespace DevDriver
                     if (m_scratchPayload.GetPayload<TransferHeader>().command == TransferMessage::TransferStatus)
                     {
                         // This should only be received for an abort
-                        DD_ALERT(m_scratchPayload.GetPayload<TransferStatus>().result == Result::Aborted);
+                        DD_WARN(m_scratchPayload.GetPayload<TransferStatus>().result == Result::Aborted);
                         SendSentinel(Result::Aborted);
                     }
                     else
                     {
                         // We should only ever receive abort requests in this state. Send back an error.
                         SendSentinel(Result::Error);
-                        DD_ALERT_REASON("Invalid response received");
+                        DD_WARN_REASON("Invalid response received");
                     }
                 }
                 else
@@ -350,7 +350,7 @@ namespace DevDriver
                             }
                             else
                             {
-                                DD_ALERT_REASON("Client tried to write more than requested bytes to the server");
+                                DD_WARN_REASON("Client tried to write more than requested bytes to the server");
                                 CancelTransfer(Result::InsufficientMemory);
                             }
                             break;
@@ -377,7 +377,7 @@ namespace DevDriver
                         }
                         default:
                         {
-                            DD_ALERT("Push transfer received unexpected packet from client");
+                            DD_WARN_REASON("Push transfer received unexpected packet from client");
                             CancelTransfer(Result::Error);
                             break;
                         }

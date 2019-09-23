@@ -1163,7 +1163,7 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
             transition[regionId].imageInfo.newLayout.engines  = dstImageLayout.engines;
             transition[regionId].imageInfo.subresRange        = range;
 
-			if (dstImage.Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
+            if (dstImage.Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
             {
                 PAL_ASSERT(pRegions[i].pQuadSamplePattern != nullptr);
             }
@@ -1210,20 +1210,19 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
     struct FixUpRegion
     {
         const ImageResolveRegion* pResolveRegion;
-        bool resolveDepth;
-        bool resolveStencil;
+        uint32 aspectFlags;
 
         void FillAspect(ImageAspect aspect)
         {
             if (aspect == ImageAspect::Depth)
             {
-                PAL_ASSERT(resolveDepth == false);
-                resolveDepth = true;
+                PAL_ASSERT(TestAnyFlagSet(aspectFlags, HtileAspectDepth) == false);
+                aspectFlags |= HtileAspectDepth;
             }
             else if (aspect == ImageAspect::Stencil)
             {
-                PAL_ASSERT(resolveStencil == false);
-                resolveStencil = true;
+                PAL_ASSERT(TestAnyFlagSet(aspectFlags, HtileAspectStencil) == false);
+                aspectFlags |= HtileAspectStencil;
             }
             else
             {
@@ -1302,30 +1301,8 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
             const SubResourceInfo* pDstSubresInfo = dstImage.SubresourceInfo(dstSubresId);
             const Gfx6Htile* pDstHtile = gfx6DstImage.GetHtile(dstSubresId);
 
-            uint32 htileMask = 0;
-            uint32 htileDecompressValue = 0;
-
-            if (fixUpRegionList[i].resolveDepth)
-            {
-                uint32 htileDataDepth = 0;
-                uint32 htileMaskDepth = 0;
-
-                pDstHtile->GetAspectInitialValue(ImageAspect::Depth, &htileDataDepth, &htileMaskDepth);
-
-                htileDecompressValue |= htileDataDepth;
-                htileMask |= htileMaskDepth;
-            }
-
-            if (fixUpRegionList[i].resolveStencil)
-            {
-                uint32 htileDataStencil = 0;
-                uint32 htileMaskStencil = 0;
-
-                pDstHtile->GetAspectInitialValue(ImageAspect::Stencil, &htileDataStencil, &htileMaskStencil);
-
-                htileDecompressValue |= htileDataStencil;
-                htileMask |= htileMaskStencil;
-            }
+            const uint32 htileMask            = pDstHtile->GetAspectMask(fixUpRegionList[i].aspectFlags);
+            const uint32 htileDecompressValue = pDstHtile->GetInitialValue() & htileMask;
 
             PAL_ASSERT(pCurRegion->srcOffset.x == pCurRegion->dstOffset.x);
             PAL_ASSERT(pCurRegion->srcOffset.y == pCurRegion->dstOffset.y);
@@ -1846,7 +1823,9 @@ bool RsrcProcMgr::HwlCanDoFixedFuncResolve(
         ret = ((memcmp(&pSrcSubRsrcInfo->format, &pDstSubRsrcInfo->format, sizeof(SwizzledFormat)) == 0) &&
                (memcmp(&imageRegion.srcOffset, &imageRegion.dstOffset, sizeof(Offset3d)) == 0)           &&
                (pSrcTileInfo->tileMode == pDstTileInfo->tileMode)                                        &&
-               (pSrcTileInfo->tileType == pDstTileInfo->tileType));
+               (pSrcTileInfo->tileType == pDstTileInfo->tileType)                                        &&
+               // CB ignores the slice_start field in MRT1, and instead uses the value from MRT0 when writing to MRT1.
+               (srcSubResId.arraySlice == dstSubResId.arraySlice));
 
         if (ret == false)
         {
@@ -2029,12 +2008,8 @@ void RsrcProcMgr::HwlResummarizeHtileCompute(
     const Gfx6Htile*const pBaseHtile = gfx6Image.GetHtile(range.startSubres);
     PAL_ASSERT(pBaseHtile != nullptr);
 
-    uint32 htileValue   = 0;
-    uint32 htileMask    = 0;
-    const ImageAspect aspect  = range.startSubres.aspect;
-    PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
-    const uint32 aspectMask = (aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil;
-    pBaseHtile->ComputeResummarizeData(aspectMask, &htileValue, &htileMask);
+    const uint32 htileValue = pBaseHtile->GetInitialValue();
+    const uint32 htileMask  = pBaseHtile->GetAspectMask(range.startSubres.aspect);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function assumes that all mip levels must use the same Htile value and mask.
@@ -2043,11 +2018,8 @@ void RsrcProcMgr::HwlResummarizeHtileCompute(
     {
         const Gfx6Htile*const pNextHtile = gfx6Image.GetHtile(nextMipSubres);
         PAL_ASSERT(pNextHtile != nullptr);
-
-        uint32 nextHtileValue = 0;
-        uint32 nextHtileMask  = 0;
-        pNextHtile->ComputeResummarizeData(aspectMask, &nextHtileValue, &nextHtileMask);
-        PAL_ASSERT((htileValue == nextHtileValue) && (htileMask == nextHtileMask));
+        PAL_ASSERT((htileValue == pNextHtile->GetInitialValue()) &&
+                   (htileMask  == pNextHtile->GetAspectMask(range.startSubres.aspect)));
     }
 #endif
 
@@ -2136,9 +2108,8 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
     const Gfx6Htile*const pBaseHtile = dstImage.GetHtile(range.startSubres);
     PAL_ASSERT(pBaseHtile != nullptr);
 
-    uint32 htileValue = 0;
-    uint32 htileMask  = 0;
-    pBaseHtile->ComputeClearData(clearMask, depth, &htileValue, &htileMask);
+    const uint32 htileValue = pBaseHtile->GetClearValue(depth);
+    const uint32 htileMask  = pBaseHtile->GetAspectMask(clearMask);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function assumes that all mip levels must use the same Htile value and mask.
@@ -2147,11 +2118,8 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
     {
         const Gfx6Htile*const pNextHtile = dstImage.GetHtile(nextMipSubres);
         PAL_ASSERT(pNextHtile != nullptr);
-
-        uint32 nextHtileValue = 0;
-        uint32 nextHtileMask  = 0;
-        pNextHtile->ComputeClearData(clearMask, depth, &nextHtileValue, &nextHtileMask);
-        PAL_ASSERT((htileValue == nextHtileValue) && (htileMask == nextHtileMask));
+        PAL_ASSERT((htileValue == pNextHtile->GetClearValue(depth)) &&
+                   (htileMask  == pNextHtile->GetAspectMask(clearMask)));
     }
 #endif
 
@@ -3015,9 +2983,8 @@ void RsrcProcMgr::ClearHtileAspect(
     PAL_ASSERT(pHtile->TileStencilDisabled() == false);
 
     // Evaluate the mask and value for updating the HTile buffer.
-    uint32 htileValue = 0;
-    uint32 htileMask  = 0;
-    pHtile->GetAspectInitialValue(range.startSubres.aspect, &htileValue, &htileMask);
+    const uint32 htileValue = pHtile->GetInitialValue();
+    const uint32 htileMask  = pHtile->GetAspectMask(range.startSubres.aspect);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function assumes that all mip levels must use the same Htile value and mask.
@@ -3027,11 +2994,8 @@ void RsrcProcMgr::ClearHtileAspect(
         const Gfx6Htile*const pNextHtile = dstImage.GetHtile(nextMipSubres);
         PAL_ASSERT(pNextHtile != nullptr);
         PAL_ASSERT(pNextHtile->TileStencilDisabled() == false);
-
-        uint32 nextHtileValue = 0;
-        uint32 nextHtileMask  = 0;
-        pNextHtile->GetAspectInitialValue(range.startSubres.aspect, &htileValue, &htileMask);
-        PAL_ASSERT((htileValue == nextHtileValue) && (htileMask == nextHtileMask));
+        PAL_ASSERT((htileValue == pNextHtile->GetInitialValue()) &&
+                   (htileMask  == pNextHtile->GetAspectMask(range.startSubres.aspect)));
     }
 #endif
 

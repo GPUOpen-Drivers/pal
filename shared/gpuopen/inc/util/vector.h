@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -31,8 +31,8 @@
 
 #pragma once
 
-#include "ddPlatform.h"
-#include "template.h"
+#include <ddPlatform.h>
+
 #include <string.h>
 
 namespace DevDriver
@@ -42,6 +42,9 @@ namespace DevDriver
     {
     public:
         class Iterator;
+
+        // The capacity this Vector can hold without allocating extra space.
+        static constexpr size_t DefaultCapacity = defaultCapacity;
 
         // Standard constructor
         explicit Vector(const AllocCb& allocCb)
@@ -60,7 +63,7 @@ namespace DevDriver
             , m_allocCb(rhs.m_allocCb) // copy the allocator callback
         {
             // if the vector will fit inside the default allocation, move it into it
-            if (m_size < defaultCapacity)
+            if (m_size <= defaultCapacity)
             {
                 for (size_t index = 0; index < m_size; index++)
                 {
@@ -162,7 +165,7 @@ namespace DevDriver
         // Remove the object at the specified index. Does not maintain order.
         void Remove(size_t index)
         {
-            DD_ASSERT((index < m_size) & (index >= 0));
+            DD_ASSERT((index < m_size) && (index >= 0));
 
             const size_t lastIndex = m_size - 1;
 

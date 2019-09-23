@@ -33,8 +33,6 @@
 
 #include "palMsgPack.h"
 
-#include "../../src/util/imported/cwpack/inc/cwpack.h"
-
 namespace Util
 {
 

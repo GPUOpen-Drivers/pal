@@ -374,9 +374,16 @@ void SettingsLoader::OverrideDefaults(
     }
     else if (IsGfx8(*m_pDevice))
     {
+        m_settings.waLogicOpDisablesOverwriteCombiner = true;
+
         if (IsCarrizo(*m_pDevice))
         {
             m_settings.gfx7LateAllocVsOnCuAlwaysOn = true;
+        }
+
+        if (m_pDevice->ChipProperties().gfx6.rbPlus != 0)
+        {
+            m_settings.waRotatedSwizzleDisablesOverwriteCombiner = true;
         }
     }
     else

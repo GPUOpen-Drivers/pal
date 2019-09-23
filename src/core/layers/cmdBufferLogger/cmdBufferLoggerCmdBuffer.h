@@ -215,7 +215,9 @@ public:
         const ImageCopyRegion* pRegions,
         uint32                 flags) override;
     virtual void CmdScaledCopyImage(
-        const ScaledCopyInfo&        copyInfo) override;
+        const ScaledCopyInfo& copyInfo) override;
+    virtual void CmdGenerateMipmaps(
+        const GenMipmapsInfo& genInfo) override;
     virtual void CmdColorSpaceConversionCopy(
         const IImage&                     srcImage,
         ImageLayout                       srcImageLayout,
@@ -470,6 +472,7 @@ public:
         uint32 stateFlags) override;
     virtual void CmdCommentString(
         const char* pComment) override;
+    virtual uint32 CmdInsertExecutionMarker() override;
     virtual void CmdStartGpuProfilerLogging() override;
     virtual void CmdStopGpuProfilerLogging() override;
 

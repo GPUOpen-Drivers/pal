@@ -95,9 +95,9 @@ class ColorTargetView : public Pal::IColorTargetView
 {
 public:
     ColorTargetView(
-        const Device&                            device,
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo);
+        const Device&                     device,
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo);
 
     static uint32* WriteUpdateFastClearColor(
         uint32       slot,
@@ -120,6 +120,8 @@ public:
 
     TargetExtent2d GetExtent() const { return m_extent; }
 
+    bool IsRotatedSwizzleOverwriteCombinerDisabled() const { return m_flags.disableRotateSwizzleOC != 0; }
+
 private:
     virtual ~ColorTargetView()
     {
@@ -130,9 +132,9 @@ private:
 
     void BuildPm4Headers(const Device& device);
     void InitRegisters(
-        const Device&                            device,
-        const ColorTargetViewCreateInfo&         createInfo,
-        const ColorTargetViewInternalCreateInfo& internalInfo);
+        const Device&                     device,
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo);
 
     void UpdateImageVa(ColorTargetViewPm4Img* pPm4Img) const;
 
@@ -140,19 +142,21 @@ private:
     {
         struct
         {
-            uint32 isBufferView          :  1; // Indicates that this is a buffer view instead of an image view. Note
-                                               // that none of the metadata flags will be set if isBufferView is set.
-            uint32 viewVaLocked          :  1; // Whether the view's VA range is locked and won't change. This will
-                                               // always be set for buffer views.
-            uint32 hasCmask              :  1;
-            uint32 hasFmask              :  1;
-            uint32 hasDcc                :  1;
-            uint32 hasDccStateMetaData   :  1;
-            uint32 fastClearSupported    :  1; // Fast clears are supported using the CLEAR_COLOR registers.
-            uint32 dccCompressionEnabled :  1; // DCC can be disabled per-mip even if the image has DCC memory.
-            uint32 usesLoadRegIndexPkt   :  1; // Set if LOAD_CONTEXT_REG_INDEX is used instead of LOAD_CONTEXT_REG.
-            uint32 isGfx7OrHigher        :  1;
-            uint32 reserved              : 22;
+            uint32 isBufferView           :  1; // Indicates that this is a buffer view instead of an image view. Note
+                                                // that none of the metadata flags will be set if isBufferView is set.
+            uint32 viewVaLocked           :  1; // Whether the view's VA range is locked and won't change. This will
+                                                // always be set for buffer views.
+            uint32 hasCmask               :  1;
+            uint32 hasFmask               :  1;
+            uint32 hasDcc                 :  1;
+            uint32 hasDccStateMetaData    :  1;
+            uint32 fastClearSupported     :  1; // Fast clears are supported using the CLEAR_COLOR registers.
+            uint32 dccCompressionEnabled  :  1; // DCC can be disabled per-mip even if the image has DCC memory.
+            uint32 usesLoadRegIndexPkt    :  1; // Set if LOAD_CONTEXT_REG_INDEX is used instead of LOAD_CONTEXT_REG.
+            uint32 isGfx7OrHigher         :  1;
+            uint32 disableRotateSwizzleOC :  1; // Indicate that the for the assocaited image, whether the
+                                                // Overwrite Combiner (OC) needs to be disabled or not.
+            uint32 reserved               : 21;
         };
 
         uint32 u32All;
