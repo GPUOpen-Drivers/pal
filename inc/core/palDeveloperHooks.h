@@ -60,6 +60,11 @@ enum class CallbackType : uint32
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     BindPipeline,           ///< This callback is to inform that a pipeline (client or internal) has been bound.
 #endif
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    DrawDispatchValidation, ///< This callback is to describe the state validation needed by a draw or dispatch.
+    OptimizedRegisters,     ///< This callback is to describe the PM4 optimizer's removal of redundant register
+                            ///  sets.
+#endif
     Count,                  ///< The number of info types.
 };
 
@@ -347,18 +352,17 @@ struct ImageDataAddrMgrSurfInfo
 /// Type of draw or dispatch operation for a DrawDispatch callback
 enum class DrawDispatchType : uint32
 {
-    CmdDraw = 0,                 ///< Auto-indexed draw
-    CmdDrawOpaque,               ///< Auto draw
-    CmdDrawIndexed,              ///< Indexed draw
-    CmdDrawIndirectMulti,        ///< (Multi) indirect draw
-    CmdDrawIndexedIndirectMulti, ///< (Multi) indirect indexed draw
-
-    CmdDispatch,                 ///< Direct compute dispatch
-    CmdDispatchIndirect,         ///< Indirect compute dispatch
-    CmdDispatchOffset,           ///< Direct compute dispatch (offsetted start)
+    CmdDraw = 0,                  ///< Auto-indexed draw
+    CmdDrawOpaque,                ///< Auto draw
+    CmdDrawIndexed,               ///< Indexed draw
+    CmdDrawIndirectMulti,         ///< (Multi) indirect draw
+    CmdDrawIndexedIndirectMulti,  ///< (Multi) indirect indexed draw
+    CmdDispatch,                  ///< Direct compute dispatch
+    CmdDispatchIndirect,          ///< Indirect compute dispatch
+    CmdDispatchOffset,            ///< Direct compute dispatch (offsetted start)
 
     Count,
-    FirstDispatch = CmdDispatch  ///< All callbacks with an enum value greater or equal than this are dispatches
+    FirstDispatch = CmdDispatch   ///< All callbacks with an enum value greater or equal than this are dispatches
 };
 
 /// Draw-specific information for DrawDispatch callbacks
@@ -405,6 +409,35 @@ struct BindPipelineData
     uint64            apiPsoHash; ///< The hash to correlate APIs and corresponding PSOs.
     PipelineBindPoint bindPoint;  ///< The bind point of the pipeline within a queue.
 };
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+/// Information for DrawDispatchValidation callbacks
+struct DrawDispatchValidationData
+{
+    ICmdBuffer* pCmdBuffer;         ///< The command buffer which is recording the triggering draw or dispatch.
+    uint32      pipelineCmdSize;    ///< Size of PM4 commands used to validate the current pipeline state (bytes).
+    uint32      userDataCmdSize;    ///< Size of PM4 commands used to validate the current user-data entries (bytes).
+    uint32      miscCmdSize;        ///< Size of PM4 commands for all other draw- or dispatch-time validation (bytes).
+};
+
+/// Information for OptimizedRegisters callbacks
+struct OptimizedRegistersData
+{
+    ICmdBuffer*   pCmdBuffer;       ///< The command buffer which is recording the triggering PM4 stream.
+    /// Array containing the number of times the PM4 optimizer saw a SET packet which modified each register
+    const uint32* pShRegSeenSets;
+    ///< Array containing the number of times the PM4 optimizer kept a SET packet which modified each register
+    const uint32* pShRegKeptSets;
+    uint32        shRegCount;       ///< Number of SH registers
+    uint16        shRegBase;        ///< Base address of SH registers
+    /// Array containing the number of times the PM4 optimizer saw a SET or RMW packet which modified each register
+    const uint32* pCtxRegSeenSets;
+    ///< Array containing the number of times the PM4 optimizer kept a SET or RMW packet which modified each register
+    const uint32* pCtxRegKeptSets;
+    uint32        ctxRegCount;      ///< Number of context registers
+    uint16        ctxRegBase;       ///< Base address of context registers
+};
+#endif
 
 } // Developer
 } // Pal

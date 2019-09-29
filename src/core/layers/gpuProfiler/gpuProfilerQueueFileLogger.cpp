@@ -46,8 +46,6 @@ constexpr const char* EngineTypeStrings[] =
     "Ace",
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     "XAce",
-#else
-    "Unknown",
 #endif
     "Dma",
     "Timer",
@@ -229,7 +227,6 @@ void Queue::OpenSqttFile(
             crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_DISPATCH");
             addPipelineHash = true;
         }
-
         if (addPipelineHash)
         {
             if (settings.gpuProfilerConfig.useFullPipelineHash)
@@ -304,7 +301,6 @@ void Queue::OpenSpmFile(
             crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_DISPATCH");
             addPipelineHash = true;
         }
-
         if (addPipelineHash)
         {
             if (settings.gpuProfilerConfig.useFullPipelineHash)
@@ -444,7 +440,8 @@ void Queue::OutputCmdBufCallToFile(
     OutputTimestampsToFile(logItem);
 
     // Print any draw/dispatch specific info (shader hashes, etc.).
-    if (cmdBufItem.flags.draw || cmdBufItem.flags.dispatch)
+    if (cmdBufItem.flags.draw || cmdBufItem.flags.dispatch
+    )
     {
         m_logFile.Printf("0x%016llx,0x%016llx",
                          cmdBufItem.draw.apiPsoHash,
@@ -472,7 +469,7 @@ void Queue::OutputCmdBufCallToFile(
                              cmdBufItem.draw.vertexCount,
                              cmdBufItem.draw.instanceCount);
         }
-        else
+        else if (cmdBufItem.flags.dispatch)
         {
             m_logFile.Printf(",0x%016llx%016llx,,,,,%u,,,",
                              cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.upper,

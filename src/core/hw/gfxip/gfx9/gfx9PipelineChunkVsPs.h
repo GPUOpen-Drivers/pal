@@ -92,8 +92,6 @@ public:
     regPA_SC_AA_CONFIG PaScAaConfig() const
         { return *reinterpret_cast<const regPA_SC_AA_CONFIG*>(&m_commands.common.paScAaConfig.reg_data); }
 
-    regPA_SC_SHADER_CONTROL PaScShaderControl(uint32  numIndices) const;
-
     // Shortcut for checking if the shader has enabled INNER_COVERAGE mode.
     bool UsesInnerCoverage() const
         { return (PaScAaConfig().bits.COVERAGE_TO_SHADER_SELECT == INPUT_INNER_COVERAGE); }
@@ -235,6 +233,9 @@ private:
             PM4_PFP_SET_CONTEXT_REG  hdrDbShaderControl;
             regDB_SHADER_CONTROL     dbShaderControl;
 
+            PM4_PFP_SET_CONTEXT_REG  hdrPaScShaderControl;
+            regPA_SC_SHADER_CONTROL  paScShaderControl;
+
             PM4_PFP_SET_CONTEXT_REG  hdrPaScBinnerCntl1;
             regPA_SC_BINNER_CNTL_1   paScBinnerCntl1;
 
@@ -275,9 +276,6 @@ private:
 
     const Device&  m_device;
     Pm4Commands    m_commands;
-
-    regPA_SC_SHADER_CONTROL  m_paScShaderControl;
-    bool                     m_calcWaveBreakAtDrawTime;
 
     const PerfDataInfo*const  m_pVsPerfDataInfo;   // VS performance data information.
     const PerfDataInfo*const  m_pPsPerfDataInfo;   // PS performance data information.

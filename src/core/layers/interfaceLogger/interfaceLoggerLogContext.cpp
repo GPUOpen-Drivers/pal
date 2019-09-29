@@ -1206,8 +1206,6 @@ const char* LogContext::GetEngineName(
         "Compute",          // EngineTypeCompute
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
         "ExclusiveCompute", // EngineTypeExclusiveCompute
-#else
-        nullptr,
 #endif
         "Dma",              // EngineTypeDma
         "Timer",            // EngineTypeTimer

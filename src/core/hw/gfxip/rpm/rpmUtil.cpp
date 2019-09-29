@@ -474,11 +474,13 @@ void BuildImageViewInfo(
 // Gets a raw UINT format that matches the bit depth of the provided format. Some formats may not have such a format
 // in which case a smaller format is selected and the caller must dispatch extra threads.
 SwizzledFormat GetRawFormat(
-    ChNumFormat  format,
-    uint32*      pTexelScale) // [out] If non-null, each texel requires this many raw format texels in the X dimension.
+    ChNumFormat format,
+    uint32*     pTexelScale,   // [out] If non-null, each texel requires this many raw format texels in the X dimension.
+    bool*       pSingleSubres) // [out] If non-null, check if the format needs to access a single subres at a time.
 {
     SwizzledFormat rawFormat  = UndefinedSwizzledFormat;
     uint32         texelScale = 1;
+    bool           singleSubres = false;
 
     switch(Formats::BitsPerPixel(format))
     {
@@ -508,6 +510,9 @@ SwizzledFormat GetRawFormat(
         rawFormat.swizzle =
             { Pal::ChannelSwizzle::X, Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::One };
         texelScale        = 3;
+        // On GFX9+ for 96bpp images the base address needs to access the exact mip/slice so they must be handled one
+        // at a time.
+        singleSubres      = true;
         break;
     case 128:
         rawFormat.format  = Pal::ChNumFormat::X32Y32Z32W32_Uint;
@@ -528,6 +533,11 @@ SwizzledFormat GetRawFormat(
     {
         // The caller is going to assume that it doesn't need to worry about texelScale, hopefully it's right.
         PAL_ASSERT(texelScale == 1);
+    }
+
+    if (pSingleSubres != nullptr)
+    {
+        *pSingleSubres = singleSubres;
     }
 
     return rawFormat;

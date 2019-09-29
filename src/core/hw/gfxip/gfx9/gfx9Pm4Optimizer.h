@@ -29,12 +29,15 @@
 
 namespace Pal
 {
+
+class GfxCmdBuffer;
+
 namespace Gfx9
 {
 
 class Device;
 
-// Structure used during PM4 optimization to track the current value of registers.
+// Structure used during PM4 optimization to track the current value of a single register.
 struct RegState
 {
     struct
@@ -47,6 +50,22 @@ struct RegState
     uint32 value;
 };
 
+// Structure used during PM4 optimization and instrumentation to track the current value of registers as well as the
+// number of times the register was written (via a SET packet) or ignored due to optimization.
+template <size_t RegisterCount>
+struct RegGroupState
+{
+    RegState  state[RegisterCount];     // State of each register in the group.
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    uint32    totalSets[RegisterCount]; // Number of writes to each register using SET packets.
+    uint32    keptSets[RegisterCount];  // Number of writes to each register using SET packets which were not ignored
+                                        // due to PM4 optimization.
+#endif
+};
+
+using ShRegState   = RegGroupState<ShRegUsedRangeSize>;
+using CntxRegState = RegGroupState<CntxRegUsedRangeSize>;
+
 // =====================================================================================================================
 // Utility class which provides routines to optimize PM4 command streams. Currently it only optimizes SH register writes
 // and context register writes.
@@ -57,7 +76,7 @@ public:
 
     void Reset();
 
-    void SetShRegInvalid(uint32 regAddr) { m_shRegs[regAddr - PERSISTENT_SPACE_START].flags.valid = 0; }
+    void SetShRegInvalid(uint32 regAddr) { m_shRegs.state[regAddr - PERSISTENT_SPACE_START].flags.valid = 0; }
 
     bool MustKeepSetContextReg(uint32 regAddr, uint32 regData);
     bool MustKeepSetShReg(uint32 regAddr, uint32 regData);
@@ -83,9 +102,9 @@ public:
     // These functions take a fully built LOAD_DATA header(s) and will update the state of the optimizer state
     // based on the packet's contents.
     void HandleLoadShRegs(const PM4_ME_LOAD_SH_REG& loadData)
-        { HandlePm4LoadReg(loadData, &m_shRegs[0]); }
+        { HandlePm4LoadReg(loadData, &m_shRegs); }
     void HandleLoadContextRegs(const PM4_PFP_LOAD_CONTEXT_REG& loadData)
-        { HandlePm4LoadReg(loadData, &m_cntxRegs[0]); }
+        { HandlePm4LoadReg(loadData, &m_cntxRegs); }
     void HandleLoadContextRegsIndex(const PM4PFP_LOAD_CONTEXT_REG_INDEX& loadData);
 
     // This generic function can be called by just about any step in the command stream building scheme. It can account
@@ -93,33 +112,43 @@ public:
     // Returns true if a context roll was detected.
     bool OptimizePm4Commands(const uint32* pSrcCmds, uint32* pDstCmds, uint32* pCmdSize);
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
+#endif
+
 private:
-    template <typename SetDataPacket>
-    uint32* OptimizePm4SetReg(SetDataPacket setData, const uint32* pRegData, uint32* pDstCmd, RegState* pRegStateBase);
+    template <typename SetDataPacket, size_t RegisterCount>
+    uint32* OptimizePm4SetReg(
+        SetDataPacket                 setData,
+        const uint32*                 pRegData,
+        uint32*                       pDstCmd,
+        RegGroupState<RegisterCount>* pRegState);
 
-    template <typename LoadDataPacket>
-    void HandlePm4LoadReg(const LoadDataPacket& loadData, RegState* pRegStateBase);
+    template <typename LoadDataPacket, size_t RegisterCount>
+    void HandlePm4LoadReg(const LoadDataPacket& loadData, RegGroupState<RegisterCount>* pRegState);
 
-    template <typename LoadDataIndexPacket>
-    void HandlePm4LoadRegIndex(const LoadDataIndexPacket& loadDataIndex, RegState* pRegStateBase);
+    template <typename LoadDataIndexPacket, size_t RegisterCount>
+    void HandlePm4LoadRegIndex(const LoadDataIndexPacket& loadDataIndex, RegGroupState<RegisterCount>* pRegState);
 
     void HandlePm4SetShRegOffset(const PM4PFP_SET_SH_REG_OFFSET& setShRegOffset);
     void HandlePm4SetContextRegIndirect(const PM4_PFP_SET_CONTEXT_REG& setData);
 
     uint32 GetPm4PacketSize(PM4_PFP_TYPE_3_HEADER pm4Header) const;
 
+    const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
 
     const bool m_waTcCompatZRange; // If the waTcCompatZRange workaround is enabled or not
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    bool     m_dstContainsSrc; // Knowing when the dst and src buffers are the same lets us do additional debug checks.
+    bool  m_dstContainsSrc; // Knowing when the dst and src buffers are the same lets us do additional debug checks.
 #endif
 
     // Shadow register state for context and SH registers.
-    RegState m_cntxRegs[CntxRegUsedRangeSize];
-    RegState m_shRegs[ShRegUsedRangeSize];
-    bool     m_contextRollDetected;
+    CntxRegState  m_cntxRegs;
+    ShRegState    m_shRegs;
+
+    bool  m_contextRollDetected;
 };
 
 } // Gfx9

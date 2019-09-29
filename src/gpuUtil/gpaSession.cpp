@@ -141,8 +141,6 @@ static const SqttEngineType PalEngineTypeToSqttEngineType[] =
     SQTT_ENGINE_TYPE_COMPUTE,                 // EngineTypeCompute
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     SQTT_ENGINE_TYPE_EXCLUSIVE_COMPUTE,       // EngineTypeExclusiveCompute
-#else
-    SQTT_ENGINE_TYPE_UNKNOWN,
 #endif
     SQTT_ENGINE_TYPE_DMA,                     // EngineTypeDma
     SQTT_ENGINE_TYPE_UNKNOWN,                 // EngineTypeTimer

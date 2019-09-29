@@ -95,7 +95,6 @@ enum EngineType : uint32
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     /// Corresponds to asynchronous compute engines (ACE) which are exclusively owned by one client at a time.
     EngineTypeExclusiveCompute = 0x2,
-#endif
 
     /// Corresponds to SDMA engines.
     EngineTypeDma              = 0x3,
@@ -103,10 +102,18 @@ enum EngineType : uint32
     /// Virtual engine that only supports inserting sleeps, used for implementing frame-pacing.
     EngineTypeTimer            = 0x4,
 
-#if   PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530 // NOT PAL_BUILD_VIDEO
     /// Corresponds to a hw engine that supports all operations (graphics and compute)
     EngineTypeHighPriorityUniversal = 0x5,
-#endif // PAL_BUILD_VIDEO
+
+#else //PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
+
+    /// Corresponds to SDMA engines.
+    EngineTypeDma              = 0x2,
+
+    /// Virtual engine that only supports inserting sleeps, used for implementing frame-pacing.
+    EngineTypeTimer            = 0x3,
+
+#endif //PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
 
     /// Number of engine types.
     EngineTypeCount,

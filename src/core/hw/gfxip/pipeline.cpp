@@ -31,6 +31,7 @@
 #include "palFile.h"
 #include "palPipelineAbiProcessorImpl.h"
 #include "palEventDefs.h"
+#include "palSysUtil.h"
 
 #include "core/devDriverUtil.h"
 
@@ -416,7 +417,7 @@ Result Pipeline::GetShaderStatsForStage(
             pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
                                                                                 : gpuInfo.gfx6.numShaderVisibleSgprs;
             pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
-                                                                                : gpuInfo.gfx6.numShaderVisibleVgprs;
+                                                                                : gpuInfo.gfx6.numPhysicalVgprsPerSimd;
         }
 #endif
 
@@ -425,7 +426,7 @@ Result Pipeline::GetShaderStatsForStage(
             pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
                                                                                 : gpuInfo.gfx9.numShaderVisibleSgprs;
             pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
-                                                                                : gpuInfo.gfx9.numShaderVisibleVgprs;
+                                                                                : gpuInfo.gfx9.numPhysicalVgprsPerSimd;
         }
 
         pStats->common.ldsUsageSizeInBytes    = stageMetadata.ldsSize;
@@ -487,6 +488,9 @@ void Pipeline::DumpPipelineElf(
     if (dumpPipeline)
     {
         const char*const pLogDir = &settings.pipelineLogConfig.pipelineLogDirectory[0];
+
+        // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
+        MkDir(pLogDir);
 
         char fileName[512] = { };
         if ((pName == nullptr) || (pName[0] == '\0'))

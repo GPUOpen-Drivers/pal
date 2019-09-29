@@ -168,9 +168,9 @@ void* NextObjectAddr(
 static bool TranslateBarrierEventData(
     void* pCbData)
 {
-    Developer::BarrierData* pData       = static_cast<Developer::BarrierData*>(pCbData);
-    pData->transition.imageInfo.pImage  = PreviousObject(pData->transition.imageInfo.pImage);
+    auto*const pData = static_cast<Developer::BarrierData*>(pCbData);
 
+    pData->transition.imageInfo.pImage  = PreviousObject(pData->transition.imageInfo.pImage);
     ICmdBuffer* pPrevCmdBuffer          = PreviousObject(pData->pCmdBuffer);
     const bool  hasValidData            = (pPrevCmdBuffer != nullptr);
     pData->pCmdBuffer                   = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;
@@ -183,7 +183,7 @@ static bool TranslateBarrierEventData(
 static bool TranslateDrawDispatchData(
     void* pCbData)
 {
-    Developer::DrawDispatchData* pData = static_cast<Developer::DrawDispatchData*>(pCbData);
+    auto*const pData = static_cast<Developer::DrawDispatchData*>(pCbData);
 
     ICmdBuffer* pPrevCmdBuffer         = PreviousObject(pData->pCmdBuffer);
     const bool  hasValidData           = (pPrevCmdBuffer != nullptr);
@@ -197,14 +197,44 @@ static bool TranslateDrawDispatchData(
 static bool TranslateBindPipelineData(
     void* pCbData)
 {
-    Developer::BindPipelineData* pData = static_cast<Developer::BindPipelineData*>(pCbData);
+    auto*const pData = static_cast<Developer::BindPipelineData*>(pCbData);
 
     ICmdBuffer* pPrevCmdBuffer = PreviousObject(pData->pCmdBuffer);
-    const bool  hasValidData = (pPrevCmdBuffer != nullptr);
-    pData->pCmdBuffer = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;
+    const bool  hasValidData   = (pPrevCmdBuffer != nullptr);
+    pData->pCmdBuffer          = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;
 
     return hasValidData;
 }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+// =====================================================================================================================
+// Returns true if the PreviousObject was non-null, and thus the pData->pCmdBuffer data is valid for this layer.
+static bool TranslateDrawDispatchValidationData(
+    void* pCbData)
+{
+    auto*const pData = static_cast<Developer::DrawDispatchValidationData*>(pCbData);
+
+    ICmdBuffer* pPrevCmdBuffer = PreviousObject(pData->pCmdBuffer);
+    const bool  hasValidData   = (pPrevCmdBuffer != nullptr);
+    pData->pCmdBuffer          = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;
+
+    return hasValidData;
+}
+
+// =====================================================================================================================
+// Returns true if the PreviousObject was non-null, and thus the pData->pCmdBuffer data is valid for this layer.
+static bool TranslateOptimizedRegistersData(
+    void* pCbData)
+{
+    auto*const pData = static_cast<Developer::OptimizedRegistersData*>(pCbData);
+
+    ICmdBuffer* pPrevCmdBuffer = PreviousObject(pData->pCmdBuffer);
+    const bool  hasValidData   = (pPrevCmdBuffer != nullptr);
+    pData->pCmdBuffer          = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;
+
+    return hasValidData;
+}
+#endif
 
 // =====================================================================================================================
 class PlatformDecorator : public IPlatform
@@ -1216,14 +1246,14 @@ public:
             &CmdBufferFwdDecorator::CmdSetUserDataDecoratorCs;
         m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] =
             &CmdBufferFwdDecorator::CmdSetUserDataDecoratorGfx;
-        m_funcTable.pfnCmdDraw                     = CmdDrawDecorator;
-        m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaqueDecorator;
-        m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexedDecorator;
-        m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMultiDecorator;
-        m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMultiDecorator;
-        m_funcTable.pfnCmdDispatch                 = CmdDispatchDecorator;
-        m_funcTable.pfnCmdDispatchIndirect         = CmdDispatchIndirectDecorator;
-        m_funcTable.pfnCmdDispatchOffset           = CmdDispatchOffsetDecorator;
+        m_funcTable.pfnCmdDraw                      = CmdDrawDecorator;
+        m_funcTable.pfnCmdDrawOpaque                = CmdDrawOpaqueDecorator;
+        m_funcTable.pfnCmdDrawIndexed               = CmdDrawIndexedDecorator;
+        m_funcTable.pfnCmdDrawIndirectMulti         = CmdDrawIndirectMultiDecorator;
+        m_funcTable.pfnCmdDrawIndexedIndirectMulti  = CmdDrawIndexedIndirectMultiDecorator;
+        m_funcTable.pfnCmdDispatch                  = CmdDispatchDecorator;
+        m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirectDecorator;
+        m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffsetDecorator;
     }
 
     virtual Result Begin(const CmdBufferBuildInfo& info) override
@@ -1800,7 +1830,7 @@ public:
         bool                waitResults,
         bool                accumulateData) override
     {
-        m_pNextLayer->CmdSetPredication(pQueryPool, slot, pGpuMemory, offset, predType,
+        m_pNextLayer->CmdSetPredication(NextQueryPool(pQueryPool), slot, NextGpuMemory(pGpuMemory), offset, predType,
                                         predPolarity, waitResults, accumulateData);
     }
 

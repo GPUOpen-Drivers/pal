@@ -144,6 +144,13 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.cmdBufferLoggerEnabled = false;
     m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations = 0x1ff;
     m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep = 0x0;
+    m_settings.pm4InstrumentorEnabled = false;
+    memset(m_settings.pm4InstrumentorConfig.logDirectory, 0, 512);
+    strncpy(m_settings.pm4InstrumentorConfig.logDirectory, "amdpal/", 512);
+    memset(m_settings.pm4InstrumentorConfig.filenameSuffix, 0, 512);
+    strncpy(m_settings.pm4InstrumentorConfig.filenameSuffix, "pm4-stats.log", 512);
+    m_settings.pm4InstrumentorConfig.dumpMode = Pm4InstrumentorDumpQueueDestroy;
+    m_settings.pm4InstrumentorConfig.dumpInterval = 5;
     m_settings.interfaceLoggerEnabled = false;
     memset(m_settings.interfaceLoggerConfig.logDirectory, 0, 512);
     strncpy(m_settings.interfaceLoggerConfig.logDirectory, "amdpal/", 512);
@@ -531,6 +538,33 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pCmdBufferLoggerConfig_CmdBufferLoggerSingleStepStr,
                            Util::ValueType::Uint,
                            &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pPm4InstrumentorEnabledStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.pm4InstrumentorEnabled,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pPm4InstrumentorConfig_LogDirectoryStr,
+                           Util::ValueType::Str,
+                           &m_settings.pm4InstrumentorConfig.logDirectory,
+                           InternalSettingScope::PrivatePalKey,
+                           512);
+
+    pDevice->ReadSetting(pPm4InstrumentorConfig_FilenameSuffixStr,
+                           Util::ValueType::Str,
+                           &m_settings.pm4InstrumentorConfig.filenameSuffix,
+                           InternalSettingScope::PrivatePalKey,
+                           512);
+
+    pDevice->ReadSetting(pPm4InstrumentorConfig_DumpModeStr,
+                           Util::ValueType::Uint,
+                           &m_settings.pm4InstrumentorConfig.dumpMode,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pPm4InstrumentorConfig_DumpIntervalStr,
+                           Util::ValueType::Uint,
+                           &m_settings.pm4InstrumentorConfig.dumpInterval,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pInterfaceLoggerEnabledStr,
@@ -946,6 +980,31 @@ void PlatformSettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2784236609, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.pm4InstrumentorEnabled;
+    info.valueSize = sizeof(m_settings.pm4InstrumentorEnabled);
+    m_settingsInfoMap.Insert(817764955, info);
+
+    info.type      = SettingType::String;
+    info.pValuePtr = &m_settings.pm4InstrumentorConfig.logDirectory;
+    info.valueSize = sizeof(m_settings.pm4InstrumentorConfig.logDirectory);
+    m_settingsInfoMap.Insert(2823822363, info);
+
+    info.type      = SettingType::String;
+    info.pValuePtr = &m_settings.pm4InstrumentorConfig.filenameSuffix;
+    info.valueSize = sizeof(m_settings.pm4InstrumentorConfig.filenameSuffix);
+    m_settingsInfoMap.Insert(1848754234, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.pm4InstrumentorConfig.dumpMode;
+    info.valueSize = sizeof(m_settings.pm4InstrumentorConfig.dumpMode);
+    m_settingsInfoMap.Insert(1873500379, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.pm4InstrumentorConfig.dumpInterval;
+    info.valueSize = sizeof(m_settings.pm4InstrumentorConfig.dumpInterval);
+    m_settingsInfoMap.Insert(1471065745, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.interfaceLoggerEnabled;
     info.valueSize = sizeof(m_settings.interfaceLoggerEnabled);
     m_settingsInfoMap.Insert(2678054117, info);
@@ -991,7 +1050,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 1587645904;
+            component.settingsDataHash = 2962079510;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

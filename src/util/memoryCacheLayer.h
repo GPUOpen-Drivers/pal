@@ -47,8 +47,17 @@ public:
 
     virtual Result Init() override;
 
-protected:
+    Result GetMemoryCacheSize(size_t* pCurCount, size_t* pCurSize) const
+    {
+        *pCurCount = m_curCount;
+        *pCurSize  = m_curSize;
 
+        return Result::Success;
+    }
+
+    Result GetMemoryCacheHashIds(size_t curCount, Hash128* pHashIds);
+
+protected:
     virtual Result QueryInternal(
         const Hash128*  pHashId,
         QueryResult*    pQuery) override;

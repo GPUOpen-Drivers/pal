@@ -49,6 +49,12 @@ public:
         *pNumThreadsZ = m_threadsPerTgZ;
     }
 
+    static void GetFunctionGpuVirtAddrs(
+        const AbiProcessor&              abiProcessor,
+        const PipelineUploader&          uploader,
+        ComputePipelineIndirectFuncInfo* pFuncInfoList,
+        uint32                           funcCount);
+
 protected:
     ComputePipeline(Device* pDevice, bool isInternal);
 
@@ -60,12 +66,6 @@ protected:
         const AbiProcessor&              abiProcessor,
         const CodeObjectMetadata&        metadata,
         Util::MsgPackReader*             pMetadataReader) = 0;
-
-    void GetFunctionGpuVirtAddrs(
-        const AbiProcessor&              abiProcessor,
-        const PipelineUploader&          uploader,
-        ComputePipelineIndirectFuncInfo* pFuncInfoList,
-        uint32                           funcCount);
 
     // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
     uint32  m_threadsPerTgX;

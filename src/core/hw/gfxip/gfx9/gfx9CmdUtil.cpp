@@ -708,7 +708,7 @@ size_t CmdUtil::BuildAcquireMem(
             explicitAcquireMemInfo.coherCntl = cpCoherCntl.u32All | acquireMemInfo.cpMeCoherCntl.u32All;
         }
 
-        explicitAcquireMemInfo.gcrCntl = Gfx10CalcAcquireMemGcrCntl(acquireMemInfo);
+        explicitAcquireMemInfo.gcrCntl.u32All = Gfx10CalcAcquireMemGcrCntl(acquireMemInfo);
     }
 
     // Call a more explicit function.
@@ -744,7 +744,7 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
 
         // Handle the GFX-specific aspects of a release-mem packet.
         pPacket->ordinal8            = 0;
-        pPacket->bitfields8.gcr_cntl = acquireMemInfo.gcrCntl;
+        pPacket->bitfields8.gcr_cntl = acquireMemInfo.gcrCntl.u32All;
         PAL_ASSERT(pPacket->bitfields8.reserved1 == 0);
     }
 

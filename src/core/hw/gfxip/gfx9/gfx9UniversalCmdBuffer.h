@@ -912,7 +912,6 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
-
     template <bool isNgg>
     uint32 CalcGeCntl(
         bool                  usesLineStipple,
@@ -1161,39 +1160,38 @@ private:
         uint32              maxColorTargets; // Maximum color targets bound by the shader
     }  m_uavExportTable;
 
-    WorkaroundState              m_workaroundState;
-    UniversalCmdBufferState      m_state; // State tracking for internal cmd buffer operations
+    WorkaroundState          m_workaroundState;
+    UniversalCmdBufferState  m_state; // State tracking for internal cmd buffer operations
 
     regVGT_DMA_INDEX_TYPE                    m_vgtDmaIndexType;   // Register setting for VGT_DMA_INDEX_TYPE
     regSPI_VS_OUT_CONFIG                     m_spiVsOutConfig;    // Register setting for VS_OUT_CONFIG
     regSPI_PS_IN_CONTROL                     m_spiPsInControl;    // Register setting for PS_IN_CONTROL
-    regPA_SC_SHADER_CONTROL                  m_paScShaderControl; // Register setting for PA_SC_SHADER_CONTROL
     regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL m_paScConsRastCntl;  // Register setting for PA_SC_CONSERV_RAST_CNTL
     uint16                                   m_vertexOffsetReg;   // Register where the vertex start offset is written
     uint16                                   m_drawIndexReg;      // Register where the draw index is written
     RbPlusPm4Img                             m_rbPlusPm4Img;      // PM4 image for RB Plus register state
 
-    const uint32                             m_log2NumSes;
-    const uint32                             m_log2NumRbPerSe;
+    const uint32  m_log2NumSes;
+    const uint32  m_log2NumRbPerSe;
 
-    uint32                       m_depthBinSizeTagPart;    // Constant used in Depth PBB bin size formulas
-    uint32                       m_colorBinSizeTagPart;    // Constant used in Color PBB bin size formulas
-    uint32                       m_fmaskBinSizeTagPart;    // Constant used in Fmask PBB bin size formulas
-    uint16                       m_minBinSizeX;            // Minimum bin size(width) for PBB.
-    uint16                       m_minBinSizeY;            // Minimum bin size(height) for PBB.
+    uint32  m_depthBinSizeTagPart;    // Constant used in Depth PBB bin size formulas
+    uint32  m_colorBinSizeTagPart;    // Constant used in Color PBB bin size formulas
+    uint32  m_fmaskBinSizeTagPart;    // Constant used in Fmask PBB bin size formulas
+    uint16  m_minBinSizeX;            // Minimum bin size(width) for PBB.
+    uint16  m_minBinSizeY;            // Minimum bin size(height) for PBB.
 
-    regPA_SC_BINNER_CNTL_0       m_paScBinnerCntl0;
-    regPA_SC_BINNER_CNTL_0       m_savedPaScBinnerCntl0; // Value of PA_SC_BINNER_CNTL0 selected by settings
-    uint32                       m_log2NumSamples;       // Last written value of PA_SC_AA_CONFIG.MSAA_NUM_SAMPLES.
-    regDB_DFSM_CONTROL           m_dbDfsmControl;
+    regPA_SC_BINNER_CNTL_0  m_paScBinnerCntl0;
+    regPA_SC_BINNER_CNTL_0  m_savedPaScBinnerCntl0; // Value of PA_SC_BINNER_CNTL0 selected by settings
+    uint32                  m_log2NumSamples;       // Last written value of PA_SC_AA_CONFIG.MSAA_NUM_SAMPLES.
+    regDB_DFSM_CONTROL      m_dbDfsmControl;
 
-    BinningMode      m_binningMode;                      // Last value programmed into paScBinnerCntl0.BINNING_MODE
-    BinningOverride  m_pbbStateOverride;                 // Sets PBB on/off as per dictated by the new bound pipeline.
-    bool             m_enabledPbb;                       // PBB is currently enabled or disabled.
-    uint16           m_customBinSizeX;                   // Custom bin sizes for PBB.  Zero indicates PBB is not using
-    uint16           m_customBinSizeY;                   // a custom bin size.
-    Extent2d         m_currentBinSize;                   // Current PBB bin size that has been chosen. This could be
-                                                         // equal to the custom bin size.
+    BinningMode      m_binningMode;      // Last value programmed into paScBinnerCntl0.BINNING_MODE
+    BinningOverride  m_pbbStateOverride; // Sets PBB on/off as per dictated by the new bound pipeline.
+    bool             m_enabledPbb;       // PBB is currently enabled or disabled.
+    uint16           m_customBinSizeX;   // Custom bin sizes for PBB.  Zero indicates PBB is not using
+    uint16           m_customBinSizeY;   // a custom bin size.
+    Extent2d         m_currentBinSize;   // Current PBB bin size that has been chosen. This could be
+                                         // equal to the custom bin size.
 
     union
     {
@@ -1217,6 +1215,8 @@ private:
             uint32 scissorChangeWa            :  1; // True if the scissor register workaround is enabled
             uint32 issueSqttMarkerEvent       :  1; // True if settings are such that we need to issue SQ thread trace
                                                     // marker events on draw.
+            uint32 enablePm4Instrumentation   :  1; // True if settings are such that we should enable detailed PM4
+                                                    // instrumentation.
             uint32 batchBreakOnNewPs          :  1; // True if a BREAK_BATCH should be inserted when switching pixel
                                                     // shaders.
             uint32 padParamCacheSpace         :  1; // True if this command buffer should pad used param-cache space to

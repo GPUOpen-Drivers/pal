@@ -49,15 +49,17 @@ constexpr uint32 DefaultSqSelectSimdMask   = 0xF;
 constexpr uint32 DefaultSqSelectBankMask   = 0xF;
 constexpr uint32 DefaultSqSelectClientMask = 0xF;
 
-// Stall when at 5/8s of the output buffer because data will still come in from already-issued waves
-constexpr uint32  SqttHiWaterValue = 4;
 // Bitmask limits for some sqtt parameters.
 constexpr uint32  SqttPerfCounterCuMask = 0xFFFF;
 constexpr uint32  SqttDetailedSimdMask  = 0xF;
+// Stall when at 5/8s of the output buffer because data will still come in from already-issued waves
+constexpr uint32  SqttGfx9HiWaterValue = 4;
 // Safe defaults for token exclude mask and register include mask for the gfx9 SQTT_TOKEN_MASK/2 registers.
 constexpr uint32  SqttGfx9RegMaskDefault   = 0xFF;
 constexpr uint32  SqttGfx9TokenMaskDefault = 0xBFFF;
 constexpr uint32  SqttGfx9InstMaskDefault  = 0xFFFFFFFF;
+// Stall when at 6/8s of the output buffer because data will still come in from already-issued waves
+constexpr uint32  SqttGfx10HiWaterValue = 5;
 // Safe defaults for token exclude mask and register include mask for the gfx10 SQTT_TOKEN_MASK register.
 constexpr uint32  SqttGfx10RegMaskDefault = (SQ_TT_TOKEN_MASK_SQDEC_BIT   |
                                              SQ_TT_TOKEN_MASK_SHDEC_BIT   |
@@ -218,10 +220,10 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
     const bool   immediateExclude   = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Immediate);
     const bool   utilCounterExclude = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::UtilCounter);
     const bool   waveAllocExclude   = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::WaveAlloc);
-    bool         immed1Exclude      = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Immed1);
+    const bool   immed1Exclude      = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Immed1);
 
     // Perf counters through thread trace is expected to be deprecated.
-    const bool perfExclude = true;
+    constexpr bool PerfExclude = true;
 
     // Combine legacy TT enumerations with the newer (TT 3.0) enumerations).
     const bool regExclude   = TestAnyFlagSet(tokenExclude, ThreadTraceTokenTypeFlags::Reg   |
@@ -236,25 +238,28 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
                                                            ThreadTraceTokenTypeFlags::InstPc |
                                                            ThreadTraceTokenTypeFlags::InstUserData);
 
+    uint32 hwTokenExclude = ((vmemExecExclude    << SQ_TT_TOKEN_EXCLUDE_VMEMEXEC_SHIFT)  |
+                             (aluExecExclude     << SQ_TT_TOKEN_EXCLUDE_ALUEXEC_SHIFT)   |
+                             (valuInstExclude    << SQ_TT_TOKEN_EXCLUDE_VALUINST_SHIFT)  |
+                             (waveRdyExclude     << SQ_TT_TOKEN_EXCLUDE_WAVERDY_SHIFT)   |
+                             (immediateExclude   << SQ_TT_TOKEN_EXCLUDE_IMMEDIATE_SHIFT) |
+                             (utilCounterExclude << SQ_TT_TOKEN_EXCLUDE_UTILCTR_SHIFT)   |
+                             (waveAllocExclude   << SQ_TT_TOKEN_EXCLUDE_WAVEALLOC_SHIFT) |
+                             (regExclude         << SQ_TT_TOKEN_EXCLUDE_REG_SHIFT)       |
+                             (eventExclude       << SQ_TT_TOKEN_EXCLUDE_EVENT_SHIFT)     |
+                             (instExclude        << SQ_TT_TOKEN_EXCLUDE_INST_SHIFT)      |
+                             (PerfExclude        << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT));
+
+    {
 #if PAL_BUILD_NAVI_LITE || PAL_BUILD_NAVI12_LITE || PAL_BUILD_NAVI21_LITE
-    static_assert(SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__NV10 == SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__GFX10BARD,
-                  "GetGfx10SqttTokenMask needs to be updated!");
+        static_assert(SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__NV10 == SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__GFX10BARD,
+                      "GetGfx10SqttTokenMask needs to be updated!");
 #endif
 
-    SetSqttTokenExclude(device,
-                        &value,
-                        ((vmemExecExclude     << SQ_TT_TOKEN_EXCLUDE_VMEMEXEC_SHIFT)     |
-                         (aluExecExclude      << SQ_TT_TOKEN_EXCLUDE_ALUEXEC_SHIFT)      |
-                         (valuInstExclude     << SQ_TT_TOKEN_EXCLUDE_VALUINST_SHIFT)     |
-                         (waveRdyExclude      << SQ_TT_TOKEN_EXCLUDE_WAVERDY_SHIFT)      |
-                         (immed1Exclude       << SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__NV10) |
-                         (immediateExclude    << SQ_TT_TOKEN_EXCLUDE_IMMEDIATE_SHIFT)    |
-                         (utilCounterExclude  << SQ_TT_TOKEN_EXCLUDE_UTILCTR_SHIFT)      |
-                         (waveAllocExclude    << SQ_TT_TOKEN_EXCLUDE_WAVEALLOC_SHIFT)    |
-                         (regExclude          << SQ_TT_TOKEN_EXCLUDE_REG_SHIFT)          |
-                         (eventExclude        << SQ_TT_TOKEN_EXCLUDE_EVENT_SHIFT)        |
-                         (instExclude         << SQ_TT_TOKEN_EXCLUDE_INST_SHIFT)         |
-                         (perfExclude         << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT)));
+        hwTokenExclude |= immed1Exclude << SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__NV10;
+    }
+
+    SetSqttTokenExclude(device, &value, hwTokenExclude);
 
     // Compute Register include mask. Obtain reg mask from combined legacy (TT 2.3 and below) and the newer (TT 3.0)
     // register types.
@@ -674,8 +679,8 @@ Result PerfExperiment::AddCounter(
                         switch (pSelect->pModules[moduleIdx].type)
                         {
                         case SelectType::Perfmon:
-                            // Our generic select PERF_SEL fields are 9 bits. Verify that our event ID can fit.
-                            PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
+                            // Our generic select PERF_SEL fields are 10 bits. Verify that our event ID can fit.
+                            PAL_ASSERT(info.eventId <= ((1 << 10) - 1));
 
                             // A global counter uses the whole perfmon module (0xF).
                             pSelect->pModules[moduleIdx].inUse                       = 0xF;
@@ -685,8 +690,8 @@ Result PerfExperiment::AddCounter(
                             break;
 
                         case SelectType::LegacySel:
-                            // Our generic select PERF_SEL fields are 9 bits. Verify that our event ID can fit.
-                            PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
+                            // Our generic select PERF_SEL fields are 10 bits. Verify that our event ID can fit.
+                            PAL_ASSERT(info.eventId <= ((1 << 10) - 1));
 
                             // A global counter uses the whole legacy module (0xF).
                             pSelect->pModules[moduleIdx].inUse                    = 0xF;
@@ -881,8 +886,8 @@ Result PerfExperiment::AddSpmCounter(
                 {
                     if (pSelect->pModules[idx].type == SelectType::Perfmon)
                     {
-                        // Our generic select PERF_SEL fields are 9 bits. Verify that our event ID can fit.
-                        PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
+                        // Our generic select PERF_SEL fields are 10 bits. Verify that our event ID can fit.
+                        PAL_ASSERT(info.eventId <= ((1 << 10) - 1));
 
                         // Each write holds two 16-bit sub-counters. We must check each wire individually because
                         // some blocks look like they have a whole perfmon module but only use half of it.
@@ -1227,7 +1232,7 @@ Result PerfExperiment::AddThreadTrace(
             // Note that gfx10 has new thread trace modes. For now we use "on" to match the gfx9 implementation.
             // We may want to consider using one of the new modes by default.
             m_sqtt[traceInfo.instance].ctrl.gfx10.MODE              = SQ_TT_MODE_ON;
-            m_sqtt[traceInfo.instance].ctrl.gfx10.HIWATER           = SqttHiWaterValue;
+            m_sqtt[traceInfo.instance].ctrl.gfx10.HIWATER           = SqttGfx10HiWaterValue;
             m_sqtt[traceInfo.instance].ctrl.gfx10.UTIL_TIMER        = 1;
             m_sqtt[traceInfo.instance].ctrl.gfx10.RT_FREQ           = SQ_TT_RT_FREQ_4096_CLK;
             m_sqtt[traceInfo.instance].ctrl.gfx10.DRAW_EVENT_EN     = 1;
@@ -1289,6 +1294,7 @@ Result PerfExperiment::AddThreadTrace(
                 // By default trace all tokens and registers.
                 SetSqttTokenExclude(m_device, &m_sqtt[traceInfo.instance].tokenMask, SqttGfx10TokenMaskDefault);
                 m_sqtt[traceInfo.instance].tokenMask.gfx10.REG_INCLUDE   = SqttGfx10RegMaskDefault;
+
             }
         }
     }
@@ -2628,7 +2634,7 @@ uint32* PerfExperiment::WriteStartThreadTraces(
                                                               pCmdSpace);
 
                 regSQ_THREAD_TRACE_HIWATER sqttHiwater = {};
-                sqttHiwater.bits.HIWATER = SqttHiWaterValue;
+                sqttHiwater.bits.HIWATER = SqttGfx9HiWaterValue;
 
                 pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_HIWATER,
                                                               sqttHiwater.u32All,

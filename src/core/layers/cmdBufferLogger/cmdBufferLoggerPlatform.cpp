@@ -234,6 +234,16 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
         TranslateBindPipelineData(pCbData);
         break;
 #endif
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    case Developer::CallbackType::DrawDispatchValidation:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateDrawDispatchValidationData(pCbData);
+        break;
+    case Developer::CallbackType::OptimizedRegisters:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateOptimizedRegistersData(pCbData);
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS();
         break;

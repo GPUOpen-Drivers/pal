@@ -655,7 +655,10 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     // Rather than disable 3D PRT support we will modify the preferred set and leave S enabled in our permitted set.
     // That way we will end up falling back to an S mode instead of returning an error to the client.
     const bool disableSModes8BppColor =
-        (pImage->IsRenderTarget() && (surfSettingInput.bpp == 8) && settings.addr2DisableSModes8BppColor);
+        (pImage->IsRenderTarget() &&
+        // Check format is NV12 as the CbCr plane is 16 bit but it should have the same swizzle mode as Y plane.
+        ((surfSettingInput.bpp == 8) || (createInfo.swizzledFormat.format == ChNumFormat::NV12)) &&
+        settings.addr2DisableSModes8BppColor);
 
     if (disableSModes8BppColor)
     {

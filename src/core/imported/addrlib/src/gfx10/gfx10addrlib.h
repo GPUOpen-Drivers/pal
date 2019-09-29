@@ -569,12 +569,14 @@ private:
     BOOL_32 ValidateNonSwModeParams(const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn) const;
     BOOL_32 ValidateSwModeParams(const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn) const;
 
-    static const UINT_32 ColumnBits = 2;
-    static const UINT_32 BankBits   = 4;
+    static const UINT_32 ColumnBits       = 2;
+    static const UINT_32 BankBits         = 4;
+    static const UINT_32 UnalignedDccType = 3;
 
     Gfx10ChipSettings m_settings;
     UINT_32           m_colorBaseIndex;
-    UINT_32           m_htileBaseIndex;
+    UINT_32           m_xmaskBaseIndex;
+    UINT_32           m_dccBaseIndex;
 };
 
 } // V2

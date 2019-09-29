@@ -204,142 +204,37 @@ const RegisterRange Navi10NonShadowedRanges[] =
         mmCOMPUTE_STATIC_THREAD_MGMT_SE2,
         mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 + 1
     },
-    // Perf counter registers
-    // CPG, CPF, CPC
-    {
-        mmCPG_PERFCOUNTER1_SELECT,
-        mmCPC_PERFCOUNTER0_SELECT - mmCPG_PERFCOUNTER1_SELECT + 1
-    },
-    // CB
-    {
-        mmCB_PERFCOUNTER0_SELECT,
-        mmCB_PERFCOUNTER3_SELECT - mmCB_PERFCOUNTER0_SELECT + 1
-    },
-    // DB
-    {
-        mmDB_PERFCOUNTER0_SELECT,
-        mmDB_PERFCOUNTER3_SELECT - mmDB_PERFCOUNTER0_SELECT + 1
-    },
-    // GCEA
-    {
-        Gfx101::mmGCEA_PERFCOUNTER_LO,
-        Gfx101::mmGCEA_PERFCOUNTER_RSLT_CNTL - Gfx101::mmGCEA_PERFCOUNTER_LO + 1
-    },
-    {
-        Gfx10::mmGCEA_PERFCOUNTER2_LO,
-        Gfx10::mmGCEA_PERFCOUNTER2_HI - Gfx10::mmGCEA_PERFCOUNTER2_LO + 1
-    },
-    // GRBM
-    {
-        mmGRBM_PERFCOUNTER0_LO,
-        mmGRBM_SE3_PERFCOUNTER_HI - mmGRBM_PERFCOUNTER0_LO + 1
-    },
-    {
-        mmGRBM_PERFCOUNTER0_SELECT,
-        mmGRBM_SE3_PERFCOUNTER_SELECT - mmGRBM_PERFCOUNTER0_SELECT + 1
-    },
-    {
-        Gfx10::mmGRBM_PERFCOUNTER0_SELECT_HI,
-        Gfx10::mmGRBM_PERFCOUNTER1_SELECT_HI - Gfx10::mmGRBM_PERFCOUNTER0_SELECT_HI + 1
-    },
     {
         mmGRBM_GFX_INDEX,
         1
-    },
-    // GE
-    {
-        Nv10::mmGE_PERFCOUNTER0_SELECT,
-        Nv10::mmGE_PERFCOUNTER11_SELECT - Nv10::mmGE_PERFCOUNTER0_SELECT + 1
-    },
-    // PA
-    {
-        mmPA_SU_PERFCOUNTER0_SELECT,
-        Gfx10::mmPA_SU_PERFCOUNTER3_SELECT1 - mmPA_SU_PERFCOUNTER0_SELECT + 1
-    },
-    // SC
-    {
-        mmPA_SC_PERFCOUNTER0_SELECT,
-        mmPA_SC_PERFCOUNTER7_SELECT - mmPA_SC_PERFCOUNTER0_SELECT + 1
-    },
-    // SPI
-    {
-        mmSPI_PERFCOUNTER0_SELECT,
-        mmSPI_PERFCOUNTER_BINS - mmSPI_PERFCOUNTER0_SELECT + 1
     },
     {
         Nv10::mmSPI_CONFIG_CNTL_REMAP,
         1
     },
-    // SQ
+    // SQ thread trace registers are always not shadowed.
     {
-        mmSQ_PERFCOUNTER0_LO,
-        mmSQ_PERFCOUNTER15_HI - mmSQ_PERFCOUNTER0_LO + 1,
-    },
-    {
-        mmSQ_PERFCOUNTER0_SELECT,
-        mmSQ_PERFCOUNTER15_SELECT - mmSQ_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmSQ_PERFCOUNTER_CTRL,
-        mmSQ_PERFCOUNTER_CTRL2 - mmSQ_PERFCOUNTER_CTRL + 1,
+        Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE,
+        Gfx10::mmSQ_THREAD_TRACE_HP3D_MARKER_CNTR - Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE + 1
     },
     {
         mmSQ_THREAD_TRACE_USERDATA_0,
         Gfx10::mmSQ_THREAD_TRACE_USERDATA_7 - mmSQ_THREAD_TRACE_USERDATA_0 + 1,
     },
-    // SX
+    // Perf counter registers are always not shadowed. Most of them are in the perf register space but some legacy
+    // registers are still outside of it. The SPM registers are in the perf range as well.
     {
-        mmSX_PERFCOUNTER0_SELECT,
-        mmSX_PERFCOUNTER1_SELECT1 - mmSX_PERFCOUNTER0_SELECT + 1,
-    },
-    // TA
-    {
-        mmTA_PERFCOUNTER0_SELECT,
-        mmTA_PERFCOUNTER1_SELECT - mmTA_PERFCOUNTER0_SELECT + 1,
-    },
-    // TD
-    {
-        mmTD_PERFCOUNTER0_SELECT,
-        mmTD_PERFCOUNTER1_SELECT - mmTD_PERFCOUNTER0_SELECT + 1,
-    },
-    // TCP
-    {
-        mmTCP_PERFCOUNTER0_SELECT,
-        Gfx101::mmTCP_PERFCOUNTER3_SELECT - mmTCP_PERFCOUNTER0_SELECT + 1,
-    },
-    // GL2C
-    {
-        Gfx10::mmGL2C_PERFCOUNTER0_SELECT,
-        Gfx10::mmGL2C_PERFCOUNTER3_SELECT - Gfx10::mmGL2C_PERFCOUNTER0_SELECT + 1
-    },
-    // GL2A
-    {
-        Gfx10::mmGL2A_PERFCOUNTER0_SELECT,
-        Gfx10::mmGL2A_PERFCOUNTER3_SELECT - Gfx10::mmGL2A_PERFCOUNTER0_SELECT + 1
-    },
-    // GDS
-    {
-        mmGDS_PERFCOUNTER0_SELECT,
-        mmGDS_PERFCOUNTER0_SELECT1 - mmGDS_PERFCOUNTER0_SELECT + 1,
-    },
-    // RLC
-    {
-        mmRLC_PERFMON_CNTL,
-        mmRLC_PERFCOUNTER1_SELECT - mmRLC_PERFMON_CNTL + 1
+        UserConfigRegPerfStart,
+        UserConfigRegPerfEnd - UserConfigRegPerfStart + 1
     },
     {
-        mmRLC_SPM_PERFMON_CNTL,
-        Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_DATA - mmRLC_SPM_PERFMON_CNTL + 1
+        Gfx101::mmATC_PERFCOUNTER0_CFG,
+        Gfx101::mmATC_PERFCOUNTER_HI - Gfx101::mmATC_PERFCOUNTER0_CFG + 1
     },
     {
-        Gfx10::mmRLC_PERFMON_CLK_CNTL,
-        1
+        Gfx10::mmRPB_PERFCOUNTER_LO,
+        Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10::mmRPB_PERFCOUNTER_LO + 1
     },
-    {
-        Gfx101Plus::mmRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE,
-        Gfx101Plus::mmRLC_SPM_PERFMON_GLB_SEGMENT_SIZE - Gfx101Plus::mmRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE + 1
-    },
-    // SDMA
     {
         Oss50::mmSDMA0_PERFCOUNTER0_SELECT,
         Oss50::mmSDMA0_PERFCOUNTER1_HI - Oss50::mmSDMA0_PERFCOUNTER0_SELECT + 1
@@ -348,92 +243,13 @@ const RegisterRange Navi10NonShadowedRanges[] =
         Oss50::mmSDMA1_PERFCOUNTER0_SELECT,
         Oss50::mmSDMA1_PERFCOUNTER1_HI - Oss50::mmSDMA1_PERFCOUNTER0_SELECT + 1
     },
-    // MCVML2
     {
-        Gfx10::mmGCMC_VM_L2_PERFCOUNTER0_CFG,
-        Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL - Gfx10::mmGCMC_VM_L2_PERFCOUNTER0_CFG + 1
+        Gfx101::mmGCEA_PERFCOUNTER_LO,
+        Gfx101::mmGCEA_PERFCOUNTER_RSLT_CNTL - Gfx101::mmGCEA_PERFCOUNTER_LO + 1
     },
-    // ATC
-    {
-        Gfx101::mmATC_PERFCOUNTER0_CFG,
-        Gfx101::mmATC_PERFCOUNTER_HI - Gfx101::mmATC_PERFCOUNTER0_CFG + 1
-    },
-    // ATCL2
-    {
-        Nv10::mmGC_ATC_L2_PERFCOUNTER0_CFG,
-        Nv10::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL - Nv10::mmGC_ATC_L2_PERFCOUNTER0_CFG + 1
-    },
-    {
-        Nv10::mmGC_ATC_L2_PERFCOUNTER2_SELECT,
-        Nv10::mmGC_ATC_L2_PERFCOUNTER2_MODE - Nv10::mmGC_ATC_L2_PERFCOUNTER2_SELECT + 1
-    },
-    // EA
-    {
-        Gfx10::mmGCEA_PERFCOUNTER2_SELECT,
-        Gfx10::mmGCEA_PERFCOUNTER2_MODE - Gfx10::mmGCEA_PERFCOUNTER2_SELECT + 1
-    },
-    // RPB
-    {
-        Gfx10::mmRPB_PERFCOUNTER_LO,
-        Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10::mmRPB_PERFCOUNTER_LO + 1
-    },
-    // RMI
-    {
-        mmRMI_PERFCOUNTER0_SELECT,
-        mmRMI_PERF_COUNTER_CNTL - mmRMI_PERFCOUNTER0_SELECT + 1
-    },
-    // GL1A
-    {
-        Gfx10::mmGL1A_PERFCOUNTER0_SELECT,
-        Gfx10::mmGL1A_PERFCOUNTER3_SELECT - Gfx10::mmGL1A_PERFCOUNTER0_SELECT + 1
-    },
-    // GL1C
-    {
-        Gfx10::mmGL1C_PERFCOUNTER0_SELECT,
-        Gfx10::mmGL1C_PERFCOUNTER3_SELECT - Gfx10::mmGL1C_PERFCOUNTER0_SELECT + 1
-    },
-    // CHA
-    {
-        Gfx10::mmCHA_PERFCOUNTER0_SELECT,
-        Gfx10::mmCHA_PERFCOUNTER3_SELECT - Gfx10::mmCHA_PERFCOUNTER0_SELECT + 1
-    },
-    // CHC
-    {
-        Gfx10::mmCHC_PERFCOUNTER0_SELECT,
-        Gfx10::mmCHC_PERFCOUNTER3_SELECT - Gfx10::mmCHC_PERFCOUNTER0_SELECT + 1
-    },
-    // CHCG
-    {
-        Gfx101::mmCHCG_PERFCOUNTER0_SELECT,
-        Gfx101::mmCHCG_PERFCOUNTER3_SELECT - Gfx101::mmCHCG_PERFCOUNTER0_SELECT + 1
-    },
-    // GUS
     {
         Gfx101::mmGUS_PERFCOUNTER_LO,
         Gfx101::mmGUS_PERFCOUNTER_RSLT_CNTL - Gfx101::mmGUS_PERFCOUNTER_LO + 1
-    },
-    {
-        Gfx101::mmGUS_PERFCOUNTER2_SELECT,
-        Gfx101::mmGUS_PERFCOUNTER2_MODE - Gfx101::mmGUS_PERFCOUNTER2_SELECT + 1
-    },
-    // GCR
-    {
-        Gfx10::mmGCR_PERFCOUNTER0_SELECT,
-        Gfx10::mmGCR_PERFCOUNTER1_SELECT - Gfx10::mmGCR_PERFCOUNTER0_SELECT + 1
-    },
-    // PH
-    {
-        Gfx10::mmPA_PH_PERFCOUNTER0_SELECT,
-        Gfx10::mmPA_PH_PERFCOUNTER7_SELECT - Gfx10::mmPA_PH_PERFCOUNTER0_SELECT + 1
-    },
-    // UTCL1
-    {
-        Gfx10::mmUTCL1_PERFCOUNTER0_SELECT,
-        Gfx10::mmUTCL1_PERFCOUNTER1_SELECT - Gfx10::mmUTCL1_PERFCOUNTER0_SELECT + 1
-    },
-    {
-        Gfx10::mmUTCL1_PERFCOUNTER0_LO,
-        Gfx10::mmUTCL1_PERFCOUNTER1_HI - Gfx10::mmUTCL1_PERFCOUNTER0_LO + 1
     },
 };
 

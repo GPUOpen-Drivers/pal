@@ -620,8 +620,7 @@ enum class PipelineMetadataType : uint32
     CsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
                                   ///  shader and the size in bytes required.
 
-    CalcWaveBreakSizeAtDrawTime,  ///< If present, a boolean indicating whether or not the wave-break-size should
-                                  ///  be calculated at draw time or not.
+    CalcWaveBreakSizeAtDrawTime,  ///< Deprecated.  This will be removed at a future date.
 
     Reserved1,                    ///< Reserved for future use.
 

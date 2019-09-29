@@ -533,9 +533,10 @@ void RsrcProcMgr::CopyColorImageGraphics(
         ImageCopyRegion copyRegion = pRegions[region];
 
         // Determine which image formats to use for the copy.
-        SwizzledFormat dstFormat  = { };
-        SwizzledFormat srcFormat  = { };
-        uint32         texelScale = 1;
+        SwizzledFormat dstFormat    = { };
+        SwizzledFormat srcFormat    = { };
+        uint32         texelScale   = 1;
+        bool           singleSubres = false;
 
         GetCopyImageFormats(srcImage,
                             srcImageLayout,
@@ -545,7 +546,8 @@ void RsrcProcMgr::CopyColorImageGraphics(
                             flags,
                             &srcFormat,
                             &dstFormat,
-                            &texelScale);
+                            &texelScale,
+                            &singleSubres);
 
         // Update the color target view format with the destination format.
         colorViewInfo.swizzledFormat = dstFormat;
@@ -575,6 +577,8 @@ void RsrcProcMgr::CopyColorImageGraphics(
                                                                    SrdDwordAlignment(),
                                                                    PipelineBindPoint::Graphics,
                                                                    1);
+
+        PAL_ASSERT(singleSubres == false);
 
         // Populate the table with an image view of the source image.
         device.CreateImageViewSrds(1, &imageView, pSrdTable);
@@ -1169,9 +1173,10 @@ void RsrcProcMgr::CopyImageCompute(
 
         // Setup image formats per-region. This is different than the graphics path because the compute path must be
         // able to copy depth-stencil images.
-        SwizzledFormat dstFormat  = {};
-        SwizzledFormat srcFormat  = {};
-        uint32         texelScale = 1;
+        SwizzledFormat dstFormat    = {};
+        SwizzledFormat srcFormat    = {};
+        uint32         texelScale   = 1;
+        bool           singleSubres = false;
 
         GetCopyImageFormats(srcImage,
                             srcImageLayout,
@@ -1181,7 +1186,8 @@ void RsrcProcMgr::CopyImageCompute(
                             flags,
                             &srcFormat,
                             &dstFormat,
-                            &texelScale);
+                            &texelScale,
+                            &singleSubres);
 
         // The hardware can't handle UAV stores using SRGB num format.  The resolve shaders already contain a
         // linear-to-gamma conversion, but in order for that to work the output UAV's num format must be patched to be
@@ -1261,6 +1267,8 @@ void RsrcProcMgr::CopyImageCompute(
             imageView[1].subresRange.numMips = copyRegion.srcSubres.mipLevel + viewRange.numMips;
         }
 
+        PAL_ASSERT(singleSubres == false);
+
         // Turn our image views into HW SRDs here
         device.CreateImageViewSrds(2, &imageView[0], pUserData);
 
@@ -1323,7 +1331,8 @@ void RsrcProcMgr::GetCopyImageFormats(
     uint32            copyFlags,
     SwizzledFormat*   pSrcFormat,     // [out] Read from the source image using this format.
     SwizzledFormat*   pDstFormat,     // [out] Read from the destination image using this format.
-    uint32*           pTexelScale     // [out] Each texel requires this many raw format texels in the X dimension.
+    uint32*           pTexelScale,    // [out] Each texel requires this many raw format texels in the X dimension.
+    bool*             pSingleSubres   // [out] Format requires that you access each subres independantly.
     ) const
 {
     const auto& device        = *m_pDevice->Parent();
@@ -1359,7 +1368,7 @@ void RsrcProcMgr::GetCopyImageFormats(
             srcImage.GetGfxImage()->IsFormatReplaceable(copyRegion.srcSubres, srcImageLayout, false) &&
             dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres, dstImageLayout, true))
         {
-            srcFormat = RpmUtil::GetRawFormat(srcFormat.format, pTexelScale);
+            srcFormat = RpmUtil::GetRawFormat(srcFormat.format, pTexelScale, pSingleSubres);
             dstFormat = srcFormat;
         }
     }
@@ -1428,7 +1437,7 @@ void RsrcProcMgr::GetCopyImageFormats(
                 // If we either didn't try to find swizzling formats or weren't able to do so, execute a true raw copy.
                 if (foundSwizzleFormats == false)
                 {
-                    srcFormat = RpmUtil::GetRawFormat(srcFormat.format, pTexelScale);
+                    srcFormat = RpmUtil::GetRawFormat(srcFormat.format, pTexelScale, pSingleSubres);
                     dstFormat = srcFormat;
                 }
             }
@@ -1726,10 +1735,11 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
             PAL_ASSERT(Formats::IsUndefined(viewFormat.format) == false);
         }
 
+        bool singleSubres = false;
         if (image.GetGfxImage()->IsFormatReplaceable(copyRegion.imageSubres, imageLayout, isImageDst) ||
             (m_pDevice->Parent()->SupportsMemoryViewRead(viewFormat.format, srcTiling) == false))
         {
-            uint32 texelScale = 1;
+            uint32 texelScale     = 1;
             uint32 pixelsPerBlock = 1;
             if (m_pDevice->IsImageFormatOverrideNeeded(imgCreateInfo, &viewFormat.format, &pixelsPerBlock))
             {
@@ -1738,7 +1748,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
             }
             else
             {
-                viewFormat = RpmUtil::GetRawFormat(viewFormat.format, &texelScale);
+                viewFormat = RpmUtil::GetRawFormat(viewFormat.format, &texelScale, &singleSubres);
                 copyRegion.imageOffset.x     *= texelScale;
                 copyRegion.imageExtent.width *= texelScale;
             }
@@ -1803,33 +1813,50 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
         device.CreateTypedBufferViewSrds(1, &bufferView, pUserData);
         pUserData += SrdDwordAlignment();
 
-        ImageViewInfo     imageView = {};
-        const SubresRange viewRange = { copyRegion.imageSubres, 1, copyRegion.numSlices };
+        ImageViewInfo     imageView      = {};
+        const SubresRange viewRange      = { copyRegion.imageSubres, 1, copyRegion.numSlices };
+        const uint32      firstMipLevel  = copyRegion.imageSubres.mipLevel;
+        const uint32      lastArraySlice = copyRegion.imageSubres.arraySlice + copyRegion.numSlices - 1;
+
+        // If single subres is requested for the format, iterate slice-by-slice and mip-by-mip.
+        if (singleSubres)
+        {
+            copyRegion.numSlices = 1;
+        }
+
         if (isImageDst)
         {
             PAL_ASSERT(TestAnyFlagSet(imageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
         }
-        RpmUtil::BuildImageViewInfo(&imageView, image, viewRange, viewFormat, imageLayout, device.TexOptLevel());
-        imageView.flags.includePadding = includePadding;
 
-        device.CreateImageViewSrds(1, &imageView, pUserData);
-
-        // Destination image is at the beginning of pUserData.
-        if (isImageDst && HwlImageUsesCompressedWrites(pUserData))
+        for (;
+            copyRegion.imageSubres.arraySlice <= lastArraySlice;
+            copyRegion.imageSubres.arraySlice += copyRegion.numSlices)
         {
-            const SubresRange range = { copyRegion.imageSubres, 1, copyRegion.numSlices, };
-            HwlUpdateDstImageStateMetaData(pCmdBuffer, image, range);
+            copyRegion.imageSubres.mipLevel = firstMipLevel;
+
+            RpmUtil::BuildImageViewInfo(&imageView, image, viewRange, viewFormat, imageLayout, device.TexOptLevel());
+            imageView.flags.includePadding = includePadding;
+
+            device.CreateImageViewSrds(1, &imageView, pUserData);
+
+            // Destination image is at the beginning of pUserData.
+            if (isImageDst && HwlImageUsesCompressedWrites(pUserData))
+            {
+                const SubresRange range = { copyRegion.imageSubres, 1, copyRegion.numSlices, };
+                HwlUpdateDstImageStateMetaData(pCmdBuffer, image, range);
+            }
+
+            pUserData += SrdDwordAlignment();
+
+            // Copy the copy data into the embedded user data memory.
+            memcpy(pUserData, &copyData[0], sizeof(copyData));
+
+            // Execute the dispatch, we need one thread per texel.
+            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(bufferBox.width,  threadsPerGroup[0]),
+                                    RpmUtil::MinThreadGroups(bufferBox.height, threadsPerGroup[1]),
+                                    RpmUtil::MinThreadGroups(bufferBox.depth,  threadsPerGroup[2]));
         }
-
-        pUserData += SrdDwordAlignment();
-
-        // Copy the copy data into the embedded user data memory.
-        memcpy(pUserData, &copyData[0], sizeof(copyData));
-
-        // Execute the dispatch, we need one thread per texel.
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(bufferBox.width,  threadsPerGroup[0]),
-                                RpmUtil::MinThreadGroups(bufferBox.height, threadsPerGroup[1]),
-                                RpmUtil::MinThreadGroups(bufferBox.depth,  threadsPerGroup[2]));
     }
 
     if (p2pBltInfoRequired)
@@ -1874,7 +1901,7 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
 
         // Pick a raw format for the copy.
         uint32               texelScale = 1;
-        const SwizzledFormat rawFormat  = RpmUtil::GetRawFormat(srcInfo.swizzledFormat.format, &texelScale);
+        const SwizzledFormat rawFormat  = RpmUtil::GetRawFormat(srcInfo.swizzledFormat.format, &texelScale, nullptr);
 
         // Multiply 'texelScale' into our extent to make sure we dispatch enough threads to copy the whole region.
         const Extent3d copyExtent =
@@ -2083,7 +2110,7 @@ void RsrcProcMgr::CmdGenerateMipmaps(
     // we use implementation dependent cache masks.
     BarrierTransition transition = {};
     transition.srcCacheMask = useGraphicsCopy ? CoherColorTarget : CoherShader;
-    transition.dstCacheMask = useGraphicsCopy ? CoherColorTarget : CoherShader;
+    transition.dstCacheMask = CoherShader;
 
     // We will specify the base subresource later on.
     transition.imageInfo.pImage                = pImage;
@@ -3888,7 +3915,7 @@ void RsrcProcMgr::CmdClearColorImage(
             const SwizzledFormat& baseFormat   = dstImage.SubresourceInfo(pSlowClearRange->startSubres)->format;
             const bool            is3dBoxClear = hasBoxes && (createInfo.imageType == ImageType::Tex3d);
             uint32                texelScale   = 1;
-            const SwizzledFormat  rawFormat    = RpmUtil::GetRawFormat(baseFormat.format, &texelScale);
+            const SwizzledFormat  rawFormat    = RpmUtil::GetRawFormat(baseFormat.format, &texelScale, nullptr);
 
             // Not surprisingly, a slow graphics clears requires a command buffer that supports graphics operations
             if (pCmdBuffer->IsGraphicsSupported() &&
@@ -3951,7 +3978,9 @@ void RsrcProcMgr::SlowClearGraphics(
     // Query the format of the image and determine which format to use for the color target view. If rawFmtOk is
     // set the caller has allowed us to use a slightly more efficient raw format.
     const SwizzledFormat baseFormat = dstImage.SubresourceInfo(clearRange.startSubres)->format;
-    SwizzledFormat       viewFormat = (rawFmtOk ? RpmUtil::GetRawFormat(baseFormat.format, nullptr) : baseFormat);
+    SwizzledFormat       viewFormat = (rawFmtOk ?
+                                        RpmUtil::GetRawFormat(baseFormat.format, nullptr, nullptr) :
+                                        baseFormat);
 
     // For packed YUV image use X32_Uint instead of X16_Uint to fill with YUYV.
     if (viewFormat.format == ChNumFormat::X16_Uint && Formats::IsYuvPacked(baseFormat.format))
@@ -4264,10 +4293,11 @@ void RsrcProcMgr::SlowClearCompute(
     PAL_ASSERT(dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true));
 
     // Get some useful information about the image.
-    const auto&          createInfo = dstImage.GetImageCreateInfo();
-    const  ImageType     imageType  = dstImage.GetGfxImage()->GetOverrideImageType();
-    uint32               texelScale = 1;
-    const SwizzledFormat rawFormat  = RpmUtil::GetRawFormat(dstFormat.format, &texelScale);
+    const auto&          createInfo   = dstImage.GetImageCreateInfo();
+    const ImageType      imageType    = dstImage.GetGfxImage()->GetOverrideImageType();
+    uint32               texelScale   = 1;
+    bool                 singleSubRes = false;
+    const SwizzledFormat rawFormat    = RpmUtil::GetRawFormat(dstFormat.format, &texelScale, &singleSubRes);
 
     // These are the only two supported texel scales
     PAL_ASSERT((texelScale == 1) || (texelScale == 3));
@@ -4327,9 +4357,17 @@ void RsrcProcMgr::SlowClearCompute(
     uint32 packedColor[4] = {0};
     Formats::PackRawClearColor(dstFormat, &swizzledColor[0], &packedColor[0]);
 
-    // Split the clear range into sections with constant mip levels and loop over them.
+    // Split the clear range into sections with constant mip/array levels and loop over them.
     SubresRange  singleMipRange = { clearRange.startSubres, 1, clearRange.numSlices };
+    const uint32 firstMipLevel  = clearRange.startSubres.mipLevel;
     const uint32 lastMipLevel   = clearRange.startSubres.mipLevel + clearRange.numMips - 1;
+    const uint32 lastArraySlice = clearRange.startSubres.arraySlice + clearRange.numSlices - 1;
+
+    // If single subres is requested for the format, iterate slice-by-slice and mip-by-mip.
+    if (singleSubRes)
+    {
+        singleMipRange.numSlices = 1;
+    }
 
     // We will do a dispatch for every box. If no boxes are specified then we will do a single full image dispatch.
     const bool   hasBoxes      = (boxCount > 0);
@@ -4352,92 +4390,98 @@ void RsrcProcMgr::SlowClearCompute(
 
     const auto& device  = *m_pDevice->Parent();
 
-    for (; singleMipRange.startSubres.mipLevel <= lastMipLevel; ++singleMipRange.startSubres.mipLevel)
+    for (;
+         singleMipRange.startSubres.arraySlice <= lastArraySlice;
+         singleMipRange.startSubres.arraySlice += singleMipRange.numSlices)
     {
-        const auto& subResInfo = *dstImage.SubresourceInfo(singleMipRange.startSubres);
-
-        // Create an embedded SRD table and bind it to user data 0. We only need a single image view.
-        // Populate the table with an image view and the embedded user data. The view should cover this
-        // mip's clear range and use a raw format.
-        const uint32 DataDwords = NumBytesToNumDwords(sizeof(userData));
-        ImageViewInfo imageView = {};
-        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
-        RpmUtil::BuildImageViewInfo(&imageView,
-                                    dstImage,
-                                    singleMipRange,
-                                    rawFormat,
-                                    dstImageLayout,
-                                    device.TexOptLevel());
-
-        // The default clear box is the entire subresource. This will be changed per-dispatch if boxes are enabled.
-        Extent3d clearExtent = subResInfo.extentTexels;
-        Offset3d clearOffset = {};
-
-        for (uint32 i = 0; i < dispatchCount; i++)
+        singleMipRange.startSubres.mipLevel = firstMipLevel;
+        for (; singleMipRange.startSubres.mipLevel <= lastMipLevel; ++singleMipRange.startSubres.mipLevel)
         {
-            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(
-                pCmdBuffer,
-                SrdDwordAlignment() + DataDwords,
-                SrdDwordAlignment(),
-                PipelineBindPoint::Compute,
-                0);
+            const auto& subResInfo = *dstImage.SubresourceInfo(singleMipRange.startSubres);
 
-            device.CreateImageViewSrds(1, &imageView, pSrdTable);
-            pSrdTable += SrdDwordAlignment();
+            // Create an embedded SRD table and bind it to user data 0. We only need a single image view.
+            // Populate the table with an image view and the embedded user data. The view should cover this
+            // mip's clear range and use a raw format.
+            const uint32 DataDwords = NumBytesToNumDwords(sizeof(userData));
+            ImageViewInfo imageView = {};
+            PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
+            RpmUtil::BuildImageViewInfo(&imageView,
+                                        dstImage,
+                                        singleMipRange,
+                                        rawFormat,
+                                        dstImageLayout,
+                                        device.TexOptLevel());
 
-            if (hasBoxes)
+            // The default clear box is the entire subresource. This will be changed per-dispatch if boxes are enabled.
+            Extent3d clearExtent = subResInfo.extentTexels;
+            Offset3d clearOffset = {};
+
+            for (uint32 i = 0; i < dispatchCount; i++)
             {
-                clearExtent = pBoxes[i].extent;
-                clearOffset = pBoxes[i].offset;
+                uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(
+                    pCmdBuffer,
+                    SrdDwordAlignment() + DataDwords,
+                    SrdDwordAlignment(),
+                    PipelineBindPoint::Compute,
+                    0);
+
+                device.CreateImageViewSrds(1, &imageView, pSrdTable);
+                pSrdTable += SrdDwordAlignment();
+
+                if (hasBoxes)
+                {
+                    clearExtent = pBoxes[i].extent;
+                    clearOffset = pBoxes[i].offset;
+                }
+
+                // Compute the minimum number of threads to dispatch. Note that only 2D images can have multiple samples and
+                // 3D images cannot have multiple slices.
+                uint32 minThreads[3] = { clearExtent.width, 1, 1, };
+                switch (imageType)
+                {
+                case ImageType::Tex1d:
+                    // For 1d the shader expects the x offset, an unused dword, then the clear width.
+                    // ClearImage1D:dcl_num_thread_per_group 64, 1, 1, Y and Z direction threads are 1
+                    userData[4] = clearOffset.x;
+                    userData[6] = clearExtent.width;
+
+                    // 1D images can only have a single-sample, but they can have multiple slices.
+                    minThreads[2] = singleMipRange.numSlices;
+                    break;
+
+                case ImageType::Tex2d:
+                    minThreads[1] = clearExtent.height;
+                    minThreads[2] = singleMipRange.numSlices * createInfo.samples;
+                    // For 2d the shader expects x offset, y offset, clear width then clear height.
+                    userData[4]  = clearOffset.x;
+                    userData[5]  = clearOffset.y;
+                    userData[6]  = clearExtent.width;
+                    userData[7]  = clearExtent.height;
+                    break;
+
+                default:
+                    // 3d image
+                    minThreads[1] = clearExtent.height;
+                    minThreads[2] = clearExtent.depth;
+                    // For 3d the shader expects x, y z offsets, an unused dword then the width, height and depth.
+                    userData[4]  = clearOffset.x;
+                    userData[5]  = clearOffset.y;
+                    userData[6]  = clearOffset.z;
+
+                    userData[8]  = clearExtent.width;
+                    userData[9]  = clearExtent.height;
+                    userData[10] = clearExtent.depth;
+                    break;
+                }
+
+                // Copy the user-data values into the descriptor table memory.
+                memcpy(pSrdTable, &userData[0], sizeof(userData));
+
+                // Execute the dispatch.
+                pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(minThreads[0], threadsPerGroup[0]),
+                                        RpmUtil::MinThreadGroups(minThreads[1], threadsPerGroup[1]),
+                                        RpmUtil::MinThreadGroups(minThreads[2], threadsPerGroup[2]));
             }
-
-            // Compute the minimum number of threads to dispatch. Note that only 2D images can have multiple samples and
-            // 3D images cannot have multiple slices.
-            uint32 minThreads[3] = { clearExtent.width, 1, 1, };
-            switch (imageType)
-            {
-            case ImageType::Tex1d:
-                // For 1d the shader expects the x offset, an unused dword, then the clear width.
-                // ClearImage1D:dcl_num_thread_per_group 64, 1, 1, Y and Z direction threads are 1
-                userData[4] = clearOffset.x;
-                userData[6] = clearExtent.width;
-
-                // 1D images can only have a single-sample, but they can have multiple slices.
-                minThreads[2] = singleMipRange.numSlices;
-                break;
-
-            case ImageType::Tex2d:
-                minThreads[1] = clearExtent.height;
-                minThreads[2] = singleMipRange.numSlices * createInfo.samples;
-                // For 2d the shader expects x offset, y offset, clear width then clear height.
-                userData[4]  = clearOffset.x;
-                userData[5]  = clearOffset.y;
-                userData[6]  = clearExtent.width;
-                userData[7]  = clearExtent.height;
-                break;
-
-            default:
-                // 3d image
-                minThreads[1] = clearExtent.height;
-                minThreads[2] = clearExtent.depth;
-                // For 3d the shader expects x, y z offsets, an unused dword then the width, height and depth.
-                userData[4]  = clearOffset.x;
-                userData[5]  = clearOffset.y;
-                userData[6]  = clearOffset.z;
-
-                userData[8]  = clearExtent.width;
-                userData[9]  = clearExtent.height;
-                userData[10] = clearExtent.depth;
-                break;
-            }
-
-            // Copy the user-data values into the descriptor table memory.
-            memcpy(pSrdTable, &userData[0], sizeof(userData));
-
-            // Execute the dispatch.
-            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(minThreads[0], threadsPerGroup[0]),
-                                    RpmUtil::MinThreadGroups(minThreads[1], threadsPerGroup[1]),
-                                    RpmUtil::MinThreadGroups(minThreads[2], threadsPerGroup[2]));
         }
     }
 
@@ -4506,7 +4550,7 @@ void RsrcProcMgr::CmdClearColorBuffer(
     Formats::PackRawClearColor(bufferFormat, &convertedColor[0], &packedColor[0]);
 
     // This is the raw format that we will be writing.
-    const SwizzledFormat rawFormat = RpmUtil::GetRawFormat(bufferFormat.format, nullptr);
+    const SwizzledFormat rawFormat = RpmUtil::GetRawFormat(bufferFormat.format, nullptr, nullptr);
     const uint32         rawStride = Formats::BytesPerPixel(rawFormat.format);
 
     // Build an SRD we can use to write to any texel within the buffer using our raw format.

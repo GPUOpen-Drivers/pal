@@ -77,11 +77,12 @@ struct LogItem
 
             struct
             {
-                uint32 draw     :  1;         // Draw call (should track graphics shaders, vertex/instance count, etc.).
-                uint32 dispatch :  1;         // Dispatch call (should track compute shader, thread group count, etc.).
-                uint32 barrier  :  1;         // Barrier (should track before state, after state, etc.).
-                uint32 comment  :  1;         // A CmdCommentString call (should track the comment text).
-                uint32 reserved : 28;
+                uint32 draw        :  1;      // Draw call (should track graphics shaders, vertex/instance count, etc.).
+                uint32 dispatch    :  1;      // Dispatch call (should track compute shader, thread group count, etc.).
+                uint32 placeHolder :  1;
+                uint32 barrier     :  1;      // Barrier (should track before state, after state, etc.).
+                uint32 comment     :  1;      // A CmdCommentString call (should track the comment text).
+                uint32 reserved    : 27;
             } flags;
 
             union

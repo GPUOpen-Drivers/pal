@@ -52,14 +52,14 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = CmdSetUserDataCs;
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = CmdSetUserDataGfx;
 
-    m_funcTable.pfnCmdDraw                     = CmdDraw;
-    m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque;
-    m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed;
-    m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti;
-    m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti;
-    m_funcTable.pfnCmdDispatch                 = CmdDispatch;
-    m_funcTable.pfnCmdDispatchIndirect         = CmdDispatchIndirect;
-    m_funcTable.pfnCmdDispatchOffset           = CmdDispatchOffset;
+    m_funcTable.pfnCmdDraw                      = CmdDraw;
+    m_funcTable.pfnCmdDrawOpaque                = CmdDrawOpaque;
+    m_funcTable.pfnCmdDrawIndexed               = CmdDrawIndexed;
+    m_funcTable.pfnCmdDrawIndirectMulti         = CmdDrawIndirectMulti;
+    m_funcTable.pfnCmdDrawIndexedIndirectMulti  = CmdDrawIndexedIndirectMulti;
+    m_funcTable.pfnCmdDispatch                  = CmdDispatch;
+    m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
+    m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
 }
 
 // =====================================================================================================================

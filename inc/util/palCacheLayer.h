@@ -237,6 +237,30 @@ Result CreateMemoryCacheLayer(
     void*                        pPlacementAddr,
     ICacheLayer**                ppCacheLayer);
 
+/// Get memoryCache entries number and total cache data size
+///
+/// @param [in]         pCacheLayer  memory cache layer to be serialized.
+/// @param [out]        pCurCount    return entries number in memoryCache.
+/// @param [out]        pCurSize     return total cache data size in memoryCache.
+///
+/// @return Success if serialize is successful.
+Result GetMemoryCacheLayerCurSize(
+    ICacheLayer*    pCacheLayer,
+    size_t*         pCurCount,
+    size_t*         pCurSize);
+
+/// Get all hashIds in entries in memoryCache
+///
+/// @param [in]         pCacheLayer  memory cache layer to be serialized.
+/// @param [in]         curCount    return entries number in memoryCache.
+/// @param [out]        pHashIds    return total cache HashIds in memoryCache.
+///
+/// @return Success if serialize is successful.
+Result GetMemoryCacheLayerHashIds(
+    ICacheLayer*    pCacheLayer,
+    size_t          curCount,
+    Hash128*        pHashIds);
+
 /**
 ***********************************************************************************************************************
 * @brief Information needed to create an archive file backed key-value store

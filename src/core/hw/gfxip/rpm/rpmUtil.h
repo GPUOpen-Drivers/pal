@@ -84,7 +84,7 @@ extern void BuildImageViewInfo(
     ImageLayout        imageLayout,
     ImageTexOptLevel   texOptLevel);
 
-extern SwizzledFormat GetRawFormat(ChNumFormat format, uint32* pTexelScale);
+extern SwizzledFormat GetRawFormat(ChNumFormat format, uint32* pTexelScale, bool* pSingleSubres);
 
 extern uint32* CreateAndBindEmbeddedUserData(
     GfxCmdBuffer*     pCmdBuffer,

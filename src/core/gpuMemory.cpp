@@ -662,6 +662,10 @@ Result GpuMemory::Init(
 
     m_desc.size      = createInfo.size;
     m_desc.alignment = createInfo.alignment;
+    if (createInfo.flags.gl2Uncached)
+    {
+        m_mtype = MType::Uncached;
+    }
 
     m_vaPartition    = VaPartition::Svm;
     gpusize baseVirtAddr = 0;

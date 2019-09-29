@@ -28,6 +28,7 @@
 #include "core/hw/gfxip/computePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
+#include "core/hw/gfxip/gfx9/gfx9PipelineChunkCs.h"
 
 namespace Pal
 {
@@ -62,6 +63,10 @@ public:
 
     bool IsWave32() const { return m_signature.flags.isWave32; }
 
+    static uint32 CalcMaxWavesPerSh(
+        const GpuChipProperties& chipProps,
+        uint32                   maxWavesPerCu);
+
 protected:
     virtual Result HwlInit(
         const ComputePipelineCreateInfo& createInfo,
@@ -70,76 +75,12 @@ protected:
         Util::MsgPackReader*             pMetadataReader) override;
 
 private:
-    uint32 CalcMaxWavesPerSh(uint32 maxWavesPerCu) const;
-
-    void BuildPm4Headers(const ComputePipelineUploader& uploader);
     void UpdateRingSizes(const CodeObjectMetadata& metadata);
-
-    void SetupSignatureFromElf(
-        const CodeObjectMetadata& metadata,
-        const RegisterVector&     registers);
 
     Device*const  m_pDevice;
 
-    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
-    struct Pm4Commands
-    {
-        struct
-        {
-            PM4_ME_LOAD_SH_REG_INDEX  loadShRegIndex;
-        } loadIndex; // LOAD_INDEX path, used for universal command buffers.
-
-        struct
-        {
-            PM4_ME_SET_SH_REG  hdrComputePgm;
-            regCOMPUTE_PGM_LO  computePgmLo;
-            regCOMPUTE_PGM_HI  computePgmHi;
-
-            PM4_ME_SET_SH_REG       hdrComputeUserData;
-            regCOMPUTE_USER_DATA_0  computeUserDataLo;
-
-            PM4_ME_SET_SH_REG     hdrComputePgmRsrc1;
-            regCOMPUTE_PGM_RSRC1  computePgmRsrc1;
-
-            PM4_ME_SET_SH_REG        hdrComputeNumThread;
-            regCOMPUTE_NUM_THREAD_X  computeNumThreadX;
-            regCOMPUTE_NUM_THREAD_Y  computeNumThreadY;
-            regCOMPUTE_NUM_THREAD_Z  computeNumThreadZ;
-
-            // Checksum register is optional, as not all GFX9+ hardware uses it. If we don't use it, NOP will be added.
-            PM4_ME_SET_SH_REG         hdrComputeShaderChksum;
-            regCOMPUTE_SHADER_CHKSUM  computeShaderChksum;
-
-            // All GFX10 devices support the checksum register. If we don't have it, NOP will be added.
-            PM4_ME_SET_SH_REG        hdrComputePgmRsrc3;
-            regCOMPUTE_PGM_RSRC3     computePgmRsrc3;
-
-            // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be added.
-            PM4_ME_SET_SH_REG        hdrComputeUserAccum;
-            regCOMPUTE_USER_ACCUM_0  regComputeUserAccum0;
-            regCOMPUTE_USER_ACCUM_1  regComputeUserAccum1;
-            regCOMPUTE_USER_ACCUM_2  regComputeUserAccum2;
-            regCOMPUTE_USER_ACCUM_3  regComputeUserAccum3;
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
-        } set; // SET path, used for compute command buffers.  The MEC doesn't support LOAD_SH_REG_INDEX.
-
-        struct
-        {
-            PM4_ME_SET_SH_REG     hdrComputePgmRsrc2;
-            regCOMPUTE_PGM_RSRC2  computePgmRsrc2;
-
-            PM4_ME_SET_SH_REG           hdrComputeResourceLimits;
-            regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
-        } dynamic; // Contains state which depends on bind-time parameters.
-
-        PipelinePrefetchPm4 prefetch;
-    };
-
-    ComputePipelineSignature  m_signature;
-    Pm4Commands               m_commands;
+    ComputePipelineSignature    m_signature;
+    PipelineChunkCs             m_chunkCs;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);

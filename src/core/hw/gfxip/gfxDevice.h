@@ -550,6 +550,25 @@ public:
         PipelineBindPoint           bindPoint) const;
 #endif
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    void DescribeDrawDispatchValidation(
+        GfxCmdBuffer* pCmdBuf,
+        size_t        userDataCmdSize,
+        size_t        pipelineCmdSize,
+        size_t        miscCmdSize) const;
+
+    void DescribeHotRegisters(
+        GfxCmdBuffer* pCmdBuf,
+        const uint32* pShRegSeenSets,
+        const uint32* pShRegKeptSets,
+        uint32        shRegCount,
+        uint16        shRegBase,
+        const uint32* pCtxRegSeenSets,
+        const uint32* pCtxRegKeptSets,
+        uint32        ctxRegCount,
+        uint16        ctxRegBase) const;
+#endif
+
 #if DEBUG
     virtual uint32* TemporarilyHangTheGpu(
         EngineType engineType,

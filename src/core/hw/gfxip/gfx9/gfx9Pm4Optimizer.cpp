@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Pm4Optimizer.h"
@@ -38,9 +39,11 @@ namespace Gfx9
 // =====================================================================================================================
 // Checks the current register state versus the next written value.  Determines whether a new SET command is necessary,
 // and updates the register state. Returns true if the given register value must be written to HW.
+template <size_t RegisterCount>
 static bool UpdateRegState(
-    uint32    newRegVal,
-    RegState* pCurRegState) // [in,out] Current state of register being set, will be updated.
+    uint32                        newRegVal,
+    uint32                        regOffset,
+    RegGroupState<RegisterCount>* pCurRegState) // [in,out] Current state of register being set, will be updated.
 {
     bool mustKeep = false;
 
@@ -48,15 +51,23 @@ static bool UpdateRegState(
     // - The new value is different than the old value.
     // - The previous state is invalid.
     // - We must always write this register.
-    if ((pCurRegState->value != newRegVal) ||
-        (pCurRegState->flags.valid == 0)   ||
-        (pCurRegState->flags.mustWrite == 1))
+    if ((pCurRegState->state[regOffset].value           != newRegVal) ||
+        (pCurRegState->state[regOffset].flags.valid     == 0)         ||
+        (pCurRegState->state[regOffset].flags.mustWrite == 1))
     {
-        pCurRegState->flags.valid = 1;
-        pCurRegState->value       = newRegVal;
+#if PAL_BUILD_PM4_INSTRUMENTOR
+        pCurRegState->keptSets[regOffset]++;
+#endif
+
+        pCurRegState->state[regOffset].flags.valid = 1;
+        pCurRegState->state[regOffset].value       = newRegVal;
 
         mustKeep = true;
     }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    pCurRegState->totalSets[regOffset]++;
+#endif
 
     return mustKeep;
 }
@@ -65,6 +76,7 @@ static bool UpdateRegState(
 Pm4Optimizer::Pm4Optimizer(
     const Device& device)
     :
+    m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_waTcCompatZRange(device.WaTcCompatZRange())
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -80,7 +92,7 @@ Pm4Optimizer::Pm4Optimizer(
 void Pm4Optimizer::Reset()
 {
     // Reset the context register state.
-    memset(m_cntxRegs, 0, sizeof(m_cntxRegs));
+    memset(&m_cntxRegs, 0, sizeof(m_cntxRegs));
 
     // Mark the "vector" context registers as mustWrite. There are some PA registers that require setting the entire
     // vector if any register in the vector needs to change. According to the PA and SC hardware team, these registers
@@ -89,21 +101,21 @@ void Pm4Optimizer::Reset()
     constexpr uint32 VportEnd   = mmPA_CL_VPORT_ZOFFSET_15 - CONTEXT_SPACE_START;
     for (uint32 regOffset = VportStart; regOffset <= VportEnd; ++regOffset)
     {
-        m_cntxRegs[regOffset].flags.mustWrite = 1;
+        m_cntxRegs.state[regOffset].flags.mustWrite = 1;
     }
 
     constexpr uint32 VportScissorStart = mmPA_SC_VPORT_SCISSOR_0_TL - CONTEXT_SPACE_START;
     constexpr uint32 VportScissorEnd   = mmPA_SC_VPORT_ZMAX_15      - CONTEXT_SPACE_START;
     for (uint32 regOffset = VportScissorStart; regOffset <= VportScissorEnd; ++regOffset)
     {
-        m_cntxRegs[regOffset].flags.mustWrite = 1;
+        m_cntxRegs.state[regOffset].flags.mustWrite = 1;
     }
 
     constexpr uint32 GuardbandStart = mmPA_CL_GB_VERT_CLIP_ADJ - CONTEXT_SPACE_START;
     constexpr uint32 GuardbandEnd   = mmPA_CL_GB_HORZ_DISC_ADJ - CONTEXT_SPACE_START;
     for (uint32 regOffset = GuardbandStart; regOffset <= GuardbandEnd; ++regOffset)
     {
-        m_cntxRegs[regOffset].flags.mustWrite = 1;
+        m_cntxRegs.state[regOffset].flags.mustWrite = 1;
     }
 
     // This workaround on gfx9 adds some writes to DB_Z_INFO which are preceded by a COND_EXEC. Make sure we don't
@@ -112,11 +124,11 @@ void Pm4Optimizer::Reset()
     {
         constexpr uint32 dbZInfoIdx = Gfx09::mmDB_Z_INFO - CONTEXT_SPACE_START;
 
-        m_cntxRegs[dbZInfoIdx].flags.mustWrite = 1;
+        m_cntxRegs.state[dbZInfoIdx].flags.mustWrite = 1;
     }
 
     // Reset the SH register state.
-    memset(m_shRegs, 0, sizeof(m_shRegs));
+    memset(&m_shRegs, 0, sizeof(m_shRegs));
 
     // Always start with no context rolls
     m_contextRollDetected = false;
@@ -131,7 +143,7 @@ bool Pm4Optimizer::MustKeepSetContextReg(
 {
     PAL_ASSERT(m_cmdUtil.IsContextReg(regAddr));
 
-    const bool mustKeep = UpdateRegState(regData, m_cntxRegs + (regAddr - CONTEXT_SPACE_START));
+    const bool mustKeep = UpdateRegState(regData, (regAddr - CONTEXT_SPACE_START), &m_cntxRegs);
 
     m_contextRollDetected |= mustKeep;
 
@@ -146,10 +158,7 @@ bool Pm4Optimizer::MustKeepSetShReg(
     uint32 regData)
 {
     PAL_ASSERT(m_cmdUtil.IsShReg(regAddr));
-
-    const bool mustKeep = UpdateRegState(regData, m_shRegs + (regAddr - PERSISTENT_SPACE_START));
-
-    return mustKeep;
+    return UpdateRegState(regData, (regAddr - PERSISTENT_SPACE_START), &m_shRegs);
 }
 
 // =====================================================================================================================
@@ -161,8 +170,7 @@ bool Pm4Optimizer::MustKeepContextRegRmw(
 {
     PAL_ASSERT(m_cmdUtil.IsContextReg(regAddr));
 
-    const uint32 regOffset = regAddr - CONTEXT_SPACE_START;
-    auto*const   pRegState = &m_cntxRegs[regOffset];
+    const uint32 regOffset = (regAddr - CONTEXT_SPACE_START);
 
     bool mustKeep = true;
 
@@ -170,12 +178,12 @@ bool Pm4Optimizer::MustKeepContextRegRmw(
     // regState value to compute newRegVal. If we tried to do it anyway, the fact that our regMask will have some bits
     // disabled means that we would be setting regState's value to something partially invalid which may cause us to
     // skip needed packets in the future.
-    if (pRegState->flags.valid == 1)
+    if (m_cntxRegs.state[regOffset].flags.valid != 0)
     {
         // Computed according to the formula stated in the definition of CmdUtil::BuildContextRegRmw.
-        const uint32 newRegVal = (pRegState->value & ~regMask) | (regData & regMask);
+        const uint32 newRegVal = (m_cntxRegs.state[regOffset].value & ~regMask) | (regData & regMask);
 
-        mustKeep = UpdateRegState(newRegVal, pRegState);
+        mustKeep = UpdateRegState(newRegVal, regOffset, &m_cntxRegs);
     }
 
     m_contextRollDetected |= mustKeep;
@@ -195,7 +203,7 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqShRegs(
     m_dstContainsSrc = false;
 #endif
 
-    return OptimizePm4SetReg(setData, pData, pCmdSpace, m_shRegs);
+    return OptimizePm4SetReg(setData, pData, pCmdSpace, &m_shRegs);
 }
 
 // =====================================================================================================================
@@ -213,7 +221,7 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
 
     PAL_ASSERT(pContextRollDetected != nullptr);
 
-    uint32* pNewCmdSpace = OptimizePm4SetReg(setData, pData, pCmdSpace, m_cntxRegs);
+    uint32* pNewCmdSpace = OptimizePm4SetReg(setData, pData, pCmdSpace, &m_cntxRegs);
     (*pContextRollDetected) |= ((pNewCmdSpace > pCmdSpace) != 0);
     return pNewCmdSpace;
 }
@@ -228,13 +236,13 @@ uint32* Pm4Optimizer::WriteOptimizedSetShShRegOffset(
 {
     // Since this is an indirect write, we do not know the exact SH register data. Invalidate SH register so that
     // the next SH register write will not be skipped inadvertently
-    m_shRegs[setShRegOffset.bitfields2.reg_offset].flags.valid = 0;
+    m_shRegs.state[setShRegOffset.bitfields2.reg_offset].flags.valid = 0;
 
     // If the index value is set to 0, this packet actually operates on two sequential SH registers so we need to
     // invalidate the following register as well.
     if (setShRegOffset.bitfields2.index == 0)
     {
-        m_shRegs[setShRegOffset.bitfields2.reg_offset + 1].flags.valid = 0;
+        m_shRegs.state[setShRegOffset.bitfields2.reg_offset + 1].flags.valid = 0;
     }
 
     // memcpy packet into command space
@@ -280,7 +288,7 @@ bool Pm4Optimizer::OptimizePm4Commands(
             pOptCmdCur = OptimizePm4SetReg(reinterpret_cast<const PM4_PFP_SET_CONTEXT_REG&>(*pOrigCmdCur),
                                            pOrigCmdCur + CmdUtil::ContextRegSizeDwords,
                                            pOptCmdCur,
-                                           &m_cntxRegs[0]);
+                                           &m_cntxRegs);
             m_contextRollDetected |= ((pOptCmdCur > pPreOptCmdCur) != 0);
         }
         else if (opcode == IT_SET_CONTEXT_REG_INDIRECT)
@@ -294,7 +302,7 @@ bool Pm4Optimizer::OptimizePm4Commands(
             pOptCmdCur = OptimizePm4SetReg(reinterpret_cast<const PM4_ME_SET_SH_REG&>(*pOrigCmdCur),
                                            pOrigCmdCur + CmdUtil::ShRegSizeDwords,
                                            pOptCmdCur,
-                                           &m_shRegs[0]);
+                                           &m_shRegs);
         }
         else if (opcode == IT_SET_SH_REG_OFFSET)
         {
@@ -302,22 +310,21 @@ bool Pm4Optimizer::OptimizePm4Commands(
         }
         else if (opcode == IT_LOAD_CONTEXT_REG)
         {
-            HandlePm4LoadReg(reinterpret_cast<const PM4_PFP_LOAD_CONTEXT_REG&>(*pOrigCmdCur), &m_cntxRegs[0]);
+            HandlePm4LoadReg(reinterpret_cast<const PM4_PFP_LOAD_CONTEXT_REG&>(*pOrigCmdCur), &m_cntxRegs);
             m_contextRollDetected = true;
         }
         else if (opcode == IT_LOAD_CONTEXT_REG_INDEX)
         {
-            HandlePm4LoadRegIndex(reinterpret_cast<const PM4_PFP_LOAD_CONTEXT_REG_INDEX&>(*pOrigCmdCur),
-                                  &m_cntxRegs[0]);
+            HandlePm4LoadRegIndex(reinterpret_cast<const PM4_PFP_LOAD_CONTEXT_REG_INDEX&>(*pOrigCmdCur), &m_cntxRegs);
             m_contextRollDetected = true;
         }
         else if (opcode == IT_LOAD_SH_REG)
         {
-            HandlePm4LoadReg(reinterpret_cast<const PM4_ME_LOAD_SH_REG&>(*pOrigCmdCur), &m_shRegs[0]);
+            HandlePm4LoadReg(reinterpret_cast<const PM4_ME_LOAD_SH_REG&>(*pOrigCmdCur), &m_shRegs);
         }
         else if (opcode == IT_LOAD_SH_REG_INDEX)
         {
-            HandlePm4LoadRegIndex(reinterpret_cast<const PM4_ME_LOAD_SH_REG_INDEX&>(*pOrigCmdCur), &m_shRegs[0]);
+            HandlePm4LoadRegIndex(reinterpret_cast<const PM4_ME_LOAD_SH_REG_INDEX&>(*pOrigCmdCur), &m_shRegs);
         }
         else if (opcode == IT_CONTEXT_REG_RMW)
         {
@@ -336,33 +343,33 @@ bool Pm4Optimizer::OptimizePm4Commands(
         else if (opcode == IT_DRAW_INDIRECT)
         {
             const auto& packet = reinterpret_cast<const PM4_PFP_DRAW_INDIRECT&>(*pOrigCmdCur);
-            m_shRegs[packet.bitfields3.start_vtx_loc].flags.valid  = 0;
-            m_shRegs[packet.bitfields4.start_inst_loc].flags.valid = 0;
+            m_shRegs.state[packet.bitfields3.start_vtx_loc].flags.valid  = 0;
+            m_shRegs.state[packet.bitfields4.start_inst_loc].flags.valid = 0;
         }
         else if (opcode == IT_DRAW_INDIRECT_MULTI)
         {
             const auto& packet = reinterpret_cast<const PM4_PFP_DRAW_INDIRECT_MULTI&>(*pOrigCmdCur);
-            m_shRegs[packet.bitfields3.start_vtx_loc].flags.valid  = 0;
-            m_shRegs[packet.bitfields4.start_inst_loc].flags.valid = 0;
+            m_shRegs.state[packet.bitfields3.start_vtx_loc].flags.valid  = 0;
+            m_shRegs.state[packet.bitfields4.start_inst_loc].flags.valid = 0;
             if (packet.bitfields5.draw_index_enable != 0)
             {
-                m_shRegs[packet.bitfields5.draw_index_loc].flags.valid = 0;
+                m_shRegs.state[packet.bitfields5.draw_index_loc].flags.valid = 0;
             }
         }
         else if (opcode == IT_DRAW_INDEX_INDIRECT)
         {
             const auto& packet = reinterpret_cast<const PM4_PFP_DRAW_INDEX_INDIRECT&>(*pOrigCmdCur);
-            m_shRegs[packet.bitfields3.base_vtx_loc].flags.valid   = 0;
-            m_shRegs[packet.bitfields4.start_inst_loc].flags.valid = 0;
+            m_shRegs.state[packet.bitfields3.base_vtx_loc].flags.valid   = 0;
+            m_shRegs.state[packet.bitfields4.start_inst_loc].flags.valid = 0;
         }
         else if (opcode == IT_DRAW_INDEX_INDIRECT_MULTI)
         {
             const auto& packet = reinterpret_cast<const PM4_PFP_DRAW_INDEX_INDIRECT_MULTI&>(*pOrigCmdCur);
-            m_shRegs[packet.bitfields3.base_vtx_loc].flags.valid   = 0;
-            m_shRegs[packet.bitfields4.start_inst_loc].flags.valid = 0;
+            m_shRegs.state[packet.bitfields3.base_vtx_loc].flags.valid   = 0;
+            m_shRegs.state[packet.bitfields4.start_inst_loc].flags.valid = 0;
             if (packet.bitfields5.draw_index_enable != 0)
             {
-                m_shRegs[packet.bitfields5.draw_index_loc].flags.valid = 0;
+                m_shRegs.state[packet.bitfields5.draw_index_loc].flags.valid = 0;
             }
         }
         else if (opcode == IT_INDIRECT_BUFFER)
@@ -402,16 +409,15 @@ bool Pm4Optimizer::OptimizePm4Commands(
 // Optimize the specified PM4 SET packet. May remove the SET packet completely, reduce the range of registers it sets,
 // break it into multiple smaller SET commands, or leave it unmodified. Returns a pointer to the next free location in
 // the optimized command stream.
-template <typename SetDataPacket>
+template <typename SetDataPacket, size_t RegisterCount>
 uint32* Pm4Optimizer::OptimizePm4SetReg(
-    SetDataPacket setData,
-    const uint32* pRegData,
-    uint32*       pDstCmd,
-    RegState*     pRegStateBase)
+    SetDataPacket                 setData,
+    const uint32*                 pRegData,
+    uint32*                       pDstCmd,
+    RegGroupState<RegisterCount>* pRegState)
 {
     const uint32 numRegs   = setData.header.count;
     const uint32 regOffset = setData.bitfields2.reg_offset;
-    RegState*    pRegState = pRegStateBase + regOffset;
 
     // Determine which of the registers written by this set command can't be skipped because they must always be set or
     // are taking on a new value.
@@ -423,7 +429,7 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
     uint32 keepRegMask  = 0;
     for (uint32 i = 0; i < numRegs; i++)
     {
-        if (UpdateRegState(pRegData[i], pRegState + i))
+        if (UpdateRegState(pRegData[i], (regOffset + i), pRegState))
         {
             keepRegCount++;
             keepRegMask |= 1 << i;
@@ -503,10 +509,10 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
 // =====================================================================================================================
 // Handle an occurrence of a PM4 LOAD packet: there's no optimization we can do on these, but we need to invalidate the
 // state of the affected register(s) because this packet will set them to unknowable values.
-template <typename LoadDataPacket>
+template <typename LoadDataPacket, size_t RegisterCount>
 void Pm4Optimizer::HandlePm4LoadReg(
-    const LoadDataPacket& loadData,
-    RegState*             pRegStateBase)
+    const LoadDataPacket&         loadData,
+    RegGroupState<RegisterCount>* pRegState)
 {
     // NOTE: IT_LOAD_*_REG is a variable-length packet which loads N groups of consecutive register values from GPU
     // memory. The LOAD packet uses 3 DWORD's for the PM4 header and for the GPU virtual address to load from. The
@@ -521,7 +527,7 @@ void Pm4Optimizer::HandlePm4LoadReg(
         const uint32  endRegOffset   = (startRegOffset + pRegisterGroup[1] - 1);
         for (uint32 reg = startRegOffset; reg <= endRegOffset; ++reg)
         {
-            pRegStateBase[reg].flags.valid = 0;
+            pRegState->state[reg].flags.valid = 0;
         }
 
         pRegisterGroup += 2;
@@ -531,10 +537,10 @@ void Pm4Optimizer::HandlePm4LoadReg(
 // =====================================================================================================================
 // Handle an occurrence of a PM4 LOAD INDEX packet: there's no optimization we can do on these, but we need to
 // invalidate the state of the affected register(s) because this packet will set them to unknowable values.
-template <typename LoadDataIndexPacket>
+template <typename LoadDataIndexPacket, size_t RegisterCount>
 void Pm4Optimizer::HandlePm4LoadRegIndex(
-    const LoadDataIndexPacket& loadDataIndex,
-    RegState*                  pRegStateBase)
+    const LoadDataIndexPacket&    loadDataIndex,
+    RegGroupState<RegisterCount>* pRegState)
 {
     // NOTE: IT_LOAD_*_REG_INDEX is nearly identical to IT_LOAD_*_REG except the register offset values in it are only
     //       16 bits wide. This means we need to perform some special logic when traversing the dwords that follow the
@@ -550,7 +556,7 @@ void Pm4Optimizer::HandlePm4LoadRegIndex(
         const uint32 endRegOffset   = (startRegOffset + numRegs - 1);
         for (uint32 reg = startRegOffset; reg <= endRegOffset; ++reg)
         {
-            pRegStateBase[reg].flags.valid = 0;
+            pRegState->state[reg].flags.valid = 0;
         }
 
         pRegisterGroup = VoidPtrInc(pRegisterGroup, sizeof(uint32) * 2);
@@ -562,35 +568,38 @@ void Pm4Optimizer::HandlePm4LoadRegIndex(
 void Pm4Optimizer::HandleLoadContextRegsIndex(
      const PM4PFP_LOAD_CONTEXT_REG_INDEX& loadData)
 {
-    HandlePm4LoadRegIndex<PM4PFP_LOAD_CONTEXT_REG_INDEX>(loadData, &m_cntxRegs[0]);
+    HandlePm4LoadRegIndex<PM4PFP_LOAD_CONTEXT_REG_INDEX>(loadData, &m_cntxRegs);
 }
 
 // =====================================================================================================================
 // Handle an occurrence of a PM4 SET SH REG OFFSET packet: there's no optimization we can do on these, but we need to
 // invalidate the state of the affected register(s) because this packet will set them to unknowable values.
-void Pm4Optimizer::HandlePm4SetShRegOffset(const PM4PFP_SET_SH_REG_OFFSET& setShRegOffset)
+void Pm4Optimizer::HandlePm4SetShRegOffset(
+    const PM4PFP_SET_SH_REG_OFFSET& setShRegOffset)
 {
     // Invalidate the register the packet is operating on.
-    m_shRegs[setShRegOffset.bitfields2.reg_offset].flags.valid = 0;
+    m_shRegs.state[setShRegOffset.bitfields2.reg_offset].flags.valid = 0;
 
     // If the index value is set to 0, this packet actually operates on two sequential SH registers so we need to
     // invalidate the following register as well.
     if (setShRegOffset.bitfields2.index == 0)
     {
-        m_shRegs[setShRegOffset.bitfields2.reg_offset + 1].flags.valid = 0;
+        m_shRegs.state[setShRegOffset.bitfields2.reg_offset + 1].flags.valid = 0;
     }
 }
 
 // =====================================================================================================================
 // Handle an occurrence of a PM4 SET CONTEXT REG INDIRECT packet: there's no optimization we can do on these, but we
 // need to invalidate the state of the affected register(s) because this packet will set them to unknowable values.
-void Pm4Optimizer::HandlePm4SetContextRegIndirect(const PM4_PFP_SET_CONTEXT_REG& setData)
+void Pm4Optimizer::HandlePm4SetContextRegIndirect(
+    const PM4_PFP_SET_CONTEXT_REG& setData)
 {
     const uint32 startRegOffset = static_cast<uint32>(setData.bitfields2.reg_offset);
     const uint32  endRegOffset  = (startRegOffset + (setData.header.count - 1));
+
     for (uint32 reg = startRegOffset; reg <= endRegOffset; ++reg)
     {
-        m_cntxRegs[reg].flags.valid = 0;
+        m_cntxRegs.state[reg].flags.valid = 0;
     }
 }
 
@@ -613,6 +622,26 @@ uint32 Pm4Optimizer::GetPm4PacketSize(
 
     return packetSize;
 }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+// =====================================================================================================================
+// Calls the PAL developer callback to issue a report on how many times SET packets to each SH and context register were
+// seen by the optimizer and kept after redundancy checking.
+void Pm4Optimizer::IssueHotRegisterReport(
+    GfxCmdBuffer* pCmdBuf
+    ) const
+{
+    m_device.DescribeHotRegisters(pCmdBuf,
+                                  &m_shRegs.totalSets[0],
+                                  &m_shRegs.keptSets[0],
+                                  ShRegUsedRangeSize,
+                                  PERSISTENT_SPACE_START,
+                                  &m_cntxRegs.totalSets[0],
+                                  &m_cntxRegs.keptSets[0],
+                                  CntxRegUsedRangeSize,
+                                  CONTEXT_SPACE_START);
+}
+#endif
 
 } // Gfx9
 } // Pal

@@ -138,14 +138,14 @@ CmdBuffer::CmdBuffer(
 
     // Initialize all draw/dispatch funcs to invalid stubs.  HWIP command buffer classes that support these interfaces
     // will overwrite the function pointers.
-    m_funcTable.pfnCmdDraw                     = CmdDrawInvalid;
-    m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaqueInvalid;
-    m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexedInvalid;
-    m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMultiInvalid;
-    m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMultiInvalid;
-    m_funcTable.pfnCmdDispatch                 = CmdDispatchInvalid;
-    m_funcTable.pfnCmdDispatchIndirect         = CmdDispatchIndirectInvalid;
-    m_funcTable.pfnCmdDispatchOffset           = CmdDispatchOffsetInvalid;
+    m_funcTable.pfnCmdDraw                      = CmdDrawInvalid;
+    m_funcTable.pfnCmdDrawOpaque                = CmdDrawOpaqueInvalid;
+    m_funcTable.pfnCmdDrawIndexed               = CmdDrawIndexedInvalid;
+    m_funcTable.pfnCmdDrawIndirectMulti         = CmdDrawIndirectMultiInvalid;
+    m_funcTable.pfnCmdDrawIndexedIndirectMulti  = CmdDrawIndexedIndirectMultiInvalid;
+    m_funcTable.pfnCmdDispatch                  = CmdDispatchInvalid;
+    m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirectInvalid;
+    m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffsetInvalid;
 }
 
 // =====================================================================================================================

@@ -146,43 +146,6 @@
       "Description": "Specifies the number of RBs used in a graphics copy to nonlocal destinations.  Reducing the number of RBs can increase PCIe throughput."
     },
     {
-      "ValidValues": {
-        "IsEnum": true,
-        "IsExclusive": true,
-        "Values": [
-          {
-            "Name": "IfhModeDisabled",
-            "Value": 0,
-            "Description": "IFH is disabled"
-          },
-          {
-            "Name": "IfhModePal",
-            "Value": 1,
-            "Description": "IFH is implemented in PAL (kernel is not called)"
-          },
-          {
-            "Name": "IfhModeKmd",
-            "Value": 2,
-            "Description": "IFH is implemented in the kernel"
-          }
-        ],
-        "Name": "IfhMode",
-        "Description": "IFH Mode setting values."
-      },
-      "Name": "IFH",
-      "Tags": [
-        "General",
-        "Debug"
-      ],
-      "Defaults": {
-        "Default": "IfhModeDisabled"
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "enum",
-      "VariableName": "ifh",
-      "Description": "Controls Infinitely Fast Hardware (IFH) mode. See IfhGpuMask for which ASICs are affected (default all)"
-    },
-    {
       "Name": "IdleAfterSubmitGpuMask",
       "Tags": [
         "General",

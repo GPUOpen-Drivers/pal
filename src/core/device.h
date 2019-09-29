@@ -206,6 +206,7 @@ struct GpuMemoryProperties
 
     gpusize vaStart;        // Starting address of the GPU's virtual address space
     gpusize vaEnd;          // Ending address of the GPU's virtual address space
+
     // Some hardware has dynamically-sizeable virtual address ranges. For such GPU's, this is the initial ending
     // address of the virtual address space.
     gpusize vaInitialEnd;
@@ -230,6 +231,10 @@ struct GpuMemoryProperties
     gpusize sharedApertureBase;  // Shared memory base address for generic address space implementation.
 
     gpusize gpuvmOffsetForSvm;   // Offset provided by KMD for 64bit Win10 SVM capable HW to access gpu va.
+
+    gpusize dcnPrimarySurfaceVaStartAlign; // Starting VA alignment of primary surface provided by KMD
+    gpusize dcnPrimarySurfaceVaSizeAlign;  // Physical size alignment of primary surface provided by KMD
+
     union
     {
         struct
@@ -411,7 +416,10 @@ struct GpuQueueProperties
 constexpr uint32 MinCmdStreamsPerSubmission = 4;
 
 // Size of an instruction cache line (bytes).
-constexpr gpusize ShaderICacheLineSize = 64;
+constexpr gpusize ShaderICacheLineSize      = 64;
+
+// Maximum number of VGPRs that any one shader can access.
+constexpr uint32 MaxVgprPerShader = 256;
 
 #if PAL_BUILD_GFX
 // Blocks can be distributed across the GPU in a few different ways.
@@ -693,7 +701,7 @@ struct GpuChipProperties
             uint32 numPhysicalSgprs;
             uint32 minSgprAlloc;
             uint32 sgprAllocGranularity;
-            uint32 numShaderVisibleVgprs;
+            uint32 numPhysicalVgprsPerSimd;
             uint32 numPhysicalVgprs;
             uint32 minVgprAlloc;
             uint32 vgprAllocGranularity;
@@ -758,7 +766,7 @@ struct GpuChipProperties
             uint32 numPhysicalSgprs;
             uint32 minSgprAlloc;
             uint32 sgprAllocGranularity;
-            uint32 numShaderVisibleVgprs;
+            uint32 numPhysicalVgprsPerSimd;
             uint32 numPhysicalVgprs;
             uint32 minVgprAlloc;
             uint32 vgprAllocGranularity;

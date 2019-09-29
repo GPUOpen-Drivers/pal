@@ -202,7 +202,7 @@ Result GpuEvent::Reset()
 Result GpuEvent::GetStatus()
 {
     PAL_ASSERT(m_createInfo.flags.gpuAccessOnly == 0);
-    PAL_ALERT(m_pDevice->Settings().ifh != IfhModeDisabled);
+    PAL_ALERT(m_pDevice->GetPublicSettings()->ifhMode != IfhModeDisabled);
 
     Result result = Result::ErrorInvalidPointer;
 

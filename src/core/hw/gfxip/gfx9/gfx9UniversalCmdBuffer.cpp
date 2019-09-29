@@ -363,6 +363,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                              (TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
+#endif
+
     m_paScBinnerCntl0.u32All = 0;
     // Initialize defaults for some of the fields in PA_SC_BINNER_CNTL_0.
     m_savedPaScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN    = settings.binningContextStatesPerBin - 1;
@@ -571,7 +575,6 @@ void UniversalCmdBuffer::ResetState()
 
     m_spiVsOutConfig.u32All    = 0;
     m_spiPsInControl.u32All    = 0;
-    m_paScShaderControl.u32All = 0xFFFFFFFF; ///< Initialize to a known bad value to ensure it is flushed on 1st draw
     m_binningMode              = FORCE_BINNING_ON; // set a value that we would never use
     m_dbDfsmControl.u32All     = m_device.GetDbDfsmControl();
 
@@ -3421,6 +3424,13 @@ Result UniversalCmdBuffer::AddPostamble()
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (m_cachedSettings.enablePm4Instrumentation)
+    {
+        m_deCmdStream.IssueHotRegisterReport(this);
+    }
+#endif
+
     return Result::Success;
 }
 
@@ -4563,6 +4573,12 @@ void UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo)
 {
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    uint32 startingCmdLen = GetUsedSize(CommandDataAlloc);
+    uint32 pipelineCmdLen = 0;
+    uint32 userDataCmdLen = 0;
+#endif
+
     if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
     {
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -4584,9 +4600,31 @@ void UniversalCmdBuffer::ValidateDraw(
         // NOTE: Switching a graphics pipeline can result in a large amount of commands being written, so start a new
         // reserve/commit region before proceeding with validation.
         m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+        if (m_cachedSettings.enablePm4Instrumentation != 0)
+        {
+            pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            startingCmdLen += pipelineCmdLen;
+        }
+#endif
+
         pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfxPipelineSwitch)(pPrevSignature, pDeCmdSpace);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+        if (m_cachedSettings.enablePm4Instrumentation != 0)
+        {
+            // GetUsedSize() is not accurate if we don't put the user-data validation and miscellaneous validation
+            // in separate Reserve/Commit blocks.
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+            userDataCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            startingCmdLen += userDataCmdLen;
+            pDeCmdSpace     = m_deCmdStream.ReserveCommands();
+        }
+#endif
+
         pDeCmdSpace = ValidateDraw<Indexed, Indirect, Pm4OptImmediate, true>(drawInfo, pDeCmdSpace);
 
         m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -4596,10 +4634,31 @@ void UniversalCmdBuffer::ValidateDraw(
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfx)(nullptr, pDeCmdSpace);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+        if (m_cachedSettings.enablePm4Instrumentation != 0)
+        {
+            // GetUsedSize() is not accurate if we don't put the user-data validation and miscellaneous validation
+            // in separate Reserve/Commit blocks.
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+            userDataCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            startingCmdLen += userDataCmdLen;
+            pDeCmdSpace     = m_deCmdStream.ReserveCommands();
+        }
+#endif
+
         pDeCmdSpace = ValidateDraw<Indexed, Indirect, Pm4OptImmediate, false>(drawInfo, pDeCmdSpace);
 
         m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -5127,16 +5186,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     static_assert(VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
                   Gfx10::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
                   "RESET_EN bits are not in the same place on GFX9 and GFX10!");
-
-    const regPA_SC_SHADER_CONTROL  newPaScShaderControl = pPipeline->PaScShaderControl(drawInfo.vtxIdxCount);
-    if (newPaScShaderControl.u32All != m_paScShaderControl.u32All)
-    {
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_SHADER_CONTROL,
-                                                               newPaScShaderControl.u32All,
-                                                               pDeCmdSpace);
-
-        m_paScShaderControl.u32All = newPaScShaderControl.u32All;
-    }
 
     regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn = {};
 
@@ -6445,6 +6494,19 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
     uint32  zDim,
     uint32* pDeCmdSpace)
 {
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    uint32 startingCmdLen = 0;
+    uint32 pipelineCmdLen = 0;
+    uint32 userDataCmdLen = 0;
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+        startingCmdLen = GetUsedSize(CommandDataAlloc);
+        pDeCmdSpace    = m_deCmdStream.ReserveCommands();
+    }
+#endif
+
     if (m_computeState.pipelineState.dirtyFlags.pipelineDirty)
     {
         const auto*const pNewPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
@@ -6453,6 +6515,17 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
                                                   pDeCmdSpace,
                                                   m_computeState.dynamicCsInfo,
                                                   m_buildFlags.prefetchShaders);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+        if (m_cachedSettings.enablePm4Instrumentation != 0)
+        {
+            // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+            pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            startingCmdLen += pipelineCmdLen;
+            pDeCmdSpace     = m_deCmdStream.ReserveCommands();
+        }
+#endif
 
         const auto*const pPrevSignature = m_pSignatureCs;
         m_pSignatureCs                  = &pNewPipeline->Signature();
@@ -6478,6 +6551,17 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
         }
     }
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+        userDataCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        startingCmdLen += userDataCmdLen;
+        pDeCmdSpace     = m_deCmdStream.ReserveCommands();
+    }
+#endif
+
     m_computeState.pipelineState.dirtyFlags.u32All = 0;
 
     if (m_pSignatureCs->numWorkGroupsRegAddr != UserDataNotMapped)
@@ -6502,13 +6586,23 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
 
     if (IsGfx10(m_gfxIpLevel))
     {
-        regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = {};
-        dispatchTunnel.u32All                     = 0;
-
+        const regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = { };
         pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(Gfx10::mmCOMPUTE_DISPATCH_TUNNEL,
                                                                     dispatchTunnel.u32All,
                                                                     pDeCmdSpace);
     }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+        const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+    }
+#endif
 
     return pDeCmdSpace;
 }
@@ -7902,13 +7996,13 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_nggState.numSamples       = cmdBuffer.m_nggState.numSamples;
 
         // Update the functions that are modified by nested command list
-        m_pfnValidateUserDataGfx                   = cmdBuffer.m_pfnValidateUserDataGfx;
-        m_pfnValidateUserDataGfxPipelineSwitch     = cmdBuffer.m_pfnValidateUserDataGfxPipelineSwitch;
-        m_funcTable.pfnCmdDraw                     = cmdBuffer.m_funcTable.pfnCmdDraw;
-        m_funcTable.pfnCmdDrawOpaque               = cmdBuffer.m_funcTable.pfnCmdDrawOpaque;
-        m_funcTable.pfnCmdDrawIndexed              = cmdBuffer.m_funcTable.pfnCmdDrawIndexed;
-        m_funcTable.pfnCmdDrawIndirectMulti        = cmdBuffer.m_funcTable.pfnCmdDrawIndirectMulti;
-        m_funcTable.pfnCmdDrawIndexedIndirectMulti = cmdBuffer.m_funcTable.pfnCmdDrawIndexedIndirectMulti;
+        m_pfnValidateUserDataGfx                    = cmdBuffer.m_pfnValidateUserDataGfx;
+        m_pfnValidateUserDataGfxPipelineSwitch      = cmdBuffer.m_pfnValidateUserDataGfxPipelineSwitch;
+        m_funcTable.pfnCmdDraw                      = cmdBuffer.m_funcTable.pfnCmdDraw;
+        m_funcTable.pfnCmdDrawOpaque                = cmdBuffer.m_funcTable.pfnCmdDrawOpaque;
+        m_funcTable.pfnCmdDrawIndexed               = cmdBuffer.m_funcTable.pfnCmdDrawIndexed;
+        m_funcTable.pfnCmdDrawIndirectMulti         = cmdBuffer.m_funcTable.pfnCmdDrawIndirectMulti;
+        m_funcTable.pfnCmdDrawIndexedIndirectMulti  = cmdBuffer.m_funcTable.pfnCmdDrawIndexedIndirectMulti;
 
         if (m_rbPlusPm4Img.spaceNeeded != 0)
         {
@@ -7950,9 +8044,8 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     if (cmdBuffer.m_graphicsState.pipelineState.dirtyFlags.pipelineDirty ||
         (cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr))
     {
-        m_spiPsInControl    = cmdBuffer.m_spiPsInControl;
-        m_paScShaderControl = cmdBuffer.m_paScShaderControl;
-        m_spiVsOutConfig    = cmdBuffer.m_spiVsOutConfig;
+        m_spiPsInControl = cmdBuffer.m_spiPsInControl;
+        m_spiVsOutConfig = cmdBuffer.m_spiVsOutConfig;
     }
 
     m_nggState.flags.state.hasPrimShaderWorkload |= cmdBuffer.m_nggState.flags.state.hasPrimShaderWorkload;
@@ -8363,11 +8456,11 @@ uint32* UniversalCmdBuffer::BuildWriteViewId(
 template <bool ViewInstancing, bool NggFastLaunch, bool HasUavExport, bool IssueSqtt>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal()
 {
-    m_funcTable.pfnCmdDraw = CmdDraw<IssueSqtt, HasUavExport, ViewInstancing>;
-    m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<IssueSqtt, HasUavExport, ViewInstancing>;
-    m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<IssueSqtt, ViewInstancing>;
-    m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<IssueSqtt, NggFastLaunch, HasUavExport, ViewInstancing>;
-    m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti<IssueSqtt, NggFastLaunch, ViewInstancing>;
+    m_funcTable.pfnCmdDraw                      = CmdDraw<IssueSqtt, HasUavExport, ViewInstancing>;
+    m_funcTable.pfnCmdDrawOpaque                = CmdDrawOpaque<IssueSqtt, HasUavExport, ViewInstancing>;
+    m_funcTable.pfnCmdDrawIndirectMulti         = CmdDrawIndirectMulti<IssueSqtt, ViewInstancing>;
+    m_funcTable.pfnCmdDrawIndexed               = CmdDrawIndexed<IssueSqtt, NggFastLaunch, HasUavExport, ViewInstancing>;
+    m_funcTable.pfnCmdDrawIndexedIndirectMulti  = CmdDrawIndexedIndirectMulti<IssueSqtt, NggFastLaunch, ViewInstancing>;
 }
 
 // =====================================================================================================================

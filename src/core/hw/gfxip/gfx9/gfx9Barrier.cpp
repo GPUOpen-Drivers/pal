@@ -672,19 +672,20 @@ void Device::FillCacheOperations(
 {
     PAL_ASSERT(pOperations != nullptr);
 
-    pOperations->caches.invalTcp        |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTcp);
-    pOperations->caches.invalSqI$       |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvSqI$);
-    pOperations->caches.invalSqK$       |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvSqK$);
-    pOperations->caches.flushTcc        |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushTcc);
-    pOperations->caches.invalTcc        |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTcc);
-    pOperations->caches.flushCb         |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushCbData);
-    pOperations->caches.invalCb         |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvCbData);
-    pOperations->caches.flushDb         |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushDbData);
-    pOperations->caches.invalDb         |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvDbData);
-    pOperations->caches.invalCbMetadata |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvCbMd);
-    pOperations->caches.flushCbMetadata |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushCbMd);
-    pOperations->caches.invalDbMetadata |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvDbMd);
-    pOperations->caches.flushDbMetadata |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushDbMd);
+    pOperations->caches.invalTcp         |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTcp);
+    pOperations->caches.invalSqI$        |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvSqI$);
+    pOperations->caches.invalSqK$        |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvSqK$);
+    pOperations->caches.flushTcc         |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushTcc);
+    pOperations->caches.invalTcc         |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTcc);
+    pOperations->caches.flushCb          |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushCbData);
+    pOperations->caches.invalCb          |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvCbData);
+    pOperations->caches.flushDb          |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushDbData);
+    pOperations->caches.invalDb          |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvDbData);
+    pOperations->caches.invalCbMetadata  |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvCbMd);
+    pOperations->caches.flushCbMetadata  |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushCbMd);
+    pOperations->caches.invalDbMetadata  |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvDbMd);
+    pOperations->caches.flushDbMetadata  |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushDbMd);
+    pOperations->caches.invalTccMetadata |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTccMd);
     if (m_gfxIpLevel != GfxIpLevel::GfxIp9)
     {
         // On gfx10 here, invalidating the L0 V$ and the GL1 are treated the same
@@ -857,7 +858,8 @@ void Device::IssueSyncs(
     {
         pCmdBuf->SetGfxCmdBufCsBltState(false);
     }
-    if ((pCmdBuf->GetGfxCmdBufState().flags.csBltActive == false) && TestAnyFlagSet(origCacheFlags, CacheSyncFlushTcc))
+    if ((pCmdBuf->GetGfxCmdBufState().flags.csBltActive == false) &&
+        TestAllFlagsSet(origCacheFlags, CacheSyncFlushTcc | CacheSyncInvTcp | CacheSyncInvSqK$ | CacheSyncInvTccMd))
     {
         pCmdBuf->SetGfxCmdBufCsBltWriteCacheState(false);
     }

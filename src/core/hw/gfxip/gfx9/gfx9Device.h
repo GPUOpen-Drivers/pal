@@ -696,13 +696,6 @@ private:
         const IGpuEvent*const*        ppGpuEvents,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    uint32 Gfx9BuildReleaseCoherCntl(
-        uint32                        accessMask,
-        bool                          flushTcc,
-        uint32                        vgtEventCount,
-        const VGT_EVENT_TYPE*         pVgtEvents,
-        Developer::BarrierOperations* pBarrierOps) const;
-
     uint32 Gfx10BuildReleaseGcrCntl(
         uint32                        accessMask,
         bool                          flushGl2,

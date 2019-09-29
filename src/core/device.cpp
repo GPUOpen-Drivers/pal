@@ -311,11 +311,6 @@ Device::~Device()
         m_pAddrMgr = nullptr;
     }
 
-    if (m_pInternalCopyCmdBuffer != nullptr)
-    {
-        m_pInternalCopyCmdBuffer->DestroyInternal();
-    }
-
     PAL_SAFE_DELETE(m_pSettingsLoader, m_pPlatform);
 }
 
@@ -332,6 +327,12 @@ Result Device::Cleanup()
     {
         m_pInternalCopyQueue->Destroy();
         PAL_SAFE_FREE(m_pInternalCopyQueue, GetPlatform());
+    }
+
+    if (m_pInternalCopyCmdBuffer != nullptr)
+    {
+        m_pInternalCopyCmdBuffer->DestroyInternal();
+        m_pInternalCopyCmdBuffer = nullptr;
     }
 
     // If we're cleaning up the device, the client must have destroyed all of their queues.
@@ -538,6 +539,7 @@ Result Device::SetupPublicSettingDefaults()
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 514
     m_publicSettings.disablePipelineUploadToLocalInvis = false;
 #endif
+    m_publicSettings.ifhMode = IfhModeDisabled;
     return ret;
 }
 
@@ -1933,8 +1935,8 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.sgprsPerSimd         = gfx6Props.numPhysicalSgprs;
             pInfo->gfxipProperties.shaderCore.minSgprAlloc         = gfx6Props.minSgprAlloc;
             pInfo->gfxipProperties.shaderCore.sgprAllocGranularity = gfx6Props.sgprAllocGranularity;
-            pInfo->gfxipProperties.shaderCore.numAvailableVgprs    = gfx6Props.numShaderVisibleVgprs;
-            pInfo->gfxipProperties.shaderCore.vgprsPerSimd         = gfx6Props.numPhysicalVgprs;
+            pInfo->gfxipProperties.shaderCore.numAvailableVgprs    = MaxVgprPerShader;
+            pInfo->gfxipProperties.shaderCore.vgprsPerSimd         = gfx6Props.numPhysicalVgprsPerSimd;
             pInfo->gfxipProperties.shaderCore.minVgprAlloc         = gfx6Props.minVgprAlloc;
             pInfo->gfxipProperties.shaderCore.vgprAllocGranularity = gfx6Props.vgprAllocGranularity;
             pInfo->gfxipProperties.shaderCore.gsPrimBufferDepth    = gfx6Props.gsPrimBufferDepth;
@@ -2027,8 +2029,8 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.sgprsPerSimd         = gfx9Props.numPhysicalSgprs;
             pInfo->gfxipProperties.shaderCore.minSgprAlloc         = gfx9Props.minSgprAlloc;
             pInfo->gfxipProperties.shaderCore.sgprAllocGranularity = gfx9Props.sgprAllocGranularity;
-            pInfo->gfxipProperties.shaderCore.numAvailableVgprs    = gfx9Props.numShaderVisibleVgprs;
-            pInfo->gfxipProperties.shaderCore.vgprsPerSimd         = gfx9Props.numPhysicalVgprs;
+            pInfo->gfxipProperties.shaderCore.numAvailableVgprs    = MaxVgprPerShader;
+            pInfo->gfxipProperties.shaderCore.vgprsPerSimd         = gfx9Props.numPhysicalVgprsPerSimd;
             pInfo->gfxipProperties.shaderCore.minVgprAlloc         = gfx9Props.minVgprAlloc;
             pInfo->gfxipProperties.shaderCore.vgprAllocGranularity = gfx9Props.vgprAllocGranularity;
             pInfo->gfxipProperties.shaderCore.gsPrimBufferDepth    = gfx9Props.gsPrimBufferDepth;

@@ -216,6 +216,9 @@ constexpr uint32 FastUserDataEntriesByStage[] =
    MaxFastUserDataEntries,   // Pixel
 };
 
+static_assert(Util::ArrayLen(FastUserDataEntriesByStage) == Pal::NumShaderTypes,
+              "There must be an entry in FastUserDataEntriesByState[] for each Pal::ShaderType.");
+
 // Number of PS input semantic registers.
 constexpr uint32 MaxPsInputSemantics = 32;
 

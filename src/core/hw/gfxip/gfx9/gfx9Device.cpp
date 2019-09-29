@@ -2287,6 +2287,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 #endif
 
         bool                        overrideBaseResource       = false;
+        bool                        overrideBaseResource96bpp = false;
         uint32                      widthScaleFactor           = 1;
         uint32                      workaroundWidthScaleFactor = 1;
         bool                        includePadding             = (viewInfo.flags.includePadding != 0);
@@ -2329,7 +2330,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         }
 
         // Validate subresource ranges
-        const SubResourceInfo*const pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
+        const SubResourceInfo* pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
 
         Extent3d extent       = pBaseSubResInfo->extentTexels;
         Extent3d actualExtent = pBaseSubResInfo->actualExtentTexels;
@@ -2397,6 +2398,31 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                 actualExtent = pBaseSubResInfo->actualExtentElements;
 
                 includePadding = true;
+
+                // For 96 bit bpp formats(X32Y32Z32_Uint/X32Y32Z32_Sint/X32Y32Z32_Float), X32_Uint formated image view
+                // srd might be created upon the image for image copy operation. Extent of mipmaped level of X32_Uint
+                // and mipmaped level of the original X32Y32Z32_* format might mismatch, especially on the last several
+                // mips. Thus, it could be problematic to use 256b address of zero-th mip + mip level mode. Instead we
+                // shall adopt 256b address of startsubres's miplevel/arrayLevel.
+                if (pBaseSubResInfo->bitsPerTexel == 96)
+                {
+                    PAL_ASSERT(viewInfo.subresRange.numMips == 1);
+                    baseSubResId.mipLevel = firstMipLevel;
+                    firstMipLevel         = 0;
+
+                    // For gfx9 the baseSubResId should point to the baseArraySlice instead of setting the base_array
+                    // SRD. When baseSubResId is used to calculate the baseAddress value, the current array slice will
+                    // will be included in the equation.
+                    PAL_ASSERT(viewInfo.subresRange.numSlices == 1);
+                    baseSubResId.arraySlice = baseArraySlice;
+                    baseArraySlice          = 0;
+
+                    overrideBaseResource96bpp  = true;
+
+                    pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
+                    extent          = pBaseSubResInfo->extentElements;
+                    actualExtent    = pBaseSubResInfo->actualExtentElements;
+                }
             }
         }
 
@@ -2637,7 +2663,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 
         if (pParent->GetBoundGpuMemory().IsBound())
         {
-            if (imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1))
+            if ((imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1)) || overrideBaseResource96bpp)
             {
                 gpusize gpuVirtAddress         = pParent->GetSubresourceBaseAddr(baseSubResId);
                 srd.word0.bits.BASE_ADDRESS    = Get256BAddrLo(gpuVirtAddress);
@@ -2758,12 +2784,13 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             baseArraySlice = 0;
         }
 
+        bool  overrideBaseResource              = false;
         bool  includePadding                    = (viewInfo.flags.includePadding != 0);
         const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(baseSubResId);
         const auto&                 surfSetting = image.GetAddrSettings(pSubResInfo);
 
         // Validate subresource ranges
-        const SubResourceInfo*const pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
+        const SubResourceInfo* pBaseSubResInfo  = pParent->SubresourceInfo(baseSubResId);
 
         Extent3d extent       = pBaseSubResInfo->extentTexels;
         Extent3d actualExtent = pBaseSubResInfo->actualExtentTexels;
@@ -2837,6 +2864,32 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             {
                 extent       = pBaseSubResInfo->extentElements;
                 actualExtent = pBaseSubResInfo->actualExtentElements;
+
+                // For 96 bit bpp formats(X32Y32Z32_Uint/X32Y32Z32_Sint/X32Y32Z32_Float), X32_Uint formated image view
+                // srd might be created upon the image for image copy operation. Extent of mipmaped level of X32_Uint
+                // and mipmaped level of the original X32Y32Z32_* format might mismatch, especially on the last several
+                // mips. Thus, it could be problematic to use 256b address of zero-th mip + mip level mode. Instead we
+                // shall adopt 256b address of startsubres's miplevel/arrayLevel.
+                if (pBaseSubResInfo->bitsPerTexel == 96)
+                {
+                    PAL_ASSERT(viewInfo.subresRange.numMips == 1);
+                    mipLevels             = 1;
+                    baseSubResId.mipLevel = firstMipLevel;
+                    firstMipLevel         = 0;
+
+                    // For gfx10 the baseSubResId should point to the baseArraySlice instead of setting the base_array
+                    // SRD. When baseSubResId is used to calculate the baseAddress value, the current array slice will
+                    // will be included in the equation.
+                    PAL_ASSERT(viewInfo.subresRange.numSlices == 1);
+                    baseSubResId.arraySlice = baseArraySlice;
+                    baseArraySlice          = 0;
+
+                    overrideBaseResource = true;
+
+                    pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
+                    extent          = pBaseSubResInfo->extentElements;
+                    actualExtent    = pBaseSubResInfo->actualExtentElements;
+                }
             }
 
             // When there is mismatched bpp and more than 1 mipLevels, it's possible to have missing texels like it
@@ -3030,7 +3083,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         if (boundMem.IsBound())
         {
 
-            if (imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1))
+            // When overrideBaseResource = true (96bpp images), compute baseAddress using the mip/slice in
+            // baseSubResId.
+            if ((imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1)) || overrideBaseResource)
             {
                 gpusize gpuVirtAddress = pParent->GetSubresourceBaseAddr(baseSubResId);
                 srd.base_address = gpuVirtAddress >> 8;
@@ -3806,7 +3861,6 @@ void InitializeGpuChipProperties(
     {
         pInfo->imageProperties.prtFeatures = Gfx9PrtFeatures;
         pInfo->imageProperties.prtTileSize = PrtTileSize;
-
     }
 
     pInfo->gfx9.supports2BitSignedValues           = 1;
@@ -4721,28 +4775,22 @@ const RegisterRange* Device::GetRegisterRange(
             break;
 
         case RegRangeSh:
+             pRange        = Gfx9ShShadowRange;
+            *pRangeEntries = Gfx9NumShShadowRanges;
             if (IsRaven2(*Parent()))
             {
                 pRange         = Gfx9ShShadowRangeRaven2;
                 *pRangeEntries = Gfx9NumShShadowRangesRaven2;
             }
-            else
-            {
-                pRange         = Gfx9ShShadowRange;
-                *pRangeEntries = Gfx9NumShShadowRanges;
-            }
             break;
 
         case RegRangeCsSh:
+            pRange         = Gfx9CsShShadowRange;
+            *pRangeEntries = Gfx9NumCsShShadowRanges;
             if (IsRaven2(*Parent()))
             {
                 pRange         = Gfx9CsShShadowRangeRaven2;
                 *pRangeEntries = Gfx9NumCsShShadowRangesRaven2;
-            }
-            else
-            {
-                pRange         = Gfx9CsShShadowRange;
-                *pRangeEntries = Gfx9NumCsShShadowRanges;
             }
             break;
 

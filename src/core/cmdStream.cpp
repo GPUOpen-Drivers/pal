@@ -337,6 +337,9 @@ CmdStreamChunk* CmdStream::GetNextChunk(
     {
         // If we have a valid current chunk we must end it to do things like fill out the postamble.
         EndCurrentChunk(false);
+
+        // Add in the total DWORDs allocated to compute an upper-bound on total command size.
+        m_totalChunkDwords += m_chunkList.Back()->DwordsAllocated();
     }
     else if (m_pCmdAllocator->TrackBusyChunks())
     {
@@ -477,6 +480,9 @@ Result CmdStream::End()
         {
             // End the last chunk in the command stream.
             EndCurrentChunk(true);
+
+            // Add in the total DWORDs allocated to compute an upper-bound on total command size.
+            m_totalChunkDwords += m_chunkList.Back()->DwordsAllocated();
         }
 
         CmdStreamChunk* pRootChunk = m_chunkList.Front();
@@ -491,16 +497,12 @@ Result CmdStream::End()
             auto*const pChunk = iter.Get();
 
             // This implementation doesn't do any padding so this better be true.
-            PAL_ASSERT(Util::Pow2Align(pChunk->DwordsAllocated(), m_sizeAlignDwords) ==
-                       pChunk->DwordsAllocated());
+            PAL_ASSERT(Pow2Align(pChunk->DwordsAllocated(), m_sizeAlignDwords) == pChunk->DwordsAllocated());
             // Update the root info for each chunk of the command stream.
             pChunk->UpdateRootInfo(pRootChunk);
 
             // The chunk is complete and ready for submission.
             pChunk->FinalizeCommands();
-
-            // Add in the total DWORDs allocated to compute an upper-bound on total command size.
-            m_totalChunkDwords += pChunk->DwordsAllocated();
         }
     }
 
@@ -740,13 +742,16 @@ void CmdStream::DumpCommands(
 // =====================================================================================================================
 uint32 CmdStream::GetUsedCmdMemorySize() const
 {
-    uint32 streamSizeInDwords = 0;
-    for (auto iter = m_chunkList.Begin(); iter.IsValid(); iter.Next())
+    gpusize runningTotalDw = TotalChunkDwords();
+    if ((m_pMemAllocator != nullptr) && (m_chunkList.IsEmpty() == false))
     {
-        streamSizeInDwords += iter.Get()->DwordsAllocated();
+        // If the linear memory allocator is non-null, then this stream is still recording and we need to add the
+        // current number of DWORDs in the (current) final chunk of the stream.
+        runningTotalDw += m_chunkList.Back()->DwordsAllocated();
     }
 
-    return (streamSizeInDwords * sizeof(uint32));
+    PAL_ASSERT(HighPart(sizeof(uint32) * runningTotalDw) == 0);
+    return LowPart(sizeof(uint32) * runningTotalDw);
 }
 
 } // Pal

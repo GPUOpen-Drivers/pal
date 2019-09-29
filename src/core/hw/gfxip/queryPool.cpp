@@ -128,7 +128,7 @@ Result QueryPool::GetResults(
             result = Result::ErrorInvalidMemorySize;
         }
 
-        if (m_device.Settings().ifh == IfhModeDisabled)
+        if (m_device.GetPublicSettings()->ifhMode == IfhModeDisabled)
         {
             void* pGpuData = nullptr;
             if (result == Result::Success)

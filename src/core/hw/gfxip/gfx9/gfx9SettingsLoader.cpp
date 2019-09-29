@@ -271,17 +271,6 @@ void SettingsLoader::ValidateSettings(
             m_settings.quadDistributionFactor = Min(m_settings.quadDistributionFactor, 64u);
         }
 
-        // If Gfx10ForceWaveBreakSizeAuto or Gfx10ForceWaveBreakSizeClient is chosen
-        // make sure Gfx10CheckIndicies is not also chosen.
-        if ((m_settings.forceWaveBreakSize & 0x7) == Gfx10ForceWaveBreakSizeAuto)
-        {
-            m_settings.forceWaveBreakSize = Gfx10ForceWaveBreakSizeAuto;
-        }
-        else if ((m_settings.forceWaveBreakSize & 0x7) == Gfx10ForceWaveBreakSizeClient)
-        {
-            m_settings.forceWaveBreakSize = Gfx10ForceWaveBreakSizeClient;
-        }
-
         if ((m_settings.waLateAllocGs0) && m_settings.nggSupported)
         {
             m_settings.nggLateAllocGs = 0;

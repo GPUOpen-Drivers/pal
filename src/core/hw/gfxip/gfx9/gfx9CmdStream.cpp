@@ -1072,5 +1072,20 @@ void CmdStream::SetContextRollDetected<true>();
 template
 void CmdStream::SetContextRollDetected<false>();
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+// =====================================================================================================================
+// Calls the PAL developer callback to issue a report on how many times SET packets to each SH and context register were
+// seen by the optimizer and kept after redundancy checking.
+void CmdStream::IssueHotRegisterReport(
+    GfxCmdBuffer* pCmdBuf
+    ) const
+{
+    if (m_pPm4Optimizer != nullptr)
+    {
+        m_pPm4Optimizer->IssueHotRegisterReport(pCmdBuf);
+    }
+}
+#endif
+
 } // Gfx9
 } // Pal

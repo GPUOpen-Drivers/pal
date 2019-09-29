@@ -793,8 +793,6 @@ void CmdAllocator::LogCommit(
         2,        // EngineTypeCompute
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
         2,        // EngineTypeExclusiveCompute
-#else
-        UINT_MAX,
 #endif
         3,        // EngineTypeDma,
         UINT_MAX, // EngineTypeTimer

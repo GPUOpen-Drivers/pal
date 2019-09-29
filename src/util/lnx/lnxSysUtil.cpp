@@ -635,48 +635,35 @@ Result MkDirRecursively(
     const char* pPathName)
 {
     char path[PATH_MAX];
-    const size_t len = strlen(pPathName);
-    Result result = Result::Success;
-    int lnxResult;
+    Result result                 = Result::AlreadyExists;
+    constexpr char Separator      = '/';
+    constexpr char NullTerminator = '\0';
 
-    Snprintf(path, sizeof(path), "%s", pPathName);
+    // - 1 to leave room to insert possible trailing slash
+    Strncpy(path, pPathName, sizeof(path) - 1);
 
-    if (path[len - 1] != '/')
+    const size_t len = strlen(path);
+    if (len > 0)
     {
-        path[len] = '/';
-    }
-
-    for (char* p = path + 1; *p != '\0'; p++)
-    {
-        if (*p == '/')
+        // make sure the last character is a slash to trigger creation attempt
+        if (path[len - 1] != Separator)
         {
-            *p = '\0';
-            lnxResult = mkdir(path, S_IRWXU);
-            *p = '/';
+            path[len]     = Separator;
+            path[len + 1] = NullTerminator;
+        }
 
-            if (lnxResult != 0)
+        for (char* p = &path[1]; *p != NullTerminator; p++)
+        {
+            if (*p == Separator)
             {
-                switch (errno)
+                *p     = NullTerminator;
+                result = MkDir(path);
+                *p     = Separator;
+
+                if ((result != Result::Success) && (result != Result::AlreadyExists))
                 {
-                    case EEXIST:
-                        result = Result::AlreadyExists;
-                        break;
-                    case ENOTDIR:
-                        result = Result::ErrorInvalidValue;
-                        break;
-                    default:
-                        result = Result::ErrorUnknown;
-                        break;
+                    break;
                 }
-            }
-            else
-            {
-                result = Result::Success;
-            }
-
-            if (result != Result::Success && result != Result::AlreadyExists)
-            {
-                break;
             }
         }
     }

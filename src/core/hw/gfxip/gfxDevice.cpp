@@ -585,6 +585,54 @@ void GfxDevice::DescribeBindPipeline(
 }
 #endif
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+// =====================================================================================================================
+// Call back to above layers to describe a draw- or dispatch-time validation.
+void GfxDevice::DescribeDrawDispatchValidation(
+    GfxCmdBuffer* pCmdBuf,
+    size_t        userDataCmdSize,
+    size_t        pipelineCmdSize,
+    size_t        miscCmdSize
+    ) const
+{
+    Developer::DrawDispatchValidationData data = { };
+    data.pCmdBuffer      = pCmdBuf;
+    data.userDataCmdSize = static_cast<uint32>(userDataCmdSize);
+    data.pipelineCmdSize = static_cast<uint32>(pipelineCmdSize);
+    data.miscCmdSize     = static_cast<uint32>(miscCmdSize);
+
+    m_pParent->DeveloperCb(Developer::CallbackType::DrawDispatchValidation, &data);
+}
+
+// =====================================================================================================================
+// Call back to above layers to describe the writes to registers seen using SET or RMW packets.
+void GfxDevice::DescribeHotRegisters(
+    GfxCmdBuffer* pCmdBuf,
+    const uint32* pShRegSeenSets,
+    const uint32* pShRegKeptSets,
+    uint32        shRegCount,
+    uint16        shRegBase,
+    const uint32* pCtxRegSeenSets,
+    const uint32* pCtxRegKeptSets,
+    uint32        ctxRegCount,
+    uint16        ctxRegBase
+    ) const
+{
+    Developer::OptimizedRegistersData data = { };
+    data.pCmdBuffer      = pCmdBuf;
+    data.pShRegSeenSets  = pShRegSeenSets;
+    data.pShRegKeptSets  = pShRegKeptSets;
+    data.shRegCount      = shRegCount;
+    data.shRegBase       = shRegBase;
+    data.pCtxRegSeenSets = pCtxRegSeenSets;
+    data.pCtxRegKeptSets = pCtxRegKeptSets;
+    data.ctxRegCount     = ctxRegCount;
+    data.ctxRegBase      = ctxRegBase;
+
+    m_pParent->DeveloperCb(Developer::CallbackType::OptimizedRegisters, &data);
+}
+#endif
+
 // =====================================================================================================================
 // Returns a pointer to an unused index in the fast clear ref count array for use of the image. Returns nullptr if
 // allocation was unsuccessful.

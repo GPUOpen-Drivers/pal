@@ -404,117 +404,10 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         Gfx09::mmSPI_CONFIG_CNTL,
         1
     },
-    {
-        mmCPG_PERFCOUNTER1_SELECT,
-        mmCPC_PERFCOUNTER0_SELECT - mmCPG_PERFCOUNTER1_SELECT + 1
-    },
-    {
-        mmCP_DRAW_OBJECT_COUNTER,
-        1
-    },
-    {
-        mmCB_PERFCOUNTER0_SELECT,
-        mmCB_PERFCOUNTER3_SELECT - mmCB_PERFCOUNTER0_SELECT + 1
-    },
-    {
-        mmDB_PERFCOUNTER0_SELECT,
-        mmDB_PERFCOUNTER3_SELECT - mmDB_PERFCOUNTER0_SELECT + 1
-    },
-    {
-        mmGRBM_PERFCOUNTER0_SELECT,
-        mmGRBM_PERFCOUNTER1_SELECT - mmGRBM_PERFCOUNTER0_SELECT + 1
-    },
-    {
-        mmGRBM_SE0_PERFCOUNTER_SELECT,
-        mmGRBM_SE3_PERFCOUNTER_SELECT - mmGRBM_SE0_PERFCOUNTER_SELECT + 1
-    },
-    {
-        Gfx09::mmMC_VM_L2_PERFCOUNTER0_CFG,
-        Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL - Gfx09::mmMC_VM_L2_PERFCOUNTER0_CFG + 1
-    },
-    {
-        mmRLC_PERFMON_CNTL,
-        mmRLC_PERFCOUNTER1_SELECT - mmRLC_PERFMON_CNTL + 1
-    },
-    {
-        mmPA_SU_PERFCOUNTER0_SELECT,
-        Gfx09::mmPA_SU_PERFCOUNTER3_SELECT - mmPA_SU_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmPA_SC_PERFCOUNTER0_SELECT,
-        mmPA_SC_PERFCOUNTER7_SELECT - mmPA_SC_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmSX_PERFCOUNTER0_SELECT,
-        mmSX_PERFCOUNTER1_SELECT1 - mmSX_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmSPI_PERFCOUNTER0_SELECT,
-        mmSPI_PERFCOUNTER_BINS - mmSPI_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmSQ_PERFCOUNTER0_LO,
-        mmSQ_PERFCOUNTER15_HI - mmSQ_PERFCOUNTER0_LO + 1,
-    },
-    {
-        mmSQ_PERFCOUNTER0_SELECT,
-        mmSQ_PERFCOUNTER15_SELECT - mmSQ_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmSQ_PERFCOUNTER_CTRL,
-        mmSQ_PERFCOUNTER_CTRL2 - mmSQ_PERFCOUNTER_CTRL + 1,
-    },
-    {
-        mmTA_PERFCOUNTER0_SELECT,
-        mmTA_PERFCOUNTER1_SELECT - mmTA_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmTD_PERFCOUNTER0_SELECT,
-        mmTD_PERFCOUNTER1_SELECT - mmTD_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmTCP_PERFCOUNTER0_SELECT,
-        Gfx09::mmTCP_PERFCOUNTER3_SELECT - mmTCP_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        Gfx09::mmTCC_PERFCOUNTER0_SELECT,
-        Gfx09::mmTCC_PERFCOUNTER3_SELECT - Gfx09::mmTCC_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        Gfx09::mmTCA_PERFCOUNTER0_SELECT,
-        Gfx09::mmTCA_PERFCOUNTER3_SELECT - Gfx09::mmTCA_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmGDS_PERFCOUNTER0_SELECT,
-        mmGDS_PERFCOUNTER0_SELECT1 - mmGDS_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        Gfx09::mmVGT_PERFCOUNTER0_SELECT,
-        Gfx09::mmVGT_PERFCOUNTER1_SELECT1 - Gfx09::mmVGT_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        Gfx09::mmIA_PERFCOUNTER0_SELECT,
-        Gfx09::mmIA_PERFCOUNTER0_SELECT1 - Gfx09::mmIA_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        Gfx09::mmWD_PERFCOUNTER0_SELECT,
-        Gfx09::mmWD_PERFCOUNTER3_SELECT - Gfx09::mmWD_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmRLC_SPM_PERFMON_CNTL,
-        Gfx09::mmRLC_SPM_SE_MUXSEL_ADDR - mmRLC_SPM_PERFMON_CNTL + 1,
-    },
-    {
-        Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR,
-        Gfx09::mmRLC_SPM_RING_RDPTR - Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR + 1,
-    },
+    // SQ thread trace registers are always not shadowed.
     {
         Gfx09::mmSQ_THREAD_TRACE_BASE,
         Gfx09::mmSQ_THREAD_TRACE_HIWATER - Gfx09::mmSQ_THREAD_TRACE_BASE + 1
-    },
-    {
-        Gfx09::mmRLC_PERFMON_CLK_CNTL,
-        1,
     },
     {
         mmSQ_THREAD_TRACE_USERDATA_0,
@@ -544,6 +437,30 @@ const RegisterRange Gfx90NonShadowedRanges[] =
     {
         mmCOMPUTE_STATIC_THREAD_MGMT_SE2,
         mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 + 1
+    },
+    // Perf counter registers are always not shadowed. Most of them are in the perf register space but some legacy
+    // registers are still outside of it. The SPM registers are in the perf range as well.
+    {
+        UserConfigRegPerfStart,
+        UserConfigRegPerfEnd - UserConfigRegPerfStart + 1
+    },
+    {
+        Gfx09::mmATC_PERFCOUNTER0_CFG,
+        Gfx09::mmATC_PERFCOUNTER_HI - Gfx09::mmATC_PERFCOUNTER0_CFG + 1
+    },
+    // The "Vega" RPB offsets work for all gfx9.0 ASICs.
+    {
+        Vega::mmRPB_PERFCOUNTER_LO,
+        Vega::mmRPB_PERFCOUNTER_RSLT_CNTL - Vega::mmRPB_PERFCOUNTER_LO + 1
+    },
+    {
+        Gfx09::mmSDMA0_PERFMON_CNTL,
+        Gfx09::mmSDMA0_PERFCOUNTER_TAG_DELAY_RANGE - Gfx09::mmSDMA0_PERFMON_CNTL + 1
+    },
+    // Raven family ASICs don't have SDMA1 but that's OK because the HW didn't reuse these register offsets.
+    {
+        Vega::mmSDMA1_PERFMON_CNTL,
+        Vega::mmSDMA1_PERFCOUNTER_TAG_DELAY_RANGE - Vega::mmSDMA1_PERFMON_CNTL + 1
     },
     {
         Gfx09_0::mmGCEA_PERFCOUNTER0_CFG,
@@ -631,117 +548,10 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         Gfx09::mmSPI_CONFIG_CNTL,
         1
     },
-    {
-        mmCPG_PERFCOUNTER1_SELECT,
-        mmCPC_PERFCOUNTER0_SELECT - mmCPG_PERFCOUNTER1_SELECT + 1
-    },
-    {
-        mmCP_DRAW_OBJECT_COUNTER,
-        1
-    },
-    {
-        mmCB_PERFCOUNTER0_SELECT,
-        mmCB_PERFCOUNTER3_SELECT - mmCB_PERFCOUNTER0_SELECT + 1
-    },
-    {
-        mmDB_PERFCOUNTER0_SELECT,
-        mmDB_PERFCOUNTER3_SELECT - mmDB_PERFCOUNTER0_SELECT + 1
-    },
-    {
-        mmGRBM_PERFCOUNTER0_SELECT,
-        mmGRBM_PERFCOUNTER1_SELECT - mmGRBM_PERFCOUNTER0_SELECT + 1
-    },
-    {
-        mmGRBM_SE0_PERFCOUNTER_SELECT,
-        mmGRBM_SE3_PERFCOUNTER_SELECT - mmGRBM_SE0_PERFCOUNTER_SELECT + 1
-    },
-    {
-        Gfx09::mmMC_VM_L2_PERFCOUNTER0_CFG,
-        Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL - Gfx09::mmMC_VM_L2_PERFCOUNTER0_CFG + 1
-    },
-    {
-        mmRLC_PERFMON_CNTL,
-        mmRLC_PERFCOUNTER1_SELECT - mmRLC_PERFMON_CNTL + 1
-    },
-    {
-        mmPA_SU_PERFCOUNTER0_SELECT,
-        Gfx09::mmPA_SU_PERFCOUNTER3_SELECT - mmPA_SU_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmPA_SC_PERFCOUNTER0_SELECT,
-        mmPA_SC_PERFCOUNTER7_SELECT - mmPA_SC_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmSX_PERFCOUNTER0_SELECT,
-        mmSX_PERFCOUNTER1_SELECT1 - mmSX_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmSPI_PERFCOUNTER0_SELECT,
-        mmSPI_PERFCOUNTER_BINS - mmSPI_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmSQ_PERFCOUNTER0_LO,
-        mmSQ_PERFCOUNTER15_HI - mmSQ_PERFCOUNTER0_LO + 1,
-    },
-    {
-        mmSQ_PERFCOUNTER0_SELECT,
-        mmSQ_PERFCOUNTER15_SELECT - mmSQ_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmSQ_PERFCOUNTER_CTRL,
-        mmSQ_PERFCOUNTER_CTRL2 - mmSQ_PERFCOUNTER_CTRL + 1,
-    },
-    {
-        mmTA_PERFCOUNTER0_SELECT,
-        mmTA_PERFCOUNTER1_SELECT - mmTA_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmTD_PERFCOUNTER0_SELECT,
-        mmTD_PERFCOUNTER1_SELECT - mmTD_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmTCP_PERFCOUNTER0_SELECT,
-        Gfx09::mmTCP_PERFCOUNTER3_SELECT - mmTCP_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        Gfx09::mmTCC_PERFCOUNTER0_SELECT,
-        Gfx09::mmTCC_PERFCOUNTER3_SELECT - Gfx09::mmTCC_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        Gfx09::mmTCA_PERFCOUNTER0_SELECT,
-        Gfx09::mmTCA_PERFCOUNTER3_SELECT - Gfx09::mmTCA_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmGDS_PERFCOUNTER0_SELECT,
-        mmGDS_PERFCOUNTER0_SELECT1 - mmGDS_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        Gfx09::mmVGT_PERFCOUNTER0_SELECT,
-        Gfx09::mmVGT_PERFCOUNTER1_SELECT1 - Gfx09::mmVGT_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        Gfx09::mmIA_PERFCOUNTER0_SELECT,
-        Gfx09::mmIA_PERFCOUNTER0_SELECT1 - Gfx09::mmIA_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        Gfx09::mmWD_PERFCOUNTER0_SELECT,
-        Gfx09::mmWD_PERFCOUNTER3_SELECT - Gfx09::mmWD_PERFCOUNTER0_SELECT + 1,
-    },
-    {
-        mmRLC_SPM_PERFMON_CNTL,
-        Gfx09::mmRLC_SPM_SE_MUXSEL_ADDR - mmRLC_SPM_PERFMON_CNTL + 1,
-    },
-    {
-        Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR,
-        Gfx09::mmRLC_SPM_RING_RDPTR - Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR + 1,
-    },
+    // SQ thread trace registers are always not shadowed.
     {
         Gfx09::mmSQ_THREAD_TRACE_BASE,
         Gfx09::mmSQ_THREAD_TRACE_HIWATER - Gfx09::mmSQ_THREAD_TRACE_BASE + 1
-    },
-    {
-        Gfx09::mmRLC_PERFMON_CLK_CNTL,
-        1,
     },
     {
         mmSQ_THREAD_TRACE_USERDATA_0,
@@ -772,12 +582,32 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         mmCOMPUTE_STATIC_THREAD_MGMT_SE2,
         mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 + 1
     },
+    // Perf counter registers are always not shadowed. Most of them are in the perf register space but some legacy
+    // registers are still outside of it. The SPM registers are in the perf range as well.
     {
-        Gfx09_1x::mmGCEA_PERFCOUNTER0_CFG,
-        Gfx09_1x::mmGCEA_PERFCOUNTER1_CFG - Gfx09_1x::mmGCEA_PERFCOUNTER0_CFG + 1
+        UserConfigRegPerfStart,
+        UserConfigRegPerfEnd - UserConfigRegPerfStart + 1
     },
     {
-        Gfx09_1x::mmGCEA_PERFCOUNTER_RSLT_CNTL, 1
+        Gfx09::mmATC_PERFCOUNTER0_CFG,
+        Gfx09::mmATC_PERFCOUNTER_HI - Gfx09::mmATC_PERFCOUNTER0_CFG + 1
+    },
+    {
+        Vega::mmRPB_PERFCOUNTER_LO,
+        Vega::mmRPB_PERFCOUNTER_RSLT_CNTL - Vega::mmRPB_PERFCOUNTER_LO + 1
+    },
+    {
+        Gfx09::mmSDMA0_PERFMON_CNTL,
+        Gfx09::mmSDMA0_PERFCOUNTER_TAG_DELAY_RANGE - Gfx09::mmSDMA0_PERFMON_CNTL + 1
+    },
+    // Raven family ASICs don't have SDMA1 but that's OK because the HW didn't reuse these register offsets.
+    {
+        Vega::mmSDMA1_PERFMON_CNTL,
+        Vega::mmSDMA1_PERFCOUNTER_TAG_DELAY_RANGE - Vega::mmSDMA1_PERFMON_CNTL + 1
+    },
+    {
+        Gfx09_1x::mmGCEA_PERFCOUNTER0_CFG,
+        Gfx09_1x::mmGCEA_PERFCOUNTER_RSLT_CNTL - Gfx09_1x::mmGCEA_PERFCOUNTER0_CFG + 1
     },
 };
 constexpr uint32 Gfx91NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(Gfx91NonShadowedRanges));

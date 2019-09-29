@@ -526,4 +526,54 @@ Result CreateMemoryCacheLayer(
     return result;
 }
 
+// =====================================================================================================================
+Result GetMemoryCacheLayerCurSize(
+    ICacheLayer*    pCacheLayer,
+    size_t*         pCurCount,    // [out] nubmer of Entries in memoryCache.
+    size_t*         pCurSize)    //  [out] total cahce data size
+{
+    auto pMemoryCache = static_cast<MemoryCacheLayer*>(pCacheLayer);
+
+    return pMemoryCache->GetMemoryCacheSize(pCurCount, pCurSize);
+}
+
+// =====================================================================================================================
+Result MemoryCacheLayer::GetMemoryCacheHashIds(
+    size_t          curCount,
+    Hash128*        pHashIds)
+{
+    Result result = Result::Success;
+
+    RWLockAuto<RWLock::ReadOnly> lock { &m_lock };
+    // Iterate through all Entries and copy their hash ID to pHashIds array.
+    if (curCount == m_curCount)
+    {
+        uint32 i = 0;
+
+        for (auto iter = m_recentEntryList.Begin(); iter.IsValid(); iter.Next())
+        {
+            Entry* pEntry = iter.Get();
+
+            pHashIds[i++] = *pEntry->HashId();
+        }
+    }
+    else
+    {
+        result = Result::ErrorInvalidMemorySize;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result GetMemoryCacheLayerHashIds(
+    ICacheLayer*    pCacheLayer,
+    size_t          curCount,
+    Hash128*        pHashIds)
+{
+    auto pMemoryCache = static_cast<MemoryCacheLayer*>(pCacheLayer);
+
+    return pMemoryCache->GetMemoryCacheHashIds(curCount, pHashIds);
+}
+
 } //namespace Util

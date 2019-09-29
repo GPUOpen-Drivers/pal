@@ -115,6 +115,11 @@ constexpr uint32 ConfigRegCount = (CONFIG_SPACE_END - CONFIG_SPACE_START + 1);
 // Number of registers in user-config register space.
 constexpr uint32 UserConfigRegCount = (UCONFIG_SPACE_END - UCONFIG_SPACE_START + 1);
 
+// The PERFDDEC and PERFSDEC register spaces are contiguous and hold all perfcounter related user-config registers.
+// These constants aren't in the regspec so we must manually define them.
+constexpr uint32 UserConfigRegPerfStart = 0xD000;
+constexpr uint32 UserConfigRegPerfEnd   = 0xDFFF;
+
 // Defines a range of registers to be loaded from state-shadow memory into state registers.
 struct RegisterRange
 {
@@ -264,6 +269,9 @@ constexpr uint32 FastUserDataEntriesByStage[] =
    MaxFastUserDataEntriesVs,      // Geometry - merged stage might require Api-Vs to use Vs-specific registers.
    MaxFastUserDataEntriesPs,      // Pixel
 };
+
+static_assert(Util::ArrayLen(FastUserDataEntriesByStage) == Pal::NumShaderTypes,
+              "There must be an entry in FastUserDataEntriesByState[] for each Pal::ShaderType.");
 
 // HW doesn't provide enumerations for the values of the DB_DFSM_CONTROL.PUNCHOUT_MODE field.  Give
 // some nice names here.
@@ -516,9 +524,9 @@ struct UserDataEntryMap
 // Special value indicating that a user-data entry is not mapped to a physical SPI register.
 constexpr uint16 UserDataNotMapped = 0;
 
-// This represents the mapping from virtualized user-data entries to physical SPI user-data registers for an entire
-// graphics pipeline.
-struct ComputePipelineSignature
+// This represents the mapping from virtualized user-data entries to physical SPI user-data registers for a
+// compute shader.
+struct ComputeShaderSignature
 {
     // User-data entry mapping for the lone compute HW shader stage: (CS)
     UserDataEntryMap  stage;
@@ -550,6 +558,9 @@ struct ComputePipelineSignature
         uint16  u16All;
     } flags;
 };
+
+// As a ComputePipeline contains only a compute shader, make these two equivalent.
+typedef ComputeShaderSignature ComputePipelineSignature;
 
 // User-data signature for an unbound compute pipeline.
 extern const ComputePipelineSignature NullCsSignature;

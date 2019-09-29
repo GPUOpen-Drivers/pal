@@ -970,11 +970,13 @@ private:
             uint32 outOfOrderPrimsEnable      :  2; // The out-of-order primitive rendering mode allowed by settings
             uint32 issueSqttMarkerEvent       :  1; // True if settings are such that we need to issue SQ thread trace
                                                     // marker events on draw.
+            uint32 enablePm4Instrumentation   :  1; // True if settings are such that we should enable detailed PM4
+                                                    // instrumentation.
             uint32 padParamCacheSpace         :  1; // True if this command buffer should pad used param-cache space to
                                                     // reduce context rolls.
             uint32 gfx7AvoidNullPrims         :  1; // True if settings indicate that we should avoid null primitive
                                                     // groups on GFX7.
-            uint32 reserved                   : 20;
+            uint32 reserved                   : 19;
         };
         uint32 u32All;
     } m_cachedSettings;

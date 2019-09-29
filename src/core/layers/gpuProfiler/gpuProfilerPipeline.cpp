@@ -46,7 +46,7 @@ static_assert(((static_cast<uint32>(ApiShaderType::Cs)    == static_cast<uint32>
                (static_cast<uint32>(ApiShaderType::Gs)    == static_cast<uint32>(ShaderType::Geometry)) &&
                (static_cast<uint32>(ApiShaderType::Ps)    == static_cast<uint32>(ShaderType::Pixel))    &&
                (static_cast<uint32>(ApiShaderType::Count) == NumShaderTypes)),
-             "Util::Abi::ApiShaderType to Pal::ShaderType mapping does not match!");
+               "Util::Abi::ApiShaderType to Pal::ShaderType mapping does not match!");
 
 // Pal::ShaderType to string conversion table.
 const char* ApiShaderTypeStrings[] =

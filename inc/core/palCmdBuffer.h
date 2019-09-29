@@ -1176,9 +1176,9 @@ typedef void (PAL_STDCALL *CmdDrawIndexedIndirectMultiFunc)(
 /// @see ICmdBuffer::CmdDispatch().
 typedef void (PAL_STDCALL *CmdDispatchFunc)(
     ICmdBuffer* pCmdBuffer,
-    uint32      x,
-    uint32      y,
-    uint32      z);
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim);
 
 /// @internal Function pointer type definition for issuing indirect dispatches.
 ///
@@ -2077,6 +2077,7 @@ public:
     /// Issues an instanced, non-indexed draw call using the command buffer's currently bound graphics state.  Results
     /// in instanceCount * vertexCount vertices being processed.
     ///
+    ///
     /// @param [in] firstVertex   Starting index value for the draw.  Indices passed to the vertex shader will range
     ///                           from firstVertex to firstVertex + vertexCount - 1.
     /// @param [in] vertexCount   Number of vertices to draw.  If zero, the draw will be discarded.
@@ -2095,6 +2096,7 @@ public:
     /// Issues draw opaque call using the command buffer's currently bound graphics state.
     /// Uses the stream-out target of a previous draw as the input vertex data.
     /// the number of vertices = (streamOutFilledSize (value of streamOutFilledSizeVa) - streamOutOffset) / stride
+    ///
     ///
     /// @param [in] streamOutFilledSizeVa gpuAddress of streamOut filled size for streamOut buffer.
     /// @param [in] streamOutOffset       the offset of begin of streamOut as vertex.
@@ -2119,6 +2121,7 @@ public:
 
     /// Issues an instanced, indexed draw call using the command buffer's currently bound graphics state.  Results in
     /// instanceCount * indexCount vertices being processed.
+    ///
     ///
     /// Indices passed to the vertex shader will be:
     ///
@@ -2153,6 +2156,7 @@ public:
     /// the DrawIndirectArgs structure.  Coherency of the indirect argument GPU memory is controlled by setting
     /// @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
     ///
+    ///
     /// @see CmdDraw
     /// @see DrawIndirectArgs
     ///
@@ -2183,6 +2187,7 @@ public:
     /// the DrawIndexedIndirectArgs structure.  Coherency of the indirect argument GPU memory is controlled by setting
     /// @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
     ///
+    ///
     /// @see CmdDrawIndexed
     /// @see DrawIndexedIndirectArgs.
     ///
@@ -2208,15 +2213,15 @@ public:
     ///
     /// The thread group size is defined in the compute shader.
     ///
-    /// @param [in] x Thread groups to dispatch in the X dimension.  If zero, the dispatch will be discarded.
-    /// @param [in] y Thread groups to dispatch in the Y dimension.  If zero, the dispatch will be discarded.
-    /// @param [in] z Thread groups to dispatch in the Z dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] xDim Thread groups to dispatch in the X dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] yDim Thread groups to dispatch in the Y dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] zDim Thread groups to dispatch in the Z dimension.  If zero, the dispatch will be discarded.
     PAL_INLINE void CmdDispatch(
-        uint32 x,
-        uint32 y,
-        uint32 z)
+        uint32 xDim,
+        uint32 yDim,
+        uint32 zDim)
     {
-        m_funcTable.pfnCmdDispatch(this, x, y, z);
+        m_funcTable.pfnCmdDispatch(this, xDim, yDim, zDim);
     }
 
     /// Dispatches a compute workload using the command buffer's currently bound compute state.  The dimensions of the
@@ -2227,7 +2232,7 @@ public:
     /// setting @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
     ///
     /// @see CmdDispatch
-    /// @see CmdDispatchIndirectArgs
+    /// @see DispatchIndirectArgs
     ///
     /// @param [in] gpuMemory  GPU memory object where the indirect argument data is located.
     /// @param [in] offset     Offset in bytes into the GPU memory object where the indirect argument data is located.
@@ -3593,14 +3598,14 @@ protected:
         /// CmdSetUserData function pointers for each pipeline bind point.
         CmdSetUserDataFunc              pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Count)];
 
-        CmdDrawFunc                     pfnCmdDraw;                     ///< CmdDraw function pointer.
-        CmdDrawOpaqueFunc               pfnCmdDrawOpaque;               ///< CmdDrawOpaque function pointer.
-        CmdDrawIndexedFunc              pfnCmdDrawIndexed;              ///< CmdDrawIndexed function pointer.
-        CmdDrawIndirectMultiFunc        pfnCmdDrawIndirectMulti;        ///< CmdDrawIndirectMulti function pointer.
-        CmdDrawIndexedIndirectMultiFunc pfnCmdDrawIndexedIndirectMulti; ///< CmdDrawIndexedIndirectMulti func pointer.
-        CmdDispatchFunc                 pfnCmdDispatch;                 ///< CmdDispatch function pointer.
-        CmdDispatchIndirectFunc         pfnCmdDispatchIndirect;         ///< CmdDispatchIndirect function pointer.
-        CmdDispatchOffsetFunc           pfnCmdDispatchOffset;           ///< CmdDispatchOffset function pointer.
+        CmdDrawFunc                      pfnCmdDraw;                      ///< CmdDraw function pointer.
+        CmdDrawOpaqueFunc                pfnCmdDrawOpaque;                ///< CmdDrawOpaque function pointer.
+        CmdDrawIndexedFunc               pfnCmdDrawIndexed;               ///< CmdDrawIndexed function pointer.
+        CmdDrawIndirectMultiFunc         pfnCmdDrawIndirectMulti;         ///< CmdDrawIndirectMulti function pointer.
+        CmdDrawIndexedIndirectMultiFunc  pfnCmdDrawIndexedIndirectMulti;  ///< CmdDrawIndexedIndirectMulti func pointer.
+        CmdDispatchFunc                  pfnCmdDispatch;                  ///< CmdDispatch function pointer.
+        CmdDispatchIndirectFunc          pfnCmdDispatchIndirect;          ///< CmdDispatchIndirect function pointer.
+        CmdDispatchOffsetFunc            pfnCmdDispatchOffset;            ///< CmdDispatchOffset function pointer.
     } m_funcTable;     ///< Function pointer table for Cmd* functions.
 
 private:

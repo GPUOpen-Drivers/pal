@@ -40,6 +40,9 @@
 #if PAL_BUILD_INTERFACE_LOGGER
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
 #endif
+#if PAL_BUILD_PM4_INSTRUMENTOR
+#include "core/layers/pm4Instrumentor/pm4InstrumentorPlatform.h"
+#endif
 
 #include "addrinterface.h"
 #include "vaminterface.h"
@@ -92,6 +95,9 @@ size_t PAL_STDCALL GetPlatformSize()
 #endif
 #if PAL_BUILD_CMD_BUFFER_LOGGER
     platformSize += sizeof(CmdBufferLogger::Platform);
+#endif
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    platformSize += sizeof(Pm4Instrumentor::Platform);
 #endif
 
     return platformSize;
@@ -157,6 +163,9 @@ Result PAL_STDCALL CreatePlatform(
 #if PAL_BUILD_CMD_BUFFER_LOGGER
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(CmdBufferLogger::Platform));
 #endif
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(Pm4Instrumentor::Platform));
+#endif
 
     Platform* pCorePlatform = nullptr;
 
@@ -166,6 +175,21 @@ Result PAL_STDCALL CreatePlatform(
     }
 
     IPlatform* pCurPlatform = pCorePlatform;
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (result == Result::Success)
+    {
+        pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(Pm4Instrumentor::Platform));
+        pCurPlatform->SetClientData(pPlacementAddr);
+
+        result = Pm4Instrumentor::Platform::Create(createInfo,
+                                                   allocCb,
+                                                   pCurPlatform,
+                                                   pCorePlatform->PlatformSettings().pm4InstrumentorEnabled,
+                                                   pPlacementAddr,
+                                                   &pCurPlatform);
+    }
+#endif
 
 #if PAL_BUILD_CMD_BUFFER_LOGGER
     if (result == Result::Success)

@@ -276,16 +276,6 @@
             "Name": "Gfx10ForceWaveBreakSizeClient",
             "Value": 4,
             "Description": "Use client specified value."
-          },
-          {
-            "Name": "Gfx10ForceWaveBreakSizeAuto",
-            "Value": 5,
-            "Description": "Let PAL decide."
-          },
-          {
-            "Name": "Gfx10CheckIndicies",
-            "Value": 8,
-            "Description": "To be used in combination with one of the first four options. If number of indicies is less than or equal to 6 we will use 8x8 else we will use the option chosen."
           }
         ],
         "Name": "Gfx10ForceWaveBreakSize"

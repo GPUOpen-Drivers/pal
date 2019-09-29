@@ -1042,7 +1042,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->numShaderArrays          = deviceInfo.num_shader_arrays_per_engine;
         pChipInfo->maxNumRbPerSe            = deviceInfo.num_rb_pipes / deviceInfo.num_shader_engines;
         pChipInfo->nativeWavefrontSize      = deviceInfo.wave_front_size;
-        pChipInfo->numShaderVisibleVgprs    = deviceInfo.num_shader_visible_vgprs;
+        pChipInfo->numPhysicalVgprsPerSimd  = deviceInfo.num_shader_visible_vgprs;
         pChipInfo->maxNumCuPerSh            = deviceInfo.num_cu_per_sh;
         pChipInfo->numTccBlocks             = deviceInfo.num_tcc_blocks;
         pChipInfo->gsVgtTableDepth          = deviceInfo.gs_vgt_table_depth;

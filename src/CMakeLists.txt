@@ -105,18 +105,15 @@ endif()
 set(PAL_CLIENT_${PAL_CLIENT} 1)
 if(PAL_CLIENT_VULKAN)
     target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN)
+else()
+    message(STATUS "No valid PAL client specified.  Defaulting to Vulkan.")
+    target_compile_definitions(pal PUBLIC PAL_CLIENT_VULKAN)
 endif()
 
 if(UNIX)
-    if(PAL_CLIENT_DX12)
-        set(PAL_DX_BUILD ON)
-        # Public because it is used in the interface.
-        target_compile_definitions(pal PUBLIC PAL_DX_BUILD)
-    else()
         set(PAL_AMDGPU_BUILD ON)
         # Public because it is used in the interface.
         target_compile_definitions(pal PUBLIC PAL_AMDGPU_BUILD)
-    endif()
 endif()
 
 target_compile_definitions(pal PRIVATE PAL_BUILD_CORE)
@@ -491,6 +488,7 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx9/gfx9OcclusionQueryPool.cpp
                 core/hw/gfxip/gfx9/gfx9PerfCtrInfo.cpp
                 core/hw/gfxip/gfx9/gfx9PerfExperiment.cpp
+                core/hw/gfxip/gfx9/gfx9PipelineChunkCs.cpp
                 core/hw/gfxip/gfx9/gfx9PipelineChunkGs.cpp
                 core/hw/gfxip/gfx9/gfx9PipelineChunkHs.cpp
                 core/hw/gfxip/gfx9/gfx9PipelineChunkVsPs.cpp
@@ -645,6 +643,22 @@ if(PAL_BUILD_CORE)
                 core/layers/interfaceLogger/interfaceLoggerSwapChain.cpp
             )
 
+        endif()
+
+        if(PAL_BUILD_PM4_INSTRUMENTOR)
+            # CMAKE-TODO: To support multiple configurations for Visual Studio we can't use CMAKE_BUILD_TYPE
+            #target_compile_definitions(pal PRIVATE
+            #    PAL_BUILD_PM4_INSTRUMENTOR=$<OR:?$<CONFIG:Debug$<BOOL:${PAL_BUILD_PM4_INSTRUMENTOR}>>
+            #)
+            target_compile_definitions(pal PRIVATE PAL_BUILD_PM4_INSTRUMENTOR)
+
+            # Add the PM4 Instrumentor files here, only if the client wants Instrumentor support.
+            target_sources(pal PRIVATE
+                core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.cpp
+                core/layers/pm4Instrumentor/pm4InstrumentorDevice.cpp
+                core/layers/pm4Instrumentor/pm4InstrumentorPlatform.cpp
+                core/layers/pm4Instrumentor/pm4InstrumentorQueue.cpp
+            )
         endif()
     endif()
 endif()

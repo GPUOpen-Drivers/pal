@@ -407,6 +407,14 @@ enum class FeatureOverride : uint32
     Disabled = 2   ///< (Force) disabled state.  Default may change itself to this state.
 };
 
+/// Enum defining Infinitely Fast Hardware (IFH) mode
+enum IfhMode
+{
+    IfhModeDisabled = 0,  ///< IFH is disabled
+    IfhModePal      = 1,  ///< IFH is implemented in PAL (kernel is not called)
+    IfhModeKmd      = 2   ///< IFH is implemented in the kernel
+};
+
 static constexpr uint32 MaxPathStrLen = 512;
 static constexpr uint32 MaxFileNameStrLen = 256;
 static constexpr uint32 MaxMiscStrLen = 61;
@@ -539,6 +547,8 @@ struct PalPublicSettings
     ///    invalid and we fall back to local visible heap.
     bool disablePipelineUploadToLocalInvis;
 #endif
+    /// Infinitely Fast Hardware (IFH) mode requested by the client.
+    IfhMode ifhMode;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -993,6 +1003,7 @@ struct DeviceProperties
                 uint32 supportImplicitPrimitiveShader      : 1; ///< Device supports implicit compiling of the hardware
                                                                 ///  vertex shader as a primitive shader to perform
                                                                 ///  culling and compaction optimizations in the shader.
+                uint32 placeholder7                        : 1; ///< Placeholder, do not use
                 uint32 supportPrtBlendZeroMode             : 1; ///< Blend zero mode support.
                 uint32 supports2BitSignedValues            : 1; ///< Hardware natively supports 2-bit signed values.
                 uint32 supportPrimitiveOrderedPs           : 1; ///< Hardware supports primitive ordered UAV
@@ -1040,6 +1051,7 @@ struct DeviceProperties
                 uint32 supportGl2Uncached                  : 1; ///< Indicates support for the allocation of GPU L2
                                                                 ///  un-cached memory. @see gl2UncachedCpuCoherency
                 uint32 supportOutOfOrderPrimitives         : 1; ///< HW supports higher throughput for out of order
+
                 uint32 placeholder5                        : 1; ///< Placeholder, do not use
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
@@ -1049,9 +1061,9 @@ struct DeviceProperties
 #endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
-                uint32 reserved                            : 3; ///< Reserved for future use.
-#else
                 uint32 reserved                            : 2; ///< Reserved for future use.
+#else
+                uint32 reserved                            : 1; ///< Reserved for future use.
 #endif
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.

@@ -105,7 +105,6 @@ static uint32 Gfx9ConvertToAcquireSyncFlags(
 {
     PAL_ASSERT(pBarrierOps != nullptr);
     uint32 cacheSyncFlagsMask = 0;
-    bool gfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
 
     // The acquire-release barrier treats L2 as the central cache, so we never flush/inv TCC unless it's
     // direct-to-memory access.
@@ -128,46 +127,13 @@ static uint32 Gfx9ConvertToAcquireSyncFlags(
     // - If a graphics BLT occurred, alias to CB/DB. -> CacheSyncInvRb
     // - If a compute BLT occurred, alias to shader. -> CacheSyncInvSqK$,SqI$,Tcp,TccMd
     // - If a CP L2 BLT occured, alias to L2.        -> None (data is always in TCC as it's the central cache)
+    // RB invalidations are guaranteed to be handled in earlier release, so skip any RB sync at acquire.
     if (TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear))
     {
         cacheSyncFlagsMask |= CacheSyncInvSqK$ | CacheSyncInvTcp | CacheSyncInvTccMd;
         pBarrierOps->caches.invalSqK$        = 1;
         pBarrierOps->caches.invalTcp         = 1;
         pBarrierOps->caches.invalTccMetadata = 1;
-        if (gfxSupported)
-        {
-            cacheSyncFlagsMask |= CacheSyncInvRb & (~CacheSyncInvCbMd);
-            pBarrierOps->caches.invalCb          = 1;
-            // skip CB metadata, not supported on acquire. We always need to invalidate on release if we need it
-            pBarrierOps->caches.invalDb          = 1;
-            pBarrierOps->caches.invalDbMetadata  = 1;
-            // There is no way to invalidate CB/DB without also flushing
-            pBarrierOps->caches.flushCb          = 1;
-            pBarrierOps->caches.flushDb          = 1;
-            pBarrierOps->caches.flushDbMetadata  = 1;
-        }
-    }
-
-    if (gfxSupported)
-    {
-        if (TestAnyFlagSet(accessMask, CoherColorTarget))
-        {
-                cacheSyncFlagsMask |= CacheSyncInvCbData;
-                // skip CB metadata, not supported on acquire
-                pBarrierOps->caches.invalCb = 1;
-                // There is no way to invalidate CB without also flushing
-                pBarrierOps->caches.flushCb = 1;
-        }
-
-        if (TestAnyFlagSet(accessMask, CoherDepthStencilTarget))
-        {
-            cacheSyncFlagsMask |= CacheSyncInvDb;
-            pBarrierOps->caches.invalDb = 1;
-            pBarrierOps->caches.invalDbMetadata = 1;
-            // There is no way to invalidate DB without also flushing
-            pBarrierOps->caches.flushDb         = 1;
-            pBarrierOps->caches.flushDbMetadata = 1;
-        }
     }
 
     if (TestAnyFlagSet(accessMask, CoherStreamOut))
@@ -222,6 +188,10 @@ static uint32 Gfx9ConvertToReleaseSyncFlags(
     Developer::BarrierOperations* pBarrierOps)
 {
     PAL_ASSERT(pBarrierOps != nullptr);
+
+    // If CB/DB sync is requested, it should have been converted to VGT event at an earlier point.
+    PAL_ASSERT(TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget) == false);
+
     uint32 cacheSyncFlagsMask = 0;
 
     if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory))
@@ -230,23 +200,6 @@ static uint32 Gfx9ConvertToReleaseSyncFlags(
         // flush L2 so that main memory gets the latest data.
         cacheSyncFlagsMask |= CacheSyncInvTcc;
         pBarrierOps->caches.invalTcc = 1;
-    }
-
-    if (TestAnyFlagSet(accessMask, CoherColorTarget))
-    {
-        // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we
-        // need to flush CB metadata. But if we only flush CB data, FLUSH_AND_INV_CB_DATA_TS should be sufficient.
-        cacheSyncFlagsMask |= CacheSyncFlushCbData | CacheSyncFlushCbMd | CacheSyncInvCbMd;
-        pBarrierOps->caches.flushCb = 1;
-        pBarrierOps->caches.flushCbMetadata = 1;
-        pBarrierOps->caches.invalCbMetadata = 1;
-    }
-
-    if (TestAnyFlagSet(accessMask, CoherDepthStencilTarget))
-    {
-        cacheSyncFlagsMask |= CacheSyncFlushDbData | CacheSyncFlushDbMd;
-        pBarrierOps->caches.flushDb = 1;
-        pBarrierOps->caches.flushDbMetadata = 1;
     }
 
     if (flushTcc)
@@ -311,18 +264,18 @@ static BarrierTransition AcqRelBuildTransition(
 }
 
 // =====================================================================================================================
-// Update command buffer dirty state from operations in an acquire
+// Update command buffer dirty state from operations in release-then-acquire.
 static void UpdateCmdBufStateFromAcquire(
     GfxCmdBuffer*                       pCmdBuf,
     const Developer::BarrierOperations& ops)
 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
-    const uint32  eopTsBottomOfPipe = ops.pipelineStalls.eopTsBottomOfPipe;
+    const bool waitOnEopTs = (ops.pipelineStalls.eopTsBottomOfPipe != 0) && (ops.pipelineStalls.waitOnTs != 0);
 #else
-    const uint32  eopTsBottomOfPipe = ops.pipelineStalls.waitOnEopTsBottomOfPipe;
+    const bool waitOnEopTs = (ops.pipelineStalls.waitOnEopTsBottomOfPipe != 0);
 #endif
 
-    if (eopTsBottomOfPipe != 0)
+    if (waitOnEopTs)
     {
         pCmdBuf->SetGfxCmdBufGfxBltState(false);
 
@@ -330,26 +283,33 @@ static void UpdateCmdBufStateFromAcquire(
                                         ops.caches.flushCbMetadata || ops.caches.invalCbMetadata ||
                                         ops.caches.flushDb         || ops.caches.invalDb         ||
                                         ops.caches.flushDbMetadata || ops.caches.invalDbMetadata);
-        if (didFlushOrInvalRb && (pCmdBuf->GetGfxCmdBufState().flags.gfxBltActive == false))
+        if (didFlushOrInvalRb)
         {
             pCmdBuf->SetGfxCmdBufGfxBltWriteCacheState(false);
         }
     }
-    if ((eopTsBottomOfPipe != 0) || ops.pipelineStalls.csPartialFlush)
+    if (((ops.pipelineStalls.eosTsCsDone != 0) && (ops.pipelineStalls.waitOnTs != 0)) || waitOnEopTs)
     {
         pCmdBuf->SetGfxCmdBufCsBltState(false);
     }
-    if (ops.caches.flushTcc && (pCmdBuf->GetGfxCmdBufState().flags.csBltActive == false))
+
+    // Acquire/release interface is "GL2-centric", so can reset cache dirty flag as long as it's guaranteed to be
+    // available in GL2.
+    if ((pCmdBuf->GetGfxCmdBufState().flags.csBltActive == false) &&
+        (ops.caches.invalTcp != 0)                                &&
+        (ops.caches.invalSqK$ != 0)                               &&
+        (ops.caches.invalTccMetadata != 0))
     {
         pCmdBuf->SetGfxCmdBufCsBltWriteCacheState(false);
     }
-    if (ops.caches.flushTcc && (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive == false))
+    if (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive == false)
     {
         pCmdBuf->SetGfxCmdBufCpBltWriteCacheState(false);
-    }
-    if (ops.caches.invalTcc && (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive == false))
-    {
-        pCmdBuf->SetGfxCmdBufCpMemoryWriteL2CacheStaleState(false);
+
+        if (ops.caches.invalTcc != 0)
+        {
+            pCmdBuf->SetGfxCmdBufCpMemoryWriteL2CacheStaleState(false);
+        }
     }
 }
 
@@ -1308,7 +1268,7 @@ void Device::BarrierAcquire(
     uint32                        gpuEventCount,
     const IGpuEvent*const*        ppGpuEvents,
     Developer::BarrierOperations* pBarrierOps
-) const
+    ) const
 {
     // Validate input data.
     PAL_ASSERT(barrierAcquireInfo.srcStageMask == 0);
@@ -1328,7 +1288,11 @@ void Device::BarrierAcquire(
     AutoBuffer<AcqRelTransitionInfo, 8, Platform> transitionList(barrierAcquireInfo.imageBarrierCount, GetPlatform());
     uint32 bltTransitionCount = 0;
 
-    if (transitionList.Capacity() >= barrierAcquireInfo.imageBarrierCount)
+    if (transitionList.Capacity() < barrierAcquireInfo.imageBarrierCount)
+    {
+        pCmdBuf->NotifyAllocFailure();
+    }
+    else
     {
         // Acquire for BLTs.
         for (uint32 i = 0; i < barrierAcquireInfo.imageBarrierCount; i++)
@@ -1503,10 +1467,6 @@ void Device::BarrierAcquire(
                              pBarrierOps);
         }
     }
-    else
-    {
-        pCmdBuf->NotifyAllocFailure();
-    }
 }
 
 // =====================================================================================================================
@@ -1680,24 +1640,27 @@ size_t Device::BuildReleaseSyncPackets(
 
     // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
     // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
-    // flush CB metadata.
+    // flush CB metadata. Furthermore, CACHE_FLUSH_AND_INV_TS_EVENT always flush & invalidate RB, so there is no need
+    // to invalidate RB at acquire again.
     if (TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget))
     {
         // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
         vgtEvents[vgtEventCount++] = CACHE_FLUSH_AND_INV_TS_EVENT;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
-        pBarrierOps->pipelineStalls.eopTsBottomOfPipe       = 1;
+        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
 #endif
+        // Clear up CB/DB request
+        accessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
 
-        pBarrierOps->caches.flushCb                         = 1;
-        pBarrierOps->caches.invalCb                         = 1;
-        pBarrierOps->caches.flushCbMetadata                 = 1;
-        pBarrierOps->caches.invalCbMetadata                 = 1;
+        pBarrierOps->caches.flushCb         = 1;
+        pBarrierOps->caches.invalCb         = 1;
+        pBarrierOps->caches.flushCbMetadata = 1;
+        pBarrierOps->caches.invalCbMetadata = 1;
 
-        pBarrierOps->caches.flushDb                         = 1;
-        pBarrierOps->caches.invalDb                         = 1;
-        pBarrierOps->caches.flushDbMetadata                 = 1;
-        pBarrierOps->caches.invalDbMetadata                 = 1;
+        pBarrierOps->caches.flushDb         = 1;
+        pBarrierOps->caches.invalDb         = 1;
+        pBarrierOps->caches.flushDbMetadata = 1;
+        pBarrierOps->caches.invalDbMetadata = 1;
     }
     // Unfortunately, there is no VS_DONE event with which to implement PipelineStageVs/Hs/Ds/Gs, so it has to
     // conservatively use BottomOfPipe.
@@ -1713,7 +1676,7 @@ size_t Device::BuildReleaseSyncPackets(
         // Implement set with an EOP event written when all prior GPU work completes.
         vgtEvents[vgtEventCount++] = BOTTOM_OF_PIPE_TS;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
-        pBarrierOps->pipelineStalls.eopTsBottomOfPipe       = 1;
+        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
 #endif
     }
     else if (TestAnyFlagSet(stageMask, PipelineStagePs | PipelineStageCs))
@@ -1740,7 +1703,7 @@ size_t Device::BuildReleaseSyncPackets(
         {
             vgtEvents[vgtEventCount++] = BOTTOM_OF_PIPE_TS;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
-            pBarrierOps->pipelineStalls.eopTsBottomOfPipe       = 1;
+            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
 #endif
         }
     }
@@ -1749,27 +1712,24 @@ size_t Device::BuildReleaseSyncPackets(
     ExplicitReleaseMemInfo releaseMemInfo = {};
     releaseMemInfo.engineType = engineType;
 
-    bool requestCacheSync = false;
-
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
-        releaseMemInfo.coherCntl = Gfx9BuildReleaseCoherCntl(accessMask,
-                                                             flushLlc,
-                                                             vgtEventCount,
-                                                             &vgtEvents[0],
-                                                             pBarrierOps);
+        uint32 cacheSyncFlags = Gfx9ConvertToReleaseSyncFlags(accessMask, flushLlc, pBarrierOps);
 
-        requestCacheSync = (releaseMemInfo.coherCntl != 0);
+        const uint32 tcCacheOp = static_cast<uint32>(SelectTcCacheOp(&cacheSyncFlags));
+
+        // The cache sync requests can be cleared by single release pass.
+        PAL_ASSERT(cacheSyncFlags == 0);
+
+        releaseMemInfo.coherCntl = Gfx9TcCacheOpConversionTable[tcCacheOp];
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
         releaseMemInfo.gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
-
-        requestCacheSync = (releaseMemInfo.gcrCntl != 0);
     }
 
     // If we have cache sync request yet don't issue any VGT event, we need to issue a dummy one.
-    if (requestCacheSync && (vgtEventCount == 0))
+    if (((releaseMemInfo.coherCntl != 0) || (releaseMemInfo.gcrCntl != 0)) && (vgtEventCount == 0))
     {
         // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
         vgtEvents[vgtEventCount++] = CS_DONE;
@@ -1812,39 +1772,6 @@ size_t Device::BuildReleaseSyncPackets(
     }
 
     return dwordsWritten;
-}
-
-// =====================================================================================================================
-// Translate accessMask to CP_COHER_CNTL. (CacheCoherencyUsageFlags -> CacheSyncFlags -> TcCacheOps -> CpCoherCntl)
-// This function is GFX9-ONLY.
-uint32 Device::Gfx9BuildReleaseCoherCntl(
-    uint32                        accessMask,
-    bool                          flushTcc,
-    uint32                        vgtEventCount,
-    const VGT_EVENT_TYPE*         pVgtEvents,
-    Developer::BarrierOperations* pBarrierOps
-    ) const
-{
-    uint32 cacheSyncFlags = Gfx9ConvertToReleaseSyncFlags(accessMask, flushTcc, pBarrierOps);
-
-    // Loop check vgtEvent[].
-    for (uint32 i = 0; i < vgtEventCount; i++)
-    {
-        if (pVgtEvents[i] == CACHE_FLUSH_AND_INV_TS_EVENT)
-        {
-            cacheSyncFlags &= ~CacheSyncFlushAndInvRb;
-            // We don't need to reset these in barrier ops because they still happen, just
-            // not during the TcCacheOp
-            break;
-        }
-    }
-
-    const uint32 tcCacheOp = static_cast<uint32>(SelectTcCacheOp(&cacheSyncFlags));
-
-    // The release doesn't need to iterate until cacheSyncFlags is cleared.
-    PAL_ASSERT(cacheSyncFlags == 0);
-
-    return Gfx9TcCacheOpConversionTable[tcCacheOp];
 }
 
 // =====================================================================================================================
@@ -1923,9 +1850,6 @@ size_t Device::BuildAcquireSyncPackets(
     {
         uint32 cacheSyncFlags = Gfx9ConvertToAcquireSyncFlags(accessMask, engineType, invalidateLlc, pBarrierOps);
 
-        // "acquire" deson't need to invalidate RB because "release" always flush & invalidate RB.
-        cacheSyncFlags &= ~CacheSyncFlushAndInvRb;
-
         while (cacheSyncFlags != 0)
         {
             const uint32 tcCacheOp = static_cast<uint32>(SelectTcCacheOp(&cacheSyncFlags));
@@ -1936,11 +1860,10 @@ size_t Device::BuildAcquireSyncPackets(
             cpCoherCntl.bits.SH_ICACHE_ACTION_ENA    = TestAnyFlagSet(cacheSyncFlags, CacheSyncInvSqI$);
             cpCoherCntl.bits.SH_KCACHE_WB_ACTION_ENA = TestAnyFlagSet(cacheSyncFlags, CacheSyncFlushSqK$);
 
-            cacheSyncFlags &= ~(CacheSyncInvSqK$ |
-                                CacheSyncInvSqI$ |
-                                CacheSyncFlushSqK$);
-
             acquireMemInfo.coherCntl = cpCoherCntl.u32All;
+
+            // Clear up requests
+            cacheSyncFlags &= ~(CacheSyncInvSqK$ | CacheSyncInvSqI$ | CacheSyncFlushSqK$);
 
             // Build ACQUIRE_MEM packet.
             dwordsWritten += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo,
@@ -1951,16 +1874,16 @@ size_t Device::BuildAcquireSyncPackets(
     {
         // The only difference between the GFX9 and GFX10 versions of this packet are that GFX10
         // added a new "gcr_cntl" field.
-        acquireMemInfo.gcrCntl = Gfx10BuildAcquireGcrCntl(accessMask,
-                                                          invalidateLlc,
-                                                          baseAddress,
-                                                          sizeBytes,
-                                                          (acquireMemInfo.coherCntl != 0),
-                                                          pBarrierOps);
+        acquireMemInfo.gcrCntl.u32All = Gfx10BuildAcquireGcrCntl(accessMask,
+                                                                 invalidateLlc,
+                                                                 baseAddress,
+                                                                 sizeBytes,
+                                                                 (acquireMemInfo.coherCntl != 0),
+                                                                 pBarrierOps);
 
-        // "acquire" deson't need to invalidate RB because "release" always flush & invalidate RB. GFX10's COHER_CNTL
-        // only controls RB flush/inv, so we never need to set COHER_CNTL here.
-        if (acquireMemInfo.gcrCntl != 0)
+        // GFX10's COHER_CNTL only controls RB flush/inv. "acquire" deson't need to invalidate RB because "release"
+        // always flush & invalidate RB, so we never need to set COHER_CNTL here.
+        if (acquireMemInfo.gcrCntl.u32All != 0)
         {
             // Build ACQUIRE_MEM packet.
             dwordsWritten += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo,
@@ -2023,38 +1946,43 @@ uint32 Device::Gfx10BuildAcquireGcrCntl(
         }
     }
 
-    const bool isShaderCacheDirty = TestAnyFlagSet(accessMask, CoherShader  |
-                                                               CoherCopy    |
-                                                               CoherResolve |
-                                                               CoherClear   |
-                                                               CoherStreamOut);
-
     // GLM_WB[0]  - write-back control for the meta-data cache of GL2. L2MD is write-through, ignore this bit.
-    // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
     // GLK_WB[0]  - write-back control for shaded scalar L0 cache
+    gcrCntl.bits.glmWb = 0;
+    gcrCntl.bits.glkWb = 0;
+
+    // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
     // GLK_INV[0] - invalidate enable for shader scalar L0 cache
     // GLV_INV[0] - invalidate enable for shader vector L0 cache
     // GL1_INV[0] - invalidate enable for GL1
-    // GL2_INV[0] - invalidate enable for GL2
-    // GL2_WB[0]  - writeback enable for GL2
-    gcrCntl.bits.glmWb  = 0;
-    gcrCntl.bits.glmInv = isShaderCacheDirty;
-    gcrCntl.bits.glkWb  = 0;
-    gcrCntl.bits.glkInv = isShaderCacheDirty;
-    gcrCntl.bits.glvInv = isShaderCacheDirty;
-    gcrCntl.bits.gl1Inv = isShaderCacheDirty;
+    if (TestAnyFlagSet(accessMask, CoherShader | CoherCopy | CoherResolve | CoherClear | CoherStreamOut))
+    {
+        gcrCntl.bits.glmInv = 1;
+        gcrCntl.bits.glkInv = 1;
+        gcrCntl.bits.glvInv = 1;
+        gcrCntl.bits.gl1Inv = 1;
+
+        pBarrierOps->caches.invalTccMetadata = 1;
+        pBarrierOps->caches.invalSqK$        = 1;
+        pBarrierOps->caches.invalTcp         = 1;
+        pBarrierOps->caches.invalGl1         = 1;
+    }
 
     // Leave gcrCntl.bits.gl2Us unset.
     // Leave gcrCntl.bits.gl2Discard unset.
-    gcrCntl.bits.gl2Inv = invalidateGl2;
-    gcrCntl.bits.gl2Wb  = TestAnyFlagSet(accessMask, CoherCpu | CoherMemory);
 
-    pBarrierOps->caches.invalSqK$        |= isShaderCacheDirty;
-    pBarrierOps->caches.invalTcp         |= isShaderCacheDirty;
-    pBarrierOps->caches.invalTccMetadata |= isShaderCacheDirty;
-    pBarrierOps->caches.invalGl1         |= isShaderCacheDirty;
-    pBarrierOps->caches.invalTcc         |= invalidateGl2;
-    pBarrierOps->caches.flushTcc         |= TestAnyFlagSet(accessMask, CoherCpu | CoherMemory);
+    // GL2_INV[0] - invalidate enable for GL2
+    // GL2_WB[0]  - writeback enable for GL2
+    if (invalidateGl2)
+    {
+        gcrCntl.bits.gl2Inv          = 1;
+        pBarrierOps->caches.invalTcc = 1;
+    }
+    if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory))
+    {
+        gcrCntl.bits.gl2Wb           = 1;
+        pBarrierOps->caches.flushTcc = 1;
+    }
 
     // SEQ[1:0]   controls the sequence of operations on the cache hierarchy (L0/L1/L2)
     //      0: PARALLEL   initiate wb/inv ops on specified caches at same time

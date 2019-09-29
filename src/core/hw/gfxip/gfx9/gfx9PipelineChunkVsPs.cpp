@@ -70,7 +70,8 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmSPI_PS_INPUT_ENA
     1 + // mmSPI_PS_INPUT_ADDR
     1 + // mmDB_SHADER_CONTROL
-    1 + // mmPA_SC_BINNER_CNTL1
+    1 + // mmPA_SC_SHADER_CONTROL
+    1 + // mmPA_SC_BINNER_CNTL_1
     1 + // mmSPI_SHADER_POS_FORMAT
     1 + // mmPA_CL_VS_OUT_CNTL
     1 + // mmVGT_PRIMITIVEID_EN
@@ -91,7 +92,6 @@ PipelineChunkVsPs::PipelineChunkVsPs(
     const PerfDataInfo* pPsPerfDataInfo)
     :
     m_device(device),
-    m_calcWaveBreakAtDrawTime(false),
     m_pVsPerfDataInfo(pVsPerfDataInfo),
     m_pPsPerfDataInfo(pPsPerfDataInfo)
 {
@@ -99,9 +99,8 @@ PipelineChunkVsPs::PipelineChunkVsPs(
     memset(&m_stageInfoVs, 0, sizeof(m_stageInfoVs));
     memset(&m_stageInfoPs, 0, sizeof(m_stageInfoPs));
 
-    m_stageInfoVs.stageId      = Abi::HardwareStage::Vs;
-    m_stageInfoPs.stageId      = Abi::HardwareStage::Ps;
-    m_paScShaderControl.u32All = 0;
+    m_stageInfoVs.stageId = Abi::HardwareStage::Vs;
+    m_stageInfoPs.stageId = Abi::HardwareStage::Ps;
 }
 
 // =====================================================================================================================
@@ -324,8 +323,6 @@ void PipelineChunkVsPs::LateInit(
         }
     }
 
-    m_paScShaderControl.u32All = registers.At(mmPA_SC_SHADER_CONTROL);
-
     m_commands.context.dbShaderControl.u32All    = registers.At(mmDB_SHADER_CONTROL);
     m_commands.context.spiBarycCntl.u32All       = registers.At(mmSPI_BARYC_CNTL);
     m_commands.context.spiPsInputAddr.u32All     = registers.At(mmSPI_PS_INPUT_ADDR);
@@ -350,37 +347,16 @@ void PipelineChunkVsPs::LateInit(
 
     m_commands.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
     m_commands.context.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
+    m_commands.context.paScShaderControl.u32All  = registers.At(mmPA_SC_SHADER_CONTROL);
 
     m_commands.common.paScAaConfig.reg_data      = registers.At(mmPA_SC_AA_CONFIG);
 
-    if (chipProps.gfx9.supportCustomWaveBreakSize)
+    if (chipProps.gfx9.supportCustomWaveBreakSize && (settings.forceWaveBreakSize != Gfx10ForceWaveBreakSizeClient))
     {
-        if (settings.forceWaveBreakSize == Gfx10ForceWaveBreakSizeAuto)
-        {
-            m_calcWaveBreakAtDrawTime = true;
-
-            // Default to none but check at draw time if we need to change this to 8x8
-            m_paScShaderControl.gfx10.WAVE_BREAK_REGION_SIZE = static_cast<uint32>(Gfx10ForceWaveBreakSizeNone);
-        }
-        else if (settings.forceWaveBreakSize != Gfx10ForceWaveBreakSizeClient)
-        {
-            // If the setting to check indicies is set then we need to check at draw time
-            if (TestAnyFlagSet(settings.forceWaveBreakSize, Gfx10CheckIndicies))
-            {
-                m_calcWaveBreakAtDrawTime = true;
-            }
-
-            // Override whatever wave-break size was specified by the pipeline binary if the panel is forcing a
-            // value for the preferred wave-break size.
-            m_paScShaderControl.gfx10.WAVE_BREAK_REGION_SIZE = static_cast<uint32>(settings.forceWaveBreakSize);
-        }
-        else
-        {
-            if (metadata.pipeline.hasEntry.calcWaveBreakSizeAtDrawTime != 0)
-            {
-                m_calcWaveBreakAtDrawTime = (metadata.pipeline.flags.calcWaveBreakSizeAtDrawTime != 0);
-            }
-        }
+        // Override whatever wave-break size was specified by the pipeline binary if the panel is forcing a
+        // value for the preferred wave-break size.
+        m_commands.context.paScShaderControl.gfx10.WAVE_BREAK_REGION_SIZE =
+            static_cast<uint32>(settings.forceWaveBreakSize);
     }
 
     // Binner_cntl1:
@@ -469,6 +445,7 @@ void PipelineChunkVsPs::LateInit(
         pUploader->AddCtxReg(mmSPI_SHADER_POS_FORMAT,     m_commands.context.spiShaderPosFormat);
         pUploader->AddCtxReg(mmPA_CL_VS_OUT_CNTL,         m_commands.context.paClVsOutCntl);
         pUploader->AddCtxReg(mmVGT_PRIMITIVEID_EN,        m_commands.context.vgtPrimitiveIdEn);
+        pUploader->AddCtxReg(mmPA_SC_SHADER_CONTROL,      m_commands.context.paScShaderControl);
         pUploader->AddCtxReg(mmPA_SC_BINNER_CNTL_1,       m_commands.context.paScBinnerCntl1);
         pUploader->AddCtxReg(mmVGT_STRMOUT_CONFIG,        m_commands.streamOut.vgtStrmoutConfig);
         pUploader->AddCtxReg(mmVGT_STRMOUT_BUFFER_CONFIG, m_commands.streamOut.vgtStrmoutBufferConfig);
@@ -708,6 +685,9 @@ void PipelineChunkVsPs::BuildPm4Headers(
     m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_SHADER_CONTROL,
                                                                     &m_commands.context.hdrDbShaderControl);
 
+    m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SC_SHADER_CONTROL,
+                                                                    &m_commands.context.hdrPaScShaderControl);
+
     m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SC_BINNER_CNTL_1,
                                                                     &m_commands.context.hdrPaScBinnerCntl1);
 
@@ -816,28 +796,6 @@ void PipelineChunkVsPs::BuildPm4Headers(
                                PA_SC_AA_CONFIG__COVERAGE_TO_SHADER_SELECT_MASK,
                                0,
                                &m_commands.common.paScAaConfig);
-}
-
-// =====================================================================================================================
-regPA_SC_SHADER_CONTROL PipelineChunkVsPs::PaScShaderControl(
-    uint32 numIndices
-    ) const
-{
-    regPA_SC_SHADER_CONTROL  paScShaderControl = m_paScShaderControl;
-
-    if (m_calcWaveBreakAtDrawTime)
-    {
-        PAL_ASSERT(m_device.Parent()->ChipProperties().gfx9.supportCustomWaveBreakSize);
-        // For the WAVE_BREAK_REGION_SIZE, setting to '1' for an index count <= 6 (typically indicates large prim
-        // draw), and '0' for everything else is OK to start.   We're going to want to experiment w/ all four
-        // settings (0-3) in performance runs for index count > 6.
-        if (numIndices <= 6)
-        {
-            paScShaderControl.gfx10.WAVE_BREAK_REGION_SIZE = 1;
-        }
-    } // end check for GFX10
-
-    return  paScShaderControl;
 }
 
 } // Gfx9

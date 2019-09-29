@@ -1380,6 +1380,100 @@
       "Description": "Configuration options for the CmdBuffer Logger layer."
     },
     {
+      "Name": "Pm4InstrumentorEnabled",
+      "Tags": [
+        "PM4 Instrumentor"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "pm4InstrumentorEnabled",
+      "Description": "Enables the PAL PM4 instrumentor layer."
+    },
+    {
+      "Name": "Pm4InstrumentorConfig",
+      "Tags": [
+        "PM4 Instrumentor"
+      ],
+      "DependsOn": {
+        "Settings": [
+          {
+            "Values": [
+              true
+            ],
+            "Name": "Pm4InstrumentorEnabled"
+          }
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "struct",
+      "VariableName": "pm4InstrumentorConfig",
+      "Structure": [
+        {
+          "Description": "Relative directory where statistics logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
+          "Flags": {
+            "IsPath": true
+          },
+          "Defaults": {
+            "Default": "amdpal/",
+            "WinDefault": "PalLog\\",
+            "LnxDefault": "amdpal/"
+          },
+          "Size": "MaxPathStrLen",
+          "Type": "string",
+          "VariableName": "logDirectory",
+          "Name": "LogDirectory"
+        },
+        {
+          "Description": "Suffix added to the filename (including the file extension) of the statistics logs. Each logged Queue will have a unique filename prefix which will precede this string.",
+          "Defaults": {
+            "Default": "pm4-stats.log"
+          },
+          "Size": "MaxPathStrLen",
+          "Type": "string",
+          "VariableName": "filenameSuffix",
+          "Name": "FilenameSuffix"
+        },
+        {
+          "Description": "Controls when statistics are written out to the log file(s).",
+          "Type": "enum",
+          "ValidValues": {
+            "Name": "Pm4InstrumentorDumpMode",
+            "IsEnum": true,
+            "Values": [
+              {
+                "Description": "Dump at Queue Destruction",
+                "Value": 0,
+                "Name": "Pm4InstrumentorDumpQueueDestroy"
+              },
+              {
+                "Description": "Dump at Queue Submission",
+                "Value": 1,
+                "Name": "Pm4InstrumentorDumpQueueSubmit"
+              }
+            ]
+          },
+          "Name": "DumpMode",
+          "VariableName": "dumpMode",
+          "Defaults": {
+            "Default": "Pm4InstrumentorDumpQueueDestroy"
+          }
+        },
+        {
+          "Description": "Controls how often statistics are written out to the log file(s).  A value of zero means re-dump every submit.  Units are in seconds.",
+          "Type": "uint32",
+          "Name": "DumpInterval",
+          "VariableName": "dumpInterval",
+          "Defaults": {
+            "Default": 5
+          }
+        }
+      ],
+      "Description": "PM4 Instrumentor configuration"
+    },
+    {
       "Name": "InterfaceLoggerEnabled",
       "Tags": [
         "Interface Logger"

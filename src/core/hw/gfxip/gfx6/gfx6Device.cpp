@@ -2729,22 +2729,22 @@ void InitializeGpuChipProperties(
 
     // NOTE: GFXIP 6+ hardware has the same wavefront size, VGPR count, TCA block count, SRD sizes and number of
     // user-data entries.
-    pInfo->gfxip.hardwareContexts     = 8;
-    pInfo->gfx6.numSimdPerCu          = NumSimdPerCu;
-    pInfo->gfx6.numWavesPerSimd       = NumWavesPerSimd;
-    pInfo->gfx6.nativeWavefrontSize   = 64;
-    pInfo->gfx6.numShaderVisibleSgprs = MaxSgprsAvailable;
-    pInfo->gfx6.numShaderVisibleVgprs = 256;
-    pInfo->gfx6.numPhysicalVgprs      = 256;
-    pInfo->gfx6.vgprAllocGranularity  = 4;
-    pInfo->gfx6.minVgprAlloc          = 4;
-    pInfo->gfx6.numTcaBlocks          = 2;
+    pInfo->gfxip.hardwareContexts       = 8;
+    pInfo->gfx6.numSimdPerCu            = NumSimdPerCu;
+    pInfo->gfx6.numWavesPerSimd         = NumWavesPerSimd;
+    pInfo->gfx6.nativeWavefrontSize     = 64;
+    pInfo->gfx6.numShaderVisibleSgprs   = MaxSgprsAvailable;
+    pInfo->gfx6.numPhysicalVgprsPerSimd = 256;
+    pInfo->gfx6.numPhysicalVgprs        = 256;
+    pInfo->gfx6.vgprAllocGranularity    = 4;
+    pInfo->gfx6.minVgprAlloc            = 4;
+    pInfo->gfx6.numTcaBlocks            = 2;
 
     pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
     memcpy(&pInfo->gfxip.fastUserDataEntries[0], &FastUserDataEntriesByStage[0], sizeof(FastUserDataEntriesByStage));
 
     static_assert(sizeof(pInfo->gfxip.fastUserDataEntries) == sizeof(FastUserDataEntriesByStage),
-                  "Mismatch between gfxip::fastUserDataEntries[] and FastUserDataEntriesByState[]!");
+                  "Mismatch between gfxip::fastUserDataEntries[] and FastUserDataEntriesByStage[]!");
 
     // The maximum amount of LDS space that can be shared by a group of threads (wave/ threadgroup) in bytes.
     pInfo->gfxip.ldsSizePerCu = 65536;

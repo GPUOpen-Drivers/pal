@@ -317,12 +317,13 @@ private:
     // Hash map of all nested command buffer chunks which were executed by this command stream via calls to Call().
     NestedChunkMap   m_nestedChunks;
 
-    Result           m_status;           // To identify whether any error occurs when command stream setup.
-    gpusize          m_totalChunkDwords; // The sum of all allocated chunk space, computed at End() time.
+    Result   m_status;              // To identify whether any error occurs when command stream setup.
+    gpusize  m_totalChunkDwords;    // The sum of all allocated chunk space.  Before End() is called on this chunk,
+                                    // this does not include the current chunk.  After End() is called, it does.
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    uint32           m_streamGeneration; // Counter used for tracking stream reset before submit.
-    bool             m_isReserved;       // Used to validate that reserve and commit are always called in pairs.
+    uint32  m_streamGeneration; // Counter used for tracking stream reset before submit.
+    bool    m_isReserved;       // Used to validate that reserve and commit are always called in pairs.
 #endif
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdStream);

@@ -586,6 +586,14 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
     uint32  zDim,
     uint32* pCmdSpace)
 {
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
+
+    uint32* pStartingCmdSpace = pCmdSpace;
+    uint32  pipelineCmdLen    = 0;
+    uint32  userDataCmdLen    = 0;
+#endif
+
     if (m_computeState.pipelineState.dirtyFlags.pipelineDirty)
     {
         const auto*const pNewPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
@@ -594,6 +602,14 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
                                                 pCmdSpace,
                                                 m_computeState.dynamicCsInfo,
                                                 m_buildFlags.prefetchShaders);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+        if (enablePm4Instrumentation)
+        {
+            pipelineCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+            pStartingCmdSpace = pCmdSpace;
+        }
+#endif
 
         const auto*const pPrevSignature = m_pSignatureCs;
         m_pSignatureCs                  = &pNewPipeline->Signature();
@@ -604,6 +620,14 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
     {
         pCmdSpace = ValidateUserData<false>(nullptr, pCmdSpace);
     }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (enablePm4Instrumentation)
+    {
+        userDataCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+        pStartingCmdSpace = pCmdSpace;
+    }
+#endif
 
     m_computeState.pipelineState.dirtyFlags.u32All = 0;
 
@@ -629,13 +653,19 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
 
     if (IsGfx10(m_gfxIpLevel))
     {
-        regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = {};
-        dispatchTunnel.u32All                     = 0;
-
+        const regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = { };
         pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(Gfx10::mmCOMPUTE_DISPATCH_TUNNEL,
                                                                 dispatchTunnel.u32All,
                                                                 pCmdSpace);
     }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (enablePm4Instrumentation)
+    {
+        const uint32 miscCmdLen = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+    }
+#endif
 
     return pCmdSpace;
 }

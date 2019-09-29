@@ -496,7 +496,8 @@ private:
         uint32                 copyFlags,
         SwizzledFormat*        pSrcFormat,
         SwizzledFormat*        pDstFormat,
-        uint32*                pTexelScale) const;
+        uint32*                pTexelScale,
+        bool*                  pSingleSubres) const;
 
     void CopyBetweenMemoryAndImage(
         GfxCmdBuffer*                pCmdBuffer,

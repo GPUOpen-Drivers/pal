@@ -216,7 +216,10 @@ protected:
                                                      // the @ref VaRange::ShadowDescriptorTable virtual-address range.
             uint32 disableInternalResidencyOpts : 1; // Disable residency optimizations for internal GPU memory
                                                      // allocations.
-            uint32 reserved                     : 26;
+            uint32 supportRgpTraces             : 1; // Indicates that the client supports RGP tracing. PAL will use
+                                                     // this flag and the hardware support flag to setup the
+                                                     // DevDriver RgpServer.
+            uint32 reserved                     : 25; // Reserved for future use.
         };
         uint32 u32All;
     } m_flags;

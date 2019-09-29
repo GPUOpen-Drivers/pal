@@ -112,6 +112,9 @@ Platform::Platform(
     m_flags.enableSvmMode                = createInfo.flags.enableSvmMode;
     m_flags.requestShadowDescVaRange     = createInfo.flags.requestShadowDescriptorVaRange;
     m_flags.disableInternalResidencyOpts = createInfo.flags.disableInternalResidencyOpts;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 535
+    m_flags.supportRgpTraces             = createInfo.flags.supportRgpTraces;
+#endif
 
     if (createInfo.pLogInfo != nullptr)
     {
@@ -572,6 +575,22 @@ void Platform::LateInitDevDriver()
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
     if (m_pDevDriverServer != nullptr)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 535
+        if (m_deviceCount >= 1)
+        {
+            Pal::DeviceProperties deviceProperties = {};
+
+            m_pDevice[0]->GetProperties(&deviceProperties);
+
+            // If both the client and the hardware support rgp traces, attempt to enable them on the rgp server.
+            if ((m_flags.supportRgpTraces) && (deviceProperties.gfxipProperties.flags.supportRgpTraces))
+            {
+                // Enable the trace functionality on the RGP Server.
+                m_pDevDriverServer->GetRGPServer()->EnableTraces();
+            }
+        }
+#endif
+
         DevDriver::DriverControlProtocol::DriverControlServer* pDriverControlServer =
             m_pDevDriverServer->GetDriverControlServer();
 

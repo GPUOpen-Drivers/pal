@@ -260,6 +260,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled ||
                                             m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
+#endif
+
     memset(&m_rbPlusPm4Img, 0, sizeof(m_rbPlusPm4Img));
     if (m_device.Parent()->ChipProperties().gfx6.rbPlus != 0)
     {
@@ -3952,6 +3956,12 @@ template <bool indexed, bool indirect, bool pm4OptImmediate>
 void UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo)
 {
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    uint32 startingCmdLen = GetUsedSize(CommandDataAlloc);
+    uint32 pipelineCmdLen = 0;
+    uint32 userDataCmdLen = 0;
+#endif
+
     if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
     {
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -3973,9 +3983,30 @@ void UniversalCmdBuffer::ValidateDraw(
         // NOTE: Switching a graphics pipeline can result in a large amount of commands being written, so start a new
         // reserve/commit region before proceeding with validation.
         m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+        if (m_cachedSettings.enablePm4Instrumentation != 0)
+        {
+            pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            startingCmdLen += pipelineCmdLen;
+        }
+#endif
         pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfxPipelineSwitch)(pPrevSignature, pDeCmdSpace);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+        if (m_cachedSettings.enablePm4Instrumentation != 0)
+        {
+            // GetUsedSize() is not accurate if we don't put the user-data validation and miscellaneous validation
+            // in separate Reserve/Commit blocks.
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+            userDataCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            startingCmdLen += userDataCmdLen;
+            pDeCmdSpace     = m_deCmdStream.ReserveCommands();
+        }
+#endif
+
         pDeCmdSpace = ValidateDraw<indexed, indirect, pm4OptImmediate, true>(drawInfo, pDeCmdSpace);
 
         m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -3985,10 +4016,31 @@ void UniversalCmdBuffer::ValidateDraw(
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfx)(nullptr, pDeCmdSpace);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+        if (m_cachedSettings.enablePm4Instrumentation != 0)
+        {
+            // GetUsedSize() is not accurate if we don't put the user-data validation and miscellaneous validation
+            // in separate Reserve/Commit blocks.
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+            userDataCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            startingCmdLen += userDataCmdLen;
+            pDeCmdSpace     = m_deCmdStream.ReserveCommands();
+        }
+#endif
+
         pDeCmdSpace = ValidateDraw<indexed, indirect, pm4OptImmediate, false>(drawInfo, pDeCmdSpace);
 
         m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -4571,6 +4623,19 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
     uint32  zDim,
     uint32* pDeCmdSpace)
 {
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    uint32 startingCmdLen = 0;
+    uint32 pipelineCmdLen = 0;
+    uint32 userDataCmdLen = 0;
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+        startingCmdLen = GetUsedSize(CommandDataAlloc);
+        pDeCmdSpace    = m_deCmdStream.ReserveCommands();
+    }
+#endif
+
     if (m_computeState.pipelineState.dirtyFlags.pipelineDirty)
     {
         const auto*const pNewPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
@@ -4579,6 +4644,17 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
                                                   pDeCmdSpace,
                                                   m_computeState.dynamicCsInfo,
                                                   m_buildFlags.prefetchShaders);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+        if (m_cachedSettings.enablePm4Instrumentation != 0)
+        {
+            // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+            pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            startingCmdLen += pipelineCmdLen;
+            pDeCmdSpace     = m_deCmdStream.ReserveCommands();
+        }
+#endif
 
         const auto*const pPrevSignature = m_pSignatureCs;
         m_pSignatureCs                  = &pNewPipeline->Signature();
@@ -4604,6 +4680,17 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
         }
     }
 
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+        userDataCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        startingCmdLen += userDataCmdLen;
+        pDeCmdSpace     = m_deCmdStream.ReserveCommands();
+    }
+#endif
+
     m_computeState.pipelineState.dirtyFlags.u32All = 0;
 
     if (m_pSignatureCs->numWorkGroupsRegAddr != UserDataNotMapped)
@@ -4625,6 +4712,18 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
                                                       &indirectGpuVirtAddr,
                                                       pDeCmdSpace);
     }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+        const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+    }
+#endif
 
     return pDeCmdSpace;
 }

@@ -160,7 +160,7 @@ struct ExplicitAcquireMemInfo
 
     EngineType engineType;
     uint32     coherCntl;
-    uint32     gcrCntl;
+    Gfx10AcquireMemGcrCntl gcrCntl;
 
     // These define the address range being acquired. Use FullSyncBaseAddr and FullSyncSize for a global acquire.
     gpusize    baseAddress;

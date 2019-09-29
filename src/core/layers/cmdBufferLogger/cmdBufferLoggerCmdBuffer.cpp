@@ -899,14 +899,14 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;
 
-    m_funcTable.pfnCmdDraw                     = CmdDraw;
-    m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque;
-    m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed;
-    m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti;
-    m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti;
-    m_funcTable.pfnCmdDispatch                 = CmdDispatch;
-    m_funcTable.pfnCmdDispatchIndirect         = CmdDispatchIndirect;
-    m_funcTable.pfnCmdDispatchOffset           = CmdDispatchOffset;
+    m_funcTable.pfnCmdDraw                      = CmdDraw;
+    m_funcTable.pfnCmdDrawOpaque                = CmdDrawOpaque;
+    m_funcTable.pfnCmdDrawIndexed               = CmdDrawIndexed;
+    m_funcTable.pfnCmdDrawIndirectMulti         = CmdDrawIndirectMulti;
+    m_funcTable.pfnCmdDrawIndexedIndirectMulti  = CmdDrawIndexedIndirectMulti;
+    m_funcTable.pfnCmdDispatch                  = CmdDispatch;
+    m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
+    m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
 }
 
 // =====================================================================================================================
@@ -3094,9 +3094,9 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatch(
     ICmdBuffer* pCmdBuffer,
-    uint32      x,
-    uint32      y,
-    uint32      z)
+    uint32      xDim,
+    uint32      yDim,
+    uint32      zDim)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3107,17 +3107,17 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
         LinearAllocatorAuto<VirtualLinearAllocator> allocator(pThis->Allocator(), false);
         char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-        Snprintf(pString, StringLength, "X = 0x%08x", x);
+        Snprintf(pString, StringLength, "XDim = 0x%08x", xDim);
         pThis->GetNextLayer()->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "Y = 0x%08x", y);
+        Snprintf(pString, StringLength, "YDim = 0x%08x", yDim);
         pThis->GetNextLayer()->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "Z = 0x%08x", z);
+        Snprintf(pString, StringLength, "ZDim = 0x%08x", zDim);
         pThis->GetNextLayer()->CmdCommentString(pString);
 
         PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
-    pThis->GetNextLayer()->CmdDispatch(x, y, z);
+    pThis->GetNextLayer()->CmdDispatch(xDim, yDim, zDim);
 
     pThis->HandleDrawDispatch(false);
 }

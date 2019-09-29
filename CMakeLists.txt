@@ -55,6 +55,7 @@ option(PAL_BUILD_GPU_PROFILER "Build PAL GPU Profiler?" ON)
 
 option(PAL_BUILD_CMD_BUFFER_LOGGER "Build PAL Command Buffer Logger?" ${CMAKE_BUILD_TYPE_DEBUG})
 option(PAL_BUILD_INTERFACE_LOGGER  "Build PAL Interface Logger?"      ${CMAKE_BUILD_TYPE_DEBUG})
+option(PAL_BUILD_PM4_INSTRUMENTOR  "Build PAL PM4 Instrumentor?"      ${CMAKE_BUILD_TYPE_DEBUG})
 
 option(PAL_BUILD_GFX  "Build PAL with Graphics support?" ON)
 cmake_dependent_option(PAL_BUILD_GFX6 "Build PAL with GFX6 support?" ON "PAL_BUILD_GFX" OFF)

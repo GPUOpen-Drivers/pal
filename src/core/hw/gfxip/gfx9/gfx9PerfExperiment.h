@@ -73,16 +73,18 @@ struct RegisterInfo;
 // The perfmon block defines a counter module that other blocks must import to support the generic global counter and
 // streaming counter functionality. Each counter is controlled by two select registers that can configure the whole
 // counter as either a 64-bit global counter, two 32-bit SPM counters, or four 16-bit SPM counters. All blocks should
-// duplicate this module exactly so we can use the CB registers as a template for all blocks.
+// duplicate this module exactly so we can use the DB registers as a template for all blocks. In practice they're all
+// not exact and some blocks mask off reserved bits at the end of the PERF_SEL fields. We use the DB because it has
+// all 10 bits.
 struct PerfmonSelect
 {
-    regCB_PERFCOUNTER0_SELECT  sel0;
-    regCB_PERFCOUNTER0_SELECT1 sel1;
+    regDB_PERFCOUNTER0_SELECT  sel0;
+    regDB_PERFCOUNTER0_SELECT1 sel1;
 };
 
 // Most blocks also define legacy global counter modules. They do not support SPM and only use one register.
 // There are two main variants: PERFCOUNTER#_SELECT and PERFCOUNTER#_CFG.
-typedef regCB_PERFCOUNTER3_SELECT LegacySelect;
+typedef regDB_PERFCOUNTER3_SELECT LegacySelect;
 typedef regGCEA_PERFCOUNTER0_CFG  LegacyCfg;
 
 // Cfg-style blocks also need to program a generic result control register when counters start and are sampled.
