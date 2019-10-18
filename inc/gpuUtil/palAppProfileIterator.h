@@ -27,8 +27,6 @@
 
 #include "pal.h"
 
-using namespace Util;
-
 namespace GpuUtil
 {
 
@@ -70,7 +68,7 @@ public:
     const char* GetName() const;
 
     /// Returns the size of data of current property.
-    uint32 GetDataSize()  const;
+    Util::uint32 GetDataSize()  const;
 
     /// Returns the pointer to the data of current property.
     const void* GetData() const;

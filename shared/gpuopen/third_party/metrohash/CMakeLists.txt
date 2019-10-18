@@ -8,7 +8,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(MetroHash VERSION 1.0.0 LANGUAGES CXX)
 
-amd_library(metrohash STATIC)
+add_library(metrohash STATIC)
 
 target_include_directories(metrohash PUBLIC SYSTEM src)
 

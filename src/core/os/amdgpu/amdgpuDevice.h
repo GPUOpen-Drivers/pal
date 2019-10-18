@@ -344,6 +344,31 @@ public:
        return Result::ErrorUnavailable;
     }
 
+    virtual Result DidRsFeatureSettingsChange(
+        uint32  rsFeatures,
+        uint32* pRsFeaturesChanged) override
+    {
+       PAL_NOT_IMPLEMENTED();
+       if (pRsFeaturesChanged != nullptr)
+       {
+           *pRsFeaturesChanged = 0;
+       }
+       return Result::ErrorUnavailable;
+    }
+
+    virtual Result GetRsFeatureGlobalSettings(
+        RsFeatureType  rsFeature,
+        RsFeatureInfo* pRsFeatureInfo) override
+    {
+       PAL_NOT_IMPLEMENTED();
+       if (pRsFeatureInfo != nullptr)
+       {
+           *pRsFeatureInfo = { };
+       }
+       return Result::ErrorUnavailable;
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 537
     virtual bool DidDelagSettingsChange() override
     {
        PAL_NOT_IMPLEMENTED();
@@ -377,6 +402,7 @@ public:
        }
        return Result::ErrorUnavailable;
     }
+#endif
 
     virtual Result UpdateChillStatus(
         uint64 lastChillActiveTimeStampUs) override

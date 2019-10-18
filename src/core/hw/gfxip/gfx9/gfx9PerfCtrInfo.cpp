@@ -81,7 +81,7 @@ enum Gfx10SpmGlobalBlockSelect : uint32
     Gfx10SpmGlobalBlockSelectChc        = 13,
     Gfx10SpmGlobalBlockSelectChcg       = 14,
     Gfx10SpmGlobalBlockSelectGpuvmAtcl2 = 15,
-    Gfx10SpmGlobalBlockSelectGpuvmVml2  = 16
+    Gfx10SpmGlobalBlockSelectGpuvmVml2  = 16,
 };
 
 enum Gfx10SpmSeBlockSelect : uint32
@@ -180,21 +180,24 @@ static void UpdateUmcchBlockInfo(
     else
     {
         SET_UMCCH_INSTANCE_REGS(Core,      0);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 1);
         SET_UMCCH_INSTANCE_REGS(Gfx10Core, 2);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 3);
         SET_UMCCH_INSTANCE_REGS(Gfx10Core, 4);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 5);
         SET_UMCCH_INSTANCE_REGS(Gfx10Core, 6);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 7);
         SET_UMCCH_INSTANCE_REGS(Gfx10Core, 8);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 9);
         SET_UMCCH_INSTANCE_REGS(Gfx10Core, 10);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 11);
         SET_UMCCH_INSTANCE_REGS(Gfx10Core, 12);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 13);
         SET_UMCCH_INSTANCE_REGS(Gfx10Core, 14);
-        SET_UMCCH_INSTANCE_REGS(Gfx10Core, 15);
+
+        {
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 1);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 3);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 5);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 7);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 9);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 11);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 13);
+            SET_UMCCH_INSTANCE_REGS(Gfx101, 15);
+        }
     }
 
     // We should have one UMC channel per SDP interface. We also should have a full set of registers for each of those
@@ -380,7 +383,6 @@ static void Gfx10UpdateAtcBlockInfo(
     PerfCounterBlockInfo* pInfo)
 {
     {
-
         pInfo->regAddr = { Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL, {
             { Gfx101::mmATC_PERFCOUNTER0_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },
             { Gfx101::mmATC_PERFCOUNTER1_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },
@@ -1284,8 +1286,6 @@ static void Gfx10InitBasicBlockInfo(
     // Sets the register addresses.
     Gfx10UpdateAtcBlockInfo(device, pAtc);
 
-    if (IsGfx101(device)
-       )
     {
         PerfCounterBlockInfo*const pAtcL2 = &pInfo->block[static_cast<uint32>(GpuBlock::AtcL2)];
         pAtcL2->distribution              = PerfCounterDistribution::GlobalBlock;
@@ -1297,11 +1297,12 @@ static void Gfx10InitBasicBlockInfo(
         pAtcL2->maxEventId                = 8;
         pAtcL2->isCfgStyle                = true;
 
-        pAtcL2->regAddr = { Nv10::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL, {
-            { Nv10::mmGC_ATC_L2_PERFCOUNTER0_CFG,    0,                                      Nv10::mmGC_ATC_L2_PERFCOUNTER_LO,  Nv10::mmGC_ATC_L2_PERFCOUNTER_HI  },
-            { Nv10::mmGC_ATC_L2_PERFCOUNTER1_CFG,    0,                                      Nv10::mmGC_ATC_L2_PERFCOUNTER_LO,  Nv10::mmGC_ATC_L2_PERFCOUNTER_HI  },
-            { Nv10::mmGC_ATC_L2_PERFCOUNTER2_SELECT, Nv10::mmGC_ATC_L2_PERFCOUNTER2_SELECT1, Nv10::mmGC_ATC_L2_PERFCOUNTER2_LO, Nv10::mmGC_ATC_L2_PERFCOUNTER2_HI },
+        pAtcL2->regAddr = { Gfx101::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL, {
+            { Gfx101::mmGC_ATC_L2_PERFCOUNTER0_CFG,    0,                                        Gfx101::mmGC_ATC_L2_PERFCOUNTER_LO,  Gfx101::mmGC_ATC_L2_PERFCOUNTER_HI  },
+            { Gfx101::mmGC_ATC_L2_PERFCOUNTER1_CFG,    0,                                        Gfx101::mmGC_ATC_L2_PERFCOUNTER_LO,  Gfx101::mmGC_ATC_L2_PERFCOUNTER_HI  },
+            { Gfx101::mmGC_ATC_L2_PERFCOUNTER2_SELECT, Gfx101::mmGC_ATC_L2_PERFCOUNTER2_SELECT1, Gfx101::mmGC_ATC_L2_PERFCOUNTER2_LO, Gfx101::mmGC_ATC_L2_PERFCOUNTER2_HI },
         }};
+
     }
 
     // Also called the UTCL2.
@@ -1401,8 +1402,7 @@ static void Gfx10InitBasicBlockInfo(
     }
 
     // The following blocks are new or renamed in gfx10.
-    if (IsGfx101(device)
-       )
+
     {
         PerfCounterBlockInfo*const pGe = &pInfo->block[static_cast<uint32>(GpuBlock::Ge)];
         pGe->distribution              = PerfCounterDistribution::GlobalBlock;
@@ -1414,18 +1414,18 @@ static void Gfx10InitBasicBlockInfo(
         pGe->maxEventId                = maxIds[GePerfcountSelectId];
 
         pGe->regAddr = { 0, {
-            { Nv10::mmGE_PERFCOUNTER0_SELECT,  Nv10::mmGE_PERFCOUNTER0_SELECT1, Nv10::mmGE_PERFCOUNTER0_LO,  Nv10::mmGE_PERFCOUNTER0_HI  },
-            { Nv10::mmGE_PERFCOUNTER1_SELECT,  Nv10::mmGE_PERFCOUNTER1_SELECT1, Nv10::mmGE_PERFCOUNTER1_LO,  Nv10::mmGE_PERFCOUNTER1_HI  },
-            { Nv10::mmGE_PERFCOUNTER2_SELECT,  Nv10::mmGE_PERFCOUNTER2_SELECT1, Nv10::mmGE_PERFCOUNTER2_LO,  Nv10::mmGE_PERFCOUNTER2_HI  },
-            { Nv10::mmGE_PERFCOUNTER3_SELECT,  Nv10::mmGE_PERFCOUNTER3_SELECT1, Nv10::mmGE_PERFCOUNTER3_LO,  Nv10::mmGE_PERFCOUNTER3_HI  },
-            { Nv10::mmGE_PERFCOUNTER4_SELECT,  0,                               Nv10::mmGE_PERFCOUNTER4_LO,  Nv10::mmGE_PERFCOUNTER4_HI  },
-            { Nv10::mmGE_PERFCOUNTER5_SELECT,  0,                               Nv10::mmGE_PERFCOUNTER5_LO,  Nv10::mmGE_PERFCOUNTER5_HI  },
-            { Nv10::mmGE_PERFCOUNTER6_SELECT,  0,                               Nv10::mmGE_PERFCOUNTER6_LO,  Nv10::mmGE_PERFCOUNTER6_HI  },
-            { Nv10::mmGE_PERFCOUNTER7_SELECT,  0,                               Nv10::mmGE_PERFCOUNTER7_LO,  Nv10::mmGE_PERFCOUNTER7_HI  },
-            { Nv10::mmGE_PERFCOUNTER8_SELECT,  0,                               Nv10::mmGE_PERFCOUNTER8_LO,  Nv10::mmGE_PERFCOUNTER8_HI  },
-            { Nv10::mmGE_PERFCOUNTER9_SELECT,  0,                               Nv10::mmGE_PERFCOUNTER9_LO,  Nv10::mmGE_PERFCOUNTER9_HI  },
-            { Nv10::mmGE_PERFCOUNTER10_SELECT, 0,                               Nv10::mmGE_PERFCOUNTER10_LO, Nv10::mmGE_PERFCOUNTER10_HI },
-            { Nv10::mmGE_PERFCOUNTER11_SELECT, 0,                               Nv10::mmGE_PERFCOUNTER11_LO, Nv10::mmGE_PERFCOUNTER11_HI },
+            { Gfx101::mmGE_PERFCOUNTER0_SELECT,  Gfx101::mmGE_PERFCOUNTER0_SELECT1, Gfx101::mmGE_PERFCOUNTER0_LO,  Gfx101::mmGE_PERFCOUNTER0_HI  },
+            { Gfx101::mmGE_PERFCOUNTER1_SELECT,  Gfx101::mmGE_PERFCOUNTER1_SELECT1, Gfx101::mmGE_PERFCOUNTER1_LO,  Gfx101::mmGE_PERFCOUNTER1_HI  },
+            { Gfx101::mmGE_PERFCOUNTER2_SELECT,  Gfx101::mmGE_PERFCOUNTER2_SELECT1, Gfx101::mmGE_PERFCOUNTER2_LO,  Gfx101::mmGE_PERFCOUNTER2_HI  },
+            { Gfx101::mmGE_PERFCOUNTER3_SELECT,  Gfx101::mmGE_PERFCOUNTER3_SELECT1, Gfx101::mmGE_PERFCOUNTER3_LO,  Gfx101::mmGE_PERFCOUNTER3_HI  },
+            { Gfx101::mmGE_PERFCOUNTER4_SELECT,  0,                                 Gfx101::mmGE_PERFCOUNTER4_LO,  Gfx101::mmGE_PERFCOUNTER4_HI  },
+            { Gfx101::mmGE_PERFCOUNTER5_SELECT,  0,                                 Gfx101::mmGE_PERFCOUNTER5_LO,  Gfx101::mmGE_PERFCOUNTER5_HI  },
+            { Gfx101::mmGE_PERFCOUNTER6_SELECT,  0,                                 Gfx101::mmGE_PERFCOUNTER6_LO,  Gfx101::mmGE_PERFCOUNTER6_HI  },
+            { Gfx101::mmGE_PERFCOUNTER7_SELECT,  0,                                 Gfx101::mmGE_PERFCOUNTER7_LO,  Gfx101::mmGE_PERFCOUNTER7_HI  },
+            { Gfx101::mmGE_PERFCOUNTER8_SELECT,  0,                                 Gfx101::mmGE_PERFCOUNTER8_LO,  Gfx101::mmGE_PERFCOUNTER8_HI  },
+            { Gfx101::mmGE_PERFCOUNTER9_SELECT,  0,                                 Gfx101::mmGE_PERFCOUNTER9_LO,  Gfx101::mmGE_PERFCOUNTER9_HI  },
+            { Gfx101::mmGE_PERFCOUNTER10_SELECT, 0,                                 Gfx101::mmGE_PERFCOUNTER10_LO, Gfx101::mmGE_PERFCOUNTER10_HI },
+            { Gfx101::mmGE_PERFCOUNTER11_SELECT, 0,                                 Gfx101::mmGE_PERFCOUNTER11_LO, Gfx101::mmGE_PERFCOUNTER11_HI },
         }};
     }
 
@@ -1583,7 +1583,7 @@ static void Gfx10InitBasicBlockInfo(
 
     // The GUS and the blocks that exist to service it should exist as a unit. They are present on all gfx10.1 ASICs.
     if (IsGfx101(device)
-    )
+        )
     {
         // The CHCG connects the CH to the GUS, similar to how the CHC connects the CH to the GL2.
         PerfCounterBlockInfo*const pChcg = &pInfo->block[static_cast<uint32>(GpuBlock::Chcg)];
@@ -1616,6 +1616,7 @@ static void Gfx10InitBasicBlockInfo(
         Gfx10UpdateGusBlockInfo(device, pGus);
 
     }
+
 }
 
 // =====================================================================================================================

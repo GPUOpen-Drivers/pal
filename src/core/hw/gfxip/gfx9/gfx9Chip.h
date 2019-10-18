@@ -138,7 +138,7 @@ using RegisterVector = Util::SparseVector<
     PERSISTENT_SPACE_START,        ShRegUsedRangeEnd,
     Gfx09::mmIA_MULTI_VGT_PARAM,   Gfx09::mmIA_MULTI_VGT_PARAM
     , Gfx10::mmGE_STEREO_CNTL,     Gfx10::mmGE_STEREO_CNTL,
-    Gfx101Plus::mmGE_USER_VGPR_EN, Gfx101Plus::mmGE_USER_VGPR_EN
+      Gfx10::mmGE_USER_VGPR_EN,    Gfx10::mmGE_USER_VGPR_EN
     >;
 
 // Number of SGPRs available to each wavefront.  Note that while only 104 SGPRs are available for use by a particular
@@ -625,9 +625,6 @@ enum class TexPerfModulation : uint32
     Default = 4,
     Max     = 7,
 };
-
-// Dword offset of mmXDMA_SLV_FLIP_PENDING.
-constexpr uint32  mmXdmaSlvFlipPending = 0x348C;
 
 } // Gfx9
 } // Pal

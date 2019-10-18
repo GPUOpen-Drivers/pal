@@ -336,10 +336,10 @@ protected:
         uint32  u32All;
     }  m_flags; // Flags describing properties of this Queue.
 
-    IfhMode          m_ifhMode;     // Cache IFH mode for this Queue to avoid looking up the IFH mode and IFH GPU
-                                    // mask settings on every submit.
+    IfhMode m_ifhMode;       // Cache IFH mode for this Queue to avoid looking up the IFH mode and IFH GPU mask
+                             // settings on every submit.
 
-    uint32      m_numReservedCu;    // The number of reserved CUs for RT queue
+    uint32  m_numReservedCu; // The number of reserved CUs for RT queue
 
 private:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518

@@ -281,7 +281,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
         m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
     }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
-    m_device.DescribeBindPipeline(this, params.apiPsoHash, params.pipelineBindPoint);
+    m_device.DescribeBindPipeline(this, params.pPipeline, params.apiPsoHash, params.pipelineBindPoint);
 #endif
 }
 

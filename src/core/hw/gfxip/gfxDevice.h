@@ -545,9 +545,10 @@ public:
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     void DescribeBindPipeline(
-        GfxCmdBuffer*               pCmdBuf,
-        uint64                      apiPsoHash,
-        PipelineBindPoint           bindPoint) const;
+        GfxCmdBuffer*     pCmdBuf,
+        const IPipeline*  pPipeline,
+        uint64            apiPsoHash,
+        PipelineBindPoint bindPoint) const;
 #endif
 
 #if PAL_BUILD_PM4_INSTRUMENTOR

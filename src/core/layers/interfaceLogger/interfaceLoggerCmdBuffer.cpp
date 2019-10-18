@@ -3100,6 +3100,29 @@ void CmdBuffer::CmdCommentString(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
+// =====================================================================================================================
+void CmdBuffer::CmdNop(
+    const void* pPayload,
+    uint32      payloadSize)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdNop;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdNop(pPayload, payloadSize);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("payload", pPayload);
+        pLogContext->KeyAndValue("payloadSize", payloadSize);
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
 
 // =====================================================================================================================
 uint32 CmdBuffer::CmdInsertExecutionMarker()

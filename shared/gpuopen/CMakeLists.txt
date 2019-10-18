@@ -39,8 +39,7 @@ if(NOT DEFINED GPUOPEN_LIB_NAME)
 endif()
 
 ### Create GpuOpen Library #############################################################################################
-
-    devdriver_um_library(${GPUOPEN_LIB_NAME} STATIC)
+devdriver_library(${GPUOPEN_LIB_NAME} STATIC)
 
 ### Cached Project Options #############################################################################################
 
@@ -69,7 +68,7 @@ add_subdirectory(third_party)
 
 target_link_libraries(${GPUOPEN_LIB_NAME} PRIVATE mpack)
 target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  rapidjson)
-target_link_libraries(${GPUOPEN_LIB_NAME} PRIVATE metrohash)
+target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  metrohash)
 
 ### Build Defines ######################################################################################################
 target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION})

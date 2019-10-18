@@ -273,9 +273,10 @@ static Result OpenAndInitializeDrmDevice(
 
     if (result == Result::Success)
     {
-        uint32 version = 0;
         // amdgpu_query_gpu_info will never fail only if it is initialized.
         procs.pfnAmdgpuQueryGpuInfo(deviceHandle, pGpuInfo);
+
+        uint32 version = 0;
         if (procs.pfnAmdgpuQueryFirmwareVersion(deviceHandle,
                                              AMDGPU_INFO_FW_GFX_ME,
                                              0,

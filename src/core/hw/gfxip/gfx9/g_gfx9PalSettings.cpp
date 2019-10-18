@@ -75,6 +75,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.useCompToSingle = 0x1f;
 
     m_settings.forceRegularClearCode = false;
+
     m_settings.forceGraphicsFillMemoryPath = false;
     m_settings.waitOnMetadataMipTail = false;
     m_settings.blendOptimizationsEnable = true;
@@ -197,7 +198,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.waMetaAliasingFixEnabled = true;
     m_settings.waForce256bCbFetch = false;
     m_settings.waCmaskImageSyncs = false;
-
     m_settings.waTessFactorBufferSizeLimitGeUtcl1Underflow = false;
 
     m_settings.waSdmaPreventCompressedSurfUse = false;
@@ -1783,7 +1783,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 1107941710;
+            component.settingsDataHash = 4255185902;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

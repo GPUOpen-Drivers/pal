@@ -103,7 +103,7 @@ Queue::Queue(
 {
     if (m_pDevice->Settings().ifhGpuMask & (0x1 << m_pDevice->ChipProperties().gpuIndex))
     {
-        m_ifhMode = m_pDevice->GetPublicSettings()->ifhMode;
+        m_ifhMode = m_pDevice->GetIfhMode();
     }
 
     m_flags.u32All = 0;

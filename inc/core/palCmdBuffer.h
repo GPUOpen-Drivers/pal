@@ -3487,7 +3487,7 @@ public:
         bool*                          pAddedGpuWork) = 0;
 
     /// Inserts a string embedded inside a NOP packet with a signature that is recognized by tools and can be printed
-    /// inside a command buffer disassembly. Note that this is a real NOP that willl really be submitted to the GPU
+    /// inside a command buffer disassembly. Note that this is a real NOP that will really be submitted to the GPU
     /// and executed (skipped over) by CP. It will be visible in kernel debugging as well as offline debug dumps.
     ///
     /// The maximum length of a string that may be embedded in the command buffer is currently 128 characters,
@@ -3496,6 +3496,16 @@ public:
     /// @param [in] pComment        Pointer to NUL-terminated string that will be inserted into the command buffer.
     virtual void CmdCommentString(
         const char* pComment) = 0;
+
+    /// Inserts the specified payload embedded inside a NOP packet. Note that this is a real NOP that will be submitted
+    /// to the GPU and executed (skipped over) by CP. It will be visible in kernel debugging as well as offline debug
+    /// dumps.
+    ///
+    /// @param [in] pPayload    Pointer to binary data to embed.
+    /// @param [in] payloadSize Size of the payload, in DWORDs.
+    virtual void CmdNop(
+        const void* pPayload,
+        uint32      payloadSize) = 0;
 
     /// Inserts a bottom-of-pipe timestamp and embedded payload inside of a NOP packet that allows crash-dump analysis
     /// tools to identify how far command buffer execution has progressed before a crash or hang.

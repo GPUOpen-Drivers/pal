@@ -162,9 +162,7 @@ static uint32 GetFrameCountRegister(
 
         if (engineProps.cpUcodeVersion >= 31)
         {
-            static constexpr uint32 Mp1SmnFpsCnt = 0x162C4;
-
-            frameCountRegister = Mp1SmnFpsCnt;
+            frameCountRegister = Vg10_Vg12::mmMP1_SMN_FPS_CNT;
         }
     }
 
@@ -1855,7 +1853,8 @@ void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
 {
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
     const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
-    const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(pGfxDevice->Parent()->ChipProperties().gfxLevel);
+    const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(pGfxDevice->Parent()->ChipProperties().gfxLevel,
+                                                          &pGfxDevice->Settings());
 
     for (uint32 idx = 0; idx < count; ++idx)
     {
@@ -1901,7 +1900,8 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
     const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
     const auto*const pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
-    const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(pPalDevice->ChipProperties().gfxLevel);
+    const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(pPalDevice->ChipProperties().gfxLevel,
+                                                              &pGfxDevice->Settings());
 
     for (uint32 idx = 0; idx < count; ++idx)
     {
@@ -2251,7 +2251,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pImgViewInfo != nullptr) && (count > 0));
     const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
     const auto&      chipProp   = pGfxDevice->Parent()->ChipProperties();
-    const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(chipProp.gfxLevel);
+    const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(chipProp.gfxLevel, &pGfxDevice->Settings());
 
     ImageSrd* pSrds = static_cast<ImageSrd*>(pOut);
 
@@ -2745,7 +2745,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pImgViewInfo != nullptr) && (count > 0));
     const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
     const auto&      chipProps  = pPalDevice->ChipProperties();
-    const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel);
+    const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel, &GetGfx9Settings(*pPalDevice));
     const auto&      settings   = GetGfx9Settings(*pPalDevice);
 
     ImageSrd* pSrds = static_cast<ImageSrd*>(pOut);
@@ -3156,12 +3156,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         // Fill the unused 4 bits of word6 with sample pattern index
         srd._reserved_206_203 = viewInfo.samplePatternIdx;
 
-        if (IsGfx101Plus(*pPalDevice))
-        {
-            //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
-            //   Only used with image ops (sample/load)
-            srd.gfx101Plus.prt_default = 0;
-        }
+        //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
+        //   Only used with image ops (sample/load)
+        srd.prt_default = 0;
 
         memcpy(&pSrds[i], &srd, sizeof(srd));
     }
@@ -3874,6 +3871,10 @@ void InitializeGpuChipProperties(
         1;
     pInfo->gfx9.supportDoubleRate16BitInstructions = 1;
 
+    // All gfx9+ hardware can support subgroup/device clocks
+    pInfo->gfx9.supportShaderSubgroupClock = 1;
+    pInfo->gfx9.supportShaderDeviceClock   = 1;
+
     if (
         IsGfx10(pInfo->gfxLevel) ||
         (cpUcodeVersion  >= UcodeVersionWithDumpOffsetSupport))
@@ -4083,12 +4084,8 @@ void InitializeGpuChipProperties(
         // Programming of the various wave-size parameters started with GFX10 parts
         pInfo->gfx9.supportPerShaderStageWaveSize = 1;
         pInfo->gfx9.supportCustomWaveBreakSize    = 1;
-
         pInfo->gfx9.support1xMsaaSampleLocations  = 1;
-
-        {
-            pInfo->gfx9.supportSpiPrefPriority = 1;
-        }
+        pInfo->gfx9.supportSpiPrefPriority        = 1;
     }
 
     pInfo->nullSrds.pNullBufferView = &nullBufferView;
@@ -4322,10 +4319,8 @@ uint32  Device::GetDbDfsmControl() const
     const Gfx9PalSettings& gfx9Settings  = GetGfx9Settings(*m_pParent);
     regDB_DFSM_CONTROL     dbDfsmControl = {};
 
-    const bool disableDfsm = gfx9Settings.disableDfsm;
-
     // Force off DFSM if requested by the settings
-    dbDfsmControl.bits.PUNCHOUT_MODE = (disableDfsm ? DfsmPunchoutModeForceOff : DfsmPunchoutModeAuto);
+    dbDfsmControl.bits.PUNCHOUT_MODE = (gfx9Settings.disableDfsm ? DfsmPunchoutModeForceOff : DfsmPunchoutModeAuto);
 
     // Setup POPS as requested by the settings as well.
     dbDfsmControl.bits.POPS_DRAIN_PS_ON_OVERLAP = gfx9Settings.drainPsOnOverlap;
@@ -4692,12 +4687,12 @@ ColorFormat Device::GetHwColorFmt(
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
-        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel);
+        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &Settings());
         hwColorFmt = HwColorFmt(pFmtInfo, format.format);
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel);
+        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel, &Settings());
         hwColorFmt = HwColorFmt(pFmtInfo, format.format);
     }
 
@@ -4715,12 +4710,12 @@ StencilFormat Device::GetHwStencilFmt(
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
-        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel);
+        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &Settings());
         hwStencilFmt = HwStencilFmt(pFmtInfo, format);
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel);
+        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel, &Settings());
         hwStencilFmt = HwStencilFmt(pFmtInfo, format);
     }
 
@@ -4738,13 +4733,13 @@ ZFormat Device::GetHwZFmt(
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
-        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel);
+        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &Settings());
 
         zFmt = HwZFmt(pFmtInfo, format);
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel);
+        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel, &Settings());
 
         zFmt = HwZFmt(pFmtInfo, format);
     }

@@ -146,6 +146,43 @@
       "Description": "Specifies the number of RBs used in a graphics copy to nonlocal destinations.  Reducing the number of RBs can increase PCIe throughput."
     },
     {
+      "ValidValues": {
+        "IsEnum": true,
+        "IsExclusive": true,
+        "Values": [
+          {
+            "Name": "IfhModeDisabled",
+            "Value": 0,
+            "Description": "IFH is disabled"
+          },
+          {
+            "Name": "IfhModePal",
+            "Value": 1,
+            "Description": "IFH is implemented in PAL (kernel is not called)"
+          },
+          {
+            "Name": "IfhModeKmd",
+            "Value": 2,
+            "Description": "IFH is implemented in the kernel"
+          }
+        ],
+        "Name": "IfhMode",
+        "Description": "IFH Mode setting values."
+      },
+      "Name": "IFH",
+      "Tags": [
+        "General",
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": "IfhModeDisabled"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "enum",
+      "VariableName": "ifh",
+      "Description": "Controls Infinitely Fast Hardware (IFH) mode. See IfhGpuMask for which ASICs are affected (default all)"
+    },
+    {
       "Name": "IdleAfterSubmitGpuMask",
       "Tags": [
         "General",
@@ -1832,6 +1869,38 @@
       "Type": "bool",
       "VariableName": "presentViaOglRuntime",
       "Description": "When true window mode present path will go through OpenGL runtime. When false window mode present path still go legacy DWM API path."
+    },
+    {
+      "Name": "DebugForceResourceAlignment",
+      "Tags": [
+        "Debug",
+        "Resource Settings",
+        "Bringup",
+        "Emulation"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "gpusize",
+      "VariableName": "debugForceSurfaceAlignment",
+      "Description": "Align all resources to the max(originalAlignment, specifiedAlignment). This setting is in units of bytes. This is a debug setting and strange behavior (e.g. poor performance, out of memory) may occur in some applications."
+    },
+    {
+      "Name": "DebugForceResourceAdditionalPadding",
+      "Tags": [
+        "Debug",
+        "Resource Settings",
+        "Bringup",
+        "Emulation"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "gpusize",
+      "VariableName": "debugForceResourceAdditionalPadding",
+      "Description": "Add the additional padding to resources' memory requirements. This setting is in units of bytes. This is a debug setting and strange behavior (e.g. poor performance, out of memory) may occur in some applications."
     }
   ],
   "DefinedConstants": [

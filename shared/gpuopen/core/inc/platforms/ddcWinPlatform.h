@@ -121,6 +121,7 @@ namespace DevDriver
         typedef HANDLE EventStorage;
         typedef HANDLE ThreadHandle;
         typedef DWORD  ThreadReturnType;
+        typedef HMODULE LibraryHandle;
 
         constexpr ThreadHandle kInvalidThreadHandle = NULL;
 

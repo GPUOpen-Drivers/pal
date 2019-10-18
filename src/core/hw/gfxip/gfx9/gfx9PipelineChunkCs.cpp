@@ -57,15 +57,16 @@ constexpr uint32 BaseLoadedShRegCount =
 
 // =====================================================================================================================
 PipelineChunkCs::PipelineChunkCs(
-    const Device& device,
-    PerfDataInfo* pPerfDataInfo)
+    const Device&    device,
+    ShaderStageInfo* pStageInfo,
+    PerfDataInfo*    pPerfDataInfo)
     :
     m_device(device),
-    m_pCsPerfDataInfo(pPerfDataInfo)
+    m_pCsPerfDataInfo(pPerfDataInfo),
+    m_pStageInfo(pStageInfo)
 {
     memset(&m_commands, 0, sizeof(m_commands));
-    memset(&m_stageInfo, 0, sizeof(m_stageInfo));
-    m_stageInfo.stageId = Abi::HardwareStage::Cs;
+    m_pStageInfo->stageId = Abi::HardwareStage::Cs;
 }
 
 // =====================================================================================================================
@@ -81,7 +82,7 @@ uint32 PipelineChunkCs::EarlyInit()
     if (settings.enableLoadIndexForObjectBinds)
     {
         // Add one register if the GPU supports SPP.
-        count += (BaseLoadedShRegCount + chipProps.gfx9.supportSpp);
+        count += (BaseLoadedShRegCount + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
 
         if (IsGfx10(chipProps.gfxLevel))
         {
@@ -130,7 +131,7 @@ void PipelineChunkCs::LateInit(
     Abi::PipelineSymbolEntry csProgram  = { };
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsMainEntry, &csProgram))
     {
-        m_stageInfo.codeLength    = static_cast<size_t>(csProgram.size);
+        m_pStageInfo->codeLength  = static_cast<size_t>(csProgram.size);
         const gpusize csProgramVa = (csProgram.value + pUploader->CodeGpuVirtAddr());
         PAL_ASSERT(IsPow2Aligned(csProgramVa, 256u));
 

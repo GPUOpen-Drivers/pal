@@ -43,6 +43,18 @@ namespace Pal
 // GPU memory alignment for shader programs.
 constexpr size_t GpuMemByteAlign = 256;
 
+constexpr Abi::ApiShaderType PalToAbiShaderType[] =
+{
+    Abi::ApiShaderType::Cs, // ShaderType::Cs
+    Abi::ApiShaderType::Vs, // ShaderType::Vs
+    Abi::ApiShaderType::Hs, // ShaderType::Hs
+    Abi::ApiShaderType::Ds, // ShaderType::Ds
+    Abi::ApiShaderType::Gs, // ShaderType::Gs
+    Abi::ApiShaderType::Ps, // ShaderType::Ps
+};
+static_assert(ArrayLen(PalToAbiShaderType) == NumShaderTypes,
+              "PalToAbiShaderType[] array is incorrectly sized!");
+
 // =====================================================================================================================
 Pipeline::Pipeline(
     Device* pDevice,
@@ -214,12 +226,12 @@ void Pipeline::ExtractPipelineInfo(
 
     for (uint32 s = static_cast<uint32>(firstShader); s <= static_cast<uint32>(lastShader); ++s)
     {
-        Abi::ApiShaderType shaderType = static_cast<Abi::ApiShaderType>(s);
+        Abi::ApiShaderType shaderType = PalToAbiShaderType[s];
 
-        const auto& shaderMetadata = metadata.pipeline.shader[s];
+        const auto& shaderMetadata = metadata.pipeline.shader[static_cast<uint32>(shaderType)];
 
         m_info.shader[s].hash = { shaderMetadata.apiShaderHash[0], shaderMetadata.apiShaderHash[1] };
-        m_apiHwMapping.apiShaders[s] = static_cast<uint8>(shaderMetadata.hardwareMapping);
+        m_apiHwMapping.apiShaders[static_cast<uint32>(shaderType)] = static_cast<uint8>(shaderMetadata.hardwareMapping);
     }
 }
 

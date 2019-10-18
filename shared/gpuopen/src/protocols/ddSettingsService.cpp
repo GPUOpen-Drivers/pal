@@ -105,6 +105,10 @@ Result SettingsService::HandleRequest(
         {
             result = HandleGetComponents(pContext);
         }
+        else if (strcmp(pCommandArg, "components2") == 0)
+        {
+            result = HandleGetComponents2(pContext);
+        }
         else if (strcmp(pCommandArg, "settingsDataHash") == 0)
         {
             result = HandleGetSettingDataHash(pContext);
@@ -151,6 +155,38 @@ Result SettingsService::HandleGetComponents(
         for (const auto& entry : m_registeredComponents)
         {
             pWriter->Value(entry.value.componentName);
+        }
+
+        pWriter->EndList();
+        pWriter->EndMap();
+        result = pWriter->End();
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Returns the list of registered settings components and their dataHashes
+Result SettingsService::HandleGetComponents2(
+    IURIRequestContext* pContext)
+{
+    Platform::LockGuard<Platform::Mutex> componentsLock(m_componentsMutex);
+
+    IStructuredWriter* pWriter;
+    Result result = pContext->BeginJsonResponse(&pWriter);
+    if (result == Result::Success)
+    {
+        pWriter->BeginMap();
+        pWriter->KeyAndBeginList(Components_ComponentsKey);
+
+        for (const auto& entry : m_registeredComponents)
+        {
+            pWriter->BeginMap();
+            {
+                pWriter->KeyAndValue("name",     entry.value.componentName);
+                pWriter->KeyAndValue("dataHash", entry.value.settingsDataHash);
+            }
+            pWriter->EndMap();
         }
 
         pWriter->EndList();

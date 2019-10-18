@@ -504,6 +504,7 @@ public:
         void*                pBuffer) const;
 
     size_t BuildCommentString(const char* pComment, void* pBuffer) const;
+    size_t BuildNopPayload(const void* pPayload, uint32 payloadSize, void* pBuffer) const;
 
     void BuildPipelinePrefetchPm4(const PipelineUploader& uploader, PipelinePrefetchPm4* pOutput) const;
 

@@ -280,7 +280,7 @@ namespace DevDriver
         ///                         will take (buckets * DD_CACHE_LINE_BYTES) bytes.
         /// @param [in] pAllocator The allocator that will allocate memory if required.
         explicit HashBase(const AllocCb& allocCb) :
-            m_hashFunc(HashFunc(Platform::ConstLog2(kPaddedNumBuckets))),
+            m_hashFunc(HashFunc()),
             m_equalFunc(EqualFunc()),
             m_allocCb(allocCb),
             m_numEntries(0),
@@ -288,6 +288,12 @@ namespace DevDriver
             m_curBlock(-1),
             m_buckets()
         {
+            // We need to make sure the caller has passed an acceptable type for the key.
+            // The point of the key is to provide some data we can use to calculate a hash. Empty types don't have data that
+            // uniquely identifies them when compared to another copy of that type. Unions are combinations of multiple types
+            // so we can't be sure that the data inside them will be enough to uniquely identify one variant versus another.
+            static_assert((std::is_empty<Key>::value == false), "The hash key type must not be an empty class or structure");
+            static_assert((std::is_union<Key>::value == false), "The hash key type must not be a union");
         }
 
         ///// @internal Constructor
@@ -296,7 +302,7 @@ namespace DevDriver
         /////                         will take (buckets * DD_CACHE_LINE_BYTES) bytes.
         ///// @param [in] pAllocator The allocator that will allocate memory if required.
         HashBase(HashBase&& rhs) :
-            m_hashFunc(HashFunc(Platform::ConstLog2(kPaddedNumBuckets))),
+            m_hashFunc(HashFunc()),
             m_equalFunc(EqualFunc()),
             m_allocCb(rhs.m_allocCb),
             m_numEntries(Platform::Exchange(rhs.m_numEntries, 0)),
@@ -361,7 +367,7 @@ namespace DevDriver
         BaseIterator FindIterator(const Key& key) const
         {
             // Get the bucket base address.
-            const uint32 bucket = m_hashFunc(&key) & (kPaddedNumBuckets - 1);
+            const uint32 bucket = m_hashFunc(key) & (kPaddedNumBuckets - 1);
             Bucket* pBucket = m_buckets[bucket];
 
             while (pBucket != nullptr)
@@ -395,7 +401,7 @@ namespace DevDriver
                               bool*      pExisted = nullptr)  // [out] True if a matching key was found.
         {
             // Get the bucket base address.
-            const uint32 bucket = m_hashFunc(&key) & (kPaddedNumBuckets - 1);
+            const uint32 bucket = m_hashFunc(key) & (kPaddedNumBuckets - 1);
             Bucket** ppBucket = &m_buckets[bucket];
             bool existed = false;
 
@@ -628,7 +634,7 @@ namespace DevDriver
         /// @returns Pointer to the bucket corresponding to the specified key.
         Bucket* FindBucket(const Key& key) const
         {
-            const uint32 bucket = m_hashFunc(&key) & (kPaddedNumBuckets - 1);
+            const uint32 bucket = m_hashFunc(key) & (kPaddedNumBuckets - 1);
             return m_buckets[bucket];
         }
 

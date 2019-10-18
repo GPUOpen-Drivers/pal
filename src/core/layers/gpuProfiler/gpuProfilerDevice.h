@@ -55,8 +55,9 @@ struct PerfCounter
     GpuBlock block;
     uint32   eventId;
     uint32   instanceId;
-    char     name[EventInstanceNameSize];
     uint32   instanceCount;
+    uint32   optionalData; // Block-specific optional data from the config file.
+    char     name[EventInstanceNameSize];
 };
 
 // =====================================================================================================================

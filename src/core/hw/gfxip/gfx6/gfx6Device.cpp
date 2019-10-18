@@ -2781,6 +2781,11 @@ void InitializeGpuChipProperties(
         pInfo->gfx6.supportOutOfOrderPrimitives = 1;
     }
 
+    // All hardware can support subgroup shader clock
+    // GFX8+ can only support the device clock
+    pInfo->gfx6.supportShaderSubgroupClock = 1;
+    pInfo->gfx6.supportShaderDeviceClock   = (pInfo->gfxLevel >= GfxIpLevel::GfxIp8) ? 1 : 0;
+
     pInfo->gfxip.numSlotsPerEvent = 1;
 
     switch (pInfo->familyId)

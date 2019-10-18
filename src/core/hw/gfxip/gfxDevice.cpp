@@ -571,12 +571,14 @@ void GfxDevice::DescribeDraw(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
 void GfxDevice::DescribeBindPipeline(
     GfxCmdBuffer*     pCmdBuf,
+    const IPipeline*  pPipeline,
     uint64            apiPsoHash,
     PipelineBindPoint bindPoint
     ) const
 {
     Developer::BindPipelineData data = {};
 
+    data.pPipeline  = pPipeline;
     data.pCmdBuffer = pCmdBuf;
     data.apiPsoHash = apiPsoHash;
     data.bindPoint  = bindPoint;

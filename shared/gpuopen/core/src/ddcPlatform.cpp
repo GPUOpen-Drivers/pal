@@ -67,15 +67,30 @@ namespace DevDriver
 
             va_end(args);
 
-            // A negative value means that some error occured
-            DD_WARN(ret >= 0);
-            // Otherwise, ret is the ideal length of the formatted string. If it's longer than our buffer, we truncate.
-            DD_WARN(static_cast<size_t>(ret) < dstSize);
-
-            // If the return value looks like a valid length, add one to account for a NULL byte.
-            if (ret > 0)
+            if (ret >= 0)
             {
-                ret += 1;
+                // ret is the minimum size of the buffer required to hold this formatted string - including a NULL terminator
+                if (static_cast<size_t>(ret) > dstSize)
+                {
+                    // It's common practice to call this function with an empty buffer to query the size.
+                    // This warning is just to help track down bugs, so silence it when the buffer in question is empty.
+                    if (dstSize != 0)
+                    {
+                        DD_PRINT(LogLevel::Warn,
+                            "Snprintf truncating output from %zu to %zu",
+                            ret,
+                            dstSize
+                        );
+                    }
+                }
+            }
+            else
+            {
+                // A negative value means that some error occurred
+                DD_PRINT(LogLevel::Warn,
+                    "An unknown io error occured in Vsnprintf: %d (0x%x)",
+                    ret,
+                    ret);
             }
 
             return ret;
@@ -145,9 +160,6 @@ namespace DevDriver
     }
 
     // The minimum alignment that system allocators are expected to adhere to.
-    // For gcc 4.8, max_align_t is still a structure instead of a member of std. Using namespace
-    // to make it work both gcc older than 4.8 and newer.
-    using namespace std;
     constexpr size_t kMinSystemAlignment = alignof(max_align_t);
 
     void* AllocCb::Alloc(size_t size, size_t alignment, bool zero) const

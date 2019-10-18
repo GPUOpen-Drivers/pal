@@ -201,6 +201,11 @@ Result Image::ValidateCreateInfo(
             {
                 ret = Result::ErrorInvalidSampleCount;
             }
+            // Shader writes illegal for MSAA images with DepthStencil aspect
+            else if (depthStencilUsage && shaderWriteUsage)
+            {
+                ret = Result::Unsupported;
+            }
         }
     }
 
@@ -861,8 +866,9 @@ void Image::GetGpuMemoryRequirements(
     GpuMemoryRequirements* pMemReqs     // [in,out] returns with populated 'heap' info
     ) const
 {
-    pMemReqs->size      = m_gpuMemSize;
-    pMemReqs->alignment = m_gpuMemAlignment;
+    const auto& settings = m_pDevice->Settings();
+    pMemReqs->size      = m_gpuMemSize + settings.debugForceResourceAdditionalPadding;
+    pMemReqs->alignment = Max(m_gpuMemAlignment, settings.debugForceSurfaceAlignment);
 
     if (m_createInfo.flags.shareable)
     {

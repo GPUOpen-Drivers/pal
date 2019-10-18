@@ -454,21 +454,25 @@ Result Device::ExtractPerfCounterInfo(
             }
             else
             {
-                char blockName[BlockNameSize];
-                char instanceName[InstanceNameSize];
-                char eventName[EventNameSize];
-                uint32 eventId;
+                char  blockName[BlockNameSize];
+                char  instanceName[InstanceNameSize];
+                char  eventName[EventNameSize];
+                int32 eventId;
+                int32 optData;
 
-                // Read a line of the form "BlockName EventId InstanceName CounterName".
+                // Read a line of the form "BlockName EventId InstanceName CounterName OptionalData".
                 const int scanfRet = sscanf(&buf[0],
-                                            "%31s %u %7s %127s",
+                                            "%31s %i %7s %127s %i",
                                             &blockName[0],
                                             &eventId,
                                             &instanceName[0],
-                                            &eventName[0]);
+                                            &eventName[0],
+                                            &optData);
 
-                if (scanfRet == 4)
+                if (scanfRet >= 4)
                 {
+                    pPerfCounters[counterIdx].optionalData = (scanfRet == 5) ? optData : 0;
+
                     const GpuBlock block = StringToGpuBlock(&blockName[0]);
                     const uint32   blockIdx = static_cast<uint32>(block);
 
@@ -682,7 +686,7 @@ Result Device::CountPerfCounters(
         {
             constexpr uint32 BlockNameSize    = 32;
             char blockName[BlockNameSize];
-            uint32 eventId;
+            int32 eventId;
             constexpr uint32 InstanceNameSize = 8;
             char instanceName[InstanceNameSize];
             constexpr uint32 EventNameSize    = 128;
@@ -690,7 +694,7 @@ Result Device::CountPerfCounters(
 
             // Read a line of the form "BlockName EventId InstanceName CounterName".
             const int scanfRet = sscanf(&buf[0],
-                                        "%31s %u %7s %127s",
+                                        "%31s %i %7s %127s",
                                         &blockName[0],
                                         &eventId,
                                         &instanceName[0],
@@ -812,7 +816,7 @@ GpuBlock StringToGpuBlock(
         "EA",      // GpuBlock::Ea
         "RPB",     // GpuBlock::Rpb
         "RMI",     // GpuBlock::Rmi
-        "UMCCH",    // GpuBlock::Umcch
+        "UMCCH",   // GpuBlock::Umcch
         "GE",      // GpuBlock::Ge
         "GL1A",    // GpuBlock::GL1A
         "GL1C",    // GpuBlock::GL1C
@@ -825,7 +829,7 @@ GpuBlock StringToGpuBlock(
         "GUS",     // GpuBlock::Gus
         "GCR",     // GpuBlock::Gcr
         "PH",      // GpuBlock::Ph
-#if PAL_BUILD_GFX10 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION > 485)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION > 485
         "UTCL1",   // GpuBlock::UtcL1
 #endif
     };

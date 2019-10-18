@@ -26,6 +26,7 @@
 #pragma once
 
 #include "palCmdBuffer.h"
+#include "palPipeline.h"
 #include "palLinearAllocator.h"
 #include "core/layers/decorators.h"
 #include "core/layers/functionIds.h"
@@ -71,6 +72,21 @@ union CmdBufferLoggerSingleStep
         uint32 reserved               : 22;
     };
     uint32 u32All;
+};
+
+// =====================================================================================================================
+// Draw/Dispatch info used by PktPlay
+struct DrawDispatchInfo
+{
+    uint32     id;
+    uint32     drawDispatchType;
+    ShaderHash hashVs;
+    ShaderHash hashHs;
+    ShaderHash hashDs;
+    ShaderHash hashGs;
+    ShaderHash hashPs;
+    ShaderHash hashCs;
+    uint32     unused[34];
 };
 
 class Device;
@@ -472,6 +488,7 @@ public:
         uint32 stateFlags) override;
     virtual void CmdCommentString(
         const char* pComment) override;
+    virtual void CmdNop(const void* pPayload, uint32 payloadSize) override;
     virtual uint32 CmdInsertExecutionMarker() override;
     virtual void CmdStartGpuProfilerLogging() override;
     virtual void CmdStopGpuProfilerLogging() override;
@@ -530,15 +547,18 @@ public:
     virtual void Destroy() override;
 
     void DescribeBarrier(
-        const Developer::BarrierData* pData);
+        const Developer::BarrierData* pData,
+        const char*                   pDescription = nullptr);
 
     void HandleDrawDispatch(
-        bool isDraw);
+        Developer::DrawDispatchType drawDispatchType);
 
     Util::VirtualLinearAllocator* Allocator()    { return &m_allocator;   }
     CmdBufferLoggerAnnotations    Annotations()  { return m_annotations;  }
     const Device*                 LoggerDevice() { return m_pDevice;      }
     IGpuMemory*                   TimestampMem() { return m_pTimestamp;   }
+
+    void UpdateDrawDispatchInfo(const Pal::IPipeline* pPipeline, PipelineBindPoint bindPoint);
 
 private:
     virtual ~CmdBuffer() { }
@@ -615,6 +635,9 @@ private:
     void AddTimestamp();
     void AddSingleStepBarrier();
 
+    void AddDrawDispatchInfo(
+        Developer::DrawDispatchType drawDispatchType);
+
     Device*const                 m_pDevice;
     Util::VirtualLinearAllocator m_allocator;       // Temp storage for argument translation.
     CmdBufferLoggerAnnotations   m_annotations;
@@ -622,6 +645,9 @@ private:
     IGpuMemory*                  m_pTimestamp;
     gpusize                      m_timestampAddr;
     uint32                       m_counter;
+    uint32                       m_drawDispatchCount;
+    DrawDispatchInfo             m_drawDispatchInfo;
+    bool                         m_embedDrawDispatchInfo;
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);

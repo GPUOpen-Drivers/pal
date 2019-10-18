@@ -57,7 +57,8 @@ struct Gfx10ChipSettings
         UINT_32 supportRbPlus       : 1;
         UINT_32 dsMipmapHtileFix    : 1;
         UINT_32 dccUnsup3DSwDis     : 1;
-        UINT_32 reserved2           : 28;
+        UINT_32                     : 1;
+        UINT_32 reserved2           : 27;
     };
 };
 

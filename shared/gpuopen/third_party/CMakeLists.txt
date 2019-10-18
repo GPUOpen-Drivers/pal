@@ -1,7 +1,43 @@
 cmake_minimum_required(VERSION 3.5)
 project(DevDriverThirdParty CXX)
 
-# amd_third_party_library: Add a third party library.
+
+# We cannot fix warnings in third-party code, so we silence them instead.
+# This should never be used on code you can easily modify.
+function(dd_third_party_disable_warnings name)
+
+    get_target_property(target_type ${name} TYPE)
+    if (${target_type} STREQUAL "INTERFACE_LIBRARY")
+        return()
+    endif()
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+
+        # [GCC] Options to Request or Suppress Warnings
+        #   https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html
+        target_compile_options(${name}
+            PRIVATE
+                -w
+        )
+
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+
+        # [MSVC] Warning Level
+        #   https://docs.microsoft.com/en-us/cpp/build/reference/compiler-option-warning-level
+        target_compile_options(${name}
+            PRIVATE
+                /w
+        )
+
+    else()
+
+        message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER_ID} is not supported!")
+
+    endif()
+
+endfunction()
+
+# dd_third_party_add_lib: Add a third party library.
 #   This function is a no-op if the target in question already exists,
 #   otherwise it creates it by calling `add_subdirectory()` on the directory specified with DIRECTORY, or by TARGET.
 #
@@ -10,12 +46,12 @@ project(DevDriverThirdParty CXX)
 #       [DIRECTORY directory] Directory to pass to `add_subdirectory()`. If omitted, defaults to value of TARGET
 #
 #   Basic Usage:
-#       amd_third_party_library(TARGET mpack)
+#       dd_third_party_add_lib(TARGET mpack)
 #
 #   Advanced Usage:
-#       amd_third_party_library(TARGET mpack DIRECTORY git-submodules/mpack)
+#       dd_third_party_add_lib(TARGET mpack DIRECTORY git-submodules/mpack)
 #
-function(amd_third_party_library)
+function(dd_third_party_add_lib)
 
     ## This parses the arguments into the format we expect.
     ## For comprehensive documentation, see the CMake Docs:
@@ -52,7 +88,17 @@ function(amd_third_party_library)
 
     if (TARGET ${third_party_TARGET})
 
+        amd_target_options(${third_party_TARGET})
+        dd_third_party_disable_warnings(${third_party_TARGET})
+
+        # Only libraries need PIC enabled
         get_target_property(target_type ${third_party_TARGET} TYPE)
+        if (target_type STREQUAL "STATIC_LIBRARY")
+
+            set_target_properties(${third_party_TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+        endif()
+
         # INTERFACE_LIBRARY targets have restricted properties, so we skip them.
         if (NOT target_type STREQUAL "INTERFACE_LIBRARY")
 
@@ -75,7 +121,7 @@ endfunction()
 # WA: Check that this target hasn't already been added (Only until we have a global CMake context)
 if (NOT TARGET mpack)
 
-    amd_third_party_library(TARGET mpack)
+    dd_third_party_add_lib(TARGET mpack)
 
 endif()
 
@@ -83,7 +129,7 @@ endif()
 # WA: Check that this target hasn't already been added (Only until we have a global CMake context)
 if (NOT TARGET rapidjson)
 
-    amd_third_party_library(TARGET rapidjson)
+    dd_third_party_add_lib(TARGET rapidjson)
 
 endif()
 
@@ -91,7 +137,7 @@ endif()
 # WA: Check that this target hasn't already been added (Only until we have a global CMake context)
 if (NOT TARGET metrohash)
 
-    amd_third_party_library(TARGET metrohash)
+    dd_third_party_add_lib(TARGET metrohash)
 
 endif()
 
@@ -99,13 +145,13 @@ endif()
 # WA: Until we have a global CMake context, we need to check that this target hasn't been added already.
 if (NOT TARGET lz4)
 
-    amd_third_party_library(TARGET lz4)
+    dd_third_party_add_lib(TARGET lz4)
 
 endif()
 
 ### C++ Unit Tests ###
 if (NOT TARGET gtest)
 
-    amd_third_party_library(TARGET gtest)
+    dd_third_party_add_lib(TARGET gtest)
 
 endif()

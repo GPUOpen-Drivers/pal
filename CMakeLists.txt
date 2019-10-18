@@ -153,13 +153,19 @@ endif()
 option(PAL_ENABLE_DEVDRIVER_USAGE "Enables developer driver suppport." ON)
 
 ### Generator Dependencies #############################################################################################
-find_package(PythonInterp 3)
-if(NOT PYTHONINTERP_FOUND)
-    if(UNIX)
-        message(FATAL_ERROR "Python 3 is needed to generate some source files.")
+if(${CMAKE_VERSION} VERSION_GREATER "3.12")
+    # If we have a newer cmake, the new FindPython scripts are much more reliable
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    set(PYTHON_CMD ${Python3_EXECUTABLE})
+else()
+    find_package(PythonInterp 3)
+    if(NOT PYTHONINTERP_FOUND)
+        if(UNIX)
+            message(FATAL_ERROR "Python 3 is needed to generate some source files.")
+        endif()
     endif()
-endif()
-set(PYTHON_CMD ${PYTHON_EXECUTABLE})
+    set(PYTHON_CMD ${PYTHON_EXECUTABLE})
+endif() # cmake version
 
 find_package(Perl 5)
 if(NOT PERL_FOUND)

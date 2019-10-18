@@ -393,29 +393,17 @@ Result PerfExperiment::AddCounter(
                         // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
                         PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
 
-                        const uint32 simdMask = (info.optionFlags.sqSimdMask != 0)
-                                        ? (info.optionValues.sqSimdMask & DefaultSqSelectSimdMask)
-                                        : DefaultSqSelectSimdMask;
-
                         m_select.sqg[info.instance].perfmonInUse[idx]           = true;
                         m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
-                        m_select.sqg[info.instance].perfmon[idx].bits.SIMD_MASK = simdMask;
+                        m_select.sqg[info.instance].perfmon[idx].bits.SIMD_MASK = DefaultSqSelectSimdMask;
                         m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_OFF;
                         m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
                         if (m_chipProps.gfxLevel >= GfxIpLevel::GfxIp7)
                         {
                             // The SQC bank mask and client mask only exist on gfx7+.
-                            const uint32 bankMask = (info.optionFlags.sqSqcBankMask != 0)
-                                            ? (info.optionValues.sqSqcBankMask & DefaultSqSelectBankMask)
-                                            : DefaultSqSelectBankMask;
-
-                            const uint32 clientMask = (info.optionFlags.sqSqcClientMask != 0)
-                                            ? (info.optionValues.sqSqcClientMask & DefaultSqSelectClientMask)
-                                            : DefaultSqSelectClientMask;
-
-                            m_select.sqg[info.instance].perfmon[idx].bits.SQC_BANK_MASK   = bankMask;
-                            m_select.sqg[info.instance].perfmon[idx].bits.SQC_CLIENT_MASK = clientMask;
+                            m_select.sqg[info.instance].perfmon[idx].bits.SQC_BANK_MASK   = DefaultSqSelectBankMask;
+                            m_select.sqg[info.instance].perfmon[idx].bits.SQC_CLIENT_MASK = DefaultSqSelectClientMask;
                         }
 
                         mapping.counterId = idx;
@@ -747,29 +735,17 @@ Result PerfExperiment::AddSpmCounter(
                         // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
                         // As long as the counter doesn't wrap over 16 bits we can enable a 32-bit counter and treat
                         // it exactly like a 16-bit counter and still get useful data.
-                        const uint32 simdMask = (info.optionFlags.sqSimdMask != 0)
-                                        ? (info.optionValues.sqSimdMask & DefaultSqSelectSimdMask)
-                                        : DefaultSqSelectSimdMask;
-
                         m_select.sqg[info.instance].perfmonInUse[idx]           = true;
                         m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
-                        m_select.sqg[info.instance].perfmon[idx].bits.SIMD_MASK = simdMask;
+                        m_select.sqg[info.instance].perfmon[idx].bits.SIMD_MASK = DefaultSqSelectSimdMask;
                         m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_32BIT_CLAMP;
                         m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
                         if (m_chipProps.gfxLevel >= GfxIpLevel::GfxIp7)
                         {
                             // The SQC bank mask and client mask only exist on gfx7+.
-                            const uint32 bankMask = (info.optionFlags.sqSqcBankMask != 0)
-                                            ? (info.optionValues.sqSqcBankMask & DefaultSqSelectBankMask)
-                                            : DefaultSqSelectBankMask;
-
-                            const uint32 clientMask = (info.optionFlags.sqSqcClientMask != 0)
-                                            ? (info.optionValues.sqSqcClientMask & DefaultSqSelectClientMask)
-                                            : DefaultSqSelectClientMask;
-
-                            m_select.sqg[info.instance].perfmon[idx].bits.SQC_BANK_MASK   = bankMask;
-                            m_select.sqg[info.instance].perfmon[idx].bits.SQC_CLIENT_MASK = clientMask;
+                            m_select.sqg[info.instance].perfmon[idx].bits.SQC_BANK_MASK   = DefaultSqSelectBankMask;
+                            m_select.sqg[info.instance].perfmon[idx].bits.SQC_CLIENT_MASK = DefaultSqSelectClientMask;
                         }
 
                         // Each SQ module gets a single wire with one sub-counter (use the default value of zero).
@@ -2047,15 +2023,7 @@ Result PerfExperiment::BuildCounterMapping(
 {
     Result result = Result::Success;
 
-    if ((info.block != GpuBlock::Sq) &&
-        ((info.optionFlags.sqSimdMask != 0) ||
-         (info.optionFlags.sqSqcBankMask != 0) ||
-         (info.optionFlags.sqSqcClientMask != 0)))
-    {
-        // The SQ options are only supported on the SQ block.
-        result = Result::ErrorInvalidValue;
-    }
-    else if (info.block >= GpuBlock::Count)
+    if (info.block >= GpuBlock::Count)
     {
         // What is this block?
         result = Result::ErrorInvalidValue;

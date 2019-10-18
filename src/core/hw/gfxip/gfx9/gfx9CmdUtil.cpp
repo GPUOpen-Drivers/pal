@@ -332,9 +332,6 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmAtcPerfResultCntl      = Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmAtcL2PerfResultCntl    = Gfx09::mmATC_L2_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmMcVmL2PerfResultCntl   = Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmVgtTfMemBase           = Gfx09::mmVGT_TF_MEMORY_BASE;
-        m_registerInfo.mmVgtTfMemBaseHi         = Gfx09::mmVGT_TF_MEMORY_BASE_HI;
-        m_registerInfo.mmSpiConfigCntl          = Gfx09::mmSPI_CONFIG_CNTL;
 
         {
             m_registerInfo.mmRpbPerfResultCntl = Vega::mmRPB_PERFCOUNTER_RSLT_CNTL;
@@ -351,15 +348,10 @@ CmdUtil::CmdUtil(
     {
         if (IsGfx101(parent))
         {
-            m_registerInfo.mmRlcSpmPerfmonSe3To0SegmentSize = Gfx101Plus::mmRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE;
-            m_registerInfo.mmRlcSpmPerfmonGlbSegmentSize    = Gfx101Plus::mmRLC_SPM_PERFMON_GLB_SEGMENT_SIZE;
             m_registerInfo.mmEaPerfResultCntl               = Gfx101::mmGCEA_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmDbDepthInfo                    = Nv10::mmDB_RESERVED_REG_2;
             m_registerInfo.mmAtcPerfResultCntl              = Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmAtcL2PerfResultCntl            = Nv10::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmVgtTfMemBase                   = Nv10::mmVGT_TF_MEMORY_BASE_UMD;
-            m_registerInfo.mmVgtTfMemBaseHi                 = Nv10::mmVGT_TF_MEMORY_BASE_HI_UMD;
-            m_registerInfo.mmSpiConfigCntl                  = Nv10::mmSPI_CONFIG_CNTL_REMAP;
+            m_registerInfo.mmAtcL2PerfResultCntl            = Gfx101::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
 
         }
@@ -368,17 +360,17 @@ CmdUtil::CmdUtil(
             PAL_ASSERT_ALWAYS();
         }
 
-        m_registerInfo.mmRlcPerfmonClkCntl        = Gfx10::mmRLC_PERFMON_CLK_CNTL;
-        m_registerInfo.mmRlcSpmGlobalMuxselAddr   = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
-        m_registerInfo.mmRlcSpmGlobalMuxselData   = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
-        m_registerInfo.mmRlcSpmSeMuxselAddr       = Gfx10::mmRLC_SPM_SE_MUXSEL_ADDR;
-        m_registerInfo.mmRlcSpmSeMuxselData       = Gfx10::mmRLC_SPM_SE_MUXSEL_DATA;
-        m_registerInfo.mmMcVmL2PerfResultCntl     = Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmRpbPerfResultCntl        = Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmVgtGsMaxPrimsPerSubGroup = Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP;
-        m_registerInfo.mmComputeShaderChksum      = Gfx10::mmCOMPUTE_SHADER_CHKSUM;
-        m_registerInfo.mmPaStereoCntl             = Gfx10::mmPA_STEREO_CNTL;
-        m_registerInfo.mmPaStateStereoX           = Gfx10::mmPA_STATE_STEREO_X;
+        m_registerInfo.mmRlcPerfmonClkCntl              = Gfx10::mmRLC_PERFMON_CLK_CNTL;
+        m_registerInfo.mmRlcSpmGlobalMuxselAddr         = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmGlobalMuxselData         = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
+        m_registerInfo.mmRlcSpmSeMuxselAddr             = Gfx10::mmRLC_SPM_SE_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmSeMuxselData             = Gfx10::mmRLC_SPM_SE_MUXSEL_DATA;
+        m_registerInfo.mmMcVmL2PerfResultCntl           = Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmRpbPerfResultCntl              = Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmVgtGsMaxPrimsPerSubGroup       = Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP;
+        m_registerInfo.mmComputeShaderChksum            = Gfx10::mmCOMPUTE_SHADER_CHKSUM;
+        m_registerInfo.mmPaStereoCntl                   = Gfx10::mmPA_STEREO_CNTL;
+        m_registerInfo.mmPaStateStereoX                 = Gfx10::mmPA_STATE_STEREO_X;
 
         // GFX10 provides a "PGM_{LO,HI}_ES_GS" and a "PGM_{LO,HI}_LS_HS" register that you would think is
         // what you want to use for the merged shader stages.  You'd be wrong.  According to
@@ -542,10 +534,8 @@ uint32 CmdUtil::Gfx10CalcAcquireMemGcrCntl(
     }
     else
     {
-        {
-            gcrCntl.bits.gl1Range = 2;
-            gcrCntl.bits.gl2Range = 2;
-        }
+        gcrCntl.bits.gl1Range = 2;
+        gcrCntl.bits.gl2Range = 2;
     }
 
     // #1. Setup TC cache operations.
@@ -599,8 +589,8 @@ uint32 CmdUtil::Gfx10CalcAcquireMemGcrCntl(
         // GL1_INV[0] - invalidate enable for GL1
         // GLV_INV[0] - invalidate enable for shader vector L0 cache
         gcrCntl.bits.gl2Range = 1;
-        gcrCntl.bits.gl1Inv = 1;
-        gcrCntl.bits.glvInv = 1;
+        gcrCntl.bits.gl1Inv   = 1;
+        gcrCntl.bits.glvInv   = 1;
         break;
 
     default:
@@ -2712,7 +2702,6 @@ uint32 CmdUtil::Gfx10CalcReleaseMemGcrCntl(
         // GL2_RANGE[1:0]
         // GL1_INV[0] - invalidate enable for GL1
         // GLV_INV[0] - invalidate enable for shader vector L0 cache
-
         gcrCntl.bits.gl2Range = 1;
         gcrCntl.bits.gl1Inv   = 1;
         gcrCntl.bits.glvInv   = 1;
@@ -3875,6 +3864,27 @@ size_t CmdUtil::BuildCommentString(
 
     // Append data
     memcpy(pData + 3, pComment, stringLength);
+
+    return packetSize;
+}
+
+// =====================================================================================================================
+// Builds an NOP PM4 packet with the payload data embedded inside.
+size_t CmdUtil::BuildNopPayload(
+    const void* pPayload,
+    uint32      payloadSize,
+    void*       pBuffer
+    ) const
+{
+    const size_t packetSize = payloadSize + (sizeof(PM4PFP_NOP) / sizeof(uint32));
+    auto*const   pPacket    = static_cast<PM4PFP_NOP*>(pBuffer);
+    uint32*      pData      = reinterpret_cast<uint32*>(pPacket + 1);
+
+    // Build header (NOP, signature, size, type)
+    pPacket->header.u32All = Type3Header(IT_NOP, static_cast<uint32>(packetSize));
+
+    // Append data
+    memcpy(pData, pPayload, payloadSize * sizeof(uint32));
 
     return packetSize;
 }

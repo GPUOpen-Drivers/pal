@@ -407,12 +407,48 @@ enum class FeatureOverride : uint32
     Disabled = 2   ///< (Force) disabled state.  Default may change itself to this state.
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 542
 /// Enum defining Infinitely Fast Hardware (IFH) mode
-enum IfhMode
+enum class PublicSettingIfhMode : uint32
 {
     IfhModeDisabled = 0,  ///< IFH is disabled
     IfhModePal      = 1,  ///< IFH is implemented in PAL (kernel is not called)
     IfhModeKmd      = 2   ///< IFH is implemented in the kernel
+};
+#endif
+
+/// Enum bitmask defining externally-controlled (e.g. by Radeon Settings/KMD) driver feature settings.
+enum RsFeatureType : uint32
+{
+    RsFeatureTypeTurboSync = (1u << 0),
+    RsFeatureTypeChill     = (1u << 1),
+    RsFeatureTypeDelag     = (1u << 2),
+};
+
+/// Output structure containing information about the requested RsFeatureType (singular).
+union RsFeatureInfo
+{
+    /// Global TurboSync settings.
+    struct
+    {
+        bool enabled;    ///< Specifies whether TurboSync is enabled globally.
+    } turboSync;
+
+    /// Global Chill settings.
+    struct
+    {
+        bool enabled;    ///< Specifies whether Chill is enabled globally.
+        uint32 minFps;   ///< Specifies the global Chill minimum FPS limit.
+        uint32 maxFps;   ///< Specifies the global Chill maximum FPS limit.
+    } chill;
+
+    /// Global Delag settings.
+    struct
+    {
+        bool enabled;    ///< Specifies whether Delag is enabled globally.
+        uint32 limitFps; ///< Specifies the global Delag FPS limit.
+    } delag;
+
 };
 
 static constexpr uint32 MaxPathStrLen = 512;
@@ -547,8 +583,10 @@ struct PalPublicSettings
     ///    invalid and we fall back to local visible heap.
     bool disablePipelineUploadToLocalInvis;
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 542
     /// Infinitely Fast Hardware (IFH) mode requested by the client.
-    IfhMode ifhMode;
+    PublicSettingIfhMode ifhMode;
+#endif
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -995,43 +1033,44 @@ struct DeviceProperties
         {
             struct
             {
-                uint32 support8bitIndices                  : 1; ///< Hardware natively supports 8bit indices
-                uint32 support16BitInstructions            : 1; ///< Hardware supports FP16 and INT16 instructions
-                uint32 supportDoubleRate16BitInstructions  : 1; ///< Hardware supports double rate packed math
-                uint32 supportFp16Fetch                    : 1; ///< Hardware supports FP16 texture fetches
-                uint32 supportConservativeRasterization    : 1; ///< Hardware supports conservative rasterization
-                uint32 supportImplicitPrimitiveShader      : 1; ///< Device supports implicit compiling of the hardware
-                                                                ///  vertex shader as a primitive shader to perform
-                                                                ///  culling and compaction optimizations in the shader.
-                uint32 placeholder7                        : 1; ///< Placeholder, do not use
-                uint32 supportPrtBlendZeroMode             : 1; ///< Blend zero mode support.
-                uint32 supports2BitSignedValues            : 1; ///< Hardware natively supports 2-bit signed values.
-                uint32 supportPrimitiveOrderedPs           : 1; ///< Hardware supports primitive ordered UAV
-                                                                ///  accesses in the PS.
-                uint32 supportPatchTessDistribution        : 1; ///< Hardware supports patch level tessellation
-                                                                ///  distribution among VGTs.
-                uint32 supportDonutTessDistribution        : 1; ///< Hardware supports donut granularity of
-                                                                ///  tessellation distribution among VGTs.
-                uint32 supportTrapezoidTessDistribution    : 1; ///< Hardware supports trapezoid granularity of
-                                                                ///  tessellation distribution among VGTs.
-                uint32 supportPerChannelMinMaxFilter       : 1; ///< Hardware returns min/max value on a per-channel
-                                                                ///  basis. If not set, min/max filtering operates on
-                                                                ///  only one channel at a time.
-                uint32 supportRgpTraces                    : 1; ///< Hardware supports RGP traces.
-                uint32 supportMsaaCoverageOut              : 1; ///< Set if HW supports MSAA coverage feature
-                uint32 supportPostDepthCoverage            : 1; ///< Set if HW supports post depth coverage feature
-                uint32 supportSpiPrefPriority              : 1; ///< Set if HW supports preference priority.
-                uint32 supportWaveBreakSize                : 1; ///< The HW supports specifying the wavebreak size
-                                                                ///  in the pixel shader pipeline.
-                uint32 supportsPerShaderStageWaveSize      : 1; ///< If set, the "waveSize" setting in the
-                                                                ///  @ref PipelineShaderInfo structure is meaningful.
-                uint32 placeholder2                        : 1; ///< Reserved for future hardware.
-                uint32 supportSpp                          : 1; ///< Hardware supports Shader Profiling for Power.
-                uint32 timestampResetOnIdle                : 1; ///< GFX timestamp resets after idle between
-                                                                ///  submissions. The client cannot assume that
-                                                                ///  timestamps will increase monotonically across
-                                                                ///  command buffer submissions.
-                uint32 support1xMsaaSampleLocations        : 1; ///< HW supports 1xMSAA custom quad sample patterns
+                uint64 support8bitIndices                  :  1; ///< Hardware natively supports 8bit indices
+                uint64 support16BitInstructions            :  1; ///< Hardware supports FP16 and INT16 instructions
+                uint64 supportDoubleRate16BitInstructions  :  1; ///< Hardware supports double rate packed math
+                uint64 supportFp16Fetch                    :  1; ///< Hardware supports FP16 texture fetches
+                uint64 supportConservativeRasterization    :  1; ///< Hardware supports conservative rasterization
+                uint64 supportImplicitPrimitiveShader      :  1; ///< Device supports implicit compiling of the
+                                                                 ///  hardware vertex shader as a primitive shader to
+                                                                 ///  perform culling and compaction optimizations in
+                                                                 ///  the shader.
+                uint64 placeholder7                        :  1; ///< Placeholder, do not use
+                uint64 supportPrtBlendZeroMode             :  1; ///< Blend zero mode support.
+                uint64 supports2BitSignedValues            :  1; ///< Hardware natively supports 2-bit signed values.
+                uint64 supportPrimitiveOrderedPs           :  1; ///< Hardware supports primitive ordered UAV
+                                                                 ///  accesses in the PS.
+                uint64 supportPatchTessDistribution        :  1; ///< Hardware supports patch level tessellation
+                                                                 ///  distribution among VGTs.
+                uint64 supportDonutTessDistribution        :  1; ///< Hardware supports donut granularity of
+                                                                 ///  tessellation distribution among VGTs.
+                uint64 supportTrapezoidTessDistribution    :  1; ///< Hardware supports trapezoid granularity of
+                                                                 ///  tessellation distribution among VGTs.
+                uint64 supportPerChannelMinMaxFilter       :  1; ///< Hardware returns min/max value on a per-channel
+                                                                 ///  basis. If not set, min/max filtering operates on
+                                                                 ///  only one channel at a time.
+                uint64 supportRgpTraces                    :  1; ///< Hardware supports RGP traces.
+                uint64 supportMsaaCoverageOut              :  1; ///< Set if HW supports MSAA coverage feature
+                uint64 supportPostDepthCoverage            :  1; ///< Set if HW supports post depth coverage feature
+                uint64 supportSpiPrefPriority              :  1; ///< Set if HW supports preference priority.
+                uint64 supportWaveBreakSize                :  1; ///< The HW supports specifying the wavebreak size
+                                                                 ///  in the pixel shader pipeline.
+                uint64 supportsPerShaderStageWaveSize      :  1; ///< If set, the "waveSize" setting in the
+                                                                 ///  @ref PipelineShaderInfo structure is meaningful.
+                uint64 placeholder2                        :  1; ///< Reserved for future hardware.
+                uint64 supportSpp                          :  1; ///< Hardware supports Shader Profiling for Power.
+                uint64 timestampResetOnIdle                :  1; ///< GFX timestamp resets after idle between
+                                                                 ///  submissions. The client cannot assume that
+                                                                 ///  timestamps will increase monotonically across
+                                                                 ///  command buffer submissions.
+                uint64 support1xMsaaSampleLocations        :  1; ///< HW supports 1xMSAA custom quad sample patterns
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 522
                 /// Indicates that the GFX IP hardware (and PAL) support state inheritance for nested command buffers.
@@ -1039,34 +1078,35 @@ struct DeviceProperties
                 /// that state is bound to the nested command buffer itself.  If false, only the currently-bound color
                 /// and depth targets are inherited from the caller for Universal Engines, and no state is inherited
                 /// for other Engine types.
-                uint32 supportNestedCmdBufStateInheritance : 1;
+                uint64 supportNestedCmdBufStateInheritance :  1;
 #endif
-                uint32 supportReleaseAcquireInterface      : 1; ///< If true, ASIC supports the new barrier interface
-                                                                ///  designed for Acquire/Released-based barrier.
-                uint32 supportSplitReleaseAcquire          : 1; ///< If true, ASIC supports split CmdRelease()
-                                                                ///  and CmdAcquire() to express barrier conditions
-                                                                ///  instead of CmdReleaseThenAcquire().
-                                                                ///  Note: Only supported if
-                                                                ///  @ref supportReleaseAcquireInterface is supported.
-                uint32 supportGl2Uncached                  : 1; ///< Indicates support for the allocation of GPU L2
-                                                                ///  un-cached memory. @see gl2UncachedCpuCoherency
-                uint32 supportOutOfOrderPrimitives         : 1; ///< HW supports higher throughput for out of order
+                uint64 supportReleaseAcquireInterface      :  1; ///< If true, ASIC supports the new barrier interface
+                                                                 ///  designed for Acquire/Released-based barrier.
+                uint64 supportSplitReleaseAcquire          :  1; ///< If true, ASIC supports split CmdRelease()
+                                                                 ///  and CmdAcquire() to express barrier conditions
+                                                                 ///  instead of CmdReleaseThenAcquire().
+                                                                 ///  Note: Only supported if
+                                                                 ///  @ref supportReleaseAcquireInterface is supported.
+                uint64 supportGl2Uncached                  :  1; ///< Indicates support for the allocation of GPU L2
+                                                                 ///  un-cached memory. @see gl2UncachedCpuCoherency
+                uint64 supportOutOfOrderPrimitives         :  1; ///< HW supports higher throughput for out of order
 
-                uint32 placeholder5                        : 1; ///< Placeholder, do not use
+                uint64 placeholder5                        :  1; ///< Placeholder, do not use
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
-                uint32 support64BitInstructions            : 1; ///< Hardware supports 64b instructions
+                uint64 support64BitInstructions            :  1; ///< Hardware supports 64b instructions
 #else
-                uint32 placeholder6                        : 1; ///< Placeholder, do not use
+                uint64 placeholder6                        :  1; ///< Placeholder, do not use
 #endif
-
+                uint64 supportShaderSubgroupClock          :  1; ///< HW supports clock functions across subgroup.
+                uint64 supportShaderDeviceClock            :  1; ///< HW supports clock functions across device.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
-                uint32 reserved                            : 2; ///< Reserved for future use.
+                uint64 reserved                            : 32; ///< Reserved for future use.
 #else
-                uint32 reserved                            : 1; ///< Reserved for future use.
+                uint64 reserved                            : 31; ///< Reserved for future use.
 #endif
             };
-            uint32 u32All;           ///< Flags packed as 32-bit uint.
+            uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
 
         struct
@@ -1176,8 +1216,12 @@ struct DeviceProperties
                 uint32 isCwgSupported             :  1;    ///< KMD supports Creator Who Game (CWG) feature
                 uint32 isGamingDriver             :  1;    ///< KMD works in gaming mode
                 uint32 placeholder0               :  1;
-
-                uint32 reserved          : 28;    ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 542
+                uint32 ifhModeEnabled             :  1;    ///< Whether the IFH mode is enabled
+#else
+                uint32 placeholder1               :  1;
+#endif
+                uint32 reserved                   : 26;    ///< Reserved for future use.
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
@@ -4445,6 +4489,54 @@ public:
     virtual Result FlglGetFrameCounter(
         uint64* pValue) const = 0;
 
+    /// Checks if the specified externally-controlled feature settings have changed since the last time the function was
+    /// called.
+    ///
+    /// This is intended to be a lightweight function that can be called per frame per feature.  If the function
+    /// returns Result::Success and (*pRsFeaturesChanged & RsFeatureTypeXX) != 0, then the user changed some related
+    /// settings in the UI.
+    ///
+    /// If TurboSync has updated, the client should first try to re-read the application profile settings by calling
+    /// IPlatform::QueryRawApplicationProfile() with client = User3D.  If that returns Unsupported, then fall back
+    /// to device-wide TurboSync settings read via GetRsFeatureGlobalSettings().
+    ///
+    /// If Chill has updated, call IPlatform::QueryRawApplicationProfile() with client = Chill to re-read the
+    /// system app profiles and then with client = User3D for any per-user Chill overrides, and additionally
+    /// call GetRsFeatureGlobalSettings() to get the Chill enabled state.
+    ///
+    /// If Delag has updated, call IPlatform::QueryRawApplicationProfile() with client = User3D to get the enabled
+    /// state, and additionally call GetRsFeatureGlobalSettings() to get the Delag hotkey.
+    ///
+    ///
+    /// @param [in]  rsFeatures          Bitmask of RsFeatureType value(s) to query.  Use UINT_MAX to poll all.
+    /// @param [out] pRsFeaturesChanged  Bitmask of queried RsFeatureTypes that have changed since last polling.
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result DidRsFeatureSettingsChange(
+        uint32  rsFeatures,
+        uint32* pRsFeaturesChanged) = 0;
+
+    /// Gets externally-controlled per-device settings for the requested RsFeatureType.
+    ///
+    /// @param [in]  rsFeature       Feature type to request information for (singular, not a mask).
+    /// @param [out] pRsFeatureInfo  Settings related to the specified RsFeatureType.
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result GetRsFeatureGlobalSettings(
+        RsFeatureType  rsFeature,
+        RsFeatureInfo* pRsFeatureInfo) = 0;
+
+    /// Update Chill Status (last active time stamp). After every frame, UMD needs to generate a time stamp and inform
+    /// KMD through the shared memory, if the time stamp changes between 2 frames, it means Chill is active and KMD
+    /// needs to adjust power through PSM.
+    ///
+    /// @param [in]  lastChillActiveTimeStampUs     the last Chill active time stamp in microseconds to set
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result UpdateChillStatus(
+        uint64 lastChillActiveTimeStampUs) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 537
     /// Checks if Chill settings have changed since the last time the function was called.
     /// This is intended to be a lightweight function that can be called once a frame. If the function returns
     /// Result::Success and *pChangeDetected = true, then the user changed some Chill related settings in the UI.
@@ -4468,16 +4560,6 @@ public:
     virtual Result GetChillGlobalEnable(
         bool* pGlobalEnable) = 0;
 
-    /// Update Chill Status (last active time stamp). After every frame, UMD needs to generate a time stamp and inform
-    /// KMD through the shared memory, if the time stamp changes between 2 frames, it means Chill is active and KMD
-    /// needs to adjust power through PSM.
-    ///
-    /// @param [in]  lastChillActiveTimeStampUs     the last Chill active time stamp in microseconds to set
-    ///
-    /// @returns Success if the call succeeded.
-    virtual Result UpdateChillStatus(
-        uint64 lastChillActiveTimeStampUs) = 0;
-
     /// Checks if delag settings have changed since the last time the function was called.
     /// This is intended to be a lightweight function that can be called once a frame. If the function returns true,
     /// then the user changed some delag related settings in the UI, the Pal client should re-read the delag
@@ -4493,6 +4575,7 @@ public:
     ///
     /// @returns true if TurboSync settings have been changed, otherwise false.
     virtual bool DidTurboSyncSettingsChange() = 0;
+#endif
 
     /// Make the Bus Addressable allocations available to be accessed by remote device.
     /// Exposes the surface and marker bus addresses for each allocation. These bus addresses can be accessed by

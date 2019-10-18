@@ -742,7 +742,9 @@ struct GpuChipProperties
                 uint32 supportRgpTraces                         :  1; // HW supports RGP traces.
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
                 uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
-                uint32 reserved                                 : 12;
+                uint32 supportShaderSubgroupClock               :  1; // HW supports clock functions across subgroup.
+                uint32 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
+                uint32 reserved                                 : 10;
             };
 
             Gfx6PerfCounterInfo perfCounterInfo; // Contains information for perf counters for a specific hardware block
@@ -806,49 +808,51 @@ struct GpuChipProperties
             struct
             {
 
-                uint32 doubleOffchipLdsBuffers                  :  1; // HW supports 2x number of offchip LDS buffers
+                uint64 doubleOffchipLdsBuffers                  :  1; // HW supports 2x number of offchip LDS buffers
                                                                       // per SE
-                uint32 supportFp16Fetch                         :  1;
-                uint32 support16BitInstructions                 :  1;
-                uint32 support64BitInstructions                 :  1;
-                uint32 supportDoubleRate16BitInstructions       :  1;
-                uint32 rbPlus                                   :  1;
-                uint32 supportConservativeRasterization         :  1;
-                uint32 supportPrtBlendZeroMode                  :  1;
-                uint32 supports2BitSignedValues                 :  1;
-                uint32 supportPrimitiveOrderedPs                :  1;
-                uint32 lbpwEnabled                              :  1; // Indicates Load Balance Per Watt is enabled
-                uint32 supportPatchTessDistribution             :  1; // HW supports patch distribution mode.
-                uint32 supportDonutTessDistribution             :  1; // HW supports donut distribution mode.
-                uint32 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
-                uint32 supportAddrOffsetDumpAndSetShPkt         :  1; // Indicates support for DUMP_CONST_RAM_OFFSET
+                uint64 supportFp16Fetch                         :  1;
+                uint64 support16BitInstructions                 :  1;
+                uint64 support64BitInstructions                 :  1;
+                uint64 supportDoubleRate16BitInstructions       :  1;
+                uint64 rbPlus                                   :  1;
+                uint64 supportConservativeRasterization         :  1;
+                uint64 supportPrtBlendZeroMode                  :  1;
+                uint64 supports2BitSignedValues                 :  1;
+                uint64 supportPrimitiveOrderedPs                :  1;
+                uint64 lbpwEnabled                              :  1; // Indicates Load Balance Per Watt is enabled
+                uint64 supportPatchTessDistribution             :  1; // HW supports patch distribution mode.
+                uint64 supportDonutTessDistribution             :  1; // HW supports donut distribution mode.
+                uint64 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
+                uint64 supportAddrOffsetDumpAndSetShPkt         :  1; // Indicates support for DUMP_CONST_RAM_OFFSET
                                                                       // and SET_SH_REG_OFFSET indexed packet.
-                uint32 supportAddrOffsetSetSh256Pkt             :  1; // Indicates support for SET_SH_REG_OFFSET_256B
+                uint64 supportAddrOffsetSetSh256Pkt             :  1; // Indicates support for SET_SH_REG_OFFSET_256B
                                                                       // indexed packet.
-                uint32 supportImplicitPrimitiveShader           :  1;
-                uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
-                uint32 validPaScTileSteeringOverride            :  1; // Value of paScTileSteeringOverride is valid
-                uint32 placeholder0                             :  1; // Placeholder. Do not use.
-                uint32 supportPerShaderStageWaveSize            :  1; // HW supports changing the wave size
-                uint32 supportCustomWaveBreakSize               :  1;
-                uint32 supportMsaaCoverageOut                   :  1; // HW supports MSAA coverage samples
-                uint32 supportPostDepthCoverage                 :  1; // HW supports post depth coverage feature
-                uint32 supportSpiPrefPriority                   :  1;
-                uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
-                uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
-                uint32 supportReleaseAcquireInterface           :  1; // True when ASIC supports the new barrier
+                uint64 supportImplicitPrimitiveShader           :  1;
+                uint64 supportSpp                               :  1; // HW supports Shader Profiling for Power
+                uint64 validPaScTileSteeringOverride            :  1; // Value of paScTileSteeringOverride is valid
+                uint64 placeholder0                             :  1; // Placeholder. Do not use.
+                uint64 supportPerShaderStageWaveSize            :  1; // HW supports changing the wave size
+                uint64 supportCustomWaveBreakSize               :  1;
+                uint64 supportMsaaCoverageOut                   :  1; // HW supports MSAA coverage samples
+                uint64 supportPostDepthCoverage                 :  1; // HW supports post depth coverage feature
+                uint64 supportSpiPrefPriority                   :  1;
+                uint64 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
+                uint64 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
+                uint64 supportReleaseAcquireInterface           :  1; // True when ASIC supports the new barrier
                                                                       // interface designed for Acquire/Released-based
                                                                       // barrier.
-                uint32 supportSplitReleaseAcquire               :  1; // If true, ASIC supports split a barrier to
+                uint64 supportSplitReleaseAcquire               :  1; // If true, ASIC supports split a barrier to
                                                                       // CmdRelease() and CmdAcquire()
                                                                       // instead of CmdReleaseThenAcquire().
                                                                       // Note: ReleaseAcquireInterface support is a
                                                                       //       prerequisite.
-                uint32 eccProtectedGprs                         :  1; // Are VGPR's ECC-protected?
-                uint32 overrideDefaultSpiConfigCntl             :  1; // KMD provides default value for SPI_CONFIG_CNTL.
-                uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
-                uint32 placeholder3                             :  1;
-                uint32 reserved                                 :  1;
+                uint64 eccProtectedGprs                         :  1; // Are VGPR's ECC-protected?
+                uint64 overrideDefaultSpiConfigCntl             :  1; // KMD provides default value for SPI_CONFIG_CNTL.
+                uint64 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
+                uint64 placeholder3                             :  1;
+                uint64 supportShaderSubgroupClock               :  1; // HW supports clock functions across subgroup.
+                uint64 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
+                uint64 reserved                                 : 29;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
@@ -1752,6 +1756,8 @@ public:
         IGpuMemory*const* ppGpuMemory,
         bool              forceSubtract);
 
+    IfhMode GetIfhMode() const;
+
 protected:
     Device(
         Platform*              pPlatform,
@@ -2289,10 +2295,6 @@ static bool IsNavi10(const Device& device)
 static bool IsGfx101(const Device& device)
 {
     return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_1);
-}
-static bool IsGfx101Plus(const Device& device)
-{
-    return (device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_1);
 }
 
 static bool IsGfx091xPlus(const Device& device)

@@ -132,6 +132,18 @@ constexpr uint32 LowPart(
     return (value & 0x00000000FFFFFFFF);
 }
 
+/// Returns a bitfield from within some value.
+///
+/// @returns Returns a bitfield from within some value.
+template <typename T>
+constexpr T BitExtract(
+    T      value,    ///< Extract a bitfield from here.
+    uint32 firstBit, ///< The zero-based index of the first bit to extract.
+    uint32 lastBit)  ///< The zero-based index of the last bit to extract.
+{
+    return (value >> firstBit) & ((1 << (lastBit - firstBit + 1)) - 1);
+}
+
 /// Determines if any of the bits set in "test" are also set in "src".
 ///
 /// @returns True if any bits in "test" are set in "src", false otherwise.

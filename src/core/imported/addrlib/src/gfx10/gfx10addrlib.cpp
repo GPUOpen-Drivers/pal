@@ -539,11 +539,11 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeCmaskAddrFromCoord(
         const UINT_32 fmaskElemLog2 = Log2(fmaskBpp >> 3);
         const UINT_32 pipeMask      = (1 << m_pipesLog2) - 1;
         const UINT_32 index         = m_xmaskBaseIndex + fmaskElemLog2;
+        CmaskPattern  cmaskPattern  = m_settings.supportRbPlus ? &CMASK_64K_RBPLUS[0] : &CMASK_64K[0];
 
-        const UINT_64* pPattern     = m_settings.supportRbPlus ? CMASK_64K_RBPLUS[index] : CMASK_64K[index];
         const UINT_32  blkSizeLog2  = Log2(output.metaBlkWidth) + Log2(output.metaBlkHeight) - 7;
         const UINT_32  blkMask      = (1 << blkSizeLog2) - 1;
-        const UINT_32  blkOffset    = ComputeOffsetFromSwizzlePattern(pPattern,
+        const UINT_32  blkOffset    = ComputeOffsetFromSwizzlePattern(cmaskPattern[index],
                                                                       blkSizeLog2 + 1, // +1 for nibble offset
                                                                       pIn->x,
                                                                       pIn->y,
@@ -607,10 +607,11 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeHtileAddrFromCoord(
             const UINT_32  numSampleLog2 = Log2(pIn->numSamples);
             const UINT_32  pipeMask      = (1 << m_pipesLog2) - 1;
             const UINT_32  index         = m_xmaskBaseIndex + numSampleLog2;
-            const UINT_64* pPattern      = m_settings.supportRbPlus ? HTILE_64K_RBPLUS[index] : HTILE_64K[index];
+            HtilePattern   htilePattern  = m_settings.supportRbPlus ? &HTILE_64K_RBPLUS[0] : &HTILE_64K[0];
+
             const UINT_32  blkSizeLog2   = Log2(output.metaBlkWidth) + Log2(output.metaBlkHeight) - 4;
             const UINT_32  blkMask       = (1 << blkSizeLog2) - 1;
-            const UINT_32  blkOffset     = ComputeOffsetFromSwizzlePattern(pPattern,
+            const UINT_32  blkOffset     = ComputeOffsetFromSwizzlePattern(htilePattern[index],
                                                                            blkSizeLog2 + 1, // +1 for nibble offset
                                                                            pIn->x,
                                                                            pIn->y,
@@ -703,9 +704,12 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeDccAddrFromCoord(
             const UINT_32  numPipeLog2 = m_pipesLog2;
             const UINT_32  pipeMask    = (1 << numPipeLog2) - 1;
             UINT_32        index       = m_dccBaseIndex + elemLog2;
+            DccPattern     dccPattern;
 
             if (m_settings.supportRbPlus)
             {
+                dccPattern = &DCC_64K_R_X_RBPLUS[0];
+
                 if (pIn->dccKeyFlags.pipeAligned)
                 {
                     index += MaxNumOfBpp;
@@ -728,6 +732,8 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeDccAddrFromCoord(
             }
             else
             {
+                dccPattern = &DCC_64K_R_X[0];
+
                 if (pIn->dccKeyFlags.pipeAligned)
                 {
                     index += (numPipeLog2 + UnalignedDccType) * MaxNumOfBpp;
@@ -738,10 +744,9 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeDccAddrFromCoord(
                 }
             }
 
-            const UINT_64* pPattern    = m_settings.supportRbPlus ? DCC_64K_R_X_RBPLUS[index] : DCC_64K_R_X[index];
             const UINT_32  blkSizeLog2 = Log2(output.metaBlkWidth) + Log2(output.metaBlkHeight) + elemLog2 - 8;
             const UINT_32  blkMask     = (1 << blkSizeLog2) - 1;
-            const UINT_32  blkOffset   = ComputeOffsetFromSwizzlePattern(pPattern,
+            const UINT_32  blkOffset   = ComputeOffsetFromSwizzlePattern(dccPattern[index],
                                                                          blkSizeLog2 + 1, // +1 for nibble offset
                                                                          pIn->x,
                                                                          pIn->y,
@@ -871,65 +876,67 @@ BOOL_32 Gfx10Lib::HwlInitGlobalParams(
             break;
     }
 
-    const UINT_32 maxPipeInterleaveType = 3;
-
-    // Skip unaligned case
-    m_xmaskBaseIndex += MaxNumOfAA;
-
-    if (m_settings.supportRbPlus)
     {
-        m_numPkrLog2 = gbAddrConfig.bits.NUM_PKRS;
-        m_numSaLog2  = (m_numPkrLog2 > 0) ? (m_numPkrLog2 - 1) : 0;
+        const UINT_32 maxPipeInterleaveType = 3;
 
-        ADDR_ASSERT((m_numPkrLog2 <= m_pipesLog2) && ((m_pipesLog2 - m_numPkrLog2) <= 2));
+        // Skip unaligned case
+        m_xmaskBaseIndex += MaxNumOfAA;
 
-        ADDR_C_ASSERT(sizeof(HTILE_64K_RBPLUS) / sizeof(HTILE_64K_RBPLUS[0]) ==
-                      sizeof(CMASK_64K_RBPLUS) / sizeof(CMASK_64K_RBPLUS[0]));
-
-        m_colorBaseIndex += sizeof(SW_64K_R_X_1xaa_RBPLUS)    /
-                            sizeof(SW_64K_R_X_1xaa_RBPLUS[0]) /
-                            maxPipeInterleaveType             *
-                            (m_pipeInterleaveLog2 - 8);
-
-        m_xmaskBaseIndex += sizeof(HTILE_64K_RBPLUS)    /
-                            sizeof(HTILE_64K_RBPLUS[0]) /
-                            maxPipeInterleaveType       *
-                            (m_pipeInterleaveLog2 - 8);
-
-        m_dccBaseIndex   += sizeof(DCC_64K_R_X_RBPLUS)    /
-                            sizeof(DCC_64K_R_X_RBPLUS[0]) /
-                            maxPipeInterleaveType       *
-                            (m_pipeInterleaveLog2 - 8);
-
-        if (m_numPkrLog2 < 2)
+        if (m_settings.supportRbPlus)
         {
-            m_colorBaseIndex += m_pipesLog2 * MaxNumOfBpp;
-            m_xmaskBaseIndex += m_pipesLog2 * MaxNumOfAA;
+            m_numPkrLog2 = gbAddrConfig.bits.NUM_PKRS;
+            m_numSaLog2  = (m_numPkrLog2 > 0) ? (m_numPkrLog2 - 1) : 0;
+
+            ADDR_ASSERT((m_numPkrLog2 <= m_pipesLog2) && ((m_pipesLog2 - m_numPkrLog2) <= 2));
+
+            ADDR_C_ASSERT(sizeof(HTILE_64K_RBPLUS) / sizeof(HTILE_64K_RBPLUS[0]) ==
+                          sizeof(CMASK_64K_RBPLUS) / sizeof(CMASK_64K_RBPLUS[0]));
+
+            m_colorBaseIndex += sizeof(SW_64K_R_X_1xaa_RBPLUS)    /
+                                sizeof(SW_64K_R_X_1xaa_RBPLUS[0]) /
+                                maxPipeInterleaveType             *
+                                (m_pipeInterleaveLog2 - 8);
+
+            m_xmaskBaseIndex += sizeof(HTILE_64K_RBPLUS)    /
+                                sizeof(HTILE_64K_RBPLUS[0]) /
+                                maxPipeInterleaveType       *
+                                (m_pipeInterleaveLog2 - 8);
+
+            m_dccBaseIndex   += sizeof(DCC_64K_R_X_RBPLUS)    /
+                                sizeof(DCC_64K_R_X_RBPLUS[0]) /
+                                maxPipeInterleaveType       *
+                                (m_pipeInterleaveLog2 - 8);
+
+            if (m_numPkrLog2 < 2)
+            {
+                m_colorBaseIndex += m_pipesLog2 * MaxNumOfBpp;
+                m_xmaskBaseIndex += m_pipesLog2 * MaxNumOfAA;
+            }
+            else
+            {
+                m_colorBaseIndex += (2 * m_numPkrLog2 - 2 + m_pipesLog2) * MaxNumOfBpp;
+
+                const UINT_32 xmaskPipePerPkr = 4;
+
+                m_xmaskBaseIndex += (m_numPkrLog2 - 1) * xmaskPipePerPkr * MaxNumOfAA +
+                                    (m_pipesLog2 + 1 - m_numPkrLog2) * MaxNumOfAA;
+            }
         }
         else
         {
-            m_colorBaseIndex += (2 * m_numPkrLog2 - 2 + m_pipesLog2) * MaxNumOfBpp;
+            const UINT_32 numPipeType = static_cast<UINT_32>(ADDR_CONFIG_64_PIPE) -
+                                        static_cast<UINT_32>(ADDR_CONFIG_1_PIPE)  +
+                                        1;
 
-            const UINT_32 xmaskPipePerPkr = 4;
+            ADDR_C_ASSERT(sizeof(HTILE_64K) / sizeof(HTILE_64K[0]) / maxPipeInterleaveType ==
+                          (numPipeType + 1) * MaxNumOfAA);
 
-            m_xmaskBaseIndex += (m_numPkrLog2 - 1) * xmaskPipePerPkr * MaxNumOfAA +
-                                (m_pipesLog2 + 1 - m_numPkrLog2) * MaxNumOfAA;
+            ADDR_C_ASSERT(sizeof(HTILE_64K) / sizeof(HTILE_64K[0]) == sizeof(CMASK_64K) / sizeof(CMASK_64K[0]));
+
+            m_colorBaseIndex += (m_pipeInterleaveLog2 - 8) * (MaxNumOfBpp * numPipeType) + (m_pipesLog2 * MaxNumOfBpp);
+            m_xmaskBaseIndex += (m_pipeInterleaveLog2 - 8) * (MaxNumOfAA * (numPipeType + 1)) + (m_pipesLog2 * MaxNumOfAA);
+            m_dccBaseIndex   += (m_pipeInterleaveLog2 - 8) * MaxNumOfBpp * (numPipeType + UnalignedDccType);
         }
-    }
-    else
-    {
-        const UINT_32 numPipeType = static_cast<UINT_32>(ADDR_CONFIG_64_PIPE) -
-                                    static_cast<UINT_32>(ADDR_CONFIG_1_PIPE)  +
-                                    1;
-
-        ADDR_C_ASSERT(sizeof(HTILE_64K) / sizeof(HTILE_64K[0]) / maxPipeInterleaveType ==
-                      (numPipeType + 1) * MaxNumOfAA);
-
-        ADDR_C_ASSERT(sizeof(HTILE_64K) / sizeof(HTILE_64K[0]) == sizeof(CMASK_64K) / sizeof(CMASK_64K[0]));
-
-        m_colorBaseIndex += (m_pipeInterleaveLog2 - 8) * (MaxNumOfBpp * numPipeType) + (m_pipesLog2 * MaxNumOfBpp);
-        m_xmaskBaseIndex += (m_pipeInterleaveLog2 - 8) * (MaxNumOfAA * (numPipeType + 1)) + (m_pipesLog2 * MaxNumOfAA);
-        m_dccBaseIndex   += (m_pipeInterleaveLog2 - 8) * MaxNumOfBpp * (numPipeType + UnalignedDccType);
     }
 
     if (valid)
@@ -2278,6 +2285,7 @@ BOOL_32 Gfx10Lib::ValidateSwModeParams(
             ADDR_ASSERT_ALWAYS();
             valid = FALSE;
         }
+
     }
     else if (tex3d)
     {
@@ -2506,6 +2514,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
                 case ADDR_RSRC_TEX_2D:
                     allowedSwModeSet.value &= pIn->flags.prt ? Gfx10Rsrc2dPrtSwModeMask : Gfx10Rsrc2dSwModeMask;
+
                     break;
 
                 case ADDR_RSRC_TEX_3D:
@@ -3537,7 +3546,6 @@ const UINT_64* Gfx10Lib::GetSwizzlePattern(
                 }
             }
         }
-
     }
     else
     {

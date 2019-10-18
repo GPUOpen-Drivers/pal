@@ -80,7 +80,7 @@ void PipelineChunkHs::EarlyInit(
     if (settings.enableLoadIndexForObjectBinds != false)
     {
         pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
-        pInfo->loadedShRegCount  += (BaseLoadedShRegCount + chipProps.gfx9.supportSpp);
+        pInfo->loadedShRegCount  += (BaseLoadedShRegCount + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
 
         if (chipProps.gfx9.supportSpiPrefPriority)
         {

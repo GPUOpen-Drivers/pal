@@ -339,10 +339,6 @@ const RegisterRange NonShadowedRangesGfx8[] =
         1
     },
     {
-        mmDB_DEBUG,
-        1
-    },
-    {
         mmCOMPUTE_VMID,
         1
     },

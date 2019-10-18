@@ -52,9 +52,7 @@ DmaCmdBuffer::DmaCmdBuffer(
     Device&                    device,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pal::DmaCmdBuffer(device.Parent(),
-                      createInfo,
-                      0)
+    Pal::DmaCmdBuffer(device.Parent(), createInfo, 0)
 {
     // Regarding copyOverlapHazardSyncs value in the constructor above:
     //   While GFX10 may execute sequences of small copies/writes asynchronously, the hardware should
@@ -1104,48 +1102,59 @@ void DmaCmdBuffer::SetupMetaData(
         const auto&       createInfo = pPalImage->GetImageCreateInfo();
         const Image*      pGfxImage  = static_cast<const Image*>(pPalImage->GetGfxImage());
         const GfxIpLevel  gfxLevel   = pPalDevice->ChipProperties().gfxLevel;
-        const auto*       pFmtInfo   = Pal::Formats::Gfx9::MergedChannelFlatFmtInfoTbl(gfxLevel);
+        const auto*       pFmtInfo   = Pal::Formats::Gfx9::MergedChannelFlatFmtInfoTbl(gfxLevel, &settings);
         const MaskRam*    pMaskRam   = nullptr;
         const bool        colorMeta  = pGfxImage->HasDccData();
 
         if (colorMeta)
         {
-            const ChNumFormat                format     = createInfo.swizzledFormat.format;
-            const regCB_COLOR0_DCC_CONTROL&  dccControl = pGfxImage->GetDcc()->GetControlReg();
-            const SurfaceSwap                surfSwap   = Formats::Gfx9::ColorCompSwap(createInfo.swizzledFormat);
-
-            pMaskRam = pGfxImage->GetDcc();
-
-            pPacket->META_CONFIG_UNION.max_comp_block_size   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
-            pPacket->META_CONFIG_UNION.max_uncomp_block_size = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
-            pPacket->META_CONFIG_UNION.data_format           = Formats::Gfx9::HwColorFmt(pFmtInfo, format);
-            pPacket->META_CONFIG_UNION.number_type           = Formats::Gfx9::ColorSurfNum(pFmtInfo, format);
-
-            if (Pal::Formats::HasAlpha(createInfo.swizzledFormat) &&
-                (surfSwap != SWAP_STD_REV)                        &&
-                (surfSwap != SWAP_ALT_REV))
+            const auto colorLayoutToState = pGfxImage->LayoutToColorCompressionState();
+            const auto colorCompressState = ImageLayoutToColorCompressionState(colorLayoutToState,
+                                                                               image.imageLayout);
+            if (colorCompressState != ColorDecompressed)
             {
-                pPacket->META_CONFIG_UNION.alpha_is_on_msb = 1;
-            }
+                const ChNumFormat                format     = createInfo.swizzledFormat.format;
+                const regCB_COLOR0_DCC_CONTROL&  dccControl = pGfxImage->GetDcc()->GetControlReg();
+                const SurfaceSwap                surfSwap   = Formats::Gfx9::ColorCompSwap(createInfo.swizzledFormat);
 
-            pPacket->META_CONFIG_UNION.color_transform_disable = 0;
+                pMaskRam = pGfxImage->GetDcc();
+
+                pPacket->META_CONFIG_UNION.max_comp_block_size   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
+                pPacket->META_CONFIG_UNION.max_uncomp_block_size = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
+                pPacket->META_CONFIG_UNION.data_format           = Formats::Gfx9::HwColorFmt(pFmtInfo, format);
+                pPacket->META_CONFIG_UNION.number_type           = Formats::Gfx9::ColorSurfNum(pFmtInfo, format);
+
+                if (Pal::Formats::HasAlpha(createInfo.swizzledFormat) &&
+                    (surfSwap != SWAP_STD_REV)                        &&
+                    (surfSwap != SWAP_ALT_REV))
+                {
+                    pPacket->META_CONFIG_UNION.alpha_is_on_msb = 1;
+                }
+
+                pPacket->META_CONFIG_UNION.color_transform_disable = 0;
+            }
         }
         else if (pGfxImage->HasDsMetadata())
         {
             const SubresId    baseSubResId    = { image.pSubresInfo->subresId.aspect, 0, 0 };
             const auto*       pBaseSubResInfo = pPalImage->SubresourceInfo(baseSubResId);
             const ChNumFormat fmt             = pBaseSubResInfo->format.format;
+            const auto dsLayoutToState        = pGfxImage->LayoutToDepthCompressionState(baseSubResId);
+            const auto dsCompressState        = ImageLayoutToDepthCompressionState(dsLayoutToState,
+                                                                                   image.imageLayout);
+            if (dsCompressState == DepthStencilCompressed)
+            {
+                pMaskRam = pGfxImage->GetHtile();
 
-            pMaskRam = pGfxImage->GetHtile();
+                // For depth/stencil image, using HwColorFmt() is correct because:
+                // 1. This field is documented by SDMA spec as "the same as the color_format used by the CB".
+                // 2. IMG_DATA_FORMAT enum texture engine uses is identical as ColorFormat enum CB uses.
+                // 3. Experiment results indicate this is the correct way to program this field.
+                pPacket->META_CONFIG_UNION.data_format = Formats::Gfx9::HwColorFmt(pFmtInfo, fmt);
 
-            // For depth/stencil image, using HwColorFmt() is correct because:
-            // 1. This field is documented by SDMA spec as "the same as the color_format used by the CB".
-            // 2. IMG_DATA_FORMAT enum texture engine uses is identical as ColorFormat enum CB uses.
-            // 3. Experiment results indicate this is the correct way to program this field.
-            pPacket->META_CONFIG_UNION.data_format = Formats::Gfx9::HwColorFmt(pFmtInfo, fmt);
-
-            //  These fields "max_comp_block_size", "max_uncomp_block_size" and "number_type" ... do not
-            //  matter for depth and stencil for the purpose of shader compress write
+                //  These fields "max_comp_block_size", "max_uncomp_block_size" and "number_type" ... do not
+                //  matter for depth and stencil for the purpose of shader compress write
+            }
         }
 
         // If this image doesn't have meta data, then there's nothing to do...

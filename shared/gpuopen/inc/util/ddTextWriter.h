@@ -32,6 +32,8 @@
 #include "ddUriInterface.h"
 #include "ddPlatform.h"
 
+#include <util/vector.h>
+
 namespace DevDriver
 {
     class TextWriter final : public ITextWriter
@@ -43,6 +45,10 @@ namespace DevDriver
         // all writing through this writer is finished.
         // `pUserData` may be `nullptr`.
         typedef Result (*WriteBytesCb)(void* pUserData, const void* pBytes, size_t numBytes);
+
+        // Write text into a Vector<char>
+        // (We don't have a String Buffer abstraction to use instead)
+        explicit TextWriter(Vector<char>* pString);
 
         // Constructs a `TextWriter` with a callback and its expected user data pointer.
         // `pUserData` may be `nullptr`, if your callback doesn't use it.

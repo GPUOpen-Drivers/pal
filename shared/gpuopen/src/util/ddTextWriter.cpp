@@ -31,7 +31,55 @@
 
 using namespace DevDriver;
 
+static Result WriteTextViaVectorCb(void* pUserData, const void* pInBytes, size_t numBytes)
+{
+    Result result = Result::Success;
+    Vector<char>& outString  = *static_cast<Vector<char>*>(pUserData);
+
+    // Special "End of Writer" call
+    if ((pInBytes == nullptr) && (numBytes == 0))
+    {
+        // We can use this to flush a buffer or something exotic.
+        // Vector<> has no such requirements, so we do nothing.
+    }
+    // Regular write - copy the buffer out
+    else if (pInBytes != nullptr)
+    {
+        const char* pSrcString = static_cast<const char*>(pInBytes);
+        // TODO: If Resize returned whether the allocation succeeded, we could replace the following
+        // for-loop with a memcpy/strcpy.
+        outString.Reserve(outString.Size() + numBytes);
+
+        for (uint32 i = 0; i < numBytes; i += 1)
+        {
+            if (!outString.PushBack(pSrcString[i]))
+            {
+                result = Result::InsufficientMemory;
+                break;
+            }
+        }
+    }
+    else
+    {
+        // We should not have landed here - either the pointer is valid, or it's not.
+        // To land here, we got a NULL pointer and a non-zero size!
+        // This is a programmer error in TextWriter
+        DD_PRINT(LogLevel::Warn, "pInBytes=%p, numbytes=%zu", pInBytes, numBytes);
+        DD_ASSERT_ALWAYS();
+        result = Result::Error;
+    }
+
+    return result;
+};
+
 //=====================================================================================================================
+TextWriter::TextWriter(Vector<char>* pString)
+    : m_pUserData(pString),
+      m_pfnWriter(WriteTextViaVectorCb),
+      m_lastResult(Result::Success)
+{
+}
+
 TextWriter::TextWriter(void* pUserData, TextWriter::WriteBytesCb callback)
     : m_pUserData(pUserData),
       m_pfnWriter(callback),

@@ -58,7 +58,14 @@ namespace DevDriver
         // all writing through this writer is finished.
         // `pUserData` may be `nullptr`.
         // All of the Json writes go through this callback via a TextWriter.
-        using WriteBytesCb = TextWriter::WriteBytesCb;
+        using  WriteBytesCb = TextWriter::WriteBytesCb;
+
+        // Write text into a Vector<char>
+        explicit JsonWriter(Vector<char>* pString)
+            : m_textStream(pString),
+              m_rjWriter(m_textStream),
+              m_lastResult(Result::Success)
+        {}
 
         // Constructs a `JsonWriter` with a callback and its expected user data pointer.
         // `pUserData` may be `nullptr`, if your callback doesn't use it.
@@ -118,6 +125,9 @@ namespace DevDriver
             TextWriter textWriter;
 
         public:
+            JsonTextStream(Vector<char>* pString)
+                : textWriter(pString)
+            {}
             JsonTextStream(void* pUserData, TextWriter::WriteBytesCb callback)
                 : textWriter(pUserData, callback)
             {}

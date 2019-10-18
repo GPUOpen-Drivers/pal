@@ -138,17 +138,15 @@ struct LayoutTransitionInfo
     {
         struct
         {
-            uint32 hasSecondPassBlt : 1;  // MSAA surfaces need a second pass BLT (MsaaColorDecompress) after
-                                          // FmaskDecompress/DccDecompress.
             uint32 useComputePath   : 1;  // For those transition BLTs that could do either graphics or compute path,
                                           // figure out what path the BLT will use and cache it here.
             uint32 fceIsSkipped     : 1;  // Set if a FastClearEliminate BLT is skipped.
-            uint32 reserved         : 29; // Reserved for future usage.
+            uint32 reserved         : 30; // Reserved for future usage.
         };
         uint32 u32All;                    // Flags packed as uint32.
     } flags;
 
-    HwLayoutTransition blt;
+    HwLayoutTransition blt[2];            // Color target may need a second decompress pass to do MSAA color decompress.
 };
 
 // PAL needs to reserve enough CE RAM space for the stream-out SRD table and for the user-data spill table for each
@@ -467,7 +465,8 @@ public:
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierReleaseInfo,
         const IGpuEvent*              pGpuEvent,
-        Developer::BarrierOperations* pBarrierOps) const;
+        Developer::BarrierOperations* pBarrierOps,
+        bool                          waMetaMisalignNeedRefreshLlc = false) const;
 
     void BarrierAcquire(
         GfxCmdBuffer*                 pCmdBuf,
@@ -475,7 +474,8 @@ public:
         const AcquireReleaseInfo&     barrierAcquireInfo,
         uint32                        gpuEventCount,
         const IGpuEvent*const*        ppGpuEvents,
-        Developer::BarrierOperations* pBarrierOps) const;
+        Developer::BarrierOperations* pBarrierOps,
+        bool                          waMetaMisalignNeedRefreshLlc = false) const;
 
     void BarrierReleaseThenAcquire(
         GfxCmdBuffer*                 pCmdBuf,
@@ -708,11 +708,6 @@ private:
         gpusize                       sizeBytes,
         bool                          isFlushing,
         Developer::BarrierOperations* pBarrierOps) const;
-
-    bool WaRefreshTccToAlignMetadata(
-        const ImgBarrier& imgBarrier,
-        uint32            srcAccessMask,
-        uint32            dstAccessMask) const;
 
     Gfx9::CmdUtil  m_cmdUtil;
     BoundGpuMemory m_occlusionSrcMem;   // If occlusionQueryDmaBufferSlots is in use, this is the source memory.

@@ -37,6 +37,7 @@
 #include <cstring>
 #include <cstdarg>
 #include <time.h>
+#include <dlfcn.h>
 
 namespace DevDriver
 {
@@ -174,6 +175,38 @@ namespace DevDriver
             // pthread_t types act as opaque, and do not work portably when compared directly.
             // To get around this, we use the threadFunc pointer instead, since it is never allowed to be NULL.
             return (pFnFunction != nullptr);
+        }
+
+        /////////////////////////////////////////////////////
+        // Library
+        /////////////////////////////////////////////////////
+
+        // Loads a Shared Object with the specified name into this process.
+        Result Library::Load(
+            const char* pLibraryName)
+        {
+            constexpr uint32 Flags = RTLD_LAZY;
+            m_hLib = dlopen(pLibraryName, Flags);
+
+            return (m_hLib == nullptr) ? Result::Unavailable : Result::Success;
+        }
+
+        // Unloads this Shared Object if it was loaded previously.  Called automatically during the object destructor.
+        void Library::Close()
+        {
+            if (m_hLib != nullptr)
+            {
+                dlclose(m_hLib);
+                m_hLib = nullptr;
+            }
+        }
+
+        void* Library::GetFunctionHelper(
+            const char* pName
+        ) const
+        {
+            DD_ASSERT(m_hLib != nullptr);
+            return reinterpret_cast<void*>(dlsym(m_hLib, pName));
         }
 
         /////////////////////////////////////////////////////
@@ -459,7 +492,20 @@ namespace DevDriver
 
         int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args)
         {
-            return vsnprintf(pDst, dstSize, format, args);
+            int32 ret = vsnprintf(pDst, dstSize, format, args);
+
+            // If the return value looks like a valid length, add one to account for a NULL byte.
+            if (ret >= 0)
+            {
+                ret += 1;
+            }
+            else
+            {
+                // A negative value means that some error occurred
+                // We don't print anything here because our logging requires Vsnprintf
+            }
+
+            return ret;
         }
 
     }

@@ -109,9 +109,45 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
 #define DD_STRINGIFY(x) _DD_STRINGIFY(x)
 
 #if DD_CPLUSPLUS_SUPPORTS(CPP17)
-    #define DD_NODISCARD [[nodiscard]]
+    // Require that a function's return value, or an entire type, be used.
+    //  See: https://en.cppreference.com/w/cpp/language/attributes/nodiscard
+    #define DD_NODISCARD    [[nodiscard]]
+
+    // Do not warn about switch statement cases falling through.  Place this macro as the case body, e.g.
+    //  switch (x)
+    //  {
+    //      case 0: DD_FALLTHROUGH();
+    //      case 1: DD_FALLTHROUGH();
+    //      case 2:
+    //          printf("0, 1, or 2");
+    //          break;
+    //  }
+    //
+    //  See: https://en.cppreference.com/w/cpp/language/attributes/fallthrough
+    #define DD_FALLTHROUGH()  [[fallthrough]]
 #else
+    // Require that a function's return value, or an entire type, be used.
+    //  See: https://en.cppreference.com/w/cpp/language/attributes/nodiscard
+    // This option is aggressive enough that we do not enable it when C++17 is not enabled
     #define DD_NODISCARD
+
+    // Do not warn about switch statement cases falling through.  Place this macro as the case body, e.g.
+    //  switch (x)
+    //  {
+    //      case 0: DD_FALLTHROUGH();
+    //      case 1: DD_FALLTHROUGH();
+    //      case 2:
+    //          printf("0, 1, or 2");
+    //          break;
+    //  }
+    //
+    //  See: https://en.cppreference.com/w/cpp/language/attributes/fallthrough
+    #if defined(__clang__)
+        #define DD_FALLTHROUGH() [[clang::fallthrough]]
+    #else
+            // Not supported on older versions of GCC
+            #define DD_FALLTHROUGH()
+    #endif
 #endif
 
 // Include in the private section of a class declaration in order to disallow use of the copy and assignment operator

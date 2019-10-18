@@ -49,6 +49,24 @@
 
 namespace DevDriver
 {
+    const char* GetMpackErrorString(mpack_error_t error)
+    {
+        switch (error)
+        {
+            case mpack_ok:                  return "[mpack_ok] No error";
+            case mpack_error_io:            return "[mpack_error_io] The reader or writer failed to fill or flush, or some other file or socket error occurred";
+            case mpack_error_invalid:       return "[mpack_error_invalid] The data read is not valid MessagePack";
+            case mpack_error_unsupported:   return "[mpack_error_unsupported] The data read is not supported by this configuration of MPack";
+            case mpack_error_type:          return "[mpack_error_type] The type or value range did not match what was expected by the caller";
+            case mpack_error_too_big:       return "[mpack_error_too_big] A read or write was bigger than the maximum size allowed for that operation";
+            case mpack_error_memory:        return "[mpack_error_memory] An allocation failure occurred";
+            case mpack_error_bug:           return "[mpack_error_bug] The MPack API was used incorrectly";
+            case mpack_error_data:          return "[mpack_error_data] The contained data is not valid";
+            case mpack_error_eof:           return "[mpack_error_eof] The reader failed to read because of file or socket EOF";
+        }
+        return "[???] Unrecognized mpack error";;
+    }
+
     // RjReaderHandler processes rapidjson SAX tokens into messagepack.
     // rapidjson parses the Json and calls the appropriate method for each value (or key) that it finds, as it finds it.
     // This allows us to parse Json directly into messagepack.
@@ -347,8 +365,8 @@ namespace DevDriver
                     DD_WARN(info.type == PatchInfo::Type::Array);
                     valid &= (info.type == PatchInfo::Type::Array);
 
-                    DD_WARN(info.offset + info.size < mpack_writer_buffer_used(&m_writer));
-                    valid &= (info.offset + info.size < mpack_writer_buffer_used(&m_writer));
+                    DD_WARN(info.offset + info.size <= mpack_writer_buffer_used(&m_writer));
+                    valid &= (info.offset + info.size <= mpack_writer_buffer_used(&m_writer));
 
                     if (valid)
                     {
@@ -450,12 +468,19 @@ namespace DevDriver
         {
             const mpack_error_t error = mpack_tree_destroy(&m_tree);
 
-            if(error != mpack_ok)
+            // We put in a lot of effort (too much?) to keep this error state clear, even when errors happen.
+            // If this assert fires, we (the implementors of StructuredValue) have messed up badly and you will see odd bugs:
+            //      1) Values you know are valid start returning NULL instead
+            //      2) This behavior is consistent between runs, but noisy if you innocently reorder your code
+            // Consult pfnMpackErrorCb in Init() to help track down the issue.
+            DD_ASSERT(error == mpack_ok);
+
+            if (error != mpack_ok)
             {
-                DD_PRINT(LogLevel::Warn,
-                         "mpack_tree_destroy() returned error %d: %s",
+                DD_PRINT(LogLevel::Error,
+                         "[IStructuredReader] mpack_tree_destroy() returned error %d: %s",
                          static_cast<uint32>(error),
-                         mpack_error_to_string(error));
+                         GetMpackErrorString(error));
             }
         }
 
@@ -484,21 +509,34 @@ namespace DevDriver
     // Unpack a node from out opaque format
     static mpack_node_t UnpackNode(const StructuredValue::OpaqueNode& opaque)
     {
-        mpack_node_t node;
-
         // Sanity checks
         DD_ASSERT(opaque.blob[0] != nullptr);
         DD_ASSERT(opaque.blob[1] != nullptr);
 
+        mpack_node_t node;
         memcpy(&node, &opaque, sizeof(node));
+
+        if (node.tree->error != mpack_ok)
+        {
+            DD_PRINT(LogLevel::Warn, "[%s] %s", __FUNCTION__, GetMpackErrorString(node.tree->error));
+            // We shouldn't hit this code, but uncommenting the following line breaks tests.
+            // node.tree->error = mpack_ok;
+        }
+
         return node;
     }
 
     // Pack a node into our Opaque format
     static StructuredValue::OpaqueNode PackNode(mpack_node_t node)
     {
-        StructuredValue::OpaqueNode opaque;
+        if (node.tree->error != mpack_ok)
+        {
+            mpack_error_t error = node.tree->error;
+            DD_PRINT(LogLevel::Debug, "node.tree->error = %d (0x%x) %s", error, error, GetMpackErrorString(error));
+            node.tree->error = mpack_ok;
+        }
 
+        StructuredValue::OpaqueNode opaque;
         memcpy(&opaque, &node, sizeof(node));
 
         // Sanity checks
@@ -528,42 +566,27 @@ namespace DevDriver
 
         if (result == Result::Success)
         {
+            // Initialize the mpack tree from out existing buffer.
+            // TODO: This can allocate, we need to pre-allocate nodes on mpack's behalf
             mpack_tree_init_data(&m_tree, reinterpret_cast<const char*>(pBytes), numBytes);
+
+            // Set an error callback
+            // This is called whenever mpack hits an error state. We overwrite that state, so this fires excessively,
+            // but can still be helpful for debugging.
+            mpack_tree_error_t pfnMpackErrorCb= [](mpack_tree_t* tree, mpack_error_t error) {
+                // We pass the whole reader object to this function, but do not use it yet.
+                MessagePackReader* pReader = reinterpret_cast<MessagePackReader*>(tree->context);
+                DD_UNUSED(pReader);
+
+                // If you're here debugging something, break point here.
+
+                DD_PRINT(LogLevel::Debug, "%s", GetMpackErrorString(error));
+            };
+            mpack_tree_set_context(&m_tree, this);
+            mpack_tree_set_error_handler(&m_tree, pfnMpackErrorCb);
+
             mpack_tree_parse(&m_tree);
             const mpack_error_t error = mpack_tree_error(&m_tree);
-            switch (error)
-            {
-            case mpack_error_io:
-                DD_PRINT(LogLevel::Warn, "[MessagePackReader::Init] The reader or writer failed to fill or flush, or some other file or socket error occurred.");
-                break;
-            case mpack_error_invalid:
-                DD_PRINT(LogLevel::Warn, "[MessagePackReader::Init] The data read is not valid MessagePack.");
-                break;
-            case mpack_error_unsupported:
-                DD_PRINT(LogLevel::Warn, "[MessagePackReader::Init] The data read is not supported by this configuration of MPack. (See @ref MPACK_EXTENSIONS.)");
-                break;
-            case mpack_error_type:
-                DD_PRINT(LogLevel::Warn, "[MessagePackReader::Init] The type or value range did not match what was expected by the caller.");
-                break;
-            case mpack_error_too_big:
-                DD_PRINT(LogLevel::Warn, "[MessagePackReader::Init] A read or write was bigger than the maximum size allowed for that operation.");
-                break;
-            case mpack_error_memory:
-                DD_PRINT(LogLevel::Warn, "[MessagePackReader::Init] An allocation failure occurred.");
-                break;
-            case mpack_error_bug:
-                DD_PRINT(LogLevel::Warn, "[MessagePackReader::Init] The MPack API was used incorrectly. (This will always assert in debug mode.)");
-                break;
-            case mpack_error_data:
-                DD_PRINT(LogLevel::Warn, "[MessagePackReader::Init] The contained data is not valid.");
-                break;
-            case mpack_error_eof:
-                DD_PRINT(LogLevel::Warn, "[MessagePackReader::Init] The reader failed to read because of file or socket EOF");
-                break;
-            default:
-                DD_ASSERT(error == mpack_ok);
-                break;
-            }
 
             result = (error == mpack_ok) ? Result::Success : Result::InvalidParameter;
         }
@@ -794,7 +817,21 @@ namespace DevDriver
             RjReaderHandler handler(allocCb);
             if (result == Result::Success)
             {
-                result = handler.Init(textSize);
+                // TODO: Revisit this size estimate
+                // This design was originally written expecting MessagePack to *always* be smaller than Json.
+                // In practice, this doesn't happen because of our patching of the messagepack data that RjHandler does.
+                // This means we need to estimate *more* space than the text size takes up. We use 2x as an excessive
+                // estimate, just to be safe. We later shrink the Vector, but it's not clear if that actually
+                // deallocates anything.
+                //
+                // We need to review this and generate a better estimate - ideally we'd do two passes over the Json.
+                //      1. The first pass is used to estimate the size needed,
+                //          and avoid the use of the patching scheme we have.
+                //      2. The second pass then writes out all of the data, after allocating it exactly.
+                //
+                // For now just double the size and know that it'll be "good enough".
+                const size_t messagepackSizeEstimate = 2 * textSize;
+                result = handler.Init(messagepackSizeEstimate);
             }
 
             if (result == Result::Success)
@@ -835,7 +872,7 @@ namespace DevDriver
         MessagePackReader* pReader = nullptr;
         if (result == Result::Success)
         {
-            DD_PRINT(LogLevel::Info,
+            DD_PRINT(LogLevel::Verbose,
                      "[IStructuredReader::CreateFromJson] Parsed %zu bytes of Json into %zu bytes of MessagePack",
                      textSize,
                      msgpackBuffer.Size());
@@ -940,16 +977,43 @@ namespace DevDriver
                 pFile,
                 line,
                 pCallingFunction,
-                mpack_error_to_string(error));
-
-            // Reset the global error state so that future calls work.
-            // This is not something we "should" be doing, but to get the node api to work how we want we must.
-            //      Our StructuredValue api needs to work even after encountering an error.
-            //      mpack's node api is designed for a lot of reads and error checking at the end.
-            node.tree->error = mpack_ok;
+                GetMpackErrorString(error));
         }
+        // Reset the global error state so that future calls work.
+        // This is not something we "should" be doing, but to get the node api to work how we want we must.
+        //      Our StructuredValue api needs to work even after encountering an error.
+        //      mpack's node api is designed for a lot of reads and error checking at the end.
+        node.tree->error = mpack_ok;
 
         return ok;
+    }
+
+    StructuredValue::Type StructuredValue::GetType() const
+    {
+        const mpack_node_t node = UnpackNode(m_opaque);
+
+        switch(mpack_node_type(node))
+        {
+            case mpack_type_bool:    return Type::Bool;
+
+            case mpack_type_int:     return Type::Int;
+            case mpack_type_uint:    return Type::Uint;
+
+            case mpack_type_float:   return Type::Float;
+            case mpack_type_double:  return Type::Double;
+
+            case mpack_type_str:     return Type::Str;
+            case mpack_type_array:   return Type::Array;
+            case mpack_type_map:     return Type::Map;
+
+            case mpack_type_bin:
+                DD_ASSERT_REASON("Unexpected 'bin' value in mpack data");
+                return Type::Null;
+            case mpack_type_missing: return Type::Null;
+            case mpack_type_nil:     return Type::Null;
+
+            default:                 return Type::Null;
+        }
     }
 
     // Public StructuredValue methods that wrap mpack functions
@@ -998,10 +1062,88 @@ namespace DevDriver
         return ResetInternalErrorState();
     }
 
+    bool StructuredValue::GetUint32(uint32* pNum) const
+    {
+        const mpack_node_t node = UnpackNode(m_opaque);
+        const uint32 num = mpack_node_u32(node);
+
+        if ((pNum != nullptr) && (mpack_node_error(node) == mpack_ok))
+        {
+            *pNum = num;
+        }
+
+        return ResetInternalErrorState();
+    }
+
+    bool StructuredValue::GetUint16(uint16* pNum) const
+    {
+        const mpack_node_t node = UnpackNode(m_opaque);
+        const uint16 num = mpack_node_u16(node);
+
+        if ((pNum != nullptr) && (mpack_node_error(node) == mpack_ok))
+        {
+            *pNum = num;
+        }
+
+        return ResetInternalErrorState();
+    }
+
+    bool StructuredValue::GetUint8(uint8* pNum) const
+    {
+        const mpack_node_t node = UnpackNode(m_opaque);
+        const uint8 num = mpack_node_u8(node);
+
+        if ((pNum != nullptr) && (mpack_node_error(node) == mpack_ok))
+        {
+            *pNum = num;
+        }
+
+        return ResetInternalErrorState();
+    }
+
     bool StructuredValue::GetInt64(int64* pNum) const
     {
         const mpack_node_t node = UnpackNode(m_opaque);
         const int64 num = mpack_node_i64(node);
+
+        if ((pNum != nullptr) && (mpack_node_error(node) == mpack_ok))
+        {
+            *pNum = num;
+        }
+
+        return ResetInternalErrorState();
+    }
+
+    bool StructuredValue::GetInt32(int32* pNum) const
+    {
+        const mpack_node_t node = UnpackNode(m_opaque);
+        const int32 num = mpack_node_i32(node);
+
+        if ((pNum != nullptr) && (mpack_node_error(node) == mpack_ok))
+        {
+            *pNum = num;
+        }
+
+        return ResetInternalErrorState();
+    }
+
+    bool StructuredValue::GetInt16(int16* pNum) const
+    {
+        const mpack_node_t node = UnpackNode(m_opaque);
+        const int16 num = mpack_node_i16(node);
+
+        if ((pNum != nullptr) && (mpack_node_error(node) == mpack_ok))
+        {
+            *pNum = num;
+        }
+
+        return ResetInternalErrorState();
+    }
+
+    bool StructuredValue::GetInt8(int8* pNum) const
+    {
+        const mpack_node_t node = UnpackNode(m_opaque);
+        const int8 num = mpack_node_i8(node);
 
         if ((pNum != nullptr) && (mpack_node_error(node) == mpack_ok))
         {
@@ -1088,7 +1230,7 @@ namespace DevDriver
         return ResetInternalErrorState();
     }
 
-    DD_NODISCARD bool StructuredValue::GetStringPtr(const char** ppBuffer) const
+    DD_NODISCARD const char* StructuredValue::GetStringPtr() const
     {
         const mpack_node_t node  = UnpackNode(m_opaque);
         const size_t       len   = mpack_node_strlen(node);
@@ -1105,15 +1247,12 @@ namespace DevDriver
             }
         }
 
-        if (valid && (ppBuffer != nullptr))
-        {
-            *ppBuffer = pUtf8;
-        }
-
         // This one function departs from the usual `return ResetInternalErrorState();` pattern because it has a
         // precondition that mpack doesn't know about - the NULL terminator existing in the mpack data.
         // We already checked it, but need to include it in the return value.
-        return valid && ResetInternalErrorState();
+        valid &= ResetInternalErrorState();
+
+        return (valid ? pUtf8 : nullptr);
     }
 
     bool StructuredValue::GetValueByKey(const char* pKey, StructuredValue* pValue) const

@@ -254,6 +254,15 @@ UniversalRingSet::UniversalRingSet(
     BuildPm4Headers();
 }
 
+// Some registers were moved from user space to privileged space, we must access them using _UMD or _REMAP registers.
+// The problem is that only some ASICs moved the registers so we can't use any one name consistently. The good news is
+// that most of the _UMD and _REMAP registers have the same user space address as the old user space registers.
+// If these asserts pass we can just use the Gfx09 version of these registers everywhere in our code.
+static_assert(Gfx09::mmVGT_GSVS_RING_SIZE   == Gfx101::mmVGT_GSVS_RING_SIZE_UMD, "");
+static_assert(Gfx09::mmVGT_HS_OFFCHIP_PARAM == Gfx101::mmVGT_HS_OFFCHIP_PARAM_UMD, "");
+static_assert(Gfx09::mmVGT_TF_MEMORY_BASE   == Gfx101::mmVGT_TF_MEMORY_BASE_UMD, "");
+static_assert(Gfx09::mmVGT_TF_RING_SIZE     == Gfx101::mmVGT_TF_RING_SIZE_UMD, "");
+
 // =====================================================================================================================
 // Assembles the PM4 packet headers contained in the image of PM4 commands for this Ring Set.
 void UniversalRingSet::BuildPm4Headers()
@@ -274,16 +283,16 @@ void UniversalRingSet::BuildPm4Headers()
     // Setup the 1st PM4 packet, which sets the config registers VGT_TF_MEMORY_BASE and VGT_TF_MEMORY_BASE_HI.
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
-        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetSeqConfigRegs(regInfo.mmVgtTfMemBase,
-                                                                   regInfo.mmVgtTfMemBaseHi,
+        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetSeqConfigRegs(Gfx09::mmVGT_TF_MEMORY_BASE,
+                                                                   Gfx09::mmVGT_TF_MEMORY_BASE_HI,
                                                                    &m_pm4Commands.tfMemBase.gfx9.hdrVgtTfMemoryBase);
     }
     else if (IsGfx10(m_gfxLevel))
     {
-        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(regInfo.mmVgtTfMemBase,
+        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx09::mmVGT_TF_MEMORY_BASE,
                                                                   &m_pm4Commands.tfMemBase.gfx10.hdrVgtTfMemoryBaseLo);
 
-        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(regInfo.mmVgtTfMemBaseHi,
+        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD,
                                                                   &m_pm4Commands.tfMemBase.gfx10.hdrVgtTfMemoryBaseHi);
     }
 

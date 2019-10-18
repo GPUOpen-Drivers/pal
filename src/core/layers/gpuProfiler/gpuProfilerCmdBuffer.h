@@ -467,6 +467,9 @@ public:
     virtual void CmdFlglDisable() override;
     virtual void CmdCommentString(
         const char* pComment) override;
+    virtual void CmdNop(
+        const void* pPayload,
+        uint32      payloadSize) override;
     virtual uint32 CmdInsertExecutionMarker() override;
     virtual void CmdPostProcessFrame(
         const CmdPostProcessFrameInfo& postProcessInfo,
@@ -734,6 +737,7 @@ private:
     void ReplayCmdSaveComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdRestoreComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCommentString(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdNop(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdInsertExecutionMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdPostProcessFrame(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserClipPlanes(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

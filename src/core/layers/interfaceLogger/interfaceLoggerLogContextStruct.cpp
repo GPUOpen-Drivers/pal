@@ -1602,7 +1602,7 @@ void LogContext::Struct(
     KeyAndValue("maxBaseAlign", value.maxBaseAlign);
     KeyAndValue("rowPitch", value.rowPitch);
     KeyAndValue("depthPitch", value.depthPitch);
-    KeyAndStruct("stereoRefreshRate", value.stereoRefreshRate);
+    KeyAndStruct("refreshRate", value.refreshRate);
     KeyAndValue("viewFormatCount", value.viewFormatCount);
     KeyAndBeginList("viewFormats", false);
     if (value.viewFormatCount != AllCompatibleFormats)

@@ -120,9 +120,9 @@ typedef void (*ThreadFunction)(void* pThreadParameter);
     #endif
 
     #if __x86_64__
-        #define DD_CPU_BITS 64
+        #define AMD_TARGET_ARCH_BITS 64
     #else
-        #define DD_CPU_BITS 32
+        #define AMD_TARGET_ARCH_BITS 32
     #endif
 #endif
 
@@ -315,8 +315,24 @@ static void DeleteArray(T* pElements, const AllocCb& allocCb)
     DD_FREE(pElements, allocCb);
 }
 
-template <typename T, size_t Size>
-constexpr size_t ArraySize(const T(&)[Size]) { return Size; }
+// Get the number of elements in a statically sized array
+// Usage:
+//      char buffer[1024];
+//      size_t size = ArraySize(buffer); // size == 1024
+//
+//  With a cast:
+//      char buffer[1024];
+//      uint32 size = ArraySize<uint32>(buffer);
+//
+template <
+    typename SizeT = size_t,    // Type to return
+    typename T,                 // Inferred type of array elements - you should not need to supply this argument
+    size_t   Size               // Inferred length of array (in elements) - you should not need to supply this argument
+>
+constexpr SizeT ArraySize(const T(&)[Size])
+{
+    return static_cast<SizeT>(Size);
+}
 
 void DebugPrint(LogLevel lvl, const char* format, ...);
 
@@ -453,6 +469,40 @@ private:
     static_assert(kIncrement < kModulus,  "Invalid increment");
 };
 
+class Library
+{
+public:
+    Library() : m_hLib(nullptr) { }
+    ~Library() { Close(); }
+
+    Result Load(const char* pLibraryName);
+
+    void Close();
+
+    bool IsLoaded() const { return (m_hLib != nullptr); }
+
+    void Swap(Library* pLibrary)
+    {
+        m_hLib = pLibrary->m_hLib;
+        pLibrary->m_hLib = nullptr;
+    }
+
+    // Retrieve a function address from the dynamic library object. Returns true if successful, false otherwise.
+    template <typename Func_t>
+    bool GetFunction(const char* pName, Func_t* ppfnFunc) const
+    {
+        (*ppfnFunc) = reinterpret_cast<Func_t>(GetFunctionHelper(pName));
+        return ((*ppfnFunc) != nullptr);
+    }
+
+private:
+    void* GetFunctionHelper(const char* pName) const;
+
+    LibraryHandle m_hLib;
+
+    DD_DISALLOW_COPY_AND_ASSIGN(Library);
+};
+
 ProcessId GetProcessId();
 
 uint64 GetCurrentTimeInMs();
@@ -490,6 +540,7 @@ inline void LogString(const char *format, Ts&&... args)
 }
 
 // Increments a const pointer by numBytes by first casting it to a const uint8*.
+DD_NODISCARD
 constexpr const void* VoidPtrInc(
     const void* pPtr,
     size_t      numBytes)
@@ -498,6 +549,7 @@ constexpr const void* VoidPtrInc(
 }
 
 // Increments a pointer by numBytes by first casting it to a uint8*.
+DD_NODISCARD
 constexpr void* VoidPtrInc(
     void*  pPtr,
     size_t numBytes)
@@ -506,6 +558,7 @@ constexpr void* VoidPtrInc(
 }
 
 // Decrements a const pointer by numBytes by first casting it to a const uint8*.
+DD_NODISCARD
 constexpr const void* VoidPtrDec(
     const void* pPtr,
     size_t      numBytes)
@@ -514,6 +567,7 @@ constexpr const void* VoidPtrDec(
 }
 
 // Decrements a pointer by numBytes by first casting it to a uint8*.
+DD_NODISCARD
 constexpr void* VoidPtrDec(
     void*  pPtr,
     size_t numBytes)

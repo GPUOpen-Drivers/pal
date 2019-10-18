@@ -62,6 +62,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.requestDebugVmid = false;
     m_settings.neverChangeClockMode = false;
     m_settings.nonlocalDestGraphicsCopyRbs = 0;
+    m_settings.ifh = IfhModeDisabled;
     m_settings.idleAfterSubmitGpuMask = 0x0;
     m_settings.tossPointMode = TossPointNone;
     m_settings.wddm1FreeVirtualGpuMemVA = false;
@@ -146,6 +147,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.forcePresentViaGdi = false;
     m_settings.presentViaOglRuntime = true;
 
+    m_settings.debugForceSurfaceAlignment = 0;
+    m_settings.debugForceResourceAdditionalPadding = 0;
     m_settings.numSettings = g_palNumSettings;
 }
 
@@ -192,6 +195,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNonlocalDestGraphicsCopyRbsStr,
                            Util::ValueType::Int,
                            &m_settings.nonlocalDestGraphicsCopyRbs,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pIFHStr,
+                           Util::ValueType::Uint,
+                           &m_settings.ifh,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pIdleAfterSubmitGpuMaskStr,
@@ -531,6 +539,16 @@ void SettingsLoader::ReadSettings()
                            &m_settings.presentViaOglRuntime,
                            InternalSettingScope::PrivatePalKey);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDebugForceResourceAlignmentStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.debugForceSurfaceAlignment,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDebugForceResourceAdditionalPaddingStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.debugForceResourceAdditionalPadding,
+                           InternalSettingScope::PrivatePalKey);
+
 }
 
 // =====================================================================================================================
@@ -578,6 +596,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.nonlocalDestGraphicsCopyRbs;
     info.valueSize = sizeof(m_settings.nonlocalDestGraphicsCopyRbs);
     m_settingsInfoMap.Insert(501901000, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.ifh;
+    info.valueSize = sizeof(m_settings.ifh);
+    m_settingsInfoMap.Insert(3299864138, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.idleAfterSubmitGpuMask;
@@ -984,6 +1007,16 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.presentViaOglRuntime);
     m_settingsInfoMap.Insert(2466363770, info);
 
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.debugForceSurfaceAlignment;
+    info.valueSize = sizeof(m_settings.debugForceSurfaceAlignment);
+    m_settingsInfoMap.Insert(397089904, info);
+
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.debugForceResourceAdditionalPadding;
+    info.valueSize = sizeof(m_settings.debugForceResourceAdditionalPadding);
+    m_settingsInfoMap.Insert(3601080919, info);
+
 }
 
 // =====================================================================================================================
@@ -1005,7 +1038,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 2487581904;
+            component.settingsDataHash = 616573810;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

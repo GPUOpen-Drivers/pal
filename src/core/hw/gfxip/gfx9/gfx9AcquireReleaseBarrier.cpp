@@ -53,7 +53,7 @@ struct AcqRelTransitionInfo
     LayoutTransitionInfo layoutTransInfo;
     uint32               bltStageMask;
     uint32               bltAccessMask;
-    bool                 waNeedRefreshLlc; // Finer-grain refresh LLC flag.
+    bool                 waMetaMisalignNeedRefreshLlc; // Finer-grain refresh LLC flag.
 };
 
 // =====================================================================================================================
@@ -154,32 +154,6 @@ static uint32 Gfx9ConvertToAcquireSyncFlags(
 }
 
 // =====================================================================================================================
-// Convert coarse BLT-level CacheCoherencyUsageFlags into specific flags based on the dirty state in the CmdBuffer
-static uint32 OptimizeBltCacheAccess(
-    GfxCmdBuffer* pCmdBuf,
-    uint32        accessMask)
-{
-    // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know which
-    // write caches have been dirtied:
-    // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
-    // - If a compute BLT occurred, alias these srcCaches to CoherShader.
-    // - If a CP L2 BLT occured, alias these srcCaches to CoherTimestamp (this isn't good but we have no CoherL2).
-    // - If a CP direct-to-memory write occured, alias these srcCaches to CoherMemory.
-    // Clear the original srcCaches from the srcCache mask for the rest of this scope.
-    if (TestAnyFlagSet(accessMask, CoherCopy | CoherClear | CoherResolve))
-    {
-        GfxCmdBufferState cmdBufState = pCmdBuf->GetGfxCmdBufState();
-        accessMask &= ~(CoherCopy | CoherClear | CoherResolve);
-
-        accessMask |= cmdBufState.flags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
-        accessMask |= cmdBufState.flags.csWriteCachesDirty        ? CoherShader      : 0;
-        accessMask |= cmdBufState.flags.cpWriteCachesDirty        ? CoherTimestamp   : 0;
-        accessMask |= cmdBufState.flags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
-    }
-    return accessMask;
-}
-
-// =====================================================================================================================
 // Translate release's accessMask (CacheCoherencyUsageFlags type) to cacheSyncFlags (CacheSyncFlags type)
 // This function is GFX9-ONLY.
 static uint32 Gfx9ConvertToReleaseSyncFlags(
@@ -218,7 +192,7 @@ static BarrierTransition AcqRelBuildTransition(
     LayoutTransitionInfo          transitionInfo,
     Developer::BarrierOperations* pBarrierOps)
 {
-    switch (transitionInfo.blt)
+    switch (transitionInfo.blt[0])
     {
     case ExpandDepthStencil:
         pBarrierOps->layoutTransitions.depthStencilExpand = 1;
@@ -251,6 +225,14 @@ static BarrierTransition AcqRelBuildTransition(
     default:
         PAL_NEVER_CALLED();
     }
+
+    if (transitionInfo.blt[1] != None)
+    {
+        // Second decompress pass can only be MSAA color decompress.
+        PAL_ASSERT(transitionInfo.blt[1] == MsaaColorDecompress);
+        pBarrierOps->layoutTransitions.fmaskColorExpand = 1;
+    }
+
     BarrierTransition out = {};
     out.srcCacheMask                 = pBarrier->srcAccessMask;
     out.dstCacheMask                 = pBarrier->dstAccessMask;
@@ -314,7 +296,7 @@ static void UpdateCmdBufStateFromAcquire(
 }
 
 // =====================================================================================================================
-// Look up for the stage and access mask associate with the transition.
+// Look up for the stage and access mask associate with the first-pass BLT.
 static void GetBltStageAccessInfo(
     LayoutTransitionInfo info,
     uint32*              pStageMask,
@@ -326,7 +308,7 @@ static void GetBltStageAccessInfo(
     *pStageMask  = 0;
     *pAccessMask = 0;
 
-    switch (info.blt)
+    switch (info.blt[0])
     {
     case HwLayoutTransition::ExpandDepthStencil:
         if (info.flags.useComputePath != 0)
@@ -436,7 +418,7 @@ void Device::AcqRelDepthStencilTransition(
 
     const auto& image = static_cast<const Pal::Image&>(*imgBarrier.pImage);
 
-    if (layoutTransInfo.blt == HwLayoutTransition::HwlExpandHtileHiZRange)
+    if (layoutTransInfo.blt[0] == HwLayoutTransition::HwlExpandHtileHiZRange)
     {
         const auto& gfx9Image = static_cast<const Image&>(*image.GetGfxImage());
 
@@ -450,7 +432,7 @@ void Device::AcqRelDepthStencilTransition(
 
         if (pMsaaState != nullptr)
         {
-            if (layoutTransInfo.blt == HwLayoutTransition::ExpandDepthStencil)
+            if (layoutTransInfo.blt[0] == HwLayoutTransition::ExpandDepthStencil)
             {
                 RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
                                                  image,
@@ -460,7 +442,7 @@ void Device::AcqRelDepthStencilTransition(
             }
             else
             {
-                PAL_ASSERT(layoutTransInfo.blt == HwLayoutTransition::ResummarizeDepthStencil);
+                PAL_ASSERT(layoutTransInfo.blt[0] == HwLayoutTransition::ResummarizeDepthStencil);
 
                 // DB blit to resummarize.
                 RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
@@ -497,7 +479,7 @@ void Device::AcqRelColorTransition(
 
     PAL_ASSERT(image.IsDepthStencil() == false);
 
-    if (layoutTransInfo.blt == HwLayoutTransition::MsaaColorDecompress)
+    if (layoutTransInfo.blt[0] == HwLayoutTransition::MsaaColorDecompress)
     {
         RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, imgBarrier.subresRange);
     }
@@ -508,7 +490,7 @@ void Device::AcqRelColorTransition(
 
         if (pMsaaState != nullptr)
         {
-            if (layoutTransInfo.blt == HwLayoutTransition::DccDecompress)
+            if (layoutTransInfo.blt[0] == HwLayoutTransition::DccDecompress)
             {
                 RsrcProcMgr().DccDecompress(pCmdBuf,
                                             pCmdStream,
@@ -517,7 +499,7 @@ void Device::AcqRelColorTransition(
                                             imgBarrier.pQuadSamplePattern,
                                             imgBarrier.subresRange);
             }
-            else if (layoutTransInfo.blt == HwLayoutTransition::FmaskDecompress)
+            else if (layoutTransInfo.blt[0] == HwLayoutTransition::FmaskDecompress)
             {
                 RsrcProcMgr().FmaskDecompress(pCmdBuf,
                                               pCmdStream,
@@ -528,7 +510,7 @@ void Device::AcqRelColorTransition(
             }
             else
             {
-                PAL_ASSERT(layoutTransInfo.blt == HwLayoutTransition::FastClearEliminate);
+                PAL_ASSERT(layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate);
 
                 // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
                 const bool isSubmitted = RsrcProcMgr().FastClearEliminate(pCmdBuf,
@@ -543,50 +525,50 @@ void Device::AcqRelColorTransition(
             pMsaaState->Destroy();
             PAL_SAFE_FREE(pMsaaState, &allocator);
         }
-    }
 
-    // Handle corner cases where it needs a second pass.
-    if (layoutTransInfo.flags.hasSecondPassBlt &&
-        ((layoutTransInfo.blt == HwLayoutTransition::FmaskDecompress) ||
-         (layoutTransInfo.blt == HwLayoutTransition::DccDecompress)))
-    {
-        uint32 stageMask  = 0;
-        uint32 accessMask = 0;
+        // Handle corner cases where it needs a second pass.
+        if (layoutTransInfo.blt[1] != HwLayoutTransition::None)
+        {
+            PAL_ASSERT(layoutTransInfo.blt[1] == HwLayoutTransition::MsaaColorDecompress);
 
-        // Prepare release info for first pass BLT.
-        GetBltStageAccessInfo(layoutTransInfo, &stageMask, &accessMask);
+            uint32 stageMask  = 0;
+            uint32 accessMask = 0;
 
-        const IGpuEvent* pEvent = pCmdBuf->GetInternalEvent();
-        pCmdBuf->CmdResetEvent(*pEvent, HwPipePostIndexFetch);
+            // Prepare release info for first pass BLT.
+            GetBltStageAccessInfo(layoutTransInfo, &stageMask, &accessMask);
 
-        // Release from first pass.
-        IssueReleaseSync(pCmdBuf, pCmdStream, stageMask, accessMask, false, pEvent, pBarrierOps);
+            const IGpuEvent* pEvent = pCmdBuf->GetInternalEvent();
+            pCmdBuf->CmdResetEvent(*pEvent, HwPipePostIndexFetch);
 
-        // Prepare second pass info.
-        constexpr LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress };
+            // Release from first pass.
+            IssueReleaseSync(pCmdBuf, pCmdStream, stageMask, accessMask, false, pEvent, pBarrierOps);
 
-        GetBltStageAccessInfo(MsaaBltInfo, &stageMask, &accessMask);
+            // Prepare second pass info.
+            constexpr LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress };
 
-        // Acquire for second pass.
-        IssueAcquireSync(pCmdBuf,
-                         pCmdStream,
-                         stageMask,
-                         accessMask,
-                         false,
-                         FullSyncBaseAddr,
-                         FullSyncSize,
-                         1,
-                         &pEvent,
-                         pBarrierOps);
+            GetBltStageAccessInfo(MsaaBltInfo, &stageMask, &accessMask);
 
-        // Tell RGP about this transition
-        BarrierTransition rgpTransition = AcqRelBuildTransition(&imgBarrier, MsaaBltInfo, pBarrierOps);
-        DescribeBarrier(pCmdBuf, &rgpTransition, pBarrierOps);
+            // Acquire for second pass.
+            IssueAcquireSync(pCmdBuf,
+                             pCmdStream,
+                             stageMask,
+                             accessMask,
+                             false,
+                             FullSyncBaseAddr,
+                             FullSyncSize,
+                             1,
+                             &pEvent,
+                             pBarrierOps);
 
-        // And clear it so it can differentiate sync and async flushes
-        *pBarrierOps = {};
+            // Tell RGP about this transition
+            BarrierTransition rgpTransition = AcqRelBuildTransition(&imgBarrier, MsaaBltInfo, pBarrierOps);
+            DescribeBarrier(pCmdBuf, &rgpTransition, pBarrierOps);
 
-        RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, imgBarrier.subresRange);
+            // And clear it so it can differentiate sync and async flushes
+            *pBarrierOps = {};
+
+            RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, imgBarrier.subresRange);
+        }
     }
 }
 
@@ -624,9 +606,8 @@ void Device::IssueReleaseSync(
         pCmdBuf->SetGfxCmdBufCpBltState(false);
     }
 
-    // Converts PipelineStageBlt stage to specific internal pipeline stage.
-    stageMask  = pCmdBuf->ConvertToInternalPipelineStageMask(stageMask);
-    accessMask = OptimizeBltCacheAccess(pCmdBuf, accessMask);
+    // Converts PipelineStageBlt stage to specific internal pipeline stage, and optimize cache flags for BLTs.
+    pCmdBuf->OptimizePipeAndCacheMaskForRelease(&stageMask, &accessMask);
 
     if (pCmdBuf->IsGraphicsSupported() == false)
     {
@@ -640,6 +621,8 @@ void Device::IssueReleaseSync(
                                          gpuEventStartVa,
                                          pCmdSpace,
                                          pBarrierOps);
+
+    pCmdBuf->UpdateReleaseActivityMapFromRelease(pGpuEvent, *pBarrierOps);
 
     pCmdStream->CommitCommands(pCmdSpace);
 }
@@ -725,7 +708,11 @@ void Device::IssueAcquireSync(
         pBarrierOps->pipelineStalls.pfpSyncMe = 1;
     }
 
-    UpdateCmdBufStateFromAcquire(pCmdBuf, *pBarrierOps);
+    for (uint32 i = 0; i < gpuEventCount; i++)
+    {
+        const GpuEvent* pGpuEvent = static_cast<const GpuEvent*>(ppGpuEvents[i]);
+        pCmdBuf->UpdateCmdBufStateFromAcquire(pGpuEvent, *pBarrierOps);
+    }
 
     pCmdStream->CommitCommands(pCmdSpace);
 }
@@ -758,16 +745,16 @@ LayoutTransitionInfo Device::PrepareColorBlt(
     const bool isMsaaImage                 = (image.GetImageCreateInfo().samples > 1);
 
     LayoutTransitionInfo transitionInfo = {};
-    transitionInfo.blt = HwLayoutTransition::None; // Initialize to no layout transition BLT.
 
     if ((oldState != ColorDecompressed) && (newState == ColorDecompressed))
     {
+        uint32 bltIndex = 0;
+
         if (gfx9ImageConst.HasDccData())
         {
             if ((oldState == ColorCompressed) || pSubresInfo->flags.supportMetaDataTexFetch)
             {
-                transitionInfo.blt = HwLayoutTransition::DccDecompress;
-                transitionInfo.flags.hasSecondPassBlt = isMsaaImage ? 1 : 0;
+                transitionInfo.blt[bltIndex++] = HwLayoutTransition::DccDecompress;
 
                 if (RsrcProcMgr().WillDecompressWithCompute(pCmdBufConst, gfx9ImageConst, subresRange))
                 {
@@ -778,12 +765,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
         else if (isMsaaImage)
         {
             // Need FmaskDecompress in preparation for the following full MSAA color decompress.
-            transitionInfo.blt = HwLayoutTransition::FmaskDecompress;
-
-            if ((oldState == ColorCompressed) && gfx9ImageConst.HasFmaskData())
-            {
-                transitionInfo.flags.hasSecondPassBlt = 1;
-            }
+            transitionInfo.blt[bltIndex++] = HwLayoutTransition::FmaskDecompress;
         }
         else
         {
@@ -792,8 +774,14 @@ LayoutTransitionInfo Device::PrepareColorBlt(
 
             if (fastClearEliminateSupported)
             {
-                transitionInfo.blt = HwLayoutTransition::FastClearEliminate;
+                transitionInfo.blt[bltIndex++] = HwLayoutTransition::FastClearEliminate;
             }
+        }
+
+        // MsaaColorDecompress can be the only BLT, or following DccDecompress/FmaskDecompress/FastClearEliminate.
+        if ((image.GetImageCreateInfo().samples > 1) && gfx9Image.HasFmaskData())
+        {
+            transitionInfo.blt[bltIndex] = HwLayoutTransition::MsaaColorDecompress;
         }
     }
     else if ((oldState == ColorCompressed) && (newState == ColorFmaskDecompressed))
@@ -806,7 +794,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
                 // If the base pixel data is DCC compressed, but the image can't support metadata texture fetches,
                 // we need a DCC decompress.  The DCC decompress effectively executes an fmask decompress
                 // implicitly.
-                transitionInfo.blt = HwLayoutTransition::DccDecompress;
+                transitionInfo.blt[0] = HwLayoutTransition::DccDecompress;
 
                 if (RsrcProcMgr().WillDecompressWithCompute(pCmdBufConst, gfx9ImageConst, subresRange))
                 {
@@ -815,7 +803,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
             }
             else
             {
-                transitionInfo.blt = HwLayoutTransition::FmaskDecompress;
+                transitionInfo.blt[0] = HwLayoutTransition::FmaskDecompress;
             }
         }
         else
@@ -823,11 +811,11 @@ LayoutTransitionInfo Device::PrepareColorBlt(
             // if the image is TC compatible just need to do a fast clear eliminate
             if (fastClearEliminateSupported)
             {
-                transitionInfo.blt = HwLayoutTransition::FastClearEliminate;
+                transitionInfo.blt[0] = HwLayoutTransition::FastClearEliminate;
             }
         }
     }
-    else if ((oldState == ColorCompressed) && (newState == ColorCompressed))
+    else if ((oldState == ColorCompressed) && (newState == ColorCompressed) && (oldLayout.usages != newLayout.usages))
     {
         // This case indicates that the layout capabilities changed, but the color image is able to remain in
         // the compressed state.  If the image is about to be read, we may need to perform a fast clear
@@ -856,14 +844,14 @@ LayoutTransitionInfo Device::PrepareColorBlt(
                 if (result != Result::Success)
                 {
                     // Fallback to performing the Fast clear eliminate if the above step of the optimization failed.
-                    transitionInfo.blt = HwLayoutTransition::FastClearEliminate;
+                    transitionInfo.blt[0] = HwLayoutTransition::FastClearEliminate;
                 }
             }
             else
             {
                 // The image has been fast cleared with a non-TC compatible color or the FCE optimization is not
                 // enabled.
-                transitionInfo.blt = HwLayoutTransition::FastClearEliminate;
+                transitionInfo.blt[0] = HwLayoutTransition::FastClearEliminate;
             }
         }
     }
@@ -891,11 +879,10 @@ LayoutTransitionInfo Device::PrepareDepthStencilBlt(
         ImageLayoutToDepthCompressionState(layoutToState, newLayout);
 
     LayoutTransitionInfo transitionInfo = {};
-    transitionInfo.blt = HwLayoutTransition::None; // Initialize to no layout transition BLT.
 
     if ((oldState == DepthStencilCompressed) && (newState != DepthStencilCompressed))
     {
-        transitionInfo.blt = HwLayoutTransition::ExpandDepthStencil;
+        transitionInfo.blt[0] = HwLayoutTransition::ExpandDepthStencil;
 
         if (RsrcProcMgr().WillDecompressWithCompute(pCmdBuf, gfx9Image, subresRange))
         {
@@ -923,11 +910,11 @@ LayoutTransitionInfo Device::PrepareDepthStencilBlt(
         if (useCompute)
         {
             // CS blit to open-up the HiZ range.
-            transitionInfo.blt = HwLayoutTransition::HwlExpandHtileHiZRange;
+            transitionInfo.blt[0] = HwLayoutTransition::HwlExpandHtileHiZRange;
         }
         else
         {
-            transitionInfo.blt = HwLayoutTransition::ResummarizeDepthStencil;
+            transitionInfo.blt[0] = HwLayoutTransition::ResummarizeDepthStencil;
         }
     }
 
@@ -959,7 +946,6 @@ LayoutTransitionInfo Device::PrepareBltInfo(
     const auto&       subresRange = imgBarrier.subresRange;
 
     LayoutTransitionInfo layoutTransInfo = {};
-    layoutTransInfo.blt = HwLayoutTransition::None; // Initialize to no layout transition BLT.
 
     if (TestAnyFlagSet(oldLayout.usages, LayoutUninitializedTarget))
     {
@@ -984,7 +970,7 @@ LayoutTransitionInfo Device::PrepareBltInfo(
 
         if (gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData())
         {
-            layoutTransInfo.blt = HwLayoutTransition::InitMaskRam;
+            layoutTransInfo.blt[0] = HwLayoutTransition::InitMaskRam;
         }
     }
     else if (TestAnyFlagSet(newLayout.usages, LayoutUninitializedTarget))
@@ -1016,48 +1002,29 @@ LayoutTransitionInfo Device::PrepareBltInfo(
 //
 // The driver assumes that all meta-data surfaces are pipe-aligned, but there are cases where the HW does not actually
 // pipe-align the data.  In these cases, the L2 cache needs to be flushed prior to the metadata being read by a shader.
-bool Device::WaRefreshTccToAlignMetadata(
-    const ImgBarrier& imgBarrier,
+static bool WaRefreshTccToAlignMetadata(
+    const IImage*     pImage,
+    const SubresRange subresRange,
     uint32            srcAccessMask,
-    uint32            dstAccessMask
-    ) const
+    uint32            dstAccessMask)
 {
-    const auto& image     = static_cast<const Pal::Image&>(*imgBarrier.pImage);
-    const auto& gfx9Image = static_cast<const Image&>(*image.GetGfxImage());
+    const auto& palImage  = static_cast<const Pal::Image&>(*pImage);
+    const auto& gfx9Image = static_cast<const Image&>(*palImage.GetGfxImage());
 
     bool needRefreshL2 = false;
 
-    if (gfx9Image.NeedFlushForMetadataPipeMisalignment(imgBarrier.subresRange))
+    if (gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
     {
-        if ((srcAccessMask == 0) || (dstAccessMask == 0))
-        {
-            // 1. If release's dstAccessMask or acquire's srcAccessMask is zero, that means we're at the edge of a
-            //    split barrier, and the future/past usage is unknown. In such case we need to assume the src and dst
-            //    caches can be cross front/backend, so refresh L2 in this case.
-            // 2. Both sides being zero is a valid case. For example a transition from CopySrc to DepthStencil layout
-            //    is from DepthStencilDecomprWithHiZ to DepthStencilCompressed, no decompress or resummarize is needed.
-            //    So BLT's accessMask is zero. CopySrc doesn't need to flush data when release from it, so
-            //    srcAccessMask is zero too. In such case, we know that the metadata must have been in correct
-            //    alignment to frontend to make sure CopySrc reads from the correct L2 bank. So we still need an LLC
-            //    refresh to ensure the later DepthStencil work sees the metadata in its L2 bank as invalidated then
-            //    pulls it from memory.
-            needRefreshL2 = true;
-        }
-        else
-        {
-            // Because we are not able to convert CoherCopy, CoherClear, CoherResolve to specific frontend or backend
-            // coherency flags, we cannot make accurate decision here. This code works hard to not over-sync too much.
-            constexpr uint32 ShaderOnlyMask             = CoherShader;
-            constexpr uint32 TargetOnlyMask             = CoherColorTarget | CoherDepthStencilTarget;
-            constexpr uint32 MaybeShaderMaybeTargetMask = CoherCopy | CoherResolve | CoherClear;
+        // Because we are not able to convert CoherCopy, CoherClear, CoherResolve to specific frontend or backend
+        // coherency flags, we cannot make accurate decision here. This code works hard to not over-sync too much.
+        constexpr uint32 UncertainCoherMask = CoherCopy | CoherResolve | CoherClear;
+        constexpr uint32 MaybeTextureCache  = UncertainCoherMask | CoherShader;
+        constexpr uint32 MaybeFixedFunction = UncertainCoherMask | CoherColorTarget | CoherDepthStencilTarget;
 
-            if ((TestAnyFlagSet(srcAccessMask, ShaderOnlyMask) &&
-                 TestAnyFlagSet(dstAccessMask, TargetOnlyMask | MaybeShaderMaybeTargetMask)) ||
-                (TestAnyFlagSet(srcAccessMask, ShaderOnlyMask | MaybeShaderMaybeTargetMask) &&
-                 TestAnyFlagSet(dstAccessMask, TargetOnlyMask)))
-            {
-                needRefreshL2 = true;
-            }
+        if ((TestAnyFlagSet(srcAccessMask, MaybeFixedFunction) && TestAnyFlagSet(dstAccessMask, MaybeTextureCache)) ||
+            (TestAnyFlagSet(srcAccessMask, MaybeTextureCache) && TestAnyFlagSet(dstAccessMask, MaybeFixedFunction)))
+        {
+            needRefreshL2 = true;
         }
     }
 
@@ -1073,7 +1040,8 @@ void Device::BarrierRelease(
     CmdStream*                    pCmdStream,
     const AcquireReleaseInfo&     barrierReleaseInfo,
     const IGpuEvent*              pClientEvent,
-    Developer::BarrierOperations* pBarrierOps
+    Developer::BarrierOperations* pBarrierOps,
+    bool                          waMetaMisalignNeedRefreshLlc
     ) const
 {
     // Validate input data.
@@ -1090,8 +1058,7 @@ void Device::BarrierRelease(
 
     const uint32 preBltStageMask   = barrierReleaseInfo.srcStageMask;
     uint32       preBltAccessMask  = barrierReleaseInfo.srcGlobalAccessMask;
-    bool         globallyAvailable = false;
-    bool         waRefreshLlc      = false; // Coarse-grain refresh LLC flag.
+    bool         globallyAvailable = waMetaMisalignNeedRefreshLlc;
 
     // Assumes always do full-range flush sync.
     for (uint32 i = 0; i < barrierReleaseInfo.memoryBarrierCount; i++)
@@ -1126,13 +1093,13 @@ void Device::BarrierRelease(
             LayoutTransitionInfo layoutTransInfo = PrepareBltInfo(pCmdBuf, imageBarrier);
 
             transitionList[i].pImgBarrier      = &imageBarrier;
-            transitionList[i].layoutTransInfo = layoutTransInfo;
-            transitionList[i].waNeedRefreshLlc = false;
+            transitionList[i].layoutTransInfo  = layoutTransInfo;
+            transitionList[i].waMetaMisalignNeedRefreshLlc = waMetaMisalignNeedRefreshLlc;
 
             uint32 bltStageMask  = 0;
             uint32 bltAccessMask = 0;
 
-            if (layoutTransInfo.blt != HwLayoutTransition::None)
+            if (layoutTransInfo.blt[0] != HwLayoutTransition::None)
             {
                 GetBltStageAccessInfo(layoutTransInfo, &bltStageMask, &bltAccessMask);
 
@@ -1146,11 +1113,15 @@ void Device::BarrierRelease(
                 transitionList[i].bltAccessMask = 0;
             }
 
-            if (WaRefreshTccToAlignMetadata(imageBarrier, imageBarrier.srcAccessMask, bltAccessMask))
+            if (WaRefreshTccToAlignMetadata(imageBarrier.pImage,
+                                            imageBarrier.subresRange,
+                                            imageBarrier.srcAccessMask,
+                                            bltAccessMask))
             {
-                transitionList[i].waNeedRefreshLlc = true;
-                waRefreshLlc = true;
+                transitionList[i].waMetaMisalignNeedRefreshLlc = true;
+                globallyAvailable |= true;
             }
+
         }
 
         // Initialize an IGpuEvent* pEvent pointing at the client provided event.
@@ -1167,7 +1138,7 @@ void Device::BarrierRelease(
                          pCmdStream,
                          preBltStageMask,
                          preBltAccessMask,
-                         globallyAvailable | waRefreshLlc,
+                         globallyAvailable,
                          pActiveEvent,
                          pBarrierOps);
 
@@ -1184,7 +1155,7 @@ void Device::BarrierRelease(
             {
                 const AcqRelTransitionInfo& transition = transitionList[i];
 
-                if (transition.layoutTransInfo.blt != HwLayoutTransition::None)
+                if (transition.layoutTransInfo.blt[0] != HwLayoutTransition::None)
                 {
                     const auto& image = static_cast<const Pal::Image&>(*transition.pImgBarrier->pImage);
 
@@ -1193,7 +1164,7 @@ void Device::BarrierRelease(
                                      pCmdStream,
                                      transition.bltStageMask,
                                      transition.bltAccessMask,
-                                     transition.waNeedRefreshLlc,
+                                     transition.waMetaMisalignNeedRefreshLlc,
                                      image.GetGpuVirtualAddr(),
                                      image.GetGpuMemSize(),
                                      (needEventWait ? 1 : 0),
@@ -1208,7 +1179,7 @@ void Device::BarrierRelease(
             {
                 const AcqRelTransitionInfo& transition = transitionList[i];
 
-                if (transition.layoutTransInfo.blt != HwLayoutTransition::None)
+                if (transition.layoutTransInfo.blt[0] != HwLayoutTransition::None)
                 {
                     IssueBlt(pCmdBuf,
                              pCmdStream,
@@ -1219,8 +1190,9 @@ void Device::BarrierRelease(
                     uint32 stageMask  = 0;
                     uint32 accessMask = 0;
 
-                    if (transition.layoutTransInfo.flags.hasSecondPassBlt != 0)
+                    if (transition.layoutTransInfo.blt[1] != HwLayoutTransition::None)
                     {
+                        PAL_ASSERT(transition.layoutTransInfo.blt[1] == HwLayoutTransition::MsaaColorDecompress);
                         constexpr LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress};
                         GetBltStageAccessInfo(MsaaBltInfo, &stageMask, &accessMask);
                     }
@@ -1250,7 +1222,7 @@ void Device::BarrierRelease(
                              pCmdStream,
                              postBltStageMask,
                              postBltAccessMask,
-                             waRefreshLlc,
+                             globallyAvailable,
                              pActiveEvent,
                              pBarrierOps);
         }
@@ -1267,7 +1239,8 @@ void Device::BarrierAcquire(
     const AcquireReleaseInfo&     barrierAcquireInfo,
     uint32                        gpuEventCount,
     const IGpuEvent*const*        ppGpuEvents,
-    Developer::BarrierOperations* pBarrierOps
+    Developer::BarrierOperations* pBarrierOps,
+    bool                          waMetaMisalignNeedRefreshLlc
     ) const
 {
     // Validate input data.
@@ -1282,7 +1255,7 @@ void Device::BarrierAcquire(
         PAL_ASSERT(barrierAcquireInfo.pImageBarriers[i].srcAccessMask == 0);
     }
 
-    bool waRefreshLlc = false; // Coarse-grain refresh LLC flag.
+    bool globallyAvailable = waMetaMisalignNeedRefreshLlc;
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
     AutoBuffer<AcqRelTransitionInfo, 8, Platform> transitionList(barrierAcquireInfo.imageBarrierCount, GetPlatform());
@@ -1304,12 +1277,12 @@ void Device::BarrierAcquire(
 
             transitionList[i].pImgBarrier      = &imgBarrier;
             transitionList[i].layoutTransInfo  = layoutTransInfo;
-            transitionList[i].waNeedRefreshLlc = false;
+            transitionList[i].waMetaMisalignNeedRefreshLlc = waMetaMisalignNeedRefreshLlc;
 
             uint32 bltStageMask  = 0;
             uint32 bltAccessMask = 0;
 
-            if (layoutTransInfo.blt != HwLayoutTransition::None)
+            if (layoutTransInfo.blt[0] != HwLayoutTransition::None)
             {
                 GetBltStageAccessInfo(layoutTransInfo, &bltStageMask, &bltAccessMask);
 
@@ -1317,10 +1290,13 @@ void Device::BarrierAcquire(
                 transitionList[i].bltAccessMask = bltAccessMask;
                 bltTransitionCount++;
 
-                if (WaRefreshTccToAlignMetadata(imgBarrier, bltAccessMask, imgBarrier.dstAccessMask))
+                if (WaRefreshTccToAlignMetadata(imgBarrier.pImage,
+                                                imgBarrier.subresRange,
+                                                bltAccessMask,
+                                                imgBarrier.dstAccessMask))
                 {
-                    transitionList[i].waNeedRefreshLlc = true;
-                    waRefreshLlc = true;
+                    transitionList[i].waMetaMisalignNeedRefreshLlc = true;
+                    globallyAvailable = true;
                 }
             }
             else
@@ -1345,7 +1321,7 @@ void Device::BarrierAcquire(
             {
                 const AcqRelTransitionInfo& transition = transitionList[i];
 
-                if (transition.layoutTransInfo.blt != HwLayoutTransition::None)
+                if (transition.layoutTransInfo.blt[0] != HwLayoutTransition::None)
                 {
                     const auto& image = static_cast<const Pal::Image&>(*transitionList[i].pImgBarrier->pImage);
 
@@ -1354,7 +1330,7 @@ void Device::BarrierAcquire(
                                      pCmdStream,
                                      transition.bltStageMask,
                                      transition.bltAccessMask,
-                                     transition.waNeedRefreshLlc,
+                                     transition.waMetaMisalignNeedRefreshLlc,
                                      image.GetGpuVirtualAddr(),
                                      image.GetGpuMemSize(),
                                      (needEventWait ? activeEventCount : 0),
@@ -1369,7 +1345,7 @@ void Device::BarrierAcquire(
             {
                 const AcqRelTransitionInfo& transition = transitionList[i];
 
-                if (transition.layoutTransInfo.blt != HwLayoutTransition::None)
+                if (transition.layoutTransInfo.blt[0] != HwLayoutTransition::None)
                 {
                     IssueBlt(pCmdBuf,
                              pCmdStream,
@@ -1380,8 +1356,9 @@ void Device::BarrierAcquire(
                     uint32 stageMask  = 0;
                     uint32 accessMask = 0;
 
-                    if (transition.layoutTransInfo.flags.hasSecondPassBlt != 0)
+                    if (transition.layoutTransInfo.blt[1] != HwLayoutTransition::None)
                     {
+                        PAL_ASSERT(transition.layoutTransInfo.blt[1] == HwLayoutTransition::MsaaColorDecompress);
                         constexpr LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress };
                         GetBltStageAccessInfo(MsaaBltInfo, &stageMask, &accessMask);
                     }
@@ -1407,7 +1384,7 @@ void Device::BarrierAcquire(
                              pCmdStream,
                              postBltStageMask,
                              postBltAccessMask,
-                             waRefreshLlc,
+                             globallyAvailable,
                              pEvent,
                              pBarrierOps);
 
@@ -1459,7 +1436,7 @@ void Device::BarrierAcquire(
                              pCmdStream,
                              barrierAcquireInfo.dstStageMask,
                              imgBarrier.dstAccessMask,
-                             transitionList[i].waNeedRefreshLlc,
+                             transitionList[i].waMetaMisalignNeedRefreshLlc,
                              image.GetGpuVirtualAddr(),
                              image.GetGpuMemSize(),
                              0,
@@ -1504,6 +1481,8 @@ void Device::BarrierReleaseThenAcquire(
         }
     }
 
+    bool waMetaMisalignNeedRefreshLlc = false;
+
     AutoBuffer<ImgBarrier, 8, Platform> imgBarriers(barrierInfo.imageBarrierCount, GetPlatform());
     if ((result==Result::Success) && (barrierInfo.imageBarrierCount > 0))
     {
@@ -1523,6 +1502,15 @@ void Device::BarrierReleaseThenAcquire(
                 imgBarriers[i].oldLayout          = barrierInfo.pImageBarriers[i].oldLayout;
                 imgBarriers[i].newLayout          = barrierInfo.pImageBarriers[i].newLayout; // Do decompress in release.
                 imgBarriers[i].pQuadSamplePattern = barrierInfo.pImageBarriers[i].pQuadSamplePattern;
+
+                // Only at this point we know both source and destination cache mask.
+                if (WaRefreshTccToAlignMetadata(barrierInfo.pImageBarriers[i].pImage,
+                                                barrierInfo.pImageBarriers[i].subresRange,
+                                                barrierInfo.pImageBarriers[i].srcAccessMask,
+                                                barrierInfo.pImageBarriers[i].dstAccessMask))
+                {
+                    waMetaMisalignNeedRefreshLlc = true;
+                }
             }
         }
     }
@@ -1538,7 +1526,7 @@ void Device::BarrierReleaseThenAcquire(
     releaseInfo.imageBarrierCount   = barrierInfo.imageBarrierCount;
     releaseInfo.pImageBarriers      = &imgBarriers[0];
 
-    BarrierRelease(pCmdBuf, pCmdStream, releaseInfo, pEvent, pBarrierOps);
+    BarrierRelease(pCmdBuf, pCmdStream, releaseInfo, pEvent, pBarrierOps, waMetaMisalignNeedRefreshLlc);
 
     // Build BarrierAcquire function.
     AcquireReleaseInfo acquireInfo;
@@ -1565,7 +1553,7 @@ void Device::BarrierReleaseThenAcquire(
     }
     acquireInfo.pImageBarriers = &imgBarriers[0];
 
-    BarrierAcquire(pCmdBuf, pCmdStream, acquireInfo, 1, &pEvent, pBarrierOps);
+    BarrierAcquire(pCmdBuf, pCmdStream, acquireInfo, 1, &pEvent, pBarrierOps, waMetaMisalignNeedRefreshLlc);
 }
 
 // =====================================================================================================================
@@ -1579,7 +1567,7 @@ void Device::IssueBlt(
     ) const
 {
     PAL_ASSERT(pImgBarrier != nullptr);
-    PAL_ASSERT(layoutTransInfo.blt != 0);
+    PAL_ASSERT(layoutTransInfo.blt[0] != HwLayoutTransition::None);
     PAL_ASSERT(pBarrierOps != nullptr);
 
     // Tell RGP about this transition
@@ -1591,7 +1579,7 @@ void Device::IssueBlt(
 
     const auto& image = static_cast<const Pal::Image&>(*pImgBarrier->pImage);
 
-    if (layoutTransInfo.blt == HwLayoutTransition::InitMaskRam)
+    if (layoutTransInfo.blt[0] == HwLayoutTransition::InitMaskRam)
     {
         // Transition out of LayoutUninitializedTarget needs to initialize metadata memories.
         AcqRelInitMaskRam(pCmdBuf, pCmdStream, *pImgBarrier);
@@ -1629,7 +1617,7 @@ size_t Device::BuildReleaseSyncPackets(
 
     // Issue RELEASE_MEM packets to flush caches (optional) and signal gpuEvent.
     const uint32   numEventSlots = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
-    VGT_EVENT_TYPE vgtEvents[MaxSlotsPerEvent]; // Always create the max size.
+    VGT_EVENT_TYPE vgtEvents[MaxSlotsPerEvent] = {}; // Always create the max size.
     uint32         vgtEventCount = 0;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 500
@@ -1681,30 +1669,31 @@ size_t Device::BuildReleaseSyncPackets(
     }
     else if (TestAnyFlagSet(stageMask, PipelineStagePs | PipelineStageCs))
     {
-        // If the signal/wait event has multiple slots, we can utilize it to issue separate EOS event for PS and CS
-        // waves. Otherwise just fall back to a single BOP pipeline stage.
-        if (numEventSlots > 1)
+        // The signal/wait event may have multiple slots, we can utilize it to issue separate EOS event for PS and CS
+        // waves.
+        if (TestAnyFlagSet(stageMask, PipelineStageCs))
         {
-            if (TestAnyFlagSet(stageMask, PipelineStagePs))
+            // Implement set/reset with an EOS event waiting for CS waves to complete.
+            vgtEvents[vgtEventCount++] = CS_DONE;
+            pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+        }
+
+        if (TestAnyFlagSet(stageMask, PipelineStagePs))
+        {
+            if (vgtEventCount == numEventSlots)
+            {
+                // Fall back to single EOP pipe point if there is no enough event slots for multiple pipe points.
+                vgtEvents[0] = BOTTOM_OF_PIPE_TS;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+                pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+#endif
+            }
+            else
             {
                 // Implement set with an EOS event waiting for PS waves to complete.
                 vgtEvents[vgtEventCount++] = PS_DONE;
                 pBarrierOps->pipelineStalls.eosTsPsDone = 1;
             }
-
-            if (TestAnyFlagSet(stageMask, PipelineStageCs))
-            {
-                // Implement set/reset with an EOS event waiting for CS waves to complete.
-                vgtEvents[vgtEventCount++] = CS_DONE;
-                pBarrierOps->pipelineStalls.eosTsCsDone = 1;
-            }
-        }
-        else
-        {
-            vgtEvents[vgtEventCount++] = BOTTOM_OF_PIPE_TS;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
-            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-#endif
         }
     }
 
@@ -1940,10 +1929,8 @@ uint32 Device::Gfx10BuildAcquireGcrCntl(
     }
     else
     {
-        {
-            gcrCntl.bits.gl1Range = 2;
-            gcrCntl.bits.gl2Range = 2;
-        }
+        gcrCntl.bits.gl1Range = 2;
+        gcrCntl.bits.gl2Range = 2;
     }
 
     // GLM_WB[0]  - write-back control for the meta-data cache of GL2. L2MD is write-through, ignore this bit.

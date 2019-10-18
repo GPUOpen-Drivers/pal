@@ -57,7 +57,9 @@ ComputePipeline::ComputePipeline(
     :
     Pal::ComputePipeline(pDevice->Parent(), isInternal),
     m_pDevice(pDevice),
-    m_chunkCs(*pDevice, &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Cs)])
+    m_chunkCs(*pDevice,
+              &m_stageInfo,
+              &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Cs)])
 {
     memcpy(&m_signature, &NullCsSignature, sizeof(m_signature));
 }

@@ -85,9 +85,14 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { FAMILY_RV,  RAVEN2_A0,            PRID_RV_E2,                   GfxEngineGfx9,  DEVICE_ID_RV2_15D8              },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
+#if   (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 538)
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+#endif
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { FAMILY_NV,  NV_NAVI10_P_A2,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
@@ -133,8 +138,13 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     "RAVEN2:gfx909",
     nullptr,
 
+#if   (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 538)
     nullptr,
+#endif
     "NAVI10:gfx1010",
+    nullptr,
+    nullptr,
+    nullptr,
     nullptr,
     nullptr,
     nullptr,

@@ -29,6 +29,7 @@
 #include "core/fence.h"
 #include "core/platform.h"
 #include "palDeque.h"
+#include "palHashMap.h"
 #include "palQueryPool.h"
 
 namespace Pal
@@ -163,6 +164,32 @@ struct UserDataTableState
                                    // copy currently in GPU memory and should be updated before the next dispatch.
     };
 };
+
+// Structure representing release activity hashmap entry
+struct ReleaseActivityInfo
+{
+    struct
+    {
+        uint8 eosTsPsDone       : 1;
+        uint8 eosTsCsDone       : 1;
+        uint8 eopTsBottomOfPipe : 1;
+        uint8 reserved          : 5;
+    } pipelineStalls;
+
+    // We don't need csBltCacheSync because shader caches are read-only/write-through, there is no action at release.
+    struct
+    {
+        uint8 gfxBltCacheSync : 1;
+        uint8 flushTcc        : 1;
+        uint8 invalTcc        : 1;
+        uint8 reserved        : 5;
+    } caches;
+
+    uint16 gfxBltActiveTimestamp;
+    uint16 csBltActiveTimestamp;
+};
+
+typedef Util::HashMap<const IGpuEvent*, ReleaseActivityInfo, Platform> ReleaseActivityMap;
 
 // =====================================================================================================================
 // Abstract class for executing basic hardware-specific functionality common to GFXIP universal and compute command
@@ -356,9 +383,9 @@ public:
 
     // Helper functions
     HwPipePoint OptimizeHwPipePostBlit() const;
-    uint32 ConvertToInternalPipelineStageMask(uint32 stageMask) const;
-    void SetGfxCmdBufGfxBltState(bool gfxBltActive) { m_gfxCmdBufState.flags.gfxBltActive = gfxBltActive; }
-    void SetGfxCmdBufCsBltState(bool csBltActive) { m_gfxCmdBufState.flags.csBltActive = csBltActive; }
+    void OptimizePipeAndCacheMaskForRelease(uint32* pStageMask, uint32* pAccessMask) const;
+    void SetGfxCmdBufGfxBltState(bool gfxBltActive);
+    void SetGfxCmdBufCsBltState(bool csBltActive);
     void SetGfxCmdBufCpBltState(bool cpBltActive) { m_gfxCmdBufState.flags.cpBltActive = cpBltActive; }
     void SetGfxCmdBufGfxBltWriteCacheState(bool gfxWriteCacheDirty)
         { m_gfxCmdBufState.flags.gfxWriteCachesDirty = gfxWriteCacheDirty; }
@@ -369,6 +396,10 @@ public:
     void SetGfxCmdBufCpMemoryWriteL2CacheStaleState(bool cpMemoryWriteDirty)
         { m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
     void SetPrevCmdBufInactive() { m_gfxCmdBufState.flags.prevCmdBufActive = 0; }
+
+    void UpdateCmdBufStateFromAcquire(const IGpuEvent* pGpuEvent, const Developer::BarrierOperations& barrierOps);
+    void UpdateReleaseActivityMapFromRelease(const IGpuEvent* pGpuEvent,
+                                             const Developer::BarrierOperations& barrierOps);
 
     // Obtains a fresh command stream chunk from the current command allocator, for use as the target of GPU-generated
     // commands. The chunk is inserted onto the generated-chunks list so it can be recycled by the allocator after the
@@ -532,6 +563,11 @@ private:
                                        // buffer so that appropriate submit-time operations can be done.
 
     FceRefCountsVector m_fceRefCountVec;
+
+    uint16 m_gfxBltActiveCtr; // Count the number of gfx BLT that has launched.
+    uint16 m_csBltActiveCtr;  // Count the number of cs BLT that has launched.
+
+    ReleaseActivityMap m_releaseActivityMap; // A hashmap that tracks active releases.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(GfxCmdBuffer);

@@ -675,11 +675,8 @@ void GraphicsPipeline::BuildPm4Headers(
         m_commands.common.spaceNeeded += cmdUtil.BuildSetSeqConfigRegs(Gfx10::mmGE_STEREO_CNTL,
                                                                        Gfx10::mmGE_PC_ALLOC,
                                                                        &m_commands.common.hdrGeStereoCntlGePcAlloc);
-        if (IsGfx101Plus(*m_pDevice->Parent()))
-        {
-            m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx101Plus::mmGE_USER_VGPR_EN,
-                                                                          &m_commands.common.hdrGeUserVgprEn);
-        }
+        m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx10::mmGE_USER_VGPR_EN,
+                                                                      &m_commands.common.hdrGeUserVgprEn);
     }
 
     if (uploader.EnableLoadIndexPath())
@@ -865,8 +862,8 @@ void GraphicsPipeline::SetupCommonRegisters(
 
     if (IsGfx10(m_gfxLevel))
     {
-        registers.HasEntry(Gfx10::mmGE_STEREO_CNTL,       &m_commands.common.geStereoCntl.u32All);
-        registers.HasEntry(Gfx101Plus::mmGE_USER_VGPR_EN, &m_commands.common.geUserVgprEn.u32All);
+        registers.HasEntry(Gfx10::mmGE_STEREO_CNTL,  &m_commands.common.geStereoCntl.u32All);
+        registers.HasEntry(Gfx10::mmGE_USER_VGPR_EN, &m_commands.common.geUserVgprEn.u32All);
 
         if ((IsNgg() == false) || (m_commands.set.context.vgtShaderStagesEn.gfx10.PRIMGEN_PASSTHRU_EN == 1))
         {

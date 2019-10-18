@@ -66,6 +66,11 @@ namespace DevDriver
             // Aborts the currently active request.
             Result AbortRequest();
 
+            // Reads a complete URI response into the destination buffer
+            // The caller is responsible for ensuring that the buffer is large enough to fit
+            // the entire response.
+            Result ReadFullResponse(void* pDstBuffer, const size_t bufferSize);
+
         private:
             void ResetState() override;
 

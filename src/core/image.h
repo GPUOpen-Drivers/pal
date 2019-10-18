@@ -343,6 +343,10 @@ public:
     bool IsResolveDst() const
         { return (m_createInfo.usageFlags.resolveDst != 0); }
 
+    // Returns whether or not this image will use 24-bit format for HW programming
+    bool IsDepthAsZ24() const
+        { return (m_createInfo.usageFlags.depthAsZ24 != 0); }
+
     // Returns the dcc encoding for possible view formats
     DccFormatEncoding GetDccFormatEncoding() const
         { return m_imageInfo.dccFormatEncoding; }

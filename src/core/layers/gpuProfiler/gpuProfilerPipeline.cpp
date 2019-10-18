@@ -39,28 +39,21 @@ namespace Pal
 namespace GpuProfiler
 {
 
-static_assert(((static_cast<uint32>(ApiShaderType::Cs)    == static_cast<uint32>(ShaderType::Compute))  &&
-               (static_cast<uint32>(ApiShaderType::Vs)    == static_cast<uint32>(ShaderType::Vertex))   &&
-               (static_cast<uint32>(ApiShaderType::Hs)    == static_cast<uint32>(ShaderType::Hull))     &&
-               (static_cast<uint32>(ApiShaderType::Ds)    == static_cast<uint32>(ShaderType::Domain))   &&
-               (static_cast<uint32>(ApiShaderType::Gs)    == static_cast<uint32>(ShaderType::Geometry)) &&
-               (static_cast<uint32>(ApiShaderType::Ps)    == static_cast<uint32>(ShaderType::Pixel))    &&
-               (static_cast<uint32>(ApiShaderType::Count) == NumShaderTypes)),
-               "Util::Abi::ApiShaderType to Pal::ShaderType mapping does not match!");
-
 // Pal::ShaderType to string conversion table.
 const char* ApiShaderTypeStrings[] =
 {
     "CS",
+    "RESERVED",
     "VS",
     "HS",
     "DS",
     "GS",
+    "RESERVED",
     "PS",
 };
 
 static_assert(ArrayLen(ApiShaderTypeStrings) == static_cast<uint32>(ApiShaderType::Count),
-              "ApiShaderTypeStrings is not the same size as Pal::ShaderType enum!");
+              "ApiShaderTypeStrings is not the same size as Abi::ApiShaderType enum!");
 
 // HardwareStage to string conversion table.
 const char* HardwareStageStrings[] =

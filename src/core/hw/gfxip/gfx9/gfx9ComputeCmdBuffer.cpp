@@ -1028,6 +1028,16 @@ void ComputeCmdBuffer::CmdCommentString(
 }
 
 // =====================================================================================================================
+void ComputeCmdBuffer::CmdNop(
+    const void* pPayload,
+    uint32      payloadSize)
+{
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    pCmdSpace += m_cmdUtil.BuildNopPayload(pPayload, payloadSize, pCmdSpace);
+    m_cmdStream.CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
 // Helper method for handling the state "leakage" from a nested command buffer back to its caller. Since the callee has
 // tracked its own state during the building phase, we can access the final state of the command buffer since its stored
 // in the UniversalCmdBuffer object itself.

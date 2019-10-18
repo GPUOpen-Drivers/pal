@@ -3173,10 +3173,10 @@ Result GpaSession::AcquirePerfExperiment(
                     {
                         PerfCounterInfo counterInfo = {};
 
-                        counterInfo.counterType = PerfCounterType::Global;
-                        counterInfo.block       = pCounters[i].block;
-                        counterInfo.eventId     = pCounters[i].eventId;
-                        counterInfo.instance    = pCounters[i].instance;
+                        counterInfo.counterType       = PerfCounterType::Global;
+                        counterInfo.block             = pCounters[i].block;
+                        counterInfo.eventId           = pCounters[i].eventId;
+                        counterInfo.instance          = pCounters[i].instance;
 
                         result = (*ppExperiment)->AddCounter(counterInfo);
                     }
@@ -3252,9 +3252,9 @@ Result GpaSession::AcquirePerfExperiment(
                     for (uint32 i = 0; i < numStreamingCounters; i++)
                     {
                         pCounterInfo = &(static_cast<PerfCounterInfo*>(pMem)[i]);
-                        pCounterInfo->block    = pCounters[i].block;
-                        pCounterInfo->eventId  = pCounters[i].eventId;
-                        pCounterInfo->instance = pCounters[i].instance;
+                        pCounterInfo->block             = pCounters[i].block;
+                        pCounterInfo->eventId           = pCounters[i].eventId;
+                        pCounterInfo->instance          = pCounters[i].instance;
                     }
 
                     result = (*ppExperiment)->AddSpmTrace(spmCreateInfo);

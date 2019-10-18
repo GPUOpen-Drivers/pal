@@ -75,21 +75,23 @@ macro(apply_gpuopen_warnings _target)
             endif()
 
         else()
-            target_compile_features(${_target} PRIVATE cxx_std_17)
+            set_target_properties(${_target} PROPERTIES CXX_STANDARD 17)
         endif()
 
     else()
+
         if (WIN32)
-            set_property(TARGET ${_target} PROPERTY CXX_STANDARD 14)
+            set_target_properties(${_target} PROPERTIES CXX_STANDARD 14)
         else()
-            set_property(TARGET ${_target} PROPERTY CXX_STANDARD 11)
+            set_target_properties(${_target} PROPERTIES CXX_STANDARD 11)
         endif()
+
     endif()
 
     # Do not fallback to c++98 if the compiler does not support 11/17.
-    set_property(TARGET ${_target} PROPERTY CXX_STANDARD_REQUIRED TRUE)
+    set_target_properties(${_target} PROPERTIES CXX_STANDARD_REQUIRED TRUE)
     # Do not use flags like `-std=gnu++11`, instead use `-std=c++11`.
-    set_property(TARGET ${_target} PROPERTY CXX_EXTENSIONS        FALSE)
+    set_target_properties(${_target} PROPERTIES CXX_EXTENSIONS FALSE)
 
     # Make a DD_SHORT_FILE macro that includes a shorter, partial file path.
     # The additional / is important to remove the last character from the path.
@@ -103,8 +105,10 @@ macro(apply_gpuopen_warnings _target)
     endif()
 
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+
         # Apply special options for GCC 8.x+
         if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
+
             target_compile_options(${_target} PRIVATE
                 # This warning triggers when you memcpy into or out of a "non trivial" type.
                 # The requirements for "trivial type" are hard - e.g. some user supplied constructors are enough to make
@@ -114,29 +118,73 @@ macro(apply_gpuopen_warnings _target)
                 #   This warning is new in gcc 8.x
                 -Wno-class-memaccess
             )
+
         # Apply special options for versions earlier than GCC 5.x
         elseif (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+
             target_compile_options(${_target} PRIVATE
                 # This warning triggers when we default initialize structures with the "StructType x = {};" syntax.
                 # It only triggers on GCC 4.8
                 -Wno-missing-field-initializers
             )
+
         endif()
         if (DEVDRIVER_FORCE_COLOR_OUPUT)
+
             # For details on customizing this, see the docs:
             #   https://gcc.gnu.org/onlinedocs/gcc-5.2.0/gcc/Language-Independent-Options.html
             target_compile_options(${_target} PRIVATE -fdiagnostics-color)
+
         endif()
      elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+
         target_compile_options(${_target} PRIVATE
             # No Clang-specific options yet
         )
         if (DEVDRIVER_FORCE_COLOR_OUPUT)
             target_compile_options(${_target} PRIVATE -fcolor-diagnostics)
         endif()
+
+    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+
+        target_compile_options(${_target} PRIVATE
+            # No AppleClang-specific options yet
+        )
+        if (DEVDRIVER_FORCE_COLOR_OUPUT)
+            target_compile_options(${_target} PRIVATE -fcolor-diagnostics)
+        endif()
+
+    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+
+        target_compile_options(${_target} PRIVATE
+            /wd4127            # conditional expression is constant
+            /wd4201            # nonstandard extension used : nameless struct/union
+            /wd4512            # assignment operator could not be generated
+            /we4296            # unsigned integer comparison is constant
+            /we5038            # initialization order
+            /diagnostics:caret # Format error messages with a "^"
+            /permissive-       # Enable stricter standards conformance
+        )
+
+        # Compile files in parallel
+        ProcessorCount(CoreCount)
+        target_compile_options(${_target} PRIVATE /MP${CoreCount})
+
     else()
         message(FATAL_ERROR "Using unknown compiler: ${CMAKE_CXX_COMPILER_ID}")
     endif()
+
+    if (WIN32)
+
+        # "ThIs FUNCtiOn oR VariABle MAy Be uNSafE."
+        target_compile_definitions(${_target}
+            PUBLIC
+                "_CRT_INSECURE_NO_DEPRECATE"
+                "_CRT_SECURE_NO_WARNINGS"
+        )
+
+    endif()
+
 endmacro()
 
 function(devdriver_target name)
@@ -156,13 +204,8 @@ endfunction()
 function(devdriver_library name type)
 
     amd_library(${name} ${type} ${ARGN})
-    apply_gpuopen_warnings(${name})
-
-endfunction()
-
-function(devdriver_um_library name type)
-
-    amd_um_library(${name} ${type} ${ARGN})
-    apply_gpuopen_warnings(${name})
+    if (NOT ${type} STREQUAL "INTERFACE")
+        apply_gpuopen_warnings(${name})
+    endif()
 
 endfunction()

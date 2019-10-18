@@ -467,6 +467,9 @@ public:
 
     virtual void CmdCommentString(
         const char* pComment) override;
+    virtual void CmdNop(
+        const void* pPayload,
+        uint32      payloadSize) override;
     virtual uint32 CmdInsertExecutionMarker() override;
     virtual void CmdXdmaWaitFlipPending() override;
     virtual void CmdStartGpuProfilerLogging() override;

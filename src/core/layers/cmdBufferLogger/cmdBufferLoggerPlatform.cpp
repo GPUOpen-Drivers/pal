@@ -193,8 +193,7 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
             Developer::BarrierData* pData      = static_cast<Developer::BarrierData*>(pCbData);
             CmdBuffer*              pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
 
-            pCmdBuffer->GetNextLayer()->CmdCommentString("BarrierEnd:");
-            pCmdBuffer->DescribeBarrier(pData);
+            pCmdBuffer->DescribeBarrier(pData, "BarrierEnd:");
         }
         break;
     }
@@ -209,8 +208,7 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
             Developer::BarrierData* pData      = static_cast<Developer::BarrierData*>(pCbData);
             CmdBuffer*              pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
 
-            pCmdBuffer->GetNextLayer()->CmdCommentString("ImageBarrier:");
-            pCmdBuffer->DescribeBarrier(pData);
+            pCmdBuffer->DescribeBarrier(pData, "ImageBarrier:");
         }
         break;
     }
@@ -224,15 +222,25 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
             Developer::DrawDispatchData* pData      = static_cast<Developer::DrawDispatchData*>(pCbData);
             CmdBuffer*                   pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
 
-            pCmdBuffer->HandleDrawDispatch(pData->cmdType <= Developer::DrawDispatchType::FirstDispatch);
+            pCmdBuffer->HandleDrawDispatch(pData->cmdType);
         }
         break;
     }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
     case Developer::CallbackType::BindPipeline:
+    {
         PAL_ASSERT(pCbData != nullptr);
-        TranslateBindPipelineData(pCbData);
+        const bool hasValidData = TranslateBindPipelineData(pCbData);
+
+        if (hasValidData)
+        {
+            Developer::BindPipelineData* pData      = static_cast<Developer::BindPipelineData*>(pCbData);
+            CmdBuffer*                   pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
+
+            pCmdBuffer->UpdateDrawDispatchInfo(pData->pPipeline, pData->bindPoint);
+        }
         break;
+    }
 #endif
 #if PAL_BUILD_PM4_INSTRUMENTOR
     case Developer::CallbackType::DrawDispatchValidation:

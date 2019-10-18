@@ -282,6 +282,13 @@ typedef struct SDMA_PKT_COPY_BROADCAST_LINEAR_TAG
 
     union
     {
+#if CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int count                          : 22;
+            unsigned int                                : 10;
+        } gfx10Bard;
+#endif // CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
         struct
         {
             unsigned int count                          : 22;
@@ -410,6 +417,14 @@ typedef struct SDMA_PKT_COPY_DIRTY_PAGE_TAG
             unsigned int src_snoop                      :  1;
             unsigned int src_gpa                        :  1;
         };
+#if CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int                                : 16;
+            unsigned int dst_sw                         :  2;
+            unsigned int                                : 14;
+        } gfx10Bard;
+#endif // CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
         struct
         {
             unsigned int                                : 16;
@@ -552,6 +567,14 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
             unsigned int mip_max                        :  4;
             unsigned int                                : 12;
         } gfx101;
+#if CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int                                : 16;
+            unsigned int mip_max                        :  4;
+            unsigned int                                : 12;
+        } nvLite;
+#endif // CHIP_HDR_NAVI_LITE
         unsigned int DW_7_DATA;
     } DW_7_UNION;
 
@@ -631,6 +654,13 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
 
     union
     {
+#if CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int count                          : 22;
+            unsigned int                                : 10;
+        } gfx10Bard;
+#endif // CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
         struct
         {
             unsigned int count                          : 22;
@@ -664,11 +694,26 @@ typedef struct SDMA_PKT_COPY_LINEAR_TAG
             unsigned int broadcast                      :  1;
             unsigned int                                :  4;
         } gfx101;
+#if CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int                                : 27;
+            unsigned int broadcast                      :  1;
+            unsigned int                                :  4;
+        } nvLite;
+#endif // CHIP_HDR_NAVI_LITE
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
     union
     {
+#if CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int count                          : 22;
+            unsigned int                                : 10;
+        } gfx10Bard;
+#endif // CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
         struct
         {
             unsigned int count                          : 22;
@@ -926,6 +971,14 @@ typedef struct SDMA_PKT_COPY_PHYSICAL_LINEAR_TAG
             unsigned int src_snoop                      :  1;
             unsigned int src_gpa                        :  1;
         };
+#if CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int                                : 16;
+            unsigned int dst_sw                         :  2;
+            unsigned int                                : 14;
+        } gfx10Bard;
+#endif // CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
         struct
         {
             unsigned int                                : 16;
@@ -1356,6 +1409,14 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
             unsigned int mip_max                        :  4;
             unsigned int                                : 12;
         } gfx101;
+#if CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int                                : 16;
+            unsigned int mip_max                        :  4;
+            unsigned int                                : 12;
+        } nvLite;
+#endif // CHIP_HDR_NAVI_LITE
         unsigned int DW_5_DATA;
     } DW_5_UNION;
 
@@ -1388,6 +1449,14 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
             unsigned int linear_cc                      :  1;
             unsigned int                                : 11;
         } gfx101;
+#if CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int                                : 20;
+            unsigned int linear_cc                      :  1;
+            unsigned int                                : 11;
+        } nvLite;
+#endif // CHIP_HDR_NAVI_LITE
         unsigned int DW_7_DATA;
     } DW_7_UNION;
 
@@ -1430,6 +1499,13 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
 
     union
     {
+#if CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int count                          : 22;
+            unsigned int                                : 10;
+        } gfx10Bard;
+#endif // CHIP_HDR_NAVI12_LITE || CHIP_HDR_NAVI21_LITE || CHIP_HDR_NAVI_LITE
         struct
         {
             unsigned int count                          : 22;
@@ -2212,6 +2288,12 @@ typedef struct SDMA_PKT_POLL_MEM_VERIFY_TAG
         {
             unsigned int cmp1_end_31_0                  : 32;
         } gfx101;
+#if CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int cmp1_end_31_0                  : 32;
+        } nvLite;
+#endif // CHIP_HDR_NAVI_LITE
         unsigned int DW_4_DATA;
     } CMP0_ADDR_END_LO_UNION;
 
@@ -2221,6 +2303,12 @@ typedef struct SDMA_PKT_POLL_MEM_VERIFY_TAG
         {
             unsigned int cmp1_end_63_32                 : 32;
         } gfx101;
+#if CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int cmp1_end_63_32                 : 32;
+        } nvLite;
+#endif // CHIP_HDR_NAVI_LITE
         unsigned int DW_5_DATA;
     } CMP0_ADDR_END_HI_UNION;
 
@@ -2804,6 +2892,14 @@ typedef struct SDMA_PKT_WRITE_TILED_TAG
             unsigned int mip_max                        :  4;
             unsigned int                                : 12;
         } gfx101;
+#if CHIP_HDR_NAVI_LITE
+        struct
+        {
+            unsigned int                                : 16;
+            unsigned int mip_max                        :  4;
+            unsigned int                                : 12;
+        } nvLite;
+#endif // CHIP_HDR_NAVI_LITE
         unsigned int DW_5_DATA;
     } DW_5_UNION;
 

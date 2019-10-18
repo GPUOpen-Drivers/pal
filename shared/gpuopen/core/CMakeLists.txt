@@ -48,6 +48,9 @@ if(UNIX)
     target_link_libraries(ddCore PRIVATE Threads::Threads)
 endif()
 
+# Support for dynamic library loading
+target_link_libraries(ddCore PRIVATE ${CMAKE_DL_LIBS})
+
 ### Build Defines ######################################################################################################
 
 # Also enable these features from CMake
@@ -76,8 +79,6 @@ if(DEVDRIVER_SHOW_DEBUG_LABELS)
     target_compile_definitions(ddCore PRIVATE $<$<CONFIG:Debug>:         DEVDRIVER_SHOW_DEBUG_LABELS>
                                               $<$<CONFIG:RelWithDebInfo>:DEVDRIVER_SHOW_DEBUG_LABELS>)
 endif()
-
-target_compile_definitions(ddCore PUBLIC "DD_CPU_BITS=${TARGET_ARCHITECTURE_BITS}")
 
 ### Include Directories ################################################################################################
 target_include_directories(ddCore PUBLIC ../inc)

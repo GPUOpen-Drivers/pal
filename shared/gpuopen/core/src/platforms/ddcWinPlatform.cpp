@@ -127,7 +127,7 @@ namespace DevDriver
             va_list args;
             va_start(args, format);
             char buffer[1024];
-            vsnprintf_s(buffer, sizeof(buffer), _TRUNCATE, format, args);
+            Platform::Vsnprintf(buffer, ArraySize(buffer), format, args);
             va_end(args);
             strcat_s(buffer, "\n");
 
@@ -220,6 +220,55 @@ namespace DevDriver
         };
 
         /////////////////////////////////////////////////////
+        // Library
+        /////////////////////////////////////////////////////
+
+        // Loads a DLL with the specified name into this process.  The system will search for the DLL according to the
+        // documentation available here:
+        // https://docs.microsoft.com/en-us/windows/desktop/api/libloaderapi/nf-libloaderapi-loadlibrarya
+        Result Library::Load(
+            const char* pLibraryName)
+        {
+            Result result = Result::Success;
+
+            // First, try to access an existing instance of this library, if one has already been loaded (this should be more
+            // friendly to UWP applications).
+            // Note: GetModuleHandleEx is used instead of GetModuleHandle because that allows us to avoid a race condition, as
+            // well as increment the DLL's reference count.  See the documentation here:
+            // https://docs.microsoft.com/en-us/windows/desktop/api/libloaderapi/nf-libloaderapi-getmodulehandleexa
+
+            constexpr uint32 Flags = 0;
+            if (GetModuleHandleExA(Flags, pLibraryName, &m_hLib) == FALSE)
+            {
+                m_hLib = LoadLibraryA(pLibraryName);
+                if (m_hLib == nullptr)
+                {
+                    result = Result::Unavailable;
+                }
+            }
+
+            return result;
+        }
+
+        // Unloads this DLL if it was loaded previously.  Called automatically during the object destructor.
+        void Library::Close()
+        {
+            if (m_hLib != nullptr)
+            {
+                FreeLibrary(m_hLib);
+                m_hLib = nullptr;
+            }
+        }
+
+        void* Library::GetFunctionHelper(
+            const char* pName
+        ) const
+        {
+            DD_ASSERT(m_hLib != nullptr);
+            return reinterpret_cast<void*>(GetProcAddress(m_hLib, pName));
+        }
+
+        /////////////////////////////////////////////////////
         // Memory Management
         /////////////////////////////////////////////////////
 
@@ -259,7 +308,7 @@ namespace DevDriver
         {
             if (InterlockedCompareExchangeRelease(&m_lock, 0, 1) == 0)
             {
-                DD_WARN_REASON("Tried to unlock an already unlocked AtomicLock");
+                DD_ASSERT_REASON("Tried to unlock an already unlocked AtomicLock");
             }
         }
 
@@ -409,7 +458,20 @@ namespace DevDriver
 
         int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args)
         {
-            return vsnprintf(pDst, dstSize, format, args);
+            int32 ret = vsnprintf(pDst, dstSize, format, args);
+
+            // If the return value looks like a valid length, add one to account for a NULL byte.
+            if (ret >= 0)
+            {
+                ret += 1;
+            }
+            else
+            {
+                // A negative value means that some error occurred
+                // We don't print anything here because our logging requires Vsnprintf
+            }
+
+            return ret;
         }
 
         namespace Windows

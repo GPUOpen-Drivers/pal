@@ -80,7 +80,6 @@ Result DevModeControlDevice::Initialize(DevModeBusType busType)
             result = pIoCtlDevice->Initialize();
             if (result != Result::Success)
             {
-                DD_WARN(result == Result::Success);
                 DD_DELETE(pIoCtlDevice, m_allocCb);
             }
         }

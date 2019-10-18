@@ -31,15 +31,13 @@
 #include "palGpuEventPool.h"
 #include "palLinearAllocator.h"
 
-using namespace Pal;
-
 namespace GpuUtil
 {
 
 // =====================================================================================================================
 template <typename PlatformAllocator, typename GpuEventAllocator>
 GpuEventPool<PlatformAllocator, GpuEventAllocator>::GpuEventPool(
-    IDevice*           pDevice,
+    Pal::IDevice*      pDevice,
     PlatformAllocator* pPlatformAllocator,
     GpuEventAllocator* pAllocator)
     :
@@ -58,12 +56,12 @@ GpuEventPool<PlatformAllocator, GpuEventAllocator>::~GpuEventPool()
 
     while (m_freeEventList.NumElements() > 0)
     {
-        IGpuEvent* pEvent = nullptr;
+        Pal::IGpuEvent* pEvent = nullptr;
         m_freeEventList.PopFront(&pEvent);
     }
     while (m_globalEventList.NumElements() > 0)
     {
-        IGpuEvent* pEvent = nullptr;
+        Pal::IGpuEvent* pEvent = nullptr;
         m_globalEventList.PopFront(&pEvent);
         pEvent->Destroy();
         PAL_SAFE_FREE(pEvent, m_pAllocator);
@@ -102,8 +100,8 @@ Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::Reset()
 // =====================================================================================================================
 template <typename PlatformAllocator, typename GpuEventAllocator>
 Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::GetFreeEvent(
-    Pal::ICmdBuffer* pCmdBuffer,
-    IGpuEvent**const ppEvent)
+    Pal::ICmdBuffer*      pCmdBuffer,
+    Pal::IGpuEvent**const ppEvent)
 {
     Result result = Result::Success;
 
@@ -123,13 +121,13 @@ Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::GetFreeEvent(
 // =====================================================================================================================
 template <typename PlatformAllocator, typename GpuEventAllocator>
 Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::CreateNewEvent(
-    Pal::ICmdBuffer* pCmdBuffer,
-    IGpuEvent**const ppEvent)
+    Pal::ICmdBuffer*      pCmdBuffer,
+    Pal::IGpuEvent**const ppEvent)
 {
     Result result = Result::Success;
 
     // Create gpuEvent for this pool.
-    GpuEventCreateInfo createInfo  = {};
+    Pal::GpuEventCreateInfo createInfo  = {};
     createInfo.flags.gpuAccessOnly = 1;
 
     const size_t eventSize = m_pDevice->GetGpuEventSize(createInfo, &result);
@@ -166,7 +164,7 @@ Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::CreateNewEvent(
 // =====================================================================================================================
 template <typename PlatformAllocator, typename GpuEventAllocator>
 Result GpuEventPool<PlatformAllocator, GpuEventAllocator>::ReturnEvent(
-    IGpuEvent* pEvent)
+    Pal::IGpuEvent* pEvent)
 {
     return m_freeEventList.PushBack(pEvent);
 }

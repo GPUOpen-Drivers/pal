@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.5)
 project(MPack VERSION 1.0.0 LANGUAGES CXX)
 
-# Vanilla CMake add_library. Don't use amd_library because we don't want to enable our warnings on third-party code.
 add_library(mpack STATIC
     mpack.h
-    mpack.cpp)
+    mpack.cpp
+)
 
 target_include_directories(mpack PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 

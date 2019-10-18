@@ -610,6 +610,9 @@ public:
 
     virtual void CmdCommentString(
         const char* pComment) override;
+    virtual void CmdNop(
+        const void* pPayload,
+        uint32      payloadSize) override;
 
     virtual uint32 CmdInsertExecutionMarker() override;
 
@@ -709,14 +712,14 @@ protected:
     uint16 GetInstanceOffsetRegAddr() const { return m_vertexOffsetReg + 1; }
 
 private:
-    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDraw(
         ICmdBuffer* pCmdBuffer,
         uint32      firstVertex,
         uint32      vertexCount,
         uint32      firstInstance,
         uint32      instanceCount);
-    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawOpaque(
         ICmdBuffer* pCmdBuffer,
         gpusize     streamOutFilledSizeVa,
@@ -724,7 +727,7 @@ private:
         uint32      stride,
         uint32      firstInstance,
         uint32      instanceCount);
-    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
         uint32      firstIndex,
@@ -732,7 +735,7 @@ private:
         int32       vertexOffset,
         uint32      firstInstance,
         uint32      instanceCount);
-    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
@@ -740,7 +743,7 @@ private:
         uint32            stride,
         uint32            maximumCount,
         gpusize           countGpuAddr);
-    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndexedIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
@@ -749,18 +752,18 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer* pCmdBuffer,
         uint32      x,
         uint32      y,
         uint32      z);
-    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
-    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer* pCmdBuffer,
         uint32      xOffset,
@@ -807,7 +810,7 @@ private:
 
     PM4Predicate PacketPredicate() const { return static_cast<PM4Predicate>(m_gfxCmdBufState.flags.packetPredicate); }
 
-    template <bool IssueSqttMarkerEvent>
+    template <bool IssueSqttMarkerEventt, bool DescribeDrawDispatch>
     void SetDispatchFunctions();
 
     template <bool TessEnabled, bool GsEnabled>
@@ -976,7 +979,9 @@ private:
                                                     // reduce context rolls.
             uint32 gfx7AvoidNullPrims         :  1; // True if settings indicate that we should avoid null primitive
                                                     // groups on GFX7.
-            uint32 reserved                   : 19;
+            uint32 describeDrawDispatch       :  1; // True if draws/dispatch shader IDs should be specified within the
+                                                    // command stream for parsing by PktTools
+            uint32 reserved                   : 18;
         };
         uint32 u32All;
     } m_cachedSettings;

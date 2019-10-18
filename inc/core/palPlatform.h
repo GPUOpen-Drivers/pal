@@ -154,7 +154,10 @@ enum class ApplicationProfileClient : uint32
     Pplib,
     Dal,
     Chill,
-    Spp
+    Spp,
+    Boost,
+    DeLag,
+    Ris,
 };
 
 /// Describes a primary surface view

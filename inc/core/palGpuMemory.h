@@ -117,7 +117,7 @@ union GpuMemoryCreateFlags
                                       ///  the ppExternPhysMem list for the first submission that references it.
         uint32 sharedViaNtHandle :  1; ///< Memory will be shared by using Nt handle.
         uint32 peerWritable      :  1; ///< The memory can be open as peer memory and be writable.
-        uint32 placeholder0      :  1; ///< Placeholder.
+        uint32 placeholder0      :  2; ///< Placeholder.
         uint32 externalOpened    :  1; ///< Specifies the GPUMemory is opened.
         uint32 restrictedContent :  1; ///< Specifies the GPUMemory is protected content.
         uint32 restrictedAccess  :  1; ///< Specifies the GPUMemory is restricted shared access resource.
@@ -128,7 +128,7 @@ union GpuMemoryCreateFlags
                                        ///< flag is set, calls to IGpuMemory::Map() on this object will fail.
         uint32 gl2Uncached       :  1; ///< Specifies the GPU Memory is un-cached on GPU L2 cache. But the memory still
                                        ///  would be cached by other cache hierarchy like L0, RB caches, L1, and L3.
-        uint32 reserved          :  9; ///< Reserved for future use.
+        uint32 reserved          :  8; ///< Reserved for future use.
     };
     uint32     u32All;                 ///< Flags packed as 32-bit uint.
 };
@@ -348,9 +348,22 @@ struct DoppRef
     IGpuMemory* pGpuMemory;        ///< The GPU memory object referenced by this residency operation.
 };
 
+/// Specifies the types of the exporting memory.
+enum class ExportHandleType : uint32
+{
+    Default        = 0,            ///< Let PAL choose the export type
+#if PAL_AMDGPU_BUILD
+    FileDescriptor,                ///< Export using a Linux file descriptor
+    Kms,                           ///< Export through KMS
+#endif
+};
+
 /// Specifies parameters for export a GPUMemory NT handle from its name.
 struct GpuMemoryExportInfo
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 541
+    ExportHandleType            exportType;         ///< Type of handle to use for exporting the memory.
+#endif
 };
 
 /**

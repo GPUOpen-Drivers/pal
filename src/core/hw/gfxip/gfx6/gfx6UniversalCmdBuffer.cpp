@@ -259,6 +259,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled ||
                                             m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
+    m_cachedSettings.describeDrawDispatch =
+        (m_cachedSettings.issueSqttMarkerEvent ||
+         m_device.GetPlatform()->PlatformSettings().cmdBufferLoggerConfig.embedDrawDispatchInfo);
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
     m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
@@ -328,20 +331,20 @@ Result UniversalCmdBuffer::Init(
 
 // =====================================================================================================================
 // Sets-up function pointers for the Dispatch entrypoint and all variants.
-template <bool IssueSqttMarkerEvent>
+template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SetDispatchFunctions()
 {
     if (UseCpuPathInsteadOfCeRam())
     {
-        m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, true>;
-        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, true>;
-        m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, true>;
+        m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, true, DescribeDrawDispatch>;
+        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, true, DescribeDrawDispatch>;
+        m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, true, DescribeDrawDispatch>;
     }
     else
     {
-        m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, false>;
-        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, false>;
-        m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, false>;
+        m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, false, DescribeDrawDispatch>;
+        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, false, DescribeDrawDispatch>;
+        m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, false, DescribeDrawDispatch>;
     }
 }
 
@@ -459,11 +462,15 @@ void UniversalCmdBuffer::ResetState()
 
     if (m_cachedSettings.issueSqttMarkerEvent)
     {
-        SetDispatchFunctions<true>();
+        SetDispatchFunctions<true, true>();
+    }
+    else if (m_cachedSettings.describeDrawDispatch)
+    {
+        SetDispatchFunctions<false, true>();
     }
     else
     {
-        SetDispatchFunctions<false>();
+        SetDispatchFunctions<false, false>();
     }
 
     SetUserDataValidationFunctions(false, false);
@@ -1709,7 +1716,7 @@ void UniversalCmdBuffer::DescribeDraw(
 // Issues a non-indexed draw command. We must discard the draw if vertexCount or instanceCount are zero. To avoid
 // branching, we will rely on the HW to discard the draw for us with the exception of the zero instanceCount case on
 // pre-gfx8 because that HW treats zero instances as one instance.
-template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     ICmdBuffer* pCmdBuffer,
     uint32      firstVertex,
@@ -1733,7 +1740,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 
         // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
         // required for computations in DescribeDraw.
-        if (issueSqttMarkerEvent)
+        if (DescribeDrawDispatch)
         {
             pThis->DescribeDraw(Developer::DrawDispatchType::CmdDraw);
         }
@@ -1800,7 +1807,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 // Issues a draw opaque command. We must discard the draw if instanceCount are zero. To avoid branching,
 // we will rely on the HW to discard the draw for us with the exception of the zero instanceCount case on pre-gfx8
 // because that HW treats zero instances as one instance.
-template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     ICmdBuffer* pCmdBuffer,
     gpusize     streamOutFilledSizeVa,
@@ -1825,7 +1832,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 
         // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
         // required for computations in DescribeDraw.
-        if (issueSqttMarkerEvent)
+        if (DescribeDrawDispatch)
         {
             pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawOpaque);
         }
@@ -1910,7 +1917,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 // Issues an indexed draw command. We must discard the draw if indexCount or instanceCount are zero. To avoid branching,
 // we will rely on the HW to discard the draw for us with the exception of the zero instanceCount case on pre-gfx8
 // because that HW treats zero instances as one instance.
-template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     ICmdBuffer* pCmdBuffer,
     uint32      firstIndex,
@@ -1945,7 +1952,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
 
         // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
         // required for computations in DescribeDraw.
-        if (issueSqttMarkerEvent)
+        if (DescribeDrawDispatch)
         {
             pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndexed);
         }
@@ -2043,7 +2050,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
 // =====================================================================================================================
 // Issues an indirect non-indexed draw command. We must discard the draw if vertexCount or instanceCount are zero.
 // We will rely on the HW to discard the draw for us.
-template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     ICmdBuffer*       pCmdBuffer,
     const IGpuMemory& gpuMemory,
@@ -2069,7 +2076,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 
     // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
     // required for computations in DescribeDraw.
-    if (issueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndirectMulti);
     }
@@ -2153,7 +2160,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 // =====================================================================================================================
 // Issues an indirect indexed draw command. We must discard the draw if indexCount or instanceCount are zero.
 // We will rely on the HW to discard the draw for us.
-template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     ICmdBuffer*       pCmdBuffer,
     const IGpuMemory& gpuMemory,
@@ -2179,7 +2186,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 
     // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
     // required for computations in DescribeDraw.
-    if (issueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndexedIndirectMulti);
     }
@@ -2260,7 +2267,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 // =====================================================================================================================
 // Issues a direct dispatch command. We must discard the dispatch if x, y, or z are zero. To avoid branching, we will
 // rely on the HW to discard the dispatch for us.
-template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
     ICmdBuffer* pCmdBuffer,
     uint32      x,
@@ -2269,7 +2276,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatch, 0, 0, 0, x, y, z);
     }
@@ -2293,7 +2300,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 // =====================================================================================================================
 // Issues an indirect dispatch command. We must discard the dispatch if x, y, or z are zero. We will rely on the HW to
 // discard the dispatch for us.
-template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
     ICmdBuffer*       pCmdBuffer,
     const IGpuMemory& gpuMemory,
@@ -2304,7 +2311,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchIndirect, 0, 0, 0, 0, 0, 0);
     }
@@ -2334,7 +2341,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 // =====================================================================================================================
 // Issues a direct dispatch command with immediate threadgroup offsets. We must discard the dispatch if x, y, or z are
 // zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
-template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
     ICmdBuffer* pCmdBuffer,
     uint32      xOffset,
@@ -2346,7 +2353,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchOffset,
             xOffset, yOffset, zOffset, xDim, yDim, zDim);
@@ -5956,6 +5963,16 @@ void UniversalCmdBuffer::CmdCommentString(
 }
 
 // =====================================================================================================================
+void UniversalCmdBuffer::CmdNop(
+    const void* pPayload,
+    uint32      payloadSize)
+{
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace += m_cmdUtil.BuildNopPayload(pPayload, payloadSize, pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
 CmdStreamChunk* UniversalCmdBuffer::GetChunkForCmdGeneration(
     const Pal::IndirectCmdGenerator& generator,
     const Pal::Pipeline&             pipeline,
@@ -6472,36 +6489,77 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
             switch (m_device.Parent()->ChipProperties().gfxLevel)
             {
             case GfxIpLevel::GfxIp6:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp6, true, true>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp6, true, true>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp6, true, true>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp6, true, true>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp6, true, true, true>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp6, true, true, true>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp6, true, true, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp6, true, true, true>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp6, true, true>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp6, true, true, true>;
                 break;
             case GfxIpLevel::GfxIp7:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp7, true, true>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp7, true, true>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp7, true, true>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp7, true, true>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp7, true, true, true>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp7, true, true, true>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp7, true, true, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp7, true, true, true>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp7, true, true>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp7, true, true, true>;
                 break;
             case GfxIpLevel::GfxIp8:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8, true, true>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8, true, true>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8, true, true>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8, true, true>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8, true, true, true>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8, true, true, true>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8, true, true, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8, true, true, true>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8, true, true>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8, true, true, true>;
                 break;
             case GfxIpLevel::GfxIp8_1:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8_1, true, true>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8_1, true, true>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8_1, true, true>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8_1, true, true>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8_1, true, true, true>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8_1, true, true, true>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8_1, true, true, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8_1, true, true, true>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8_1, true, true>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8_1, true, true, true>;
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+                break;
+            }
+        }
+        else if (m_cachedSettings.describeDrawDispatch)
+        {
+            switch (m_device.Parent()->ChipProperties().gfxLevel)
+            {
+            case GfxIpLevel::GfxIp6:
+                m_funcTable.pfnCmdDraw = CmdDraw<GfxIpLevel::GfxIp6, false, true, true>;
+                m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<GfxIpLevel::GfxIp6, false, true, true>;
+                m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<GfxIpLevel::GfxIp6, false, true, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<GfxIpLevel::GfxIp6, false, true, true>;
+                m_funcTable.pfnCmdDrawIndexedIndirectMulti =
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp6, false, true, true>;
+                break;
+            case GfxIpLevel::GfxIp7:
+                m_funcTable.pfnCmdDraw = CmdDraw<GfxIpLevel::GfxIp7, false, true, true>;
+                m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<GfxIpLevel::GfxIp7, false, true, true>;
+                m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<GfxIpLevel::GfxIp7, false, true, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<GfxIpLevel::GfxIp7, false, true, true>;
+                m_funcTable.pfnCmdDrawIndexedIndirectMulti =
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp7, false, true, true>;
+                break;
+            case GfxIpLevel::GfxIp8:
+                m_funcTable.pfnCmdDraw = CmdDraw<GfxIpLevel::GfxIp8, false, true, true>;
+                m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<GfxIpLevel::GfxIp8, false, true, true>;
+                m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<GfxIpLevel::GfxIp8, false, true, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8, false, true, true>;
+                m_funcTable.pfnCmdDrawIndexedIndirectMulti =
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8, false, true, true>;
+                break;
+            case GfxIpLevel::GfxIp8_1:
+                m_funcTable.pfnCmdDraw = CmdDraw<GfxIpLevel::GfxIp8_1, false, true, true>;
+                m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<GfxIpLevel::GfxIp8_1, false, true, true>;
+                m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<GfxIpLevel::GfxIp8_1, false, true, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8_1, false, true, true>;
+                m_funcTable.pfnCmdDrawIndexedIndirectMulti =
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8_1, false, true, true>;
                 break;
             default:
                 PAL_ASSERT_ALWAYS();
@@ -6513,36 +6571,36 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
             switch (m_device.Parent()->ChipProperties().gfxLevel)
             {
             case GfxIpLevel::GfxIp6:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp6, false, true>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp6, false, true>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp6, false, true>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp6, false, true>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp6, false, true, false>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp6, false, true, false>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp6, false, true, false>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp6, false, true, false>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp6, false, true>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp6, false, true, false>;
                 break;
             case GfxIpLevel::GfxIp7:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp7, false, true>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp7, false, true>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp7, false, true>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp7, false, true>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp7, false, true, false>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp7, false, true, false>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp7, false, true, false>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp7, false, true, false>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp7, false, true>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp7, false, true, false>;
                 break;
             case GfxIpLevel::GfxIp8:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8, false, true>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8, false, true>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8, false, true>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8, false, true>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8, false, true, false>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8, false, true, false>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8, false, true, false>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8, false, true, false>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8, false, true>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8, false, true, false>;
                 break;
             case GfxIpLevel::GfxIp8_1:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8_1, false, true>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8_1, false, true>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8_1, false, true>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8_1, false, true>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8_1, false, true, false>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8_1, false, true, false>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8_1, false, true, false>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8_1, false, true, false>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8_1, false, true>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8_1, false, true, false>;
                 break;
             default:
                 PAL_ASSERT_ALWAYS();
@@ -6557,36 +6615,77 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
             switch (m_device.Parent()->ChipProperties().gfxLevel)
             {
             case GfxIpLevel::GfxIp6:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp6, true, false>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp6, true, false>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp6, true, false>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp6, true, false>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp6, true, false, true>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp6, true, false, true>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp6, true, false, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp6, true, false, true>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp6, true, false>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp6, true, false, true>;
                 break;
             case GfxIpLevel::GfxIp7:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp7, true, false>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp7, true, false>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp7, true, false>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp7, true, false>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp7, true, false, true>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp7, true, false, true>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp7, true, false, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp7, true, false, true>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp7, true, false>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp7, true, false, true>;
                 break;
             case GfxIpLevel::GfxIp8:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8, true, false>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8, true, false>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8, true, false>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8, true, false>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8, true, false, true>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8, true, false, true>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8, true, false, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8, true, false, true>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8, true, false>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8, true, false, true>;
                 break;
             case GfxIpLevel::GfxIp8_1:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8_1, true, false>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8_1, true, false>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8_1, true, false>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8_1, true, false>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8_1, true, false, true>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8_1, true, false, true>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8_1, true, false, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8_1, true, false, true>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8_1, true, false>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8_1, true, false, true>;
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+                break;
+            }
+        }
+        else if (m_cachedSettings.describeDrawDispatch)
+        {
+            switch (m_device.Parent()->ChipProperties().gfxLevel)
+            {
+            case GfxIpLevel::GfxIp6:
+                m_funcTable.pfnCmdDraw = CmdDraw<GfxIpLevel::GfxIp6, false, false, true>;
+                m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<GfxIpLevel::GfxIp6, false, false, true>;
+                m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<GfxIpLevel::GfxIp6, false, false, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<GfxIpLevel::GfxIp6, false, false, true>;
+                m_funcTable.pfnCmdDrawIndexedIndirectMulti =
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp6, false, false, true>;
+                break;
+            case GfxIpLevel::GfxIp7:
+                m_funcTable.pfnCmdDraw = CmdDraw<GfxIpLevel::GfxIp7, false, false, true>;
+                m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<GfxIpLevel::GfxIp7, false, false, true>;
+                m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<GfxIpLevel::GfxIp7, false, false, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<GfxIpLevel::GfxIp7, false, false, true>;
+                m_funcTable.pfnCmdDrawIndexedIndirectMulti =
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp7, false, false, true>;
+                break;
+            case GfxIpLevel::GfxIp8:
+                m_funcTable.pfnCmdDraw = CmdDraw<GfxIpLevel::GfxIp8, false, false, true>;
+                m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<GfxIpLevel::GfxIp8, false, false, true>;
+                m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<GfxIpLevel::GfxIp8, false, false, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8, false, false, true>;
+                m_funcTable.pfnCmdDrawIndexedIndirectMulti =
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8, false, false, true>;
+                break;
+            case GfxIpLevel::GfxIp8_1:
+                m_funcTable.pfnCmdDraw = CmdDraw<GfxIpLevel::GfxIp8_1, false, false, true>;
+                m_funcTable.pfnCmdDrawOpaque = CmdDrawOpaque<GfxIpLevel::GfxIp8_1, false, false, true>;
+                m_funcTable.pfnCmdDrawIndexed = CmdDrawIndexed<GfxIpLevel::GfxIp8_1, false, false, true>;
+                m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8_1, false, false, true>;
+                m_funcTable.pfnCmdDrawIndexedIndirectMulti =
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8_1, false, false, true>;
                 break;
             default:
                 PAL_ASSERT_ALWAYS();
@@ -6598,36 +6697,36 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
             switch (m_device.Parent()->ChipProperties().gfxLevel)
             {
             case GfxIpLevel::GfxIp6:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp6, false, false>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp6, false, false>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp6, false, false>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp6, false, false>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp6, false, false, false>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp6, false, false, false>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp6, false, false, false>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp6, false, false, false>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp6, false, false>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp6, false, false, false>;
                 break;
             case GfxIpLevel::GfxIp7:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp7, false, false>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp7, false, false>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp7, false, false>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp7, false, false>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp7, false, false, false>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp7, false, false, false>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp7, false, false, false>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp7, false, false, false>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp7, false, false>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp7, false, false, false>;
                 break;
             case GfxIpLevel::GfxIp8:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8, false, false>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8, false, false>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8, false, false>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8, false, false>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8, false, false, false>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8, false, false, false>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8, false, false, false>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8, false, false, false>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8, false, false>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8, false, false, false>;
                 break;
             case GfxIpLevel::GfxIp8_1:
-                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8_1, false, false>;
-                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8_1, false, false>;
-                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8_1, false, false>;
-                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8_1, false, false>;
+                m_funcTable.pfnCmdDraw                     = CmdDraw<GfxIpLevel::GfxIp8_1, false, false, false>;
+                m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque<GfxIpLevel::GfxIp8_1, false, false, false>;
+                m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed<GfxIpLevel::GfxIp8_1, false, false, false>;
+                m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti<GfxIpLevel::GfxIp8_1, false, false, false>;
                 m_funcTable.pfnCmdDrawIndexedIndirectMulti =
-                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8_1, false, false>;
+                    CmdDrawIndexedIndirectMulti<GfxIpLevel::GfxIp8_1, false, false, false>;
                 break;
             default:
                 PAL_ASSERT_ALWAYS();

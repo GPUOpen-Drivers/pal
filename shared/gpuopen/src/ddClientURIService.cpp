@@ -102,7 +102,7 @@ namespace DevDriver
                     pResponse->Write("\nClient Description: %s", clientInfo.clientDescription);
 
                     // Write the client platform
-                    pResponse->Write("\nClient Platform: " DD_PLATFORM_STRING " %d-bit", DD_CPU_BITS);
+                    pResponse->Write("\nClient Platform: " DD_PLATFORM_STRING " %d-bit", AMD_TARGET_ARCH_BITS);
 
                     // Only print protocols + status flags in debug builds for now.
 #if !defined(NDEBUG)

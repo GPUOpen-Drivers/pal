@@ -253,8 +253,6 @@ struct RegisterInfo
     uint16  mmRlcSpmGlobalMuxselData;
     uint16  mmRlcSpmSeMuxselAddr;
     uint16  mmRlcSpmSeMuxselData;
-    uint16  mmRlcSpmPerfmonSe3To0SegmentSize;
-    uint16  mmRlcSpmPerfmonGlbSegmentSize;
     uint16  mmEaPerfResultCntl;
     uint16  mmAtcPerfResultCntl;
     uint16  mmAtcL2PerfResultCntl;
@@ -270,9 +268,6 @@ struct RegisterInfo
     uint16  mmPaStereoCntl;
     uint16  mmPaStateStereoX;
     uint16  mmComputeShaderChksum;
-    uint16  mmVgtTfMemBase;
-    uint16  mmVgtTfMemBaseHi;
-    uint16  mmSpiConfigCntl;
 };
 
 // Pre-baked commands to prefetch (prime caches) for a pipeline.  This can either be done with a PRIME_UTCL2 packet,
@@ -726,6 +721,7 @@ public:
         void*                pBuffer);
 
     static size_t BuildCommentString(const char* pComment, void* pBuffer);
+    size_t BuildNopPayload(const void* pPayload, uint32 payloadSize, void* pBuffer) const;
 
     void BuildPipelinePrefetchPm4(const PipelineUploader& uploader, PipelinePrefetchPm4* pOutput) const;
 

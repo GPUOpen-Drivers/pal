@@ -163,6 +163,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdSetMarker,                         (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdPresent,                           (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdCommentString,                     (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdNop,                               (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdInsertExecutionMarker,             (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending,               (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging,           (CmdBuild)            },

@@ -121,6 +121,7 @@ struct PerfCounterId
                             ///  client must explicitly sample each instance and sum the results.
     Pal::uint32   eventId;  ///< Counter ID to sample.  Note that the meaning of a particular eventId for a block can
                             ///  change between chips.
+
 };
 
 /// Defines a set of flags for a particular gpa session.

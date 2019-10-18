@@ -78,7 +78,9 @@ union sq_img_rsrc_t {
         uint64_t corner_samples                                               :  1;
         uint64_t                                                              :  1;
         uint64_t lod_hdw_cnt_en                                               :  1;
-        uint64_t                                                              :  6;
+        uint64_t prt_default                                                  :  1;
+        uint64_t                                                              :  4;
+        uint64_t big_page                                                     :  1;
         uint64_t counter_bank_id                                              :  8;
         uint64_t                                                              :  2;
         uint64_t iterate_256                                                  :  1;
@@ -92,15 +94,6 @@ union sq_img_rsrc_t {
         uint64_t color_transform                                              :  1;
         uint64_t meta_data_address                                            : 40;
     };
-    struct {
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 64;
-        uint64_t                                                              : 58;
-        uint64_t prt_default                                                  :  1;
-        uint64_t                                                              :  4;
-        uint64_t big_page                                                     :  1;
-        uint64_t                                                              : 64;
-    } gfx101Plus;
     uint64_t u64All[4];
 
 };

@@ -332,10 +332,6 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         mmVGT_DMA_LS_HS_CONFIG - mmVGT_DMA_PRIMITIVE_TYPE + 1
     },
     {
-        mmDB_DEBUG,
-        1
-    },
-    {
         mmCOMPUTE_VMID,
         1
     },
@@ -474,10 +470,6 @@ const RegisterRange Gfx91NonShadowedRanges[] =
     {
         mmVGT_DMA_PRIMITIVE_TYPE,
         mmVGT_DMA_LS_HS_CONFIG - mmVGT_DMA_PRIMITIVE_TYPE + 1
-    },
-    {
-        mmDB_DEBUG,
-        1
     },
     {
         mmCOMPUTE_VMID,

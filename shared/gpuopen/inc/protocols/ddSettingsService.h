@@ -45,12 +45,13 @@ namespace SettingsURIService
 {
 
 static const char* kSettingsServiceName = "settings";
-DD_STATIC_CONST Version kSettingsServiceVersion = 3;
+DD_STATIC_CONST Version kSettingsServiceVersion = 4;
 
 /*
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  4.0    | Adds components2, a fused version of the components and settingsDataHash commands                        |
 *|  3.0    | Adds settingsDataHash and queryCurrentValues commands                                                    |
 *|  2.0    | Adds header to settingsData to indicate if/how data is encoded.                                          |
 *|  1.0    | Initial version                                                                                          |
@@ -91,6 +92,7 @@ public:
 private:
     // Command handlers
     Result HandleGetComponents(IURIRequestContext* pContext);
+    Result HandleGetComponents2(IURIRequestContext* pContext);
     Result HandleGetSettingDataHash(IURIRequestContext* pContext);
     Result HandleGetSettingData(IURIRequestContext* pContext);
     Result HandleGetValue(IURIRequestContext* pContext);

@@ -890,11 +890,20 @@ CmdBuffer::CmdBuffer(
     m_allocator(1 * 1024 * 1024),
     m_pTimestamp(nullptr),
     m_timestampAddr(0),
-    m_counter(0)
+    m_counter(0),
+    m_drawDispatchCount(0),
+    m_drawDispatchInfo()
 {
     const auto& cmdBufferLoggerConfig = pDevice->GetPlatform()->PlatformSettings().cmdBufferLoggerConfig;
-    m_annotations.u32All = cmdBufferLoggerConfig.cmdBufferLoggerAnnotations;
-    m_singleStep.u32All  = cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
+    m_annotations.u32All    = cmdBufferLoggerConfig.cmdBufferLoggerAnnotations;
+    m_singleStep.u32All     = cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
+    m_embedDrawDispatchInfo = cmdBufferLoggerConfig.embedDrawDispatchInfo;
+
+    if (m_embedDrawDispatchInfo)
+    {
+        m_annotations.u32All = 0;
+        m_singleStep.u32All  = 0;
+    }
 
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;
@@ -1022,7 +1031,9 @@ void CmdBuffer::AddSingleStepBarrier()
 Result CmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-    m_counter = 0;
+    m_counter           = 0;
+    m_drawDispatchCount = 0;
+    m_drawDispatchInfo  = { 0 };
 
     Result result = GetNextLayer()->Begin(NextCmdBufferBuildInfo(info));
 
@@ -1068,7 +1079,9 @@ Result CmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
-    m_counter = 0;
+    m_counter           = 0;
+    m_drawDispatchCount = 0;
+    m_drawDispatchInfo  = { 0 };
     return GetNextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
 }
 
@@ -1870,7 +1883,11 @@ static const void AppendCacheCoherencyUsageToString(
         {
             const char*  pDelimiter    = firstOneDumped ? " || " : "";
             const size_t currentLength = strlen(pString);
-            Snprintf(pString + currentLength, StringLength - currentLength, "%s%s", pDelimiter, CacheCoherUsageNames[i]);
+            Snprintf(pString + currentLength,
+                     StringLength - currentLength,
+                     "%s%s",
+                     pDelimiter,
+                     CacheCoherUsageNames[i]);
             firstOneDumped = true;
         }
     }
@@ -2123,6 +2140,14 @@ static void CmdBarrierToString(
         BarrierTransitionToString(pCmdBuffer, i, barrierInfo.pTransitions[i], pString);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
+    Snprintf(pString, StringLength, "barrierInfo.globalSrcCacheMask = 0x%08X", barrierInfo.globalSrcCacheMask);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "barrierInfo.globalDstCacheMask = 0x%08X", barrierInfo.globalDstCacheMask);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+#endif
+
     Snprintf(pString, StringLength,
              "barrierInfo.pSplitBarrierGpuEvent = 0x%016" PRIXPTR, barrierInfo.pSplitBarrierGpuEvent);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
@@ -2219,207 +2244,215 @@ void CmdBuffer::CmdBarrier(
 // Called because of a callback informing this layer about a barrier within a lower layer. Annotates the command buffer
 // before the specifics of this barrier with a comment describing this barrier.
 void CmdBuffer::DescribeBarrier(
-    const Developer::BarrierData* pData)
+    const Developer::BarrierData* pData,
+    const char*                   pDescription)
 {
-    if (pData->hasTransition)
+    if (m_annotations.logCmdBarrier)
     {
-        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        if (pDescription)
+        {
+            GetNextLayer()->CmdCommentString(pDescription);
+        }
 
-        const auto& imageInfo = pData->transition.imageInfo.pImage->GetImageCreateInfo();
-        char*       pString   = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+        if (pData->hasTransition)
+        {
+            LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
 
-        Snprintf(&pString[0], StringLength,
-            "ImageInfo: %ux%u %s - %s",
-            imageInfo.extent.width, imageInfo.extent.height,
-            FormatToString(imageInfo.swizzledFormat.format),
-            ImageAspectToString(pData->transition.imageInfo.subresRange.startSubres.aspect));
+            const auto& imageInfo = pData->transition.imageInfo.pImage->GetImageCreateInfo();
+            char*       pString   = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-        GetNextLayer()->CmdCommentString(pString);
+            Snprintf(&pString[0], StringLength,
+                "ImageInfo: %ux%u %s - %s",
+                imageInfo.extent.width, imageInfo.extent.height,
+                FormatToString(imageInfo.swizzledFormat.format),
+                ImageAspectToString(pData->transition.imageInfo.subresRange.startSubres.aspect));
 
-        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
-    }
+            GetNextLayer()->CmdCommentString(pString);
 
-    GetNextLayer()->CmdCommentString("PipelineStalls = {");
+            PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+        }
+
+        GetNextLayer()->CmdCommentString("PipelineStalls = {");
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
-    if (pData->operations.pipelineStalls.eopTsBottomOfPipe)
-    {
-        GetNextLayer()->CmdCommentString("\teopTsBottomOfPipe");
-    }
+        if (pData->operations.pipelineStalls.eopTsBottomOfPipe)
+        {
+            GetNextLayer()->CmdCommentString("\teopTsBottomOfPipe");
+        }
 #else
-    if (pData->operations.pipelineStalls.waitOnEopTsBottomOfPipe)
-    {
-        GetNextLayer()->CmdCommentString("\twaitOnEopTsBottomOfPipe");
-    }
+        if (pData->operations.pipelineStalls.waitOnEopTsBottomOfPipe)
+        {
+            GetNextLayer()->CmdCommentString("\twaitOnEopTsBottomOfPipe");
+        }
 #endif
 
-    if (pData->operations.pipelineStalls.vsPartialFlush)
-    {
-        GetNextLayer()->CmdCommentString("\tvsPartialFlush");
-    }
+        if (pData->operations.pipelineStalls.vsPartialFlush)
+        {
+            GetNextLayer()->CmdCommentString("\tvsPartialFlush");
+        }
 
-    if (pData->operations.pipelineStalls.psPartialFlush)
-    {
-        GetNextLayer()->CmdCommentString("\tpsPartialFlush");
-    }
+        if (pData->operations.pipelineStalls.psPartialFlush)
+        {
+            GetNextLayer()->CmdCommentString("\tpsPartialFlush");
+        }
 
-    if (pData->operations.pipelineStalls.csPartialFlush)
-    {
-        GetNextLayer()->CmdCommentString("\tcsPartialFlush");
-    }
+        if (pData->operations.pipelineStalls.csPartialFlush)
+        {
+            GetNextLayer()->CmdCommentString("\tcsPartialFlush");
+        }
 
-    if (pData->operations.pipelineStalls.pfpSyncMe)
-    {
-        GetNextLayer()->CmdCommentString("\tpfpSyncMe");
-    }
+        if (pData->operations.pipelineStalls.pfpSyncMe)
+        {
+            GetNextLayer()->CmdCommentString("\tpfpSyncMe");
+        }
 
-    if (pData->operations.pipelineStalls.syncCpDma)
-    {
-        GetNextLayer()->CmdCommentString("\tsyncCpDma");
-    }
+        if (pData->operations.pipelineStalls.syncCpDma)
+        {
+            GetNextLayer()->CmdCommentString("\tsyncCpDma");
+        }
 
-    if (pData->operations.pipelineStalls.eosTsPsDone)
-    {
-        GetNextLayer()->CmdCommentString("\teosTsPsDone");
-    }
+        if (pData->operations.pipelineStalls.eosTsPsDone)
+        {
+            GetNextLayer()->CmdCommentString("\teosTsPsDone");
+        }
 
-    if (pData->operations.pipelineStalls.eosTsCsDone)
-    {
-        GetNextLayer()->CmdCommentString("\teosTsCsDone");
-    }
+        if (pData->operations.pipelineStalls.eosTsCsDone)
+        {
+            GetNextLayer()->CmdCommentString("\teosTsCsDone");
+        }
 
-    if (pData->operations.pipelineStalls.waitOnTs)
-    {
-        GetNextLayer()->CmdCommentString("\twaitOnTs");
-    }
+        if (pData->operations.pipelineStalls.waitOnTs)
+        {
+            GetNextLayer()->CmdCommentString("\twaitOnTs");
+        }
 
-    GetNextLayer()->CmdCommentString("}");
+        GetNextLayer()->CmdCommentString("}");
 
-    GetNextLayer()->CmdCommentString("LayoutTransitions = {");
+        GetNextLayer()->CmdCommentString("LayoutTransitions = {");
 
-    if (pData->operations.layoutTransitions.depthStencilExpand)
-    {
-        GetNextLayer()->CmdCommentString("\tdepthStencilExpand");
-    }
+        if (pData->operations.layoutTransitions.depthStencilExpand)
+        {
+            GetNextLayer()->CmdCommentString("\tdepthStencilExpand");
+        }
 
-    if (pData->operations.layoutTransitions.htileHiZRangeExpand)
-    {
-        GetNextLayer()->CmdCommentString("\thtileHiZRangeExpand");
-    }
+        if (pData->operations.layoutTransitions.htileHiZRangeExpand)
+        {
+            GetNextLayer()->CmdCommentString("\thtileHiZRangeExpand");
+        }
 
-    if (pData->operations.layoutTransitions.depthStencilResummarize)
-    {
-        GetNextLayer()->CmdCommentString("\tdepthStencilResummarize");
-    }
+        if (pData->operations.layoutTransitions.depthStencilResummarize)
+        {
+            GetNextLayer()->CmdCommentString("\tdepthStencilResummarize");
+        }
 
-    if (pData->operations.layoutTransitions.dccDecompress)
-    {
-        GetNextLayer()->CmdCommentString("\tdccDecompress");
-    }
+        if (pData->operations.layoutTransitions.dccDecompress)
+        {
+            GetNextLayer()->CmdCommentString("\tdccDecompress");
+        }
 
-    if (pData->operations.layoutTransitions.fmaskDecompress)
-    {
-        GetNextLayer()->CmdCommentString("\tfmaskDecompress");
-    }
+        if (pData->operations.layoutTransitions.fmaskDecompress)
+        {
+            GetNextLayer()->CmdCommentString("\tfmaskDecompress");
+        }
 
-    if (pData->operations.layoutTransitions.fastClearEliminate)
-    {
-        GetNextLayer()->CmdCommentString("\tfastClearEliminate");
-    }
+        if (pData->operations.layoutTransitions.fastClearEliminate)
+        {
+            GetNextLayer()->CmdCommentString("\tfastClearEliminate");
+        }
 
-    if (pData->operations.layoutTransitions.fmaskColorExpand)
-    {
-        GetNextLayer()->CmdCommentString("\tfmaskColorExpand");
-    }
+        if (pData->operations.layoutTransitions.fmaskColorExpand)
+        {
+            GetNextLayer()->CmdCommentString("\tfmaskColorExpand");
+        }
 
-    if (pData->operations.layoutTransitions.initMaskRam)
-    {
-        GetNextLayer()->CmdCommentString("\tinitMaskRam");
-    }
+        if (pData->operations.layoutTransitions.initMaskRam)
+        {
+            GetNextLayer()->CmdCommentString("\tinitMaskRam");
+        }
 
-    GetNextLayer()->CmdCommentString("}");
+        GetNextLayer()->CmdCommentString("}");
 
-    GetNextLayer()->CmdCommentString("Caches = {");
+        GetNextLayer()->CmdCommentString("Caches = {");
 
-    if (pData->operations.caches.invalTcp)
-    {
-        GetNextLayer()->CmdCommentString("\tinvalTcp");
-    }
+        if (pData->operations.caches.invalTcp)
+        {
+            GetNextLayer()->CmdCommentString("\tinvalTcp");
+        }
 
-    if (pData->operations.caches.invalSqI$)
-    {
-        GetNextLayer()->CmdCommentString("\tinvalSqI$");
-    }
+        if (pData->operations.caches.invalSqI$)
+        {
+            GetNextLayer()->CmdCommentString("\tinvalSqI$");
+        }
 
-    if (pData->operations.caches.invalSqK$)
-    {
-        GetNextLayer()->CmdCommentString("\tinvalSqK$");
-    }
+        if (pData->operations.caches.invalSqK$)
+        {
+            GetNextLayer()->CmdCommentString("\tinvalSqK$");
+        }
 
-    if (pData->operations.caches.flushTcc)
-    {
-        GetNextLayer()->CmdCommentString("\tflushTcc");
-    }
+        if (pData->operations.caches.flushTcc)
+        {
+            GetNextLayer()->CmdCommentString("\tflushTcc");
+        }
 
-    if (pData->operations.caches.invalTcc)
-    {
-        GetNextLayer()->CmdCommentString("\tinvalTcc");
-    }
+        if (pData->operations.caches.invalTcc)
+        {
+            GetNextLayer()->CmdCommentString("\tinvalTcc");
+        }
 
-    if (pData->operations.caches.invalTccMetadata)
-    {
-        GetNextLayer()->CmdCommentString("\tinvalTccMetadata");
-    }
+        if (pData->operations.caches.invalTccMetadata)
+        {
+            GetNextLayer()->CmdCommentString("\tinvalTccMetadata");
+        }
 
-    if (pData->operations.caches.flushCb)
-    {
-        GetNextLayer()->CmdCommentString("\tflushCb");
-    }
+        if (pData->operations.caches.flushCb)
+        {
+            GetNextLayer()->CmdCommentString("\tflushCb");
+        }
 
-    if (pData->operations.caches.invalCb)
-    {
-        GetNextLayer()->CmdCommentString("\tinvalCb");
-    }
+        if (pData->operations.caches.invalCb)
+        {
+            GetNextLayer()->CmdCommentString("\tinvalCb");
+        }
 
-    if (pData->operations.caches.flushDb)
-    {
-        GetNextLayer()->CmdCommentString("\tflushDb");
-    }
+        if (pData->operations.caches.flushDb)
+        {
+            GetNextLayer()->CmdCommentString("\tflushDb");
+        }
 
-    if (pData->operations.caches.invalDb)
-    {
-        GetNextLayer()->CmdCommentString("\tinvalDb");
-    }
+        if (pData->operations.caches.invalDb)
+        {
+            GetNextLayer()->CmdCommentString("\tinvalDb");
+        }
 
-    if (pData->operations.caches.invalCbMetadata)
-    {
-        GetNextLayer()->CmdCommentString("\tinvalCbMetadata");
-    }
+        if (pData->operations.caches.invalCbMetadata)
+        {
+            GetNextLayer()->CmdCommentString("\tinvalCbMetadata");
+        }
 
-    if (pData->operations.caches.flushCbMetadata)
-    {
-        GetNextLayer()->CmdCommentString("\tflushCbMetadata");
-    }
+        if (pData->operations.caches.flushCbMetadata)
+        {
+            GetNextLayer()->CmdCommentString("\tflushCbMetadata");
+        }
 
-    if (pData->operations.caches.invalDbMetadata)
-    {
-        GetNextLayer()->CmdCommentString("\tinvalDbMetadata");
-    }
+        if (pData->operations.caches.invalDbMetadata)
+        {
+            GetNextLayer()->CmdCommentString("\tinvalDbMetadata");
+        }
 
-    if (pData->operations.caches.flushDbMetadata)
-    {
-        GetNextLayer()->CmdCommentString("\tflushDbMetadata");
-    }
+        if (pData->operations.caches.flushDbMetadata)
+        {
+            GetNextLayer()->CmdCommentString("\tflushDbMetadata");
+        }
 
-    if (pData->operations.caches.invalGl1)
-    {
-        GetNextLayer()->CmdCommentString("\tinvalGl1");
-    }
+        if (pData->operations.caches.invalGl1)
+        {
+            GetNextLayer()->CmdCommentString("\tinvalGl1");
+        }
 
-    GetNextLayer()->CmdCommentString("}");
+        GetNextLayer()->CmdCommentString("}");
 
-    switch (pData->type)
-    {
+        switch (pData->type)
+        {
         case Developer::BarrierType::Full:
             GetNextLayer()->CmdCommentString("Type = Full");
             break;
@@ -2431,14 +2464,18 @@ void CmdBuffer::DescribeBarrier(
             break;
         default:
             PAL_NEVER_CALLED();
+        }
     }
 }
 
 // =====================================================================================================================
 // Adds single-step and timestamp logic for any internal draws/dispatches that the internal PAL core might do.
+// Also adds draw/dispatch info (shader IDs) to the command stream prior to the draw/dispatch.
 void CmdBuffer::HandleDrawDispatch(
-    bool isDraw)
+    Developer::DrawDispatchType drawDispatchType)
 {
+    const bool isDraw = (drawDispatchType < Developer::DrawDispatchType::FirstDispatch);
+
     const bool timestampEvent = (isDraw) ? m_singleStep.timestampDraws : m_singleStep.timestampDispatches;
     const bool waitIdleEvent  = (isDraw) ? m_singleStep.waitIdleDraws  : m_singleStep.waitIdleDispatches;
 
@@ -2450,6 +2487,83 @@ void CmdBuffer::HandleDrawDispatch(
     if (timestampEvent)
     {
         AddTimestamp();
+    }
+
+    AddDrawDispatchInfo(drawDispatchType);
+}
+
+// =====================================================================================================================
+void CmdBuffer::AddDrawDispatchInfo(
+    Developer::DrawDispatchType drawDispatchType)
+{
+    if (m_embedDrawDispatchInfo)
+    {
+        DrawDispatchInfo drawDispatchInfo = m_drawDispatchInfo;
+
+        drawDispatchInfo.id = m_drawDispatchCount++;
+
+        drawDispatchInfo.drawDispatchType = static_cast<uint32>(drawDispatchType);
+
+        if (drawDispatchType < Developer::DrawDispatchType::FirstDispatch)
+        {
+            drawDispatchInfo.hashCs = { 0 };
+        }
+        else
+        {
+            drawDispatchInfo.hashVs = { 0 };
+            drawDispatchInfo.hashHs = { 0 };
+            drawDispatchInfo.hashDs = { 0 };
+            drawDispatchInfo.hashGs = { 0 };
+            drawDispatchInfo.hashPs = { 0 };
+        }
+
+        GetNextLayer()->CmdNop(&drawDispatchInfo, sizeof(drawDispatchInfo) / sizeof(uint32));
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::UpdateDrawDispatchInfo(
+    const IPipeline*  pPipeline,
+    PipelineBindPoint bindPoint)
+{
+    PAL_ASSERT(bindPoint < PipelineBindPoint::Count);
+
+    if (m_embedDrawDispatchInfo)
+    {
+        if (pPipeline != nullptr)
+        {
+            const PipelineInfo& pipelineInfo = pPipeline->GetInfo();
+
+            const ShaderHash& hashVs = pipelineInfo.shader[static_cast<int>(ShaderType::Vertex)].hash;
+            const ShaderHash& hashHs = pipelineInfo.shader[static_cast<int>(ShaderType::Hull)].hash;
+            const ShaderHash& hashDs = pipelineInfo.shader[static_cast<int>(ShaderType::Domain)].hash;
+            const ShaderHash& hashGs = pipelineInfo.shader[static_cast<int>(ShaderType::Geometry)].hash;
+            const ShaderHash& hashPs = pipelineInfo.shader[static_cast<int>(ShaderType::Pixel)].hash;
+            const ShaderHash& hashCs = pipelineInfo.shader[static_cast<int>(ShaderType::Compute)].hash;
+
+            const bool graphicsHashValid = (Pal::ShaderHashIsNonzero(hashVs) ||
+                                            Pal::ShaderHashIsNonzero(hashHs) ||
+                                            Pal::ShaderHashIsNonzero(hashDs) ||
+                                            Pal::ShaderHashIsNonzero(hashGs) ||
+                                            Pal::ShaderHashIsNonzero(hashPs));
+            const bool computeHashValid = Pal::ShaderHashIsNonzero(hashCs);
+
+            if (graphicsHashValid || computeHashValid)
+            {
+                if (bindPoint == PipelineBindPoint::Graphics)
+                {
+                    m_drawDispatchInfo.hashVs = hashVs;
+                    m_drawDispatchInfo.hashHs = hashHs;
+                    m_drawDispatchInfo.hashDs = hashDs;
+                    m_drawDispatchInfo.hashGs = hashGs;
+                    m_drawDispatchInfo.hashPs = hashPs;
+                }
+                else if (bindPoint == PipelineBindPoint::Compute)
+                {
+                    m_drawDispatchInfo.hashCs = hashCs;
+                }
+            }
+        }
     }
 }
 
@@ -2979,7 +3093,7 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
 
     pThis->GetNextLayer()->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount);
 
-    pThis->HandleDrawDispatch(true);
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDraw);
 }
 
 // =====================================================================================================================
@@ -3001,7 +3115,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
 
     pThis->GetNextLayer()->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, firstInstance, instanceCount);
 
-    pThis->HandleDrawDispatch(true);
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDrawOpaque);
 }
 
 // =====================================================================================================================
@@ -3038,7 +3152,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
 
     pThis->GetNextLayer()->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
 
-    pThis->HandleDrawDispatch(true);
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDrawIndexed);
 }
 
 // =====================================================================================================================
@@ -3061,7 +3175,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
 
     pThis->GetNextLayer()->CmdDrawIndirectMulti(*NextGpuMemory(&gpuMemory), offset, stride, maximumCount, countGpuAddr);
 
-    pThis->HandleDrawDispatch(true);
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDrawIndirectMulti);
 }
 
 // =====================================================================================================================
@@ -3088,7 +3202,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
                                                        maximumCount,
                                                        countGpuAddr);
 
-    pThis->HandleDrawDispatch(true);
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDrawIndexedIndirectMulti);
 }
 
 // =====================================================================================================================
@@ -3119,7 +3233,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
 
     pThis->GetNextLayer()->CmdDispatch(xDim, yDim, zDim);
 
-    pThis->HandleDrawDispatch(false);
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatch);
 }
 
 // =====================================================================================================================
@@ -3139,7 +3253,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
 
     pThis->GetNextLayer()->CmdDispatchIndirect(*NextGpuMemory(&gpuMemory), offset);
 
-    pThis->HandleDrawDispatch(false);
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchIndirect);
 }
 
 // =====================================================================================================================
@@ -3163,7 +3277,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
 
     pThis->GetNextLayer()->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
 
-    pThis->HandleDrawDispatch(false);
+    pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchOffset);
 }
 
 // =====================================================================================================================
@@ -4885,7 +4999,7 @@ void CmdBuffer::CmdUpdateHiSPretests(
 
         CmdUpdateHiSPretestsToString(this, pretests, firstMip, numMips);
     }
-    GetNextLayer()->CmdUpdateHiSPretests(pImage, pretests, firstMip, numMips);
+    GetNextLayer()->CmdUpdateHiSPretests(NextImage(pImage), pretests, firstMip, numMips);
 }
 
 // =====================================================================================================================
@@ -5055,6 +5169,21 @@ void CmdBuffer::CmdCommentString(
     const char* pComment)
 {
     GetNextLayer()->CmdCommentString(pComment);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdNop(
+    const void* pPayload,
+    uint32      payloadSize)
+{
+    if (m_annotations.logMiscellaneous)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdNop));
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdNop(pPayload, payloadSize);
 }
 
 // =====================================================================================================================

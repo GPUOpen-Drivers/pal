@@ -539,7 +539,9 @@ Result Device::SetupPublicSettingDefaults()
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 514
     m_publicSettings.disablePipelineUploadToLocalInvis = false;
 #endif
-    m_publicSettings.ifhMode = IfhModeDisabled;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 542
+    m_publicSettings.ifhMode = PublicSettingIfhMode::IfhModeDisabled;
+#endif
     return ret;
 }
 
@@ -1903,12 +1905,14 @@ Result Device::GetProperties(
         {
             const auto& gfx6Props = m_chipProperties.gfx6;
 
-            pInfo->gfxipProperties.flags.u32All                         = 0;
+            pInfo->gfxipProperties.flags.u64All                         = 0;
             pInfo->gfxipProperties.flags.support8bitIndices             = gfx6Props.support8bitIndices;
             pInfo->gfxipProperties.flags.support16BitInstructions       = gfx6Props.support16BitInstructions;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
             pInfo->gfxipProperties.flags.support64BitInstructions       = gfx6Props.support64BitInstructions;
 #endif
+            pInfo->gfxipProperties.flags.supportShaderSubgroupClock     = gfx6Props.supportShaderSubgroupClock;
+            pInfo->gfxipProperties.flags.supportShaderDeviceClock       = gfx6Props.supportShaderDeviceClock;
             pInfo->gfxipProperties.flags.supports2BitSignedValues       = gfx6Props.supports2BitSignedValues;
             pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter  = 0; // GFX6-8 only support single channel
                                                                              // min/max filter
@@ -1990,13 +1994,15 @@ Result Device::GetProperties(
         {
             const auto& gfx9Props = m_chipProperties.gfx9;
 
-            pInfo->gfxipProperties.flags.u32All                           = 0;
-            pInfo->gfxipProperties.flags.support8bitIndices               = 0;
+            pInfo->gfxipProperties.flags.u64All                             = 0;
+            pInfo->gfxipProperties.flags.support8bitIndices                 = 0;
             pInfo->gfxipProperties.flags.supportFp16Fetch                   = gfx9Props.supportFp16Fetch;
             pInfo->gfxipProperties.flags.support16BitInstructions           = gfx9Props.support16BitInstructions;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 532
             pInfo->gfxipProperties.flags.support64BitInstructions           = gfx9Props.support64BitInstructions;
 #endif
+            pInfo->gfxipProperties.flags.supportShaderSubgroupClock         = gfx9Props.supportShaderSubgroupClock;
+            pInfo->gfxipProperties.flags.supportShaderDeviceClock           = gfx9Props.supportShaderDeviceClock;
             pInfo->gfxipProperties.flags.supportDoubleRate16BitInstructions =
                 gfx9Props.supportDoubleRate16BitInstructions;
             pInfo->gfxipProperties.flags.supportConservativeRasterization = gfx9Props.supportConservativeRasterization;
@@ -4226,6 +4232,16 @@ Result Device::SubtractFromReferencedMemoryTotals(
     }
 
     return Result::Success;
+}
+
+// =====================================================================================================================
+IfhMode Device::GetIfhMode() const
+{
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 542
+    return static_cast<IfhMode>(GetPublicSettings()->ifhMode);
+#else
+    return Settings().ifh;
+#endif
 }
 
 // =====================================================================================================================

@@ -769,13 +769,11 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 
     case QueryPoolType::StreamoutStats:
 
-        PAL_ASSERT(flags == (QueryResult64Bit | QueryResultWait));
+        PAL_ASSERT((flags & QueryResultWait) != 0);
 
         pPipeline = GetPipeline(RpmComputePipeline::ResolveStreamoutStatsQuery);
 
-        constData[0]    = queryCount;
-        constData[1]    = static_cast<uint32>(dstStride);
-        constEntryCount = 2;
+        constEntryCount = 3;
 
         PAL_ASSERT((queryType == QueryType::StreamoutStats)  ||
                    (queryType == QueryType::StreamoutStats1) ||

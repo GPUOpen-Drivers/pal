@@ -163,8 +163,9 @@ public:
     /// Constructor.
     ///
     /// @param [in] groupSize  Fixed allocation size.  Allocate() will only be able to create allocations of this size.
+    /// @param [in] alignment  Required alignment of the allocation in bytes.
     /// @param [in] pAllocator Pointer to an allocator that will create system memory requested by this hash container.
-    HashAllocator(size_t groupSize, Allocator*const pAllocator);
+    HashAllocator(size_t groupSize, uint32 alignment, Allocator*const pAllocator);
 
     ~HashAllocator();
 
@@ -213,6 +214,7 @@ private:
 
     MemBlock        m_blocks[NumBlocks];  // Memory blocks holding exponentially growing memory.
     const size_t    m_groupSize;          // Fixed-group-size for each group in one block.
+    uint32          m_alignment;          // Required alignment of the allocation in bytes.
     int32           m_curBlock;           // Current block index memory is being allocated from.  -1 indicates the
                                           // allocator has just been created and hasn't created any blocks yet.
     Allocator*const m_pAllocator;         // Allocator for this hash allocation function.
@@ -221,10 +223,12 @@ private:
 // =====================================================================================================================
 template<typename Allocator>
 PAL_INLINE HashAllocator<Allocator>::HashAllocator(
-    size_t           groupSize,   // Fixed allocation size.  Allocate() will always create allocations of this size.
-    Allocator*const  pAllocator)  // Allocator for this hash allocation function.
+    size_t          groupSize,   // Fixed allocation size.  Allocate() will always create allocations of this size.
+    uint32          alignment,   // Required alignment of the allocation in bytes.
+    Allocator*const pAllocator)  // Allocator for this hash allocation function.
     :
     m_groupSize(groupSize),
+    m_alignment(alignment),
     m_curBlock(-1),
     m_pAllocator(pAllocator)
 {
@@ -467,7 +471,7 @@ PAL_INLINE HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, Group
     :
     m_hashFunc(),
     m_equalFunc(),
-    m_allocator(GroupSize, pAllocator),
+    m_allocator(GroupSize, alignof(Entry), pAllocator),
     m_numBuckets(Pow2Pad(numBuckets)),
     m_numEntries(0),
     m_memorySize(m_numBuckets * GroupSize),

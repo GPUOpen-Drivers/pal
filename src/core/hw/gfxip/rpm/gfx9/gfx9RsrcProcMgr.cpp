@@ -200,18 +200,19 @@ static CompSetting ComputeCompSetting(
 // =====================================================================================================================
 // Retrieves the hardware color-buffer format for a given PAL format type.
 static PAL_INLINE ColorFormat HwColorFormat(
-    GfxIpLevel       gfxLevel,
+    const Device*    pDevice,
     Pal::ChNumFormat format)
 {
     ColorFormat hwColorFmt = COLOR_INVALID;
+    GfxIpLevel gfxLevel = pDevice->Parent()->ChipProperties().gfxLevel;
 
     switch (gfxLevel)
     {
     case GfxIpLevel::GfxIp9:
-        hwColorFmt = HwColorFmt(MergedChannelFmtInfoTbl(gfxLevel), format);
+        hwColorFmt = HwColorFmt(MergedChannelFmtInfoTbl(gfxLevel, &pDevice->Settings()), format);
         break;
     case GfxIpLevel::GfxIp10_1:
-        hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel), format);
+        hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel, &pDevice->Settings()), format);
         break;
     default:
         PAL_NEVER_CALLED();
@@ -247,7 +248,7 @@ const SPI_SHADER_EX_FORMAT RsrcProcMgr::DeterminePsExportFmt(
 
     const uint32 maxCompSize = Formats::MaxComponentBitCount(format.format);
 
-    const ColorFormat hwColorFmt  = HwColorFormat(chipProps.gfxLevel, format.format);
+    const ColorFormat hwColorFmt  = HwColorFormat(m_pDevice, format.format);
     const CompSetting compSetting = ComputeCompSetting(hwColorFmt, format);
 
     const bool hasAlpha = Formats::HasAlpha(format);
@@ -695,13 +696,11 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
         break;
 
     case QueryPoolType::StreamoutStats:
-        PAL_ASSERT(flags == (QueryResult64Bit | QueryResultWait));
+        PAL_ASSERT((flags & QueryResultWait) != 0);
 
         pPipeline    = GetPipeline(RpmComputePipeline::ResolveStreamoutStatsQuery);
 
-        constData[0]    = queryCount;
-        constData[1]    = static_cast<uint32>(dstStride);
-        constEntryCount = 2;
+        constEntryCount = 3;
 
         PAL_ASSERT((queryType == QueryType::StreamoutStats) ||
                    (queryType == QueryType::StreamoutStats1) ||
@@ -6208,11 +6207,11 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
             // noramlly would be set to match the number of physical packers active in the design configuration. Must
             // not be programmed to greater than the number of active packers per SA (SC) present in the chip
             // configuration. Must be 0x1 if NUM_RB_PER_SC = 0x2.
-            if (IsNavi10(palDevice))
+            if (IsGfx101(palDevice))
             {
-                paScTileSteeringOverride.nv10.NUM_PACKER_PER_SC =
+                paScTileSteeringOverride.gfx101.NUM_PACKER_PER_SC =
                         Min(paScTileSteeringOverride.gfx10.NUM_RB_PER_SC,
-                            defaultPaRegVal.nv10.NUM_PACKER_PER_SC);
+                            defaultPaRegVal.gfx101.NUM_PACKER_PER_SC);
             }
 
             CommitBeginEndGfxCopy(pCmdStream, paScTileSteeringOverride.u32All);

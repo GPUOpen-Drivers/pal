@@ -57,19 +57,17 @@ namespace DevDriver
      *
      * HashFunc is a functor for hashing keys.  Built-in choices for HashFunc are:
      *
-     * - DefaultHashFunc: Good choice when the key is a pointer.
-     * - JenkinsHashFunc: Good choice when the key is arbitrary binary data.
-     * - StringJenkinsHashFunc: Good choice when the key is a C-style string.
+     * - DefaultHashFunc: Hashes the bytes of the object using MetroHash.
+     *                    If the key is a `const char*`, the string's bytes are used, not the pointer's.
+     *                    This can be extended for your own types. See hashFunc.h.
      *
      * EqualFunc is a functor for comparing keys.  Built-in choices for EqualFunc are:
      *
-     * - DefaultEqualFunc: Determines keys are equal using teh equality operator.
+     * - DefaultEqualFunc: Determines keys are equal using the equality operator.
+     *                     Uses strcmp with  `const char*`.
      * - BitwiseEqualFunc: Determines keys are equal by bitwise comparison.
-     * - StringEqualFunc: Treats keys as a char* and compares them as C-style strings.
      *
      * @warning This class is not thread-safe for Insert, FindAllocate, Erase, or iteration!
-     * @warning Init() must be called before using this container. Begin() and Reset() can be safely called before
-     *          initialization and Begin() will always return an iterator that points to null.
      *
      * For more details please refer to @ref HashBase.
      ***********************************************************************************************************************

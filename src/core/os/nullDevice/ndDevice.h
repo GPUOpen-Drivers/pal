@@ -261,15 +261,32 @@ public:
     virtual Result FlglGetFrameCounterResetStatus(
         bool* pReset) const override { return Result::Success; }
 
-    virtual bool DidDelagSettingsChange() override
+    virtual Result DidRsFeatureSettingsChange(
+        uint32  rsFeatures,
+        uint32* pRsFeaturesChanged) override
     {
-        return false;
+       if (pRsFeaturesChanged != nullptr)
+       {
+           *pRsFeaturesChanged = 0;
+       }
+       return Result::Success;
     }
 
-    virtual bool DidTurboSyncSettingsChange() override
+    virtual Result GetRsFeatureGlobalSettings(
+        RsFeatureType  rsFeature,
+        RsFeatureInfo* pRsFeatureInfo) override
     {
-        return false;
+       if (pRsFeatureInfo != nullptr)
+       {
+           *pRsFeatureInfo = { };
+       }
+       return Result::Success;
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 537
+
+    virtual bool DidDelagSettingsChange()     override { return false; }
+    virtual bool DidTurboSyncSettingsChange() override { return false; }
 
     virtual Result DidChillSettingsChange(
         bool* pChangeDetected) override
@@ -290,6 +307,7 @@ public:
         }
         return Result::Success;
     }
+#endif
 
     virtual Result UpdateChillStatus(
         uint64 lastChillActiveTimeStampUs) override { return Result::Success; }

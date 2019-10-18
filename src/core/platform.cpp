@@ -381,7 +381,6 @@ Result Platform::Init()
 }
 
 // =====================================================================================================================
-//
 void Platform::EnableEventLoggingToFile()
 {
     const auto& settings = PlatformSettings();

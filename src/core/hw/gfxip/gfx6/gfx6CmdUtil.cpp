@@ -3432,6 +3432,27 @@ size_t CmdUtil::BuildCommentString(
 }
 
 // =====================================================================================================================
+// Builds an NOP PM4 packet with the payload data embedded inside.
+size_t CmdUtil::BuildNopPayload(
+    const void* pPayload,
+    uint32      payloadSize,
+    void*       pBuffer
+    ) const
+{
+    const size_t packetSize = PM4_CMD_NOP_DWORDS + payloadSize;
+    auto*const   pPacket    = static_cast<PM4CMDNOP*>(pBuffer);
+    uint32*      pData      = reinterpret_cast<uint32*>(pPacket + 1);
+
+    // Build header (NOP, signature, size, type)
+    pPacket->header.u32All = Type3Header(IT_NOP, static_cast<uint32>(packetSize));
+
+    // Append data
+    memcpy(pData, pPayload, payloadSize * sizeof(uint32));
+
+    return packetSize;
+}
+
+// =====================================================================================================================
 // On GFX7+ CPDMA can read/write through L2.  Issue a BLT of the pipeline data to itself in order to prime its data in
 // L2.
 void CmdUtil::BuildPipelinePrefetchPm4(

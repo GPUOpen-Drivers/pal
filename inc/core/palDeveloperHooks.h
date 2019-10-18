@@ -40,6 +40,7 @@ namespace Pal
 // Forward declarations.
 class ICmdBuffer;
 class IImage;
+class IPipeline;
 
 namespace Developer
 {
@@ -405,6 +406,7 @@ struct DrawDispatchData
 /// Information for BindPipeline callbacks
 struct BindPipelineData
 {
+    const IPipeline*  pPipeline;  ///< The currently-bound pipeline
     ICmdBuffer*       pCmdBuffer; ///< The command buffer that is recording this command
     uint64            apiPsoHash; ///< The hash to correlate APIs and corresponding PSOs.
     PipelineBindPoint bindPoint;  ///< The bind point of the pipeline within a queue.

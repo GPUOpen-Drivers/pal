@@ -106,7 +106,15 @@
 #endif
 #define AMDGPU_RAVEN2_RANGE     0x81, 0x90
 
-#define AMDGPU_NAVI10_RANGE     0x01, 0xFF
+#define AMDGPU_NAVI10_RANGE     0x01, 0x0A
+
+#if ADDR_NAVI22_BUILD
+#define AMDGPU_NAVI22_RANGE     0x32, 0x3C
+#endif
+
+#if ADDR_NAVI23_BUILD
+#define AMDGPU_NAVI23_RANGE     0x3C, 0x46
+#endif
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -156,5 +164,13 @@
 #define ASICREV_IS_RAVEN2(r)           ASICREV_IS(r, RAVEN2)
 
 #define ASICREV_IS_NAVI10_P(r)         ASICREV_IS(r, NAVI10)
+
+#if ADDR_NAVI22_BUILD
+#define ASICREV_IS_NAVI22_P(r)         ASICREV_IS(r, NAVI22)
+#endif
+
+#if ADDR_NAVI23_BUILD
+#define ASICREV_IS_NAVI23_P(r)         ASICREV_IS(r, NAVI23)
+#endif
 
 #endif // _AMDGPU_ASIC_ADDR_H

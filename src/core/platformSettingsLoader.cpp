@@ -173,22 +173,65 @@ DevDriver::Result PlatformSettingsLoader::PerformSetValue(
 #endif
 
 #if PAL_BUILD_CMD_BUFFER_LOGGER
+    constexpr uint32 CmdBufferLoggerAnnotations = 462141291;
     constexpr uint32 CmdBufferLoggerSingleStepHash = 1570291248;
-    if (hash == CmdBufferLoggerSingleStepHash)
+    constexpr uint32 CmdBufferLoggerEmbedDrawDispatchInfo = 1801313176;
+    if ((hash == CmdBufferLoggerAnnotations) ||
+        (hash == CmdBufferLoggerSingleStepHash) ||
+        (hash == CmdBufferLoggerEmbedDrawDispatchInfo))
     {
-        auto* pInfo = m_settingsInfoMap.FindKey(hash);
-        if (pInfo != nullptr)
+        auto* pEmbedDrawDispatchInfo = m_settingsInfoMap.FindKey(CmdBufferLoggerEmbedDrawDispatchInfo);
+        if ((hash == CmdBufferLoggerEmbedDrawDispatchInfo) && (pEmbedDrawDispatchInfo != nullptr))
         {
-            // If the user has requested any of the WaitIdle flags for the CmdBufferLogger,
-            // we must enable the corresponding timestamp value as well.
-            constexpr uint32 WaitIdleMask   = 0x3E0;
-            constexpr uint32 WaitIdleOffset = 5;
-            PAL_ASSERT(settingValue.pValuePtr != nullptr);
-            uint32 value = *static_cast<uint32*>(settingValue.pValuePtr);
+            memcpy(pEmbedDrawDispatchInfo->pValuePtr, settingValue.pValuePtr, settingValue.valueSize);
 
-            if (TestAnyFlagSet(value, WaitIdleMask))
+            auto* pInfo = m_settingsInfoMap.FindKey(CmdBufferLoggerAnnotations);
+            if (pInfo != nullptr)
             {
-                value |= (value >> WaitIdleOffset);
+                constexpr uint32 NoAnnotations = 0;
+                memcpy(pInfo->pValuePtr, &NoAnnotations, pInfo->valueSize);
+            }
+            pInfo = m_settingsInfoMap.FindKey(CmdBufferLoggerSingleStepHash);
+            if (pInfo != nullptr)
+            {
+                constexpr uint32 NoSingleStepping = 0;
+                memcpy(pInfo->pValuePtr, &NoSingleStepping, pInfo->valueSize);
+            }
+
+            ret = DevDriver::Result::Success;
+        }
+        else if ((hash == CmdBufferLoggerSingleStepHash) || (hash == CmdBufferLoggerAnnotations))
+        {
+            bool embedDrawDispatchInfo = false;
+            if (pEmbedDrawDispatchInfo != nullptr)
+            {
+                embedDrawDispatchInfo = *static_cast<bool*>(pEmbedDrawDispatchInfo->pValuePtr);
+            }
+
+            auto* pInfo = m_settingsInfoMap.FindKey(hash);
+            if (pInfo != nullptr)
+            {
+                PAL_ASSERT(settingValue.pValuePtr != nullptr);
+                uint32 value = *static_cast<uint32*>(settingValue.pValuePtr);
+
+                if (embedDrawDispatchInfo)
+                {
+                    // Annotations and single-stepping is unsupported while embedding the draw/dispatch info
+                    // for external tooling.
+                    value = 0;
+                }
+                else if (hash == CmdBufferLoggerSingleStepHash)
+                {
+                    // If the user has requested any of the WaitIdle flags for the CmdBufferLogger,
+                    // we must enable the corresponding timestamp value as well.
+                    constexpr uint32 WaitIdleMask = 0x3E0;
+                    constexpr uint32 WaitIdleOffset = 5;
+                    if (TestAnyFlagSet(value, WaitIdleMask))
+                    {
+                        value |= (value >> WaitIdleOffset);
+                    }
+                }
+
                 memcpy(pInfo->pValuePtr, &value, settingValue.valueSize);
                 ret = DevDriver::Result::Success;
             }

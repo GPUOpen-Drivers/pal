@@ -35,6 +35,7 @@
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 #include "palFormatInfo.h"
+#include "palHashMapImpl.h"
 #include "palImage.h"
 #include "palIntrusiveListImpl.h"
 #include "palQueryPool.h"
@@ -63,7 +64,10 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_timestampGpuVa(0),
     m_computeStateFlags(0),
     m_spmTraceEnabled(false),
-    m_fceRefCountVec(device.GetPlatform())
+    m_fceRefCountVec(device.GetPlatform()),
+    m_gfxBltActiveCtr(0),
+    m_csBltActiveCtr(0),
+    m_releaseActivityMap(128, device.GetPlatform())
 {
     PAL_ASSERT((createInfo.queueType == QueueTypeUniversal) || (createInfo.queueType == QueueTypeCompute));
 
@@ -130,6 +134,11 @@ Result GfxCmdBuffer::Init(
                 }
             }
         }
+    }
+
+    if (result == Pal::Result::Success)
+    {
+        result = m_releaseActivityMap.Init();
     }
 
     return result;
@@ -200,6 +209,13 @@ Result GfxCmdBuffer::Reset(
 
     ResetFastClearReferenceCounts();
 
+    // Current release tracking design could add lots of releases entries but never clear then until reset. This could
+    // cause large CPU overhead. Alert if this does happen.
+    PAL_ALERT(m_releaseActivityMap.GetNumEntries() >= 1024);
+
+    // Reset auto-release activity list
+    m_releaseActivityMap.Reset();
+
     return CmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
 }
 
@@ -244,6 +260,9 @@ void GfxCmdBuffer::ResetState()
     {
         m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = 1;
     }
+
+    m_gfxBltActiveCtr = 0;
+    m_csBltActiveCtr  = 0;
 
 }
 
@@ -350,36 +369,181 @@ HwPipePoint GfxCmdBuffer::OptimizeHwPipePostBlit() const
 }
 
 // =====================================================================================================================
-// If PipelineStageBlt is set, convert it to more specific internal pipeline stages based on GfxCmdBufferState flags.
-// Return the processed stageMask.
-uint32 GfxCmdBuffer::ConvertToInternalPipelineStageMask(
-    uint32 stageMask // [in] A representation of PipelineStageFlag.
+// Optimize pipeline stages and cache access masks for BLTs. This is for acquire/release interface.
+void GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(
+    uint32* pStageMask, // [in/out] A representation of PipelineStageFlag
+    uint32* pAccessMask // [in/out] A representation of CacheCoherencyUsageFlags
     ) const
 {
-    if (TestAnyFlagSet(stageMask, PipelineStageBlt))
+    PAL_ASSERT((pStageMask != nullptr) && (pAccessMask != nullptr));
+
+    uint32 localStageMask  = *pStageMask;
+    uint32 localAccessMask = *pAccessMask;
+
+    // Update pipeline stages
+    if (TestAnyFlagSet(localStageMask, PipelineStageBlt))
     {
         // If there are no BLTs in flight at this point, we will use the earliest pipe stage TopOfPipe. This will
         // optimize any redundant stalls when called from the barrier implementation. Otherwise, this function remaps
         // the BLT pipe stage based on the gfx block that performed the BLT operation.
-        stageMask &= ~PipelineStageBlt;
+        localStageMask &= ~PipelineStageBlt;
 
         // Check xxxBltActive states in order.
         const GfxCmdBufferState cmdBufState = GetGfxCmdBufState();
         if (cmdBufState.flags.gfxBltActive)
         {
-            stageMask |= PipelineStageBottomOfPipe;
+            localStageMask |= PipelineStageBottomOfPipe;
         }
         else if (cmdBufState.flags.csBltActive)
         {
-            stageMask |= PipelineStageCs;
+            localStageMask |= PipelineStageCs;
         }
         else
         {
-            stageMask |= PipelineStageTopOfPipe;
+            localStageMask |= PipelineStageTopOfPipe;
         }
     }
 
-    return stageMask;
+    // Update cache access masks
+    if (TestAnyFlagSet(localAccessMask, CoherCopy | CoherClear | CoherResolve))
+    {
+        // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know which
+        // write caches have been dirtied:
+        // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
+        // - If a compute BLT occurred, alias these srcCaches to CoherShader.
+        // - If a CP L2 BLT occured, alias these srcCaches to CoherTimestamp (this isn't good but we have no CoherL2).
+        // - If a CP direct-to-memory write occured, alias these srcCaches to CoherMemory.
+        // Clear the original srcCaches from the srcCache mask for the rest of this scope.
+        GfxCmdBufferState cmdBufState = GetGfxCmdBufState();
+        localAccessMask &= ~(CoherCopy | CoherClear | CoherResolve);
+
+        localAccessMask |= cmdBufState.flags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
+        localAccessMask |= cmdBufState.flags.csWriteCachesDirty        ? CoherShader      : 0;
+        localAccessMask |= cmdBufState.flags.cpWriteCachesDirty        ? CoherTimestamp   : 0;
+        localAccessMask |= cmdBufState.flags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
+    }
+
+    *pStageMask  = localStageMask;
+    *pAccessMask = localAccessMask;
+}
+
+// =====================================================================================================================
+void GfxCmdBuffer::SetGfxCmdBufGfxBltState(
+    bool gfxBltActive)
+{
+    m_gfxCmdBufState.flags.gfxBltActive = gfxBltActive;
+
+    if (gfxBltActive)
+    {
+        m_gfxBltActiveCtr++;
+        PAL_ASSERT(m_gfxBltActiveCtr < 0xffff);
+    }
+}
+
+// =====================================================================================================================
+void GfxCmdBuffer::SetGfxCmdBufCsBltState(
+    bool csBltActive)
+{
+    m_gfxCmdBufState.flags.csBltActive = csBltActive;
+
+    if (csBltActive)
+    {
+        m_csBltActiveCtr++;
+        PAL_ASSERT(m_csBltActiveCtr < 0xffff);
+    }
+}
+
+// =====================================================================================================================
+// This is only for the acquire/release barrier interface. Add the current release info to the release activity hashmap.
+void GfxCmdBuffer::UpdateReleaseActivityMapFromRelease(
+    const IGpuEvent*                    pGpuEvent,
+    const Developer::BarrierOperations& barrierOps)
+{
+    PAL_ASSERT(pGpuEvent != nullptr);
+
+    ReleaseActivityInfo value = {};
+
+    value.pipelineStalls.eosTsPsDone       = barrierOps.pipelineStalls.eosTsPsDone;
+    value.pipelineStalls.eosTsCsDone       = barrierOps.pipelineStalls.eosTsCsDone;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 504
+    value.pipelineStalls.eopTsBottomOfPipe = barrierOps.pipelineStalls.waitOnEopTsBottomOfPipe;
+#else
+    value.pipelineStalls.eopTsBottomOfPipe = barrierOps.pipelineStalls.eopTsBottomOfPipe;
+#endif
+
+    // Log any cache operation that a release could issue.
+    value.caches.gfxBltCacheSync = (barrierOps.caches.flushCb         || barrierOps.caches.invalCb         ||
+                                    barrierOps.caches.flushCbMetadata || barrierOps.caches.invalCbMetadata ||
+                                    barrierOps.caches.flushDb         || barrierOps.caches.invalDb         ||
+                                    barrierOps.caches.flushDbMetadata || barrierOps.caches.invalDbMetadata);
+
+    value.caches.invalTcc = barrierOps.caches.invalTcc; // This is marked if it's releasing from "CpDma write to memory"
+    value.caches.flushTcc = barrierOps.caches.flushTcc; // This is marked if there is an explicit request to flush LLC.
+
+    // Log timestamp from gfx/cs activity counter.
+    value.gfxBltActiveTimestamp = m_gfxBltActiveCtr;
+    value.csBltActiveTimestamp  = m_csBltActiveCtr;
+
+    Result result = m_releaseActivityMap.Insert(pGpuEvent, value);
+    PAL_ASSERT(result == Result::Success);
+}
+
+// =====================================================================================================================
+// This is only for the acquire/release barrier interface. Find the associated release this acquire is waiting on, and
+// use the release info to update command buffer state flags. Then remove the release entry from hashmap.
+void GfxCmdBuffer::UpdateCmdBufStateFromAcquire(
+    const IGpuEvent*                    pGpuEvent,
+    const Developer::BarrierOperations& barrierOps)
+{
+    ReleaseActivityInfo* pValue = m_releaseActivityMap.FindKey(pGpuEvent);
+
+    if (pValue != nullptr)
+    {
+        // If the current m_gfxBltActiveCtr is equal to the value it was when the release we're waiting on was queued,
+        // then there have been no graphics BLTs since that release. Therefore we can cleanup some of the BLT state
+        // tracking.
+        if ((pValue->pipelineStalls.eopTsBottomOfPipe != 0) && (pValue->gfxBltActiveTimestamp == m_gfxBltActiveCtr))
+        {
+            SetGfxCmdBufGfxBltState(false);
+
+            if (pValue->caches.gfxBltCacheSync != 0)
+            {
+                SetGfxCmdBufGfxBltWriteCacheState(false);
+            }
+        }
+
+        // Same for m_csBltActiveCtr.
+        if (((pValue->pipelineStalls.eosTsCsDone != 0) || (pValue->pipelineStalls.eopTsBottomOfPipe != 0)) &&
+            (pValue->csBltActiveTimestamp == m_csBltActiveCtr))
+        {
+            SetGfxCmdBufCsBltState(false);
+
+            if((barrierOps.caches.invalTcp         != 0) &&
+               (barrierOps.caches.invalSqK$        != 0) &&
+               (barrierOps.caches.invalTccMetadata != 0))
+            {
+                SetGfxCmdBufCsBltWriteCacheState(false);
+            }
+        }
+
+        // CP BLT relies on BuildWaitDmaData which stalls the CP, so it doesn't need to check a counter like gfx and cs
+        // paths.
+        if (GetGfxCmdBufState().flags.cpBltActive == false)
+        {
+            if (pValue->caches.flushTcc != 0)
+            {
+                SetGfxCmdBufCpBltWriteCacheState(false);
+            }
+            if ((pValue->caches.invalTcc != 0) || (barrierOps.caches.invalTcc != 0))
+            {
+                SetGfxCmdBufCpMemoryWriteL2CacheStaleState(false);
+            }
+        }
+
+        // The associated release is guaranteed completed by the acquire, and we've updated the BLT state tracking based
+        // on the release's operations. It's safe to remove this entry from the hashmap.
+        m_releaseActivityMap.Erase(pGpuEvent);
+    }
 }
 
 // =====================================================================================================================

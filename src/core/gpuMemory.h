@@ -149,12 +149,12 @@ union GpuMemoryFlags
         uint32 autoPriority             :  1; // GPU memory priority is to be managed automatically
         uint32 peerWritable             :  1; // GPU memory can be open as peer memory and be writable
         uint32 mapppedToPeerMemory      :  1; // GPU memory is remapped to at least one peer physical memory.
-        uint32 placeholder0             :  2; // Placeholder.
+        uint32 placeholder0             :  3; // Placeholder.
         uint32 restrictedContent        :  1; // GPU memory is protected content
         uint32 restrictedAccess         :  1; // GPU memory is restricted shared access resource
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
         uint32 gpuReadOnly              :  1; // GPU memory is read only.
-        uint32 reserved                 : 27;
+        uint32 reserved                 : 26;
     };
     uint64  u64All;
 };

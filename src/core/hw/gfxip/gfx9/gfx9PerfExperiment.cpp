@@ -195,7 +195,7 @@ static void SetSqttTokenExclude(
 {
     if (IsGfx101(device))
     {
-        pRegValue->nv10.TOKEN_EXCLUDE = tokenExclude;
+        pRegValue->gfx101.TOKEN_EXCLUDE = tokenExclude;
     }
     else
     {
@@ -251,12 +251,8 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
                              (PerfExclude        << SQ_TT_TOKEN_EXCLUDE_PERF_SHIFT));
 
     {
-#if PAL_BUILD_NAVI_LITE || PAL_BUILD_NAVI12_LITE || PAL_BUILD_NAVI21_LITE
-        static_assert(SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__NV10 == SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__GFX10BARD,
-                      "GetGfx10SqttTokenMask needs to be updated!");
-#endif
 
-        hwTokenExclude |= immed1Exclude << SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__NV10;
+        hwTokenExclude |= immed1Exclude << SQ_TT_TOKEN_EXCLUDE_IMMED1_SHIFT__GFX101;
     }
 
     SetSqttTokenExclude(device, &value, hwTokenExclude);
@@ -524,29 +520,20 @@ Result PerfExperiment::AddCounter(
                         // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
                         PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
 
-                        const uint32 bankMask = (info.optionFlags.sqSqcBankMask != 0)
-                                        ? (info.optionValues.sqSqcBankMask & DefaultSqSelectBankMask)
-                                        : DefaultSqSelectBankMask;
+                        m_select.sqg[info.instance].perfmonInUse[idx]           = true;
+                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
+                        m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_OFF;
+                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
-                        m_select.sqg[info.instance].perfmonInUse[idx]               = true;
-                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL      = info.eventId;
-                        m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = bankMask;
-                        m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE      = PERFMON_SPM_MODE_OFF;
-                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE     = PERFMON_COUNTER_MODE_ACCUM;
-
+                        // The SQC client mask and SIMD mask only exist on gfx9.
                         if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
                         {
-                            // The SQC client mask and SIMD mask only exist on gfx9.
-                            const uint32 clientMask = (info.optionFlags.sqSqcClientMask != 0)
-                                            ? (info.optionValues.sqSqcClientMask & DefaultSqSelectClientMask)
-                                            : DefaultSqSelectClientMask;
+                            m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = DefaultSqSelectClientMask;
+                            m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = DefaultSqSelectSimdMask;
+                        }
 
-                            const uint32 simdMask = (info.optionFlags.sqSimdMask != 0)
-                                            ? (info.optionValues.sqSimdMask & DefaultSqSelectSimdMask)
-                                            : DefaultSqSelectSimdMask;
-
-                            m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = clientMask;
-                            m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = simdMask;
+                        {
+                            m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
                         }
 
                         mapping.counterId = idx;
@@ -635,8 +622,8 @@ Result PerfExperiment::AddCounter(
 
                     m_select.umcch[info.instance].hasCounters                       = true;
                     m_select.umcch[info.instance].perfmonInUse[idx]                 = true;
-                    m_select.umcch[info.instance].perfmonCntl[idx].bits.EventSelect = info.eventId;
-                    m_select.umcch[info.instance].perfmonCntl[idx].bits.Enable      = 1;
+                    m_select.umcch[info.instance].perfmonCntl[idx].vg12.EventSelect = info.eventId;
+                    m_select.umcch[info.instance].perfmonCntl[idx].vg12.Enable      = 1;
 
                     mapping.counterId = idx;
                     searching         = false;
@@ -819,34 +806,20 @@ Result PerfExperiment::AddSpmCounter(
                         // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
                         // As long as the counter doesn't wrap over 16 bits we can enable a 32-bit counter and treat
                         // it exactly like a 16-bit counter and still get useful data.
-                        const uint32 bankMask = (info.optionFlags.sqSqcBankMask != 0)
-                                        ? (info.optionValues.sqSqcBankMask & DefaultSqSelectBankMask)
-                                        : DefaultSqSelectBankMask;
+                        m_select.sqg[info.instance].perfmonInUse[idx]           = true;
+                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
+                        m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_32BIT_CLAMP;
+                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
-                        m_select.sqg[info.instance].perfmonInUse[idx]               = true;
-                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL      = info.eventId;
-                        m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE      = PERFMON_SPM_MODE_32BIT_CLAMP;
-                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE     = PERFMON_COUNTER_MODE_ACCUM;
-
+                        // The SQC client mask and SIMD mask only exist on gfx9.
                         if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
                         {
-                            // The SQC client mask and SIMD mask only exist on gfx9.
-                            const uint32 clientMask = (info.optionFlags.sqSqcClientMask != 0)
-                                            ? (info.optionValues.sqSqcClientMask & DefaultSqSelectClientMask)
-                                            : DefaultSqSelectClientMask;
-
-                            const uint32 simdMask = (info.optionFlags.sqSimdMask != 0)
-                                            ? (info.optionValues.sqSimdMask & DefaultSqSelectSimdMask)
-                                            : DefaultSqSelectSimdMask;
-
-                            m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = clientMask;
-                            m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = simdMask;
-                            m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK    = bankMask;
+                            m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = DefaultSqSelectClientMask;
+                            m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = DefaultSqSelectSimdMask;
                         }
-                        else if (IsGfx101(m_device)
-                                )
+
                         {
-                            m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = bankMask;
+                            m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
                         }
 
                         // Each SQ module gets a single wire with one sub-counter (use the default value of zero).
@@ -975,9 +948,11 @@ Result PerfExperiment::AddSpmCounter(
             PAL_ASSERT(spmWire < m_counterInfo.block[block].numSpmWires);
             PAL_ASSERT(subCounter < 2); // Each wire is 32 bits and each sub-counter is 16 bits.
 
-            pMapping->segment = (m_counterInfo.block[block].distribution == PerfCounterDistribution::GlobalBlock)
-                                    ? SpmDataSegmentType::Global
-                                    : static_cast<SpmDataSegmentType>(spmGrbmGfxIndex.bits.SE_INDEX);
+            {
+                pMapping->segment = (m_counterInfo.block[block].distribution == PerfCounterDistribution::GlobalBlock)
+                                        ? SpmDataSegmentType::Global
+                                        : static_cast<SpmDataSegmentType>(spmGrbmGfxIndex.bits.SE_INDEX);
+            }
 
             // For now we only support 16-bit counters so this counter is either even or odd. 32-bit counters will
             // be both even and odd so that we get the full 32-bit value from the SPM wire.
@@ -2202,15 +2177,7 @@ Result PerfExperiment::BuildCounterMapping(
 {
     Result result = Result::Success;
 
-    if ((info.block != GpuBlock::Sq) &&
-        ((info.optionFlags.sqSimdMask != 0) ||
-         (info.optionFlags.sqSqcBankMask != 0) ||
-         (info.optionFlags.sqSqcClientMask != 0)))
-    {
-        // The SQ options are only supported on the SQ block.
-        result = Result::ErrorInvalidValue;
-    }
-    else if (info.block >= GpuBlock::Count)
+    if (info.block >= GpuBlock::Count)
     {
         // What is this block?
         result = Result::ErrorInvalidValue;
@@ -2472,8 +2439,8 @@ uint32* PerfExperiment::WriteSpmSetup(
         rlcExtendedSize.glbSegmentSize.bits.GLOBAL_NUM_LINE      =
             m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
 
-        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(m_registerInfo.mmRlcSpmPerfmonSe3To0SegmentSize,
-                                                      m_registerInfo.mmRlcSpmPerfmonGlbSegmentSize,
+        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10::mmRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE,
+                                                      Gfx10::mmRLC_SPM_PERFMON_GLB_SEGMENT_SIZE,
                                                       &rlcExtendedSize,
                                                       pCmdSpace);
     }
@@ -2663,12 +2630,13 @@ uint32* PerfExperiment::WriteStartThreadTraces(
                 sqttBuf0Base.bits.BASE_LO = LowPart(shiftedAddr);
 
                 // All of these registers were moved to privileged space in gfx10 which is pretty silly.
-                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE,
-                                                              sqttBuf0Base.u32All,
-                                                              pCmdSpace);
-
+                // We need to write the thread trace buffer size register before the base address register.
                 pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_BUF0_SIZE,
                                                               sqttBuf0Size.u32All,
+                                                              pCmdSpace);
+
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE,
+                                                              sqttBuf0Base.u32All,
                                                               pCmdSpace);
 
                 pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_MASK,
@@ -3102,17 +3070,17 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
 
             if (clear)
             {
-                regUMCCH0_PerfMonCtlClk perfmonCtlClk = {};
-                perfmonCtlClk.bits.GlblResetMsk = 0x3f;
-                perfmonCtlClk.bits.GlblReset    = 1;
+                regPerfMonCtlClk perfmonCtlClk = {};
+                perfmonCtlClk.most.GlblResetMsk = 0x3f;
+                perfmonCtlClk.most.GlblReset    = 1;
 
                 pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk,
                                                               perfmonCtlClk.u32All,
                                                               pCmdSpace);
             }
 
-            regUMCCH0_PerfMonCtlClk perfmonCtlClk = {};
-            perfmonCtlClk.bits.GlblMonEn = enable;
+            regPerfMonCtlClk perfmonCtlClk = {};
+            perfmonCtlClk.most.GlblMonEn = enable;
 
             pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk,
                                                           perfmonCtlClk.u32All,
@@ -3286,7 +3254,7 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
         }
         else if (mapping.general.block == GpuBlock::Umcch)
         {
-            // The UMCCH is global and has registers vary per-instance and per-counter.
+            // The UMCCH is global and has registers that vary per-instance and per-counter.
             pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
             pCmdSpace = WriteCopy64BitCounter(
                             m_counterInfo.umcchRegAddr[instance].perModule[mapping.counterId].perfMonCtrLo,
@@ -3432,6 +3400,12 @@ uint32* PerfExperiment::WriteGrbmGfxIndexBroadcastSe(
     return pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX, grbmGfxIndex.u32All, pCmdSpace);
 }
 
+// Some registers were moved from user space to privileged space, we must access them using _UMD or _REMAP registers.
+// The problem is that only some ASICs moved the registers so we can't use any one name consistently. The good news is
+// that most of the _UMD and _REMAP registers have the same user space address as the old user space registers.
+// If these asserts pass we can just use the Gfx09 version of these registers everywhere in our code.
+static_assert(Gfx09::mmSPI_CONFIG_CNTL == Gfx101::mmSPI_CONFIG_CNTL_REMAP, "");
+
 // =====================================================================================================================
 // Writes a packet that updates the SQG event controls in SPI_CONFIG_CNTL.
 uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
@@ -3473,14 +3447,14 @@ uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
             constexpr uint32 SpiConfigCntlSqgEventsMask = ((1 << SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS__SHIFT) |
                                                            (1 << SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS__SHIFT));
 
-            pCmdSpace += m_cmdUtil.BuildRegRmw(m_cmdUtil.GetRegInfo().mmSpiConfigCntl,
+            pCmdSpace += m_cmdUtil.BuildRegRmw(Gfx09::mmSPI_CONFIG_CNTL,
                                                spiConfigCntl.u32All,
                                                ~(SpiConfigCntlSqgEventsMask),
                                                pCmdSpace);
         }
         else
         {
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_cmdUtil.GetRegInfo().mmSpiConfigCntl,
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmSPI_CONFIG_CNTL,
                                                          spiConfigCntl.u32All,
                                                          pCmdSpace);
         }
@@ -3607,15 +3581,7 @@ bool PerfExperiment::HasRmiSubInstances(
     GpuBlock block
     ) const
 {
-    bool hasRmiSubinstances = false;
-
-    if ((block == GpuBlock::Rmi)
-        )
-    {
-        hasRmiSubinstances = true;
-    }
-
-    return hasRmiSubinstances;
+    return (block == GpuBlock::Rmi);
 }
 
 } // gfx9

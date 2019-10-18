@@ -25,6 +25,7 @@
 
 #include "core/hw/gfxip/gfx9/gfx9FormatInfo.h"
 #include "core/hw/gfxip/gfx9/g_gfx9MergedDataFormats.h"
+#include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "palDevice.h"
 
 using namespace Util;
@@ -43,7 +44,8 @@ static_assert(ArrayLen(Gfx9MergedChannelFmtInfoTbl) == static_cast<size_t>(ChNum
 // =====================================================================================================================
 // Returns the format info table for the specific GfxIpLevel.
 const MergedFmtInfo* MergedChannelFmtInfoTbl(
-    GfxIpLevel gfxIpLevel)
+    GfxIpLevel                        gfxIpLevel,
+    const Pal::Gfx9::Gfx9PalSettings* pSettings)
 {
     const MergedFmtInfo* pFmtInfo = nullptr;
 
@@ -68,7 +70,8 @@ const MergedFmtInfo* MergedChannelFmtInfoTbl(
 // =====================================================================================================================
 // Returns the format info table for the specific GfxIpLevel.
 const MergedFlatFmtInfo* MergedChannelFlatFmtInfoTbl(
-    GfxIpLevel gfxIpLevel)
+    GfxIpLevel                        gfxIpLevel,
+    const Pal::Gfx9::Gfx9PalSettings* pSettings)
 {
     PAL_ASSERT(IsGfx10(gfxIpLevel));
     const MergedFlatFmtInfo*  pFlatFmtInfo = nullptr;
@@ -78,6 +81,29 @@ const MergedFlatFmtInfo* MergedChannelFlatFmtInfoTbl(
     }
 
     return pFlatFmtInfo;
+}
+
+// =====================================================================================================================
+// Retrieves the hardware color-buffer format for a given PAL format type.
+// This is specifically for exports and is intended to be called at compile time
+ColorFormat HwColorFormatForExport(
+    GfxIpLevel       gfxLevel,
+    Pal::ChNumFormat format)
+{
+    ColorFormat hwColorFmt = COLOR_INVALID;
+
+    if (gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        hwColorFmt = HwColorFmt(MergedChannelFmtInfoTbl(gfxLevel, nullptr), format);
+    }
+    else
+    {
+        PAL_ASSERT(IsGfx10(gfxLevel));
+        hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel, nullptr), format);
+    }
+
+    PAL_ASSERT(hwColorFmt != COLOR_INVALID);
+    return hwColorFmt;
 }
 
 // Lookup table for converting PAL swizzle types to HW enums.

@@ -59,13 +59,7 @@ typedef typename GenericSymbolMap::Iterator GenericSymbolIter;
 
 public:
     explicit PipelineAbiProcessor(Allocator* const pAllocator);
-    ~PipelineAbiProcessor()
-    {
-        if (m_pAllocator != nullptr)
-        {
-            PAL_FREE(m_pCompatRegisterBlob, m_pAllocator);
-        }
-    }
+    ~PipelineAbiProcessor();
 
     /// Add a PipelineSymbolEntry.
     ///
@@ -77,9 +71,8 @@ public:
     /// Adds a generic symbol to the pipeline binary.  These symbols don't match any of the predetermined symbol
     /// types @ref PipelineSymbolType.
     ///
-    /// @param [in] entry The GenericSymbolEntry to add.  This function does not make a memory copy of the pName
-    ///                   string for the symbol, so it is up to the caller to make sure that the string memory has
-    ///                   at least as long a lifetime as this object has.
+    /// @param [in] entry          The GenericSymbolEntry to add, and this function make a memory copy of the pName
+    ///                            string for the symbol.
     ///
     /// @returns Success if successful, otherwise ErrorOutOfMemory if memory allocation fails.
     Result AddGenericSymbolEntry(GenericSymbolEntry entry);
@@ -436,11 +429,12 @@ private:
     size_t                 m_metadataSize;           // Size of the metadata blob in bytes.
 
     GenericSymbolMap       m_genericSymbolsMap;      // Map of generic symbols
+    Vector<char*, 4, Allocator> m_genericSymbolNames;// Copy of generic symbol names
+
     PipelineSymbolVector   m_pipelineSymbolsVector;  // Pipeline symbols
     int32 m_pipelineSymbolIndices[static_cast<uint32>(PipelineSymbolType::Count)];
 
     Elf::ElfProcessor<Allocator> m_elfProcessor;
-
     Allocator* const m_pAllocator;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineAbiProcessor<Allocator>);

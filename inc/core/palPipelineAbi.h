@@ -50,7 +50,7 @@ constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 constexpr uint32 MetadataNoteType = 32; ///< NT_AMDGPU_METADATA
 
 constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
-constexpr uint32 PipelineMetadataMinorVersion = 1;  ///< Pipeline Metadata Minor Version
+constexpr uint32 PipelineMetadataMinorVersion = 2;  ///< Pipeline Metadata Minor Version
 
 constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                     ///  PipelineMetadataEntry value when saving to ELF.
@@ -169,10 +169,12 @@ static const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_cs_shdr_intrl_data",
     "_amdgpu_pipeline_intrl_data",
     "_amdgpu_cs_amdil",
+    "unknown",
     "_amdgpu_vs_amdil",
     "_amdgpu_hs_amdil",
     "_amdgpu_ds_amdil",
     "_amdgpu_gs_amdil",
+    "unknown",
     "_amdgpu_ps_amdil",
 };
 
@@ -183,6 +185,11 @@ static const char* PipelineMetadataNameStrings[] =
     "API_CS_HASH_DWORD1",
     "API_CS_HASH_DWORD2",
     "API_CS_HASH_DWORD3",
+
+    "RESERVED",
+    "RESERVED",
+    "RESERVED",
+    "RESERVED",
 
     "API_VS_HASH_DWORD0",
     "API_VS_HASH_DWORD1",
@@ -203,6 +210,11 @@ static const char* PipelineMetadataNameStrings[] =
     "API_GS_HASH_DWORD1",
     "API_GS_HASH_DWORD2",
     "API_GS_HASH_DWORD3",
+
+    "RESERVED",
+    "RESERVED",
+    "RESERVED",
+    "RESERVED",
 
     "API_PS_HASH_DWORD0",
     "API_PS_HASH_DWORD1",
@@ -336,7 +348,7 @@ enum PipelineType : uint32
     Ngg,
     Tess,
     GsTess,
-    NggTess
+    NggTess,
 };
 
 /// Helper enum which is used along with the @ref PipelineSymbolType and @ref PipelineMetadataType to
@@ -360,10 +372,12 @@ enum class HardwareStage : uint32
 enum class ApiShaderType : uint32
 {
     Cs = 0, ///< API compute shader
+    Reserved0,
     Vs,     ///< API vertex shader
     Hs,     ///< API hull shader
     Ds,     ///< API domain shader
     Gs,     ///< API geometry shader
+    Reserved1,
     Ps,     ///< API pixel shader
     Count
 };
@@ -414,10 +428,12 @@ enum class PipelineSymbolType : uint32
     CsShdrIntrlData,   ///< CS shader internal data pointer.  Optional.
     PipelineIntrlData, ///< Cross-shader internal data pointer.  Optional.
     CsAmdIl,           ///< API CS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    Reserved0,
     VsAmdIl,           ///< API VS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
     HsAmdIl,           ///< API HS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
     DsAmdIl,           ///< API DS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
     GsAmdIl,           ///< API GS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
+    Reserved1,
     PsAmdIl,           ///< API PS shader AMDIL disassembly.  Optional. Associated with the .AMDGPU.comment.amdil section.
     Count,
 
@@ -485,6 +501,11 @@ enum class PipelineMetadataType : uint32
     ApiCsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API compute shader.
     ApiCsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API compute shader.
 
+    Reserved0,
+    Reserved1,
+    Reserved2,
+    Reserved3,
+
     ApiVsHashDword0,       ///< Dword 0 of a 128-bit hash identifying the API vertex shader.
     ApiVsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API vertex shader.
     ApiVsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API vertex shader.
@@ -504,6 +525,11 @@ enum class PipelineMetadataType : uint32
     ApiGsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API geometry shader.
     ApiGsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API geometry shader.
     ApiGsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API geometry shader.
+
+    Reserved4,
+    Reserved5,
+    Reserved6,
+    Reserved7,
 
     ApiPsHashDword0,       ///< Dword 0 of a 128-bit hash identifying the API pixel shader.
     ApiPsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API pixel shader.
@@ -622,7 +648,7 @@ enum class PipelineMetadataType : uint32
 
     CalcWaveBreakSizeAtDrawTime,  ///< Deprecated.  This will be removed at a future date.
 
-    Reserved1,                    ///< Reserved for future use.
+    Reserved9,                    ///< Reserved for future use.
 
     PsWritesUavs,                 ///< 1 if the pipeline's pixel shader writes any UAVs, otherwise 0.
     PsWritesDepth,                ///< 1 if the pipeline's pixel shader writes depth values, otherwise 0.
@@ -634,7 +660,7 @@ enum class PipelineMetadataType : uint32
 #if PAL_BUILD_GFX10 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
     CsWaveFrontSize,              ///< Wave front size.
 #else
-    Reserved2,                    ///< Reserved for future use.
+    Reserved10,                   ///< Reserved for future use.
 #endif
 
     Count,
@@ -716,7 +742,7 @@ enum class UserDataMapping : uint32
                                     ///  and are completely separate from any UAVs used by the shader.
     NggCullingData    = 0x10000011, ///< 64-bit pointer to GPU memory containing the hardware register data needed by
                                     ///  some NGG pipelines to perform culling.  This value contains the address of the
-                                    //   first of two consecutive registers which provide the full GPU address.
+                                    ///  first of two consecutive registers which provide the full GPU address.
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
 

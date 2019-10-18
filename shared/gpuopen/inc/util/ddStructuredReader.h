@@ -70,6 +70,45 @@ namespace DevDriver
         StructuredValue& operator=(StructuredValue&& other)      = default;
         StructuredValue& operator=(const StructuredValue& other) = default;
 
+        enum class Type
+        {
+            Null = 0,
+            Array,
+            Map,
+            Str,
+            Bool,
+            Int,
+            Uint,
+            Double,
+            Float,
+        };
+
+        // Type of data contained in this node.
+        Type GetType() const;
+
+        const char* GetTypeString() const
+        {
+            switch (GetType())
+            {
+                case StructuredValue::Type::Null:   return "Null";
+
+                case StructuredValue::Type::Array:  return "Array";
+                case StructuredValue::Type::Map:    return "Map";
+                case StructuredValue::Type::Str:    return "Str";
+
+                case StructuredValue::Type::Bool:   return "Bool";
+
+                case StructuredValue::Type::Int:    return "Int";
+                case StructuredValue::Type::Uint:   return "Uint";
+
+                case StructuredValue::Type::Double: return "Double";
+                case StructuredValue::Type::Float:  return "Float";
+                default:
+                    DD_WARN_ALWAYS();
+                    return "Unknown";
+            }
+        }
+
         // Create a new empty value
         StructuredValue MakeNull() const;
 
@@ -129,9 +168,9 @@ namespace DevDriver
         //       The other types are simple enough that they benefit from using bool instead of a Result, but Strings may not.
         DD_NODISCARD bool GetStringCopy(char* pBuffer, size_t bufferSize, size_t* pStringSize) const;
 
-        // Get a pointer to a NULL-terminated string from the backing messagepack data.
-        // This will fail if the embedded string does not end with a NULL byte. Use GetStringCopy() if this is the case.
-        DD_NODISCARD bool GetStringPtr(const char** ppBuffer) const;
+        // Return a a NULL-terminated string from the backing messagepack data.
+        // This will fail and return NULL if the embedded string does not end with a NULL byte. Use GetStringCopy() if this is the case.
+        DD_NODISCARD const char* GetStringPtr() const;
 
         // Lookup a value in a map by a string key
         // If the key does not exist, returns false and writes a Null value to `*pValue`

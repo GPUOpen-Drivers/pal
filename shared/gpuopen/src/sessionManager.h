@@ -85,7 +85,7 @@ namespace DevDriver
         ClientId GetClientId() const { return m_clientId; };
     private:
         // Server hash map goes from Protocol -> IProtocolServer*, with 8 buckets
-        using ServerHashMap = HashMap<Protocol, IProtocolServer*, 8, DevDriver::NullHashFunc>;
+        using ServerHashMap = HashMap<Protocol, IProtocolServer*>;
         // Session hash map goes from SessionId -> SharedPointer<Session> with a default of 16 buckets
         using SessionHashMap = HashMap<SessionId, SharedPointer<Session>, 16>;
 

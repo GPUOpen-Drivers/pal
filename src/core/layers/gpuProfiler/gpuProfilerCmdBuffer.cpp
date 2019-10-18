@@ -3426,6 +3426,26 @@ void CmdBuffer::ReplayCmdCommentString(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdNop(
+    const void* pPayload,
+    uint32      payloadSize)
+{
+    InsertToken(CmdBufCallId::CmdNop);
+    InsertTokenArray(static_cast<const uint32*>(pPayload), payloadSize);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdNop(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const uint32* pPayload = nullptr;
+    uint32 payloadSize = ReadTokenArray(&pPayload);
+
+    pTgtCmdBuffer->CmdNop(pPayload, payloadSize);
+}
+
+// =====================================================================================================================
 uint32 CmdBuffer::CmdInsertExecutionMarker()
 {
     InsertToken(CmdBufCallId::CmdInsertExecutionMarker);
@@ -3677,6 +3697,7 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdRestoreComputeState,
         &CmdBuffer::ReplayCmdSetUserClipPlanes,
         &CmdBuffer::ReplayCmdCommentString,
+        &CmdBuffer::ReplayCmdNop,
         &CmdBuffer::ReplayCmdInsertExecutionMarker,
         &CmdBuffer::ReplayCmdXdmaWaitFlipPending,
         &CmdBuffer::ReplayCmdCopyMemoryToTiledImage,

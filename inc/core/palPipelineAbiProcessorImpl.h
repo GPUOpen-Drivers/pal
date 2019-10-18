@@ -76,6 +76,7 @@ PipelineAbiProcessor<Allocator>::PipelineAbiProcessor(
     m_pMetadata(nullptr),
     m_metadataSize(0),
     m_genericSymbolsMap(16u, pAllocator),
+    m_genericSymbolNames(pAllocator),
     m_pipelineSymbolsVector(pAllocator),
     m_pipelineSymbolIndices(),
     m_elfProcessor(pAllocator),
@@ -84,6 +85,21 @@ PipelineAbiProcessor<Allocator>::PipelineAbiProcessor(
     for (uint32 i = 0; i < static_cast<uint32>(PipelineSymbolType::Count); i++)
     {
         m_pipelineSymbolIndices[i] = -1;
+    }
+}
+
+// =====================================================================================================================
+template <typename Allocator>
+PipelineAbiProcessor<Allocator>::~PipelineAbiProcessor()
+{
+    if (m_pAllocator != nullptr)
+    {
+        PAL_FREE(m_pCompatRegisterBlob, m_pAllocator);
+    }
+
+    for (uint32_t i = 0, numElements = m_genericSymbolNames.NumElements(); i < numElements; ++i)
+    {
+        PAL_FREE(m_genericSymbolNames.At(i), m_pAllocator);
     }
 }
 
@@ -541,7 +557,31 @@ Result PipelineAbiProcessor<Allocator>::AddGenericSymbolEntry(
     GenericSymbolEntry entry)
 {
     PAL_ASSERT(entry.pName != nullptr);
-    return m_genericSymbolsMap.Insert(entry.pName, entry);
+
+    auto nameLength = strlen(entry.pName) + 1;
+    char* pName = static_cast<char*>(PAL_MALLOC(nameLength, m_pAllocator, AllocInternal));
+    Result result = Result::Success;
+    if (pName != nullptr)
+    {
+        Strncpy(pName, entry.pName, nameLength);
+        entry.pName = pName;
+
+        result = m_genericSymbolNames.PushBack(pName);
+        if (result == Result::Success)
+        {
+            result = m_genericSymbolsMap.Insert(entry.pName, entry);
+        }
+        else
+        {
+            PAL_FREE(pName, m_pAllocator);
+        }
+    }
+    else
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

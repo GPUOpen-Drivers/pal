@@ -362,6 +362,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     const bool sqttEnabled = (platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
                              (TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
+    m_cachedSettings.describeDrawDispatch =
+        (m_cachedSettings.issueSqttMarkerEvent ||
+         device.GetPlatform()->PlatformSettings().cmdBufferLoggerConfig.embedDrawDispatchInfo);
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
     m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
@@ -457,20 +460,20 @@ Result UniversalCmdBuffer::Init(
 
 // =====================================================================================================================
 // Sets-up function pointers for the Dispatch entrypoint and all variants.
-template <bool IssueSqttMarkerEvent>
+template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SetDispatchFunctions()
 {
     if (UseCpuPathInsteadOfCeRam())
     {
-        m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, true>;
-        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, true>;
-        m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, true>;
+        m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, true, DescribeDrawDispatch>;
+        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, true, DescribeDrawDispatch>;
+        m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, true, DescribeDrawDispatch>;
     }
     else
     {
-        m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, false>;
-        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, false>;
-        m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, false>;
+        m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, false, DescribeDrawDispatch>;
+        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, false, DescribeDrawDispatch>;
+        m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, false, DescribeDrawDispatch>;
     }
 }
 
@@ -545,11 +548,15 @@ void UniversalCmdBuffer::ResetState()
 
     if (m_cachedSettings.issueSqttMarkerEvent)
     {
-        SetDispatchFunctions<true>();
+        SetDispatchFunctions<true, true>();
+    }
+    else if (m_cachedSettings.describeDrawDispatch)
+    {
+        SetDispatchFunctions<false, true>();
     }
     else
     {
-        SetDispatchFunctions<false>();
+        SetDispatchFunctions<false, false>();
     }
 
     SetUserDataValidationFunctions(false, false, false);
@@ -2028,7 +2035,8 @@ void UniversalCmdBuffer::DescribeDraw(
 // branching, we will rely on the HW to discard the draw for us.
 template <bool IssueSqttMarkerEvent,
           bool HasUavExport,
-          bool ViewInstancingEnable>
+          bool ViewInstancingEnable,
+          bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     ICmdBuffer* pCmdBuffer,
     uint32      firstVertex,
@@ -2050,7 +2058,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 
     // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
     // required for computations in DescribeDraw.
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->DescribeDraw(Developer::DrawDispatchType::CmdDraw);
     }
@@ -2113,7 +2121,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 // Issues a draw opaque command.
 template <bool IssueSqttMarkerEvent,
           bool HasUavExport,
-          bool ViewInstancingEnable>
+          bool ViewInstancingEnable,
+          bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     ICmdBuffer* pCmdBuffer,
     gpusize     streamOutFilledSizeVa,
@@ -2136,7 +2145,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 
     // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
     // required for computations in DescribeDraw.
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawOpaque);
     }
@@ -2219,7 +2228,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 template <bool IssueSqttMarkerEvent,
           bool IsNggFastLaunch,
           bool HasUavExport,
-          bool ViewInstancingEnable>
+          bool ViewInstancingEnable,
+          bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     ICmdBuffer* pCmdBuffer,
     uint32      firstIndex,
@@ -2252,7 +2262,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
 
     // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
     // required for computations in DescribeDraw.
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndexed);
     }
@@ -2373,7 +2383,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
 // =====================================================================================================================
 // Issues an indirect non-indexed draw command. We must discard the draw if vertexCount or instanceCount are zero.
 // We will rely on the HW to discard the draw for us.
-template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable>
+template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     ICmdBuffer*       pCmdBuffer,
     const IGpuMemory& gpuMemory,
@@ -2399,7 +2409,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 
     // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
     // required for computations in DescribeDraw.
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndirectMulti);
     }
@@ -2481,7 +2491,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 // =====================================================================================================================
 // Issues an indirect indexed draw command. We must discard the draw if indexCount or instanceCount are zero.
 // We will rely on the HW to discard the draw for us.
-template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable>
+template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     ICmdBuffer*       pCmdBuffer,
     const IGpuMemory& gpuMemory,
@@ -2507,7 +2517,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 
     // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
     // required for computations in DescribeDraw.
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndexedIndirectMulti);
     }
@@ -2606,7 +2616,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 // =====================================================================================================================
 // Issues a direct dispatch command. We must discard the dispatch if x, y, or z are zero. To avoid branching, we will
 // rely on the HW to discard the dispatch for us.
-template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
     ICmdBuffer* pCmdBuffer,
     uint32      x,
@@ -2615,7 +2625,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatch, 0, 0, 0, x, y, z);
     }
@@ -2644,7 +2654,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 // =====================================================================================================================
 // Issues an indirect dispatch command. We must discard the dispatch if x, y, or z are zero. We will rely on the HW to
 // discard the dispatch for us.
-template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
     ICmdBuffer*       pCmdBuffer,
     const IGpuMemory& gpuMemory,
@@ -2652,7 +2662,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchIndirect, 0, 0, 0, 0, 0, 0);
     }
@@ -2690,7 +2700,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 // =====================================================================================================================
 // Issues a direct dispatch command with immediate threadgroup offsets. We must discard the dispatch if x, y, or z are
 // zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
-template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
     ICmdBuffer* pCmdBuffer,
     uint32      xOffset,
@@ -2702,7 +2712,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    if (IssueSqttMarkerEvent)
+    if (DescribeDrawDispatch)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchOffset,
             xOffset, yOffset, zOffset, xDim, yDim, zDim);
@@ -3327,9 +3337,12 @@ Result UniversalCmdBuffer::AddPreamble()
         pDeCmdSpace += Util::NumBytesToNumDwords(sizeof(ScreenScissorReg));
     }
 
-    pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
-                                                           m_dbDfsmControl.u32All,
-                                                           pDeCmdSpace);
+    if (m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0)
+    {
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
+                                                               m_dbDfsmControl.u32All,
+                                                               pDeCmdSpace);
+    }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
@@ -7870,9 +7883,17 @@ void UniversalCmdBuffer::CmdCommentString(
     const char* pComment)
 {
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
     pDeCmdSpace += m_cmdUtil.BuildCommentString(pComment, pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
 
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdNop(
+    const void* pPayload,
+    uint32      payloadSize)
+{
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace += m_cmdUtil.BuildNopPayload(pPayload, payloadSize, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
@@ -8254,7 +8275,8 @@ void UniversalCmdBuffer::CmdSetClipRects(
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdXdmaWaitFlipPending()
 {
-    CmdWaitRegisterValue(mmXdmaSlvFlipPending, 0, 0x00000001, CompareFunc::Equal);
+    // Note that we only have an auto-generated version of this register for Vega 12 but it should exist on all ASICs.
+    CmdWaitRegisterValue(Vg12::mmXDMA_SLV_FLIP_PENDING, 0, 0x00000001, CompareFunc::Equal);
 }
 
 // =====================================================================================================================
@@ -8453,48 +8475,53 @@ uint32* UniversalCmdBuffer::BuildWriteViewId(
 
 // =====================================================================================================================
 // Switch draw functions - the actual assignment
-template <bool ViewInstancing, bool NggFastLaunch, bool HasUavExport, bool IssueSqtt>
+template <bool ViewInstancing, bool NggFastLaunch, bool HasUavExport, bool IssueSqtt, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal()
 {
-    m_funcTable.pfnCmdDraw                      = CmdDraw<IssueSqtt, HasUavExport, ViewInstancing>;
-    m_funcTable.pfnCmdDrawOpaque                = CmdDrawOpaque<IssueSqtt, HasUavExport, ViewInstancing>;
-    m_funcTable.pfnCmdDrawIndirectMulti         = CmdDrawIndirectMulti<IssueSqtt, ViewInstancing>;
-    m_funcTable.pfnCmdDrawIndexed               = CmdDrawIndexed<IssueSqtt, NggFastLaunch, HasUavExport, ViewInstancing>;
-    m_funcTable.pfnCmdDrawIndexedIndirectMulti  = CmdDrawIndexedIndirectMulti<IssueSqtt, NggFastLaunch, ViewInstancing>;
+    m_funcTable.pfnCmdDraw
+        = CmdDraw<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+    m_funcTable.pfnCmdDrawOpaque
+        = CmdDrawOpaque<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+    m_funcTable.pfnCmdDrawIndirectMulti
+        = CmdDrawIndirectMulti<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
+    m_funcTable.pfnCmdDrawIndexed
+        = CmdDrawIndexed<IssueSqtt, NggFastLaunch, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+    m_funcTable.pfnCmdDrawIndexedIndirectMulti
+        = CmdDrawIndexedIndirectMulti<IssueSqtt, NggFastLaunch, ViewInstancing, DescribeDrawDispatch>;
 }
 
 // =====================================================================================================================
 // Switch draw functions - overloaded internal implementation for switching function params to template params
-template <bool ViewInstancing, bool NggFastLaunch,  bool IssueSqtt>
+template <bool ViewInstancing, bool NggFastLaunch,  bool IssueSqtt, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
     bool hasUavExport)
 {
     if (hasUavExport)
     {
-        SwitchDrawFunctionsInternal<ViewInstancing, NggFastLaunch, true, IssueSqtt>();
+        SwitchDrawFunctionsInternal<ViewInstancing, NggFastLaunch, true, IssueSqtt, DescribeDrawDispatch>();
     }
     else
     {
-        SwitchDrawFunctionsInternal<ViewInstancing, NggFastLaunch, false, IssueSqtt>();
+        SwitchDrawFunctionsInternal<ViewInstancing, NggFastLaunch, false, IssueSqtt, DescribeDrawDispatch>();
     }
 }
 
 // =====================================================================================================================
 // Switch draw functions - overloaded internal implementation for switching function params to template params
-template <bool NggFastLaunch, bool IssueSqtt>
+template <bool NggFastLaunch, bool IssueSqtt, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
     bool hasUavExport,
     bool viewInstancingEnable)
 {
     if (viewInstancingEnable)
     {
-        SwitchDrawFunctionsInternal<true, NggFastLaunch, IssueSqtt>(
+        SwitchDrawFunctionsInternal<true, NggFastLaunch, IssueSqtt, DescribeDrawDispatch>(
             hasUavExport
             );
     }
     else
     {
-        SwitchDrawFunctionsInternal<false, NggFastLaunch, IssueSqtt>(
+        SwitchDrawFunctionsInternal<false, NggFastLaunch, IssueSqtt, DescribeDrawDispatch>(
             hasUavExport
             );
     }
@@ -8502,7 +8529,7 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
 
 // =====================================================================================================================
 // Switch draw functions - overloaded internal implementation for switching function params to template params
-template <bool IssueSqtt>
+template <bool IssueSqtt, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
     bool hasUavExport,
     bool viewInstancingEnable,
@@ -8510,13 +8537,13 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
 {
     if (nggFastLaunch)
     {
-        SwitchDrawFunctionsInternal<true, IssueSqtt>(
+        SwitchDrawFunctionsInternal<true, IssueSqtt, DescribeDrawDispatch>(
             hasUavExport,
             viewInstancingEnable);
     }
     else
     {
-        SwitchDrawFunctionsInternal<false, IssueSqtt>(
+        SwitchDrawFunctionsInternal<false, IssueSqtt, DescribeDrawDispatch>(
             hasUavExport,
             viewInstancingEnable);
     }
@@ -8531,14 +8558,23 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
 {
     if (m_cachedSettings.issueSqttMarkerEvent)
     {
-        SwitchDrawFunctionsInternal<true>(
+        PAL_ASSERT(m_cachedSettings.describeDrawDispatch == 1);
+
+        SwitchDrawFunctionsInternal<true, true>(
+            hasUavExport,
+            viewInstancingEnable,
+            nggFastLaunch);
+    }
+    else if (m_cachedSettings.describeDrawDispatch)
+    {
+        SwitchDrawFunctionsInternal<false, true>(
             hasUavExport,
             viewInstancingEnable,
             nggFastLaunch);
     }
     else
     {
-        SwitchDrawFunctionsInternal<false>(
+        SwitchDrawFunctionsInternal<false, false>(
             hasUavExport,
             viewInstancingEnable,
             nggFastLaunch);

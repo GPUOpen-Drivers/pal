@@ -222,7 +222,7 @@ void ComputeCmdBuffer::CmdBindPipeline(
     m_computeState.dynamicCsInfo = params.cs;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
-    m_device.DescribeBindPipeline(this, params.apiPsoHash, params.pipelineBindPoint);
+    m_device.DescribeBindPipeline(this, params.pPipeline, params.apiPsoHash, params.pipelineBindPoint);
 #endif
 }
 

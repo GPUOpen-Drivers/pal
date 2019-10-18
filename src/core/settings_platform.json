@@ -1375,6 +1375,19 @@
           "Type": "uint32",
           "VariableName": "cmdBufferLoggerSingleStep",
           "Description": "Bitmask controlling single step behavior for ICmdBuffer calls for Draw/Dispatch/Barrier."
+        },
+        {
+          "Name": "EmbedDrawDispatchInfo",
+          "Tags": [
+            "CmdBuffer Logger"
+          ],
+          "Defaults": {
+            "Default": false
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "bool",
+          "VariableName": "embedDrawDispatchInfo",
+          "Description": "Enables the embedding of draw/dispatch shader IDs within the cmd-stream.  Annotations and single-step options will be disabled."
         }
       ],
       "Description": "Configuration options for the CmdBuffer Logger layer."

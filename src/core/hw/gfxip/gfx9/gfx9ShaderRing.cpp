@@ -128,9 +128,7 @@ Result ShaderRing::AllocateVideoMemory(
     createInfo.alignment = ShaderRingAlignment;
     createInfo.priority  = GpuMemPriority::Normal;
 
-    if ((ringType == ShaderRingType::TfBuffer) &&
-        (m_pDevice->Settings().waTessFactorBufferSizeLimitGeUtcl1Underflow
-        ))
+    if ((ringType == ShaderRingType::TfBuffer) && m_pDevice->Settings().waTessFactorBufferSizeLimitGeUtcl1Underflow)
     {
         // For this workaround, the tessellation factor buffer must be limited to onchip memory and must not be
         // suballocated in order to fit within one page entry.
@@ -447,9 +445,7 @@ gpusize TessFactorBuffer::ComputeAllocationSize() const
 
     // The Tahiti register spec recommends a TF buffer size of 0x2000 DWORDs per shader engine, but discussions
     // indicate that 0x1000 DWORDs per SE is preferable.
-    gpusize allocSize = (settings.tessFactorBufferSizePerSe * chipProps.gfx9.numShaderEngines * sizeof(uint32));
-
-    return allocSize;
+    return (settings.tessFactorBufferSizePerSe * chipProps.gfx9.numShaderEngines * sizeof(uint32));
 }
 
 // =====================================================================================================================

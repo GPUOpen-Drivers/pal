@@ -265,6 +265,40 @@ namespace DevDriver
         }
 
         // =====================================================================================================================
+        Result URIClient::ReadFullResponse(void* pDstBuffer, const size_t bufferSize)
+        {
+            Result result = Result::Error;
+
+            // Ensure that the buffer to copy the response to is valid.
+            if (pDstBuffer != nullptr)
+            {
+                // Read all of the response bytes.
+                // We should expect to see an "EndOfStream" result if all response data was read successfully.
+                size_t totalBytesRead = 0;
+                do
+                {
+                    size_t bytesRead = 0;
+                    const size_t bytesRemaining = (bufferSize - totalBytesRead);
+                    const size_t bytesToRead = bytesRemaining;
+                    result = ReadResponse(reinterpret_cast<DevDriver::uint8*>(pDstBuffer) + totalBytesRead, bytesToRead, &bytesRead);
+                    totalBytesRead += bytesRead;
+                } while (result == DevDriver::Result::Success);
+
+                if (result == Result::EndOfStream)
+                {
+                    result = Result::Success;
+                }
+            }
+            else
+            {
+                // The response buffer was invalid.
+                result = DevDriver::Result::InvalidParameter;
+            }
+
+            return result;
+        }
+
+        // =====================================================================================================================
         void URIClient::ResetState()
         {
             // Close the pull block if it's still valid.

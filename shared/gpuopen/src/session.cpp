@@ -915,17 +915,28 @@ namespace DevDriver
 
         if (m_sessionState == SessionState::Closing)
         {
-            LockGuard<AtomicLock> lock(m_receiveWindow.lock);
+            // If this is a server session and the termination handler has already been called,
+            // then we should close the session since there's no way for it to process further messages anyways.
+            bool shouldClose = ((m_sessionType == SessionType::Server) &&
+                                (m_callbackState == SessionCallbackState::TerminatedCalled));
 
-            // if the only message we have left is the fin message, we are safe to transition to closed
-            if (m_receiveWindow.nextUnreadSequence < m_receiveWindow.nextExpectedSequence)
+            if (shouldClose == false)
             {
-                const Sequence index = m_receiveWindow.nextUnreadSequence % m_receiveWindow.GetWindowSize();
-                MessageBuffer& message = m_receiveWindow.messages[index];
-                if (static_cast<SessionMessage>(message.header.messageId) == SessionMessage::Fin)
+                LockGuard<AtomicLock> lock(m_receiveWindow.lock);
+
+                // if the only message we have left is the fin message, we are safe to transition to closed
+                if (m_receiveWindow.nextUnreadSequence < m_receiveWindow.nextExpectedSequence)
                 {
-                    SetState(SessionState::Closed);
+                    const Sequence index = m_receiveWindow.nextUnreadSequence % m_receiveWindow.GetWindowSize();
+                    MessageBuffer& message = m_receiveWindow.messages[index];
+
+                    shouldClose = (static_cast<SessionMessage>(message.header.messageId) == SessionMessage::Fin);
                 }
+            }
+
+            if (shouldClose)
+            {
+                SetState(SessionState::Closed);
             }
         }
     }

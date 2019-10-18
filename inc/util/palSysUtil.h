@@ -46,12 +46,111 @@ static constexpr uint32 CpuVendorIntel   = 0x02000000;
 /// Specifies a keyboard key for detecting key presses.
 enum class KeyCode : uint32
 {
+    Esc,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
     F10,
     F11,
     F12,
+    Backtick,   // ` ~
+    Minus,      // - _
+    Equal,      // = +
+    LBrace,     // [ {
+    RBrace,     // ] }
+    Backslash,  // \ |
+    Semicolon,  // ; :
+    Apostrophe, // " '
+    Comma,      // , <
+    Dot,        // . >
+    Slash,      // / ?
+    Enter,
+    Space,
+    Backspace,
+    Tab,
+    Capslock,
     Shift,
+    LShift,
+    RShift,
+    Control,
+    LControl,
+    RControl,
+    Alt,
+    LAlt,
+    RAlt,
+    Scroll,
+    Insert,
+    Delete,
+    Home,
+    End,
+    PageUp,
+    PageDown,
+    ArrowUp,
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight,
+    Numlock,
+    NumSlash,
+    NumAsterisk,
+    NumMinus,
+    NumPlus,
+    NumDot,
+    NumEnter,
+    Num0,
+    Num1,
+    Num2,
+    Num3,
+    Num4,
+    Num5,
+    Num6,
+    Num7,
+    Num8,
+    Num9,
+    Zero,
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine,
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
     Shift_F10,
     Shift_F11,
+    Undefined // Used as value where key code is not defined in the enum
 };
 
 /// Enum to identify possible configurations
@@ -321,6 +420,14 @@ PAL_INLINE void CpuId(
 {
     __cpuid_count(level, sublevel, *pRegValues, *(pRegValues + 1), *(pRegValues + 2), *(pRegValues + 3));
 }
+
+/// Play beep sound. Currently function implemented only for WIN platform.
+///
+/// @param [in]  frequency  Frequency in hertz of the beep sound.
+/// @param [in]  duration   Duration in milliseconds of the beep sound.
+extern void BeepSound(
+    uint32 frequency,
+    uint32 duration);
 
 } // Util
 

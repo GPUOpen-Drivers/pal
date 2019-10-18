@@ -134,11 +134,11 @@ void PipelineChunkVsPs::EarlyInit(
     if (settings.enableLoadIndexForObjectBinds != false)
     {
         pInfo->loadedCtxRegCount += (BaseLoadedCntxRegCount + pInfo->interpolatorCount);
-        pInfo->loadedShRegCount  += (BaseLoadedShRegCountPs + chipProps.gfx9.supportSpp);
+        pInfo->loadedShRegCount  += (BaseLoadedShRegCountPs + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
 
         if (pInfo->enableNgg == false)
         {
-            pInfo->loadedShRegCount += (BaseLoadedShRegCountVs + chipProps.gfx9.supportSpp);
+            pInfo->loadedShRegCount += (BaseLoadedShRegCountVs + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
         }
 
         if (VgtStrmoutConfig().u32All != 0)

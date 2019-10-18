@@ -644,8 +644,8 @@ void DmaCmdBuffer::AllocateEmbeddedT2tMemory()
 }
 
 // =====================================================================================================================
-// Tiled image to tiled image copy, slice by slice, scanline by scanline.
-void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdScanlineCopy(
+// Tiled image to tiled image copy, chunk by chunk.
+void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
     const DmaImageCopyInfo& imageCopyInfo)
 {
     DmaImageInfo src = imageCopyInfo.src;
@@ -657,12 +657,41 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdScanlineCopy(
     src.pSubresInfo = &srcSubResInfo;
     dst.pSubresInfo = &dstSubResInfo;
 
+    const ImageType srcImageType = GetImageType(*src.pImage);
+    const ImageType dstImageType = GetImageType(*dst.pImage);
+
     // Calculate the maximum number of pixels we can copy per pass in the below loop
-    const uint32  embeddedDataLimit = GetEmbeddedDataLimit();
-    const uint32  copySizeDwords    = Min(NumBytesToNumDwords(imageCopyInfo.copyExtent.width * src.bytesPerPixel),
-                                          embeddedDataLimit);
-    const uint32  copySizeBytes     = copySizeDwords * sizeof(uint32);
-    const uint32  copySizePixels    = copySizeBytes / src.bytesPerPixel;
+    const uint32 embeddedDataLimitBytes = GetEmbeddedDataLimit() * sizeof(uint32);
+
+    // How big a window can we copy given our linear data limit?
+    uint32 widthToCopy   = 1;
+    uint32 heightToCopy  = 1;
+    uint32 depthToCopy   = 1;
+    uint32 copySizeBytes = src.bytesPerPixel;
+    PAL_ASSERT(copySizeBytes <= embeddedDataLimitBytes); //If we can't fit one pixel... then what?
+    if (embeddedDataLimitBytes > copySizeBytes)
+    {
+        //Widen the copy area to possibly fit more texels.
+        widthToCopy   = Min((embeddedDataLimitBytes / copySizeBytes), imageCopyInfo.copyExtent.width);
+        copySizeBytes = widthToCopy * src.bytesPerPixel;
+        if (embeddedDataLimitBytes > copySizeBytes)
+        {
+            //Heighten the copy area to possibly fit more rows.
+            heightToCopy  = Min((embeddedDataLimitBytes / copySizeBytes), imageCopyInfo.copyExtent.height);
+            copySizeBytes = widthToCopy * heightToCopy * src.bytesPerPixel;
+            if (embeddedDataLimitBytes > copySizeBytes)
+            {
+                //Deepen the copy area to possibly fit more slices- but only if we're copying 3D textures.
+                //If either the input or output is a texture array, we have to do it one slice at a time.
+                if ((ImageType::Tex3d == srcImageType) && (ImageType::Tex3d == dstImageType))
+                {
+                    depthToCopy = Min((embeddedDataLimitBytes / copySizeBytes), imageCopyInfo.copyExtent.depth);
+                    copySizeBytes = widthToCopy * heightToCopy * depthToCopy * src.bytesPerPixel;
+                }
+            }
+        }
+    }
+    PAL_ASSERT(copySizeBytes <= embeddedDataLimitBytes);
 
     // We only need one instance of this memory for the entire life of this command buffer.  Allocate it on an
     // as-needed basis.
@@ -673,23 +702,19 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdScanlineCopy(
         PAL_ASSERT(m_pT2tEmbeddedGpuMemory != nullptr);
     }
 
-    // A lot of the parameters are a constant for each scanline, so set those up here.
+    // A lot of the parameters are a constant for each copy region, so set those up here.
     MemoryImageCopyRegion  linearDstCopyRgn = {};
-    linearDstCopyRgn.imageSubres         = src.pSubresInfo->subresId;
-    linearDstCopyRgn.imageExtent.width   = copySizePixels;
-    linearDstCopyRgn.imageExtent.height  = 1;
-    linearDstCopyRgn.imageExtent.depth   = 1;
-    linearDstCopyRgn.numSlices           = 1;
-    linearDstCopyRgn.gpuMemoryRowPitch   = copySizeBytes;
-    linearDstCopyRgn.gpuMemoryDepthPitch = linearDstCopyRgn.gpuMemoryRowPitch * imageCopyInfo.copyExtent.height;
+    linearDstCopyRgn.imageSubres        = src.pSubresInfo->subresId;
+    linearDstCopyRgn.gpuMemoryRowPitch   = widthToCopy * src.bytesPerPixel;
+    linearDstCopyRgn.gpuMemoryDepthPitch = widthToCopy * heightToCopy * src.bytesPerPixel;
     linearDstCopyRgn.gpuMemoryOffset     = m_t2tEmbeddedMemOffset;
 
     MemoryImageCopyRegion  tiledDstCopyRgn = linearDstCopyRgn;
     tiledDstCopyRgn.imageSubres            = dst.pSubresInfo->subresId;
 
-    // tiled to tiled copies have been determined to not work for this case, so a dual-stage copy is required.
-    // Because we have a limit on the amount of embedded data, we're going to do the copy slice-by-slice and
-    // scan-line by scan-line.
+    // Tiled to tiled copies have been determined to not work for this case, so a dual-stage copy is required.
+    // Because we have a limit on the amount of embedded data, we're going to do the copy chunk by chunk.
+    // First by trying to go scanline by scanline, then groups of scanlines, then groups of [slices|depth].
     Pal::HwPipePoint  pipePoints   = HwPipePoint::HwPipeBottom;
     Pal::BarrierInfo  barrierInfo  = {};
     barrierInfo.pipePointWaitCount = 1;
@@ -698,35 +723,77 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdScanlineCopy(
 
     uint32*  pCmdSpace = nullptr;
 
-    for (uint32  sliceIdx = 0; sliceIdx < imageCopyInfo.copyExtent.depth; sliceIdx++)
+    uint32 cappedDepthToCopy = depthToCopy;
+    for (uint32 sliceIdx = 0; sliceIdx < imageCopyInfo.copyExtent.depth; sliceIdx += cappedDepthToCopy)
     {
-        if (GetImageType(*src.pImage) == ImageType::Tex3d)
+        if ((sliceIdx + cappedDepthToCopy) > imageCopyInfo.copyExtent.depth)
         {
+            cappedDepthToCopy = (imageCopyInfo.copyExtent.depth - sliceIdx);
+        }
+
+        //Update the source params
+        if (ImageType::Tex3d == srcImageType)
+        {
+            linearDstCopyRgn.imageExtent.depth = cappedDepthToCopy;
+            linearDstCopyRgn.numSlices = 1;
+
             linearDstCopyRgn.imageOffset.z = src.offset.z + sliceIdx;
         }
-        else if (sliceIdx > 0)
+        else
         {
-            srcSubResInfo.subresId.arraySlice++;
-            linearDstCopyRgn.imageOffset.z = sliceIdx;
+            linearDstCopyRgn.imageExtent.depth = 1;
+            linearDstCopyRgn.numSlices = cappedDepthToCopy;
+
+            if (sliceIdx > 0)
+            {
+                srcSubResInfo.subresId.arraySlice += cappedDepthToCopy;
+                linearDstCopyRgn.imageOffset.z = sliceIdx;
+            }
         }
 
-        if (GetImageType(*dst.pImage) == ImageType::Tex3d)
+        //Update the destination params
+        if (ImageType::Tex3d == dstImageType)
         {
+            tiledDstCopyRgn.imageExtent.depth = cappedDepthToCopy;
+            tiledDstCopyRgn.numSlices = 1;
+
             tiledDstCopyRgn.imageOffset.z = dst.offset.z + sliceIdx;
         }
-        else if (sliceIdx > 0)
+        else
         {
-            dstSubResInfo.subresId.arraySlice++;
-            tiledDstCopyRgn.imageOffset.z = sliceIdx;
+            tiledDstCopyRgn.imageExtent.depth = 1;
+            tiledDstCopyRgn.numSlices = cappedDepthToCopy;
+
+            if (sliceIdx > 0)
+            {
+                dstSubResInfo.subresId.arraySlice += cappedDepthToCopy;
+                tiledDstCopyRgn.imageOffset.z = sliceIdx;
+            }
         }
 
-        for (uint32  yIdx = 0; yIdx < imageCopyInfo.copyExtent.height; yIdx++)
+        uint32 cappedHeightToCopy = heightToCopy;
+        for (uint32  yIdx = 0; yIdx < imageCopyInfo.copyExtent.height; yIdx += cappedHeightToCopy)
         {
+            if ((yIdx + cappedHeightToCopy) > imageCopyInfo.copyExtent.height)
+            {
+                cappedHeightToCopy = (imageCopyInfo.copyExtent.height - yIdx);
+            }
+            linearDstCopyRgn.imageExtent.height = cappedHeightToCopy;
+            tiledDstCopyRgn.imageExtent.height  = cappedHeightToCopy;
+
             linearDstCopyRgn.imageOffset.y = src.offset.y + yIdx;
             tiledDstCopyRgn.imageOffset.y  = dst.offset.y + yIdx;
 
-            for (uint32  xIdx = 0; xIdx < imageCopyInfo.copyExtent.width; xIdx += copySizePixels)
+            uint32 cappedWidthToCopy = widthToCopy;
+            for (uint32  xIdx = 0; xIdx < imageCopyInfo.copyExtent.width; xIdx += cappedWidthToCopy)
             {
+                if ((xIdx + cappedWidthToCopy) > imageCopyInfo.copyExtent.width)
+                {
+                    cappedWidthToCopy = (imageCopyInfo.copyExtent.width - xIdx);
+                }
+                linearDstCopyRgn.imageExtent.width = cappedWidthToCopy;
+                tiledDstCopyRgn.imageExtent.width  = cappedWidthToCopy;
+
                 linearDstCopyRgn.imageOffset.x = src.offset.x + xIdx;
                 tiledDstCopyRgn.imageOffset.x  = dst.offset.x + xIdx;
 
@@ -831,8 +898,19 @@ void DmaCmdBuffer::CmdCopyImage(
             P2pBltWaCopyNextRegion(chunkAddrs[rgnIdx]);
         }
 
-        SetupDmaInfoSurface(srcImage, region.srcSubres, region.srcOffset, &imageCopyInfo.src, &srcTexelScale);
-        SetupDmaInfoSurface(dstImage, region.dstSubres, region.dstOffset, &imageCopyInfo.dst, &dstTexelScale);
+        // Use srcImg to ensure RIS image is used if requested by client
+        SetupDmaInfoSurface(srcImg,
+                            region.srcSubres,
+                            region.srcOffset,
+                            srcImageLayout,
+                            &imageCopyInfo.src,
+                            &srcTexelScale);
+        SetupDmaInfoSurface(dstImage,
+                            region.dstSubres,
+                            region.dstOffset,
+                            dstImageLayout,
+                            &imageCopyInfo.dst,
+                            &dstTexelScale);
 
         // Both images must have the same BPP and texel scales, otherwise nothing will line up.
         PAL_ASSERT(imageCopyInfo.src.bytesPerPixel == imageCopyInfo.dst.bytesPerPixel);
@@ -843,16 +921,27 @@ void DmaCmdBuffer::CmdCopyImage(
         imageCopyInfo.copyExtent.height = region.extent.height;
         imageCopyInfo.copyExtent.depth  = ((imageType == ImageType::Tex3d) ? region.extent.depth : region.numSlices);
 
-        // Determine if this copy covers the whole subresource.
-        if ((region.srcOffset.x   == 0)                               &&
-            (region.srcOffset.y   == 0)                               &&
-            (region.srcOffset.z   == 0)                               &&
-            (region.dstOffset.x   == 0)                               &&
-            (region.dstOffset.y   == 0)                               &&
-            (region.dstOffset.z   == 0)                               &&
-            (region.extent.width  == imageCopyInfo.src.extent.width)  &&
-            (region.extent.height == imageCopyInfo.src.extent.height) &&
-            (region.extent.depth  == imageCopyInfo.src.extent.depth))
+        // Determine if this copy covers the whole subresource and the layouts are identical.
+        const SubResourceInfo* const pSrcSubresInfo = imageCopyInfo.src.pSubresInfo;
+        const SubResourceInfo* const pDstSubresInfo = imageCopyInfo.dst.pSubresInfo;
+        if ((region.srcOffset.x   == 0)                                                      &&
+            (region.srcOffset.y   == 0)                                                      &&
+            (region.srcOffset.z   == 0)                                                      &&
+            (region.dstOffset.x   == 0)                                                      &&
+            (region.dstOffset.y   == 0)                                                      &&
+            (region.dstOffset.z   == 0)                                                      &&
+            (region.extent.width  == pSrcSubresInfo->extentElements.width)                   &&
+            (region.extent.height == pSrcSubresInfo->extentElements.height)                  &&
+            (region.extent.depth  == pSrcSubresInfo->extentElements.depth)                   &&
+            (imageCopyInfo.src.extent.width  == imageCopyInfo.dst.extent.width)              &&
+            (imageCopyInfo.src.extent.height == imageCopyInfo.dst.extent.height)             &&
+            (imageCopyInfo.src.extent.depth  == imageCopyInfo.dst.extent.depth)              &&
+            (pSrcSubresInfo->extentElements.width  == pDstSubresInfo->extentElements.width)  &&
+            (pSrcSubresInfo->extentElements.height == pDstSubresInfo->extentElements.height) &&
+            (pSrcSubresInfo->extentElements.depth  == pDstSubresInfo->extentElements.depth)  &&
+            (pSrcSubresInfo->subresId.aspect == pDstSubresInfo->subresId.aspect)             &&
+            (pSrcSubresInfo->subresId.mipLevel == pDstSubresInfo->subresId.mipLevel)         &&
+            (pSrcSubresInfo->subresId.arraySlice == pDstSubresInfo->subresId.arraySlice))
         {
             // We're copying the whole subresouce; hide the alignment requirements by copying parts of the padding. We
             // can copy no more than the intersection between the two "actual" rectangles.
@@ -862,14 +951,19 @@ void DmaCmdBuffer::CmdCopyImage(
             const uint32 minWidth  = Min(imageCopyInfo.src.actualExtent.width,  imageCopyInfo.dst.actualExtent.width);
             const uint32 minHeight = Min(imageCopyInfo.src.actualExtent.height, imageCopyInfo.dst.actualExtent.height);
 
+            const uint32 minSubResourceWidth  = Min(pSrcSubresInfo->actualExtentElements.width,
+                                                    pDstSubresInfo->actualExtentElements.width);
+            const uint32 minSubResourceHeight = Min(pSrcSubresInfo->actualExtentElements.height,
+                                                    pDstSubresInfo->actualExtentElements.height);
+
             imageCopyInfo.src.extent.width  = minWidth;
             imageCopyInfo.src.extent.height = minHeight;
 
             imageCopyInfo.dst.extent.width  = minWidth;
             imageCopyInfo.dst.extent.height = minHeight;
 
-            imageCopyInfo.copyExtent.width  = minWidth;
-            imageCopyInfo.copyExtent.height = minHeight;
+            imageCopyInfo.copyExtent.width  = minSubResourceWidth;
+            imageCopyInfo.copyExtent.height = minSubResourceHeight;
         }
 
         if (srcImg.IsSubResourceLinear(region.srcSubres))
@@ -891,7 +985,7 @@ void DmaCmdBuffer::CmdCopyImage(
             }
             else
             {
-                // The built-in packets for scanline copies have some restrictions on their use.  Determine if this
+                // The built-in packets for tiled copies have some restrictions on their use.  Determine if this
                 // copy is natively supported or if it needs to be done piecemeal.
                 if (UseT2tScanlineCopy(imageCopyInfo) == false)
                 {
@@ -899,7 +993,7 @@ void DmaCmdBuffer::CmdCopyImage(
                 }
                 else
                 {
-                    WriteCopyImageTiledToTiledCmdScanlineCopy(imageCopyInfo);
+                    WriteCopyImageTiledToTiledCmdChunkCopy(imageCopyInfo);
                 }
             }
         }
@@ -994,7 +1088,7 @@ void DmaCmdBuffer::CmdCopyMemoryToImage(
             P2pBltWaCopyNextRegion(chunkAddrs[rgnIdx]);
         }
 
-        SetupDmaInfoSurface(dstImage, region.imageSubres, region.imageOffset, &imageInfo, &texelScale);
+        SetupDmaInfoSurface(dstImage, region.imageSubres, region.imageOffset, dstImageLayout, &imageInfo, &texelScale);
 
         // Multiply the region's offset and extent by the texel scale to keep our units in sync.
         region.imageOffset.x     *= texelScale;
@@ -1122,7 +1216,7 @@ void DmaCmdBuffer::CmdCopyImageToMemory(
             P2pBltWaCopyNextRegion(chunkAddrs[rgnIdx]);
         }
 
-        SetupDmaInfoSurface(srcImage, region.imageSubres, region.imageOffset, &imageInfo, &texelScale);
+        SetupDmaInfoSurface(srcImage, region.imageSubres, region.imageOffset, srcImageLayout, &imageInfo, &texelScale);
 
         // Multiply the region's offset and extent by the texel scale to keep our units in sync.
         region.imageOffset.x     *= texelScale;
@@ -1350,11 +1444,12 @@ void DmaCmdBuffer::SetupDmaInfoExtent(
 
 // =====================================================================================================================
 void DmaCmdBuffer::SetupDmaInfoSurface(
-    const IImage&   image,
-    const SubresId& subresource,
-    const Offset3d& offset,
-    DmaImageInfo*   pImageInfo,  // [out] A completed DmaImageInfo struct.
-    uint32*         pTexelScale  // [out] Scale all texel offsets/extents by this factor.
+    const IImage&     image,
+    const SubresId&   subresource,
+    const Offset3d&   offset,
+    const ImageLayout imageLayout,
+    DmaImageInfo*     pImageInfo,  // [out] A completed DmaImageInfo struct.
+    uint32*           pTexelScale  // [out] Scale all texel offsets/extents by this factor.
     ) const
 {
     const auto& srcImg      = static_cast<const Image&>(image);
@@ -1393,6 +1488,7 @@ void DmaCmdBuffer::SetupDmaInfoSurface(
     pImageInfo->offset.y      = offset.y;
     pImageInfo->offset.z      = offset.z;
     pImageInfo->bytesPerPixel = bytesPerPixel;
+    pImageInfo->imageLayout   = imageLayout;
 
     SetupDmaInfoExtent(pImageInfo);
 

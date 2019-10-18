@@ -1017,6 +1017,16 @@ void ComputeCmdBuffer::CmdCommentString(
 }
 
 // =====================================================================================================================
+void ComputeCmdBuffer::CmdNop(
+    const void* pPayload,
+    uint32      payloadSize)
+{
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    pCmdSpace += m_cmdUtil.BuildNopPayload(pPayload, payloadSize, pCmdSpace);
+    m_cmdStream.CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
 void ComputeCmdBuffer::CmdExecuteIndirectCmds(
     const IIndirectCmdGenerator& generator,
     const IGpuMemory&            gpuMemory,

@@ -978,9 +978,10 @@ Result Queue::BuildGpaSessionSampleConfig()
                 uint32 counterIdx = 0;
                 for (uint32 i = 0; i < numCounters; i++)
                 {
-                    GpuUtil::PerfCounterId counterInfo;
+                    GpuUtil::PerfCounterId counterInfo = {};
                     counterInfo.block   = pCounters[i].block;
                     counterInfo.eventId = pCounters[i].eventId;
+
                     for (uint32 j = 0; j < pCounters[i].instanceCount; j++)
                     {
                         counterInfo.instance = pCounters[i].instanceId + j;
@@ -1045,7 +1046,7 @@ Result Queue::BuildGpaSessionSampleConfig()
                     // Create PerfCounterIds with same eventId for all instances of the block.
                     for (uint32 counter = 0; counter < numSpmCountersRequested; ++counter)
                     {
-                        GpuUtil::PerfCounterId counterInfo;
+                        GpuUtil::PerfCounterId counterInfo = {};
                         counterInfo.block   = pStreamingCounters[counter].block;
                         counterInfo.eventId = pStreamingCounters[counter].eventId;
 

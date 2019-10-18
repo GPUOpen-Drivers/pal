@@ -580,8 +580,24 @@ OsExternalHandle GpuMemory::ExportExternalHandle(
     // another valid use case for this is to share image to XServer as pixmap.
     OsExternalHandle fd;
     {
+        amdgpu_bo_handle_type type = m_externalHandleType;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 541
+        switch (exportInfo.exportType)
+        {
+            case ExportHandleType::FileDescriptor:
+                type = amdgpu_bo_handle_type_dma_buf_fd;
+                break;
+            case ExportHandleType::Kms:
+                type = amdgpu_bo_handle_type_kms;
+                break;
+            default:
+                type = m_externalHandleType;
+                break;
+        }
+#endif
+
         Result result = static_cast<Device*>(m_pDevice)->ExportBuffer(m_hSurface,
-                                                m_externalHandleType,
+                                                type,
                                                 reinterpret_cast<uint32*>(&fd));
         PAL_ASSERT(result == Result::Success);
     }

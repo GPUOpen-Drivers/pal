@@ -158,12 +158,16 @@ struct GlobalSelectState
         regSDMA0_PERFMON_CNTL perfmonCntl;   // This acts as two selects.
     } legacySdma[Gfx9MaxSdmaInstances];
 
-    // Each UMCCH instance defines a set of special global counters.
+    // Each UMCCH instance defines a set of special global counters. Note that all UMCCH instances use copies of the
+    // generic "PerfMon" registers for their perf counters. Some ASICs defines them per-block (regUMCCH0_PerfMonCtl1)
+    // while others only define the generic registers (regPerfMonCtl1). This causes the register headers to fragment
+    // ASIC support even though all ASICs have these registers. By convention we will use the generic registers on
+    // all ASICs.
     struct
     {
-        bool                  hasCounters;                           // If any counters are in any module are in use.
-        bool                  perfmonInUse[Gfx9MaxUmcchPerfModules]; // If this module's global counter is enabled.
-        regUMCCH0_PerfMonCtl1 perfmonCntl[Gfx9MaxUmcchPerfModules];  // The control for each global counter.
+        bool           hasCounters;                           // If any counters are in any module are in use.
+        bool           perfmonInUse[Gfx9MaxUmcchPerfModules]; // If this module's global counter is enabled.
+        regPerfMonCtl1 perfmonCntl[Gfx9MaxUmcchPerfModules];  // The control for each global counter.
     } umcch[Gfx9MaxUmcchInstances];
 
     // The generic block state. These arrays are sparse in that elements can be zero or nullptr if:

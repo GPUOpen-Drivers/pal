@@ -1065,6 +1065,18 @@ public:
         bool*            pIsFlipOwner) const override
         { return m_pNextLayer->GetFlipStatus(vidPnSrcId, pFlipFlags, pIsFlipOwner); }
 
+    virtual Result DidRsFeatureSettingsChange(
+        uint32  rsFeatures,
+        uint32* pRsFeaturesChanged) override
+        { return m_pNextLayer->DidRsFeatureSettingsChange(rsFeatures, pRsFeaturesChanged); }
+
+    virtual Result GetRsFeatureGlobalSettings(
+        RsFeatureType  rsFeature,
+        RsFeatureInfo* pRsFeatureInfo) override
+        { return m_pNextLayer->GetRsFeatureGlobalSettings(rsFeature, pRsFeatureInfo); }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 537
+
     virtual bool DidDelagSettingsChange() override
         { return m_pNextLayer->DidDelagSettingsChange(); }
 
@@ -1078,6 +1090,7 @@ public:
     virtual Result GetChillGlobalEnable(
         bool* pGlobalEnable) override
         { return m_pNextLayer->GetChillGlobalEnable(pGlobalEnable); }
+#endif
 
     virtual Result UpdateChillStatus(
         uint64 lastChillActiveTimeStampUs) override
@@ -1977,6 +1990,8 @@ public:
 
     virtual void CmdCommentString(const char* pComment) override
         { return m_pNextLayer->CmdCommentString(pComment); }
+    virtual void CmdNop(const void* pPayload, uint32 payloadSize) override
+        { return m_pNextLayer->CmdNop(pPayload, payloadSize); }
 
     virtual uint32 CmdInsertExecutionMarker() override
         { return m_pNextLayer->CmdInsertExecutionMarker(); }

@@ -621,7 +621,7 @@ void Gfx9DepthStencilView::InitRegisters(
     const DepthStencilViewCreateInfo&         createInfo,
     const DepthStencilViewInternalCreateInfo& internalInfo)
 {
-    const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(GfxIpLevel::GfxIp9);
+    const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(GfxIpLevel::GfxIp9, &m_device.Settings());
 
     DB_RENDER_OVERRIDE dbRenderOverride = { };
     InitCommonImageView(createInfo, internalInfo, pFmtInfo, &m_pm4Cmds, &dbRenderOverride);
@@ -789,7 +789,7 @@ void Gfx10DepthStencilView::InitRegisters(
     const ImageCreateInfo&      imageCreateInfo      = pParentImg->GetImageCreateInfo();
     const auto&                 palDevice            = *m_device.Parent();
     GfxIpLevel                  gfxip                = palDevice.ChipProperties().gfxLevel;
-    const auto*                 pFmtInfo             = MergedChannelFlatFmtInfoTbl(gfxip);
+    const auto*                 pFmtInfo             = MergedChannelFlatFmtInfoTbl(gfxip, &m_device.Settings());
     const SubResourceInfo*      pDepthSubResInfo     = pParentImg->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*      pStencilSubResInfo   = pParentImg->SubresourceInfo(m_stencilSubresource);
     const SubresId              baseDepthSubResId    = { m_depthSubresource.aspect, 0 , 0 };

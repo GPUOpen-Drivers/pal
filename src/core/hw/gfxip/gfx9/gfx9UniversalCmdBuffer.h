@@ -698,6 +698,9 @@ public:
         ICmdBuffer*const* ppCmdBuffers) override;
 
     virtual void CmdCommentString(const char* pComment) override;
+    virtual void CmdNop(
+        const void* pPayload,
+        uint32      payloadSize) override;
 
     virtual uint32 CmdInsertExecutionMarker() override;
 
@@ -843,7 +846,8 @@ protected:
 private:
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
-              bool ViewInstancingEnable>
+              bool ViewInstancingEnable,
+              bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDraw(
         ICmdBuffer* pCmdBuffer,
         uint32      firstVertex,
@@ -853,7 +857,8 @@ private:
 
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
-              bool ViewInstancingEnable>
+              bool ViewInstancingEnable,
+              bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawOpaque(
         ICmdBuffer* pCmdBuffer,
         gpusize streamOutFilledSizeVa,
@@ -865,7 +870,8 @@ private:
     template <bool IssueSqttMarkerEvent,
               bool IsNggFastLaunch,
               bool HasUavExport,
-              bool ViewInstancingEnable>
+              bool ViewInstancingEnable,
+              bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
         uint32      firstIndex,
@@ -874,7 +880,7 @@ private:
         uint32      firstInstance,
         uint32      instanceCount);
 
-    template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable>
+    template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
@@ -883,7 +889,7 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-    template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable>
+    template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndexedIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
@@ -892,18 +898,18 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer* pCmdBuffer,
         uint32      x,
         uint32      y,
         uint32      z);
-    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
-    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables>
+    template <bool IssueSqttMarkerEvent, bool UseCpuPathForUserDataTables, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer* pCmdBuffer,
         uint32      xOffset,
@@ -950,7 +956,7 @@ private:
 
     Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_gfxCmdBufState.flags.packetPredicate); }
 
-    template <bool IssueSqttMarkerEvent>
+    template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     void SetDispatchFunctions();
 
     template <bool TessEnabled, bool GsEnabled, bool VsEnabled>
@@ -1068,28 +1074,32 @@ private:
         bool viewInstancingEnable,
         bool nggFastLaunch);
 
-    template <bool IssueSqtt>
+    template <bool IssueSqtt,
+              bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
         bool hasUavExport,
         bool viewInstancingEnable,
         bool nggFastLaunch);
 
     template <bool NggFastLaunch,
-              bool IssueSqtt>
+              bool IssueSqtt,
+              bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
         bool hasUavExport,
         bool viewInstancingEnable);
 
     template <bool ViewInstancing,
               bool NggFastLaunch,
-              bool IssueSqtt>
+              bool IssueSqtt,
+              bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
         bool hasUavExport );
 
     template <bool ViewInstancing,
               bool NggFastLaunch,
               bool HasUavExport,
-              bool IssueSqtt>
+              bool IssueSqtt,
+              bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal();
 
     BinningMode GetDisableBinningSetting(Extent2d* pBinSize) const;
@@ -1221,8 +1231,9 @@ private:
                                                     // shaders.
             uint32 padParamCacheSpace         :  1; // True if this command buffer should pad used param-cache space to
                                                     // reduce context rolls.
+            uint32 describeDrawDispatch       :  1; // True if draws/dispatch shader IDs should be specified within the
+                                                    // command stream for parsing by PktTools
             uint32 prefetchIndexBufferForNgg  :  1; // Prefetch index buffers to workaround misses in UTCL2 with NGG
-            uint32 reserved1                  :  1;
             uint32 reserved2                  :  1;
             uint32 reserved                   :  7;
         };

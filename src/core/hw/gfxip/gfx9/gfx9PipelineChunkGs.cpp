@@ -90,7 +90,7 @@ void PipelineChunkGs::EarlyInit(
     if (settings.enableLoadIndexForObjectBinds != false)
     {
         pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
-        pInfo->loadedShRegCount  += (BaseLoadedShRegCount + chipProps.gfx9.supportSpp);
+        pInfo->loadedShRegCount  += (BaseLoadedShRegCount + ((chipProps.gfx9.supportSpp == 1) ? 1 : 0));
 
         // Handle GFX10 specific context registers
         if (IsGfx10(chipProps.gfxLevel))

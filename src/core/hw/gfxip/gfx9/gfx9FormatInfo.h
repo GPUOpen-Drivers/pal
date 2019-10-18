@@ -28,6 +28,15 @@
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "palFormatInfo.h"
 
+// Forward decl
+namespace Pal
+{
+namespace Gfx9
+{
+struct Gfx9PalSettings;
+}
+}
+
 namespace Pal
 {
 namespace Formats
@@ -68,7 +77,11 @@ struct MergedFlatFmtInfo
     StencilFormat   hwStencilFmt;   // Corresponding HW depth block (DB) stencil format enum.
 };
 
-extern const MergedFlatFmtInfo*  MergedChannelFlatFmtInfoTbl(GfxIpLevel gfxIpLevel);
+extern const MergedFlatFmtInfo*  MergedChannelFlatFmtInfoTbl(
+    GfxIpLevel                        gfxIpLevel,
+    const Pal::Gfx9::Gfx9PalSettings* pSettings
+);
+
 extern BUF_FMT                   HwBufFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
 extern IMG_FMT                   HwImgFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
 extern ChNumFormat               FmtFromHwBufFmt(BUF_FMT imgFmt, GfxIpLevel gfxIpLevel);
@@ -94,7 +107,8 @@ struct MergedBufDataFmtInfo
     ChNumFormat     mappings[MaxBufNumFormats][MaxImgDataMappings];
 };
 
-extern const MergedFmtInfo*      MergedChannelFmtInfoTbl(GfxIpLevel gfxIpLevel);
+extern const MergedFmtInfo* MergedChannelFmtInfoTbl(GfxIpLevel gfxIpLevel, const Pal::Gfx9::Gfx9PalSettings* pSettings);
+ColorFormat HwColorFormatForExport(GfxIpLevel gfxLevel, Pal::ChNumFormat format);
 
 extern SQ_SEL_XYZW01 HwSwizzle(ChannelSwizzle swizzle);
 extern ChannelSwizzle ChannelSwizzleFromHwSwizzle(SQ_SEL_XYZW01 hwSwizzle);

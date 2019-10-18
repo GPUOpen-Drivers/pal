@@ -37,6 +37,10 @@ namespace Addr
 {
 namespace V2
 {
+typedef const UINT_64 (*DccPattern)[17];
+typedef const UINT_64 (*CmaskPattern)[17];
+typedef const UINT_64 (*HtilePattern)[18];
+
 /**
 ************************************************************************************************************************
 * @brief Bit setting for swizzle pattern

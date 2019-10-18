@@ -204,6 +204,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetMarker,                                     InterfaceObject::CmdBuffer,            "CmdSetMarker"                            },
     { InterfaceFunc::CmdBufferCmdPresent,                                       InterfaceObject::CmdBuffer,            "CmdPresent"                              },
     { InterfaceFunc::CmdBufferCmdCommentString,                                 InterfaceObject::CmdBuffer,            "CmdCommentString"                        },
+    { InterfaceFunc::CmdBufferCmdNop,                                           InterfaceObject::CmdBuffer,            "CmdNop"                                  },
     { InterfaceFunc::CmdBufferCmdInsertExecutionMarker,                         InterfaceObject::CmdBuffer,            "CmdInsertExecutionMarker"                },
     { InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending,                           InterfaceObject::CmdBuffer,            "CmdXdmaWaitFlipPending"                  },
     { InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging,                       InterfaceObject::CmdBuffer,            "CmdStartGpuProfilerLogging"              },

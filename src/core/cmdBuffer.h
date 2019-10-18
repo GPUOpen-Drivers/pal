@@ -953,6 +953,11 @@ protected:
     uint32      NumBegun() const { return m_numCmdBufsBegun; }
 #endif
 
+    virtual void CmdNop(
+        const void* pPayload,
+        uint32      payloadSize)
+        { PAL_NEVER_CALLED(); }
+
     const CmdBufferCreateInfo     m_createInfo;
     CmdBufferInternalCreateInfo   m_internalInfo;
     CmdBufferBuildFlags           m_buildFlags;

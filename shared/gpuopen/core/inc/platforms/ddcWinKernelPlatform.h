@@ -113,6 +113,11 @@ namespace DevDriver
         typedef HANDLE ThreadHandle;
         typedef void   ThreadReturnType;
 
+        // Libraries should never be used in the kernel but we need to define the handle type so we don't get compile
+        // errors from the platform headers. The library implementation should remain undefined so we'll get linker
+        // errors if someone attempts to use it.
+        typedef HMODULE LibraryHandle;
+
         constexpr ThreadHandle kInvalidThreadHandle = NULL;
 
         namespace Windows

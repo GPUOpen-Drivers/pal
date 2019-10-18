@@ -281,7 +281,15 @@ struct ImageCreateInfo
     uint32             rowPitch;          ///< The image must have this row pitch for the first mip level (in bytes).
     uint32             depthPitch;        ///< The image must have this depth pitch for the first mip level (in bytes).
 
-    Rational           stereoRefreshRate; ///< The expected refresh rate when presenting this stero image.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 539
+    Rational           refreshRate;       ///< The expected refresh rate when presenting this flippable or stereo image.
+#else
+    union
+    {
+        Rational       stereoRefreshRate; ///< The expected refresh rate when presenting this stereo image.
+        Rational       refreshRate;       ///< The expected refresh rate when presenting this flippable image.
+    };
+#endif
 
     uint32             viewFormatCount;   ///< Number of additional image formats views of this image can be used with
                                           ///  or the special value AllCompatibleFormats to indicate that all

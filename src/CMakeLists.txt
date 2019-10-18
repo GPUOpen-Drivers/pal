@@ -462,6 +462,7 @@ if(PAL_BUILD_CORE)
                 target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10)
                 target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10)
             endif()
+
             target_sources(pal PRIVATE
                 core/hw/gfxip/gfx9/g_gfx9PalSettings.cpp
                 core/hw/gfxip/gfx9/gfx9Barrier.cpp

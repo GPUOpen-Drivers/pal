@@ -2490,14 +2490,20 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
         const auto& settings   = GetGfx9Settings(device);
         const auto& createInfo = pParent->GetImageCreateInfo();
 
-        static const uint32 MinHtileWidth  = 8;
-        static const uint32 MinHtileHeight = 8;
+        hTileUsage.dsMetadata = ((pParent->IsShared()                   == false) &&
+                                 (pParent->IsMetadataDisabledByClient() == false) &&
+                                 (settings.htileEnable                  == true));
 
-        hTileUsage.dsMetadata = ((pParent->IsShared()                   == false)         &&
-                                 (pParent->IsMetadataDisabledByClient() == false)         &&
-                                 (settings.htileEnable                  == true)          &&
-                                 (createInfo.extent.width               >= MinHtileWidth) &&
-                                 (createInfo.extent.height              >= MinHtileHeight));
+        constexpr uint32 MinHtileWidth = 8;
+        constexpr uint32 MinHtileHeight = 8;
+
+        if ((hTileUsage.dsMetadata != 0)              &&
+            pParent->IsDepthAsZ24()                   &&
+            (createInfo.extent.width < MinHtileWidth) &&
+            (createInfo.extent.height < MinHtileHeight))
+        {
+            hTileUsage.dsMetadata = 0;
+        }
 
         //
         // Verify that hTile should be allowed (i.e, minus the workaround) to silence the below assert for

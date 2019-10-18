@@ -53,10 +53,11 @@ struct DmaImageInfo
     // The following information is in terms of either texels or elements, the units are irrelevant to the DMA engine
     // as long as all values use the same units and the value of bytesPerPixel indicates the size of the unit.
 
-    Offset3d offset;        // Where to begin copying texels/elements within this subresource.
-    Extent3d extent;        // The user-defined size of this subresource in texels/elements.
-    Extent3d actualExtent;  // The padded size of this subresource in texels/elements.
-    uint32   bytesPerPixel; // The size of each texel/element referred to above.
+    Offset3d    offset;        // Where to begin copying texels/elements within this subresource.
+    Extent3d    extent;        // The user-defined size of this subresource in texels/elements.
+    Extent3d    actualExtent;  // The padded size of this subresource in texels/elements.
+    uint32      bytesPerPixel; // The size of each texel/element referred to above.
+    ImageLayout imageLayout;
 };
 
 // DmaImageCopyInfo defines everything regarding an image to image copy. Note that the offset, extent, etc. within the
@@ -238,7 +239,7 @@ protected:
     virtual uint32* WritePredicateCmd(size_t predicateDwords, uint32* pCmdSpace) const = 0;
     virtual void PatchPredicateCmd(size_t predicateDwords, void* pPredicateCmd) const = 0;
 
-    virtual void WriteCopyImageTiledToTiledCmdScanlineCopy(const DmaImageCopyInfo& imageCopyInfo);
+    virtual void WriteCopyImageTiledToTiledCmdChunkCopy(const DmaImageCopyInfo& imageCopyInfo);
 
     void AllocateEmbeddedT2tMemory();
 
@@ -335,11 +336,12 @@ protected:
 
 private:
     void SetupDmaInfoSurface(
-        const IImage&   image,
-        const SubresId& subresource,
-        const Offset3d& offset,
-        DmaImageInfo*   pImageInfo,
-        uint32*         pTexelScale) const;
+        const IImage&     image,
+        const SubresId&   subresource,
+        const Offset3d&   offset,
+        const ImageLayout imageLayout,
+        DmaImageInfo*     pImageInfo,
+        uint32*           pTexelScale) const;
 
     void SetupDmaTypedBufferCopyInfo(
         const IGpuMemory&       baseAddr,

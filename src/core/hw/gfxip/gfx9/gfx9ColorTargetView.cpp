@@ -504,7 +504,7 @@ void Gfx9ColorTargetView::InitRegisters(
     const ColorTargetViewCreateInfo&  createInfo,
     ColorTargetViewInternalCreateInfo internalInfo)
 {
-    const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(GfxIpLevel::GfxIp9);
+    const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(GfxIpLevel::GfxIp9, &m_pDevice->Settings());
 
     regCB_COLOR0_INFO cbColorInfo = InitCommonCbColorInfo(createInfo, pFmtInfo);
 
@@ -779,7 +779,8 @@ void Gfx10ColorTargetView::InitRegisters(
     ColorTargetViewInternalCreateInfo internalInfo)
 {
     const auto&            palDevice   = *m_pDevice->Parent();
-    const auto*const       pFmtInfoTbl = MergedChannelFlatFmtInfoTbl(palDevice.ChipProperties().gfxLevel);
+    const auto*const       pFmtInfoTbl = MergedChannelFlatFmtInfoTbl(palDevice.ChipProperties().gfxLevel,
+                                                                     &m_pDevice->Settings());
     const Gfx9PalSettings& settings    = GetGfx9Settings(palDevice);
 
     regCB_COLOR0_INFO cbColorInfo    = InitCommonCbColorInfo(createInfo, pFmtInfoTbl);
@@ -912,15 +913,8 @@ void Gfx10ColorTargetView::InitRegisters(
         m_pm4Cmds.cbColorAttrib3.bits.RESOURCE_TYPE = static_cast<uint32>(imageType); // no HW enums
         m_pm4Cmds.cbColorAttrib3.bits.META_LINEAR   = m_pImage->IsSubResourceLinear(createInfo.imageInfo.baseSubRes);
 
-        if (IsGfx101Plus(palDevice))
-        {
-            m_pm4Cmds.cbColorAttrib3.gfx101Plus.CMASK_PIPE_ALIGNED = m_pImage->IsPipeAligned();
-            m_pm4Cmds.cbColorAttrib3.gfx101Plus.DCC_PIPE_ALIGNED   = m_pImage->IsPipeAligned();
-        }
-        else
-        {
-            PAL_ASSERT_ALWAYS();
-        }
+        m_pm4Cmds.cbColorAttrib3.bits.CMASK_PIPE_ALIGNED = m_pImage->IsPipeAligned();
+        m_pm4Cmds.cbColorAttrib3.bits.DCC_PIPE_ALIGNED   = m_pImage->IsPipeAligned();
 
         const AddrSwizzleMode fMaskSwizzleMode      = (hasFmask
                                                        ? m_pImage->GetFmask()->GetSwizzleMode()

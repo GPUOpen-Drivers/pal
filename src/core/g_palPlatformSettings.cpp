@@ -76,6 +76,7 @@ void PlatformSettingsLoader::SetupDefaults()
     strncpy(m_settings.eventLogDirectory, "amdpal/", 512);
     memset(m_settings.eventLogFilename, 0, 512);
     strncpy(m_settings.eventLogFilename, "PalEventLog.json", 512);
+
     m_settings.debugOverlayEnabled = false;
     m_settings.debugOverlayConfig.visualConfirmEnabled = true;
     m_settings.debugOverlayConfig.timeGraphEnabled = false;
@@ -144,6 +145,7 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.cmdBufferLoggerEnabled = false;
     m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations = 0x1ff;
     m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep = 0x0;
+    m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo = false;
     m_settings.pm4InstrumentorEnabled = false;
     memset(m_settings.pm4InstrumentorConfig.logDirectory, 0, 512);
     strncpy(m_settings.pm4InstrumentorConfig.logDirectory, "amdpal/", 512);
@@ -538,6 +540,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pCmdBufferLoggerConfig_CmdBufferLoggerSingleStepStr,
                            Util::ValueType::Uint,
                            &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pCmdBufferLoggerConfig_EmbedDrawDispatchInfoStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pPm4InstrumentorEnabledStr,
@@ -980,6 +987,11 @@ void PlatformSettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2784236609, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo;
+    info.valueSize = sizeof(m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo);
+    m_settingsInfoMap.Insert(1801313176, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.pm4InstrumentorEnabled;
     info.valueSize = sizeof(m_settings.pm4InstrumentorEnabled);
     m_settingsInfoMap.Insert(817764955, info);
@@ -1050,7 +1062,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 2962079510;
+            component.settingsDataHash = 1292887905;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

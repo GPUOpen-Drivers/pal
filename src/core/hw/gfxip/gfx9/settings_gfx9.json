@@ -386,6 +386,20 @@
       "Name": "ForceRegularClearCode"
     },
     {
+      "Description": "Forces reporting support of ASTC/ETC2 texture reads and disables BC4-7. Warning: On gfx10 hardware, this is intended to be used only in IFH mode.",
+      "Tags": [
+        "General",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "forceEtcAstcEnable",
+      "Name": "ForceEtcAstcEnable"
+    },
+    {
       "Description": "Forces use of a graphics fill memory path on command buffers that supports graphics ops",
       "Tags": [
         "General",

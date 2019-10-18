@@ -231,7 +231,8 @@ PAL_INLINE void* HashAllocator<Allocator>::Allocate()
         // Allocate memory if needed (note that this may rarely fail)
         if (pBlock->pMemory == nullptr)
         {
-            pBlock->pMemory = PAL_CALLOC(pBlock->numGroups * m_groupSize, m_pAllocator, AllocInternal);
+            pBlock->pMemory = PAL_CALLOC_ALIGNED(pBlock->numGroups * m_groupSize, m_alignment,
+                                                 m_pAllocator, AllocInternal);
         }
 
         // If we successfully allocated memory (or the block already had some), make it current
@@ -348,12 +349,15 @@ template<
     size_t   GroupSize>
 PAL_INLINE Result HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Init()
 {
+    // Each bucket's address must be aligned as Entry required.
+    PAL_ASSERT(IsPow2Aligned(GroupSize, alignof(Entry)));
+
     // Since (m_numBuckets - 1) will mask the hashing result, the hash func should make sure the hashing result always
     // contain enough effective bits.
     m_hashFunc.Init(Log2(m_numBuckets));
 
-    // Allocate the hash table.  Zero out the memory to mark all entries invalid, since a key of 0 is invalid.
-    m_pMemory = PAL_CALLOC(m_memorySize, &m_allocator, AllocInternal);
+    // Allocate the hash table. Zero out the memory to mark all entries invalid, since a key of 0 is invalid.
+    m_pMemory = PAL_CALLOC_ALIGNED(m_memorySize, alignof(Entry), &m_allocator, AllocInternal);
 
     PAL_ALERT(m_pMemory == nullptr);
 

@@ -137,6 +137,7 @@ namespace DevDriver
 
         typedef pthread_t ThreadHandle;
         typedef void*     ThreadReturnType;
+        typedef void*     LibraryHandle;
 
         constexpr ThreadHandle kInvalidThreadHandle = 0;
     }

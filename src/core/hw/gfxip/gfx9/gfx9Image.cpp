@@ -881,19 +881,20 @@ Result Image::Finalize(
 bool Image::DoesImageSupportCopySrcCompression() const
 {
     const GfxIpLevel  gfxLevel            = m_device.ChipProperties().gfxLevel;
+    const Device&     device              = static_cast<const Device&>(*m_device.GetGfxDevice());
     const ChNumFormat createFormat        = m_createInfo.swizzledFormat.format;
     bool              supportsCompression = true;
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
-        const auto*const      pFmtInfo        = MergedChannelFmtInfoTbl(gfxLevel);
+        const auto*const      pFmtInfo        = MergedChannelFmtInfoTbl(gfxLevel, &GetGfx9Settings(m_device));
         const BUF_DATA_FORMAT hwBufferDataFmt = HwBufDataFmt(pFmtInfo, createFormat);
 
         supportsCompression = (hwBufferDataFmt != BUF_DATA_FORMAT_INVALID);
     }
     else
     {
-        const auto*const pFmtInfo       = MergedChannelFlatFmtInfoTbl(gfxLevel);
+        const auto*const pFmtInfo       = MergedChannelFlatFmtInfoTbl(gfxLevel, &GetGfx9Settings(m_device));
         const BUF_FMT    hwBufferFormat = HwBufFmt(pFmtInfo, createFormat);
 
         supportsCompression = (hwBufferFormat != BUF_FMT_INVALID);
@@ -1000,9 +1001,7 @@ void Image::InitLayoutStateMasks()
 
             const GfxIpLevel  gfxLevel = m_device.ChipProperties().gfxLevel;
 
-            if (HasDccData() &&
-                ((gfxLevel == GfxIpLevel::GfxIp10_1)
-                ))
+            if (HasDccData() && (gfxLevel == GfxIpLevel::GfxIp10_1))
             {
                 // Verify that transitions to presentable state will invoke a DCC decompress on GFX10 for texture-
                 // fetchable images.

@@ -179,6 +179,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetMarker,
     CmdBufferCmdPresent,
     CmdBufferCmdCommentString,
+    CmdBufferCmdNop,
     CmdBufferCmdInsertExecutionMarker,
     CmdBufferCmdXdmaWaitFlipPending,
     CmdBufferCmdStartGpuProfilerLogging,

@@ -49,8 +49,9 @@ class PipelineChunkCs
 {
 public:
     PipelineChunkCs(
-        const Device& device,
-        PerfDataInfo* pPerfDataInfo);
+        const Device&    device,
+        ShaderStageInfo* pStageInfo,
+        PerfDataInfo*    pPerfDataInfo);
     ~PipelineChunkCs() { }
 
     // Compute-only.
@@ -87,8 +88,6 @@ public:
         return GetOriginalAddress(m_commands.set.computePgmLo.bits.DATA,
                                   m_commands.set.computePgmHi.bits.DATA);
     }
-
-    const ShaderStageInfo& StageInfo() const { return m_stageInfo; }
 
 private:
     template <typename CsPipelineUploader>
@@ -156,7 +155,7 @@ private:
 
     PerfDataInfo*const m_pCsPerfDataInfo;   // CS performance data information.
 
-    ShaderStageInfo  m_stageInfo;
+    ShaderStageInfo*  m_pStageInfo;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkCs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkCs);
