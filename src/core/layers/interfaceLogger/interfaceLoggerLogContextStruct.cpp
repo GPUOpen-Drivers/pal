@@ -1555,11 +1555,6 @@ void LogContext::Struct(
         Value("separateDepthAspectInit");
     }
 
-    if (value.copyFormatsMatch)
-    {
-        Value("copyFormatsMatch");
-    }
-
     if (value.repetitiveResolve)
     {
         Value("repetitiveResolve");
@@ -1726,7 +1721,9 @@ void LogContext::Struct(
     KeyAndStruct("swizzledFormat", value.swizzledFormat);
     KeyAndStruct("subresRange", value.subresRange);
     KeyAndValue("minLod", value.minLod);
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
     KeyAndValue("quiltWidthInSlices", value.quiltWidthInSlices);
+#endif
     KeyAndValue("samplePatternIdx", value.samplePatternIdx);
     KeyAndStruct("zRange", value.zRange);
     KeyAndEnum("texOptLevel", value.texOptLevel);

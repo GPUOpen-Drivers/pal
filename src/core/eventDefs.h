@@ -519,7 +519,6 @@ static void SerializeResourceDescriptionImage(
         pJsonWriter->KeyAndValue("NeedsSwizzleEquations",          static_cast<bool>(data.pCreateInfo->flags.needSwizzleEqs));
         pJsonWriter->KeyAndValue("PerSubresourceInit",             static_cast<bool>(data.pCreateInfo->flags.perSubresInit));
         pJsonWriter->KeyAndValue("SeparateDepthStencilAspectInit", static_cast<bool>(data.pCreateInfo->flags.separateDepthAspectInit));
-        pJsonWriter->KeyAndValue("CopyFormatsMatch",               static_cast<bool>(data.pCreateInfo->flags.copyFormatsMatch));
         pJsonWriter->KeyAndValue("RepetitiveResolve",              static_cast<bool>(data.pCreateInfo->flags.repetitiveResolve));
         pJsonWriter->KeyAndValue("PreferSwizzleEquations",         static_cast<bool>(data.pCreateInfo->flags.preferSwizzleEqs));
         pJsonWriter->KeyAndValue("FixedTileSwizzle",               static_cast<bool>(data.pCreateInfo->flags.fixedTileSwizzle));

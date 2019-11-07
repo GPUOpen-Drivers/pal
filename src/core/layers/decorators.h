@@ -1126,6 +1126,11 @@ public:
     virtual const char* GetDebugFilePath() const override
         { return m_pNextLayer->GetDebugFilePath(); }
 
+    virtual Result QueryRadeonSoftwareVersion(
+        char*  pBuffer,
+        size_t bufferLength) const override
+        { return m_pNextLayer->QueryRadeonSoftwareVersion(pBuffer, bufferLength); }
+
     const DeviceFinalizeInfo& GetFinalizeInfo() const { return m_finalizeInfo; }
     IDevice*                  GetNextLayer() const { return m_pNextLayer; }
     PlatformDecorator*        GetPlatform()  const { return m_pPlatform; }

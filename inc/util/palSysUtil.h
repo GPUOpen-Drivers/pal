@@ -34,7 +34,9 @@
 #include "palUtil.h"
 #include <atomic>
 
+#if   defined(__unix__)
 #include <cpuid.h>
+#endif
 
 namespace Util
 {
@@ -357,7 +359,11 @@ extern size_t DumpStackTrace(
 /// Flushes CPU cached writes to memory.
 PAL_INLINE void FlushCpuWrites()
 {
+#if   defined(__unix__)
      asm volatile("" ::: "memory");
+#else
+#error "Not implemented for the current platform"
+#endif
 }
 
 // =====================================================================================================================
@@ -392,7 +398,11 @@ PAL_INLINE bool IsComboKey(KeyCode key, KeyCode* pKeys)
 // Issue a full memory barrier.
 PAL_INLINE void MemoryBarrier()
 {
+#if defined(_WIN32) || defined(__unix__)
     atomic_thread_fence(std::memory_order_acq_rel);
+#else
+#error "Not implemented for the current platform"
+#endif
 }
 
 // =====================================================================================================================
@@ -404,7 +414,11 @@ PAL_INLINE void CpuId(
     uint32* pRegValues,
     uint32 level)
 {
+#if   defined(__unix__)
     __get_cpuid(level, pRegValues, pRegValues + 1, pRegValues + 2, pRegValues + 3);
+#else
+#error "Not implemented for the current platform"
+#endif
 }
 
 // =====================================================================================================================
@@ -418,7 +432,11 @@ PAL_INLINE void CpuId(
     uint32 level,
     uint32 sublevel)
 {
+#if   defined(__unix__)
     __cpuid_count(level, sublevel, *pRegValues, *(pRegValues + 1), *(pRegValues + 2), *(pRegValues + 3));
+#else
+#error "Not implemented for the current platform"
+#endif
 }
 
 /// Play beep sound. Currently function implemented only for WIN platform.

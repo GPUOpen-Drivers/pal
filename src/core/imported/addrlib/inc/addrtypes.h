@@ -57,22 +57,32 @@ typedef int            INT;
 ****************************************************************************************************
 */
 #ifndef ADDR_CDECL
+    #if defined(__GNUC__)
         #define ADDR_CDECL __attribute__((cdecl))
+    #else
+        #define ADDR_CDECL __cdecl
+    #endif
 #endif
 
 #ifndef ADDR_STDCALL
+    #if defined(__GNUC__)
         #if defined(__amd64__) || defined(__x86_64__)
             #define ADDR_STDCALL
         #else
             #define ADDR_STDCALL __attribute__((stdcall))
         #endif
+    #else
+        #define ADDR_STDCALL __stdcall
+    #endif
 #endif
 
 #ifndef ADDR_FASTCALL
     #if defined(BRAHMA_ARM)
         #define ADDR_FASTCALL
-    #else
+    #elif defined(__GNUC__)
         #define ADDR_FASTCALL __attribute__((regparm(0)))
+    #else
+        #define ADDR_FASTCALL __fastcall
     #endif
 #endif
 
@@ -88,7 +98,12 @@ typedef int            INT;
     #define GC_FASTCALL  ADDR_FASTCALL
 #endif
 
+#if defined(__GNUC__)
     #define ADDR_INLINE static inline   // inline needs to be static to link
+#else
+    // win32, win64, other platforms
+    #define ADDR_INLINE   __inline
+#endif // #if defined(__GNUC__)
 
 #define ADDR_API ADDR_FASTCALL //default call convention is fast call
 
@@ -619,13 +634,50 @@ typedef enum _AddrTileType
 //
 //  64-bit integer types depend on the compiler
 //
+#if defined( __GNUC__ ) || defined( __WATCOMC__ )
 #define INT_64   long long
 #define UINT_64  unsigned long long
 
+#else
+#error Unsupported compiler and/or operating system for 64-bit integers
+
+/// @brief 64-bit signed integer type (compiler dependent)
+/// @ingroup type
+///
+/// The addrlib defines a 64-bit signed integer type for either
+/// Gnu/Watcom compilers (which use the first syntax) or for
+/// the Windows VCC compiler (which uses the second syntax).
+#define INT_64  long long OR __int64
+
+/// @brief 64-bit unsigned integer type (compiler dependent)
+/// @ingroup type
+///
+/// The addrlib defines a 64-bit unsigned integer type for either
+/// Gnu/Watcom compilers (which use the first syntax) or for
+/// the Windows VCC compiler (which uses the second syntax).
+///
+#define UINT_64  unsigned long long OR unsigned __int64
+#endif
+
 //  ADDR64X is used to print addresses in hex form on both Windows and Linux
 //
+#if defined( __GNUC__ ) || defined( __WATCOMC__ )
 #define ADDR64X "llx"
 #define ADDR64D "lld"
+
+#else
+#error Unsupported compiler and/or operating system for 64-bit integers
+
+/// @brief Addrlib device address 64-bit printf tag  (compiler dependent)
+/// @ingroup type
+///
+/// This allows printf to display an ADDR_64 for either the Windows VCC compiler
+/// (which used this value) or the Gnu/Watcom compilers (which use "llx".
+/// An example of use is printf("addr 0x%"ADDR64X"\n", address);
+///
+#define ADDR64X "llx" OR "I64x"
+#define ADDR64D "lld" OR "I64d"
+#endif
 
 /// @brief Union for storing a 32-bit float or 32-bit integer
 /// @ingroup type

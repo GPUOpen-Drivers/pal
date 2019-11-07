@@ -822,7 +822,9 @@ void LogContext::Enum(
         "Tex2d",    // 0x1,
         "Tex3d",    // 0x2,
         "TexCube",  // 0x3,
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
         "TexQuilt", // 0x4,
+#endif
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(ImageViewType::Count),

@@ -115,6 +115,7 @@ static bool PreferFastDepthStencilClearGraphics(
 {
     bool         preferGraphics = false;
     const Image& gfx9Image      = static_cast<const Image&>(dstImage);
+    const auto&  settings       = GetGfx9Settings(*(gfx9Image.Parent()->GetDevice()));
     const auto&  createInfo     = gfx9Image.Parent()->GetImageCreateInfo();
     const bool   isMultiSample  = (createInfo.samples > 1);
     const uint32 imagePixelSize = createInfo.extent.width *
@@ -123,7 +124,9 @@ static bool PreferFastDepthStencilClearGraphics(
     // According to the experiment at the Vega10, compute and graphics clear has a
     // performance critical point, the critical value is 2048*2048 image size for
     // multiple sample image, and 1024*2048 image size for single sample image.
-    const uint32 imagePixelCriticalSize = isMultiSample ? 2048 * 2048 : 1024 * 2048;
+    const uint32 imagePixelCriticalSize = isMultiSample ?
+                                          settings.depthStencilFastClearComputeThresholdMultiSampled :
+                                          settings.depthStencilFastClearComputeThresholdSingleSampled;
 
     if (TestAnyFlagSet(depthLayout.usages, Pal::LayoutDepthStencilTarget) ||
         TestAnyFlagSet(stencilLayout.usages, Pal::LayoutDepthStencilTarget))
@@ -209,10 +212,12 @@ static PAL_INLINE ColorFormat HwColorFormat(
     switch (gfxLevel)
     {
     case GfxIpLevel::GfxIp9:
-        hwColorFmt = HwColorFmt(MergedChannelFmtInfoTbl(gfxLevel, &pDevice->Settings()), format);
+        hwColorFmt = HwColorFmt(MergedChannelFmtInfoTbl(gfxLevel, &pDevice->GetPlatform()->PlatformSettings()),
+                                format);
         break;
     case GfxIpLevel::GfxIp10_1:
-        hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel, &pDevice->Settings()), format);
+        hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel, &pDevice->GetPlatform()->PlatformSettings()),
+                                format);
         break;
     default:
         PAL_NEVER_CALLED();
@@ -2105,14 +2110,34 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
     bool                      computeResolve
     ) const
 {
-    const Image& gfx9Image     = static_cast<const Image&>(dstImage);
-    const auto&  dstCreateInfo = dstImage.Parent()->GetImageCreateInfo();
-    const auto&  device        = *m_pDevice->Parent();
+    const Image& gfx9Image                      = static_cast<const Image&>(dstImage);
+    const auto&  dstCreateInfo                  = dstImage.Parent()->GetImageCreateInfo();
+    const auto&  device                         = *m_pDevice->Parent();
+    bool         canDoFixupForDstImage          = true;
+
+    if (dstImage.Parent()->IsDepthStencil() == true)
+    {
+        for (uint32 i = 0; i< regionCount; i++)
+        {
+            const SubresId subResId = {pRegions->dstAspect, pRegions->dstMipLevel, pRegions->dstSlice};
+            const DepthStencilLayoutToState layoutToState = gfx9Image.LayoutToDepthCompressionState(subResId);
+
+            if (ImageLayoutToDepthCompressionState(layoutToState, dstImageLayout) != DepthStencilCompressed)
+            {
+                canDoFixupForDstImage = false;
+                break;
+            }
+        }
+    }
+    else
+    {
+        canDoFixupForDstImage = (ImageLayoutToColorCompressionState(gfx9Image.LayoutToColorCompressionState(),
+                                                                     dstImageLayout) == ColorCompressed);
+    }
 
     // For Gfx9, we need do fixup after fixfuction or compute shader resolve.
-    if (Util::TestAnyFlagSet(gfx9Image.LayoutToColorCompressionState().compressed.usages,
-                              Pal::LayoutResolveDst)
-        && ((IsGfx10(device) && (computeResolve == false)) || (IsGfx10(device) == false))
+    if (canDoFixupForDstImage
+        && ((computeResolve == false) || (IsGfx10(device) == false))
        )
     {
         BarrierInfo      barrierInfo = {};
@@ -4695,9 +4720,10 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
     GfxCmdBuffer*             pCmdBuffer,
     const Pal::Image&         srcImage,
     const Pal::Image&         dstImage,
+    ImageLayout               dstImageLayout,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions
-    ) const
+    const ImageResolveRegion* pRegions,
+    bool                      computeResolve) const
 {
     PAL_ASSERT(srcImage.IsDepthStencil() && dstImage.IsDepthStencil());
 
@@ -5962,8 +5988,121 @@ bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
     const ImageResolveRegion* pRegions
     ) const
 {
-    // GFX10 can't do copy resolves until the HwlHtileCopyAndFixUp function (below) is implemented.
-    return false;
+    const ImageCreateInfo& srcCreateInfo = srcImage.GetImageCreateInfo();
+    const ImageCreateInfo& dstCreateInfo = dstImage.GetImageCreateInfo();
+
+    PAL_ASSERT(srcCreateInfo.imageType == dstCreateInfo.imageType);
+    PAL_ASSERT(srcCreateInfo.imageType != ImageType::Tex3d);
+
+    const Image* const  pGfxSrcImage = static_cast<const Image*>(srcImage.GetGfxImage());
+    const Image* const  pGfxDstImage = static_cast<const Image*>(dstImage.GetGfxImage());
+
+    AutoBuffer<const ImageResolveRegion*, 2 * MaxImageMipLevels, Platform>
+        fixUpRegionList(regionCount, m_pDevice->GetPlatform());
+
+    bool canDoDepthStencilCopyResolve = (pGfxSrcImage->HasDsMetadata() || pGfxDstImage->HasDsMetadata());
+
+    if (fixUpRegionList.Capacity() >= regionCount)
+    {
+        uint32 mergedCount = 0;
+
+        for (uint32 region = 0; canDoDepthStencilCopyResolve && (region < regionCount); ++region)
+        {
+            const ImageResolveRegion& imageRegion = pRegions[region];
+            const SubresId srcSubResId = { imageRegion.srcAspect,
+                                           0,
+                                           imageRegion.srcSlice };
+            const SubresId dstSubResId = { imageRegion.dstAspect,
+                                           imageRegion.dstMipLevel,
+                                           imageRegion.dstSlice };
+
+            PAL_ASSERT(imageRegion.srcAspect == imageRegion.dstAspect);
+
+            const auto*   pSrcSubResInfo = srcImage.SubresourceInfo(srcSubResId);
+            const auto&   srcAddrSettings = pGfxSrcImage->GetAddrSettings(pSrcSubResInfo);
+
+            const auto*   pDstSubResInfo = dstImage.SubresourceInfo(dstSubResId);
+            const auto&   dstAddrSettings = pGfxDstImage->GetAddrSettings(pDstSubResInfo);
+
+            canDoDepthStencilCopyResolve &=
+                ((memcmp(&pSrcSubResInfo->format, &pDstSubResInfo->format, sizeof(SwizzledFormat)) == 0) &&
+                    (AddrMgr2::GetBlockSize(srcAddrSettings.swizzleMode) ==
+                        AddrMgr2::GetBlockSize(dstAddrSettings.swizzleMode)) &&
+                  AddrMgr2::IsZSwizzle(srcAddrSettings.swizzleMode) &&
+                  AddrMgr2::IsZSwizzle(dstAddrSettings.swizzleMode));
+
+            static const uint32 HtileTexelAlignment = 8;
+
+            // Htile copy and fixup will be performed simultaneously for depth and stencil part in depth-stencil copy
+            // resolve. Each mip level/dstSlice is only allowed to be appeared once for each aspect, while resolve
+            // offset and and resolve extent shall be exactly same. Otherwise, we don't track more and just let it
+            // switch pixel-shader resolve path.
+            bool inserted = false;
+            for (uint32 other = 0; other < mergedCount; ++other)
+            {
+                const ImageResolveRegion& otherRegion = *fixUpRegionList[other];
+                if ((imageRegion.dstMipLevel == otherRegion.dstMipLevel) &&
+                    (imageRegion.dstSlice == otherRegion.dstSlice))
+                {
+                    canDoDepthStencilCopyResolve &= ((otherRegion.srcOffset.x == imageRegion.srcOffset.x) &&
+                                                     (otherRegion.srcOffset.y == imageRegion.srcOffset.y) &&
+                                                     (otherRegion.dstOffset.x == imageRegion.dstOffset.x) &&
+                                                     (otherRegion.dstOffset.y == imageRegion.dstOffset.y) &&
+                                                     (otherRegion.extent.width == imageRegion.extent.width) &&
+                                                     (otherRegion.extent.height == imageRegion.extent.height) &&
+                                                     (otherRegion.numSlices == imageRegion.numSlices) &&
+                                                     (otherRegion.srcSlice == imageRegion.srcSlice));
+                    inserted = true;
+                    break;
+                }
+            }
+
+            if (inserted == false)
+            {
+                fixUpRegionList[mergedCount++] = &imageRegion;
+
+                // srcOffset and dstOffset have to match for a depth/stencil copy
+                canDoDepthStencilCopyResolve &= ((imageRegion.srcOffset.x == imageRegion.dstOffset.x) && (imageRegion.srcOffset.y == imageRegion.dstOffset.y));
+
+                PAL_ASSERT((imageRegion.dstOffset.x >= 0) && (imageRegion.dstOffset.y >= 0));
+
+                canDoDepthStencilCopyResolve &=
+                    (IsPow2Aligned(imageRegion.dstOffset.x, HtileTexelAlignment)                                     &&
+                     IsPow2Aligned(imageRegion.dstOffset.y, HtileTexelAlignment)                                     &&
+                     (IsPow2Aligned(imageRegion.extent.width, HtileTexelAlignment) ||
+                      ((imageRegion.extent.width + imageRegion.dstOffset.x) == pDstSubResInfo->extentTexels.width))  &&
+                     (IsPow2Aligned(imageRegion.extent.height, HtileTexelAlignment) ||
+                      ((imageRegion.extent.height + imageRegion.dstOffset.y) == pDstSubResInfo->extentTexels.height)));
+            }
+        }
+
+        if (canDoDepthStencilCopyResolve)
+        {
+            // Check if there's any array slice overlap. If there's array slice overlap,
+            // switch to pixel-shader resolve.
+            for (uint32 index = 0; index < mergedCount; ++index)
+            {
+                for (uint32 other = (index + 1); other < mergedCount; ++other)
+                {
+                    if ((fixUpRegionList[index]->dstMipLevel == fixUpRegionList[other]->dstMipLevel) &&
+                        (fixUpRegionList[index]->dstSlice <
+                            (fixUpRegionList[other]->dstSlice + fixUpRegionList[other]->numSlices)) &&
+                        (fixUpRegionList[other]->dstSlice <
+                            (fixUpRegionList[index]->dstSlice + fixUpRegionList[index]->numSlices)))
+                    {
+                        canDoDepthStencilCopyResolve = false;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        canDoDepthStencilCopyResolve = false;
+    }
+
+    return canDoDepthStencilCopyResolve;
 }
 
 // =====================================================================================================================
@@ -5974,13 +6113,17 @@ void Gfx10RsrcProcMgr::HwlHtileCopyAndFixUp(
     GfxCmdBuffer*             pCmdBuffer,
     const Pal::Image&         srcImage,
     const Pal::Image&         dstImage,
+    ImageLayout               dstImageLayout,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions
-    ) const
+    const ImageResolveRegion* pRegions,
+    bool                      computeResolve) const
 {
-    // Implementing this function requires udpating the "HwlCanDoDepthStencilCopyResolve" function as well so it
-    // actually gets called.
-    PAL_NOT_IMPLEMENTED();
+    HwlFixupResolveDstImage(pCmdBuffer,
+                            *dstImage.GetGfxImage(),
+                            dstImageLayout,
+                            pRegions,
+                            regionCount,
+                            computeResolve);
 }
 
 // =====================================================================================================================

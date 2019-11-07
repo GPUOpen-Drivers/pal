@@ -48,7 +48,11 @@
 // Platform specific debug break defines
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #if DEBUG
+    #if defined(__GNUC__)
         #define ADDR_DBG_BREAK()
+    #else
+        #define ADDR_DBG_BREAK()    { __debugbreak(); }
+    #endif
 #else
     #define ADDR_DBG_BREAK()
 #endif

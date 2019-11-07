@@ -424,6 +424,7 @@ Result Platform::Init()
 
         if (result == Result::Success)
         {
+#if   defined(__unix__)
             if (clock_gettime(CLOCK_MONOTONIC, &m_startTime) == -1)
             {
                 result = Result::ErrorUnknown;
@@ -433,6 +434,7 @@ Result Platform::Init()
                 // The timer is always in units of nanoseconds.
                 timerFreq = 1000 * 1000 * 1000;
             }
+#endif
         }
 
         if (result == Result::Success)
@@ -456,7 +458,11 @@ Result Platform::Init()
 
             m_pMainLog->KeyAndValue("api", "Vulkan");
 
+#if   defined(__unix__)
             m_pMainLog->KeyAndValue("os", "Linux");
+#else
+            static_assert(0, "Unknown client OS.");
+#endif
 
             m_pMainLog->KeyAndValue("timerFreq", timerFreq);
             m_pMainLog->KeyAndStruct("createInfo", m_createInfo);
@@ -569,6 +575,7 @@ uint64 Platform::GetTime() const
 {
     uint64 ticks = 0;
 
+#if   defined(__unix__)
     RawTimerVal time;
     const int result = clock_gettime(CLOCK_MONOTONIC, &time);
     PAL_ASSERT(result == 0);
@@ -581,6 +588,7 @@ uint64 Platform::GetTime() const
     const time_t sec    = time.tv_sec  - m_startTime.tv_sec  - borrow;
 
     ticks = static_cast<uint64>(sec * OneBillion + nsec);
+#endif
 
     return ticks;
 }

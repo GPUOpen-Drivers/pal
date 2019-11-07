@@ -187,6 +187,7 @@ public:
 
     WsiPlatform PlatformType() const { return m_platform; }
     const WindowSystemProperties& GetWindowSystemProperties() const { return m_windowSystemProperties; }
+    bool PresentOnSameGpu() const { return m_presentOnSameGpu; }
 
 protected:
     WindowSystem(WsiPlatform platform);
@@ -194,6 +195,8 @@ protected:
 
     const WsiPlatform      m_platform;
     WindowSystemProperties m_windowSystemProperties;
+
+    bool m_presentOnSameGpu;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(WindowSystem);

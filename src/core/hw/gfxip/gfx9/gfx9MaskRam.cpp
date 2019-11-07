@@ -4011,16 +4011,16 @@ IMG_FMT Gfx9Fmask::Gfx10FmaskFormat(
         switch (m_addrOutput.bpp)
         {
         case 8:
-            imgFmt = IMG_FMT_8_UINT;
+            imgFmt = IMG_FMT_8_UINT__GFX10CORE;
             break;
         case 16:
-            imgFmt = IMG_FMT_16_UINT;
+            imgFmt = IMG_FMT_16_UINT__GFX10CORE;
             break;
         case 32:
-            imgFmt = IMG_FMT_32_UINT;
+            imgFmt = IMG_FMT_32_UINT__GFX10CORE;
             break;
         case 64:
-            imgFmt = IMG_FMT_32_32_UINT;
+            imgFmt = IMG_FMT_32_32_UINT__GFX10CORE;
             break;
         default:
             PAL_ASSERT_ALWAYS();
@@ -4034,25 +4034,25 @@ IMG_FMT Gfx9Fmask::Gfx10FmaskFormat(
         constexpr IMG_FMT FMaskFormatTbl[4][4] =
         {
             // Two-sample formats
-            { IMG_FMT_FMASK8_S2_F1,         // One fragment
-              IMG_FMT_FMASK8_S2_F2, },      // Two fragments
+            { IMG_FMT_FMASK8_S2_F1__GFX10CORE,         // One fragment
+              IMG_FMT_FMASK8_S2_F2__GFX10CORE, },      // Two fragments
 
             // Four-sample formats
-            { IMG_FMT_FMASK8_S4_F1,         // One fragment
-              IMG_FMT_FMASK8_S4_F2,         // Two fragments
-              IMG_FMT_FMASK8_S4_F4, },      // Four fragments
+            { IMG_FMT_FMASK8_S4_F1__GFX10CORE,         // One fragment
+              IMG_FMT_FMASK8_S4_F2__GFX10CORE,         // Two fragments
+              IMG_FMT_FMASK8_S4_F4__GFX10CORE, },      // Four fragments
 
             // Eight-sample formats
-            { IMG_FMT_FMASK8_S8_F1,         // One fragment
-              IMG_FMT_FMASK16_S8_F2,        // Two fragments
-              IMG_FMT_FMASK32_S8_F4,        // Four fragments
-              IMG_FMT_FMASK32_S8_F8, },     // Eight fragments
+            { IMG_FMT_FMASK8_S8_F1__GFX10CORE,         // One fragment
+              IMG_FMT_FMASK16_S8_F2__GFX10CORE,        // Two fragments
+              IMG_FMT_FMASK32_S8_F4__GFX10CORE,        // Four fragments
+              IMG_FMT_FMASK32_S8_F8__GFX10CORE, },     // Eight fragments
 
             // Sixteen-sample formats
-            { IMG_FMT_FMASK16_S16_F1,       // One fragment
-              IMG_FMT_FMASK32_S16_F2,       // Two fragments
-              IMG_FMT_FMASK64_S16_F4,       // Four fragments
-              IMG_FMT_FMASK64_S16_F8, },    // Eight fragments
+            { IMG_FMT_FMASK16_S16_F1__GFX10CORE,       // One fragment
+              IMG_FMT_FMASK32_S16_F2__GFX10CORE,       // Two fragments
+              IMG_FMT_FMASK64_S16_F4__GFX10CORE,       // Four fragments
+              IMG_FMT_FMASK64_S16_F8__GFX10CORE, },    // Eight fragments
         };
 
         const uint32 log2Samples   = Log2(samples);

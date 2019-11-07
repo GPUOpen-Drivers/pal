@@ -144,9 +144,17 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
     //  See: https://en.cppreference.com/w/cpp/language/attributes/fallthrough
     #if defined(__clang__)
         #define DD_FALLTHROUGH() [[clang::fallthrough]]
-    #else
+    #elif defined(__GNUC__)
+        #if __GNUC__ >= 7
+            // gnu::fallthrough isn't supported until GCC 7+
+            #define DD_FALLTHROUGH() [[gnu::fallthrough]]
+        #else
             // Not supported on older versions of GCC
             #define DD_FALLTHROUGH()
+        #endif
+    #else
+        // We don't know what compiler this is, so just no-op the macro.
+        #define DD_FALLTHROUGH()
     #endif
 #endif
 

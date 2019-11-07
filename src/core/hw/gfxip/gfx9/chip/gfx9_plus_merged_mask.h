@@ -2995,8 +2995,6 @@ constexpr unsigned int SPI_WF_LIFETIME_CNTL__EN_MASK                      = 0x00
 constexpr unsigned int SPI_WF_LIFETIME_CNTL__SAMPLE_PERIOD_MASK           = 0x0000000fL;
 constexpr unsigned int SPI_WF_LIFETIME_LIMIT_0__EN_WARN_MASK              = 0x80000000L;
 constexpr unsigned int SPI_WF_LIFETIME_LIMIT_0__MAX_CNT_MASK              = 0x7fffffffL;
-constexpr unsigned int SPI_WF_LIFETIME_LIMIT_1__EN_WARN_MASK              = 0x80000000L;
-constexpr unsigned int SPI_WF_LIFETIME_LIMIT_1__MAX_CNT_MASK              = 0x7fffffffL;
 constexpr unsigned int SPI_WF_LIFETIME_LIMIT_2__EN_WARN_MASK              = 0x80000000L;
 constexpr unsigned int SPI_WF_LIFETIME_LIMIT_2__MAX_CNT_MASK              = 0x7fffffffL;
 constexpr unsigned int SPI_WF_LIFETIME_LIMIT_3__EN_WARN_MASK              = 0x80000000L;
@@ -3207,14 +3205,8 @@ constexpr unsigned int SQ_TIME_LO__TIME_MASK                              = 0xff
 constexpr unsigned int SQ_WAVE_EXEC_HI__EXEC_HI_MASK                      = 0xffffffffL;
 constexpr unsigned int SQ_WAVE_EXEC_LO__EXEC_LO_MASK                      = 0xffffffffL;
 constexpr unsigned int SQ_WAVE_FLUSH_IB__UNUSED_MASK                      = 0xffffffffL;
-constexpr unsigned int SQ_WAVE_IB_STS__EXP_CNT_MASK                       = 0x00000070L;
-constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT_MASK                      = 0x00000f00L;
-constexpr unsigned int SQ_WAVE_IB_STS__VALU_CNT_MASK                      = 0x00007000L;
-constexpr unsigned int SQ_WAVE_IB_STS__VM_CNT_HI_MASK                     = 0x00c00000L;
-constexpr unsigned int SQ_WAVE_IB_STS__VM_CNT_MASK                        = 0x0000000fL;
 constexpr unsigned int SQ_WAVE_LDS_ALLOC__LDS_SIZE_MASK                   = 0x001ff000L;
 constexpr unsigned int SQ_WAVE_M0__M0_MASK                                = 0xffffffffL;
-constexpr unsigned int SQ_WAVE_MODE__DEBUG_EN_MASK                        = 0x00000800L;
 constexpr unsigned int SQ_WAVE_MODE__DX10_CLAMP_MASK                      = 0x00000100L;
 constexpr unsigned int SQ_WAVE_MODE__EXCP_EN_MASK                         = 0x001ff000L;
 constexpr unsigned int SQ_WAVE_MODE__FP16_OVFL_MASK                       = 0x00800000L;
@@ -3837,8 +3829,16 @@ namespace Core
     constexpr unsigned int SPI_RESOURCE_RESERVE_EN_CU_7__EN_MASK              = 0x00000001L;
     constexpr unsigned int SPI_RESOURCE_RESERVE_EN_CU_7__QUEUE_MASK_MASK      = 0x00ff0000L;
     constexpr unsigned int SPI_RESOURCE_RESERVE_EN_CU_7__TYPE_MASK_MASK       = 0x0000fffeL;
+    constexpr unsigned int SPI_WF_LIFETIME_LIMIT_1__EN_WARN_MASK              = 0x80000000L;
+    constexpr unsigned int SPI_WF_LIFETIME_LIMIT_1__MAX_CNT_MASK              = 0x7fffffffL;
     constexpr unsigned int SQ_WAVE_GPR_ALLOC__SGPR_SIZE_MASK                  = 0x0f000000L;
+    constexpr unsigned int SQ_WAVE_IB_STS__EXP_CNT_MASK                       = 0x00000070L;
+    constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT_MASK                      = 0x00000f00L;
+    constexpr unsigned int SQ_WAVE_IB_STS__VALU_CNT_MASK                      = 0x00007000L;
+    constexpr unsigned int SQ_WAVE_IB_STS__VM_CNT_HI_MASK                     = 0x00c00000L;
+    constexpr unsigned int SQ_WAVE_IB_STS__VM_CNT_MASK                        = 0x0000000fL;
     constexpr unsigned int SQ_WAVE_INST_DW0__INST_DW0_MASK                    = 0xffffffffL;
+    constexpr unsigned int SQ_WAVE_MODE__DEBUG_EN_MASK                        = 0x00000800L;
 } // namespace Core
 
 namespace Gfx09
@@ -6636,8 +6636,6 @@ namespace Gfx10
     constexpr unsigned int SQ_WAVE_IB_STS2__INST_PREFETCH_MASK                = 0x00000003L;
     constexpr unsigned int SQ_WAVE_IB_STS2__MEM_ORDER_MASK                    = 0x00000300L;
     constexpr unsigned int SQ_WAVE_IB_STS2__WAVE64_MASK                       = 0x00000800L;
-    constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT_BIT4_MASK                 = 0x00000080L;
-    constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT_BIT5_MASK                 = 0x01000000L;
     constexpr unsigned int SQ_WAVE_IB_STS__VS_CNT_MASK                        = 0xfc000000L;
     constexpr unsigned int SQ_WAVE_LDS_ALLOC__LDS_BASE_MASK                   = 0x000001ffL;
     constexpr unsigned int SQ_WAVE_LDS_ALLOC__VGPR_SHARED_SIZE_MASK           = 0x0f000000L;
@@ -7541,6 +7539,8 @@ namespace Gfx10Core
     constexpr unsigned int SQ_WAVE_HW_ID_LEGACY__WAVE_ID_MASK                 = 0x0000000fL;
     constexpr unsigned int SQ_WAVE_HW_ID_LEGACY__WAVE_ID_MSB_MASK             = 0x00008000L;
     constexpr unsigned int SQ_WAVE_IB_STS2__RESOURCE_OVERRIDE_MASK            = 0x00000080L;
+    constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT_BIT4_MASK                 = 0x00000080L;
+    constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT_BIT5_MASK                 = 0x01000000L;
     constexpr unsigned int SQ_WAVE_VGPR_OFFSET__DST_MASK                      = 0x00fc0000L;
     constexpr unsigned int SQ_WAVE_VGPR_OFFSET__SRC0_MASK                     = 0x0000003fL;
     constexpr unsigned int SQ_WAVE_VGPR_OFFSET__SRC1_MASK                     = 0x00000fc0L;

@@ -72,8 +72,10 @@ void PlatformSettingsLoader::SetupDefaults()
 #endif
 
     m_settings.enableEventLogFile = false;
+#if   (__unix__)
     memset(m_settings.eventLogDirectory, 0, 512);
     strncpy(m_settings.eventLogDirectory, "amdpal/", 512);
+#endif
     memset(m_settings.eventLogFilename, 0, 512);
     strncpy(m_settings.eventLogFilename, "PalEventLog.json", 512);
 
@@ -92,13 +94,17 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.timeGraphConfig.gpuLineColor = GreenColor;
     m_settings.overlayBenchmarkConfig.maxBenchmarkTime = 0;
     m_settings.overlayBenchmarkConfig.usageLogEnable = false;
+#if   (__unix__)
     memset(m_settings.overlayBenchmarkConfig.usageLogDirectory, 0, 512);
     strncpy(m_settings.overlayBenchmarkConfig.usageLogDirectory, "amdpal/", 512);
+#endif
     memset(m_settings.overlayBenchmarkConfig.usageLogFilename, 0, 512);
     strncpy(m_settings.overlayBenchmarkConfig.usageLogFilename, "PalUsageLog.txt", 512);
     m_settings.overlayBenchmarkConfig.logFrameStats = false;
+#if   (__unix__)
     memset(m_settings.overlayBenchmarkConfig.frameStatsLogDirectory, 0, 512);
     strncpy(m_settings.overlayBenchmarkConfig.frameStatsLogDirectory, "amdpal/", 512);
+#endif
     m_settings.overlayBenchmarkConfig.maxLoggedFrames = 65536;
     m_settings.overlayMemoryInfoConfig.combineNonLocal = true;
     m_settings.overlayMemoryInfoConfig.reportCmdAllocator = true;
@@ -107,8 +113,10 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.overlayMemoryInfoConfig.displayPeakMemUsage = false;
     m_settings.gpuProfilerMode = GpuProfilerDisabled;
     m_settings.gpuProfilerTokenAllocatorSize = 4*1024*1024;
+#if   (__unix__)
     memset(m_settings.gpuProfilerConfig.logDirectory, 0, 512);
     strncpy(m_settings.gpuProfilerConfig.logDirectory, "amdpal/", 512);
+#endif
     m_settings.gpuProfilerConfig.startFrame = 0;
     m_settings.gpuProfilerConfig.frameCount = 0;
     m_settings.gpuProfilerConfig.recordPipelineStats = false;
@@ -147,15 +155,19 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep = 0x0;
     m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo = false;
     m_settings.pm4InstrumentorEnabled = false;
+#if   (__unix__)
     memset(m_settings.pm4InstrumentorConfig.logDirectory, 0, 512);
     strncpy(m_settings.pm4InstrumentorConfig.logDirectory, "amdpal/", 512);
+#endif
     memset(m_settings.pm4InstrumentorConfig.filenameSuffix, 0, 512);
     strncpy(m_settings.pm4InstrumentorConfig.filenameSuffix, "pm4-stats.log", 512);
     m_settings.pm4InstrumentorConfig.dumpMode = Pm4InstrumentorDumpQueueDestroy;
     m_settings.pm4InstrumentorConfig.dumpInterval = 5;
     m_settings.interfaceLoggerEnabled = false;
+#if   (__unix__)
     memset(m_settings.interfaceLoggerConfig.logDirectory, 0, 512);
     strncpy(m_settings.interfaceLoggerConfig.logDirectory, "amdpal/", 512);
+#endif
     m_settings.interfaceLoggerConfig.multithreaded = false;
     m_settings.interfaceLoggerConfig.basePreset = 0x7;
     m_settings.interfaceLoggerConfig.elevatedPreset = 0x1f;
@@ -1062,7 +1074,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 1292887905;
+            component.settingsDataHash = 893439670;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

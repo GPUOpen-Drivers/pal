@@ -228,6 +228,14 @@ Result CmdBuffer::Begin(
                 m_buildFlags.useCpuPathForTableUpdates = 0;
             }
 
+            // If this device does not support a constant engine, then we must use the
+            // CPU path for uploads regardless of any settings or the clients request.
+            const auto& engineFlags = m_device.EngineProperties().perEngine[m_engineType].flags;
+            if (engineFlags.constantEngineSupport == 0)
+            {
+                m_buildFlags.useCpuPathForTableUpdates = 1;
+            }
+
             if (settings.cmdBufForceOneTimeSubmit == CmdBufForceOneTimeSubmit::CmdBufForceOneTimeSubmitOn)
             {
                 m_buildFlags.optimizeOneTimeSubmit = 1;

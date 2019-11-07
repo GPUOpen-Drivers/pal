@@ -44,8 +44,8 @@ static_assert(ArrayLen(Gfx9MergedChannelFmtInfoTbl) == static_cast<size_t>(ChNum
 // =====================================================================================================================
 // Returns the format info table for the specific GfxIpLevel.
 const MergedFmtInfo* MergedChannelFmtInfoTbl(
-    GfxIpLevel                        gfxIpLevel,
-    const Pal::Gfx9::Gfx9PalSettings* pSettings)
+    GfxIpLevel                      gfxIpLevel,
+    const Pal::PalPlatformSettings* pSettings)
 {
     const MergedFmtInfo* pFmtInfo = nullptr;
 
@@ -70,8 +70,8 @@ const MergedFmtInfo* MergedChannelFmtInfoTbl(
 // =====================================================================================================================
 // Returns the format info table for the specific GfxIpLevel.
 const MergedFlatFmtInfo* MergedChannelFlatFmtInfoTbl(
-    GfxIpLevel                        gfxIpLevel,
-    const Pal::Gfx9::Gfx9PalSettings* pSettings)
+    GfxIpLevel                      gfxIpLevel,
+    const Pal::PalPlatformSettings* pSettings)
 {
     PAL_ASSERT(IsGfx10(gfxIpLevel));
     const MergedFlatFmtInfo*  pFlatFmtInfo = nullptr;

@@ -450,6 +450,14 @@ typedef void (*DrmFreeDevices)(
             drmDevicePtr*     pDevices,
             int32             count);
 
+typedef int32 (*DrmGetDevice2)(
+            int               fd,
+            uint32_t          flags,
+            drmDevicePtr*     pDevice);
+
+typedef void (*DrmFreeDevice)(
+            drmDevicePtr*     pDevice);
+
 typedef char* (*DrmGetBusid)(
             int   fd);
 
@@ -1083,6 +1091,18 @@ struct DrmLoaderFuncs
     bool pfnDrmFreeDevicesisValid() const
     {
         return (pfnDrmFreeDevices != nullptr);
+    }
+
+    DrmGetDevice2                     pfnDrmGetDevice2;
+    bool pfnDrmGetDevice2isValid() const
+    {
+        return (pfnDrmGetDevice2 != nullptr);
+    }
+
+    DrmFreeDevice                     pfnDrmFreeDevice;
+    bool pfnDrmFreeDeviceisValid() const
+    {
+        return (pfnDrmFreeDevice != nullptr);
     }
 
     DrmGetBusid                       pfnDrmGetBusid;
@@ -2111,6 +2131,24 @@ public:
     bool pfnDrmFreeDevicesisValid() const
     {
         return (m_pFuncs->pfnDrmFreeDevices != nullptr);
+    }
+
+    int32 pfnDrmGetDevice2(
+            int               fd,
+            uint32_t          flags,
+            drmDevicePtr*     pDevice) const;
+
+    bool pfnDrmGetDevice2isValid() const
+    {
+        return (m_pFuncs->pfnDrmGetDevice2 != nullptr);
+    }
+
+    void pfnDrmFreeDevice(
+            drmDevicePtr*     pDevice) const;
+
+    bool pfnDrmFreeDeviceisValid() const
+    {
+        return (m_pFuncs->pfnDrmFreeDevice != nullptr);
     }
 
     char* pfnDrmGetBusid(

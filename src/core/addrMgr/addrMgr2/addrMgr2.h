@@ -284,6 +284,19 @@ static bool IsXorSwizzle(
 }
 
 // =====================================================================================================================
+// Returns the micro swizzle type of one of the non-linear swizzle modes.
+static AddrSwType GetMicroSwizzle(
+    AddrSwizzleMode swizzleMode)
+{
+    // It's illegal to call this on linear modes.
+    PAL_ASSERT((swizzleMode != ADDR_SW_LINEAR) && (swizzleMode != ADDR_SW_LINEAR_GENERAL));
+
+    return (IsRotatedSwizzle(swizzleMode)     ? ADDR_SW_R :
+            IsDisplayableSwizzle(swizzleMode) ? ADDR_SW_D :
+            IsStandardSwzzle(swizzleMode)     ? ADDR_SW_S : ADDR_SW_Z);
+}
+
+// =====================================================================================================================
 // Returns the HW value of "EPITCH" for the supplied addr-output.
 static uint32 CalcEpitch(
     const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT* pAddrOutput)

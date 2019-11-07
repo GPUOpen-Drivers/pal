@@ -49,6 +49,18 @@ Result PresentSchedulerJob::CreateInternal(
     else
     {
         PresentSchedulerJob*const pJob = PAL_PLACEMENT_NEW(pMemory) PresentSchedulerJob();
+#if !defined(__unix__)
+        // The only unusual part of this process is here, where we place our job's fence immediately after it.
+        // Create the fence if it is required to do explicit synchronization between present and prior work
+        // Linux kernel would guarantee the in-order execution of render and present by respecting the
+        // order of submissions that refers to the same buffer object.
+        // In this case, the prior work fence is not needed since it is already serialized implicitly in the kernel.
+        {
+            pMemory = VoidPtrInc(pMemory, sizeof(PresentSchedulerJob));
+            Pal::FenceCreateInfo createInfo = {};
+            result  = pDevice->CreateFence(createInfo, pMemory, &pJob->m_pPriorWorkFence);
+        }
+#endif
 
         if (result == Result::Success)
         {
@@ -76,6 +88,9 @@ void PresentSchedulerJob::DestroyInternal(
 PresentSchedulerJob::PresentSchedulerJob()
     :
     m_node(this),
+#if !defined(__unix__)
+    m_pPriorWorkFence(nullptr),
+#endif
     m_type(PresentJobType::Terminate)
 {
     memset(&m_presentInfo, 0, sizeof(m_presentInfo));
@@ -84,6 +99,13 @@ PresentSchedulerJob::PresentSchedulerJob()
 // =====================================================================================================================
 PresentSchedulerJob::~PresentSchedulerJob()
 {
+#if !defined(__unix__)
+    if (m_pPriorWorkFence != nullptr)
+    {
+        m_pPriorWorkFence->Destroy();
+        m_pPriorWorkFence = nullptr;
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -234,7 +256,23 @@ Result PresentScheduler::PreparePresent(
     IQueue*              pQueue,
     PresentSchedulerJob* pJob)
 {
+#if !defined(__unix__)
+    // Use an empty submit to get the job's fence signaled once the app's prior rendering is completed.
+    // The scheduling thread will use this fence to know when the image is ready to be presented.
+    IFence*const pFence = pJob->PriorWorkFence();
+    Result result = m_pDevice->ResetFences(1, &pFence);
+
+    if (result == Result::Success)
+    {
+        SubmitInfo submitInfo = {};
+        submitInfo.pFence     = pFence;
+
+        result = pQueue->Submit(submitInfo);
+    }
+    return result;
+#else
     return Result::Success;
+#endif
 }
 
 // =====================================================================================================================
@@ -432,6 +470,16 @@ void PresentScheduler::RunWorkerThread()
 
             case PresentJobType::Present:
                 {
+#if !defined(__unix__)
+                    // Block the thread until the current job's image is ready to be presented. Directly waiting on
+                    // the fence is preferable to submitting a queue semaphore wait because some OS-specific
+                    // presentation logic that requires the CPU to know that we can begin executing a present before
+                    // preceeding.
+                    constexpr uint64 Timeout    = 2000000000;
+                    IFence*const     pFence     = pJob->PriorWorkFence();
+                    const Result     waitResult = m_pDevice->WaitForFences(1, &pFence, true, Timeout);
+                    PAL_ALERT(IsErrorResult(waitResult) || (waitResult == Result::Timeout));
+#endif
                     const Result presentResult = ProcessPresent(pJob->GetPresentInfo(), pJob->GetQueue(), false);
                     PAL_ALERT(IsErrorResult(presentResult));
                 }

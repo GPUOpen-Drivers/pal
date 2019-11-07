@@ -1008,8 +1008,8 @@ namespace DevDriver
 
             case mpack_type_bin:
                 DD_ASSERT_REASON("Unexpected 'bin' value in mpack data");
-                return Type::Null;
-            case mpack_type_missing: return Type::Null;
+                DD_FALLTHROUGH();
+            case mpack_type_missing: DD_FALLTHROUGH();
             case mpack_type_nil:     return Type::Null;
 
             default:                 return Type::Null;

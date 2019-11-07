@@ -814,7 +814,7 @@ Result Device::InitGpuProperties()
     case GfxIpLevel::GfxIp8:
     case GfxIpLevel::GfxIp8_1:
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_SOUTHERNISLAND;
-        m_pFormatPropertiesTable    = Gfx6::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
+        m_pFormatPropertiesTable     = Gfx6::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
         InitGfx6ChipProperties();
         Gfx6::InitializeGpuEngineProperties(m_chipProperties.gfxLevel,
                                             m_chipProperties.familyId,
@@ -825,12 +825,10 @@ Result Device::InitGpuProperties()
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_ARCTICISLAND;
-        m_pFormatPropertiesTable    = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
+        m_pFormatPropertiesTable     = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,
+                                                                      GetPlatform()->PlatformSettings());
         InitGfx9ChipProperties();
-        Gfx9::InitializeGpuEngineProperties(m_chipProperties.gfxLevel,
-                                            m_chipProperties.familyId,
-                                            m_chipProperties.eRevId,
-                                            &m_engineProperties);
+        Gfx9::InitializeGpuEngineProperties(m_chipProperties, &m_engineProperties);
         break;
     case GfxIpLevel::None:
         // No Graphics IP block found or recognized!
@@ -3162,6 +3160,9 @@ void Device::UpdateMetaData(
     // First 32 dwords are reserved for open source components.
     auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
                               (&metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+
+    pUmdMetaData->flags.mip_levels = image.GetImageCreateInfo().mipLevels;
+    pUmdMetaData->array_size       = image.GetImageCreateInfo().arraySize;
 
     if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
     {
@@ -5588,6 +5589,61 @@ Result Device::QueryWorkStationCaps(
     ) const
 {
     Result result = Result::ErrorUnavailable;
+
+    return result;
+}
+
+// =====================================================================================================================
+// Tell if the present device is same as rendering device
+Result Device::IsSameGpu(
+    int32 presentDeviceFd,
+    bool* pIsSame
+    ) const
+{
+    Result result                   = Result::Success;
+    char   busId[MaxBusIdStringLen] = {};
+
+    *pIsSame = false;
+
+    const char* pPresentDeviceBusId = m_drmProcs.pfnDrmGetBusid(presentDeviceFd);
+
+    if (pPresentDeviceBusId == nullptr)
+    {
+        // Try other ways to get the bus id.
+        drmDevicePtr presentDevice = nullptr;
+
+        int32 ret = m_drmProcs.pfnDrmGetDevice2(presentDeviceFd, 0, &presentDevice);
+
+        if (ret)
+        {
+            result = Result::ErrorUnknown;
+        }
+        else
+        {
+            PAL_ASSERT(presentDevice->bustype == DRM_BUS_PCI);
+
+            Util::Snprintf(busId,
+                           MaxBusIdStringLen,
+                           "pci:%04x:%02x:%02x.%d",
+                           presentDevice->businfo.pci->domain,
+                           presentDevice->businfo.pci->bus,
+                           presentDevice->businfo.pci->dev,
+                           presentDevice->businfo.pci->func);
+
+            m_drmProcs.pfnDrmFreeDevice(&presentDevice);
+        }
+    }
+    else
+    {
+        strcpy(busId, pPresentDeviceBusId);
+
+        m_drmProcs.pfnDrmFreeBusid(pPresentDeviceBusId);
+    }
+
+    if (result == Result::Success)
+    {
+        *pIsSame = (strcasecmp(&m_busId[0], busId) == 0);
+    }
 
     return result;
 }

@@ -32,7 +32,9 @@
 #include "palThread.h"
 #include "palVector.h"
 
+#if defined(__unix__)
 #include <time.h>
+#endif
 
 namespace Pal
 {
@@ -40,7 +42,9 @@ namespace InterfaceLogger
 {
 
 // Abstract the OS-dependent timer types for internal use.
+#if   defined(__unix__)
 typedef timespec RawTimerVal;
+#endif
 
 enum InterfaceLogFlags : uint32
 {

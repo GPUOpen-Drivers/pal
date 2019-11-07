@@ -665,16 +665,20 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         surfSettingInput.preferredSwSet.sw_S = 0;
     }
 
-    // 2D images with 128 bits per pixel should prefer that we do not use any S modes. The 128-bpp S micro tiling uses
-    // the y[0] bit as its first address bit which tends to make neighboring elements non-contiguous. The 128-bpp D
-    // micro tiling would be preferred because it uses x[0] instead, making even/odd pairs contiguous. This has a
-    // significant impact on linear-to-tiled copy speeds and should help in general.
+    // Before Vega 20, the sDMA engine couldn't execute 2D 128bpp S micro tiling copies at full rate. This seems to be
+    // because that swizzle mode uses the y[0] bit as its first address bit which tends to make neighboring elements
+    // non-contiguous. The 128-bpp D micro tiling would be preferred because it uses x[0] instead, making even/odd
+    // pairs contiguous. This has a significant impact on linear-to-tiled copy speeds and should help in general.
+    // However, benchmarking shows that S modes can be more efficient if DCC is in use so we shouldn't apply this
+    // optimization to render targets.
     //
     // Note that we must make sure the preferred set is not a power of two before we remove this S bit because we would
     // otherwise unset the last bit, giving addrlib a value of zero. That's a special value which tells addrlib to pick
     // its own defaults which is definitely not what the above code intended.
-    if ((createInfo.imageType == ImageType::Tex2d) &&
-        (surfSettingInput.bpp == 128)              &&
+    if ((IsVega10(*m_pDevice) || IsVega12(*m_pDevice)) &&
+        (createInfo.imageType == ImageType::Tex2d)     &&
+        (pImage->IsRenderTarget() == false)            &&
+        (surfSettingInput.bpp == 128)                  &&
         (IsPowerOfTwo(surfSettingInput.preferredSwSet.value) == false))
     {
         surfSettingInput.preferredSwSet.sw_S = 0;

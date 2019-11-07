@@ -763,5 +763,17 @@ static const Gfx9PalSettings& GetGfx9Settings(const Pal::Device& device)
     return static_cast<const Pal::Gfx9::Device*>(device.GetGfxDevice())->Settings();
 }
 
+extern bool IsBufferBigPageCompatible(
+    const GpuMemory& gpuMemory,
+    gpusize          offset,
+    gpusize          extent,
+    uint32           bigPageUsageMask);
+extern bool IsImageBigPageCompatible(
+    const Image& image,
+    uint32       bigPageUsageMask);
+extern bool IsFmaskBigPageCompatible(
+    const Image& image,
+    uint32       bigPageUsageMask);
+
 } // Gfx9
 } // Pal

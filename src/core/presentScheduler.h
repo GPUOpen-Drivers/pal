@@ -58,6 +58,9 @@ public:
     void DestroyInternal(Device* pDevice);
 
     Node* ListNode() { return &m_node; }
+#if !defined(__unix__)
+    IFence* PriorWorkFence() { return m_pPriorWorkFence; }
+#endif
     void SetType(PresentJobType type) { m_type = type; }
     PresentJobType GetType() const { return m_type; }
 
@@ -72,6 +75,9 @@ private:
     ~PresentSchedulerJob();
 
     Node                 m_node;            // The present scheduler maintains intrusive lists of jobs.
+#if !defined(__unix__)
+    IFence*              m_pPriorWorkFence; // Signaled when the application's work prior to this present has completed.
+#endif
     PresentJobType       m_type;            // How to interpret this job (e.g., execute a present).
     PresentSwapChainInfo m_presentInfo;     // All of the information for a present.
     IQueue*              m_pQueue;          // Internal queue of the same device as the original presentation queue.

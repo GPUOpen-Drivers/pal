@@ -2207,10 +2207,6 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         case ImageViewType::TexCube:
             srd.word3.bits.TYPE = SQ_RSRC_IMG_CUBE;
             break;
-        case ImageViewType::TexQuilt:
-            // Quilting is not supported on GFX6!
-            PAL_ASSERT_ALWAYS();
-            break;
         default:
             PAL_ASSERT_ALWAYS();
             break;
@@ -2718,6 +2714,8 @@ void InitializeGpuChipProperties(
     pInfo->imageProperties.maxImageDimension.depth  = MaxImageDepth;
     pInfo->imageProperties.maxImageArraySize        = MaxImageArraySlices;
     pInfo->imageProperties.prtTileSize              = PrtTileSize;
+    pInfo->imageProperties.msaaSupport              = MsaaAll;
+    pInfo->imageProperties.maxMsaaFragments         = 8;
 
     // GFX6 ASICs support creating AQBS stereo images.
     pInfo->imageProperties.flags.supportsAqbsStereoMode = 1;

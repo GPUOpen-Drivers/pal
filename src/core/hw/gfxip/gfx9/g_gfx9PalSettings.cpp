@@ -59,7 +59,9 @@ void SettingsLoader::SetupDefaults()
 {
     // set setting variables to their default values...
     m_settings.enableLoadIndexForObjectBinds = true;
-    m_settings.copyDstIsCompressed = Gfx10CopyDstAlwaysAllow;
+    m_settings.copyDstIsCompressed = CopyDstComprAlwaysAllowGfx10;
+
+    m_settings.allowBigPage = 0x3f;
 
     m_settings.disableBorderColorPaletteBinds = false;
     m_settings.drainPsOnOverlap = false;
@@ -75,7 +77,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.useCompToSingle = 0x1f;
 
     m_settings.forceRegularClearCode = false;
-
     m_settings.forceGraphicsFillMemoryPath = false;
     m_settings.waitOnMetadataMipTail = false;
     m_settings.blendOptimizationsEnable = true;
@@ -85,6 +86,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.fmaskAllowPipeBankXor = false;
     m_settings.dccOnComputeEnable = 0x3;
     m_settings.useDcc = 0x1ff;
+    m_settings.cbDbCachePolicy = 0x0;
+
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
     m_settings.csSimdDestCntl = CsSimdDestCntlDefault;
@@ -101,6 +104,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.enableOnchipGs = true;
     m_settings.enableOutOfOrderPrimitives = OutOfOrderPrimSafe;
     m_settings.outOfOrderWatermark = 7;
+    m_settings.disableGeCntlVtxGrouping = false;
     m_settings.gsCuGroupEnabled = false;
     m_settings.gsMaxLdsSize = 8192;
     m_settings.gsOffChipThreshold = 64;
@@ -174,6 +178,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.samplerAnisoBias = 0;
     m_settings.samplerSecAnisoBias = 0;
     m_settings.waRestrictMetaDataUseInMipTail = false;
+
     m_settings.waLogicOpDisablesOverwriteCombiner = false;
     m_settings.waRotatedSwizzleDisablesOverwriteCombiner = false;
     m_settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable = false;
@@ -204,6 +209,8 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.waVgtFlushNggToLegacyGs = false;
 
+    m_settings.waVgtFlushNggToLegacy = false;
+
     m_settings.waEnableIndexBufferPrefetchForNgg = false;
 
     m_settings.waZ16Unorm1xAaDecompressUninitialized = false;
@@ -214,10 +221,16 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.waStalledPopsMode = false;
 
+    m_settings.waCeDisableIb2 = false;
+
+    m_settings.waUtcL0InconsistentBigPage = false;
+
     m_settings.waTwoPlanesIterate256 = false;
 
     m_settings.waTessIncorrectRelativeIndex = false;
 
+    m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
+    m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
     m_settings.numSettings = g_gfx9PalNumSettings;
 }
 
@@ -234,6 +247,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCopyDstIsCompressedStr,
                            Util::ValueType::Uint,
                            &m_settings.copyDstIsCompressed,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllowBigPageStr,
+                           Util::ValueType::Uint,
+                           &m_settings.allowBigPage,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBorderColorPaletteBindsStr,
@@ -336,6 +354,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.useDcc,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCbDbCachePolicyStr,
+                           Util::ValueType::Uint,
+                           &m_settings.cbDbCachePolicy,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCsMaxWavesPerCuStr,
                            Util::ValueType::Uint,
                            &m_settings.csMaxWavesPerCu,
@@ -414,6 +437,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOutOfOrderWatermarkStr,
                            Util::ValueType::Uint,
                            &m_settings.outOfOrderWatermark,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableGeCntlVtxGroupingStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.disableGeCntlVtxGrouping,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGsCuGroupEnabledStr,
@@ -876,6 +904,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waVgtFlushNggToLegacyGs,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaVgtFlushNggToLegacyStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waVgtFlushNggToLegacy,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaEnableIndexBufferPrefetchForNggStr,
                            Util::ValueType::Boolean,
                            &m_settings.waEnableIndexBufferPrefetchForNgg,
@@ -901,6 +934,16 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waStalledPopsMode,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaCeDisableIb2Str,
+                           Util::ValueType::Boolean,
+                           &m_settings.waCeDisableIb2,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaUtcL0InconsistentBigPageStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waUtcL0InconsistentBigPage,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaTwoPlanesIterate256Str,
                            Util::ValueType::Boolean,
                            &m_settings.waTwoPlanesIterate256,
@@ -911,6 +954,16 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waTessIncorrectRelativeIndex,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdSingleSampledStr,
+                           Util::ValueType::Uint,
+                           &m_settings.depthStencilFastClearComputeThresholdSingleSampled,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdMultiSampledStr,
+                           Util::ValueType::Uint,
+                           &m_settings.depthStencilFastClearComputeThresholdMultiSampled,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
 }
 
 // =====================================================================================================================
@@ -919,6 +972,26 @@ void SettingsLoader::ReadSettings()
 void SettingsLoader::RereadSettings()
 {
     // read from the OS adapter for each individual setting
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCbDbCachePolicyStr,
+                           Util::ValueType::Uint,
+                           &m_settings.cbDbCachePolicy,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx10GePcAllocNumLinesPerSeLegacyNggPassthruStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningContextStatesPerBinStr,
+                           Util::ValueType::Uint,
+                           &m_settings.binningContextStatesPerBin,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningPersistentStatesPerBinStr,
+                           Util::ValueType::Uint,
+                           &m_settings.binningPersistentStatesPerBin,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaRestrictMetaDataUseInMipTailStr,
                            Util::ValueType::Boolean,
                            &m_settings.waRestrictMetaDataUseInMipTail,
@@ -1034,6 +1107,11 @@ void SettingsLoader::RereadSettings()
                            &m_settings.waVgtFlushNggToLegacyGs,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaVgtFlushNggToLegacyStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waVgtFlushNggToLegacy,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaEnableIndexBufferPrefetchForNggStr,
                            Util::ValueType::Boolean,
                            &m_settings.waEnableIndexBufferPrefetchForNgg,
@@ -1059,6 +1137,16 @@ void SettingsLoader::RereadSettings()
                            &m_settings.waStalledPopsMode,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaCeDisableIb2Str,
+                           Util::ValueType::Boolean,
+                           &m_settings.waCeDisableIb2,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaUtcL0InconsistentBigPageStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waUtcL0InconsistentBigPage,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaTwoPlanesIterate256Str,
                            Util::ValueType::Boolean,
                            &m_settings.waTwoPlanesIterate256,
@@ -1067,6 +1155,16 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaTessIncorrectRelativeIndexStr,
                            Util::ValueType::Boolean,
                            &m_settings.waTessIncorrectRelativeIndex,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdSingleSampledStr,
+                           Util::ValueType::Uint,
+                           &m_settings.depthStencilFastClearComputeThresholdSingleSampled,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdMultiSampledStr,
+                           Util::ValueType::Uint,
+                           &m_settings.depthStencilFastClearComputeThresholdMultiSampled,
                            InternalSettingScope::PrivatePalGfx9Key);
 
 }
@@ -1086,6 +1184,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.copyDstIsCompressed;
     info.valueSize = sizeof(m_settings.copyDstIsCompressed);
     m_settingsInfoMap.Insert(3919048798, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.allowBigPage;
+    info.valueSize = sizeof(m_settings.allowBigPage);
+    m_settingsInfoMap.Insert(1926167631, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.disableBorderColorPaletteBinds;
@@ -1188,6 +1291,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(4029518654, info);
 
     info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.cbDbCachePolicy;
+    info.valueSize = sizeof(m_settings.cbDbCachePolicy);
+    m_settingsInfoMap.Insert(4090628834, info);
+
+    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.csMaxWavesPerCu;
     info.valueSize = sizeof(m_settings.csMaxWavesPerCu);
     m_settingsInfoMap.Insert(4216700794, info);
@@ -1266,6 +1374,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.outOfOrderWatermark;
     info.valueSize = sizeof(m_settings.outOfOrderWatermark);
     m_settingsInfoMap.Insert(2921949520, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.disableGeCntlVtxGrouping;
+    info.valueSize = sizeof(m_settings.disableGeCntlVtxGrouping);
+    m_settingsInfoMap.Insert(3045229933, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gsCuGroupEnabled;
@@ -1728,6 +1841,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(1821581352, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waVgtFlushNggToLegacy;
+    info.valueSize = sizeof(m_settings.waVgtFlushNggToLegacy);
+    m_settingsInfoMap.Insert(3701186862, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waEnableIndexBufferPrefetchForNgg;
     info.valueSize = sizeof(m_settings.waEnableIndexBufferPrefetchForNgg);
     m_settingsInfoMap.Insert(816147502, info);
@@ -1753,6 +1871,16 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(54918207, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waCeDisableIb2;
+    info.valueSize = sizeof(m_settings.waCeDisableIb2);
+    m_settingsInfoMap.Insert(2126259346, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waUtcL0InconsistentBigPage;
+    info.valueSize = sizeof(m_settings.waUtcL0InconsistentBigPage);
+    m_settingsInfoMap.Insert(1748539367, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waTwoPlanesIterate256;
     info.valueSize = sizeof(m_settings.waTwoPlanesIterate256);
     m_settingsInfoMap.Insert(164975373, info);
@@ -1761,6 +1889,16 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.waTessIncorrectRelativeIndex;
     info.valueSize = sizeof(m_settings.waTessIncorrectRelativeIndex);
     m_settingsInfoMap.Insert(3815932601, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.depthStencilFastClearComputeThresholdSingleSampled;
+    info.valueSize = sizeof(m_settings.depthStencilFastClearComputeThresholdSingleSampled);
+    m_settingsInfoMap.Insert(2634603321, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.depthStencilFastClearComputeThresholdMultiSampled;
+    info.valueSize = sizeof(m_settings.depthStencilFastClearComputeThresholdMultiSampled);
+    m_settingsInfoMap.Insert(2782857680, info);
 
 }
 
@@ -1783,7 +1921,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 4255185902;
+            component.settingsDataHash = 1612492929;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

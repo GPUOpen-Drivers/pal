@@ -319,7 +319,7 @@ private:
 
     /// Overflow handler callback provided to CWPack.
     template <typename Allocator>
-    static int32 GrowBuffer(cw_pack_context* pContext, unsigned long requestedNumBytesToAdd);
+    static int32 CWP_CALL GrowBuffer(cw_pack_context* pContext, unsigned long requestedNumBytesToAdd);
 
     /// Writer buffer is allocated with, and grown in multiples of, this size.
     static constexpr uint32 BufferAllocSize = 1024;

@@ -47,7 +47,6 @@ template <typename Allocator> class StringProcessor;
 /**
  ***********************************************************************************************************************
  * @brief Creates and stores the ELF sections.
- * SEE: Section 4 in https://www.uclibc.org/docs/elf-64-gen.pdf
  ***********************************************************************************************************************
  */
 template <typename Allocator>

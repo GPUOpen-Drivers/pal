@@ -517,8 +517,10 @@ private:
         GfxCmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
+        ImageLayout               dstImageLayout,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const override;
+        const ImageResolveRegion* pRegions,
+        bool                      computeResolve) const override;
 
     void HwlUpdateDstImageFmaskMetaData(
         GfxCmdBuffer*          pCmdBuffer,
@@ -647,8 +649,10 @@ private:
         GfxCmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
+        ImageLayout               dstImageLayout,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const override;
+        const ImageResolveRegion* pRegions,
+        bool                      computeResolve) const override;
 
     virtual void HwlUpdateDstImageFmaskMetaData(
         GfxCmdBuffer*          pCmdBuffer,

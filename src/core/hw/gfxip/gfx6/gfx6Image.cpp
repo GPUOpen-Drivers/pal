@@ -922,11 +922,10 @@ void Image::InitLayoutStateMasksOneMip(
                 // Our copy path has been designed to allow compressed copy sources.
                 m_layoutToState[mip].color.compressed.usages |= LayoutCopySrc;
 
-                // You can't raw copy to a compressed texture, you can only write to it using the image's format.
-                // Add in LayoutCopyDst if the client promises that all copies will only write using the image's
-                // format.
-                if (m_createInfo.flags.copyFormatsMatch != 0)
+                if (GetGfx6Settings(m_device).gfx8CopyDstIsCompressed)
                 {
+                    // Avoid DCC decompresses of copy destinations by promising to use graphics blits in RPM.
+                    // This is not fully implemented and is unsafe. It exists as a perf debug tool.
                     m_layoutToState[mip].color.compressed.usages |= LayoutCopyDst;
                 }
 

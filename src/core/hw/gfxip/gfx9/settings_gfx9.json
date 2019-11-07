@@ -17,6 +17,7 @@
     "Prefetching (L2 Cache Warming)",
     "Texture Filtering",
     "Hardware Workarounds",
+    "RPM",
     "Gfx9",
     {
       "Name": "Gfx10"
@@ -41,22 +42,27 @@
         "IsEnum": true,
         "Values": [
           {
-            "Name": "Gfx10CopyDstAlwaysAllow",
+            "Name": "CopyDstComprNeverAllow",
             "Value": 0,
-            "Description": "If set, copy-dst will always be set as a compressible layout"
-          },
-          {
-            "Name": "Gfx10CopyDstNeverAllow",
-            "Value": 1,
             "Description": "If set, copy-dst will never be set as a compressible layout"
           },
           {
-            "Name": "Gfx10CopyDstAllowForReadableFormats",
+            "Name": "CopyDstComprAlwaysAllow",
+            "Value": 1,
+            "Description": "If set, copy-dst will always be set as a compressible layout"
+          },
+          {
+            "Name": "CopyDstComprAlwaysAllowGfx10",
             "Value": 2,
-            "Description": "If set, copy-dst will be set as a compressible layout for shader readable image formats only"
+            "Description": "If set, copy-dst will always be set as a compressible layout, but only on gfx10+"
+          },
+          {
+            "Name": "CopyDstComprAllowForReadableFormatsGfx10",
+            "Value": 3,
+            "Description": "If set, copy-dst will be set as a compressible layout for shader readable image formats only, but only on gfx10+"
           }
         ],
-        "Name": "Gfx10CopyDst"
+        "Name": "CopyDstCompr"
       },
       "Description": "Determines how the LayoutCopyDst will be set in compressed usages",
       "Tags": [
@@ -64,12 +70,61 @@
         "Gfx10"
       ],
       "Defaults": {
-        "Default": "Gfx10CopyDstAlwaysAllow"
+        "Default": "CopyDstComprAlwaysAllowGfx10"
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
       "VariableName": "copyDstIsCompressed",
       "Name": "CopyDstIsCompressed"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Gfx10AllowBigPageRenderTarget",
+            "Value": 1,
+            "Description": "Color render targets"
+          },
+          {
+            "Name": "Gfx10AllowBigPageDepthStencil",
+            "Value": 2,
+            "Description": "Depth stencil images"
+          },
+          {
+            "Name": "Gfx10AllowBigPageShaderWrite",
+            "Value": 4,
+            "Description": "Shader writeable images"
+          },
+          {
+            "Name": "Gfx10AllowBigPageShaderRead",
+            "Value": 8,
+            "Description": "Shader readable images"
+          },
+          {
+            "Name": "Gfx10AllowBigPageBuffers",
+            "Value": 16,
+            "Description": "Renderable buffers"
+          }
+        ],
+        "Name": "Gfx10AllowBigPage"
+      },
+      "Description": "Bitmask of cases where big-page will potentially be enabled",
+      "Tags": [
+        "General",
+        "Gfx9"
+      ],
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 63
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "allowBigPage",
+      "Name": "AllowBigPage"
     },
     {
       "Description": "Disables binding of border color palettes, and forces any samplers created to use a transparent black color. ",
@@ -386,20 +441,6 @@
       "Name": "ForceRegularClearCode"
     },
     {
-      "Description": "Forces reporting support of ASTC/ETC2 texture reads and disables BC4-7. Warning: On gfx10 hardware, this is intended to be used only in IFH mode.",
-      "Tags": [
-        "General",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "forceEtcAstcEnable",
-      "Name": "ForceEtcAstcEnable"
-    },
-    {
       "Description": "Forces use of a graphics fill memory path on command buffers that supports graphics ops",
       "Tags": [
         "General",
@@ -609,6 +650,71 @@
       "Type": "uint32",
       "VariableName": "useDcc",
       "Name": "UseDcc"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Gfx10CbDbCachePolicyLruCmask",
+            "Value": 1,
+            "Description": "Use cache policy LRU for CMASK"
+          },
+          {
+            "Name": "Gfx10CbDbCachePolicyLruDcc",
+            "Value": 2,
+            "Description": "Use cache policy LRU for DCC"
+          },
+          {
+            "Name": "Gfx10CbDbCachePolicyLruFmask",
+            "Value": 4,
+            "Description": "Use cache policy LRU for FMASK"
+          },
+          {
+            "Name": "Gfx10CbDbCachePolicyLruHtile",
+            "Value": 8,
+            "Description": "Use cache policy LRU for HTILE"
+          },
+          {
+            "Name": "Gfx10CbDbCachePolicyLruOcclusion",
+            "Value": 16,
+            "Description": "Use cache policy LRU for Occlusion"
+          },
+          {
+            "Name": "Gfx10CbDbCachePolicyLruDepth",
+            "Value": 256,
+            "Description": "Use cache policy LRU for Depth. WARNING - Use with caution, can dominate L2."
+          },
+          {
+            "Name": "Gfx10CbDbCachePolicyLruStencil",
+            "Value": 512,
+            "Description": "Use cache policy LRU for Stencil. WARNING - Use with caution, can dominate L2."
+          },
+          {
+            "Name": "Gfx10CbDbCachePolicyLruColor",
+            "Value": 1024,
+            "Description": "Use cache policy LRU for Color. WARNING - NOT RECOMMENDED as it can dominate L2."
+          }
+        ],
+        "Name": "Gfx10CbDbCachePolicyLru"
+      },
+      "Description": "Bitmask of which CB/DB cache policies to follow.",
+      "Tags": [
+        "Color Targets",
+        "Gfx10"
+      ],
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true,
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "cbDbCachePolicy",
+      "Name": "CbDbCachePolicy"
     },
     {
       "ValidValues": {
@@ -1001,6 +1107,20 @@
       "Name": "OutOfOrderWatermark"
     },
     {
+      "Description": "If true, disables vertex grouping specified in GE_CNTL register for Gfx10+ ASICs by setting VERT_GRP_SIZE to 256.",
+      "Tags": [
+        "General",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "disableGeCntlVtxGrouping",
+      "Name": "DisableGeCntlVtxGrouping"
+    },
+    {
       "Description": "If true, the HW-GS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-GS prefers to send only one wave to each CU before moving to the next enabled CU.",
       "Tags": [
         "Graphics Pipelines",
@@ -1348,7 +1468,8 @@
       "VariableName": "gfx10GePcAllocNumLinesPerSeLegacyNggPassthru",
       "Name": "Gfx10GePcAllocNumLinesPerSeLegacyNggPassthru",
       "Flags": {
-        "IsHex": true
+        "IsHex": true,
+        "RereadSetting": true
       }
     },
     {
@@ -1914,6 +2035,9 @@
       "Defaults": {
         "Default": 1
       },
+      "Flags": {
+        "RereadSetting": true
+      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
       "VariableName": "binningContextStatesPerBin",
@@ -1927,6 +2051,9 @@
       ],
       "Defaults": {
         "Default": 1
+      },
+      "Flags": {
+        "RereadSetting": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
@@ -2547,6 +2674,22 @@
       "Name": "WaVgtFlushNggToLegacyGs"
     },
     {
+      "Description": "If set, PAL will insert a VGT_FLUSH between a pipeline transition from a NGG to a legacy pipeline.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waVgtFlushNggToLegacy",
+      "Name": "WaVgtFlushNggToLegacy"
+    },
+    {
       "Description": "If true, enables prefetching of Index buffer pages prior to draws in NGG piplines.",
       "Tags": [
         "Hardware Workarounds"
@@ -2627,6 +2770,38 @@
       "Name": "WaStalledPopsMode"
     },
     {
+      "Description": "If true, IB2's cannot be used on the constant engine (CE).",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "waCeDisableIb2",
+      "Name": "WaCeDisableIb2"
+    },
+    {
+      "Description": "If true, prevents enabling BIG_PAGE for resources that could share a 64KiB memory region with a non-BIG_PAGE resource.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waUtcL0InconsistentBigPage",
+      "Name": "WaUtcL0InconsistentBigPage"
+    },
+    {
       "Description": "If the workaround is enabled, then 4x MSAA Depth/Stencil surfaces will set the number of z planes for decompress to 2 in order to avoid a hang associated with setting iterate_256 to 1.",
       "Tags": [
         "Hardware Workarounds"
@@ -2657,6 +2832,40 @@
       "Type": "bool",
       "VariableName": "waTessIncorrectRelativeIndex",
       "Name": "WaTessIncorrectRelativeIndex"
+    },
+    {
+      "Description": "Determines if GFX or Compute is used to fast clear SingleSampled DepthStencil surfaces. Value is in units of (pix width x height x depth). Values <= this will take GFX else Compute.",
+      "Tags": [
+        "RPM"
+      ],
+      "Defaults": {
+        "Default": 2097152
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "depthStencilFastClearComputeThresholdSingleSampled",
+      "Name": "DepthStencilFastClearComputeThresholdSingleSampled",
+      "Flags": {
+        "IsHex": false,
+        "RereadSetting": true
+      }
+    },
+    {
+      "Description": "Determines if GFX or Compute is used to fast clear MultiSampled DepthStencil surfaces. Value is in units of (pix width x height x depth). Values <= this will take GFX else Compute.",
+      "Tags": [
+        "RPM"
+      ],
+      "Defaults": {
+        "Default": 4194304
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "depthStencilFastClearComputeThresholdMultiSampled",
+      "Name": "DepthStencilFastClearComputeThresholdMultiSampled",
+      "Flags": {
+        "IsHex": false,
+        "RereadSetting": true
+      }
     }
   ]
 }

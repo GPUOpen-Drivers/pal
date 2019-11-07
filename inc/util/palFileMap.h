@@ -84,6 +84,7 @@ public:
     /// @returns Success if the file mapping was successfully reloaded.
     Result ReloadMap(size_t newSize);
 
+#if defined(__unix__)
     /// Returns the file descriptor of the memory mapped file.
     ///
     /// @returns file descriptor.
@@ -93,6 +94,17 @@ public:
     ///
     /// @returns Turn if the memory mapped file is open.
     bool IsValid() const { return GetHandle() > 0; }
+#else
+    /// Returns the CPU pointer to the memory mapped file memory.
+    ///
+    /// @returns CPU pointer to memory mapped file memory.
+    void* GetHandle() const { return m_memoryMapping; }
+
+    /// Determines if the file mapping object is valid
+    ///
+    /// @returns True if the file mapping object is open and has a valid CPU pointer.
+    bool IsValid() const { return GetHandle() != nullptr; }
+#endif
 
     /// Flushes the current file ensuring all cached writes are completed out to disk
     ///
@@ -100,7 +112,12 @@ public:
     bool Flush();
 
 private:
+#if defined(__unix__)
     int         m_fileHandle;       ///< File descriptor of the file that is opened for mapping
+#else
+    void*       m_memoryMapping;    ///< CPU pointer to memory mapped file memory.
+    void*       m_fileHandle;       ///< Handle to the file that is opened for mapping
+#endif
     bool        m_writeable;        ///< Flag that indicates if this mapping is writeable
     const char* m_pFileName;        ///< File name for the file being mapped.
     const char* m_pSystemName;      ///< System name for the file mapping, used to share file mapping object across

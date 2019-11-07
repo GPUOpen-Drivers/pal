@@ -95,18 +95,22 @@ private:
     StartFunction m_pfnStartFunction;
     void*         m_pStartParameter;
 
+#if   defined(__unix__)
     static void* StartThread(void* pThreadObject);
 
     // Linux/pthreads has no portable way of representing an 'invalid' thread ID, so we will simply store the result of
     // the pthread_create call used to spawn the thread.  This can then be used to determine if the thread is valid.
     Result        m_threadStatus;
     pthread_t     m_threadId;     // Pthreads thread identifier.
+#endif
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Thread);
 };
 
+#if   defined(__unix__)
 /// Defines an opaque key, visible to all threads, that is used to store and retrieve data local to the current thread.
 typedef pthread_key_t ThreadLocalKey;
+#endif
 
 /// Creates a new key for this process to store and retrieve thread-local data.  It is a good idea to use a small
 /// number of keys because some platforms may place low limits on the number of keys per process.

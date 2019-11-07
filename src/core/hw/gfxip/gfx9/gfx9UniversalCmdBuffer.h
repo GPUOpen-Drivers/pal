@@ -66,7 +66,9 @@ struct UniversalCmdBufferState
             uint32 optimizeLinearGfxCpy  :  1;
             uint32 firstDrawExecuted     :  1;
             uint32 fsrEnabled            :  1;
-            uint32 reserved              : 23;
+            uint32 cbTargetMaskChanged   :  1; // Flag setup at Pipeline bind-time informing the draw-time set
+                                               // that the CB_TARGET_MASK has been changed.
+            uint32 reserved              : 22;
         };
         uint32 u32All;
     } flags;
@@ -750,6 +752,8 @@ public:
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
+    bool IsRasterizationKilled() const { return (m_pipelineFlags.noRaster != 0); }
+
 protected:
     virtual ~UniversalCmdBuffer() {}
 
@@ -1060,7 +1064,10 @@ private:
 
     void P2pBltWaSync();
 
-    uint32* UpdateNggCullingDataBuffer(
+    uint32* UpdateNggCullingDataBufferWithCpu(
+        uint32* pDeCmdSpace);
+
+    uint32* UpdateNggCullingDataBufferWithGpu(
         uint32* pDeCmdSpace);
 
     uint32* BuildWriteViewId(
@@ -1122,7 +1129,8 @@ private:
             uint32  usesTess :  1;
             uint32  usesGs   :  1;
             uint32  isNgg    :  1;
-            uint32  reserved : 29;
+            uint32  noRaster :  1;
+            uint32  reserved : 28;
         };
         uint32 u32All;
     }  m_pipelineFlags;  // Flags describing the currently active pipeline stages.
@@ -1190,6 +1198,8 @@ private:
     uint16  m_minBinSizeX;            // Minimum bin size(width) for PBB.
     uint16  m_minBinSizeY;            // Minimum bin size(height) for PBB.
 
+    regCB_RMI_GL2_CACHE_CONTROL m_cbRmiGl2CacheControl; // Control CB cache policy and big page
+
     regPA_SC_BINNER_CNTL_0  m_paScBinnerCntl0;
     regPA_SC_BINNER_CNTL_0  m_savedPaScBinnerCntl0; // Value of PA_SC_BINNER_CNTL0 selected by settings
     uint32                  m_log2NumSamples;       // Last written value of PA_SC_AA_CONFIG.MSAA_NUM_SAMPLES.
@@ -1233,9 +1243,13 @@ private:
                                                     // reduce context rolls.
             uint32 describeDrawDispatch       :  1; // True if draws/dispatch shader IDs should be specified within the
                                                     // command stream for parsing by PktTools
+            uint32 disableVertGrouping        :  1; // Disable VertexGrouping.
             uint32 prefetchIndexBufferForNgg  :  1; // Prefetch index buffers to workaround misses in UTCL2 with NGG
+            uint32 waCeDisableIb2             :  1; // Disable IB2's on the constant engine to workaround HW bug
             uint32 reserved2                  :  1;
-            uint32 reserved                   :  7;
+            uint32 reserved3                  :  1;
+            uint32 pbbMoreThanOneCtxState     :  1;
+            uint32 reserved                   :  2;
         };
         uint32 u32All;
     } m_cachedSettings;

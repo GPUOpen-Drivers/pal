@@ -53,6 +53,8 @@ typedef Util::Result  Result;   ///< The PAL core and utility companion share th
 
 typedef Util::Rational Rational; ///< A ratio of two unsigned integers.
 
+#if   defined(__unix__)
+
 typedef void*   OsDisplayHandle;        ///< The Display Handle for Linux except X11 platform
 typedef uint32  OsExternalHandle;       ///< OsExternalHandle corresponds to a generic handle on linux
 typedef uint32  OsVideoSessionHandle;   ///< OsVideoSessionHandle corresponds to a video session handle on linux.
@@ -64,6 +66,9 @@ union OsWindowHandle
     uint32 win;       ///< Native window handle in X is a 32-bit integer.
 };
 constexpr OsWindowHandle NullWindowHandle = {nullptr}; ///< Value representing a null or invalid window handle.
+#else
+#error "Unsupported OS platform detected!"
+#endif
 
 constexpr uint32 InvalidVidPnSourceId     = ~0u; ///< In cases where PAL cannot abstract a Windows VidPnSourceId, this
                                                  ///  represents an invalid value. (Note: zero is a valid value.)

@@ -178,8 +178,12 @@ union ImageCreateFlags
                                              ///  "Uninitialized" state at any time.  Otherwise, both aspects must be
                                              ///  transitioned in the same barrier call.  Only meaningful if
                                              /// "perSubresInit" is set
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 547
         uint32 copyFormatsMatch        :  1; ///< Optimization: When this image is used as an argument to CmdCopyImage,
                                              ///  its format must match the format of the other image.
+#else
+        uint32 reserved547             :  1;
+#endif
         uint32 repetitiveResolve       :  1; ///< Optimization: Is this image resolved multiple times to an image which
                                              ///  is mostly similar to this image?
         uint32 preferSwizzleEqs        :  1; ///< Image prefers valid swizzle equations, but an invalid swizzle

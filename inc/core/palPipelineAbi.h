@@ -179,7 +179,7 @@ static const char* PipelineAbiSymbolNameStrings[] =
 };
 
 /// Deprecated - String table of the Pipeline Metadata key names.
-static const char* PipelineMetadataNameStrings[] =
+static const char* const PipelineMetadataNameStrings[] =
 {
     "API_CS_HASH_DWORD0",
     "API_CS_HASH_DWORD1",
@@ -782,8 +782,6 @@ enum class AbiSectionType : uint32
 /// P   - The section offset or address of the storage unit being relocated, computed using r_offset.
 /// S   - The value of the symbol whose index resides in the relocation entry.
 /// Z   - The size of the symbol whose index resides in the relocation entry.
-/// SEE: https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-54839.html#chapter7-2
-/// for other architecture examples.
 /// SEE: https://llvm.org/docs/AMDGPUUsage.html#relocation-records
 /// for AMDGPU defined relocations.
 enum class RelocationType : uint32

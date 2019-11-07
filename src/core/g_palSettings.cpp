@@ -101,8 +101,10 @@ void SettingsLoader::SetupDefaults()
     m_settings.disableSyncObject = false;
     m_settings.cmdBufDumpMode = CmdBufDumpModeDisabled;
     m_settings.cmdBufDumpFormat = CmdBufDumpFormatText;
+#if   (__unix__)
     memset(m_settings.cmdBufDumpDirectory, 0, 512);
     strncpy(m_settings.cmdBufDumpDirectory, "amdpal/", 512);
+#endif
     m_settings.submitTimeCmdBufDumpStartFrame = 0;
     m_settings.submitTimeCmdBufDumpEndFrame = 0;
     m_settings.logCmdBufCommitSizes = false;
@@ -114,8 +116,10 @@ void SettingsLoader::SetupDefaults()
     m_settings.pipelineLogConfig.embedPipelineDisassembly = false;
     m_settings.pipelineLogConfig.pipelineTypeFilter = 0x0;
     m_settings.pipelineLogConfig.logPipelineHash = 0x0;
+#if   (__unix__)
     memset(m_settings.pipelineLogConfig.pipelineLogDirectory, 0, 512);
     strncpy(m_settings.pipelineLogConfig.pipelineLogDirectory, "amdpal/", 512);
+#endif
     m_settings.cmdStreamReserveLimit = 256;
     m_settings.cmdStreamEnableMemsetOnReserve = false;
     m_settings.cmdStreamMemsetValue = 4294967295;

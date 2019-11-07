@@ -78,9 +78,8 @@ struct MergedFlatFmtInfo
 };
 
 extern const MergedFlatFmtInfo*  MergedChannelFlatFmtInfoTbl(
-    GfxIpLevel                        gfxIpLevel,
-    const Pal::Gfx9::Gfx9PalSettings* pSettings
-);
+    GfxIpLevel                      gfxIpLevel,
+    const Pal::PalPlatformSettings* pSettings);
 
 extern BUF_FMT                   HwBufFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
 extern IMG_FMT                   HwImgFmt(const MergedFlatFmtInfo fmtInfo[], ChNumFormat format);
@@ -107,7 +106,10 @@ struct MergedBufDataFmtInfo
     ChNumFormat     mappings[MaxBufNumFormats][MaxImgDataMappings];
 };
 
-extern const MergedFmtInfo* MergedChannelFmtInfoTbl(GfxIpLevel gfxIpLevel, const Pal::Gfx9::Gfx9PalSettings* pSettings);
+extern const MergedFmtInfo* MergedChannelFmtInfoTbl(
+    GfxIpLevel                      gfxIpLevel,
+    const Pal::PalPlatformSettings* pSettings);
+
 ColorFormat HwColorFormatForExport(GfxIpLevel gfxLevel, Pal::ChNumFormat format);
 
 extern SQ_SEL_XYZW01 HwSwizzle(ChannelSwizzle swizzle);

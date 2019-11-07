@@ -328,6 +328,10 @@ public:
         uint32                    screenTargetId,
         VirtualDisplayProperties* pProperties) override { return Result::Success; }
 
+    virtual Result QueryRadeonSoftwareVersion(
+        char*  pBuffer,
+        size_t bufferLength) const override { return Result::Unsupported; }
+
 protected:
     Device(
         Platform*              pPlatform,

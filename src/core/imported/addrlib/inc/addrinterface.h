@@ -38,9 +38,6 @@ extern "C"
 #endif
 
 #include "addrtypes.h"
-#ifdef ADDR_SCBU_BUILD
-#include "scbu_addrinterface_defs.h"
-#endif // ADDR_SCBU_BUILD
 
 #define ADDRLIB_VERSION_MAJOR 6
 #define ADDRLIB_VERSION_MINOR 2
@@ -375,9 +372,6 @@ typedef struct _ADDR_CREATE_INPUT
     ADDR_REGISTER_VALUE regValue;            ///< Data from registers to setup AddrLib global data
     ADDR_CLIENT_HANDLE  hClient;             ///< Client handle
     UINT_32             minPitchAlignPixels; ///< Minimum pitch alignment in pixels
-#if ADDR_SCBU_BUILD
-    SCBU_ADDR_CREATE_FLAGS  SCBU_flags;      ///< SCBU flags
-#endif // ADDR_SCBU_BUILD
 } ADDR_CREATE_INPUT;
 
 /**

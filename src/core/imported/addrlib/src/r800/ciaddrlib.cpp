@@ -471,10 +471,6 @@ BOOL_32 CiLib::HwlInitGlobalParams(
         m_pipes = 4;
     }
 
-#ifdef ADDR_SCBU_BUILD
-    HwlInitGlobalParamsAdjust(&m_pipes);
-#endif // ADDR_SCBU_BUILD
-
     if (valid)
     {
         valid = InitTileSettingTable(pRegValue->pTileConfig, pRegValue->noOfEntries);

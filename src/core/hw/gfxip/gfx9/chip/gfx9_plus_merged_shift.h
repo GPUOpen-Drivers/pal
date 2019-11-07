@@ -3029,8 +3029,6 @@ constexpr unsigned int SPI_WF_LIFETIME_CNTL__EN__SHIFT                    = 0x00
 constexpr unsigned int SPI_WF_LIFETIME_CNTL__SAMPLE_PERIOD__SHIFT         = 0x00000000;
 constexpr unsigned int SPI_WF_LIFETIME_LIMIT_0__EN_WARN__SHIFT            = 0x0000001f;
 constexpr unsigned int SPI_WF_LIFETIME_LIMIT_0__MAX_CNT__SHIFT            = 0x00000000;
-constexpr unsigned int SPI_WF_LIFETIME_LIMIT_1__EN_WARN__SHIFT            = 0x0000001f;
-constexpr unsigned int SPI_WF_LIFETIME_LIMIT_1__MAX_CNT__SHIFT            = 0x00000000;
 constexpr unsigned int SPI_WF_LIFETIME_LIMIT_2__EN_WARN__SHIFT            = 0x0000001f;
 constexpr unsigned int SPI_WF_LIFETIME_LIMIT_2__MAX_CNT__SHIFT            = 0x00000000;
 constexpr unsigned int SPI_WF_LIFETIME_LIMIT_3__EN_WARN__SHIFT            = 0x0000001f;
@@ -3250,15 +3248,9 @@ constexpr unsigned int SQ_WAVE_EXEC_LO__EXEC_LO__SHIFT                    = 0x00
 constexpr unsigned int SQ_WAVE_FLUSH_IB__UNUSED__SHIFT                    = 0x00000000;
 constexpr unsigned int SQ_WAVE_GPR_ALLOC__VGPR_BASE__SHIFT                = 0x00000000;
 constexpr unsigned int SQ_WAVE_GPR_ALLOC__VGPR_SIZE__SHIFT                = 0x00000008;
-constexpr unsigned int SQ_WAVE_IB_STS__EXP_CNT__SHIFT                     = 0x00000004;
-constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT__SHIFT                    = 0x00000008;
-constexpr unsigned int SQ_WAVE_IB_STS__VALU_CNT__SHIFT                    = 0x0000000c;
-constexpr unsigned int SQ_WAVE_IB_STS__VM_CNT_HI__SHIFT                   = 0x00000016;
-constexpr unsigned int SQ_WAVE_IB_STS__VM_CNT__SHIFT                      = 0x00000000;
 constexpr unsigned int SQ_WAVE_LDS_ALLOC__LDS_BASE__SHIFT                 = 0x00000000;
 constexpr unsigned int SQ_WAVE_LDS_ALLOC__LDS_SIZE__SHIFT                 = 0x0000000c;
 constexpr unsigned int SQ_WAVE_M0__M0__SHIFT                              = 0x00000000;
-constexpr unsigned int SQ_WAVE_MODE__DEBUG_EN__SHIFT                      = 0x0000000b;
 constexpr unsigned int SQ_WAVE_MODE__DX10_CLAMP__SHIFT                    = 0x00000008;
 constexpr unsigned int SQ_WAVE_MODE__EXCP_EN__SHIFT                       = 0x0000000c;
 constexpr unsigned int SQ_WAVE_MODE__FP16_OVFL__SHIFT                     = 0x00000017;
@@ -3901,9 +3893,17 @@ namespace Core
     constexpr unsigned int SPI_RESOURCE_RESERVE_EN_CU_7__EN__SHIFT            = 0x00000000;
     constexpr unsigned int SPI_RESOURCE_RESERVE_EN_CU_7__QUEUE_MASK__SHIFT    = 0x00000010;
     constexpr unsigned int SPI_RESOURCE_RESERVE_EN_CU_7__TYPE_MASK__SHIFT     = 0x00000001;
+    constexpr unsigned int SPI_WF_LIFETIME_LIMIT_1__EN_WARN__SHIFT            = 0x0000001f;
+    constexpr unsigned int SPI_WF_LIFETIME_LIMIT_1__MAX_CNT__SHIFT            = 0x00000000;
     constexpr unsigned int SQ_WAVE_GPR_ALLOC__SGPR_BASE__SHIFT                = 0x00000010;
     constexpr unsigned int SQ_WAVE_GPR_ALLOC__SGPR_SIZE__SHIFT                = 0x00000018;
+    constexpr unsigned int SQ_WAVE_IB_STS__EXP_CNT__SHIFT                     = 0x00000004;
+    constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT__SHIFT                    = 0x00000008;
+    constexpr unsigned int SQ_WAVE_IB_STS__VALU_CNT__SHIFT                    = 0x0000000c;
+    constexpr unsigned int SQ_WAVE_IB_STS__VM_CNT_HI__SHIFT                   = 0x00000016;
+    constexpr unsigned int SQ_WAVE_IB_STS__VM_CNT__SHIFT                      = 0x00000000;
     constexpr unsigned int SQ_WAVE_INST_DW0__INST_DW0__SHIFT                  = 0x00000000;
+    constexpr unsigned int SQ_WAVE_MODE__DEBUG_EN__SHIFT                      = 0x0000000b;
 } // namespace Core
 
 namespace Gfx09
@@ -6602,8 +6602,6 @@ namespace Gfx10
     constexpr unsigned int SQ_WAVE_IB_STS2__INST_PREFETCH__SHIFT              = 0x00000000;
     constexpr unsigned int SQ_WAVE_IB_STS2__MEM_ORDER__SHIFT                  = 0x00000008;
     constexpr unsigned int SQ_WAVE_IB_STS2__WAVE64__SHIFT                     = 0x0000000b;
-    constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT_BIT4__SHIFT               = 0x00000007;
-    constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT_BIT5__SHIFT               = 0x00000018;
     constexpr unsigned int SQ_WAVE_IB_STS__VS_CNT__SHIFT                      = 0x0000001a;
     constexpr unsigned int SQ_WAVE_LDS_ALLOC__VGPR_SHARED_SIZE__SHIFT         = 0x00000018;
     constexpr unsigned int SQ_WAVE_MODE__DISABLE_PERF__SHIFT                  = 0x0000001b;
@@ -7490,6 +7488,8 @@ namespace Gfx10Core
     constexpr unsigned int SQ_WAVE_HW_ID_LEGACY__WAVE_ID_MSB__SHIFT           = 0x0000000f;
     constexpr unsigned int SQ_WAVE_HW_ID_LEGACY__WAVE_ID__SHIFT               = 0x00000000;
     constexpr unsigned int SQ_WAVE_IB_STS2__RESOURCE_OVERRIDE__SHIFT          = 0x00000007;
+    constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT_BIT4__SHIFT               = 0x00000007;
+    constexpr unsigned int SQ_WAVE_IB_STS__LGKM_CNT_BIT5__SHIFT               = 0x00000018;
     constexpr unsigned int SQ_WAVE_VGPR_OFFSET__DST__SHIFT                    = 0x00000012;
     constexpr unsigned int SQ_WAVE_VGPR_OFFSET__SRC0__SHIFT                   = 0x00000000;
     constexpr unsigned int SQ_WAVE_VGPR_OFFSET__SRC1__SHIFT                   = 0x00000006;

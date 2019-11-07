@@ -165,6 +165,10 @@ Result CmdStream::Begin(
 // Returns a pointer to enough memory to store m_reserveLimit DWORDs of commands.
 uint32* CmdStream::ReserveCommands()
 {
+    // Why are we reserving constant engine space when we don't have a constant engine?
+    PAL_ASSERT((m_subEngineType != SubEngineType::ConstantEngine) ||
+               (m_pDevice->EngineProperties().perEngine[m_engineType].flags.constantEngineSupport != 0));
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     // It's not legal to call ReserveCommands twice in a row.
     PAL_ASSERT(m_isReserved == false);

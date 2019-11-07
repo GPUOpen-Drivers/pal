@@ -209,6 +209,7 @@ WindowSystem::WindowSystem(
     m_platform(platform)
 {
     m_windowSystemProperties.u64All = 0;
+    m_presentOnSameGpu              = true;
 }
 
 // =====================================================================================================================

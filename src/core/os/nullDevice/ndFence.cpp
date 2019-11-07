@@ -42,7 +42,11 @@ Result Fence::Init(
 OsExternalHandle Fence::ExportExternalHandle(
     const FenceExportInfo& exportInfo) const
 {
+#if   defined(__unix__)
     return InvalidFd;
+#else
+#error "Unsupported OS platform detected!"
+#endif
 }
 
 // =====================================================================================================================

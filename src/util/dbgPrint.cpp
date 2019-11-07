@@ -36,8 +36,10 @@ namespace Util
 /// If the pointer is set to a valid callback, the callback will be called every time a debug message is printed
 DbgPrintCallback g_dbgPrintCallback = { nullptr, nullptr };
 
+#if   defined(__unix__)
 // Directory where log files will be written.
 static constexpr char LogDirectoryStr[] = "/var/log/";
+#endif
 
 // Entry in the global table of debug print targets. Defines the debug category, output mode and prefix string to use.
 struct DbgPrintTarget

@@ -388,18 +388,17 @@ void RsrcProcMgr::CmdCopyImage(
 
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
     // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
-    const bool useGraphicsCopy = ((Image::PreferGraphicsCopy                             &&
-                                   pCmdBuffer->IsGraphicsSupported())                    &&
-                                 (((srcImageType != ImageType::Tex1d)                    &&
-                                   (dstImageType != ImageType::Tex1d)                    &&
-                                   (dstInfo.samples == 1)                                &&
-                                   (isCompressed == false)                               &&
-                                   (isYuv == false)                                      &&
-                                   (bothDepth == false)                                  &&
-                                   (bothColor == true)                                   &&
-                                   ((isSrgb == false) || srcInfo.flags.copyFormatsMatch) &&
-                                   (p2pBltWa == false))                                  ||
-                                  (bothDepth && srcInfo.samples > 1)));
+    const bool useGraphicsCopy = ((Image::PreferGraphicsCopy && pCmdBuffer->IsGraphicsSupported()) &&
+                                  ((bothDepth && (srcInfo.samples > 1)) ||
+                                   ((srcImageType != ImageType::Tex1d) &&
+                                    (dstImageType != ImageType::Tex1d) &&
+                                    (dstInfo.samples == 1)             &&
+                                    (isCompressed == false)            &&
+                                    (isYuv == false)                   &&
+                                    (bothDepth == false)               &&
+                                    (bothColor == true)                &&
+                                    (isSrgb == false)                  &&
+                                    (p2pBltWa == false))));
 
     if (useGraphicsCopy)
     {
@@ -1350,10 +1349,6 @@ void RsrcProcMgr::GetCopyImageFormats(
     // Both formats must have the same pixel size.
     PAL_ASSERT(Formats::BitsPerPixel(srcFormat.format) == Formats::BitsPerPixel(dstFormat.format));
 
-    // Verify that the image formats match if one or more of the images require matching formats.
-    PAL_ASSERT(formatsMatch || ((srcCreateInfo.flags.copyFormatsMatch == 0) &&
-                                (dstCreateInfo.flags.copyFormatsMatch == 0)));
-
     // Initialize the texel scale to 1, it will be modified later if necessary.
     *pTexelScale = 1;
 
@@ -1472,8 +1467,7 @@ void RsrcProcMgr::GetCopyImageFormats(
             }
             else
             {
-                // We can't replace either format, both formats must match. This case shouldn't be hit unless the client
-                // specified 'copyFormatsMatch' for the destination image so we should have matching formats.
+                // We can't replace either format, both formats must match.
                 PAL_ASSERT(formatsMatch);
             }
         }
@@ -2068,7 +2062,7 @@ void RsrcProcMgr::CmdScaledCopyImage(
 
 // =====================================================================================================================
 void RsrcProcMgr::CmdGenerateMipmaps(
-    GfxCmdBuffer*        pCmdBuffer,
+    GfxCmdBuffer*         pCmdBuffer,
     const GenMipmapsInfo& genInfo
     ) const
 {
@@ -2513,8 +2507,9 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
         RpmUtil::BuildImageViewInfo(
             &imageView[0], *pSrcImage, viewRange, srcFormat, srcImageLayout, device.TexOptLevel());
+
+        // Note that this is a read-only view of the destination.
         viewRange.startSubres = copyRegion.dstSubres;
-        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
         RpmUtil::BuildImageViewInfo(
             &imageView[1], *pDstImage, viewRange, dstFormat, dstImageLayout, device.TexOptLevel());
 
@@ -4805,7 +4800,8 @@ void RsrcProcMgr::CmdResolveImage(
                                          dstImageLayout,
                                          regionCount,
                                          pRegions);
-            HwlHtileCopyAndFixUp(pCmdBuffer, srcImage, dstImage, regionCount, pRegions);
+
+            HwlHtileCopyAndFixUp(pCmdBuffer, srcImage, dstImage, dstImageLayout, regionCount, pRegions, false);
         }
         else if (dstMethod.shaderPs && (resolveMode == ResolveMode::Average))
         {
@@ -6947,13 +6943,14 @@ Result RsrcProcMgr::CreateCommonStateObjects()
         {
             const uint32 fragments = (1 << log2Fragments);
 
-            // The following parameters should never be higher than the max number of msaa fragments ( 8 ).
-            const uint32 clampedSamples      = Min(fragments, MaxMsaaFragments);
-            msaaInfo.exposedSamples          = fragments;
-            msaaInfo.pixelShaderSamples      = fragments;
-            msaaInfo.depthStencilSamples     = fragments;
-            msaaInfo.shaderExportMaskSamples = fragments;
-            msaaInfo.sampleClusters          = fragments;
+            // The following parameters should never be higher than the max number of msaa fragments (usually 8).
+            const uint32 maxFragments        = m_pDevice->Parent()->ChipProperties().imageProperties.maxMsaaFragments;
+            const uint32 clampedSamples      = Min(fragments, maxFragments);
+            msaaInfo.exposedSamples          = clampedSamples;
+            msaaInfo.pixelShaderSamples      = clampedSamples;
+            msaaInfo.depthStencilSamples     = clampedSamples;
+            msaaInfo.shaderExportMaskSamples = clampedSamples;
+            msaaInfo.sampleClusters          = clampedSamples;
 
             result = m_pDevice->CreateMsaaStateInternal(
                 msaaInfo, &m_pMsaaState[log2Samples][log2Fragments], AllocInternal);

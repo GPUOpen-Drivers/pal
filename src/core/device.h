@@ -40,7 +40,9 @@
 #include "palIntrusiveList.h"
 #include "palMutex.h"
 #include "palPipeline.h"
+#if defined(__unix__)
 #include "palSettingsFileMgr.h"
+#endif
 #include "palSysMemory.h"
 #include "palTextWriter.h"
 
@@ -589,8 +591,12 @@ struct GpuChipProperties
         {
             struct
             {
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
                 /// Images created on this device support single sampled texture quilting
                 uint32 supportsSingleSampleQuilting :  1;
+#else
+                uint32 reservedForFutureHw1         :  1;
+#endif
 
                 /// Images created on this device supports AQBS stereo mode, this AQBS stereo mode doesn't apply to the
                 /// array-based stereo feature supported by Presentable images.
@@ -609,6 +615,8 @@ struct GpuChipProperties
         uint32                 maxImageArraySize;
         PrtFeatureFlags        prtFeatures;
         gpusize                prtTileSize;
+        MsaaFlags              msaaSupport;
+        uint8                  maxMsaaFragments;
         uint8                  numSwizzleEqs;
         const SwizzleEquation* pSwizzleEqs;
         bool                   tilingSupported[static_cast<size_t>(ImageTiling::Count)];
@@ -1924,7 +1932,9 @@ protected:
     PalPublicSettings      m_publicSettings;
     SettingsLoader*        m_pSettingsLoader;
 
+#if defined(__unix__)
     Util::SettingsFileMgr<Platform>  m_settingsMgr;
+#endif
 
     // Get*FilePath need to return a persistent storage
     char m_cacheFilePath[MaxPathStrLen];
@@ -2048,7 +2058,8 @@ extern GfxIpLevel DetermineIpLevel(
 
 // Gets the static format properties table for GFXIP 9+ hardware.
 extern const MergedFormatPropertiesTable* GetFormatPropertiesTable(
-    GfxIpLevel gfxIpLevel);
+    GfxIpLevel                 gfxIpLevel,
+    const PalPlatformSettings& settings);
 
 extern void InitializePerfExperimentProperties(
     const GpuChipProperties&  chipProps,
@@ -2065,12 +2076,10 @@ extern void FinalizeGpuChipProperties(
     const Device&      device,
     GpuChipProperties* pInfo);
 
-// Initialize default values for the GPU engine properties for GFXIP 6/7/8 hardware.
+// Initialize default values for the GPU engine properties for GFXIP9+ hardware.
 extern void InitializeGpuEngineProperties(
-    GfxIpLevel           gfxIpLevel,
-    uint32               familyId,
-    uint32               eRevId,
-    GpuEngineProperties* pInfo);
+    const GpuChipProperties&  chipProps,
+    GpuEngineProperties*      pInfo);
 }
 
 #if PAL_BUILD_OSS1

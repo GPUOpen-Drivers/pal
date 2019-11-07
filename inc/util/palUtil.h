@@ -48,6 +48,7 @@
 #define PAL_DISALLOW_DEFAULT_CTOR(_typename)    \
     _typename();
 
+#if   defined(__GNUC__)
 /// Undefined on GCC platforms.
 #define PAL_STDCALL
 /// Undefined on GCC platforms.
@@ -58,6 +59,9 @@
 #define PAL_ALIGN(__x)
 #define PAL_FORCE_INLINE __attribute__((always_inline)) inline
 #define PAL_WEAK_LINK __attribute__((weak))
+#else
+#error "Unsupported OS platform detected!"
+#endif
 
 /// Used for defining a function inline with a header. This gives it weak linkage.
 /// The compiler may also use this as a hint to merge the function into calling functions.
@@ -71,8 +75,10 @@
 /// Force cache line alignment.
 #define PAL_ALIGN_CACHE_LINE PAL_ALIGN(PAL_CACHE_LINE_BYTES)
 
+#if defined(__unix__)
 /// Value representing an invalid file descriptor on Linux systems.
 constexpr int32_t InvalidFd = -1;
+#endif
 
 /// Library-wide namespace encapsulating all PAL utility collection entities.
 namespace Util

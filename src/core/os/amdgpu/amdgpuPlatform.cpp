@@ -217,7 +217,7 @@ Result Platform::ReQueryDevices()
         }
     }
 
-    if (deviceCount > 0)
+    if ((deviceCount > 0) && (IsEmulationEnabled() == false))
     {
         drmProcs.pfnDrmFreeDevices(pDevices, deviceCount);
     }

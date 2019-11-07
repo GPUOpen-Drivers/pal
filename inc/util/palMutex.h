@@ -33,8 +33,11 @@
 
 #include "palAssert.h"
 
+#if   defined(__unix__)
 #include <pthread.h>
 #include <string.h>
+
+#endif
 
 namespace Util
 {
@@ -47,8 +50,10 @@ namespace Util
 class Mutex
 {
 public:
+#if   defined(__unix__)
     /// Defines MutexData as a unix pthread_mutex_t
     typedef pthread_mutex_t  MutexData;
+#endif
 
     Mutex() : m_initialized(false) { memset(&m_osMutex, 0, sizeof(m_osMutex)); }
     ~Mutex();
@@ -171,8 +176,10 @@ public:
     void UnlockForWrite();
 
 private:
+#if   defined(__unix__)
     /// Defines RWLockData as a unix pthread_rwlock_t
     typedef pthread_rwlock_t  RWLockData;
+#endif
 
     RWLockData m_osRWLock;    ///< Opaque structure to the OS-specific RWLock data
     bool       m_initialized; ///< True indicates this RWLock has been initialized

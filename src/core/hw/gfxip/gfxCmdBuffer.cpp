@@ -1127,8 +1127,9 @@ void GfxCmdBuffer::UpdateUserDataTableCpu(
     UserDataTableState* pTable,
     uint32              dwordsNeeded,
     uint32              offsetInDwords,
-    const uint32*       pSrcData)       // In: Data representing the *full* contents of the table, not just the part
+    const uint32*       pSrcData,       // In: Data representing the *full* contents of the table, not just the part
                                         // between offsetInDwords and dwordsNeeded.
+    uint32              alignmentInDwords)
 {
     // The dwordsNeeded and offsetInDwords parameters together specify a "window" of the table which is relevant to
     // the active pipeline.  To save memory as well as cycles spent copying data, this will only allocate and populate
@@ -1136,7 +1137,7 @@ void GfxCmdBuffer::UpdateUserDataTableCpu(
     PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
 
     gpusize gpuVirtAddr  = 0uLL;
-    pTable->pCpuVirtAddr = (CmdAllocateEmbeddedData(dwordsNeeded, 1, &gpuVirtAddr) - offsetInDwords);
+    pTable->pCpuVirtAddr = (CmdAllocateEmbeddedData(dwordsNeeded, alignmentInDwords, &gpuVirtAddr) - offsetInDwords);
     pTable->gpuVirtAddr  = (gpuVirtAddr - (sizeof(uint32) * offsetInDwords));
 
     uint32* pDstData = (pTable->pCpuVirtAddr + offsetInDwords);

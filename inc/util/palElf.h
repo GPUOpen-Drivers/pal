@@ -425,7 +425,7 @@ struct SectionHeaderInfo
 };
 
 /// A mapping from SectionType to the corresponding name of that section.
-static const char* SectionNameStringTable[] =
+static const char* const SectionNameStringTable[] =
 {
     "",
     ".bss",

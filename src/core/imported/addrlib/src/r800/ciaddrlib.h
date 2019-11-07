@@ -57,11 +57,7 @@ public:
         return (pMem != NULL) ? new (pMem) CiLib(pClient) : NULL;
     }
 
-#ifdef ADDR_SCBU_BUILD
-protected:
-#else
 private:
-#endif // ADDR_SCBU_BUILD
     CiLib(const Client* pClient);
     virtual ~CiLib();
 
@@ -81,9 +77,6 @@ protected:
 
     virtual BOOL_32 HwlInitGlobalParams(
         const ADDR_CREATE_INPUT* pCreateIn);
-#ifdef ADDR_SCBU_BUILD
-    VOID HwlInitGlobalParamsAdjust(UINT_32* pNumPipes);
-#endif // ADDR_SCBU_BUILD
 
     virtual ADDR_E_RETURNCODE HwlSetupTileCfg(
         UINT_32 bpp, INT_32 index, INT_32 macroModeIndex, ADDR_TILEINFO* pInfo,
@@ -156,21 +149,10 @@ protected:
         AddrTileMode tileMode, UINT_32 bpp, ADDR_SURFACE_FLAGS flags,
         UINT_32 mipLevel, UINT_32 numSamples, ADDR_COMPUTE_SURFACE_INFO_OUTPUT* pOut) const;
 
-#ifdef ADDR_SCBU_BUILD
-protected:
-#else
 private:
-#endif // ADDR_SCBU_BUILD
-
-#ifdef ADDR_SCBU_BUILD
-    virtual
-#endif // ADDR_SCBU_BUILD
     VOID ReadGbTileMode(
         UINT_32 regValue, TileConfig* pCfg) const;
 
-#ifdef ADDR_SCBU_BUILD
-    virtual
-#endif // ADDR_SCBU_BUILD
     VOID ReadGbMacroTileCfg(
         UINT_32 regValue, ADDR_TILEINFO* pCfg) const;
 

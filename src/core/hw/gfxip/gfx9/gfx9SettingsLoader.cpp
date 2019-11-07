@@ -326,6 +326,12 @@ void SettingsLoader::ValidateSettings(
         }
     }
 
+    // If we allow > 1 Ctx or Persistent state / batch then the driver should BREAK_BATCH on new PS.
+    if ((m_settings.binningContextStatesPerBin > 1) || (m_settings.binningPersistentStatesPerBin > 1))
+    {
+        m_settings.batchBreakOnNewPixelShader = true;
+    }
+
     m_state = SettingsLoaderState::Final;
 }
 
@@ -351,6 +357,8 @@ static void SetupGfx101Workarounds(
 {
     pSettings->waVgtFlushNggToLegacyGs = true;
 
+    pSettings->waVgtFlushNggToLegacy = true;
+
     pSettings->waDisableFmaskNofetchOpOnFmaskCompressionDisable = true;
 
     // The GE has a bug where attempting to use an index buffer of size zero can cause a hang.
@@ -360,6 +368,8 @@ static void SetupGfx101Workarounds(
 
     // The CB has a bug where blending can be corrupted if the color target is 8bpp and uses an S swizzle mode.
     pCoreSettings->addr2DisableSModes8BppColor = true;
+
+    pSettings->waCeDisableIb2 = true;
 
     {
         // The DB has a bug where an attempted depth expand of a Z16_UNORM 1xAA surface that has not had its
@@ -413,6 +423,8 @@ static void SetupNavi10Workarounds(
     pSettings->waTessIncorrectRelativeIndex = true;
 
     pSettings->waForceZonlyHtileForMipmaps = true;
+
+    pSettings->waUtcL0InconsistentBigPage = true;
 
 } // PAL_BUILD_NAVI10
 
@@ -484,6 +496,19 @@ void SettingsLoader::OverrideDefaults(
         if (IsNavi10(device))
         {
             SetupNavi10Workarounds(device, &m_settings, pSettings);
+        }
+
+        if (
+            false)
+
+        {
+            m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 33;
+            m_settings.depthStencilFastClearComputeThresholdSingleSampled = (1024 * 1024) - 1;
+            m_settings.binningContextStatesPerBin = 3;
+            m_settings.binningPersistentStatesPerBin = 8;
+
+            m_settings.cbDbCachePolicy = (Gfx10CbDbCachePolicyLruCmask | Gfx10CbDbCachePolicyLruDcc |
+                                          Gfx10CbDbCachePolicyLruFmask | Gfx10CbDbCachePolicyLruHtile);
         }
     }
 

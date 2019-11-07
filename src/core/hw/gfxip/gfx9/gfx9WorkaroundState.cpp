@@ -67,12 +67,16 @@ uint32* WorkaroundState::SwitchFromNggPipelineToLegacy(
     uint32* pCmdSpace
     ) const
 {
-    if (m_settings.waVgtFlushNggToLegacyGs && nextPipelineUsesGs)
+    if (m_settings.waVgtFlushNggToLegacy || (m_settings.waVgtFlushNggToLegacyGs && nextPipelineUsesGs))
     {
         //  GE has a bug where a legacy GS draw following an NGG draw can cause the legacy GS draw to interfere with
         //  pending NGG primitives, causing the GE to drop the pending NGG primitives and eventually lead to a hang.
         //  The suggested workaround is to create a bubble for the GE. Since determining the necessary size of this
         //  bubble is workload dependent, it is safer to issue a VGT_FLUSH between this transition.
+        //  GE has a second bug with the same software workaround. A legacy draw following an NGG draw will cause GE to
+        //  internally transition from NGG to legacy prematurely. This leads to GE sending the enable legacy event to
+        //  only some PAs on legacy path, and SC is left waiting for events from the others. Issuing a VGT_FLUSH
+        //  prevents this from happening.
         pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH, EngineTypeUniversal, pCmdSpace);
     }
 

@@ -1194,8 +1194,10 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
     GfxCmdBuffer*             pCmdBuffer,
     const Pal::Image&         srcImage,
     const Pal::Image&         dstImage,
+    ImageLayout               dstImageLayout,
     uint32                    regionCount,
-    const ImageResolveRegion* pRegions) const
+    const ImageResolveRegion* pRegions,
+    bool                      computeResolve) const
 {
     PAL_ASSERT(srcImage.IsDepthStencil() && dstImage.IsDepthStencil());
 

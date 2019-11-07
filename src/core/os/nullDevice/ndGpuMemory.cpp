@@ -99,7 +99,11 @@ Result NdGpuMemory::AllocateOrPinMemory(
 OsExternalHandle NdGpuMemory::ExportExternalHandle(
     const GpuMemoryExportInfo& exportInfo) const
 {
+#if defined(__unix__)
     return 0;
+#else
+    return nullptr;
+#endif
 }
 #endif // PAL_KMT_BUILD || PAL_AMDGPU_BUILD
 

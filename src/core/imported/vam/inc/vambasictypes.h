@@ -44,19 +44,26 @@
 #endif
 
 // Different compiler has different definitions for int8, int16, int32, etc.
+#if defined(__unix__)
 #include <stdint.h>
 #include <stddef.h>
 #define DEFINE_MSWIN_DATATYPES        1 // For Linux we need to define datatypes
+#elif (defined (BUILDING_CMMQSLIB) || defined(BUILDING_CMM))
+#endif                                  // #if defined(__unix__)
 
 //
 // -----------------  Define standard API calling convention ------------------
 //
 
+#if defined(__GNUC__)
 #if defined(__amd64__) || defined(__x86_64__)
 // @note 'stdcall' attribute (and cdecl) is not used for AMD64
 #define ATIAPI_STDCALL
 #else
 #define ATIAPI_STDCALL  __attribute__((stdcall))
+#endif
+#else
+#error Unrecognized target to define ATIAPI_STDCALL
 #endif
 
 //
@@ -70,6 +77,7 @@
 //           Microsoft style packing.\n
 //       (2) It was found that GCC compiler could silenty ignore
 //           unrecognized pragmas (e.g. #pragma pack(..)).
+#ifdef __GNUC__
 #define GCC_PACK_STRUCT __attribute__((packed))
 #ifdef TARGET_32_OS
 #define GCC_STRUCT_DEFAULT_ALIGN  __attribute__ ((aligned (8)))
@@ -77,6 +85,11 @@
 #define GCC_STRUCT_DEFAULT_ALIGN  __attribute__ ((aligned (8)))
 #endif                                  // #ifdef TARGET_32_OS
 #define GCC_STRUCT_ALIGN(a)  __attribute__ ((aligned (a)))
+#else                                   // #ifdef __GNUC__
+#define GCC_STRUCT_DEFAULT_ALIGN
+#define GCC_STRUCT_ALIGN(a)
+#define GCC_PACK_STRUCT
+#endif                                  // #ifdef __GNUC__
 
 //
 // ------------------  Emulate MS Windows build environment -------------------

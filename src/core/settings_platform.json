@@ -148,6 +148,19 @@
       "Name": "EventLogFilename"
     },
     {
+      "Tags": [
+        "GPU ID Masquerade"
+      ],
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "Description": "Forces reporting support of ASTC/ETC2 texture reads and disables BC4-7. Warning: On gfx10 hardware, this is intended to be used only in IFH mode.",
+      "Defaults": {
+        "Default": false
+      },
+      "VariableName": "forceEtcAstcEnable",
+      "Name": "ForceEtcAstcEnable"
+    },
+    {
       "Name": "DebugOverlayEnabled",
       "Tags": [
         "Debug Overlay"

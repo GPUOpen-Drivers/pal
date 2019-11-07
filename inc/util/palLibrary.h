@@ -34,7 +34,9 @@
 #include "palAssert.h"
 #include "palUtil.h"
 
-#   include <dlfcn.h>
+#if defined(__unix__)
+#include <dlfcn.h>
+#endif
 
 namespace Util
 {
@@ -46,10 +48,15 @@ namespace Util
 */
 class Library
 {
-    typedef void*   LibraryHandle;
+#if defined(__unix__)
+    typedef void* LibraryHandle;
+#else
+    typedef HMODULE LibraryHandle;
+#endif
 
 public:
-    Library() : m_hLib(nullptr) { }
+    Library() :
+        m_hLib(nullptr) {}
     ~Library() { Close(); }
 
     Result Load(const char* pLibraryName);
@@ -67,19 +74,25 @@ public:
     }
 
     // Retrieve a function address from the dynamic library object. Returns true if successful, false otherwise.
-    template <typename Func_t>
+    template<typename Func_t>
     bool GetFunction(const char* pName, Func_t** ppFunction) const
     {
         (*ppFunction) = reinterpret_cast<Func_t*>(GetFunctionHelper(pName));
+#if PAL_ENABLE_PRINTS_ASSERTS
+        if ((*ppFunction) == nullptr)
+        {
+            PAL_ALERT_ALWAYS_MSG("Failed to get function pointer for: %s", pName);
+        }
+#endif
         return ((*ppFunction) != nullptr);
     }
 
 private:
     void* GetFunctionHelper(const char* pName) const;
 
-    LibraryHandle  m_hLib;
+    LibraryHandle m_hLib;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Library);
 };
 
-} // Util
+} // namespace Util

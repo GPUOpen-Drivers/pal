@@ -121,14 +121,15 @@ Result Image::CreatePresentableImage(
     // For Android, SwapChain is managed by Loader. Loader will deliver the present buffer handle to Let ICD import
     if (createInfo.pSwapChain != nullptr)
     {
-        bool            isMultiGpu    = 1 < pDevice->GetPlatform()->GetDeviceCount();
+        auto*const      pSwapChain    = static_cast<Amdgpu::SwapChain*>(createInfo.pSwapChain);
+        auto*const      pWindowSystem = pSwapChain->GetWindowSystem();
         Pal::Image*     pImage        = nullptr;
         ImageCreateInfo imgCreateInfo = {};
 
         // When it's multiGpu, the metadata of BO on other gpu can't be shared across GPUs since it's possible that
         // the metadata is meaningless for other GPUs. So, the GBM (amdgpu backend) set linear meta when the BO is
-        // from other AMD GPUs. In order to support mGPUs, we have to set linear here.
-        imgCreateInfo.tiling                = isMultiGpu ? ImageTiling::Linear : ImageTiling::Optimal;
+        // from other AMD GPUs. Enable Linear mode only when presenting on different GPU.
+        imgCreateInfo.tiling = pWindowSystem->PresentOnSameGpu() ? ImageTiling::Optimal : ImageTiling::Linear;
 
         imgCreateInfo.imageType             = ImageType::Tex2d;
         imgCreateInfo.swizzledFormat        = createInfo.swizzledFormat;

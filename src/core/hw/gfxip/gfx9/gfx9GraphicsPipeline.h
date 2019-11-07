@@ -98,6 +98,7 @@ public:
     regSX_PS_DOWNCONVERT SxPsDownconvert() const { return m_sxPsDownconvert; }
     regSX_BLEND_OPT_EPSILON SxBlendOptEpsilon() const { return m_sxBlendOptEpsilon; }
     regSX_BLEND_OPT_CONTROL SxBlendOptControl() const { return m_sxBlendOptControl; }
+    regCB_TARGET_MASK CbTargetMask() const { return m_commands.set.context.cbTargetMask; }
 
     bool CanDrawPrimsOutOfOrder(const DepthStencilView*  pDsView,
                                 const DepthStencilState* pDepthStencilState,
@@ -157,6 +158,8 @@ public:
         uint32                 numSgprs,
         uint32                 scratchEn,
         uint32                 targetLateAllocLimit);
+
+    bool IsRasterizationKilled() const { return (m_commands.set.context.paClClipCntl.bits.DX_RASTERIZATION_KILL != 0); }
 
 protected:
     virtual ~GraphicsPipeline() { }

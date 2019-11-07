@@ -262,7 +262,16 @@ bool BitMaskScanForward(
     // is to forward declare result, and set it in a conditional branch after the bitscan. Be careful if modifying this.
     bool result = false;
 
+#if   defined(__GNUC__)
     *pIndex = (sizeof(T) > 4) ? __builtin_ctzll(mask) : __builtin_ctz(static_cast<uint32>(mask));
+#else
+    if (mask != 0)
+    {
+        uint32 index = 0;
+        for (; ((mask & 0x1) == 0); mask >>= 1, ++index);
+        *pIndex = index;
+    }
+#endif
 
     if (mask != 0)
     {
@@ -283,7 +292,16 @@ bool BitMaskScanReverse(
     // is to forward declare result, and set it in a conditional branch after the bitscan. Be careful if modifying this.
     bool result = false;
 
+#if   defined(__GNUC__)
     *pIndex = (sizeof(T) > 4) ? (63u - __builtin_clzll(mask)) : (31u - __builtin_clz(static_cast<uint32>(mask)));
+#else
+    if (mask != 0)
+    {
+        uint32 index = 31u;
+        for (; (((mask >> index) & 0x1) == 0); --index);
+        *pIndex = index;
+    }
+#endif
 
     if (mask != 0)
     {
@@ -587,7 +605,11 @@ PAL_INLINE void Wcsncpy(
     const wchar_t* pSrc,    ///< [in] Source string to copy.
     size_t         dstSize) ///< Length of the destination buffer, in wchar_t's.
 {
+#if defined(__unix__)
     wcsncpy(pDst, pSrc, dstSize);
+#else
+    wcscpy_s(pDst, dstSize, pSrc);
+#endif
 }
 
 /// Simple wrapper for strncat or strncat_s which provides a safe version of strncat.
@@ -598,9 +620,11 @@ PAL_INLINE void Strncat(
 {
     PAL_ASSERT((pDst != nullptr) && (pSrc != nullptr));
 
+#if   defined(__unix__)
     // Compute the length of the destination string to prevent buffer overruns.
     const size_t dstLength = strlen(pDst);
     strncat(pDst, pSrc, (sizeDst - dstLength - 1));
+#endif
 }
 
 /// Simple wrapper for strtok_s or strtok_r which provides a safe version of strtok.
@@ -613,7 +637,9 @@ PAL_INLINE char* Strtok(
 
     char* pToken = NULL;
 
+#if   defined(__unix__)
     pToken = strtok_r(str, delim, buf);
+#endif
 
     return pToken;
 }

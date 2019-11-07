@@ -388,8 +388,10 @@ private:
         GfxCmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
+        ImageLayout               dstImageLayout,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const = 0;
+        const ImageResolveRegion* pRegions,
+        bool                      computeResolve) const = 0;
 
     virtual void HwlDepthStencilClear(
         GfxCmdBuffer*      pCmdBuffer,

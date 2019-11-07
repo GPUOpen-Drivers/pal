@@ -3809,7 +3809,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                         {
                             allowedSwModeSet.value &= Gfx9RotateSwModeMask;
                         }
-                        else if (displayRsrc && allowedSwSet.sw_D)
+                        else if (allowedSwSet.sw_D)
                         {
                             allowedSwModeSet.value &= Gfx9DisplaySwModeMask;
                         }

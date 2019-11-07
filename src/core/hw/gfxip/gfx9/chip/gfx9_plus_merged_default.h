@@ -282,7 +282,6 @@ constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS3_DEFAULT                 = 0x00
 constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_HP3D_DEFAULT                = 0x7C1F07F;
 constexpr unsigned int mmSPI_WF_LIFETIME_CNTL_DEFAULT                     = 0x0000;
 constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_0_DEFAULT                  = 0x0100;
-constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_1_DEFAULT                  = 0x0100;
 constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_2_DEFAULT                  = 0x0100;
 constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_3_DEFAULT                  = 0x0100;
 constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_4_DEFAULT                  = 0x0100;
@@ -1006,6 +1005,7 @@ namespace Core
     constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_31_DEFAULT               = 0xCDCDCDCD;
     constexpr unsigned int mmSPI_SHADER_Z_FORMAT_DEFAULT                      = 0x000D;
     constexpr unsigned int mmSPI_TMPRING_SIZE_DEFAULT                         = 0x1CDCDCD;
+    constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_1_DEFAULT                  = 0x0100;
     constexpr unsigned int mmSQ_IND_DATA_DEFAULT                              = 0xCDCDCDCD;
     constexpr unsigned int mmSQ_PERFCOUNTER0_HI_DEFAULT                       = 0xCDCDCDCD;
     constexpr unsigned int mmSQ_PERFCOUNTER0_LO_DEFAULT                       = 0xCDCDCDCD;

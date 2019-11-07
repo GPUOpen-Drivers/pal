@@ -503,7 +503,8 @@ protected:
         UserDataTableState* pTable,
         uint32              dwordsNeeded,
         uint32              offsetInDwords,
-        const uint32*       pSrcData);
+        const uint32*       pSrcData,
+        uint32              alignmentInDwords = 1);
 
     static void PAL_STDCALL CmdSetUserDataCs(
         ICmdBuffer*   pCmdBuffer,

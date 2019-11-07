@@ -751,14 +751,12 @@ bool DmaCmdBuffer::UseT2tScanlineCopy(
     // Still using the built-in packet?  One final thing to check.
     if (useScanlineCopy == false)
     {
-        const auto  dstSwizzle = GetSwizzleMode(dst);
+        const AddrSwizzleMode dstSwizzle = GetSwizzleMode(dst);
 
         //      Src and dest surfaces share the ... same swizzle mode (Z, S, D, R)  except HW rotation. The src and
         //      dst can have different block size (256B, 4KB, etc.) and different XOR mode
-        if ((AddrMgr2::IsDisplayableSwizzle(srcSwizzle) != AddrMgr2::IsDisplayableSwizzle(dstSwizzle)) &&
-            (AddrMgr2::IsZSwizzle(srcSwizzle)           != AddrMgr2::IsZSwizzle(dstSwizzle))           &&
-            (AddrMgr2::IsStandardSwzzle(srcSwizzle)     != AddrMgr2::IsStandardSwzzle(dstSwizzle))     &&
-            (AddrMgr2::IsRotatedSwizzle(srcSwizzle)     != AddrMgr2::IsRotatedSwizzle(dstSwizzle)))
+        // That said... what does "except HW rotation" mean? Until we know what it means just ignore it to be safe.
+        if (AddrMgr2::GetMicroSwizzle(srcSwizzle) != AddrMgr2::GetMicroSwizzle(dstSwizzle))
         {
             useScanlineCopy = true;
         }
@@ -1102,7 +1100,8 @@ void DmaCmdBuffer::SetupMetaData(
         const auto&       createInfo = pPalImage->GetImageCreateInfo();
         const Image*      pGfxImage  = static_cast<const Image*>(pPalImage->GetGfxImage());
         const GfxIpLevel  gfxLevel   = pPalDevice->ChipProperties().gfxLevel;
-        const auto*       pFmtInfo   = Pal::Formats::Gfx9::MergedChannelFlatFmtInfoTbl(gfxLevel, &settings);
+        const auto*const  pFmtInfo   =
+            Pal::Formats::Gfx9::MergedChannelFlatFmtInfoTbl(gfxLevel, &pPalDevice->GetPlatform()->PlatformSettings());
         const MaskRam*    pMaskRam   = nullptr;
         const bool        colorMeta  = pGfxImage->HasDccData();
 

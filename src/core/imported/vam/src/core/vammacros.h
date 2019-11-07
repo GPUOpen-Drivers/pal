@@ -53,13 +53,21 @@
 #define PTE_SIZE_IN_BYTES               8
 
 #if VAM_DEBUG
+    #if defined(__GNUC__)
         #include <signal.h>
         #define VAM_DBG_BREAK()         { raise(SIGTRAP); }
+    #else
+        #define VAM_DBG_BREAK()         { __debugbreak(); }
+    #endif
 #else
     #define VAM_DBG_BREAK()
 #endif
 
+#if defined(__GNUC__)
     #define VAM_ANALYSIS_ASSUME(expr)   ((void)0)
+#else
+    #define VAM_ANALYSIS_ASSUME(expr)   __analysis_assume(expr)
+#endif
 
 #define VAM_ASSERT(__expr)                  \
 {                                           \

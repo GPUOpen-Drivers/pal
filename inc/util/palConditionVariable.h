@@ -33,7 +33,9 @@
 
 #include "palUtil.h"
 
+#if   defined(__unix__)
 #include <pthread.h>
+#endif
 
 namespace Util
 {
@@ -79,7 +81,9 @@ public:
     void WakeAll();
 
 private:
+#if   defined(__unix__)
     pthread_cond_t     m_osCondVariable; // Linux-specific ConditionVariable structure.
+#endif
 
     PAL_DISALLOW_COPY_AND_ASSIGN(ConditionVariable);
 };

@@ -102,8 +102,10 @@ public:
     ///          + ErrorUnknown may be returned if an unexpected internal occurs when calling the OS.
     Result Wait(float timeout) const;
 
+#if   defined(__unix__)
     /// On Linux, a handle to an OS event primitive is a file descriptor, which is just an int.
     typedef int32 EventHandle;
+#endif
 
     /// Returns a handle to the actual OS event primitive associated with this object.
     EventHandle GetHandle() const { return m_hEvent; }

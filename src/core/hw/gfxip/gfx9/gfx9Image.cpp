@@ -880,21 +880,21 @@ Result Image::Finalize(
 // to force decompressions which will force image-replacement in the copy code.
 bool Image::DoesImageSupportCopySrcCompression() const
 {
+    const Platform&   platform            = *m_device.GetPlatform();
     const GfxIpLevel  gfxLevel            = m_device.ChipProperties().gfxLevel;
-    const Device&     device              = static_cast<const Device&>(*m_device.GetGfxDevice());
     const ChNumFormat createFormat        = m_createInfo.swizzledFormat.format;
     bool              supportsCompression = true;
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
-        const auto*const      pFmtInfo        = MergedChannelFmtInfoTbl(gfxLevel, &GetGfx9Settings(m_device));
+        const auto*const      pFmtInfo        = MergedChannelFmtInfoTbl(gfxLevel, &platform.PlatformSettings());
         const BUF_DATA_FORMAT hwBufferDataFmt = HwBufDataFmt(pFmtInfo, createFormat);
 
         supportsCompression = (hwBufferDataFmt != BUF_DATA_FORMAT_INVALID);
     }
     else
     {
-        const auto*const pFmtInfo       = MergedChannelFlatFmtInfoTbl(gfxLevel, &GetGfx9Settings(m_device));
+        const auto*const pFmtInfo       = MergedChannelFlatFmtInfoTbl(gfxLevel, &platform.PlatformSettings());
         const BUF_FMT    hwBufferFormat = HwBufFmt(pFmtInfo, createFormat);
 
         supportsCompression = (hwBufferFormat != BUF_FMT_INVALID);
@@ -927,6 +927,8 @@ void Image::InitLayoutStateMasks()
         // Additional usages may be allowed for an image in the compressed state.
         if (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0)
         {
+            const Gfx9PalSettings& settings = GetGfx9Settings(m_device);
+
             // In Gfx10, UAV surface can have a DCC memory. So we allow compression for:
             //   - ShaderWrite (because the app can write compressed to the surface)
             //   - CopyDst     (because PAL copies can write compressed to the surface)
@@ -936,15 +938,12 @@ void Image::InitLayoutStateMasks()
             // resolve to compress the destination data.
             if (IsGfx10(m_device))
             {
-                const Gfx9PalSettings& settings = GetGfx9Settings(m_device);
-
                 compressedLayout.usages |= LayoutShaderWrite;
 
-                // If we don't ever want copyDst to be compressed, then we're done
-                // If we always copyDst to be compressed, then this is easy
-                // Otherwise, copyDst is only on if the image supports shader reads
-                if ((settings.copyDstIsCompressed  != Gfx10CopyDstNeverAllow) &&
-                    ((settings.copyDstIsCompressed == Gfx10CopyDstAlwaysAllow) ||
+                // If we don't ever want copyDst to be compressed, then we're done. Otherwise, it should be on if
+                // it's generally enabled or if it's enabled for readable formats and this image is readable.
+                if ((settings.copyDstIsCompressed  != CopyDstComprNeverAllow) &&
+                    ((settings.copyDstIsCompressed != CopyDstComprAllowForReadableFormatsGfx10) ||
                      ImageSupportsShaderReadsAndWrites()))
                 {
                     compressedLayout.usages |= LayoutCopyDst;
@@ -979,11 +978,10 @@ void Image::InitLayoutStateMasks()
                     compressedLayout.usages |= LayoutCopySrc;
                 }
 
-                // You can't raw copy to a compressed texture, you can only write to it using the image's format.
-                // Add in LayoutCopyDst if the client promises that all copies will only write using the image's
-                // format.
-                if (m_createInfo.flags.copyFormatsMatch != 0)
+                if (settings.copyDstIsCompressed == CopyDstComprAlwaysAllow)
                 {
+                    // Avoid DCC decompresses of copy destinations by promising to use graphics blits in RPM.
+                    // This is not fully implemented and is unsafe. It exists as a perf debug tool.
                     compressedLayout.usages |= LayoutCopyDst;
                 }
 
@@ -1143,6 +1141,14 @@ void Image::InitLayoutStateMasks()
                     compressedLayouts.usages |= LayoutResolveSrc;
                 }
             }
+        }
+
+        // If the depth-stencil image is always be fully overwritten when being resolved:
+        // a. Fix-function/Compute Shader resolve :- Instead of expanding HTILE, we can fixup HTILE after resolve.
+        // b. Pixel shader resolve :- There is no need to expand HTILE.
+        if (m_createInfo.flags.fullResolveDstOnly != 0)
+        {
+            compressedLayouts.usages |= LayoutResolveDst;
         }
 
         // With a TC-compatible htile, even the compressed layout is shader-readable

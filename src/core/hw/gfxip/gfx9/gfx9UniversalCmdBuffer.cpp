@@ -299,9 +299,12 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                       (m_cachedSettings.disableDfsm         == false) &&   // Is DFSM already forced off?
                       (m_cachedSettings.disableBatchBinning == false));    // Is binning enabled?
     m_cachedSettings.batchBreakOnNewPs         = settings.batchBreakOnNewPixelShader;
+    m_cachedSettings.pbbMoreThanOneCtxState    = (settings.binningContextStatesPerBin > 1);
     m_cachedSettings.padParamCacheSpace        =
             ((pPublicSettings->contextRollOptimizationFlags & PadParamCacheSpace) != 0);
+    m_cachedSettings.disableVertGrouping       = settings.disableGeCntlVtxGrouping;
     m_cachedSettings.prefetchIndexBufferForNgg = settings.waEnableIndexBufferPrefetchForNgg;
+    m_cachedSettings.waCeDisableIb2            = settings.waCeDisableIb2;
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
     // The bin size is choosen from the minimum size for Depth, Color and Fmask.
@@ -573,6 +576,29 @@ void UniversalCmdBuffer::ResetState()
     if (IsGfx10(m_gfxIpLevel))
     {
         m_vgtDmaIndexType.gfx10.RDREQ_POLICY = VGT_POLICY_STREAM;
+
+        const uint32 cbDbCachePolicy = m_device.Settings().cbDbCachePolicy;
+
+        m_cbRmiGl2CacheControl.u32All               = 0;
+        m_cbRmiGl2CacheControl.bits.CMASK_WR_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruCmask) ? CACHE_LRU_WR : CACHE_STREAM;
+        m_cbRmiGl2CacheControl.bits.FMASK_WR_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruFmask) ? CACHE_LRU_WR : CACHE_STREAM;
+        m_cbRmiGl2CacheControl.bits.DCC_WR_POLICY   =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDcc)   ? CACHE_LRU_WR : CACHE_STREAM;
+        m_cbRmiGl2CacheControl.bits.CMASK_RD_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruCmask) ? CACHE_LRU_RD : CACHE_NOA;
+        m_cbRmiGl2CacheControl.bits.FMASK_RD_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruFmask) ? CACHE_LRU_RD : CACHE_NOA;
+        m_cbRmiGl2CacheControl.bits.DCC_RD_POLICY   =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDcc)   ? CACHE_LRU_RD : CACHE_NOA;
+        m_cbRmiGl2CacheControl.bits.COLOR_RD_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_RD : CACHE_NOA;
+
+        // If any of the bound color targets are using linear swizzle mode (or 256_S or 256_D, but PAL doesn't utilize
+        // those), then COLOR_WR_POLICY can not be CACHE_BYPASS.
+        m_cbRmiGl2CacheControl.bits.COLOR_WR_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_WR : CACHE_STREAM;
     }
     else
     {
@@ -640,6 +666,10 @@ void UniversalCmdBuffer::ResetState()
     m_pipelinePsHash.lower = 0;
     m_pipelinePsHash.upper = 0;
     m_pipelineFlags.u32All = 0;
+
+    // Set this flag at command buffer Begin/Reset, in case the last draw of the previous chained command buffer has
+    // rasterization killed.
+    m_pipelineFlags.noRaster = 1;
 
     ResetUserDataTable(&m_spillTable.stateCs);
     ResetUserDataTable(&m_spillTable.stateGfx);
@@ -730,6 +760,12 @@ void UniversalCmdBuffer::CmdBindPipeline(
                 m_deCmdStream.CommitCommands(pCmdSpace);
             }
         }
+
+        if ((pNewPipeline == nullptr) || (pOldPipeline == nullptr) ||
+            (pNewPipeline->CbTargetMask().u32All != pOldPipeline->CbTargetMask().u32All))
+        {
+            m_state.flags.cbTargetMaskChanged = true;
+        }
     }
 
      Pal::UniversalCmdBuffer::CmdBindPipeline(params);
@@ -750,6 +786,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     const bool isNgg               = pCurrPipeline->IsNgg();
     const bool tessEnabled         = pCurrPipeline->IsTessEnabled();
     const bool gsEnabled           = pCurrPipeline->IsGsEnabled();
+    const bool isRasterKilled      = pCurrPipeline->IsRasterizationKilled();
 
     const uint64 ctxPm4Hash = pCurrPipeline->GetContextPm4ImgHash();
     if (wasPrevPipelineNull || (m_pipelineCtxPm4Hash != ctxPm4Hash))
@@ -766,14 +803,22 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         m_deCmdStream.SetContextRollDetected<true>();
     }
 
-    if (m_cachedSettings.batchBreakOnNewPs)
+    bool breakBatch = ((m_cachedSettings.pbbMoreThanOneCtxState) && (m_state.flags.cbTargetMaskChanged));
+    m_state.flags.cbTargetMaskChanged = false;
+
+    if ((m_cachedSettings.batchBreakOnNewPs) && (breakBatch == false))
     {
         const ShaderHash& psHash = pCurrPipeline->GetInfo().shader[static_cast<uint32>(ShaderType::Pixel)].hash;
         if (wasPrevPipelineNull || (ShaderHashesEqual(m_pipelinePsHash, psHash) == false))
         {
-            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
             m_pipelinePsHash = psHash;
+            breakBatch = true;
         }
+    }
+
+    if (breakBatch)
+    {
+        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     // Get new pipeline state VS/PS registers
@@ -875,6 +920,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     m_pipelineFlags.isNgg    = isNgg;
     m_pipelineFlags.usesTess = tessEnabled;
     m_pipelineFlags.usesGs   = gsEnabled;
+    m_pipelineFlags.noRaster = isRasterKilled;
 
     return pDeCmdSpace;
 }
@@ -1487,6 +1533,10 @@ void UniversalCmdBuffer::CmdBindTargets(
     bool waitOnMetadataMipTail = false;
 
     uint32 bppMoreThan64 = 0;
+    // BIG_PAGE can only be enabled if all render targets are compatible.  Default to true and disable it later if we
+    // find an incompatible target.
+    bool   colorBigPage  = true;
+    bool   fmaskBigPage  = true;
 
     TargetExtent2d surfaceExtent = { MaxScissorExtent, MaxScissorExtent }; // Default to fully open
 
@@ -1524,6 +1574,24 @@ void UniversalCmdBuffer::CmdBindTargets(
 
             const auto* pImage        = pNewView->GetImage();
             auto*       pGfx10NewView = static_cast<const Gfx10ColorTargetView*>(pNewView);
+
+            if (IsGfx10(m_gfxIpLevel) && (pImage != nullptr))
+            {
+                colorBigPage &= pGfx10NewView->IsColorBigPage();
+
+                // There is a shared bit to enable the BIG_PAGE optimization for all targets.  If this image doesn't
+                // have fmask we should leave the accumulated fmaskBigPage state alone so other render targets that
+                // do have fmask can still get the optimization.
+                if (pImage->HasFmaskData())
+                {
+                    fmaskBigPage &= pGfx10NewView->IsFmaskBigPage();
+                }
+            }
+            else
+            {
+                colorBigPage = false;
+                fmaskBigPage = false;
+            }
 
             validViewFound = true;
         }
@@ -1582,7 +1650,10 @@ void UniversalCmdBuffer::CmdBindTargets(
         pDeCmdSpace = WriteNullDepthTarget(pDeCmdSpace);
     }
 
-    if ((pCurrentDepthView != nullptr) && (pCurrentDepthView != pNewDepthView))  // view1->view2 or view->null
+    // view1->view2 or view->null
+    const bool depthTargetChanged = ((pCurrentDepthView != nullptr) && (pCurrentDepthView != pNewDepthView));
+
+    if (depthTargetChanged)
     {
         // Handle the case where the depth view is changing.
         pDeCmdSpace = DepthStencilView::HandleBoundTargetChanged(m_cmdUtil, pDeCmdSpace);
@@ -1590,6 +1661,26 @@ void UniversalCmdBuffer::CmdBindTargets(
         // Record if this depth view we are switching from should trigger a Release_Mem due to being in the MetaData
         // tail region.
         waitOnMetadataMipTail |= pCurrentDepthView->WaitOnMetadataMipTail();
+    }
+
+    if (((!m_cachedSettings.disableDfsm) & colorTargetsChanged) |
+        (m_cachedSettings.pbbMoreThanOneCtxState & (colorTargetsChanged | depthTargetChanged)))
+    {
+        // If the slice-index as programmed by the CB is changing, then we have to flush DFSM stuff. This isn't
+        // necessary if DFSM is disabled.
+        //
+        // ("it" refers to the RT-index, the HW perspective of which slice is being rendered to. The RT-index is
+        //  a combination of the CB registers and the GS output).
+        //
+        //  If the GS (HW VS) is changing it, then there is only one view, so no batch break is needed..  If any
+        //  of the RT views are changing, the DFSM has no idea about it and there isn't any one single RT_index
+        //  to keep track of since each RT may have a different view with different STARTs and SIZEs that can be
+        //  independently changing.  The DB and Scan Converter also doesn't know about the CB's views changing.
+        //  This is why there should be a batch break on RT view changes.  The other reason is that binning and
+        //  deferred shading can't give any benefit when the bound RT views of consecutive contexts are not
+        //  intersecting.  There is no way to increase cache hit ratios if there is no way to generate the same
+        //  address between draws, so there is no reason to enable binning.
+        pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     if (waitOnMetadataMipTail)
@@ -1603,23 +1694,11 @@ void UniversalCmdBuffer::CmdBindTargets(
 
     if (IsGfx10(m_gfxIpLevel))
     {
-        regCB_RMI_GL2_CACHE_CONTROL cbRmiGl2CacheControl = { };
-
-        cbRmiGl2CacheControl.u32All               = 0;
-        cbRmiGl2CacheControl.bits.CMASK_WR_POLICY = CACHE_STREAM;
-        cbRmiGl2CacheControl.bits.FMASK_WR_POLICY = CACHE_STREAM;
-        cbRmiGl2CacheControl.bits.DCC_WR_POLICY   = CACHE_STREAM;
-        cbRmiGl2CacheControl.bits.CMASK_RD_POLICY = CACHE_NOA;
-        cbRmiGl2CacheControl.bits.FMASK_RD_POLICY = CACHE_NOA;
-        cbRmiGl2CacheControl.bits.DCC_RD_POLICY   = CACHE_NOA;
-        cbRmiGl2CacheControl.bits.COLOR_RD_POLICY = CACHE_NOA;
-
-        // If any of the bound color targets are using linear swizzle mode (or 256_S or 256_D, but PAL doesn't utilize
-        // those), then COLOR_WR_POLICY can not be CACHE_BYPASS.
-        cbRmiGl2CacheControl.bits.COLOR_WR_POLICY = CACHE_STREAM;
+        m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE = colorBigPage;
+        m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE = fmaskBigPage;
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10::mmCB_RMI_GL2_CACHE_CONTROL,
-                                                          cbRmiGl2CacheControl.u32All,
+                                                          m_cbRmiGl2CacheControl.u32All,
                                                           pDeCmdSpace);
     }
 
@@ -1709,7 +1788,7 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
                 auto*const  pSrd = &pBufferSrd->gfx10;
 
                 pSrd->add_tid_enable = 0;
-                pSrd->format         = BUF_FMT_32_UINT;
+                pSrd->format         = BUF_FMT_32_UINT__GFX10CORE;
                 pSrd->oob_select     = SQ_OOB_INDEX_ONLY;
             }
             else
@@ -4770,9 +4849,74 @@ union Uint32ToFloat
 
 // =====================================================================================================================
 // This function updates the NGG culling data constant buffer which is needed for NGG culling operations to execute
-// correctly.
+// correctly.  See the UpdateNggCullingDataBufferWithGpu function for reference code.
 // Returns a pointer to the next entry in the DE cmd space.  This function MUST NOT write any context registers!
-uint32* UniversalCmdBuffer::UpdateNggCullingDataBuffer(
+uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
+    uint32* pDeCmdSpace)
+{
+    PAL_ASSERT(m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped);
+
+    // If nothing has changed, then there's no need to do anything...
+    if ((m_nggState.flags.dirty.u8All != 0) || m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
+    {
+        constexpr uint32 NggStateDwords = (sizeof(Abi::PrimShaderCbLayout) / sizeof(uint32));
+        const     uint16 nggRegAddr     = m_pSignatureGfx->nggCullingDataAddr;
+
+        // Make a local copy of the various shader state so that we can modify it as necessary.
+        Abi::PrimShaderCbLayout  localShaderLayout;
+        memcpy(&localShaderLayout, &m_state.primShaderCbLayout, sizeof(uint32) * NggStateDwords);
+
+        if (m_nggState.flags.dirty.viewports || m_nggState.flags.dirty.msaaState)
+        {
+            // For small-primitive filter culling with NGG, the shader needs the viewport scale to premultiply
+            // the number of samples into it.
+            Abi::PrimShaderVportCb*  pVportCb = &localShaderLayout.viewportStateCb;
+            Uint32ToFloat uintToFloat = {};
+            for (uint32 i = 0; i < m_graphicsState.viewportState.count; i++)
+            {
+                uintToFloat.uValue  = pVportCb->vportControls[i].paClVportXscale;
+                uintToFloat.fValue *= (m_nggState.numSamples > 1) ? 16.0f : 1.0f;
+
+                pVportCb->vportControls[i].paClVportXscale = uintToFloat.uValue;
+            }
+        }
+
+        // The alignment of the user data is dependent on the type of register used to store
+        // the address.
+        const uint32 byteAlignment = ((nggRegAddr == mmSPI_SHADER_PGM_LO_GS) ? 256 : 4);
+
+        // Copy all of NGG state into embedded data, which is pointed to by nggTable.gpuVirtAddr
+        UpdateUserDataTableCpu(&m_nggTable.state,
+                               NggStateDwords, // size
+                               0,              // offset
+                               reinterpret_cast<const uint32*>(&localShaderLayout),
+                               NumBytesToNumDwords(byteAlignment));
+
+        gpusize gpuVirtAddr = m_nggTable.state.gpuVirtAddr;
+        if (byteAlignment == 256)
+        {
+            // The address of the constant buffer is stored in the GS shader address registers, which require a
+            // 256B aligned address.
+            gpuVirtAddr = Get256BAddrLo(m_nggTable.state.gpuVirtAddr);
+        }
+
+        pDeCmdSpace = m_deCmdStream.WriteSetSeqShRegs(nggRegAddr,
+                                                      (nggRegAddr + 1),
+                                                      ShaderGraphics,
+                                                      &gpuVirtAddr,
+                                                      pDeCmdSpace);
+
+        m_nggState.flags.dirty.u8All = 0;
+    }
+
+    return pDeCmdSpace;
+}
+
+// =====================================================================================================================
+// This function updates the NGG culling data constant buffer which is needed for NGG culling operations to execute
+// correctly.  Updates to this should also be made in UpdateNggCullingDataBufferWithCpu as well.
+// Returns a pointer to the next entry in the DE cmd space.  This function MUST NOT write any context registers!
+uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithGpu(
     uint32* pDeCmdSpace)
 {
     PAL_ASSERT(m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped);
@@ -5091,6 +5235,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     {
         log2TotalSamples = log2MsaaStateSamples + (pPipeline->UsesInnerCoverage() ? 1 : 0);
     }
+
     // Else, use the underestimation result directly as the only covered sample.
 
     const bool newAaConfigSamples = (m_log2NumSamples != log2TotalSamples);
@@ -5099,6 +5244,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         newAaConfigSamples                   ||
         (m_state.flags.paScAaConfigUpdated == 0))
     {
+
         m_state.flags.paScAaConfigUpdated = 1;
         m_log2NumSamples = log2TotalSamples;
 
@@ -5247,7 +5393,14 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     if (IsNgg && (m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped))
     {
-        pDeCmdSpace = UpdateNggCullingDataBuffer(pDeCmdSpace);
+        if (UseCpuPathInsteadOfCeRam() == false)
+        {
+            pDeCmdSpace = UpdateNggCullingDataBufferWithGpu(pDeCmdSpace);
+        }
+        else
+        {
+            pDeCmdSpace = UpdateNggCullingDataBufferWithCpu(pDeCmdSpace);
+        }
     }
 
     // Clear the dirty-state flags.
@@ -6218,26 +6371,29 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
     regIA_MULTI_VGT_PARAM iaMultiVgtParam
     ) const
 {
-    const auto*  pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+    const     auto*  pPipeline            = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+    const     bool   isTess               = pPipeline->IsTessEnabled();
+    const     bool   isNggFastLaunch      = pPipeline->IsNggFastLaunch();
+    const     bool   disableVertGrouping  = (m_cachedSettings.disableVertGrouping && (isNggFastLaunch == false));
+    constexpr uint32 VertGroupingDisabled = 256;
 
     regGE_CNTL  geCntl = {};
 
-    if ((isNgg == false) || pPipeline->IsTessEnabled())
+    if ((isNgg == false) || isTess || disableVertGrouping)
     {
         // PRIMGROUP_SIZE is zero-based (i.e., zero means one) but PRIM_GRP_SIZE is one based (i.e., one means one).
         geCntl.bits.PRIM_GRP_SIZE = iaMultiVgtParam.bits.PRIMGROUP_SIZE + 1;
 
-        // Setting this to zero disables grouping based on the number of vertices.  This could be set through the
-        // VertsPerPrimitive() function in the pipeline, but that would seem to simply limit the grouping to the
-        // same thing via two different settings?
-        geCntl.bits.VERT_GRP_SIZE = 0;
+        // Recomendation to disable VERT_GRP_SIZE is to set it to 256.
+        geCntl.bits.VERT_GRP_SIZE = VertGroupingDisabled;
     }
     else
     {
         const regVGT_GS_ONCHIP_CNTL vgtGsOnchipCntl = pPipeline->VgtGsOnchipCntl();
 
         geCntl.bits.PRIM_GRP_SIZE = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
-        geCntl.bits.VERT_GRP_SIZE = vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
+        geCntl.bits.VERT_GRP_SIZE =
+            (disableVertGrouping) ? VertGroupingDisabled : vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
     }
 
     // Only used for line-stipple
@@ -7254,20 +7410,31 @@ void UniversalCmdBuffer::InheritStateFromCmdBuf(
     SetGraphicsState(pUniversalCmdBuffer->GetGraphicsState());
     SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
 
+    // Was "CmdSetVertexBuffers" ever called on the parent command buffer?
     if (pUniversalCmdBuffer->m_vbTable.modified != 0)
     {
+        // Yes, so we need to copy all the VB SRDs into this command buffer as well.
         m_vbTable.modified  = 1;
         m_vbTable.watermark = pUniversalCmdBuffer->m_vbTable.watermark;
         memcpy(m_vbTable.pSrds, pUniversalCmdBuffer->m_vbTable.pSrds, (sizeof(BufferSrd) * MaxVertexBuffers));
 
-        uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
-        pCeCmdSpace = UploadToUserDataTable(&m_vbTable.state,
-                                            0,
-                                            m_vbTable.state.sizeInDwords,
-                                            reinterpret_cast<uint32*>(m_vbTable.pSrds),
-                                            m_vbTable.watermark,
-                                            pCeCmdSpace);
-        m_ceCmdStream.CommitCommands(pCeCmdSpace);
+        if (UseCpuPathInsteadOfCeRam() == false)
+        {
+            uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
+            pCeCmdSpace = UploadToUserDataTable(&m_vbTable.state,
+                                                0,
+                                                m_vbTable.state.sizeInDwords,
+                                                reinterpret_cast<uint32*>(m_vbTable.pSrds),
+                                                m_vbTable.watermark,
+                                                pCeCmdSpace);
+            m_ceCmdStream.CommitCommands(pCeCmdSpace);
+        }
+        else
+        {
+            // If the CPU update path is active, then set the "dirty" flag here to trigger the CPU
+            // update path in "ValidateGraphicsUserDataCpu".
+            m_vbTable.state.dirty = 1;
+        }
     }
 }
 
@@ -8299,6 +8466,7 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
         const bool allowIb2Launch = (pCallee->AllowLaunchViaIb2() &&
                                      ((pCallee->m_state.flags.containsDrawIndirect == 0)
                                       || (IsGfx10(m_gfxIpLevel) == true)));
+        const bool allowIb2LaunchCe = (allowIb2Launch && (m_cachedSettings.waCeDisableIb2 == 0));
 
         m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
         m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_gpuScratchMem.chunkList);
@@ -8306,7 +8474,7 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
         m_ceCmdStream.TrackNestedCommands(pCallee->m_ceCmdStream);
 
         m_deCmdStream.Call(pCallee->m_deCmdStream, exclusiveSubmit, allowIb2Launch);
-        m_ceCmdStream.Call(pCallee->m_ceCmdStream, exclusiveSubmit, allowIb2Launch);
+        m_ceCmdStream.Call(pCallee->m_ceCmdStream, exclusiveSubmit, allowIb2LaunchCe);
 
         // Callee command buffers are also able to leak any changes they made to bound user-data entries and any other
         // state back to the caller.

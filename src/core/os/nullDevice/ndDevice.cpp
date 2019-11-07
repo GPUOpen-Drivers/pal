@@ -85,9 +85,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { FAMILY_RV,  RAVEN2_A0,            PRID_RV_E2,                   GfxEngineGfx9,  DEVICE_ID_RV2_15D8              },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
-#if   (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 538)
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-#endif
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { FAMILY_NV,  NV_NAVI10_P_A2,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310      },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
@@ -101,8 +99,10 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // All
 };
+static_assert(Util::ArrayLen(NullIdLookupTable) == static_cast<uint32>(NullGpuId::All),
+              "NullIdLookupTable needs update!");
 
 const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
 {
@@ -138,9 +138,8 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     "RAVEN2:gfx909",
     nullptr,
 
-#if   (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 538)
     nullptr,
-#endif
+    nullptr,
     "NAVI10:gfx1010",
     nullptr,
     nullptr,
@@ -153,6 +152,9 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     nullptr,
 };
+
+static_assert(Util::ArrayLen(pNullGpuNames) == static_cast<uint32>(NullGpuId::Max),
+              "pNullGpuNames needs update!");
 
 // =====================================================================================================================
 Device::Device(
@@ -1050,13 +1052,11 @@ Result Device::EarlyInit(
 #endif
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
-        m_pFormatPropertiesTable    = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
+        m_pFormatPropertiesTable = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,
+                                                                  GetPlatform()->PlatformSettings());
 
         InitGfx9ChipProperties();
-        Gfx9::InitializeGpuEngineProperties(m_chipProperties.gfxLevel,
-                                            m_chipProperties.familyId,
-                                            m_chipProperties.eRevId,
-                                            &m_engineProperties);
+        Gfx9::InitializeGpuEngineProperties(m_chipProperties, &m_engineProperties);
         break;
     case GfxIpLevel::None:
         // No Graphics IP block found or recognized!

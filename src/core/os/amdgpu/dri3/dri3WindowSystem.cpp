@@ -332,6 +332,8 @@ Result Dri3WindowSystem::Init()
             }
             else
             {
+                result = m_device.IsSameGpu(fd, &m_presentOnSameGpu);
+
                 close(fd);
             }
         }

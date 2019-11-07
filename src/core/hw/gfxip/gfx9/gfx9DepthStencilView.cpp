@@ -307,6 +307,15 @@ void DepthStencilView::UpdateImageVa(
     // the associated image yet, so don't do anything if it's not safe
     if (boundMem.IsBound())
     {
+        // Setup bits indicating the page size.
+        if (is_same<Pm4ImgType, Gfx10DepthStencilViewPm4Img>::value)
+        {
+            const bool isBigPage = IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageDepthStencil);
+
+            Gfx10DepthStencilViewPm4Img* pGfx10Pm4Img = reinterpret_cast<Gfx10DepthStencilViewPm4Img*>(pPm4Img);
+            pGfx10Pm4Img->dbRmiL2CacheControl.bits.Z_BIG_PAGE = isBigPage;
+            pGfx10Pm4Img->dbRmiL2CacheControl.bits.S_BIG_PAGE = isBigPage;
+        }
 
         uint32  zReadBase        = m_pImage->GetSubresource256BAddrSwizzled(m_depthSubresource);
         uint32  zWriteBase       = zReadBase;
@@ -621,7 +630,8 @@ void Gfx9DepthStencilView::InitRegisters(
     const DepthStencilViewCreateInfo&         createInfo,
     const DepthStencilViewInternalCreateInfo& internalInfo)
 {
-    const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(GfxIpLevel::GfxIp9, &m_device.Settings());
+    const MergedFmtInfo*const pFmtInfo =
+        MergedChannelFmtInfoTbl(GfxIpLevel::GfxIp9, &m_device.GetPlatform()->PlatformSettings());
 
     DB_RENDER_OVERRIDE dbRenderOverride = { };
     InitCommonImageView(createInfo, internalInfo, pFmtInfo, &m_pm4Cmds, &dbRenderOverride);
@@ -789,7 +799,11 @@ void Gfx10DepthStencilView::InitRegisters(
     const ImageCreateInfo&      imageCreateInfo      = pParentImg->GetImageCreateInfo();
     const auto&                 palDevice            = *m_device.Parent();
     GfxIpLevel                  gfxip                = palDevice.ChipProperties().gfxLevel;
-    const auto*                 pFmtInfo             = MergedChannelFlatFmtInfoTbl(gfxip, &m_device.Settings());
+    const Gfx9PalSettings&      settings             = GetGfx9Settings(palDevice);
+
+    const MergedFlatFmtInfo*const pFmtInfo =
+        MergedChannelFlatFmtInfoTbl(gfxip, &m_device.GetPlatform()->PlatformSettings());
+
     const SubResourceInfo*      pDepthSubResInfo     = pParentImg->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*      pStencilSubResInfo   = pParentImg->SubresourceInfo(m_stencilSubresource);
     const SubresId              baseDepthSubResId    = { m_depthSubresource.aspect, 0 , 0 };
@@ -826,14 +840,23 @@ void Gfx10DepthStencilView::InitRegisters(
     m_pm4Cmds.dbDepthView.gfx10.SLICE_START_HI = createInfo.baseArraySlice >> DbDepthViewSliceStartMaskNumBits;
     m_pm4Cmds.dbDepthView.gfx10.SLICE_MAX_HI   = sliceMax >> DbDepthViewSliceMaxMaskNumBits;
 
+    const uint32 cbDbCachePolicy = m_device.Settings().cbDbCachePolicy;
+
     m_pm4Cmds.dbRmiL2CacheControl.u32All                = 0;
-    m_pm4Cmds.dbRmiL2CacheControl.bits.Z_WR_POLICY      = CACHE_STREAM;
-    m_pm4Cmds.dbRmiL2CacheControl.bits.S_WR_POLICY      = CACHE_STREAM;
-    m_pm4Cmds.dbRmiL2CacheControl.bits.HTILE_WR_POLICY  = CACHE_STREAM;
-    m_pm4Cmds.dbRmiL2CacheControl.bits.ZPCPSD_WR_POLICY = CACHE_STREAM;
-    m_pm4Cmds.dbRmiL2CacheControl.bits.Z_RD_POLICY      = CACHE_NOA;
-    m_pm4Cmds.dbRmiL2CacheControl.bits.S_RD_POLICY      = CACHE_NOA;
-    m_pm4Cmds.dbRmiL2CacheControl.bits.HTILE_RD_POLICY  = CACHE_NOA;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.Z_WR_POLICY      =
+        (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDepth)     ? CACHE_LRU_WR : CACHE_STREAM;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.S_WR_POLICY      =
+        (cbDbCachePolicy & Gfx10CbDbCachePolicyLruStencil)   ? CACHE_LRU_WR : CACHE_STREAM;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.HTILE_WR_POLICY  =
+        (cbDbCachePolicy & Gfx10CbDbCachePolicyLruHtile)     ? CACHE_LRU_WR : CACHE_STREAM;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.ZPCPSD_WR_POLICY =
+        (cbDbCachePolicy & Gfx10CbDbCachePolicyLruOcclusion) ? CACHE_LRU_WR : CACHE_STREAM;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.Z_RD_POLICY      =
+        (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDepth)     ? CACHE_LRU_RD : CACHE_NOA;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.S_RD_POLICY      =
+        (cbDbCachePolicy & Gfx10CbDbCachePolicyLruStencil)   ? CACHE_LRU_RD : CACHE_NOA;
+    m_pm4Cmds.dbRmiL2CacheControl.bits.HTILE_RD_POLICY  =
+        (cbDbCachePolicy & Gfx10CbDbCachePolicyLruHtile)     ? CACHE_LRU_RD : CACHE_NOA;
 
 }
 

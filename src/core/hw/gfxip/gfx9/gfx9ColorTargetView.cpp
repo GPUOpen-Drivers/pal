@@ -67,10 +67,10 @@ ColorTargetView::ColorTargetView(
     memset(&m_subresource, 0, sizeof(m_subresource));
 
     m_flags.u32All = 0;
-    // Note that buffew views have their VA ranges locked because they cannot have their memory rebound.
-    m_flags.isBufferView            = createInfo.flags.isBufferView;
-    m_flags.viewVaLocked            = (createInfo.flags.imageVaLocked | createInfo.flags.isBufferView);
-    m_swizzledFormat                = createInfo.swizzledFormat;
+    // Note that buffer views have their VA ranges locked because they cannot have their memory rebound.
+    m_flags.isBufferView = createInfo.flags.isBufferView;
+    m_flags.viewVaLocked = (createInfo.flags.imageVaLocked | createInfo.flags.isBufferView);
+    m_swizzledFormat     = createInfo.swizzledFormat;
 
     if (m_flags.isBufferView == 0)
     {
@@ -151,25 +151,6 @@ uint32* ColorTargetView::HandleBoundTargetsChanged(
     const Device& device,
     uint32*       pCmdSpace)
 {
-    if (device.Settings().disableDfsm == false)
-    {
-        // If the slice-index as programmed by the CB is changing, then we have to flush DFSM stuff. This isn't
-        // necessary if DFSM is disabled.
-        //
-        // ("it" refers to the RT-index, the HW perspective of which slice is being rendered to. The RT-index is
-        //  a combination of the CB registers and the GS output).
-        //
-        //  If the GS (HW VS) is changing it, then there is only one view, so no batch break is needed..  If any of the
-        //  RT views are changing, the DFSM has no idea about it and there isn't any one single RT_index to keep track
-        //  of since each RT may have a different view with different STARTs and SIZEs that can be independently
-        //  changing.  The DB and Scan Converter also doesn't know about the CB's views changing.  This is why there
-        //  should be a batch break on RT view changes.  The other reason is that binning and deferred shading can't
-        //  give any benefit when the bound RT views of consecutive contexts are not intersecting.  There is no way to
-        //  increase cache hit ratios if there is no way to generate the same address between draws, so there is no
-        //  reason to enable binning.
-        pCmdSpace += device.CmdUtil().BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pCmdSpace);
-    }
-
     // If you change the mips of a resource being rendered-to, regardless of which MRT slot it is bound to, we need
     // to flush the CB metadata caches (DCC, Fmask, Cmask). This protects against the case where a DCC, Fmask or Cmask
     // cacheline can contain data from two different mip levels in different RB's.
@@ -504,7 +485,8 @@ void Gfx9ColorTargetView::InitRegisters(
     const ColorTargetViewCreateInfo&  createInfo,
     ColorTargetViewInternalCreateInfo internalInfo)
 {
-    const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(GfxIpLevel::GfxIp9, &m_pDevice->Settings());
+    const MergedFmtInfo*const pFmtInfo =
+        MergedChannelFmtInfoTbl(GfxIpLevel::GfxIp9, &m_pDevice->GetPlatform()->PlatformSettings());
 
     regCB_COLOR0_INFO cbColorInfo = InitCommonCbColorInfo(createInfo, pFmtInfo);
 
@@ -739,6 +721,19 @@ Gfx10ColorTargetView::Gfx10ColorTargetView(
         }
     }
 
+    if (m_flags.viewVaLocked && (m_flags.isBufferView == 0))
+    {
+        m_gfx10Flags.colorBigPage = IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
+        m_gfx10Flags.fmaskBigPage = IsFmaskBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
+    }
+    else if (m_flags.isBufferView)
+    {
+        m_gfx10Flags.colorBigPage = IsBufferBigPageCompatible(
+                                        *static_cast<const GpuMemory*>(createInfo.bufferInfo.pGpuMemory),
+                                        createInfo.bufferInfo.offset,
+                                        createInfo.bufferInfo.extent,
+                                        Gfx10AllowBigPageBuffers);
+    }
 }
 
 // =====================================================================================================================
@@ -779,9 +774,10 @@ void Gfx10ColorTargetView::InitRegisters(
     ColorTargetViewInternalCreateInfo internalInfo)
 {
     const auto&            palDevice   = *m_pDevice->Parent();
-    const auto*const       pFmtInfoTbl = MergedChannelFlatFmtInfoTbl(palDevice.ChipProperties().gfxLevel,
-                                                                     &m_pDevice->Settings());
     const Gfx9PalSettings& settings    = GetGfx9Settings(palDevice);
+
+    const MergedFlatFmtInfo*const pFmtInfoTbl =
+        MergedChannelFlatFmtInfoTbl(palDevice.ChipProperties().gfxLevel, &m_pDevice->GetPlatform()->PlatformSettings());
 
     regCB_COLOR0_INFO cbColorInfo    = InitCommonCbColorInfo(createInfo, pFmtInfoTbl);
 
@@ -1062,6 +1058,27 @@ void Gfx10ColorTargetView::UpdateImageSrd(
     viewInfo.subresRange          = { m_subresource, 1, m_arraySize };
 
     m_pDevice->Parent()->CreateImageViewSrds(1, &viewInfo, pOut);
+}
+
+// =====================================================================================================================
+// Reports if the color target view can support setting COLOR_BIG_PAGE in CB_RMI_GLC2_CACHE_CONTROL.
+bool Gfx10ColorTargetView::IsColorBigPage() const
+{
+    // Buffer views and viewVaLocked image views have already computed whether they can support BIG_PAGE or not.  Other
+    // cases have to check now in case the bound memory has changed.
+    return (m_flags.viewVaLocked || m_flags.isBufferView) ?
+               m_gfx10Flags.colorBigPage :
+               IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
+}
+
+// =====================================================================================================================
+// Reports if the color target view can support setting FMASK_BIG_PAGE in CB_RMI_GLC2_CACHE_CONTROL.
+bool Gfx10ColorTargetView::IsFmaskBigPage() const
+{
+    // viewVaLocked image views have already computed whether they can support BIG_PAGE or not.  Other cases have to
+    // check now in case the bound memory has changed.
+    return m_flags.viewVaLocked ? m_gfx10Flags.fmaskBigPage :
+                                  IsFmaskBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
 }
 
 } // Gfx9

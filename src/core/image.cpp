@@ -616,6 +616,21 @@ Result Image::Init()
         {
             m_gpuMemAlignment = SubresourceInfo(0)->baseAlign;
 
+            if (m_createInfo.flags.flippable != 0)
+            {
+                const GpuMemoryProperties& memoryProps = m_pDevice->MemoryProperties();
+
+                if (memoryProps.dcnPrimarySurfaceVaSizeAlign != 0)
+                {
+                    m_gpuMemSize = Pow2Align(m_gpuMemSize, memoryProps.dcnPrimarySurfaceVaSizeAlign);
+                }
+
+                if (memoryProps.dcnPrimarySurfaceVaStartAlign != 0)
+                {
+                    m_gpuMemAlignment = Pow2Align(m_gpuMemAlignment, memoryProps.dcnPrimarySurfaceVaStartAlign);
+                }
+            }
+
             // PRT images need to have their data size aligned, otherwise mapping/unmapping the last PRT tile might
             // overrun any Image metadata that follows.
             if (m_createInfo.flags.prt != 0)

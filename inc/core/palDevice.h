@@ -695,6 +695,34 @@ enum class LocalMemoryType : uint32
     Count
 };
 
+/// Bitmask of all MSAA/EQAA types supported, in terms of samples (S) and shaded fragments (F)
+enum MsaaFlags : uint16
+{
+    MsaaS1F1  = 0x0001,
+    MsaaS2F1  = 0x0002,
+    MsaaS4F1  = 0x0004,
+    MsaaS8F1  = 0x0008,
+    MsaaS16F1 = 0x0010,
+    MsaaAllF1 = 0x001F,
+
+    MsaaS2F2  = 0x0020,
+    MsaaS4F2  = 0x0040,
+    MsaaS8F2  = 0x0080,
+    MsaaS16F2 = 0x0100,
+    MsaaAllF2 = 0x01E0,
+
+    MsaaS4F4  = 0x0200,
+    MsaaS8F4  = 0x0400,
+    MsaaS16F4 = 0x0800,
+    MsaaAllF4 = 0x0E00,
+
+    MsaaS8F8  = 0x1000,
+    MsaaS16F8 = 0x2000,
+    MsaaAllF8 = 0x3000,
+
+    MsaaAll   = 0x3FFF,
+};
+
 /// Reports various properties of a particular IDevice to the client.  @see IDevice::GetProperties.
 struct DeviceProperties
 {
@@ -960,8 +988,10 @@ struct DeviceProperties
         {
             struct
             {
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
                 /// Single-sample images created on this device support texture quilting
                 uint32 supportsSingleSampleQuilting :  1;
+#endif
 
                 /// Images created on this device supports AQBS stereo mode, this AQBS stereo mode doesn't apply to the
                 /// array-based stereo feature supported by Presentable images.
@@ -969,9 +999,13 @@ struct DeviceProperties
 
                 /// Set if images created on this device support being created with corner sampling.
                 uint32 supportsCornerSampling       :  1;
-
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
                 /// Reserved for future use.
                 uint32 reserved                     : 29;
+#else
+                /// Reserved for future use.
+                uint32 reserved                     : 30;
+#endif
             };
             uint32 u32All;              ///< Flags packed as 32-bit uint.
         } flags;                        ///< GPU memory property flags.
@@ -980,6 +1014,8 @@ struct DeviceProperties
         uint32          maxArraySlices; ///< Maximum supported number of array slices for a 1D or 2D image.
         PrtFeatureFlags prtFeatures;    ///< PRT features supported by the hardware.
         gpusize         prtTileSize;    ///< Size, in bytes, of a PRT tile.
+        MsaaFlags       msaaSupport;    ///< Bitflags for MSAA sample/fragment count support.
+        uint8           maxMsaaFragments; ///< Max number of MSAA fragments per pixel (may have more samples).
         uint8           numSwizzleEqs;  ///< How many swizzle equations are in pSwizzleEqs.
         const SwizzleEquation* pSwizzleEqs; ///< These describe how to interpret device-dependent tiling modes.
 
@@ -1609,7 +1645,9 @@ enum class ImageViewType : uint32
     Tex2d    = 0x1,
     Tex3d    = 0x2,
     TexCube  = 0x3,
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
     TexQuilt = 0x4,
+#endif
 
     Count
 };
@@ -1740,8 +1778,7 @@ struct ImageViewInfo
 {
     const IImage*  pImage;         ///< Image associated with the view.
     ImageViewType  viewType;       ///< 1D, 2D, 3D, or Cubemap.  Typically this should match the image type, but a
-                                   ///  Cubemap view can be imposed on a 2D array image.  TexQuilt allowed only if the
-                                   ///  imageProperties.flags.supportsQuilting flag is set.
+                                   ///  Cubemap view can be imposed on a 2D array image.
     SwizzledFormat swizzledFormat; ///< Specifies the image view format and channel swizzle. Must be compatible (same
                                    ///  bit-widths per channel) with the image's base format.
                                    ///  @note: YUV formats are invalid for an ImageView. A format should be chosen to be
@@ -1750,8 +1787,10 @@ struct ImageViewInfo
                                    ///  has a YUV planar format, the number of array slices in the range must be 1.
     float          minLod;         ///< Minimum mip level of detail to use for this view.
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
     uint32         quiltWidthInSlices; ///< Width of a quilted surface.  Only used if viewType == TexQuilt.
                                        ///  Must be a power of 2.
+#endif
 
     uint32         samplePatternIdx;  ///< Index into the currently bound MSAA sample pattern palette to be
                                       ///  read/evaluated when samplepos shader instructions are executed on this
@@ -4646,6 +4685,20 @@ public:
     ///
     /// @returns Pointer to debug file path.
     virtual const char* GetDebugFilePath() const = 0;
+
+    /// Queries the base driver Radeon Software Version string (as shown in Radeon Settings).
+    ///
+    /// @param [out]  pBuffer           A non-null pointer to the buffer where the string will be written.
+    /// @param [in]   bufferLength      The byte size of the string buffer (must be non-zero).
+    ///
+    /// @returns Success if the string was successfully retrieved. Otherwise, one of the following errors
+    ///          may be returned:
+    ///          + Unsupported if this function is not available on this environment.
+    ///          + NotFound if the Radeon Software Version string is not present.
+    ///          + ErrorInvalidValue if nullptr was passed for pBuffer or 0 for bufferLength.
+    virtual Result QueryRadeonSoftwareVersion(
+        char*  pBuffer,
+        size_t bufferLength) const = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

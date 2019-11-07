@@ -32,7 +32,12 @@
 #ifndef __VAMTYPES_H__
 #define __VAMTYPES_H__
 
+#if defined(__GNUC__)
     #include <vambasictypes.h>
+#else
+    #define WIN32_LEAN_AND_MEAN 1
+    #include <windows.h>
+#endif
 
 /**
 ***************************************************************************************************
@@ -40,18 +45,31 @@
 ***************************************************************************************************
 */
 #ifndef VAM_STDCALL
+    #if defined(__GNUC__)
         #if defined(__amd64__) || defined(__x86_64__)
             #define VAM_STDCALL
         #else
             #define VAM_STDCALL __attribute__((stdcall))
         #endif
+    #else
+        #define VAM_STDCALL __stdcall
+    #endif
 #endif
 
 #ifndef VAM_FASTCALL
+    #if defined(__GNUC__)
         #define VAM_FASTCALL __attribute__((regparm(0)))
+    #else
+        #define VAM_FASTCALL __fastcall
+    #endif
 #endif
 
+#if defined(__GNUC__)
     #define VAM_INLINE   inline
+#else
+    // win32, win64, other platforms
+    #define VAM_INLINE   __inline
+#endif
 
 #define VAM_API VAM_STDCALL
 

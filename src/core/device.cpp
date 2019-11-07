@@ -44,7 +44,9 @@
 #include "palHashMapImpl.h"
 #include "palIntrusiveListImpl.h"
 #include "palPipeline.h"
+#if defined(__unix__)
 #include "palSettingsFileMgrImpl.h"
+#endif
 #include "palSysUtil.h"
 #include "palTextWriterImpl.h"
 
@@ -199,7 +201,9 @@ bool Device::DetermineGpuIpLevels(
 // Initial HashMap element size for referenced GPU memory allocations.
 constexpr uint32 ReferencedMemoryMapElements = 2048;
 
+#if defined(__unix__)
 constexpr char SettingsFileName[] = "amdPalSettings.cfg";
+#endif
 
 // =====================================================================================================================
 Device::Device(
@@ -231,7 +235,9 @@ Device::Device(
     m_disableSwapChainAcquireBeforeSignaling(false),
     m_localInvDropCpuWrites(false),
     m_pSettingsLoader(nullptr),
+#if defined(__unix__)
     m_settingsMgr(SettingsFileName, pPlatform),
+#endif
     m_copyQueuesLock(),
     m_pInternalCopyQueue(nullptr),
     m_copyCmdBufferLock(),
@@ -1859,14 +1865,18 @@ Result Device::GetProperties(
         pInfo->gpuMemoryProperties.performance.vramBusBitWidth = m_memoryProperties.vramBusBitWidth;
         pInfo->gpuMemoryProperties.performance.memOpsPerClock  = m_memoryProperties.memOpsPerClock;
 
-        pInfo->imageProperties.maxDimensions   = m_chipProperties.imageProperties.maxImageDimension;
-        pInfo->imageProperties.maxArraySlices  = m_chipProperties.imageProperties.maxImageArraySize;
-        pInfo->imageProperties.prtFeatures     = m_chipProperties.imageProperties.prtFeatures;
-        pInfo->imageProperties.prtTileSize     = m_chipProperties.imageProperties.prtTileSize;
+        pInfo->imageProperties.maxDimensions    = m_chipProperties.imageProperties.maxImageDimension;
+        pInfo->imageProperties.maxArraySlices   = m_chipProperties.imageProperties.maxImageArraySize;
+        pInfo->imageProperties.prtFeatures      = m_chipProperties.imageProperties.prtFeatures;
+        pInfo->imageProperties.prtTileSize      = m_chipProperties.imageProperties.prtTileSize;
+        pInfo->imageProperties.msaaSupport      = m_chipProperties.imageProperties.msaaSupport;
+        pInfo->imageProperties.maxMsaaFragments = m_chipProperties.imageProperties.maxMsaaFragments;
 
         pInfo->imageProperties.flags.u32All                       = 0;
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
         pInfo->imageProperties.flags.supportsSingleSampleQuilting =
                 m_chipProperties.imageProperties.flags.supportsSingleSampleQuilting;
+#endif
         pInfo->imageProperties.flags.supportsAqbsStereoMode       =
                 m_chipProperties.imageProperties.flags.supportsAqbsStereoMode;
         pInfo->imageProperties.flags.supportsCornerSampling       =
@@ -3942,7 +3952,11 @@ bool Device::ReadSetting(
     size_t               bufferSz
     ) const
 {
+#if defined(__unix__)
     return m_settingsMgr.GetValue(pSettingName, valueType, pValue, bufferSz);
+#else
+    return false;
+#endif
 }
 
 // =====================================================================================================================

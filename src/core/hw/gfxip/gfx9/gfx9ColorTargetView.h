@@ -289,6 +289,9 @@ public:
         CmdStream*  pCmdStream,
         uint32*     pCmdSpace) const override;
 
+    bool IsColorBigPage() const;
+    bool IsFmaskBigPage() const;
+
     void GetImageSrd(void* pOut) const;
 
 protected:
@@ -318,7 +321,10 @@ private:
     {
         struct
         {
-            uint32 placeholder0 :  2;
+            uint32 colorBigPage :  1; // This view supports setting CB_RMI_GLC2_CACHE_CONTROL.COLOR_BIG_PAGE.  Only
+                                      // valid for buffer views or image views with viewVaLocked set.
+            uint32 fmaskBigPage :  1; // This view supports setting CB_RMI_GLC2_CACHE_CONTROL.FMASK_BIG_PAGE.  Only
+                                      // valid if viewVaLocked is set.
             uint32 placeholder1 :  1;
             uint32 reserved     : 30;
         };

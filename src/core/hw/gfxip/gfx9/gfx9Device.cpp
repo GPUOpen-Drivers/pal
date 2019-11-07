@@ -1854,7 +1854,7 @@ void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
     const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
     const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(pGfxDevice->Parent()->ChipProperties().gfxLevel,
-                                                          &pGfxDevice->Settings());
+                                                          &pGfxDevice->GetPlatform()->PlatformSettings());
 
     for (uint32 idx = 0; idx < count; ++idx)
     {
@@ -1901,7 +1901,7 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
     const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
     const auto*const pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
     const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(pPalDevice->ChipProperties().gfxLevel,
-                                                              &pGfxDevice->Settings());
+                                                              &pGfxDevice->GetPlatform()->PlatformSettings());
 
     for (uint32 idx = 0; idx < count; ++idx)
     {
@@ -2021,7 +2021,9 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
             pSrd->dst_sel_y = SQ_SEL_Y;
             pSrd->dst_sel_z = SQ_SEL_Z;
             pSrd->dst_sel_w = SQ_SEL_W;
-            pSrd->format    = BUF_FMT_32_UINT;
+            {
+                pSrd->format = BUF_FMT_32_UINT__GFX10CORE;
+            }
 
             if ((pSrd->stride == 1) || (pSrd->stride == 0))
             {
@@ -2251,7 +2253,8 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pImgViewInfo != nullptr) && (count > 0));
     const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
     const auto&      chipProp   = pGfxDevice->Parent()->ChipProperties();
-    const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(chipProp.gfxLevel, &pGfxDevice->Settings());
+    const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(chipProp.gfxLevel,
+                                                          &pGfxDevice->GetPlatform()->PlatformSettings());
 
     ImageSrd* pSrds = static_cast<ImageSrd*>(pOut);
 
@@ -2576,7 +2579,9 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             srd.word3.bits.TYPE = SQ_RSRC_IMG_1D_ARRAY;
             break;
         case ImageViewType::Tex2d:
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
         case ImageViewType::TexQuilt: // quilted textures must be 2D
+#endif
             srd.word3.bits.TYPE = (isMultiSampled) ? SQ_RSRC_IMG_2D_MSAA_ARRAY : SQ_RSRC_IMG_2D_ARRAY;
             break;
         case ImageViewType::Tex3d:
@@ -2623,6 +2628,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                 ((pAddrOutput->epitchIsHeight ? programmedExtent.height : programmedExtent.width) - 1);
         }
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
         //   The array_pitch resource field is defined so that setting it to zero disables quilting and behavior
         //   reverts back to a texture array
         uint32  arrayPitch = 0;
@@ -2635,8 +2641,10 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             arrayPitch = Log2(viewInfo.quiltWidthInSlices) + 1;
         }
 
-        srd.word5.bits.BASE_ARRAY        = baseArraySlice;
         srd.word5.bits.ARRAY_PITCH       = arrayPitch;
+#endif
+
+        srd.word5.bits.BASE_ARRAY        = baseArraySlice;
         srd.word5.bits.META_PIPE_ALIGNED = Gfx9MaskRam::IsPipeAligned(&image);
         srd.word5.bits.META_RB_ALIGNED   = Gfx9MaskRam::IsRbAligned(&image);
 
@@ -2745,7 +2753,8 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pImgViewInfo != nullptr) && (count > 0));
     const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
     const auto&      chipProps  = pPalDevice->ChipProperties();
-    const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel, &GetGfx9Settings(*pPalDevice));
+    const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel,
+                                                              &pPalDevice->GetPlatform()->PlatformSettings());
     const auto&      settings   = GetGfx9Settings(*pPalDevice);
 
     ImageSrd* pSrds = static_cast<ImageSrd*>(pOut);
@@ -2941,7 +2950,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         {
             // This special format indicates to HW that this is a promoted 24-bit surface, so sample_c and border color
             // can be treated differently.
-            srd.format = IMG_FMT_32_FLOAT_CLAMP;
+            {
+                srd.format = IMG_FMT_32_FLOAT_CLAMP__GFX10CORE;
+            }
         }
 
         const Extent3d programmedExtent = (includePadding) ? actualExtent : extent;
@@ -3005,7 +3016,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             srd.type = ((imageCreateInfo.arraySize == 1) ? SQ_RSRC_IMG_1D : SQ_RSRC_IMG_1D_ARRAY);
             break;
         case ImageViewType::Tex2d:
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
         case ImageViewType::TexQuilt: // quilted textures must be 2D
+#endif
             srd.type = ((imageCreateInfo.arraySize == 1)
                         ? (isMultiSampled ? SQ_RSRC_IMG_2D_MSAA       : SQ_RSRC_IMG_2D)
                         : (isMultiSampled ? SQ_RSRC_IMG_2D_MSAA_ARRAY : SQ_RSRC_IMG_2D_ARRAY));
@@ -3041,6 +3054,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
         srd.bc_swizzle = GetBcSwizzle(viewInfo);
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
         //   The array_pitch resource field is defined so that setting it to zero disables quilting and behavior
         //   reverts back to a texture array
         uint32  arrayPitch = 0;
@@ -3053,8 +3067,10 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             arrayPitch = Log2(viewInfo.quiltWidthInSlices) + 1;
         }
 
-        srd.base_array        = baseArraySlice;
         srd.array_pitch       = arrayPitch;
+#endif
+
+        srd.base_array        = baseArraySlice;
         srd.meta_pipe_aligned = Gfx9MaskRam::IsPipeAligned(&image);
         srd.iterate_256       = image.GetIterate256(pSubResInfo);
         srd.corner_samples    = imageCreateInfo.usageFlags.cornerSampling;
@@ -3082,6 +3098,10 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
         if (boundMem.IsBound())
         {
+            const Gfx10AllowBigPage bigPageUsage = imageCreateInfo.usageFlags.shaderWrite
+                                                           ? Gfx10AllowBigPageShaderWrite
+                                                           : Gfx10AllowBigPageShaderRead;
+            srd.big_page                         = IsImageBigPageCompatible(image, bigPageUsage);
 
             // When overrideBaseResource = true (96bpp images), compute baseAddress using the mip/slice in
             // baseSubResId.
@@ -3281,7 +3301,9 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
     PAL_ASSERT(image.HasFmaskData());
 
     // For Fmask views, the format is based on the sample and fragment counts.
-    pSrd->format  = fmask.Gfx10FmaskFormat(createInfo.samples, createInfo.fragments, isUav);
+    {
+        pSrd->format  = fmask.Gfx10FmaskFormat(createInfo.samples, createInfo.fragments, isUav);
+    }
     pSrd->min_lod = 0;
 
     Gfx10SetImageSrdWidth(pSrd, subresInfo.extentTexels.width);
@@ -3330,6 +3352,7 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
         }
     }
 
+    pSrd->big_page = IsFmaskBigPageCompatible(image, Gfx10AllowBigPageShaderRead);
 }
 
 // =====================================================================================================================
@@ -3782,7 +3805,8 @@ GfxIpLevel DetermineIpLevel(
 // =====================================================================================================================
 // Gets the static format support info table for GFXIP 9 hardware.
 const MergedFormatPropertiesTable* GetFormatPropertiesTable(
-    GfxIpLevel gfxIpLevel)
+    GfxIpLevel                 gfxIpLevel,
+    const PalPlatformSettings& settings)
 {
     const MergedFormatPropertiesTable* pTable = nullptr;
 
@@ -3819,10 +3843,15 @@ void InitializeGpuChipProperties(
     pInfo->imageProperties.maxImageDimension.height = MaxImageHeight;
     pInfo->imageProperties.maxImageDimension.depth  = MaxImageDepth;
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
     // GFX9 ASICs support texture quilting on single-sample surfaces.
     pInfo->imageProperties.flags.supportsSingleSampleQuilting = 1;
-
+#endif
     pInfo->imageProperties.flags.supportsAqbsStereoMode = 1;
+
+    // GFX9 core ASICs support all MSAA modes (up to S16F8)
+    pInfo->imageProperties.msaaSupport      = MsaaAll;
+    pInfo->imageProperties.maxMsaaFragments = 8;
 
     pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Linear)]           = true;
     pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Optimal)]          = true;
@@ -4205,11 +4234,11 @@ void InitializePerfExperimentProperties(
 // =====================================================================================================================
 // Initialize default values for the GPU engine properties for GFXIP 6/7/8 hardware.
 void InitializeGpuEngineProperties(
-    GfxIpLevel           gfxIpLevel,
-    uint32               familyId,
-    uint32               eRevId,
-    GpuEngineProperties* pInfo)
+    const GpuChipProperties&  chipProps,
+    GpuEngineProperties*      pInfo)
 {
+    const GfxIpLevel gfxIpLevel = chipProps.gfxLevel;
+
     auto*const  pUniversal = &pInfo->perEngine[EngineTypeUniversal];
 
     // We support If/Else/While on the universal and compute queues; the command stream controls the max nesting depth.
@@ -4219,7 +4248,7 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.memoryPredicationSupport        = 1;
     pUniversal->flags.conditionalExecutionSupport     = 1;
     pUniversal->flags.loopExecutionSupport            = 1;
-    pUniversal->flags.constantEngineSupport           = 1;
+    pUniversal->flags.constantEngineSupport           = (chipProps.gfxip.ceRamSize != 0);
     pUniversal->flags.regMemAccessSupport             = 1;
     pUniversal->flags.indirectBufferSupport           = 1;
     pUniversal->flags.supportsMismatchedTileTokenCopy = 1;
@@ -4644,9 +4673,12 @@ void Device::InitBufferSrd(
         pSrd->dst_sel_z      = SQ_SEL_Z;
         pSrd->dst_sel_w      = SQ_SEL_W;
         pSrd->type           = SQ_RSRC_BUF;
-        pSrd->format         = BUF_FMT_32_FLOAT;
         pSrd->add_tid_enable = 0;
         pSrd->oob_select     = SQ_OOB_NUM_RECORDS_0; // never check out-of-bounds
+
+        {
+            pSrd->format = BUF_FMT_32_FLOAT__GFX10CORE;
+        }
 
         pSrd->resource_level = 1;
     }
@@ -4687,12 +4719,13 @@ ColorFormat Device::GetHwColorFmt(
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
-        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &Settings());
+        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());
         hwColorFmt = HwColorFmt(pFmtInfo, format.format);
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel, &Settings());
+        const MergedFlatFmtInfo*const pFmtInfo =
+            MergedChannelFlatFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());
         hwColorFmt = HwColorFmt(pFmtInfo, format.format);
     }
 
@@ -4710,12 +4743,13 @@ StencilFormat Device::GetHwStencilFmt(
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
-        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &Settings());
+        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());
         hwStencilFmt = HwStencilFmt(pFmtInfo, format);
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel, &Settings());
+        const MergedFlatFmtInfo*const pFmtInfo =
+            MergedChannelFlatFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());
         hwStencilFmt = HwStencilFmt(pFmtInfo, format);
     }
 
@@ -4733,13 +4767,14 @@ ZFormat Device::GetHwZFmt(
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
-        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &Settings());
+        const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());
 
         zFmt = HwZFmt(pFmtInfo, format);
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        const MergedFlatFmtInfo*const pFmtInfo = MergedChannelFlatFmtInfoTbl(gfxLevel, &Settings());
+        const MergedFlatFmtInfo*const pFmtInfo =
+            MergedChannelFlatFmtInfoTbl(gfxLevel, &GetPlatform()->PlatformSettings());
 
         zFmt = HwZFmt(pFmtInfo, format);
     }
@@ -6242,6 +6277,78 @@ TcCacheOp Device::SelectTcCacheOp(
     }
 
     return cacheOp;
+}
+
+// =====================================================================================================================
+// Reports if the specified buffer (or GpuMemory range) should enable the CB, DB, and/or TCP BIG_PAGE feature.  This
+// feature will reduce traffic between those blocks and their UTCL0s, but can only be enabled if the UMD can guarantee
+// that the memory is backed by pages that are >= 64KiB (e.g., not 4KiB pages in system memory).  Further, there is a
+// hardware bug on Navi10/Navi14 that requires there are no shared 64KiB regions that might be accessed without the
+// BIG_PAGE bit set (i.e., the range must consume an integral number of 64KiB blocks).  PAL also supports
+// enabling/disabling this feature with panel settings per use case, which must be passed in the bigPageUsageMask
+// argument.
+bool IsBufferBigPageCompatible(
+    const GpuMemory& gpuMemory,
+    gpusize          offset,
+    gpusize          extent,
+    uint32           bigPageUsageMask)  // Mask of Gfx10AllowBigPage values
+{
+    const Gfx9PalSettings& settings = GetGfx9Settings(*gpuMemory.GetDevice());
+
+    // The hardware BIG_PAGE optimization always requires >= 64KiB page size.
+    constexpr gpusize MinBigPageSize = 64 * 1024;
+
+    return TestAllFlagsSet(settings.allowBigPage, bigPageUsageMask) &&
+           IsPow2Aligned(gpuMemory.MinPageSize(), MinBigPageSize)   &&
+           ((settings.waUtcL0InconsistentBigPage == false) ||
+            (IsPow2Aligned(offset, MinBigPageSize) && IsPow2Aligned(extent, MinBigPageSize)));
+}
+
+// =====================================================================================================================
+// Reports if the specified image should enable the CB, DB, and/or TCP BIG_PAGE feature.  This feature will reduce
+// traffic between those blocks and their UTCL0s.
+bool IsImageBigPageCompatible(
+    const Image& image,
+    uint32       bigPageUsageMask)
+{
+    bool bigPage = false;
+
+    const BoundGpuMemory& boundMem = image.Parent()->GetBoundGpuMemory();
+
+    if (boundMem.IsBound()
+       )
+    {
+        const GpuMemory&         gpuMemory = *boundMem.Memory();
+        const ImageMemoryLayout& layout    = image.Parent()->GetMemoryLayout();
+
+        bigPage = IsBufferBigPageCompatible(gpuMemory, boundMem.Offset(), layout.dataSize, bigPageUsageMask);
+    }
+
+    return bigPage;
+}
+
+// =====================================================================================================================
+// Reports if the fmask owned by the specified image should enable the CB and/or TCP BIG_PAGE feature.  This feature
+// will reduce traffic between those blocks and their UTCL0s.
+bool IsFmaskBigPageCompatible(
+    const Image& image,
+    uint32       bigPageUsageMask)  // Mask of Gfx10AllowBigPage values
+{
+    bool bigPage = false;
+
+    const BoundGpuMemory& boundMem = image.Parent()->GetBoundGpuMemory();
+
+    if (boundMem.IsBound() && image.HasFmaskData())
+    {
+        const Gfx9Fmask& fmask = *image.GetFmask();
+
+        bigPage = IsBufferBigPageCompatible(*boundMem.Memory(),
+                                            boundMem.Offset() + fmask.MemoryOffset(),
+                                            fmask.TotalSize(),
+                                            bigPageUsageMask);
+    }
+
+    return bigPage;
 }
 
 } // Gfx9

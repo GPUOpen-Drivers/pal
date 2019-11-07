@@ -139,6 +139,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.gfx8FastClearAllTcCompatColorSurfs = 3;
     m_settings.gfx8CheckMetaDataFetchFromStartMip = 0x3;
     m_settings.gfx8IgnoreMipInterleave = false;
+    m_settings.gfx8CopyDstIsCompressed = false;
     m_settings.waMiscGsNullPrim = false;
     m_settings.waRotatedSwizzleDisablesOverwriteCombiner = false;
     m_settings.waLogicOpDisablesOverwriteCombiner = false;
@@ -553,6 +554,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pIgnoreMipInterleaveStr,
                            Util::ValueType::Boolean,
                            &m_settings.gfx8IgnoreMipInterleave,
+                           InternalSettingScope::PrivatePalGfx6Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCopyDstIsCompressedStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.gfx8CopyDstIsCompressed,
                            InternalSettingScope::PrivatePalGfx6Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaMiscGsNullPrimStr,
@@ -1007,6 +1013,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(3804096310, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.gfx8CopyDstIsCompressed;
+    info.valueSize = sizeof(m_settings.gfx8CopyDstIsCompressed);
+    m_settingsInfoMap.Insert(3919048798, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waMiscGsNullPrim;
     info.valueSize = sizeof(m_settings.waMiscGsNullPrim);
     m_settingsInfoMap.Insert(203570314, info);
@@ -1042,7 +1053,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx6PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx6PalJsonData);
-            component.settingsDataHash = 1039112311;
+            component.settingsDataHash = 2024565232;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

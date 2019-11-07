@@ -42,9 +42,14 @@ namespace Util { struct AllocInfo; }
 namespace Util { struct FreeInfo;  }
 namespace Util { enum SystemAllocType : uint32; }
 
+#if !defined(__GNUC__) || (__GNUC__ > 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ > 8))
+/// Default malloc alignment. Usually equal to 16 bytes for x64 targets.
+#define PAL_DEFAULT_MEM_ALIGN alignof(std::max_align_t)
+#else
 // GCC versions prior to 4.9 break C++11 compatibility by putting max_align_t in the global namespace.
 /// Default malloc alignment. Usually equal to 16 bytes for x64 targets.
 #define PAL_DEFAULT_MEM_ALIGN alignof(::max_align_t)
+#endif
 
 #if PAL_MEMTRACK
 

@@ -348,12 +348,11 @@ public:
         uint32  rsFeatures,
         uint32* pRsFeaturesChanged) override
     {
-       PAL_NOT_IMPLEMENTED();
        if (pRsFeaturesChanged != nullptr)
        {
            *pRsFeaturesChanged = 0;
        }
-       return Result::ErrorUnavailable;
+       return Result::Unsupported;
     }
 
     virtual Result GetRsFeatureGlobalSettings(
@@ -435,6 +434,14 @@ public:
     }
 
     virtual Result CheckExecutionState() const override;
+
+    virtual Result QueryRadeonSoftwareVersion(
+        char*  pBuffer,
+        size_t bufferLength) const override
+    {
+        PAL_NOT_IMPLEMENTED();
+        return Result::Unsupported;
+    }
 
     bool IsVmAlwaysValidSupported() const { return m_supportVmAlwaysValid; }
 
@@ -792,6 +799,10 @@ public:
         uint32            gpuMemoryCount,
         IGpuMemory*const* ppGpuMemory,
         bool              forceRemove);
+
+    Result IsSameGpu(
+        int32 presentDeviceFd,
+        bool* pIsSame) const;
 
 protected:
     virtual void FinalizeQueueProperties() override;

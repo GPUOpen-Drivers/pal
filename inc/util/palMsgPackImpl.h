@@ -150,7 +150,7 @@ PAL_INLINE void MsgPackWriter::CountItems(
 
 // =====================================================================================================================
 template <typename Allocator>
-int32 MsgPackWriter::GrowBuffer(
+int32 CWP_CALL MsgPackWriter::GrowBuffer(
     cw_pack_context*  pContext,
     unsigned long     requestedNumBytesToAdd)
 {

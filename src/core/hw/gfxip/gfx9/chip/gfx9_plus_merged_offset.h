@@ -949,7 +949,6 @@ constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_GFX                         = 0x31
 constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_HP3D                        = 0x31C8;
 constexpr unsigned int mmSPI_WF_LIFETIME_CNTL                             = 0x24AA;
 constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_0                          = 0x24AB;
-constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_1                          = 0x24AC;
 constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_2                          = 0x24AD;
 constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_3                          = 0x24AE;
 constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_4                          = 0x24AF;
@@ -1240,6 +1239,7 @@ namespace Core
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_7                        = 0x31E3;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_6                     = 0x31EC;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_7                     = 0x31ED;
+    constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_1                          = 0x24AC;
     constexpr unsigned int mmUMCCH0_PerfMonCtl1                               = 0x14341;
     constexpr unsigned int mmUMCCH0_PerfMonCtl2                               = 0x14342;
     constexpr unsigned int mmUMCCH0_PerfMonCtl3                               = 0x14343;

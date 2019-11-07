@@ -1605,6 +1605,20 @@
       "Name": "IgnoreMipInterleave"
     },
     {
+      "Description": "TC-compatible, single-sampled, color images will treat LayoutCopyDst as compressed instead of uncompressed. This can only work if RPM does graphics copies. Currently there are cases where RPM will fall back to compute copies on the universal engine which breaks this setting. In general, enabling this setting is not safe. It exists as a perf debug tool. This is only used by gfx8.",
+      "Tags": [
+        "Volcanic Islands",
+        "Gfx8"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx6Key",
+      "Type": "bool",
+      "VariableName": "gfx8CopyDstIsCompressed",
+      "Name": "CopyDstIsCompressed"
+    },
+    {
       "Description": "Used to force the GS Null Primitive workaround on or off. By default, the driver decides based on Chip ID.",
       "Tags": [
         "Hardware Workarounds"

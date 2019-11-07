@@ -2108,6 +2108,50 @@ void DrmLoaderFuncsProxy::pfnDrmFreeDevices(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnDrmGetDevice2(
+    int            fd,
+    uint32_t       flags,
+    drmDevicePtr*  pDevice
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnDrmGetDevice2(fd,
+                                           flags,
+                                           pDevice);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmGetDevice2,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmGetDevice2(%x, %x, %p)\n",
+        fd,
+        flags,
+        pDevice);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+void DrmLoaderFuncsProxy::pfnDrmFreeDevice(
+    drmDevicePtr*  pDevice
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    m_pFuncs->pfnDrmFreeDevice(pDevice);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmFreeDevice,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmFreeDevice(%p)\n",
+        pDevice);
+    m_paramLogger.Flush();
+}
+
+// =====================================================================================================================
 char* DrmLoaderFuncsProxy::pfnDrmGetBusid(
     int  fd
     ) const
@@ -3129,6 +3173,8 @@ Result DrmLoader::Init(
             m_library[LibDrm].GetFunction("drmGetRenderDeviceNameFromFd", &m_funcs.pfnDrmGetRenderDeviceNameFromFd);
             m_library[LibDrm].GetFunction("drmGetDevices", &m_funcs.pfnDrmGetDevices);
             m_library[LibDrm].GetFunction("drmFreeDevices", &m_funcs.pfnDrmFreeDevices);
+            m_library[LibDrm].GetFunction("drmGetDevice2", &m_funcs.pfnDrmGetDevice2);
+            m_library[LibDrm].GetFunction("drmFreeDevice", &m_funcs.pfnDrmFreeDevice);
             m_library[LibDrm].GetFunction("drmGetBusid", &m_funcs.pfnDrmGetBusid);
             m_library[LibDrm].GetFunction("drmFreeBusid", &m_funcs.pfnDrmFreeBusid);
             m_library[LibDrm].GetFunction("drmModeGetResources", &m_funcs.pfnDrmModeGetResources);

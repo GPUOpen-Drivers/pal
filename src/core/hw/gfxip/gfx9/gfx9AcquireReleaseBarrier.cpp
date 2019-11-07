@@ -609,8 +609,18 @@ void Device::IssueReleaseSync(
     // Converts PipelineStageBlt stage to specific internal pipeline stage, and optimize cache flags for BLTs.
     pCmdBuf->OptimizePipeAndCacheMaskForRelease(&stageMask, &accessMask);
 
-    if (pCmdBuf->IsGraphicsSupported() == false)
+    if (pCmdBuf->IsGraphicsSupported())
     {
+        // Mark off PS stage if current pipeline doesn't do rasterization.
+        const auto* pUniversalCmdBuf = static_cast<UniversalCmdBuffer*>(pCmdBuf);
+        if (pUniversalCmdBuf->IsRasterizationKilled())
+        {
+            stageMask &= ~PipelineStagePs;
+        }
+    }
+    else
+    {
+        // Mark off all graphics path specific stages if command buffer doesn't support graphics.
         stageMask &= ~GraphicsOnlyPipeStages;
     }
 
@@ -1652,11 +1662,7 @@ size_t Device::BuildReleaseSyncPackets(
     }
     // Unfortunately, there is no VS_DONE event with which to implement PipelineStageVs/Hs/Ds/Gs, so it has to
     // conservatively use BottomOfPipe.
-    else if (TestAnyFlagSet(stageMask, PipelineStageVs            |
-                                       PipelineStageHs            |
-                                       PipelineStageDs            |
-                                       PipelineStageGs            |
-                                       PipelineStageEarlyDsTarget |
+    else if (TestAnyFlagSet(stageMask, PipelineStageEarlyDsTarget |
                                        PipelineStageLateDsTarget  |
                                        PipelineStageColorTarget   |
                                        PipelineStageBottomOfPipe))
@@ -1667,7 +1673,15 @@ size_t Device::BuildReleaseSyncPackets(
         pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
 #endif
     }
-    else if (TestAnyFlagSet(stageMask, PipelineStagePs | PipelineStageCs))
+    else if (TestAnyFlagSet(stageMask, PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs) &&
+             (TestAnyFlagSet(stageMask, PipelineStagePs) == false))
+    {
+        vgtEvents[vgtEventCount++] = BOTTOM_OF_PIPE_TS;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
+        pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+#endif
+    }
+    else
     {
         // The signal/wait event may have multiple slots, we can utilize it to issue separate EOS event for PS and CS
         // waves.
@@ -1678,22 +1692,27 @@ size_t Device::BuildReleaseSyncPackets(
             pBarrierOps->pipelineStalls.eosTsCsDone = 1;
         }
 
-        if (TestAnyFlagSet(stageMask, PipelineStagePs))
+        if (TestAnyFlagSet(stageMask, PipelineStageVs |
+                                      PipelineStageHs |
+                                      PipelineStageDs |
+                                      PipelineStageGs |
+                                      PipelineStagePs))
         {
-            if (vgtEventCount == numEventSlots)
-            {
-                // Fall back to single EOP pipe point if there is no enough event slots for multiple pipe points.
-                vgtEvents[0] = BOTTOM_OF_PIPE_TS;
+            // Implement set with an EOS event waiting for PS waves to complete.
+            vgtEvents[vgtEventCount++] = PS_DONE;
+            pBarrierOps->pipelineStalls.eosTsPsDone = 1;
+        }
+
+        if (vgtEventCount > numEventSlots)
+        {
+            // Fall back to single EOP pipe point if available event slots are not sufficient for multiple pipe points.
+            vgtEvents[0] = BOTTOM_OF_PIPE_TS;
+            vgtEventCount = 1;
+            pBarrierOps->pipelineStalls.eosTsCsDone = 0;
+            pBarrierOps->pipelineStalls.eosTsPsDone = 0;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
-                pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
 #endif
-            }
-            else
-            {
-                // Implement set with an EOS event waiting for PS waves to complete.
-                vgtEvents[vgtEventCount++] = PS_DONE;
-                pBarrierOps->pipelineStalls.eosTsPsDone = 1;
-            }
         }
     }
 
