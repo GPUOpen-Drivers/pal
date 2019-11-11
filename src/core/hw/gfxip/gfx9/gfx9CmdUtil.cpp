@@ -397,9 +397,9 @@ uint32 CmdUtil::ChainSizeInDwords(
     {
         sizeInBytes = sizeof(PM4PFP_INDIRECT_BUFFER);
     }
-    else if ((engineType == EngineTypeCompute)
+    else if (engineType == EngineTypeCompute
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
-             || (engineType == EngineTypeExclusiveCompute)
+             || engineType == EngineTypeExclusiveCompute
 #endif
              )
     {
