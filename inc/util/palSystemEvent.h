@@ -115,7 +115,11 @@ extern void LogSystemEvent(
 } // Util
 
 /// Must be DX BUILD because it's the only one currently implemented
-#define PAL_ENABLE_SYSTEM_EVENTS (defined(_WIN32) & (PAL_DX_BUILD) & (PAL_DEVELOPER_BUILD | PAL_DEBUG_BUILD))
+#if defined(_WIN32) & (PAL_DX_BUILD) & (PAL_DEVELOPER_BUILD | PAL_DEBUG_BUILD)
+#define PAL_ENABLE_SYSTEM_EVENTS 1
+#else
+#define PAL_ENABLE_SYSTEM_EVENTS 0
+#endif
 
 #if PAL_ENABLE_SYSTEM_EVENTS
   /// System event macro.
