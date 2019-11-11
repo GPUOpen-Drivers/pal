@@ -1399,7 +1399,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
 
     if (m_signature.uavExportTableAddr != UserDataNotMapped)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 497
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 497 && PAL_BUILD_GFX10
         m_uavExportRequiresFlush = (createInfo.cbState.uavExportSingleDraw == false);
 #else
         m_uavExportRequiresFlush = true;
