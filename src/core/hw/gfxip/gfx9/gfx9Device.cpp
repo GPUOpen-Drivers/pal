@@ -659,11 +659,13 @@ Result Device::CreateDummyCommandStream(
         pCmdStream->Begin(beginFlags, nullptr);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
+#if LLPC_BUILD_GFX10
         if (engineType == EngineTypeDma)
         {
             pCmdSpace = DmaCmdBuffer::BuildNops(pCmdSpace, pCmdStream->GetSizeAlignDwords());
         }
         else
+#endif
         {
             pCmdSpace += m_cmdUtil.BuildNop(CmdUtil::MinNopSizeInDwords, pCmdSpace);
         }
@@ -1360,6 +1362,7 @@ Result Device::CreateCmdBuffer(
 
         *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) UniversalCmdBuffer(*this, createInfo);
     }
+#if LLPC_BUILD_GFX10
     else if ((createInfo.queueType == QueueTypeDma) && IsGfx10(m_gfxIpLevel))
     {
         result = Result::Success;
@@ -1367,6 +1370,7 @@ Result Device::CreateCmdBuffer(
         // As of GFX10, DMA operations have become part of the graphics engine...
         *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) DmaCmdBuffer(*this, createInfo);
     }
+#endif
 
     return result;
 }

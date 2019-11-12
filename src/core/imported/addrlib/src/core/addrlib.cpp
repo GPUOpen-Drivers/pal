@@ -189,7 +189,9 @@ ADDR_E_RETURNCODE Lib::Create(
                         pLib = Gfx9HwlInit(&client);
                         break;
                     case FAMILY_NV:
+#if LLPC_BUILD_GFX10
                         pLib = Gfx10HwlInit(&client);
+#endif
                         break;
 
                     default:
