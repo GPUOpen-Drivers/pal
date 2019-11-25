@@ -53,13 +53,11 @@ CmdBuffer::CmdBuffer(
     m_pDevice(pDevice),
     m_queueType(createInfo.queueType),
     m_engineType(createInfo.engineType),
-#if (PAL_COMPILE_TYPE == 32)
-    m_tokenAllocator(m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerTokenAllocatorSize),
-#else
-    m_tokenAllocator(16 * 1024 * 1024),
-#endif
     m_pTokenStream(nullptr),
-    m_pTokenRdPtr(nullptr),
+    m_tokenStreamSize(m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerTokenAllocatorSize),
+    m_tokenWriteOffset(0),
+    m_tokenReadOffset(0),
+    m_tokenStreamResult(Result::Success),
     m_disableDataGathering(false),
     m_forceDrawGranularityLogging(false),
     m_curLogFrame(0)
@@ -91,16 +89,60 @@ CmdBuffer::CmdBuffer(
 }
 
 // =====================================================================================================================
-Result CmdBuffer::Init()
+CmdBuffer::~CmdBuffer()
 {
-    Result result = m_tokenAllocator.Init();
+    PAL_FREE(m_pTokenStream, m_pDevice->GetPlatform());
+}
 
-    if (result == Result::Success)
+// =====================================================================================================================
+void* CmdBuffer::AllocTokenSpace(
+    size_t numBytes,
+    size_t alignment)
+{
+    void*        pTokenSpace        = nullptr;
+    const size_t alignedWriteOffset = Pow2Align(m_tokenWriteOffset, alignment);
+    const size_t nextWriteOffset    = alignedWriteOffset + numBytes;
+
+    if (nextWriteOffset > m_tokenStreamSize)
     {
-        m_pTokenStream = m_tokenAllocator.Current();
+        // Double the size of the token stream until we have enough space.
+        size_t newStreamSize = m_tokenStreamSize * 2;
+
+        while (nextWriteOffset > newStreamSize)
+        {
+            newStreamSize *= 2;
+        }
+
+        // Allocate the new buffer and copy the current tokens over.
+        void* pNewStream = PAL_MALLOC(newStreamSize, m_pDevice->GetPlatform(), AllocInternal);
+
+        if (pNewStream != nullptr)
+        {
+            memcpy(pNewStream, m_pTokenStream, m_tokenWriteOffset);
+            PAL_FREE(m_pTokenStream, m_pDevice->GetPlatform());
+
+            m_pTokenStream    = pNewStream;
+            m_tokenStreamSize = newStreamSize;
+        }
+        else
+        {
+            // We've run out of memory, this stream is now invalid.
+            m_tokenStreamResult = Result::ErrorOutOfMemory;
+        }
     }
 
-    return result;
+    // Return null if we've previously encountered an error or just failed to reallocate the token stream. Otherwise,
+    // return a properly aligned write pointer and update the write offset to point at the end of the allocated space.
+    if (m_tokenStreamResult == Result::Success)
+    {
+        // Malloc is required to give us memory that is aligned high enough for any variable, but let's double check.
+        PAL_ASSERT(IsPow2Aligned(reinterpret_cast<uint64>(m_pTokenStream), alignment));
+
+        pTokenSpace        = VoidPtrInc(m_pTokenStream, alignedWriteOffset);
+        m_tokenWriteOffset = nextWriteOffset;
+    }
+
+    return pTokenSpace;
 }
 
 // =====================================================================================================================
@@ -109,9 +151,22 @@ Result CmdBuffer::Begin(
 {
     m_flags.containsPresent = 0;
 
-    // Rewind the allocator to the beginning, overwriting any tokens stored from the last time this command buffer was
-    // recorded.
-    m_tokenAllocator.Rewind(m_pTokenStream, false);
+    // Reset the token stream state so that we can reuse our old token stream buffer.
+    m_tokenWriteOffset  = 0;
+    m_tokenReadOffset   = 0;
+    m_tokenStreamResult = Result::Success;
+
+    // We lazy allocate the first token stream during the first Begin() call to avoid allocating a lot of extra
+    // memory if the client creates a ton of command buffers but doesn't use them.
+    if (m_pTokenStream == nullptr)
+    {
+        m_pTokenStream = PAL_MALLOC(m_tokenStreamSize, m_pDevice->GetPlatform(), AllocInternal);
+
+        if (m_pTokenStream == nullptr)
+        {
+            m_tokenStreamResult = Result::ErrorOutOfMemory;
+        }
+    }
 
     InsertToken(CmdBufCallId::Begin);
     InsertToken(info);
@@ -120,19 +175,23 @@ Result CmdBuffer::Begin(
         InsertToken(*info.pInheritedState);
     }
 
-    Pal::Result result = Pal::Result::Success;
+    // We should return an error immediately if we couldn't allocate enough token memory for the Begin call.
+    Result result = m_tokenStreamResult;
 
-    // Note that Begin() is immediately forwarded to the next layer.  This is only necessary in order to support clients
-    // that use CmdAllocateEmbeddedData().  They immediately need a CPU address corresponding to GPU memory with the
-    // lifetime of this command buffer, so it is easiest to just let it go through the normal path.  The core layer's
-    // command buffer will be filled entirely with embedded data.
-    //
-    // This is skipped for command buffers based on VideoEncodeCmdBuffers because those command buffers do not
-    // reset their state (or even really build the command buffer) until that command buffer is submitted.  The GPU
-    // profiler layer instead internally replaces and submits a different command buffer which leaves this one
-    // permanently in Building state the next time Begin() is called on it.
+    if (result == Result::Success)
     {
-        result = NextLayer()->Begin(NextCmdBufferBuildInfo(info));
+        // Note that Begin() is immediately forwarded to the next layer.  This is only necessary in order to support
+        // clients that use CmdAllocateEmbeddedData().  They immediately need a CPU address corresponding to GPU memory
+        // with the lifetime of this command buffer, so it is easiest to just let it go through the normal path.
+        // The core layer's command buffer will be filled entirely with embedded data.
+        //
+        // This is skipped for command buffers based on VideoEncodeCmdBuffers because those command buffers do not
+        // reset their state (or even really build the command buffer) until that command buffer is submitted.  The GPU
+        // profiler layer instead internally replaces and submits a different command buffer which leaves this one
+        // permanently in Building state the next time Begin() is called on it.
+        {
+            result = NextLayer()->Begin(NextCmdBufferBuildInfo(info));
+        }
     }
 
     return result;
@@ -209,7 +268,16 @@ Result CmdBuffer::End()
     InsertToken(CmdBufCallId::End);
 
     // See CmdBuffer::Begin() for comment on why Begin()/End() are immediately passed to the next layer.
-    return NextLayer()->End();
+    Result result = NextLayer()->End();
+
+    // If no errors occured during End() perhaps an error occured while we were recording tokens. If so that means
+    // the token stream and this command buffer are both invalid.
+    if (result == Result::Success)
+    {
+        result = m_tokenStreamResult;
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -3718,18 +3786,23 @@ void CmdBuffer::Replay(
     static_assert(ArrayLen(ReplayFuncTbl) == static_cast<size_t>(CmdBufCallId::Count),
                   "Replay table must be updated!");
 
-    m_pTokenRdPtr = m_pTokenStream;
-
-    CmdBufCallId callId;
-
-    m_curLogFrame = curFrame;
-
-    do
+    // Don't even try to replay the stream if some error occured during recording.
+    if (m_tokenStreamResult == Result::Success)
     {
-        callId = ReadTokenVal<CmdBufCallId>();
+        // Start reading from the beginning of the token stream.
+        m_tokenReadOffset = 0;
 
-        (this->*ReplayFuncTbl[static_cast<uint32>(callId)])(pQueue, pTgtCmdBuffer);
-    } while (callId != CmdBufCallId::End);
+        CmdBufCallId callId;
+
+        m_curLogFrame = curFrame;
+
+        do
+        {
+            callId = ReadTokenVal<CmdBufCallId>();
+
+            (this->*ReplayFuncTbl[static_cast<uint32>(callId)])(pQueue, pTgtCmdBuffer);
+        } while (callId != CmdBufCallId::End);
+    }
 }
 
 // =====================================================================================================================
@@ -3758,7 +3831,7 @@ void CmdBuffer::LogPreTimedCall(
             pLogItem->cmdBufCall.draw.apiPsoHash   = m_gfxpState.apiPsoHash;
 
             if (m_flags.enableSqThreadTrace &&
-                m_pDevice->SqttEnabledForPipeline(m_gfxpState.pipelineInfo, PipelineBindPoint::Graphics))
+                m_pDevice->SqttEnabledForPipeline(m_gfxpState, PipelineBindPoint::Graphics))
             {
                 if ((m_pDevice->GetSqttMaxDraws() == 0) ||
                     (m_pDevice->GetSqttCurDraws() < m_pDevice->GetSqttMaxDraws()))
@@ -3774,7 +3847,7 @@ void CmdBuffer::LogPreTimedCall(
             pLogItem->cmdBufCall.dispatch.apiPsoHash   = m_cpState.apiPsoHash;
 
             if (m_flags.enableSqThreadTrace &&
-                m_pDevice->SqttEnabledForPipeline(m_cpState.pipelineInfo, PipelineBindPoint::Compute))
+                m_pDevice->SqttEnabledForPipeline(m_cpState, PipelineBindPoint::Compute))
             {
                 if ((m_pDevice->GetSqttMaxDraws() == 0) ||
                     (m_pDevice->GetSqttCurDraws() < m_pDevice->GetSqttMaxDraws()))

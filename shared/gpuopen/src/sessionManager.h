@@ -55,7 +55,7 @@ namespace DevDriver
         Result Init(IMsgChannel* pMessageChannel);
 
         // Destroy the session manager, closing all sessions in the process.
-        Result Destroy();
+        void Destroy();
 
         // Creates a session with the specified remote client, using the provided protocol client.
         Result EstablishSessionForClient(SharedPointer<ISession>* ppSession, const EstablishSessionInfo& sessionInfo);
@@ -80,6 +80,9 @@ namespace DevDriver
 
         // Notify the session manager that the destination client has disconnected.
         void HandleClientDisconnection(ClientId dstClientId);
+
+        // Notify the session manager that the underlying transport has disconnected
+        void HandleTransportDisconnect();
 
         // Returns the currently associated ClientId, or kBroadcastClientId if not connected.
         ClientId GetClientId() const { return m_clientId; };
@@ -114,6 +117,9 @@ namespace DevDriver
 
         SessionId GetNewSessionId(SessionId remoteSessionId);
         SharedPointer<Session> FindOpenSession(SessionId sessionId);
+
+        // Shuts down all active sessions
+        void ShutDownAllSessions();
 
         ClientId         m_clientId;        // Client Id associated with the session manager.
         IMsgChannel*     m_pMessageChannel; // Message Channel object.

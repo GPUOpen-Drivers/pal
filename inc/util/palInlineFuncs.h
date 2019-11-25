@@ -605,11 +605,8 @@ PAL_INLINE void Wcsncpy(
     const wchar_t* pSrc,    ///< [in] Source string to copy.
     size_t         dstSize) ///< Length of the destination buffer, in wchar_t's.
 {
-#if defined(__unix__)
-    wcsncpy(pDst, pSrc, dstSize);
-#else
-    wcscpy_s(pDst, dstSize, pSrc);
-#endif
+    wcsncpy(pDst, pSrc, (dstSize - 1));
+    pDst[dstSize - 1] = L'\0';
 }
 
 /// Simple wrapper for strncat or strncat_s which provides a safe version of strncat.

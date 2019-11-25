@@ -270,7 +270,6 @@ Result Device::CreateCmdBuffer(
     ICmdBuffer**               ppCmdBuffer)
 {
     ICmdBuffer* pNextCmdBuffer = nullptr;
-    CmdBuffer*  pCmdBuffer     = nullptr;
 
     CmdBufferCreateInfo nextCreateInfo = createInfo;
     nextCreateInfo.pCmdAllocator = NextCmdAllocator(createInfo.pCmdAllocator);
@@ -284,19 +283,11 @@ Result Device::CreateCmdBuffer(
         PAL_ASSERT(pNextCmdBuffer != nullptr);
         pNextCmdBuffer->SetClientData(pPlacementAddr);
 
-        const bool enableSqtt = IsThreadTraceEnabled();
-
-        pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) CmdBuffer(pNextCmdBuffer,
-                                                                 this,
-                                                                 createInfo,
-                                                                 m_logPipeStats,
-                                                                 enableSqtt);
-        result = pCmdBuffer->Init();
-    }
-
-    if (result == Result::Success)
-    {
-        (*ppCmdBuffer) = pCmdBuffer;
+        (*ppCmdBuffer) = PAL_PLACEMENT_NEW(pPlacementAddr) CmdBuffer(pNextCmdBuffer,
+                                                                     this,
+                                                                     createInfo,
+                                                                     m_logPipeStats,
+                                                                     IsThreadTraceEnabled());
     }
 
     return result;
@@ -850,12 +841,14 @@ GpuBlock StringToGpuBlock(
 // =====================================================================================================================
 // Returns true if the given pipeline info passes the SQTT hash filters.
 bool Device::SqttEnabledForPipeline(
-    const PipelineInfo& info,
-    PipelineBindPoint   bindPoint
+    const PipelineState& state,
+    PipelineBindPoint    bindPoint
     ) const
 {
     // All pipelines pass if filtering is disabled, otherwise we need to check the hashes.
     bool enabled = (m_sqttFilteringEnabled == false);
+
+    const PipelineInfo& info = state.pipelineInfo;
 
     if (m_sqttFilteringEnabled)
     {
@@ -866,8 +859,17 @@ bool Device::SqttEnabledForPipeline(
         constexpr uint32 GsIdx = static_cast<uint32>(ShaderType::Geometry);
         constexpr uint32 PsIdx = static_cast<uint32>(ShaderType::Pixel);
 
+        const auto& settings = GetPlatform()->PlatformSettings();
+
+        uint64 hashForComparison = info.internalPipelineHash.stable;
+
+        if (settings.gpuProfilerSqttConfig.pipelineHashAsApiPsoHash == true)
+        {
+            hashForComparison = state.apiPsoHash;
+        }
+
         // Return true if we find a non-zero matching hash.
-        if ((m_sqttCompilerHash != 0) && (m_sqttCompilerHash == info.internalPipelineHash.stable))
+        if ((m_sqttCompilerHash != 0) && (m_sqttCompilerHash == hashForComparison))
         {
             enabled = true;
         }

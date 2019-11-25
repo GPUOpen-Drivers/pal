@@ -262,4 +262,3 @@ constexpr uint32 Nv10NumContextShadowRanges      = static_cast<uint32>(Util::Arr
 
 } // Gfx9
 } // Pal
-

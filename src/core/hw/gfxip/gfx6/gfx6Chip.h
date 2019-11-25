@@ -157,21 +157,10 @@ constexpr uint32 InternalTblStartReg = 0;
 // (internal CBs) is written.
 constexpr uint32 ConstBufTblStartReg = (InternalTblStartReg + 1);
 
-// User-data register where some shaders' LDS size requirement (for on-chip GS support) is written.
-constexpr uint32 EsGsLdsSizeReg = (NumUserDataRegisters - 1);
-
 #if !PAL_COMPUTE_GDS_OPT
 // User-data register where each shaders' GDS partition information is written.
-constexpr uint32 GdsRangeReg    = (EsGsLdsSizeReg - 1);
-
-// User data register where the API VS' per-Draw instance offset is written.
-constexpr uint32 InstanceOffsetReg = (GdsRangeReg - 1);
-#else
-// User data register where the API VS' per-Draw instance offset is written.
-constexpr uint32 InstanceOffsetReg = (NumUserDataRegisters - 1);
+constexpr uint32 GdsRangeReg = 14;
 #endif
-// User data register where the API VS' per-Draw vertex offset is written.
-constexpr uint32 VertexOffsetReg   = (InstanceOffsetReg - 1);
 
 #if !PAL_COMPUTE_GDS_OPT
 // First user data register where the API CS' per-Dispatch number of thread groups buffer GPU address is written.
@@ -193,31 +182,8 @@ constexpr uint32 CsSpillTableAddrReg = (NumThreadGroupsReg - 1);
 
 // Starting user data register index where the client's fast user-data 'entries' are written.
 constexpr uint32 FastUserDataStartReg     = (ConstBufTblStartReg + 1);
-// Maximum number of fast user data 'entries' exposed to the client for vertex shaders.
-constexpr uint32 MaxFastUserDataEntriesVs = (VertexOffsetReg - FastUserDataStartReg);
 // Maximum number of fast user data 'entries' exposed to the client for compute shaders.
 constexpr uint32 MaxFastUserDataEntriesCs = (CsSpillTableAddrReg - FastUserDataStartReg);
-#if !PAL_COMPUTE_GDS_OPT
-// Maximum number of fast user data 'entries' exposed to the client for other shader stages.
-constexpr uint32 MaxFastUserDataEntries   = (GdsRangeReg - FastUserDataStartReg);
-#else
-// Maximum number of fast user data 'entries' exposed to the client for other shader stages.
-constexpr uint32 MaxFastUserDataEntries   = (EsGsLdsSizeReg - FastUserDataStartReg);
-#endif
-
-// Maximum number of fast user data 'entries' exposed to the client for each shader stage.
-constexpr uint32 FastUserDataEntriesByStage[] =
-{
-   MaxFastUserDataEntriesCs, // Compute
-   MaxFastUserDataEntriesVs, // Vertex
-   MaxFastUserDataEntries,   // Hull
-   MaxFastUserDataEntries,   // Domain
-   MaxFastUserDataEntries,   // Geometry
-   MaxFastUserDataEntries,   // Pixel
-};
-
-static_assert(Util::ArrayLen(FastUserDataEntriesByStage) == Pal::NumShaderTypes,
-              "There must be an entry in FastUserDataEntriesByState[] for each Pal::ShaderType.");
 
 // Number of PS input semantic registers.
 constexpr uint32 MaxPsInputSemantics = 32;

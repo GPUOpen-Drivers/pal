@@ -120,6 +120,12 @@ namespace DevDriver
 
         constexpr ThreadHandle kInvalidThreadHandle = NULL;
 
+        // Maximum supported size for thread names, including NULL byte
+        // This exists because some platforms have hard limits on thread name size.
+        // Thread naming isn't currently supported in the Windows Kernel platform so we just use
+        // the regular max size defined by the Windows Usermode platform.
+        static constexpr size_t kThreadNameMaxLength = 64;
+
         namespace Windows
         {
             // Windows specific functions required for in-memory communication

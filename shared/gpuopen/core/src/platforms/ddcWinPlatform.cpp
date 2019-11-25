@@ -48,6 +48,13 @@ namespace DevDriver
 {
     namespace Platform
     {
+        // Function prototype of SetThreadDescription which is required to set thread names on Windows 10 and above
+        // We have to load this function dynamically to avoid compatibility issues on Windows 7.
+        typedef HRESULT (WINAPI *PFN_SetThreadDescription)(
+            HANDLE hThread,
+            PCWSTR lpThreadDescription
+        );
+
         inline Result WaitObject(HANDLE hObject, uint32 millisecTimeout)
         {
             DD_ASSERT(hObject != NULL);
@@ -185,6 +192,45 @@ namespace DevDriver
             return result;
         };
 
+        Result Thread::SetNameRaw(const char* pThreadName)
+        {
+            Result result = Result::Unavailable;
+
+            // SetThreadDescription is only available on Windows 10 and above.
+            // See: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreaddescription
+
+            // We load the thread naming function dynamically to avoid issues when the current OS doesn't have
+            // support for the function.
+            HMODULE hModule = GetModuleHandle("kernel32.dll");
+            if (hModule != nullptr)
+            {
+                // Attempt to load the function for setting thread names
+                PFN_SetThreadDescription pfnSetThreadDescription =
+                    reinterpret_cast<PFN_SetThreadDescription>(GetProcAddress(hModule, "SetThreadDescription"));
+
+                if (pfnSetThreadDescription != nullptr)
+                {
+                    wchar_t wThreadName[kThreadNameMaxLength];
+                    memset(wThreadName, 0, sizeof(wThreadName));
+
+                    const size_t len = Min(ArraySize(wThreadName), strlen(pThreadName));
+
+                    // See: https://en.cppreference.com/w/cpp/string/multibyte/mbstowcs
+                    const size_t converted = mbstowcs(wThreadName, pThreadName, len);
+
+                    HRESULT hResult = E_FAIL;
+                    if (converted < ArraySize(wThreadName))
+                    {
+                        hResult = pfnSetThreadDescription(hThread, wThreadName);
+                    }
+
+                    result = (SUCCEEDED(hResult) ? Result::Success : Result::Error);
+                }
+            }
+
+            return result;
+        }
+
         Result Thread::Join(uint32 timeoutInMs)
         {
             Result result = IsJoinable() ? Result::Success : Result::Error;
@@ -243,7 +289,7 @@ namespace DevDriver
                 m_hLib = LoadLibraryA(pLibraryName);
                 if (m_hLib == nullptr)
                 {
-                    result = Result::Unavailable;
+                    result = Result::FileNotFound;
                 }
             }
 

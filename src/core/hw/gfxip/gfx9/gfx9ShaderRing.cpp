@@ -144,8 +144,7 @@ Result ShaderRing::AllocateVideoMemory(
             createInfo.alignment = 0x1000;
         }
     }
-    else
-    if (ringType == ShaderRingType::SamplePos)
+    else if (ringType == ShaderRingType::SamplePos)
     {
         createInfo.heaps[0]  = GpuHeapLocal;
         createInfo.heaps[1]  = GpuHeapGartUswc;

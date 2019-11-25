@@ -407,6 +407,26 @@ Result GraphicsPipeline::HwlInit(
         }
     }
 
+    if (result == Result::Success)
+    {
+        ResourceDescriptionPipeline desc = {};
+        desc.pPipelineInfo = &GetInfo();
+        desc.pCreateFlags = &createInfo.flags;
+        ResourceCreateEventData data = {};
+        data.type = ResourceType::Pipeline;
+        data.pResourceDescData = &desc;
+        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
+        data.pObj = this;
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+
+        GpuMemoryResourceBindEventData bindData = {};
+        bindData.pObj = this;
+        bindData.pGpuMemory = m_gpuMem.Memory();
+        bindData.requiredGpuMemSize = m_gpuMemSize;
+        bindData.offset = m_gpuMem.Offset();
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+    }
+
     return result;
 }
 
@@ -965,6 +985,7 @@ void GraphicsPipeline::SetupCommonRegisters(
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
+    const PalPublicSettings* pPalSettings = m_pDevice->Parent()->GetPublicSettings();
 
     m_commands.set.context.paClClipCntl.u32All = registers.At(mmPA_CL_CLIP_CNTL);
     m_commands.set.context.paClVteCntl.u32All  = registers.At(mmPA_CL_VTE_CNTL);
@@ -1032,10 +1053,24 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_commands.set.context.dbShaderControl.u32All = registers.At(mmDB_SHADER_CONTROL);
 
     regDB_RENDER_OVERRIDE dbRenderOverride = { };
-    if ((createInfo.rsState.depthClampDisable == true) &&
-        (m_commands.set.context.dbShaderControl.bits.Z_EXPORT_ENABLE != 0))
+
+    // Configure depth clamping
+    // Register specification does not specify dependence of DISABLE_VIEWPORT_CLAMP on Z_EXPORT_ENABLE, but
+    // removing the dependence leads to perf regressions in some applications for Vulkan, DX and OGL.
+    // The reason for perf drop can be narrowed down to the DepthExpand RPM pipeline. Disabling viewport clamping
+    // (DISABLE_VIEWPORT_CLAMP = 1) for this pipeline results in heavy perf drops.
+    // It's also important to note that this issue is caused by the graphics depth fast clear not the depth expand itself.
+    // It simply reuses the same RPM pipeline from the depth expand.
+
+    if (pPalSettings->depthClampBasedOnZExport == true)
     {
-        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = 1;
+        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable == true) &&
+                                                        (m_commands.set.context.dbShaderControl.bits.Z_EXPORT_ENABLE != 0));
+    }
+    else
+    {
+        // Vulkan (only) will take this path by default, unless an app-detect forces the other way.
+        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable == true);
     }
 
     // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.

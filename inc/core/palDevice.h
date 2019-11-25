@@ -196,6 +196,7 @@ enum class AsicRevision : uint32
     Raven2      = 0x1C,
 
     Navi10      = 0x1F,
+    Navi14      = 0x23,
 };
 
 /// Specifies which operating-system-support IP level (OSSIP) this device has.
@@ -508,10 +509,12 @@ struct PalPublicSettings
     ///  color surface: 0x00000002 FMask data: 0x00000004 Single-sample depth surface: 0x00000008 MSAA depth surface:
     ///  0x00000010 Allow stencil: 0x00000020 Allow Z-16 surfs 0x00000040
     uint32 tcCompatibleMetaData;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 548
     ///  Determines the maximum number of supported user-data entries accessible to a pipeline. If larger than the
     ///  number of user-data registers in hardware, the rest of the entries will be spilled to GPU memory. The default is the
     ///  maximum number of supported user-data entries based on client type.
     uint32 maxUserDataEntries;
+#endif
     ///  Specifies the threshold below which CmdCopyMemory() is executed via a CpDma BLT, in bytes. CPDMA copies have
     ///  lower overhead than CS/Gfx copies, but less throughput for large copies.
     uint32 cpDmaCmdCopyMemoryMaxBytes;
@@ -587,6 +590,7 @@ struct PalPublicSettings
     /// Infinitely Fast Hardware (IFH) mode requested by the client.
     PublicSettingIfhMode ifhMode;
 #endif
+    bool depthClampBasedOnZExport;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -762,8 +766,16 @@ struct DeviceProperties
                 /// This engine supports ICmdBuffer::CmdSetPredication() based on Streamout/Occlusion query
                 uint32 supportsQueryPredication        :  1;
 
-                /// This engine supports ICmdBuffer::CmdSetPredication() based on GPU memory allocation
+                /// This engine supports ICmdBuffer::CmdSetPredication() based on a 32-bit GPU memory allocation
+                uint32 supports32bitMemoryPredication  :  1;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 550
+                /// This engine supports ICmdBuffer::CmdSetPredication() based on a 64-bit GPU memory allocation
                 uint32 supportsMemoryPredication       :  1;
+#else
+                /// This engine supports ICmdBuffer::CmdSetPredication() based on a 64-bit GPU memory allocation
+                uint32 supports64bitMemoryPredication  :  1;
+#endif
 
                 /// This engine supports ICmdBuffer::If(), Else() and EndIf() calls.
                 uint32 supportsConditionalExecution    :  1;
@@ -811,7 +823,7 @@ struct DeviceProperties
                 uint32 supportsUnmappedPrtPageAccess   :  1;
 
                 /// Reserved for future use.
-                uint32 reserved                        : 17;
+                uint32 reserved                        : 16;
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< Engines property flags.
@@ -1026,15 +1038,6 @@ struct DeviceProperties
     {
         /// Maximum number of available shader-accessible user data entries. @see PipelineShaderInfo.
         uint32 maxUserDataEntries;
-        /// Maximum number of fast user data entries (typically corresponds to the number of user data hardware
-        /// registers that aren't reserved for internal use by PAL).
-        /// @warning Some shaders have optional special input values which are passed to the shader through fast user
-        /// data entries (such as Vulkan's gl_DrawId for vertex shaders).  If a shader uses one such input, those
-        /// inputs are mapped to fast user-data *before* the shader's resource mapping nodes.  Additionally, pipelines
-        /// which use stream-output may lose some fast user data entries as well, depending on which shader stages are
-        /// present in that pipeline.
-        /// @see ResourceMappingNode.
-        uint32 fastUserDataEntries[NumShaderTypes];
         uint32 maxThreadGroupSize;  ///< Per-device limit on threads per threadgroup for compute shaders.
         /// Some hardware supported by PAL has a bug which can cause a GPU hang if async compute enginesare used while
         /// compute shaders with > maxAsyncComputeThreadGroupSize are in flight on any queue. This reports the
@@ -1093,6 +1096,7 @@ struct DeviceProperties
                                                                  ///  basis. If not set, min/max filtering operates on
                                                                  ///  only one channel at a time.
                 uint64 supportRgpTraces                    :  1; ///< Hardware supports RGP traces.
+
                 uint64 supportMsaaCoverageOut              :  1; ///< Set if HW supports MSAA coverage feature
                 uint64 supportPostDepthCoverage            :  1; ///< Set if HW supports post depth coverage feature
                 uint64 supportSpiPrefPriority              :  1; ///< Set if HW supports preference priority.
@@ -1513,7 +1517,11 @@ struct GpuCompatibilityInfo
             uint32 shareOtherGpuScreen :  1;  ///< Either device can present to the other device.  Means that the
                                               ///  device IDevice::GetMultiGpuCompatibility() was called on can present
                                               ///  to the GPU indicated by the otherGpu param.
-            uint32 reserved            : 24;  ///< Reserved for future use.
+            uint32 peerEncode          :  1;  ///< whether encoding HW can access FB memory of remote GPU in chain
+            uint32 peerDecode          :  1;  ///< whether decoding HW can access FB memory of remote GPU in chain
+            uint32 peerTransferProtected : 1; ///< whether protected content can be transferred over P2P
+            uint32 crossGpuCoherency   :  1;  ///< whether remote FB memory can be accessed without need for cache flush
+            uint32 reserved            : 20;  ///< Reserved for future use.
         };
         uint32 u32All;                        ///< Flags packed as 32-bit uint.
     } flags;                                  ///< GPU compatibility flags.
@@ -4772,10 +4780,8 @@ private:
  *
  * ### PAL User Data
  * PAL only lightly abstracts the hardware user data concept.  DeviceProperties reports the number of user data entries
- * supported on the device: maxUserDataEntries and fastUserDataEntries.  Note that some clients may require more
- * user data entries than there are physical user data registers - fastUserDataEntries gives a hint as to how many
- * user data entries will fit in hardware registers.  PAL will manage "spilling" of user data entries to GPU memory if
- * necessary.
+ * supported on the device in maxUserDataEntries.  Note that some clients may require more user data entries than there
+ * are physical user data registers - PAL will manage "spilling" of user data entries to GPU memory if necessary.
  *
  * User data entries are set in a command buffer by calling ICmdBuffer::CmdSetUserData().
  *

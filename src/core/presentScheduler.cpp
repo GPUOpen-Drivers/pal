@@ -309,14 +309,17 @@ Result PresentScheduler::Present(
 
         if (result == Result::Success)
         {
+            pJob->SetType(PresentJobType::Present);
+            pJob->SetPresentInfo(presentInfo);
+        }
+
+        if (result == Result::Success)
+        {
             result = PreparePresent(pQueue, pJob);
         }
 
         if (result == Result::Success)
         {
-            pJob->SetType(PresentJobType::Present);
-            pJob->SetPresentInfo(presentInfo);
-
             // Choose the internal presentation queue of the same device as the provided presentation queue.
             Queue*  pClientQueue   = static_cast<Queue*>(pQueue);
             IQueue* pInternalQueue = nullptr;

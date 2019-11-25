@@ -92,10 +92,16 @@ PAL_INLINE bool PipelineHashIsNonzero(const PipelineHash hash) { return ((hash.s
 enum class ShaderType : uint32
 {
     Compute = 0,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 549
+    Reserved0,      ///< @internal Reserved for future features.  Do not use!
+#endif
     Vertex,
     Hull,
     Domain,
     Geometry,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 549
+    Reserved1,      ///< @internal Reserved for future features.  Do not use!
+#endif
     Pixel,
 };
 
@@ -331,7 +337,7 @@ struct GraphicsPipelineCreateInfo
         bool    alphaToCoverageEnable;          ///< Enable alpha to coverage.
         bool    dualSourceBlendEnable;          ///< Blend state bound at draw time will use a dual source blend mode.
         LogicOp logicOp;                        ///< Logic operation to perform.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 497) && PAL_BUILD_GFX10
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 497
         bool    uavExportSingleDraw;            ///< When UAV export is enabled, acts as a hint that only a single draw
                                                 ///  is done on a color target with this or subsequent pipelines before
                                                 ///  a barrier. Improves performance by allowing pipelines to overlap.

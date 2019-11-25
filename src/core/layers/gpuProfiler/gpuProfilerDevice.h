@@ -42,6 +42,7 @@ namespace GpuProfiler
 
 // Forward decl's.
 class TargetCmdBuffer;
+struct PipelineState;
 
 constexpr uint32 BlockNameSize         = 32;
 constexpr uint32 InstanceNameSize      = 8;
@@ -88,7 +89,7 @@ public:
 
     bool LoggingEnabled(GpuProfilerGranularity granularity) const;
 
-    bool SqttEnabledForPipeline(const PipelineInfo& info, PipelineBindPoint bindPoint) const;
+    bool SqttEnabledForPipeline(const PipelineState& state, PipelineBindPoint bindPoint) const;
 
     // Public IDevice interface methods:
     virtual Result CommitSettingsAndInit() override;

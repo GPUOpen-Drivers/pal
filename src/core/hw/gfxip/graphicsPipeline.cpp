@@ -201,7 +201,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
         {
             m_flags.gsEnabled = 1;
         }
-
         if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Hull)].hash) &&
             ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Domain)].hash))
         {

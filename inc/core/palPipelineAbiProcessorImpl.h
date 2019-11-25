@@ -180,6 +180,9 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
             case GfxIpSteppingNavi10:
                 m_flags.machineType = AmdGpuMachineType::Gfx1010;
                 break;
+            case GfxIpSteppingNavi14:
+                m_flags.machineType = AmdGpuMachineType::Gfx1012;
+                break;
             }
             break;
         }
@@ -719,6 +722,11 @@ void PipelineAbiProcessor<Allocator>::GetGfxIpVersion(
         *pGfxIpMajorVer = 10;
         *pGfxIpMinorVer = 1;
         *pGfxIpStepping = 0;
+        break;
+    case AmdGpuMachineType::Gfx1012:
+        *pGfxIpMajorVer = 10;
+        *pGfxIpMinorVer = 1;
+        *pGfxIpStepping = 2;
         break;
     default:
         // What is this?
@@ -1464,7 +1472,7 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
         pOut->pipeline.hasEntry.calcWaveBreakSizeAtDrawTime = 1;
     }
 
-#if PAL_BUILD_GFX10 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
     type = static_cast<uint32>(PipelineMetadataType::CsWaveFrontSize);
     if (indices[type] != -1)
     {

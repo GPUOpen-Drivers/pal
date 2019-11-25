@@ -112,7 +112,7 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.overlayMemoryInfoConfig.reportInternal = true;
     m_settings.overlayMemoryInfoConfig.displayPeakMemUsage = false;
     m_settings.gpuProfilerMode = GpuProfilerDisabled;
-    m_settings.gpuProfilerTokenAllocatorSize = 4*1024*1024;
+    m_settings.gpuProfilerTokenAllocatorSize = 64*1024;
 #if   (__unix__)
     memset(m_settings.gpuProfilerConfig.logDirectory, 0, 512);
     strncpy(m_settings.gpuProfilerConfig.logDirectory, "amdpal/", 512);
@@ -130,6 +130,9 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.gpuProfilerSqttConfig.tokenMask = 0xffff;
     m_settings.gpuProfilerSqttConfig.seMask = 0xf;
     m_settings.gpuProfilerSqttConfig.pipelineHash = 0x0;
+    m_settings.gpuProfilerSqttConfig.pipelineHashAsApiPsoHash = false;
+    m_settings.gpuProfilerSqttConfig.tsHashHi = 0x0;
+    m_settings.gpuProfilerSqttConfig.tsHashLo = 0x0;
     m_settings.gpuProfilerSqttConfig.vsHashHi = 0x0;
     m_settings.gpuProfilerSqttConfig.vsHashLo = 0x0;
     m_settings.gpuProfilerSqttConfig.hsHashHi = 0x0;
@@ -138,6 +141,8 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.gpuProfilerSqttConfig.dsHashLo = 0x0;
     m_settings.gpuProfilerSqttConfig.gsHashHi = 0x0;
     m_settings.gpuProfilerSqttConfig.gsHashLo = 0x0;
+    m_settings.gpuProfilerSqttConfig.msHashHi = 0x0;
+    m_settings.gpuProfilerSqttConfig.msHashLo = 0x0;
     m_settings.gpuProfilerSqttConfig.psHashHi = 0x0;
     m_settings.gpuProfilerSqttConfig.psHashLo = 0x0;
     m_settings.gpuProfilerSqttConfig.csHashHi = 0x0;
@@ -443,6 +448,21 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            &m_settings.gpuProfilerSqttConfig.pipelineHash,
                            InternalSettingScope::PrivatePalKey);
 
+    pDevice->ReadSetting(pGpuProfilerSqttConfig_PipelineHashAsApiPsoHashStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.gpuProfilerSqttConfig.pipelineHashAsApiPsoHash,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerSqttConfig_TsHashHiStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.gpuProfilerSqttConfig.tsHashHi,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerSqttConfig_TsHashLoStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.gpuProfilerSqttConfig.tsHashLo,
+                           InternalSettingScope::PrivatePalKey);
+
     pDevice->ReadSetting(pGpuProfilerSqttConfig_VsHashHiStr,
                            Util::ValueType::Uint64,
                            &m_settings.gpuProfilerSqttConfig.vsHashHi,
@@ -481,6 +501,16 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pGpuProfilerSqttConfig_GsHashLoStr,
                            Util::ValueType::Uint64,
                            &m_settings.gpuProfilerSqttConfig.gsHashLo,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerSqttConfig_MsHashHiStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.gpuProfilerSqttConfig.msHashHi,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerSqttConfig_MsHashLoStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.gpuProfilerSqttConfig.msHashLo,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerSqttConfig_PsHashHiStr,
@@ -888,6 +918,21 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.pipelineHash);
     m_settingsInfoMap.Insert(562315366, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.gpuProfilerSqttConfig.pipelineHashAsApiPsoHash;
+    info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.pipelineHashAsApiPsoHash);
+    m_settingsInfoMap.Insert(1180115076, info);
+
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.gpuProfilerSqttConfig.tsHashHi;
+    info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.tsHashHi);
+    m_settingsInfoMap.Insert(3100319562, info);
+
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.gpuProfilerSqttConfig.tsHashLo;
+    info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.tsHashLo);
+    m_settingsInfoMap.Insert(3535846108, info);
+
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.vsHashHi;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.vsHashHi);
@@ -927,6 +972,16 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.gsHashLo;
     info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.gsHashLo);
     m_settingsInfoMap.Insert(338172111, info);
+
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.gpuProfilerSqttConfig.msHashHi;
+    info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.msHashHi);
+    m_settingsInfoMap.Insert(2228026635, info);
+
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.gpuProfilerSqttConfig.msHashLo;
+    info.valueSize = sizeof(m_settings.gpuProfilerSqttConfig.msHashLo);
+    m_settingsInfoMap.Insert(2329383897, info);
 
     info.type      = SettingType::Uint64;
     info.pValuePtr = &m_settings.gpuProfilerSqttConfig.psHashHi;
@@ -1074,7 +1129,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 893439670;
+            component.settingsDataHash = 1273335690;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

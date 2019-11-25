@@ -325,11 +325,12 @@ Result GpuEvent::BindGpuMemory(
             }
         }
 
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
-            this,
-            gpuRequiredMemSizeInBytes,
-            pGpuMemory,
-            offset);
+        GpuMemoryResourceBindEventData data = {};
+        data.pObj = this;
+        data.pGpuMemory = pGpuMemory;
+        data.requiredGpuMemSize = gpuRequiredMemSizeInBytes;
+        data.offset = offset;
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(data);
     }
 
     return result;

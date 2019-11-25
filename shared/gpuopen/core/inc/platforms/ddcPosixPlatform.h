@@ -140,5 +140,10 @@ namespace DevDriver
         typedef void*     LibraryHandle;
 
         constexpr ThreadHandle kInvalidThreadHandle = 0;
+
+        // Maximum supported size for thread names, including NULL byte
+        // This exists because some platforms have hard limits on thread name size.
+        // The Linux Kernel has a hard limit of 16 bytes for the thread name size including NULL.
+        static constexpr size_t kThreadNameMaxLength = 16;
     }
 }

@@ -615,33 +615,33 @@ static void SerializeResourceDescriptionBuffer(
     // Usage flags
     pJsonWriter->KeyAndBeginMap("UsageFlags", false);
     pJsonWriter->KeyAndValue("TransferSrc",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransferSrc)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransferSrc)));
     pJsonWriter->KeyAndValue("TransferDst",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransferDst)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransferDst)));
     pJsonWriter->KeyAndValue("UniformTexelBuffer",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::UniformTexelBuffer)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::UniformTexelBuffer)));
     pJsonWriter->KeyAndValue("StorageTexelBuffer",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::StorageTexelBuffer)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::StorageTexelBuffer)));
     pJsonWriter->KeyAndValue("UniformBuffer",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::UniformBuffer)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::UniformBuffer)));
     pJsonWriter->KeyAndValue("StorageBuffer",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::StorageBuffer)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::StorageBuffer)));
     pJsonWriter->KeyAndValue("IndexBuffer",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::IndexBuffer)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::IndexBuffer)));
     pJsonWriter->KeyAndValue("VertexBuffer",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::VertexBuffer)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::VertexBuffer)));
     pJsonWriter->KeyAndValue("IndirectBuffer",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::IndirectBuffer)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::IndirectBuffer)));
     pJsonWriter->KeyAndValue("TransformFeedbackBuffer",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransformFeedbackBuffer)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransformFeedbackBuffer)));
     pJsonWriter->KeyAndValue("TransformFeedbackCounterBuffer",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransformFeedbackCounterBuffer)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransformFeedbackCounterBuffer)));
     pJsonWriter->KeyAndValue("ConditionalRendering",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::ConditionalRendering)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::ConditionalRendering)));
     pJsonWriter->KeyAndValue("RayTracing",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::RayTracing)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::RayTracing)));
     pJsonWriter->KeyAndValue("ShaderDeviceAddress",
-        Util::TestAnyFlagSet(data.createFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::ShaderDeviceAddress)));
+        Util::TestAnyFlagSet(data.usageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::ShaderDeviceAddress)));
     pJsonWriter->EndMap();
 
     pJsonWriter->KeyAndValue("Size", data.size);
@@ -667,15 +667,15 @@ static void SerializeResourceDescriptionPipeline(
         pJsonWriter->KeyAndValue("InternalPipelineHashStable", data.pPipelineInfo->internalPipelineHash.stable);
         pJsonWriter->KeyAndValue("InternalPipelineHashUnique", data.pPipelineInfo->internalPipelineHash.unique);
 
+        const auto& shaderHashes = data.pPipelineInfo->shader;
+
         pJsonWriter->KeyAndBeginMap("Stages", false);
-        pJsonWriter->KeyAndValue("PS", ShaderHashIsNonzero(data.pPipelineInfo->shader[static_cast<uint32>(ShaderType::Pixel)].hash));
-        pJsonWriter->KeyAndValue("HS", ShaderHashIsNonzero(data.pPipelineInfo->shader[static_cast<uint32>(ShaderType::Hull)].hash));
-        pJsonWriter->KeyAndValue("DS", ShaderHashIsNonzero(data.pPipelineInfo->shader[static_cast<uint32>(ShaderType::Domain)].hash));
-        pJsonWriter->KeyAndValue("VS", ShaderHashIsNonzero(data.pPipelineInfo->shader[static_cast<uint32>(ShaderType::Vertex)].hash));
-        pJsonWriter->KeyAndValue("GS", ShaderHashIsNonzero(data.pPipelineInfo->shader[static_cast<uint32>(ShaderType::Geometry)].hash));
-        pJsonWriter->KeyAndValue("CS", ShaderHashIsNonzero(data.pPipelineInfo->shader[static_cast<uint32>(ShaderType::Compute)].hash));
-        pJsonWriter->KeyAndValue("TS", false);
-        pJsonWriter->KeyAndValue("MS", false);
+        pJsonWriter->KeyAndValue("PS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Pixel)].hash));
+        pJsonWriter->KeyAndValue("HS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Hull)].hash));
+        pJsonWriter->KeyAndValue("DS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Domain)].hash));
+        pJsonWriter->KeyAndValue("VS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Vertex)].hash));
+        pJsonWriter->KeyAndValue("GS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Geometry)].hash));
+        pJsonWriter->KeyAndValue("CS", ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Compute)].hash));
         pJsonWriter->EndMap();
     }
     else

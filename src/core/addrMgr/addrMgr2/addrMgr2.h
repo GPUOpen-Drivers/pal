@@ -147,55 +147,6 @@ static SWIZZLE_MODE_ENUM GetHwSwizzleMode(
 }
 
 // =====================================================================================================================
-// Returns the size of one block (i.e., one tile) in terms of bytes.
-static uint32 GetBlockSize(
-    AddrSwizzleMode  swizzleMode)
-{
-    uint32  blockSize = 0;
-
-    switch (swizzleMode)
-    {
-    case ADDR_SW_256B_S:
-    case ADDR_SW_256B_D:
-    case ADDR_SW_256B_R:
-        blockSize = 256;
-        break;
-
-    case ADDR_SW_4KB_Z:
-    case ADDR_SW_4KB_S:
-    case ADDR_SW_4KB_D:
-    case ADDR_SW_4KB_R:
-    case ADDR_SW_4KB_Z_X:
-    case ADDR_SW_4KB_S_X:
-    case ADDR_SW_4KB_D_X:
-    case ADDR_SW_4KB_R_X:
-        blockSize = 4096;
-        break;
-
-    case ADDR_SW_64KB_Z:
-    case ADDR_SW_64KB_S:
-    case ADDR_SW_64KB_D:
-    case ADDR_SW_64KB_R:
-    case ADDR_SW_64KB_Z_T:
-    case ADDR_SW_64KB_S_T:
-    case ADDR_SW_64KB_D_T:
-    case ADDR_SW_64KB_R_T:
-    case ADDR_SW_64KB_Z_X:
-    case ADDR_SW_64KB_S_X:
-    case ADDR_SW_64KB_D_X:
-    case ADDR_SW_64KB_R_X:
-        blockSize = 65536;
-        break;
-
-    default:
-        PAL_ASSERT_ALWAYS();
-        break;
-    }
-
-    return blockSize;
-}
-
-// =====================================================================================================================
 // Returns true if the associated swizzle mode is PRT capable
 static bool IsPrtSwizzle(
     AddrSwizzleMode  swizzleMode)
@@ -346,6 +297,8 @@ public:
 
     static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWTYPE_SET validSwSet);
 
+    virtual uint32 GetBlockSize(AddrSwizzleMode swizzleMode) const;
+
 protected:
     virtual void ComputeTilesInMipTail(
         const Image&       image,
@@ -406,6 +359,8 @@ private:
 
     PAL_DISALLOW_DEFAULT_CTOR(AddrMgr2);
     PAL_DISALLOW_COPY_AND_ASSIGN(AddrMgr2);
+
+    uint32 m_varBlockSize;
 };
 
 } // AddrMgr2

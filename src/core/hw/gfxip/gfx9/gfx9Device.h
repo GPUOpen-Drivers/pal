@@ -615,6 +615,8 @@ public:
         size_t      tableBytes,
         gpusize     dataGpuVirtAddr) const override;
 
+    virtual uint32 GetVarBlockSize() const { return m_varBlockSize; }
+
 private:
     Result InitOcclusionResetMem();
     const regGB_ADDR_CONFIG& GetGbAddrConfig() const;
@@ -751,6 +753,7 @@ private:
     // Local copy of the GB_ADDR_CONFIG register
     const uint32      m_gbAddrConfig;
     const GfxIpLevel  m_gfxIpLevel;
+    uint32            m_varBlockSize;
 
     uint16         m_firstUserDataReg[HwShaderStage::Last];
 

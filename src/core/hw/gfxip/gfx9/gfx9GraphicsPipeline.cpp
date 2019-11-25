@@ -53,8 +53,6 @@ const GraphicsPipelineSignature NullGfxSignature =
     UserDataNotMapped,          // NGG culling data constant buffer
     UserDataNotMapped,          // Vertex offset register address
     UserDataNotMapped,          // Draw ID register address
-    UserDataNotMapped,          // Start Index register address
-    UserDataNotMapped,          // Log2(sizeof(indexType)) register address
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     { UserDataNotMapped, },     // Compacted view ID register addresses
@@ -359,6 +357,26 @@ Result GraphicsPipeline::HwlInit(
                 UpdateRingSizes(metadata);
             }
         }
+    }
+
+    if (result == Result::Success)
+    {
+        ResourceDescriptionPipeline desc = {};
+        desc.pPipelineInfo = &GetInfo();
+        desc.pCreateFlags = &createInfo.flags;
+        ResourceCreateEventData data = {};
+        data.type = ResourceType::Pipeline;
+        data.pResourceDescData = &desc;
+        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
+        data.pObj = this;
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+
+        GpuMemoryResourceBindEventData bindData = {};
+        bindData.pObj = this;
+        bindData.pGpuMemory = m_gpuMem.Memory();
+        bindData.requiredGpuMemSize = m_gpuMemSize;
+        bindData.offset = m_gpuMem.Offset();
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
     }
 
     return result;
@@ -698,7 +716,6 @@ void GraphicsPipeline::BuildPm4Headers(
 
     m_commands.set.context.spaceNeeded =
         cmdUtil.BuildSetOneContextReg(mmVGT_SHADER_STAGES_EN, &m_commands.set.context.hdrVgtShaderStagesEn);
-
     m_commands.set.context.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmVGT_DRAW_PAYLOAD_CNTL, &m_commands.set.context.hdrVgtDrawPayloadCntl);
 
@@ -816,6 +833,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     const GpuChipProperties& chipProps = palDevice.ChipProperties();
     const RegisterInfo&      regInfo   = m_pDevice->CmdUtil().GetRegInfo();
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
+    const PalPublicSettings* pPalSettings = m_pDevice->Parent()->GetPublicSettings();
 
     m_commands.set.context.paClClipCntl.u32All    = registers.At(mmPA_CL_CLIP_CNTL);
     m_commands.set.context.paClVteCntl.u32All     = registers.At(mmPA_CL_VTE_CNTL);
@@ -850,9 +868,26 @@ void GraphicsPipeline::SetupCommonRegisters(
     // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
     regDB_RENDER_OVERRIDE dbRenderOverride = { };
     dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_chunkVsPs.DbShaderControl().bits.Z_ORDER == RE_Z);
+
     // Configure depth clamping
-    dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable != false) &&
-                                                    (m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
+    // Register specification does not specify dependence of DISABLE_VIEWPORT_CLAMP on Z_EXPORT_ENABLE, but
+    // removing the dependence leads to perf regressions in some applications for Vulkan, DX and OGL.
+    // The reason for perf drop can be narrowed down to the DepthExpand RPM pipeline. Disabling viewport clamping
+    // (DISABLE_VIEWPORT_CLAMP = 1) for this pipeline results in heavy perf drops.
+    // It's also important to note that this issue is caused by the graphics depth fast clear not the depth expand itself.
+    // It simply reuses the same RPM pipeline from the depth expand.
+
+    if (pPalSettings->depthClampBasedOnZExport == true)
+    {
+        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable != false) &&
+                                                        (m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
+    }
+    else
+    {
+        // Vulkan (only) will take this path by default, unless an app-detect forces the other way.
+        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable != false);
+    }
+
     m_commands.common.dbRenderOverride.reg_data = dbRenderOverride.u32All;
 
     if (regInfo.mmPaStereoCntl != 0)
@@ -1793,20 +1828,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                      (pEsGsLdsSizeReg != nullptr))
             {
                 (*pEsGsLdsSizeReg) = offset;
-            }
-            else if (value == static_cast<uint32>(Abi::UserDataMapping::BaseIndex))
-            {
-                // There can be only start-index user-SGPR per pipeline.
-                PAL_ASSERT((m_signature.startIndexRegAddr == offset) ||
-                           (m_signature.startIndexRegAddr == UserDataNotMapped));
-                m_signature.startIndexRegAddr = offset;
-            }
-            else if (value == static_cast<uint32>(Abi::UserDataMapping::Log2IndexSize))
-            {
-                // There can be only log2-index-size user-SGPR per pipeline.
-                PAL_ASSERT((m_signature.log2IndexSizeRegAddr == offset) ||
-                           (m_signature.log2IndexSizeRegAddr == UserDataNotMapped));
-                m_signature.log2IndexSizeRegAddr = offset;
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::ViewId))
             {

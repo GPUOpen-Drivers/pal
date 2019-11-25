@@ -378,8 +378,7 @@ Result UniversalRingSet::Init()
 
         // The OFFCHIP_GRANULARITY field of VGT_HS_OFFCHIP_PRARM is determined at init-time by the value of the related
         // setting.
-        if (IsGfx9(device)
-            || IsGfx101(device)
+        if (IsGfx9(device) || IsGfx101(device)
            )
         {
             m_pm4Commands.vgtHsOffchipParam.most.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
@@ -472,8 +471,7 @@ Result UniversalRingSet::Validate(
         // Off-chip LDS Buffers:
         if (pOffchipLds->IsMemoryValid())
         {
-            if (IsGfx9(device)
-                || IsGfx10(device)
+            if (IsGfx9(device) || IsGfx10(device)
                )
             {
                 // OFFCHIP_BUFFERING setting is biased by one (i.e., 0=1, 511=512, etc.).

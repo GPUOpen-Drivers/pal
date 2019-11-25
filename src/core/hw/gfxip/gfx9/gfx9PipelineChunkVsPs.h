@@ -146,6 +146,7 @@ private:
                 // If we don't have it, NOP will be used.
                 PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
                 regSPI_SHADER_PGM_CHKSUM_PS  spiShaderPgmChksumPs;
+
                 // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
                 // w/ the actual commands contained above.
                 size_t  spaceNeeded;
@@ -177,6 +178,7 @@ private:
                 // If we don't have it, NOP will be added.
                 PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
                 regSPI_SHADER_PGM_CHKSUM_VS  spiShaderPgmChksumVs;
+
                 // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
                 // w/ the actual commands contained above.
                 size_t  spaceNeeded;
@@ -205,6 +207,7 @@ private:
 
                 PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc4Vs;
                 regSPI_SHADER_PGM_RSRC4_VS  spiShaderPgmRsrc4Vs;
+
                 // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
                 // w/ the actual commands contained above.
                 size_t  spaceNeeded;

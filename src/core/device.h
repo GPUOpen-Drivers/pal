@@ -337,7 +337,8 @@ struct GpuEngineProperties
                 uint32 timestampSupport                :  1;
                 uint32 borderColorPaletteSupport       :  1;
                 uint32 queryPredicationSupport         :  1;
-                uint32 memoryPredicationSupport        :  1;
+                uint32 memory64bPredicationSupport     :  1;
+                uint32 memory32bPredicationSupport     :  1;
                 uint32 conditionalExecutionSupport     :  1;
                 uint32 loopExecutionSupport            :  1;
                 uint32 constantEngineSupport           :  1;
@@ -354,7 +355,7 @@ struct GpuEngineProperties
                 uint32 mustUseSvmIfSupported           :  1;
                 uint32 supportsTrackBusyChunks         :  1;
                 uint32 supportsUnmappedPrtPageAccess   :  1;
-                uint32 reserved                        : 10;
+                uint32 reserved                        :  9;
             };
             uint32 u32All;
         } flags;
@@ -627,7 +628,6 @@ struct GpuChipProperties
     struct
     {
         uint32 maxUserDataEntries;
-        uint32 fastUserDataEntries[NumShaderTypes];
         uint32 vaRangeNumBits;
         uint32 realTimeCuMask;
         uint32 maxThreadGroupSize;
@@ -915,6 +915,19 @@ struct GpuChipProperties
        uint32 dmaPlaceholderDwords;  // Same as gfxPlaceholderDwords, but for the SDMA engine ("DMA" engine type in
                                      // PAL terminology).
    } p2pBltWaInfo;
+
+    union
+    {
+        struct
+        {
+            uint32 p2pSupportEncode     : 1; // whether encoding HW can access FB memory of remote GPU in chain
+            uint32 p2pSupportDecode     : 1; // whether decoding HW can access FB memory of remote GPU in chain
+            uint32 p2pSupportTmz        : 1; // whether protected content can be transferred over P2P
+            uint32 p2pCrossGPUCoherency : 1; // whether remote FB memory can be accessed without need for cache flush
+            uint32 reserved             : 28;
+        };
+        uint32 u32All;
+    } p2pSupport;
 };
 
 // Helper function that calculates memory ops per clock for a given memory type.
@@ -2300,6 +2313,10 @@ static bool IsNavi(const Device& device)
 static bool IsNavi10(const Device& device)
 {
     return AMDGPU_IS_NAVI10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+static bool IsNavi14(const Device& device)
+{
+    return AMDGPU_IS_NAVI14(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 static bool IsGfx101(const Device& device)
 {

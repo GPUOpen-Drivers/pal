@@ -1378,13 +1378,10 @@ size_t CmdUtil::BuildDrawIndexIndirect(
     gpusize      offset,        // Byte offset to the indirect args data.
     uint32       baseVtxLoc,    // Register VS expects to read baseVtxLoc from.
     uint32       startInstLoc,  // Register VS expects to read startInstLoc from.
-    uint32       startIndexLoc, // Register VS expects to read startIndexLoc from.
     Pm4Predicate predicate,
     void*        pBuffer        // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    PAL_ASSERT(startIndexLoc == 0);
-
     // Draw argument offset in the buffer has to be 4-byte aligned.
     PAL_ASSERT(IsPow2Aligned(offset, 4));
 
@@ -1399,12 +1396,6 @@ size_t CmdUtil::BuildDrawIndexIndirect(
     pPacket->bitfields3.base_vtx_loc   = baseVtxLoc - PERSISTENT_SPACE_START;
     pPacket->ordinal4                  = 0;
     pPacket->bitfields4.start_inst_loc = startInstLoc - PERSISTENT_SPACE_START;
-
-    if (startIndexLoc != UserDataNotMapped)
-    {
-        pPacket->bitfields4.start_indx_enable = 1;
-        pPacket->bitfields3.start_indx_loc    = startIndexLoc - PERSISTENT_SPACE_START;
-    }
 
     regVGT_DRAW_INITIATOR drawInitiator;
     drawInitiator.u32All             = 0;
@@ -1423,7 +1414,6 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     uint32       baseVtxLoc,    // Register VS expects to read baseVtxLoc from.
     uint32       startInstLoc,  // Register VS expects to read startInstLoc from.
     uint32       drawIndexLoc,  // Register VS expects to read drawIndex from.
-    uint32       startIndexLoc, // Register VS expects to read startIndexLoc from.
     uint32       stride,        // Stride from one indirect args data structure to the next.
     uint32       count,         // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
     gpusize      countGpuAddr,  // GPU address containing the count.
@@ -1431,8 +1421,6 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     void*        pBuffer        // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    PAL_ASSERT(startIndexLoc == 0);
-
     // Draw argument offset in the buffer has to be 4-byte aligned.
     PAL_ASSERT(IsPow2Aligned(offset, 4));
 
@@ -1454,11 +1442,6 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     {
         pPacket->bitfields5.draw_index_enable = 1;
         pPacket->bitfields5.draw_index_loc    = drawIndexLoc - PERSISTENT_SPACE_START;
-    }
-    if (startIndexLoc != UserDataNotMapped)
-    {
-        pPacket->bitfields5.start_indx_enable = 1;
-        pPacket->bitfields3.start_indx_loc    = startIndexLoc - PERSISTENT_SPACE_START;
     }
 
     if (countGpuAddr != 0)
@@ -3291,7 +3274,7 @@ size_t CmdUtil::BuildSetPredication(
                 pred_op__pfp_set_predication__set_zpass_predicate) &&
         (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::PrimCount) ==
                 pred_op__pfp_set_predication__set_primcount_predicate) &&
-        (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::Boolean)   ==
+        (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::Boolean64)   ==
                 pred_op__pfp_set_predication__DX12),
         "Unexpected values for the PredicateType enum.");
 

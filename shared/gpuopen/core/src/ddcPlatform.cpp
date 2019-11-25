@@ -58,12 +58,12 @@ namespace DevDriver
 
         // Write not more than dataSize characters into pDst, including the NULL terminator.
         // Returns the number of characters that would have been written if the buffer is large enough, including the NULL terminator.
-        int32 Snprintf(char* pDst, size_t dstSize, const char* pFormat, ...)
+        int32 Snprintf(char* pDst, size_t dstSize, const char* pFmt, ...)
         {
             va_list args;
-            va_start(args, pFormat);
+            va_start(args, pFmt);
 
-            int32 ret = Vsnprintf(pDst, dstSize, pFormat, args);
+            const int32 ret = Vsnprintf(pDst, dstSize, pFmt, args);
 
             va_end(args);
 
@@ -117,6 +117,35 @@ namespace DevDriver
             pThread->onExit.Signal();
 
             return ThreadReturnType(0);
+        }
+
+        Result Thread::SetName(const char* pFmt, ...)
+        {
+            Result result = Result::Error;
+
+            DD_WARN(hThread != kInvalidThreadHandle);
+            if (hThread != kInvalidThreadHandle)
+            {
+                // Limit the size of the thread name to the platform defined maximum.
+                char threadNameBuffer[kThreadNameMaxLength];
+                memset(threadNameBuffer, 0, sizeof(threadNameBuffer));
+
+                va_list args;
+                va_start(args, pFmt);
+                const int32 ret = Vsnprintf(threadNameBuffer, ArraySize(threadNameBuffer), pFmt, args);
+                va_end(args);
+
+                if (ret < 0)
+                {
+                    result = Result::Error;
+                }
+                else
+                {
+                    result = SetNameRaw(threadNameBuffer);
+                }
+            }
+
+            return result;
         }
 
         Thread::~Thread()

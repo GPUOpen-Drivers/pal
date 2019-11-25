@@ -898,8 +898,7 @@ void DmaCmdBuffer::CmdCopyImage(
             P2pBltWaCopyNextRegion(chunkAddrs[rgnIdx]);
         }
 
-        // Use srcImg to ensure RIS image is used if requested by client
-        SetupDmaInfoSurface(srcImg,
+        SetupDmaInfoSurface(srcImage,
                             region.srcSubres,
                             region.srcOffset,
                             srcImageLayout,
@@ -1388,7 +1387,7 @@ void DmaCmdBuffer::CmdSetPredication(
     PAL_ASSERT(pQueryPool == nullptr);
 
     // On DMA queue, this is the only supported predication
-    PAL_ASSERT((pGpuMemory == nullptr) || (predType == PredicateType::Boolean));
+    PAL_ASSERT((pGpuMemory == nullptr) || (predType == PredicateType::Boolean32));
 
     m_predMemAddress = 0;
     if (pGpuMemory != nullptr)

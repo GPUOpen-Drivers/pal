@@ -998,11 +998,12 @@ Result Image::BindGpuMemory(
 
         m_vidMem.Update(pGpuMemory, offset);
 
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
-            this,
-            m_gpuMemSize,
-            pGpuMemory,
-            offset);
+        GpuMemoryResourceBindEventData data = {};
+        data.pObj = this;
+        data.pGpuMemory = pGpuMemory;
+        data.requiredGpuMemSize = m_gpuMemSize;
+        data.offset = offset;
+        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(data);
     }
 
     UpdateMetaDataInfo(pGpuMemory);

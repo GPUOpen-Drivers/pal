@@ -6147,7 +6147,7 @@ void RsrcProcMgr::GenericColorBlit(
                                               0,
                                               pGpuMemory,
                                               mipCondDwordsOffset,
-                                              PredicateType::Boolean,
+                                              PredicateType::Boolean64,
                                               true,
                                               false,
                                               false);

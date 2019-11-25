@@ -819,6 +819,23 @@
       "Name": "HtileEnable"
     },
     {
+      "Description": "If true, allow depth copy resolve.",
+      "Tags": [
+        "Depth/Stencil",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "allowDepthCopyResolve",
+      "Name": "AllowDepthCopyResolve"
+    },
+    {
       "Description": "If true, depth compression will be enabled.",
       "Tags": [
         "Depth/Stencil",
@@ -1821,6 +1838,9 @@
       ],
       "Defaults": {
         "Default": true
+      },
+      "Flags": {
+        "RereadSetting": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",

@@ -50,7 +50,7 @@ if(UNIX)
         message(FATAL_ERROR "Using unknown compiler.")
     endif()
 
-	set(PAL_USE_PTHREAD TRUE)
+    set(PAL_USE_PTHREAD TRUE)
 
 endif()
 
@@ -59,6 +59,7 @@ endif()
 
 ### Build Definitions ##################################################################################################
 target_compile_definitions(pal PUBLIC PAL_CLIENT_INTERFACE_MAJOR_VERSION=${PAL_CLIENT_INTERFACE_MAJOR_VERSION})
+target_compile_definitions(pal PUBLIC PAL_CLIENT_INTERFACE_MINOR_VERSION=${PAL_CLIENT_INTERFACE_MINOR_VERSION})
 
 target_compile_definitions(pal PRIVATE PAL_COMPILE_TYPE=${TARGET_ARCHITECTURE_BITS})
 
@@ -179,7 +180,6 @@ endif()
 
 # Other Includes
 target_include_directories(pal PRIVATE ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/shared)
-target_include_directories(pal PRIVATE ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg)
 
 ### PAL Subprojects ####################################################################################################
 ### ADDRLIB ####################################################################
@@ -467,6 +467,10 @@ if(PAL_BUILD_CORE)
                 target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10)
                 target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10)
                 target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10)
+            endif()
+            if(PAL_BUILD_NAVI14)
+                target_compile_definitions(pal PUBLIC PAL_BUILD_NAVI14)
+                target_compile_definitions(pal PRIVATE CHIP_HDR_NAVI14)
             endif()
 
             target_sources(pal PRIVATE

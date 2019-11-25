@@ -36,20 +36,25 @@ namespace DevDriver
     {
         MessageChannel* pMessageChannel = reinterpret_cast<MessageChannel*>(pThreadParam);
 
-        while ((pMessageChannel->m_msgThreadParams.active) & (pMessageChannel->m_clientId != kBroadcastClientId))
+        while (pMessageChannel->m_msgThreadParams.active)
         {
-            pMessageChannel->Update();
+            if (pMessageChannel->IsConnected())
+            {
+                // If we're still connected, update the message channel
+                pMessageChannel->Update();
+            }
+            else
+            {
+                // We're no longer connected so we should terminate this background thread by breaking out of
+                // the loop.
+
+                DD_PRINT(LogLevel::Info, "Message channel lost connection, exiting receive thread loop");
+
+                break;
+            }
         }
 
-        // Check to see if the message thread was terminated normally. If active is still set to true we are destroying
-        // this thread due to a connection failure, so we need to close all active sessions and exit.
-        if (pMessageChannel->m_msgThreadParams.active)
-        {
-            const Result status = pMessageChannel->m_sessionManager.Destroy();
-            DD_ASSERT(status == Result::Success);
-            DD_UNUSED(status);
-            pMessageChannel->m_msgThreadParams.active = false;
-        }
+        DD_PRINT(LogLevel::Info, "Exiting receive thread");
     }
 
     template <class MsgTransport>
@@ -132,6 +137,8 @@ namespace DevDriver
                     }
                     else
                     {
+                        DD_PRINT(LogLevel::Info, "Disconnecting transport due to keep alive timeout");
+
                         // we have sent too many heartbeats without response, so disconnect
                         Disconnect();
                     }
@@ -642,55 +649,43 @@ namespace DevDriver
     }
 
     template <class MsgTransport>
-    Result MessageChannel<MsgTransport>::Unregister()
+    void MessageChannel<MsgTransport>::Unregister()
     {
-        Result result = Result::Error;
-
-        if (IsConnected())
+        if (m_createInfo.createUpdateThread)
         {
-            if (m_createInfo.createUpdateThread)
-            {
-                Result status = DestroyMsgThread();
-                DD_ASSERT(status == Result::Success);
-                DD_UNUSED(status);
-            }
-
-            if (m_pURIServer != nullptr)
-            {
-                m_sessionManager.UnregisterProtocolServer(m_pURIServer);
-
-                DD_DELETE(m_pURIServer, m_allocCb);
-                m_pURIServer = nullptr;
-            }
-
-            // Destroy the transfer manager
-            m_transferManager.Destroy();
-
-            Result status = m_sessionManager.Destroy();
-            DD_ASSERT(status == Result::Success);
-            DD_UNUSED(status);
-
-            if (MsgTransport::RequiresClientRegistration())
-            {
-                if (m_clientId != kBroadcastClientId)
-                {
-                    using namespace DevDriver::ClientManagementProtocol;
-                    MessageBuffer disconnectMsgBuffer = {};
-                    disconnectMsgBuffer.header.protocolId = Protocol::ClientManagement;
-                    disconnectMsgBuffer.header.messageId =
-                        static_cast<MessageCode>(ManagementMessage::DisconnectNotification);
-                    disconnectMsgBuffer.header.srcClientId = m_clientId;
-                    disconnectMsgBuffer.header.dstClientId = kBroadcastClientId;
-                    disconnectMsgBuffer.header.payloadSize = 0;
-
-                    WriteTransportMessage(disconnectMsgBuffer);
-                }
-            }
-
-            result = Disconnect();
+            DestroyMsgThread();
         }
 
-        return result;
+        if (m_pURIServer != nullptr)
+        {
+            m_sessionManager.UnregisterProtocolServer(m_pURIServer);
+
+            DD_DELETE(m_pURIServer, m_allocCb);
+            m_pURIServer = nullptr;
+        }
+
+        m_transferManager.Destroy();
+
+        m_sessionManager.Destroy();
+
+        if (MsgTransport::RequiresClientRegistration())
+        {
+            if (m_clientId != kBroadcastClientId)
+            {
+                using namespace DevDriver::ClientManagementProtocol;
+                MessageBuffer disconnectMsgBuffer = {};
+                disconnectMsgBuffer.header.protocolId = Protocol::ClientManagement;
+                disconnectMsgBuffer.header.messageId =
+                    static_cast<MessageCode>(ManagementMessage::DisconnectNotification);
+                disconnectMsgBuffer.header.srcClientId = m_clientId;
+                disconnectMsgBuffer.header.dstClientId = kBroadcastClientId;
+                disconnectMsgBuffer.header.payloadSize = 0;
+
+                WriteTransportMessage(disconnectMsgBuffer);
+            }
+        }
+
+        Disconnect();
     }
 
     template <class MsgTransport>
@@ -726,7 +721,12 @@ namespace DevDriver
 
         Result result = m_msgThread.Start(MsgChannelReceiveFunc, this);
 
-        if (result != Result::Success)
+        if (result == Result::Success)
+        {
+            // This is for humans, so we ignore a failure to set the name. The code can't do anything about it anyway.
+            m_msgThread.SetName("DevDriver MsgChannel Receiver");
+        }
+        else
         {
             m_msgThreadParams.active = false;
             DD_WARN_REASON("Thread creation failed");
@@ -736,28 +736,26 @@ namespace DevDriver
     }
 
     template <class MsgTransport>
-    Result MessageChannel<MsgTransport>::DestroyMsgThread()
+    void MessageChannel<MsgTransport>::DestroyMsgThread()
     {
-        Result result = Result::Success;
         if (m_msgThread.IsJoinable())
         {
             m_msgThreadParams.active = false;
-            result = m_msgThread.Join(kLogicFailureTimeout);
+            DD_UNHANDLED_RESULT(m_msgThread.Join(kLogicFailureTimeout));
         }
-        return DD_SANITIZE_RESULT(result);
     }
 
     template <class MsgTransport>
-    inline Result MessageChannel<MsgTransport>::Disconnect()
+    void MessageChannel<MsgTransport>::Disconnect()
     {
-        Result result = Result::Success;
         if (m_clientId != kBroadcastClientId)
         {
             m_clientId = kBroadcastClientId;
-            m_msgTransport.Disconnect();
-            result = Result::Success;
+            DD_UNHANDLED_RESULT(m_msgTransport.Disconnect());
+
+            // Notify the session manager that the transport has been disconnected
+            m_sessionManager.HandleTransportDisconnect();
         }
-        return result;
     }
 
     template <class MsgTransport>

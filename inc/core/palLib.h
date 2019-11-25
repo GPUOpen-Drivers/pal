@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 547
+#define PAL_INTERFACE_MAJOR_VERSION 550
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -119,11 +119,11 @@ enum class NullGpuId : uint32
     Vega12      = 0x18,
     Vega20      = 0x19,
     Raven2      = 0x1A,
+    Navi10      = 0x1D,
+    Navi14      = 0x20,
 
-    Navi10      = 0x1E,
-
-    Max         = 0x29,
-    All         = 0x2A,
+    Max         = 0x28,
+    All         = 0x29,
 };
 
 /// Maps a null GPU ID to its associated text name.

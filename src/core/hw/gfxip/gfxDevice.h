@@ -647,6 +647,12 @@ public:
         gpusize     dataGpuVirtAddr) const = 0;
     uint32* AllocateFceRefCount();
 
+    virtual uint32 GetVarBlockSize() const
+    {
+        PAL_NEVER_CALLED();
+        return 0;
+    }
+
 protected:
     uint32 GetCuEnableMaskInternal(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
 

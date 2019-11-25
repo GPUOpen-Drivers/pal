@@ -275,6 +275,7 @@ Dri3WindowSystem::Dri3WindowSystem(
     m_dri3Procs(m_dri3Loader.GetProcsTable()),
 #endif
     m_format(createInfo.format),
+    m_depth(0),
     m_swapChainMode(createInfo.swapChainMode),
     m_hWindow(static_cast<xcb_window_t>(createInfo.hWindow.win)),
 
@@ -552,7 +553,6 @@ Result Dri3WindowSystem::CreatePresentableImage(
 {
     Result       result     = Result::Success;
     xcb_pixmap_t pixmap     = InvalidPixmapId;
-    uint32       depth      = 0;
 
     const SubresId              subres      = { ImageAspect::Color, 0, 0 };
     const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(subres);
@@ -575,7 +575,7 @@ Result Dri3WindowSystem::CreatePresentableImage(
 
         if (pReply != nullptr)
         {
-            depth = pReply->depth;
+            m_depth = pReply->depth;
 
             free(pReply);
         }
@@ -596,16 +596,19 @@ Result Dri3WindowSystem::CreatePresentableImage(
 
     if (result == Result::Success)
     {
-        const xcb_void_cookie_t cookie = m_dri3Procs.pfnXcbDri3PixmapFromBufferChecked(m_pConnection,
-                                                                                       pixmap,
-                                                                                       m_hWindow,
-                                                                                       size,
-                                                                                       width,
-                                                                                       height,
-                                                                                       stride,
-                                                                                       depth,
-                                                                                       bpp,
-                                                                                       sharedBufferFd);
+        xcb_void_cookie_t cookie = {};
+        {
+            cookie = m_dri3Procs.pfnXcbDri3PixmapFromBufferChecked(m_pConnection,
+                                                                   pixmap,
+                                                                   m_hWindow,
+                                                                   size,
+                                                                   width,
+                                                                   height,
+                                                                   stride,
+                                                                   m_depth,
+                                                                   bpp,
+                                                                   sharedBufferFd);
+        }
 
         xcb_generic_error_t*const pError = m_dri3Procs.pfnXcbRequestCheck(m_pConnection, cookie);
 
@@ -664,59 +667,56 @@ Result Dri3WindowSystem::Present(
     PresentMode            presentMode    = presentInfo.presentMode;
     PAL_ASSERT((pDri3IdleFence == nullptr) || (m_dri3Procs.pfnXshmfenceQuery(pDri3IdleFence->ShmFence()) == 0));
 
-    // The setting below means if XCB_PRESENT_OPTION_ASYNC is set, display the image immediately, otherwise display
-    // the image on next vblank.
-    constexpr uint32 TargetMsc  = 0;
-    constexpr uint32 Remainder  = 0;
-    constexpr uint32 Divisor    = 1;
-
-    uint32 options = XCB_PRESENT_OPTION_NONE;
-
-    if (presentMode == PresentMode::Windowed)
+    if (result == Result::Success)
     {
-        options |= XCB_PRESENT_OPTION_COPY;
-    }
-    // PresentOptionAsync: the present will be performed as soon as possible, not necessarily waiting for
-    // next vertical blank interval
-    if (m_swapChainMode == SwapChainMode::Immediate)
-    {
-        options |= XCB_PRESENT_OPTION_ASYNC;
-    }
+        // The setting below means if XCB_PRESENT_OPTION_ASYNC is set, display the image immediately, otherwise display
+        // the image on next vblank.
+        constexpr uint32 TargetMsc  = 0;
+        constexpr uint32 Remainder  = 0;
+        constexpr uint32 Divisor    = 1;
 
-    uint32 serial = m_localSerial + 1;
-    xcb_void_cookie_t cookie = m_dri3Procs.pfnXcbPresentPixmapChecked(m_pConnection,
-                                      m_hWindow,
-                                      pixmap,
-                                      serial,
-                                      0,                              // valid-area
-                                      0,                              // update-area
-                                      0,                              // x-off
-                                      0,                              // y-off
-                                      0,                              // crtc
-                                      waitSyncFence,                  // wait-fence
-                                      idleSyncFence,                  // idle-fence
-                                      options,
-                                      TargetMsc,
-                                      Divisor,
-                                      Remainder,
-                                      0,                              // notifies_len
-                                      nullptr);                       // notifies
+        uint32 options = XCB_PRESENT_OPTION_NONE;
 
-    xcb_generic_error_t*const pError = m_dri3Procs.pfnXcbRequestCheck(m_pConnection, cookie);
+        if (presentMode == PresentMode::Windowed)
+        {
+            options |= XCB_PRESENT_OPTION_COPY;
+        }
+        // PresentOptionAsync: the present will be performed as soon as possible, not necessarily waiting for
+        // next vertical blank interval
+        if (m_swapChainMode == SwapChainMode::Immediate)
+        {
+            options |= XCB_PRESENT_OPTION_ASYNC;
+        }
 
-    if (pError != nullptr)
-    {
-        free(pError);
-        result = Result::ErrorUnknown;
-    }
-    else
-    {
+        uint32 serial = m_localSerial + 1;
+        xcb_void_cookie_t cookie = m_dri3Procs.pfnXcbPresentPixmapChecked(m_pConnection,
+                                          m_hWindow,
+                                          pixmap,
+                                          serial,
+                                          0,                              // valid-area
+                                          0,                              // update-area
+                                          0,                              // x-off
+                                          0,                              // y-off
+                                          0,                              // crtc
+                                          waitSyncFence,                  // wait-fence
+                                          idleSyncFence,                  // idle-fence
+                                          options,
+                                          TargetMsc,
+                                          Divisor,
+                                          Remainder,
+                                          0,                              // notifies_len
+                                          nullptr);                       // notifies
+
+        m_dri3Procs.pfnXcbDiscardReply(m_pConnection, cookie.sequence);
+
         m_localSerial = serial;
 
         if (pDri3IdleFence != nullptr)
         {
             pDri3IdleFence->SetPresented(true);
         }
+
+        m_dri3Procs.pfnXcbFlush(m_pConnection);
     }
 
     m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, nullptr);

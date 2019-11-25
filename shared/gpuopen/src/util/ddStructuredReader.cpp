@@ -477,7 +477,7 @@ namespace DevDriver
 
             if (error != mpack_ok)
             {
-                DD_PRINT(LogLevel::Error,
+                DD_PRINT(LogLevel::Debug,
                          "[IStructuredReader] mpack_tree_destroy() returned error %d: %s",
                          static_cast<uint32>(error),
                          GetMpackErrorString(error));
@@ -518,7 +518,7 @@ namespace DevDriver
 
         if (node.tree->error != mpack_ok)
         {
-            DD_PRINT(LogLevel::Warn, "[%s] %s", __FUNCTION__, GetMpackErrorString(node.tree->error));
+            DD_PRINT(LogLevel::Debug, "[%s] %s", __FUNCTION__, GetMpackErrorString(node.tree->error));
             // We shouldn't hit this code, but uncommenting the following line breaks tests.
             // node.tree->error = mpack_ok;
         }

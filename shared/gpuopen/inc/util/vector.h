@@ -284,13 +284,15 @@ namespace DevDriver
         // Get a pointer to the beginning of the data
         const T* Data() const
         {
-            return m_pData;
+            DD_ASSERT(Size() != 0);
+            return (Size() != 0) ? m_pData : nullptr;
         }
 
         // Get a pointer to the beginning of the data
         T* Data()
         {
-            return m_pData;
+            DD_ASSERT(Size() != 0);
+            return (Size() != 0) ? m_pData : nullptr;
         }
 
         // Allocates enough memory to hold the specified number of elements

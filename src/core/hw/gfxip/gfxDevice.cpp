@@ -167,7 +167,11 @@ void GfxDevice::FinalizeChipProperties(
     ) const
 {
     // The maximum number of supported user-data entries is controlled by a public PAL setting.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 548
     pChipProperties->gfxip.maxUserDataEntries = m_pParent->GetPublicSettings()->maxUserDataEntries;
+#else
+    pChipProperties->gfxip.maxUserDataEntries = MaxUserDataEntries;
+#endif
 
     // Default to supporting the full 1024 threads-per-group. If necessary, the hardware layer will reduce this.
     constexpr uint32 MaxThreadsPerGroup = 1024;

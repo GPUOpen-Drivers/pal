@@ -83,7 +83,7 @@ function(dd_third_party_add_lib)
 
     endif()
 
-    message(STATUS "Adding third party target \"${third_party_TARGET}\" from ${CMAKE_CURRENT_SOURCE_DIR}/${third_party_DIRECTORY}")
+    message(VERBOSE "Adding third party target \"${third_party_TARGET}\" from ${CMAKE_CURRENT_SOURCE_DIR}/${third_party_DIRECTORY}")
     add_subdirectory("${third_party_DIRECTORY}" EXCLUDE_FROM_ALL)
 
     if (TARGET ${third_party_TARGET})

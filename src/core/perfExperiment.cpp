@@ -130,11 +130,12 @@ Result PerfExperiment::BindGpuMemory(
     {
         m_gpuMemory.Update(pGpuMemory, offset);
 
-        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
-            this,
-            m_totalMemSize,
-            pGpuMemory,
-            offset);
+        GpuMemoryResourceBindEventData bindData = {};
+        bindData.pObj = this;
+        bindData.pGpuMemory = pGpuMemory;
+        bindData.requiredGpuMemSize = m_totalMemSize;
+        bindData.offset = offset;
+        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
     }
 
     return result;

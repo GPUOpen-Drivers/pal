@@ -150,6 +150,10 @@ typedef const xcb_setup_t* (*XcbGetSetup)(
 typedef const xcb_setup_t* (*XcbFlush)(
             xcb_connection_t*     pConnection);
 
+typedef void (*XcbDiscardReply)(
+            xcb_connection_t*     pConnection,
+            uint32                sequence);
+
 // symbols from libxshmfence.so.1
 typedef int32 (*XshmfenceUnmapShm)(
             struct xshmfence*     pFence);
@@ -549,6 +553,12 @@ struct Dri3LoaderFuncs
     bool pfnXcbFlushisValid() const
     {
         return (pfnXcbFlush != nullptr);
+    }
+
+    XcbDiscardReply                       pfnXcbDiscardReply;
+    bool pfnXcbDiscardReplyisValid() const
+    {
+        return (pfnXcbDiscardReply != nullptr);
     }
 
     XshmfenceUnmapShm                     pfnXshmfenceUnmapShm;
@@ -1063,6 +1073,15 @@ public:
     bool pfnXcbFlushisValid() const
     {
         return (m_pFuncs->pfnXcbFlush != nullptr);
+    }
+
+    void pfnXcbDiscardReply(
+            xcb_connection_t*     pConnection,
+            uint32                sequence) const;
+
+    bool pfnXcbDiscardReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbDiscardReply != nullptr);
     }
 
     int32 pfnXshmfenceUnmapShm(

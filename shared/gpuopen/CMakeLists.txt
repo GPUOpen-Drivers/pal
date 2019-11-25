@@ -70,6 +70,17 @@ target_link_libraries(${GPUOPEN_LIB_NAME} PRIVATE mpack)
 target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  rapidjson)
 target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  metrohash)
 
+# TODO: Should be in DevDriver.cmake
+if(WIN32)
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        # Only apply static analysis warnings to the gpuopen library itself. This can break external projects
+        # so it is dangerous to add to apply_gpuopen_warnings above. We also only build it on debug, as
+        # Release does not include the various static analysis hints (e.g., noreturn) necessary for it to
+        # compile without errors.
+        target_compile_options(${GPUOPEN_LIB_NAME} PRIVATE $<$<CONFIG:Debug>:/analyze>)
+    endif()
+endif()
+
 ### Build Defines ######################################################################################################
 target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION})
 
@@ -104,11 +115,8 @@ target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     ## Utility functions and classes
     src/util/ddTextWriter.cpp
     src/util/ddStructuredReader.cpp
+    src/util/ddJsonWriter.cpp
 )
-
-    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
-        src/util/ddJsonWriter.cpp
-    )
 
 ### Local Transport ###
 # Local transports are always supported
@@ -117,7 +125,25 @@ if(UNIX)
         src/posix/ddPosixSocket.cpp
         src/socketMsgTransport.cpp
     )
+elseif(WIN32)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+        src/win/ddWinPipeMsgTransport.cpp
+    )
+endif()
 
+### Remote Transport ###
+# Build remote transport (Only required for Windows since Linux always supports remote)
+if(WIN32 AND GPUOPEN_BUILD_REMOTE_TRANSPORT)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+        src/win/ddWinSocket.cpp
+        src/socketMsgTransport.cpp
+    )
+
+    # Pass the build system variable down to the code
+    target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DEVDRIVER_BUILD_REMOTE_TRANSPORT)
+
+    # Libraries required for remote support
+    target_link_libraries(${GPUOPEN_LIB_NAME} INTERFACE ${GPUOPEN_LIB_NAME} ws2_32.lib)
 endif()
 
 ### Helper Classes ###
@@ -149,6 +175,10 @@ endif()
 ### Standard Listener Protocols ###
 if(GPUOPEN_BUILD_STANDARD_LISTENER_PROTOCOLS)
     set(GPUOPEN_BUILD_PROTOCOL_LOGGING_SERVER ON)
+    if(WIN32)
+        # The ETW protocol is only available on Windows
+        set(GPUOPEN_BUILD_PROTOCOL_ETW_SERVER ON)
+    endif()
 endif()
 
 ### Listener Components ###
@@ -165,6 +195,14 @@ if(GPUOPEN_BUILD_LISTENER_CORE)
         listener/transports/socketTransport.cpp
         listener/clientmanagers/listenerClientManager.cpp
     )
+
+    # The listener core requires a special pipe transport implementation on Windows
+    if(WIN32)
+        target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+            listener/transports/winPipeTransport.cpp
+
+        )
+    endif()
 
     target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/listener)
 endif()
@@ -218,15 +256,34 @@ if(GPUOPEN_BUILD_PROTOCOL_URI_CLIENT)
     target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/ddURIClient.cpp)
 endif()
 
+### ETW Protocol ###
+if(WIN32 AND GPUOPEN_BUILD_PROTOCOL_ETW_SERVER)
+    # ETW Server is only available on Windows
+
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+        src/protocols/etwServer.cpp
+        src/win/traceSession.cpp
+    )
+
+    # Libraries required for ETW support
+    target_link_libraries(${GPUOPEN_LIB_NAME} INTERFACE ${GPUOPEN_LIB_NAME} advapi32.lib)
+    target_link_libraries(${GPUOPEN_LIB_NAME} INTERFACE ${GPUOPEN_LIB_NAME} Tdh.lib)
+    target_link_libraries(${GPUOPEN_LIB_NAME} INTERFACE ${GPUOPEN_LIB_NAME} Ole32.lib)
+
+endif()
+
+if(GPUOPEN_BUILD_PROTOCOL_ETW_CLIENT)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/etwClient.cpp)
+endif()
+
 ################
 ### Services ###
 ################
-
-    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
-        src/protocols/ddSettingsService.cpp
-        src/protocols/ddPipelineUriService.cpp
-        src/protocols/ddInfoService.cpp
-    )
+target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+    src/protocols/ddSettingsService.cpp
+    src/protocols/ddPipelineUriService.cpp
+    src/protocols/ddInfoService.cpp
+)
 
 # Find Headers Helper ##############################################################################
 macro(target_find_headers _target)
@@ -249,3 +306,22 @@ endmacro()
 
 target_find_headers(${GPUOPEN_LIB_NAME})
 
+# Source Groups Helper #############################################################################
+# This helper creates source groups for generators that support them. This is primarily MSVC and
+# XCode, but there are other generators that support IDE project files.
+#
+# Note: this only adds files that have been added to the target's SOURCES property. To add headers
+# to this list, be sure that you call target_find_headers before you call target_source_groups.
+macro(target_source_groups _target)
+    get_target_property(${_target}_SOURCES ${_target} SOURCES)
+    foreach(_source IN ITEMS ${${_target}_SOURCES})
+        set(_source ${_source})
+        get_filename_component(_source_path "${_source}" ABSOLUTE)
+        file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")
+        get_filename_component(_source_path_rel "${_source_path_rel}" DIRECTORY)
+        string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
+        source_group("${_group_path}" FILES "${_source}")
+    endforeach()
+endmacro()
+
+target_source_groups(${GPUOPEN_LIB_NAME})

@@ -368,10 +368,9 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
     packet.COUNT_UNION.DW_1_DATA            = 0;
 
     {
-        packet.COUNT_UNION.nv10.count      = *pBytesCopied - 1;
+        packet.COUNT_UNION.gfx101.count   = *pBytesCopied - 1;
     }
-
-    packet.PARAMETER_UNION.DW_2_DATA        = 0;
+    packet.PARAMETER_UNION.DW_2_DATA      = 0;
 
     packet.SRC_ADDR_LO_UNION.src_addr_31_0  = LowPart(srcGpuAddr);
     packet.SRC_ADDR_HI_UNION.src_addr_63_32 = HighPart(srcGpuAddr);

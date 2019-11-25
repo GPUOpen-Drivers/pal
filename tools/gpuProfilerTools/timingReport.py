@@ -251,14 +251,14 @@ for deviceKey in iter(sorted(perCallTable)):
             totalQueueCount = 0
             totalQueueTime = 0
             for callId in collections.OrderedDict(sorted(perCallTable[deviceKey][engineKey][queueKey].items(), key=lambda x: x[1][1], reverse=True)):
-                count = int(perCallTable[deviceKey][engineKey][queueKey][callId][0] / frameCount)
+                count = perCallTable[deviceKey][engineKey][queueKey][callId][0] / frameCount
                 totalQueueCount += count
                 time = perCallTable[deviceKey][engineKey][queueKey][callId][1] / frameCount
                 totalQueueTime += time
-                print("  {0:38s}|      {1:10d} |       {2:12,.2f} |      {3:5.2f} %".
+                print("  {0:38s}|    {1:12,.2f} |       {2:12,.2f} |      {3:5.2f} %".
                       format(callId, count, time, (time / gpuFrameTime) * 100))
             print("  --------------------------------------+-----------------+--------------------+--------------")
-            print("   Total                                |      {0:10d} |       {1:>12,.2f} |      {2:5.2f} %\n\n".
+            print("   Total                                |    {0:12,.2f} |       {1:>12,.2f} |      {2:5.2f} %\n\n".
                   format(totalQueueCount, totalQueueTime, (totalQueueTime / gpuFrameTime) * 100))
 
 print("== Frame Breakdown By Pipeline Type =============================================================================================================\n")
@@ -267,9 +267,9 @@ print("  --------------------------------------+-----------------+--------------
 for pipelineType in collections.OrderedDict(sorted(perPipelineTypeTable.items(), key=lambda x: x[1][1], reverse=True)):
     timePerFrame = perPipelineTypeTable[pipelineType][1] / frameCount
     pctOfFrame   = (timePerFrame / gpuFrameTime) * 100
-    print("  {0:37s} |      {1:10d} |       {2:>12,.2f} |      {3:5.2f} %".
+    print("  {0:37s} |    {1:12,.2f} |       {2:>12,.2f} |      {3:5.2f} %".
         format(pipelineType,
-               int(perPipelineTypeTable[pipelineType][0] / frameCount),
+               perPipelineTypeTable[pipelineType][0] / frameCount,
                timePerFrame,
                pctOfFrame))
 print("\n")
@@ -286,11 +286,11 @@ for pipeline in collections.OrderedDict(sorted(perPipelineTable.items(), key=lam
     if pctOfFrame < 1.0 and not enPrintAllPipelines:
         hidden += 1
     else:
-        print("  {0:2d}. {1:s} | {2:10s}   |      {3:10d} |       {4:>12,.2f} |      {5:5.2f} %".
+        print("  {0:2d}. {1:s} | {2:10s}   |    {3:12,.2f} |       {4:>12,.2f} |      {5:5.2f} %".
             format(pipelineNum,
                    pipeline,
                    perPipelineTable[pipeline][0],
-                   int(perPipelineTable[pipeline][1] / frameCount),
+                   perPipelineTable[pipeline][1] / frameCount,
                    timePerFrame,
                    pctOfFrame))
 if hidden > 0:
@@ -336,10 +336,10 @@ for ps in collections.OrderedDict(sorted(perPsTable.items(), key=lambda x: x[1][
     if pctOfFrame < 1.0 and not enPrintAllPipelines:
         hidden += 1
     else:
-        print("  {0:2d}. {1:36s}|      {2:10d} |       {3:>12,.2f} |      {4:5.2f} %".
+        print("  {0:2d}. {1:36s}|    {2:12,.2f} |       {3:>12,.2f} |      {4:5.2f} %".
             format(psNum,
                    ps,
-                   int(perPsTable[ps][0] / frameCount),
+                   perPsTable[ps][0] / frameCount,
                    timePerFrame,
                    pctOfFrame))
 if hidden > 0:

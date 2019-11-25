@@ -66,9 +66,10 @@ struct UniversalCmdBufferState
             uint32 optimizeLinearGfxCpy  :  1;
             uint32 firstDrawExecuted     :  1;
             uint32 fsrEnabled            :  1;
+            uint32 placeholder0          :  1; // Placeholder for future feature support.
             uint32 cbTargetMaskChanged   :  1; // Flag setup at Pipeline bind-time informing the draw-time set
                                                // that the CB_TARGET_MASK has been changed.
-            uint32 reserved              : 22;
+            uint32 reserved              : 21;
         };
         uint32 u32All;
     } flags;
@@ -137,14 +138,11 @@ struct DrawTimeHwState
             uint32 instanceOffset         :  1; // Set when instanceOffset matches the HW value.
             uint32 vertexOffset           :  1; // Set when vertexOffset matches the HW value.
             uint32 drawIndex              :  1; // Set when drawIndex matches the HW value.
-            uint32 indexOffset            :  1; // Set when startIndex matches the HW value.
-            uint32 log2IndexSize          :  1; // Set when log2IndexSize matches the HW value.
             uint32 numInstances           :  1; // Set when numInstances matches the HW value.
             uint32 paScModeCntl1          :  1; // Set when paScModeCntl1 matches the HW value.
             uint32 dbCountControl         :  1; // Set when dbCountControl matches the HW value.
             uint32 vgtMultiPrimIbResetEn  :  1; // Set when vgtMultiPrimIbResetEn matches the HW value.
-            uint32 nggIndexBufferBaseAddr :  1; // Set when nggIndexBufferBaseAddr matches the HW value.
-            uint32 reserved               : 22; // Reserved bits
+            uint32 reserved               : 25; // Reserved bits
         };
         uint32     u32All;                // The flags as a single integer.
     } valid;                              // Draw state valid flags.
@@ -166,14 +164,11 @@ struct DrawTimeHwState
 
     uint32                        instanceOffset;            // Current value of the instance offset user data.
     uint32                        vertexOffset;              // Current value of the vertex offset user data.
-    uint32                        startIndex;                // Current value of the start index user data.
-    uint32                        log2IndexSize;             // Current value of the Log2(sizeof(indexType)) user data.
     uint32                        numInstances;              // Current value of the NUM_INSTANCES state.
     regPA_SC_MODE_CNTL_1          paScModeCntl1;             // Current value of the PA_SC_MODE_CNTL1 register.
     regDB_COUNT_CONTROL           dbCountControl;            // Current value of the DB_COUNT_CONTROL register.
     regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn;     // Current value of the VGT_MULTI_PRIM_IB_RESET_EN
                                                              // register.
-    gpusize                       nggIndexBufferBaseAddr;    // Current value of the IndexBufferBaseAddr for NGG.
     gpusize                       nggIndexBufferPfStartAddr; // Start address of last IndexBuffer prefetch for NGG.
     gpusize                       nggIndexBufferPfEndAddr;   // End address of last IndexBuffer prefetch for NGG.
 };
@@ -374,9 +369,7 @@ struct NggState
         uint16 u16All;
     } flags;
 
-    uint32 numSamples;          // Number of active MSAA samples.
-    uint16 startIndexReg;       // Register where the index start offset is written
-    uint16 log2IndexSizeReg;    // Register where the Log2(sizeof(indexType)) is written
+    uint32 numSamples;  // Number of active MSAA samples.
 };
 
 // Register state for a clip rectangle's left top and right bottom parameters.
@@ -439,10 +432,6 @@ public:
     virtual void CmdFlglDisable() override;
 
     static uint32* BuildSetBlendConst(const BlendConstParams& params, const CmdUtil& cmdUtil, uint32* pCmdSpace);
-    static uint32* BuildSetInputAssemblyState(
-        const InputAssemblyStateParams& params,
-        const Device&                   device,
-        uint32*                         pCmdSpace);
     static uint32* BuildSetStencilRefMasks(
         const StencilRefMaskParams& params,
         const CmdUtil&              cmdUtil,
@@ -807,18 +796,7 @@ protected:
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
-    template <bool Indexed,
-              bool Indirect,
-              bool Pm4OptImmediate,
-              bool PipelineDirty,
-              bool StateDirty,
-              bool IsNgg,
-              bool IsNggFastLaunch>
-    uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
-
-    template <bool Indexed, bool Indirect, bool IsNggFastLaunch, bool Pm4OptImmediate>
+    template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
     uint32* ValidateDrawTimeHwState(
         regPA_SC_MODE_CNTL_1          paScModeCntl1,
         regDB_COUNT_CONTROL           dbCountControl,
@@ -826,19 +804,11 @@ protected:
         const ValidateDrawInfo&       drawInfo,
         uint32*                       pDeCmdSpace);
 
-    template <bool indexed, bool indirect, bool pm4OptImmediate>
-    uint32* ValidateDrawTimeNggFastLaunchState(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
-
     // Gets vertex offset register address
     uint16 GetVertexOffsetRegAddr() const { return m_vertexOffsetReg; }
 
     // Gets instance offset register address. It always immediately follows the vertex offset register.
     uint16 GetInstanceOffsetRegAddr() const { return m_vertexOffsetReg + 1; }
-
-    // Gets the start index offset register address
-    uint16 GetStartIndexRegAddr() const { return m_nggState.startIndexReg; }
 
     virtual void P2pBltWaCopyBegin(
         const GpuMemory* pDstMemory,
@@ -872,7 +842,6 @@ private:
         uint32  instanceCount);
 
     template <bool IssueSqttMarkerEvent,
-              bool IsNggFastLaunch,
               bool HasUavExport,
               bool ViewInstancingEnable,
               bool DescribeDrawDispatch>
@@ -893,7 +862,7 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-    template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable, bool DescribeDrawDispatch>
+    template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndexedIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
@@ -1078,32 +1047,21 @@ private:
 
     void SwitchDrawFunctions(
         bool hasUavExport,
-        bool viewInstancingEnable,
-        bool nggFastLaunch);
+        bool viewInstancingEnable);
 
     template <bool IssueSqtt,
-              bool DescribeDrawDispatch>
-    void SwitchDrawFunctionsInternal(
-        bool hasUavExport,
-        bool viewInstancingEnable,
-        bool nggFastLaunch);
-
-    template <bool NggFastLaunch,
-              bool IssueSqtt,
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
         bool hasUavExport,
         bool viewInstancingEnable);
 
     template <bool ViewInstancing,
-              bool NggFastLaunch,
               bool IssueSqtt,
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
-        bool hasUavExport );
+        bool hasUavExport);
 
     template <bool ViewInstancing,
-              bool NggFastLaunch,
               bool HasUavExport,
               bool IssueSqtt,
               bool DescribeDrawDispatch>

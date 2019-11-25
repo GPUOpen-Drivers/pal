@@ -5369,5 +5369,16 @@ constexpr PipelineBinary mlaaComputeBinaryTableNavi10[] =
     {MlaaFindSepEdge_Cs_3107529B,               sizeof(MlaaFindSepEdge_Cs_3107529B)},
 };
 
+// Table of compute pipeline binaries for Navi14
+constexpr PipelineBinary mlaaComputeBinaryTableNavi14[] =
+{
+    {MlaaCalcSepEdgeLength_Cs_3107529B,         sizeof(MlaaCalcSepEdgeLength_Cs_3107529B)},
+    {MlaaCalcSepEdgeLengthFast_Cs_3107529B,     sizeof(MlaaCalcSepEdgeLengthFast_Cs_3107529B)},
+    {MlaaCalcSepEdgeLengthInitial_Cs_3107529B,  sizeof(MlaaCalcSepEdgeLengthInitial_Cs_3107529B)},
+    {MlaaFinalBlend_Cs_3107529B,                sizeof(MlaaFinalBlend_Cs_3107529B)},
+    {MlaaFinalBlendFast_Cs_3107529B,            sizeof(MlaaFinalBlendFast_Cs_3107529B)},
+    {MlaaFindSepEdge_Cs_3107529B,               sizeof(MlaaFindSepEdge_Cs_3107529B)},
+};
+
 } // Mlaa
 } // GpuUtil

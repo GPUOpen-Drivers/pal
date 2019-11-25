@@ -35,6 +35,7 @@
 
 #include "addrlib2.h"
 #include "coord.h"
+#include "gfx10SwizzlePattern.h"
 
 namespace Addr
 {
@@ -382,18 +383,22 @@ protected:
         }
     }
 
-    const UINT_64* GetSwizzlePattern(
+    const ADDR_SW_PATINFO* GetSwizzlePatternInfo(
         AddrSwizzleMode  swizzleMode,
         AddrResourceType resourceType,
         UINT_32          log2Elem,
         UINT_32          numFrag) const;
 
+    VOID GetSwizzlePatternFromPatternInfo(
+        const ADDR_SW_PATINFO* pPatInfo,
+        ADDR_BIT_SETTING*      pSwizzle) const;
+
     VOID ConvertSwizzlePatternToEquation(
-        UINT_32          elemLog2,
-        AddrResourceType rsrcType,
-        AddrSwizzleMode  swMode,
-        const UINT_64*   pPattern,
-        ADDR_EQUATION*   pEquation) const;
+        UINT_32                elemLog2,
+        AddrResourceType       rsrcType,
+        AddrSwizzleMode        swMode,
+        const ADDR_SW_PATINFO* pPatInfo,
+        ADDR_EQUATION*         pEquation) const;
 
     static INT_32 GetMetaElementSizeLog2(Gfx10DataType dataType);
 

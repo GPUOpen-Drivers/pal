@@ -92,6 +92,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.csLockThreshold = 0;
     m_settings.csSimdDestCntl = CsSimdDestCntlDefault;
     m_settings.htileEnable = true;
+    m_settings.allowDepthCopyResolve = true;
     m_settings.depthCompressEnable = true;
     m_settings.stencilCompressEnable = true;
     m_settings.dbPreloadEnable = true;
@@ -377,6 +378,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pHtileEnableStr,
                            Util::ValueType::Boolean,
                            &m_settings.htileEnable,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllowDepthCopyResolveStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.allowDepthCopyResolve,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthCompressEnableStr,
@@ -972,14 +978,25 @@ void SettingsLoader::ReadSettings()
 void SettingsLoader::RereadSettings()
 {
     // read from the OS adapter for each individual setting
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCbDbCachePolicyStr,
                            Util::ValueType::Uint,
                            &m_settings.cbDbCachePolicy,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllowDepthCopyResolveStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.allowDepthCopyResolve,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx10GePcAllocNumLinesPerSeLegacyNggPassthruStr,
                            Util::ValueType::Uint,
                            &m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSupportedStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.nggSupported,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningContextStatesPerBinStr,
@@ -1314,6 +1331,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.htileEnable;
     info.valueSize = sizeof(m_settings.htileEnable);
     m_settingsInfoMap.Insert(2379988876, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.allowDepthCopyResolve;
+    info.valueSize = sizeof(m_settings.allowDepthCopyResolve);
+    m_settingsInfoMap.Insert(3933921170, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.depthCompressEnable;
@@ -1921,7 +1943,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 1612492929;
+            component.settingsDataHash = 3845646567;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

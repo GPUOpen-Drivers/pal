@@ -182,7 +182,8 @@ Device::Device(
     m_msaaRate(1),
     m_presentResolution({ 0,0 }),
     m_gbAddrConfig(m_pParent->ChipProperties().gfx9.gbAddrConfig),
-    m_gfxIpLevel(pDevice->ChipProperties().gfxLevel)
+    m_gfxIpLevel(pDevice->ChipProperties().gfxLevel),
+    m_varBlockSize(0)
 {
     PAL_ASSERT(((GetGbAddrConfig().bits.NUM_PIPES - GetGbAddrConfig().bits.NUM_RB_PER_SE) < 2) ||
                IsGfx10(m_gfxIpLevel));
@@ -270,9 +271,7 @@ void Device::SetupWorkarounds()
 {
     const auto& gfx9Props = m_pParent->ChipProperties().gfx9;
     // The LBPW feature uses a fixed late alloc VS limit based off of the available CUs.
-    if (gfx9Props.lbpwEnabled
-        || IsGfx10(*m_pParent)
-        )
+    if (gfx9Props.lbpwEnabled || IsGfx10(*m_pParent))
     {
         m_useFixedLateAllocVsLimit = true;
     }
@@ -815,19 +814,6 @@ Result Device::CreateComputePipeline(
 
     *ppPipeline = pPipeline;
 
-    if (result == Result::Success)
-    {
-        ResourceDescriptionPipeline desc = {};
-        desc.pPipelineInfo = &pPipeline->GetInfo();
-        desc.pCreateFlags = &createInfo.flags;
-        ResourceCreateEventData data = {};
-        data.type = ResourceType::Pipeline;
-        data.pResourceDescData = static_cast<void*>(&desc);
-        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
-        data.pObj = pPipeline;
-        m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
-    }
-
     return result;
 }
 
@@ -864,19 +850,6 @@ Result Device::CreateGraphicsPipeline(
     else
     {
         *ppPipeline = pPipeline;
-    }
-
-    if (result == Result::Success)
-    {
-        ResourceDescriptionPipeline desc = {};
-        desc.pPipelineInfo = &pPipeline->GetInfo();
-        desc.pCreateFlags = &createInfo.flags;
-        ResourceCreateEventData data = {};
-        data.type = ResourceType::Pipeline;
-        data.pResourceDescData = static_cast<void*>(&desc);
-        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
-        data.pObj = pPipeline;
-        m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
     }
 
     return result;
@@ -1925,15 +1898,21 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
         pSrd->dst_sel_y = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.g);
         pSrd->dst_sel_z = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.b);
         pSrd->dst_sel_w = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.a);
-        pSrd->format    = Formats::Gfx9::HwBufFmt(pFmtInfo, view.swizzledFormat.format);
+
+        // Get the HW format enumeration corresponding to the view-specified format.
+        const BUF_FMT  hwBufFmt = Formats::Gfx9::HwBufFmt(pFmtInfo, view.swizzledFormat.format);
 
         // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
-        PAL_ASSERT(pSrd->format != BUF_FMT_INVALID);
+        PAL_ASSERT(hwBufFmt != BUF_FMT_INVALID);
+
+        {
+            pSrd->most.format         = hwBufFmt;
+
+            pSrd->most.resource_level = 1;
+        }
 
         // This means "(index >= NumRecords)" is out-of-bounds.
         pSrd->oob_select = SQ_OOB_INDEX_ONLY;
-
-        pSrd->resource_level = 1;
 
         memcpy(pOut, pSrd, sizeof(BufferSrd));
         pOut = VoidPtrInc(pOut, sizeof(BufferSrd));
@@ -2022,7 +2001,9 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
             pSrd->dst_sel_z = SQ_SEL_Z;
             pSrd->dst_sel_w = SQ_SEL_W;
             {
-                pSrd->format = BUF_FMT_32_UINT__GFX10CORE;
+                pSrd->most.format         = BUF_FMT_32_UINT;
+
+                pSrd->most.resource_level = 1;
             }
 
             if ((pSrd->stride == 1) || (pSrd->stride == 0))
@@ -2035,8 +2016,6 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
                 // Structured buffer.  This means "(index >= NumRecords)" is out-of-bounds.
                 pSrd->oob_select = SQ_OOB_INDEX_ONLY;
             }
-
-            pSrd->resource_level = 1;
         }
 
         memcpy(pOut, pSrd, sizeof(BufferSrd));
@@ -2267,6 +2246,8 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
         const bool             imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
         const bool             imgIsYuvPlanar  = Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format);
+        const bool             imgIsMacroPixelPacked =
+            Formats::IsMacroPixelPacked(imageCreateInfo.swizzledFormat.format);
 
         Gfx9ImageSrd srd    = {};
         ChNumFormat  format = viewInfo.swizzledFormat.format;
@@ -2290,7 +2271,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 #endif
 
         bool                        overrideBaseResource       = false;
-        bool                        overrideBaseResource96bpp = false;
+        bool                        overrideBaseResource96bpp  = false;
         uint32                      widthScaleFactor           = 1;
         uint32                      workaroundWidthScaleFactor = 1;
         bool                        includePadding             = (viewInfo.flags.includePadding != 0);
@@ -2426,6 +2407,21 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                     extent          = pBaseSubResInfo->extentElements;
                     actualExtent    = pBaseSubResInfo->actualExtentElements;
                 }
+            }
+            else if (imgIsMacroPixelPacked                          &&
+                     (Formats::IsMacroPixelPacked(format) == false) &&
+                     (imageCreateInfo.mipLevels > 1))
+            {
+                // For MacroPixelPacked pixel (sub-sampled format like X8Y8_Z8Y8_Unorm),
+                // it must have a size that is a multiple of 2 in the x dimension.
+                //              orignal size           replaced copy format size (Uint16)
+                //      mip0:       18 x 17                   18 x 17
+                //      mip1:       10 x  8                    9 x  8
+                //      mip2:        4 x  4                    4 x  4
+                //      mip3:        2 x  2                    2 x  2
+                //      mip4:        2 x  1                    1 x  1
+                // The last pixel will be skipped in some miplevel when using replaced format srv used as copy dst.
+                includePadding = true;
             }
         }
 
@@ -2933,12 +2929,14 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             }
         }
 
-        constexpr uint32 Gfx9MinLodIntBits  = 4;
-        constexpr uint32 Gfx9MinLodFracBits = 8;
+        {
+            // MIN_LOD field is unsigned
+            constexpr uint32 Gfx9MinLodIntBits  = 4;
+            constexpr uint32 Gfx9MinLodFracBits = 8;
 
-        // MIN_LOD field is unsigned
-        srd.min_lod = Math::FloatToUFixed(viewInfo.minLod, Gfx9MinLodIntBits, Gfx9MinLodFracBits, true);
-        srd.format  = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
+            srd.most.min_lod = Math::FloatToUFixed(viewInfo.minLod, Gfx9MinLodIntBits, Gfx9MinLodFracBits, true);
+            srd.most.format  = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
+        }
 
         // GFX10 does not support native 24-bit surfaces...  Clients promote 24-bit depth surfaces to 32-bit depth on
         // image creation.  However, they can request that border color data be clamped appropriately for the original
@@ -2951,7 +2949,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // This special format indicates to HW that this is a promoted 24-bit surface, so sample_c and border color
             // can be treated differently.
             {
-                srd.format = IMG_FMT_32_FLOAT_CLAMP__GFX10CORE;
+                srd.most.format        = IMG_FMT_32_FLOAT_CLAMP__GFX10CORE;
             }
         }
 
@@ -3041,13 +3039,20 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // fragments.  I'm going with reality.
             srd.base_level = 0;
             srd.last_level = Log2(imageCreateInfo.fragments);
-            srd.max_mip    = Log2(imageCreateInfo.fragments);
+
+            {
+                srd.most.max_mip = Log2(imageCreateInfo.fragments);
+            }
+
         }
         else
         {
             srd.base_level = firstMipLevel;
             srd.last_level = firstMipLevel + viewInfo.subresRange.numMips - 1;
-            srd.max_mip    = mipLevels - 1;
+
+            {
+                srd.most.max_mip        = mipLevels - 1;
+            }
         }
 
         srd.depth      = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
@@ -3055,19 +3060,21 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         srd.bc_swizzle = GetBcSwizzle(viewInfo);
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 546)
-        //   The array_pitch resource field is defined so that setting it to zero disables quilting and behavior
-        //   reverts back to a texture array
-        uint32  arrayPitch = 0;
-        if (viewInfo.viewType == ImageViewType::TexQuilt)
         {
-            PAL_ASSERT(isMultiSampled == false); // quilted images must be single sampled
-            PAL_ASSERT(IsPowerOfTwo(viewInfo.quiltWidthInSlices));
+            //   The array_pitch resource field is defined so that setting it to zero disables quilting and behavior
+            //   reverts back to a texture array
+            uint32  arrayPitch = 0;
+            if (viewInfo.viewType == ImageViewType::TexQuilt)
+            {
+                PAL_ASSERT(isMultiSampled == false); // quilted images must be single sampled
+                PAL_ASSERT(IsPowerOfTwo(viewInfo.quiltWidthInSlices));
 
-            //    Encoded as trunc(log2(# horizontal  slices)) + 1
-            arrayPitch = Log2(viewInfo.quiltWidthInSlices) + 1;
+                //    Encoded as trunc(log2(# horizontal  slices)) + 1
+                arrayPitch = Log2(viewInfo.quiltWidthInSlices) + 1;
+            }
+
+            srd.most.array_pitch  = arrayPitch;
         }
-
-        srd.array_pitch       = arrayPitch;
 #endif
 
         srd.base_array        = baseArraySlice;
@@ -3098,10 +3105,14 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
         if (boundMem.IsBound())
         {
-            const Gfx10AllowBigPage bigPageUsage = imageCreateInfo.usageFlags.shaderWrite
+            const Gfx10AllowBigPage bigPageUsage  = imageCreateInfo.usageFlags.shaderWrite
                                                            ? Gfx10AllowBigPageShaderWrite
                                                            : Gfx10AllowBigPageShaderRead;
-            srd.big_page                         = IsImageBigPageCompatible(image, bigPageUsage);
+            const uint32            bigPageCompat = IsImageBigPageCompatible(image, bigPageUsage);
+
+            {
+                srd.most.big_page        = bigPageCompat;
+            }
 
             // When overrideBaseResource = true (96bpp images), compute baseAddress using the mip/slice in
             // baseSubResId.
@@ -3140,45 +3151,50 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                     srd.meta_data_address = image.GetDcc256BAddr();
 
                     srd.max_compressed_block_size   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
-                    srd.max_uncompressed_block_size = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
 
-                    // In GFX10, there is a feature called compress-to-constant which automatically enocde A0/1 C0/1
-                    // in DCC key if it detected the whole 256Byte of data are all 0s or 1s for both alpha channel and
-                    // color channel. However, this does not work well with format replacement in PAL. When a format
-                    // changes from with-alpha-format to without-alpha-format, HW may incorrectly encode DCC key if
-                    // compress-to-constant is triggered. In PAL, format is only replaceable when DCC is in
-                    // decompressed state.  Therefore, we have the choice to not enable compressed write and simply
-                    // write the surface and allow it to stay in expanded state.
-                    // Additionally, HW will encode the DCC key in a manner that is incompatible with the application's
-                    // understanding of the surface if the format for the SRD differs from the surface's format.
-                    // If the format differs, we need to disable compressed writes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
-                    if ((TestAnyFlagSet(viewInfo.possibleLayouts.usages,
-                                        LayoutShaderWrite | LayoutCopyDst | LayoutResolveDst)) &&
-                        (ImageLayoutToColorCompressionState(image.LayoutToColorCompressionState(),
-                                                            viewInfo.possibleLayouts) != ColorDecompressed) &&
-#else
-                    if ((viewInfo.flags.shaderWritable) &&
-#endif
-                        (memcmp(&viewInfo.swizzledFormat,
-                                &imageCreateInfo.swizzledFormat,
-                                sizeof(viewInfo.swizzledFormat)) == 0))
                     {
-                        srd.color_transform       = dccControl.bits.COLOR_TRANSFORM;
-                        srd.write_compress_enable = 1;
+                        srd.most.max_uncompressed_block_size = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
+
+                        // In GFX10, there is a feature called compress-to-constant which automatically enocde A0/1
+                        // C0/1 in DCC key if it detected the whole 256Byte of data are all 0s or 1s for both alpha
+                        // channel and color channel. However, this does not work well with format replacement in PAL.
+                        // When a format changes from with-alpha-format to without-alpha-format, HW may incorrectly
+                        // encode DCC key if compress-to-constant is triggered. In PAL, format is only replaceable
+                        // when DCC is in decompressed state.  Therefore, we have the choice to not enable compressed
+                        // write and simply write the surface and allow it to stay in expanded state.
+                        // Additionally, HW will encode the DCC key in a manner that is incompatible with the app's
+                        // understanding of the surface if the format for the SRD differs from the surface's format.
+                        // If the format differs, we need to disable compressed writes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
+                        if ((TestAnyFlagSet(viewInfo.possibleLayouts.usages,
+                                            LayoutShaderWrite | LayoutCopyDst | LayoutResolveDst)) &&
+                            (ImageLayoutToColorCompressionState(image.LayoutToColorCompressionState(),
+                                                                viewInfo.possibleLayouts) != ColorDecompressed) &&
+#else
+                        if ((viewInfo.flags.shaderWritable) &&
+#endif
+                            (memcmp(&viewInfo.swizzledFormat,
+                                    &imageCreateInfo.swizzledFormat,
+                                    sizeof(viewInfo.swizzledFormat)) == 0))
+                        {
+                            srd.color_transform            = dccControl.bits.COLOR_TRANSFORM;
+                            srd.most.write_compress_enable = 1;
+                        }
                     }
                 }
             } // end check for image supporting meta-data tex fetches
         }
 
-        srd.resource_level = 1;
+        {
+            srd.most.resource_level = 1;
 
-        // Fill the unused 4 bits of word6 with sample pattern index
-        srd._reserved_206_203 = viewInfo.samplePatternIdx;
+            // Fill the unused 4 bits of word6 with sample pattern index
+            srd.most._reserved_206_203 = viewInfo.samplePatternIdx;
 
-        //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
-        //   Only used with image ops (sample/load)
-        srd.prt_default = 0;
+            //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
+            //   Only used with image ops (sample/load)
+            srd.most.prt_default = 0;
+        }
 
         memcpy(&pSrds[i], &srd, sizeof(srd));
     }
@@ -3296,15 +3312,22 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
     const auto*            pAddrOutput     = image.GetAddrOutput(&subresInfo);
     const Gfx9Fmask&       fmask           = *image.GetFmask();
     const auto&            fMaskAddrOut    = fmask.GetAddrOutput();
+    const uint32           bigPageCompat   = IsFmaskBigPageCompatible(image, Gfx10AllowBigPageShaderRead);
 
     PAL_ASSERT(createInfo.extent.depth == 1);
     PAL_ASSERT(image.HasFmaskData());
 
     // For Fmask views, the format is based on the sample and fragment counts.
     {
-        pSrd->format  = fmask.Gfx10FmaskFormat(createInfo.samples, createInfo.fragments, isUav);
+        pSrd->most.format  = fmask.Gfx10FmaskFormat(createInfo.samples, createInfo.fragments, isUav);
+
+        pSrd->most.min_lod = 0;
+        pSrd->most.max_mip = 0;
+
+        pSrd->most.resource_level = 1;
+
+        pSrd->most.big_page = bigPageCompat;
     }
-    pSrd->min_lod = 0;
 
     Gfx10SetImageSrdWidth(pSrd, subresInfo.extentTexels.width);
     pSrd->height   = (subresInfo.extentTexels.height - 1);
@@ -3326,9 +3349,6 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
 
     pSrd->base_array        = viewInfo.baseArraySlice;
     pSrd->meta_pipe_aligned = Gfx9MaskRam::IsPipeAligned(&image);
-    pSrd->max_mip           = 0;
-
-    pSrd->resource_level = 1;
 
     if (image.Parent()->GetBoundGpuMemory().IsBound())
     {
@@ -3352,7 +3372,6 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
         }
     }
 
-    pSrd->big_page = IsFmaskBigPageCompatible(image, Gfx10AllowBigPageShaderRead);
 }
 
 // =====================================================================================================================
@@ -3652,8 +3671,11 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
             pSrd->lod_bias      = Math::FloatToSFixed(pInfo->mipLodBias,
                                                       Gfx10SamplerLodBiasIntBits,
                                                       Gfx10SamplerLodBiasFracBits);
-            pSrd->blend_prt          = pInfo->flags.prtBlendZeroMode;
-            pSrd->mip_point_preclamp = 0;
+
+            {
+                pSrd->most.blend_prt          = pInfo->flags.prtBlendZeroMode;
+                pSrd->most.mip_point_preclamp = 0;
+            }
 
             // Ensure useAnisoThreshold is only set when preciseAniso is disabled
             PAL_ASSERT((pInfo->flags.preciseAniso == 0) ||
@@ -3705,18 +3727,20 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                 pSrd->lod_bias_sec = settings.samplerSecAnisoBias;
             }
 
-            constexpr SQ_IMG_FILTER_TYPE  HwFilterMode[]=
             {
-                SQ_IMG_FILTER_MODE_BLEND, // TexFilterMode::Blend
-                SQ_IMG_FILTER_MODE_MIN,   // TexFilterMode::Min
-                SQ_IMG_FILTER_MODE_MAX,   // TexFilterMode::Max
-            };
+                constexpr SQ_IMG_FILTER_TYPE  HwFilterMode[]=
+                {
+                    SQ_IMG_FILTER_MODE_BLEND, // TexFilterMode::Blend
+                    SQ_IMG_FILTER_MODE_MIN,   // TexFilterMode::Min
+                    SQ_IMG_FILTER_MODE_MAX,   // TexFilterMode::Max
+                };
 
-            PAL_ASSERT (static_cast<uint32>(pInfo->filterMode) < (sizeof(HwFilterMode) / sizeof(SQ_IMG_FILTER_TYPE)));
-            pSrd->filter_mode = HwFilterMode[static_cast<uint32>(pInfo->filterMode)];
+                PAL_ASSERT(static_cast<uint32>(pInfo->filterMode) < (Util::ArrayLen(HwFilterMode)));
+                pSrd->most.filter_mode = HwFilterMode[static_cast<uint32>(pInfo->filterMode)];
+            }
 
             // The BORDER_COLOR_PTR field is only used by the HW for the SQ_TEX_BORDER_COLOR_REGISTER case
-            pSrd->border_color_ptr = 0;
+            pSrd->most.border_color_ptr = 0;
 
             // And setup the HW-supported border colors appropriately
             switch (pInfo->borderColorType)
@@ -3731,8 +3755,9 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                 pSrd->border_color_type = SQ_TEX_BORDER_COLOR_OPAQUE_BLACK;
                 break;
             case BorderColorType::PaletteIndex:
-                pSrd->border_color_type = SQ_TEX_BORDER_COLOR_REGISTER;
-                pSrd->border_color_ptr  = pInfo->borderColorPaletteIndex;
+
+                pSrd->border_color_type     = SQ_TEX_BORDER_COLOR_REGISTER;
+                pSrd->most.border_color_ptr = pInfo->borderColorPaletteIndex;
                 break;
             default:
                 PAL_ALERT_ALWAYS();
@@ -3748,8 +3773,8 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
             //       just select transparent black.
             if (settings.disableBorderColorPaletteBinds)
             {
-                pSrd->border_color_type = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
-                pSrd->border_color_ptr  = 0;
+                pSrd->border_color_type     = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
+                pSrd->most.border_color_ptr = 0;
             }
 
             // This allows the sampler to override anisotropic filtering when the resource view contains a single
@@ -3784,6 +3809,7 @@ GfxIpLevel DetermineIpLevel(
     // GFX10 GPU's (Navi family)
     case FAMILY_NV:
         if (AMDGPU_IS_NAVI10(familyId, eRevId)
+            || AMDGPU_IS_NAVI14(familyId, eRevId)
             )
         {
             level = GfxIpLevel::GfxIp10_1;
@@ -3882,7 +3908,6 @@ void InitializeGpuChipProperties(
                                             CoherStreamOut | CoherMemory);
 
     pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
-    memcpy(&pInfo->gfxip.fastUserDataEntries[0], &FastUserDataEntriesByStage[0], sizeof(FastUserDataEntriesByStage));
 
     {
         pInfo->imageProperties.prtFeatures = Gfx9PrtFeatures;
@@ -4077,6 +4102,20 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.maxNumRbPerSe    = 8;
             pInfo->gfx9.numSdpInterfaces = 16;
         }
+        else if (AMDGPU_IS_NAVI14(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType                  = GpuType::Discrete;
+            {
+                pInfo->revision             = AsicRevision::Navi14;
+            }
+            pInfo->gfxStepping              = Abi::GfxIpSteppingNavi14;
+            pInfo->gfx9.numShaderEngines    = 1;
+            pInfo->gfx9.maxNumCuPerSh       = 12;
+            pInfo->gfx9.maxNumRbPerSe       = 8;
+            pInfo->gfx9.numSdpInterfaces    = 8;
+            pInfo->gfx9.parameterCacheLines = 512;
+            pInfo->gfx9.gfx10.numGl2a       = 2;
+        }
         else
         {
             PAL_ASSERT_ALWAYS();
@@ -4245,7 +4284,7 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.timestampSupport                = 1;
     pUniversal->flags.borderColorPaletteSupport       = 1;
     pUniversal->flags.queryPredicationSupport         = 1;
-    pUniversal->flags.memoryPredicationSupport        = 1;
+    pUniversal->flags.memory64bPredicationSupport     = 1;
     pUniversal->flags.conditionalExecutionSupport     = 1;
     pUniversal->flags.loopExecutionSupport            = 1;
     pUniversal->flags.constantEngineSupport           = (chipProps.gfxip.ceRamSize != 0);
@@ -4274,7 +4313,8 @@ void InitializeGpuEngineProperties(
     pCompute->flags.timestampSupport                = 1;
     pCompute->flags.borderColorPaletteSupport       = 1;
     pCompute->flags.queryPredicationSupport         = 1;
-    pCompute->flags.memoryPredicationSupport        = 1;
+    pCompute->flags.memory32bPredicationSupport     = 1;
+    pCompute->flags.memory64bPredicationSupport     = 1;
     pCompute->flags.conditionalExecutionSupport     = 1;
     pCompute->flags.loopExecutionSupport            = 1;
     pCompute->flags.regMemAccessSupport             = 1;
@@ -4302,7 +4342,7 @@ void InitializeGpuEngineProperties(
         auto*const pDma = &pInfo->perEngine[EngineTypeDma];
 
         pDma->flags.timestampSupport               = 1;
-        pDma->flags.memoryPredicationSupport       = 1;
+        pDma->flags.memory32bPredicationSupport    = 1;
         pDma->minTiledImageCopyAlignment.width     = 16;
         pDma->minTiledImageCopyAlignment.height    = 16;
         pDma->minTiledImageCopyAlignment.depth     = 8;
@@ -4327,12 +4367,14 @@ void InitializeGpuEngineProperties(
 
     // TODO: Get these from KMD once the information is reported by it
 
-    // NOTE: NGG operates on the last few DWORDs of GDS thus the last 16 DWORDs are reserved.
-    pUniversal->availableGdsSize = 0xFC0;
-    pUniversal->gdsSizePerEngine = 0xFC0;
+    {
+        // NOTE: NGG operates on the last few DWORDs of GDS thus the last 16 DWORDs are reserved.
+        pUniversal->availableGdsSize = 0xFC0;
+        pUniversal->gdsSizePerEngine = 0xFC0;
 
-    pCompute->availableGdsSize   = 0xFC0;
-    pCompute->gdsSizePerEngine   = 0xFC0;
+        pCompute->availableGdsSize   = 0xFC0;
+        pCompute->gdsSizePerEngine   = 0xFC0;
+    }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     // Copy the compute properties into the exclusive compute engine properties
@@ -4677,10 +4719,10 @@ void Device::InitBufferSrd(
         pSrd->oob_select     = SQ_OOB_NUM_RECORDS_0; // never check out-of-bounds
 
         {
-            pSrd->format = BUF_FMT_32_FLOAT__GFX10CORE;
-        }
+            pSrd->most.format         = BUF_FMT_32_FLOAT;
 
-        pSrd->resource_level = 1;
+            pSrd->most.resource_level = 1;
+        }
     }
     else
     {

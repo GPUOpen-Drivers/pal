@@ -128,6 +128,9 @@ struct Gfx10UniversalPreamblePm4Img
     regDB_STENCIL_WRITE_BASE_HI   dbStencilWriteBaseHi;
     regDB_HTILE_DATA_BASE_HI      dbHtileDataBaseHi;
 
+    PM4PFP_SET_CONTEXT_REG        hdrPaClNggCntl;
+    regPA_CL_NGG_CNTL             paClNggCntl;
+
 };
 
 // Contains a subset of commands necessary to the universal preamble command stream.

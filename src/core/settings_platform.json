@@ -691,12 +691,12 @@
         ]
       },
       "Defaults": {
-        "Default": "4*1024*1024"
+        "Default": "64*1024"
       },
       "Scope": "PrivatePalKey",
       "Type": "size_t",
       "VariableName": "gpuProfilerTokenAllocatorSize",
-      "Description": "Batched cmd buffer token size with 32 bit build when GPU profile is enabled."
+      "Description": "Initial batched cmd buffer token stream size. Reduce this to avoid running out of memory or increase it to avoid reallocations and memcpys."
     },
     {
       "Name": "GpuProfilerConfig",
@@ -969,6 +969,15 @@
           "Type": "uint64",
           "VariableName": "pipelineHash",
           "Name": "PipelineHash"
+        },
+        {
+          "Description": "Treat PipelineHash as API PSO Hash instead of PAL Internal Hash.",
+          "Defaults": {
+            "Default": false
+          },
+          "Type": "bool",
+          "VariableName": "pipelineHashAsApiPsoHash",
+          "Name": "PipelineHashAsApiPsoHash"
         },
         {
           "Name": "VsHashHi",

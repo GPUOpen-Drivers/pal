@@ -136,9 +136,9 @@ using RegisterVector = Util::SparseVector<
     Platform,
     CONTEXT_SPACE_START,           CntxRegUsedRangeEnd,
     PERSISTENT_SPACE_START,        ShRegUsedRangeEnd,
-    Gfx09::mmIA_MULTI_VGT_PARAM,   Gfx09::mmIA_MULTI_VGT_PARAM
-    , Gfx10::mmGE_STEREO_CNTL,     Gfx10::mmGE_STEREO_CNTL,
-      Gfx10::mmGE_USER_VGPR_EN,    Gfx10::mmGE_USER_VGPR_EN
+    Gfx09::mmIA_MULTI_VGT_PARAM,   Gfx09::mmIA_MULTI_VGT_PARAM,
+    Gfx10::mmGE_STEREO_CNTL,       Gfx10::mmGE_STEREO_CNTL,
+    Gfx10::mmGE_USER_VGPR_EN,      Gfx10::mmGE_USER_VGPR_EN
     >;
 
 // Number of SGPRs available to each wavefront.  Note that while only 104 SGPRs are available for use by a particular
@@ -191,12 +191,8 @@ enum HwShaderStage : uint32
 //
 // [0]  - For the global internal resource table (shader rings, offchip LDS buffers, etc.)
 // [1]  - For the constant buffer table for the shader(s).
-// [29] - For the per-Draw vertex offset
-// [30] - For the per-Draw instance offset
-// [31] - For the ES/GS LDS size when on-chip GS is enabled
 //
-// This leaves registers 2-28 available for the client's use.  If user data remapping is enabled, data in slots 29-31
-// will instead be packed at the end of the client's user data.
+// This leaves registers 2-31 available for the client's use.
 constexpr uint32 NumUserDataRegisters = 32;
 
 // Starting user-data register index where the low 32 address bits of the global internal table pointer
@@ -205,22 +201,6 @@ constexpr uint16 InternalTblStartReg  = 0;
 // Starting user-data register indexes where the low 32 address bits of the constant buffer table pointer
 // (internal CBs) for the shader(s) are written.
 constexpr uint16 ConstBufTblStartReg = (InternalTblStartReg + 1);
-
-// User-data register where some shaders' LDS size requirement (for on-chip GS support) is written.
-constexpr uint32 EsGsLdsSizeReg     = (NumUserDataRegisters - 1);
-// User data register where the API VS' per-Draw instance offset is written.
-constexpr uint32 InstanceOffsetReg  = (EsGsLdsSizeReg - 1);
-// User data register where the API VS' per-Draw vertex offset is written.
-constexpr uint32 VertexOffsetReg    = (InstanceOffsetReg - 1);
-
-// Copy shaders (VS stage of an GS/VS/PS pipeline), don't need client user data, and use a simple fixed layout:
-//
-// [0] - For the global internal resource table (shader rings, offchip LDS buffers, etc.)
-// [1] - For the constant buffer table for the shader(s).
-// [2] - For the ES/GS LDS size when on-chip GS is enabled.
-// [3] - Streamout target table address.
-constexpr uint32 EsGsLdsSizeRegCopyShader  = ConstBufTblStartReg + 1;
-constexpr uint32 StreamOutTblRegCopyShader = EsGsLdsSizeRegCopyShader + 1;
 
 // Compute still only has 16 user data registers.  Compute also uses a fixed user data layout, and does not support
 // remapping.
@@ -250,28 +230,8 @@ constexpr uint32 CsSpillTableAddrReg = (NumThreadGroupsReg - 1);
 // Starting user data register index where the client's graphics fast user-data 'entries' are written for shaders.
 constexpr uint16 FastUserDataStartReg = (ConstBufTblStartReg + 1);
 
-// Maximum number of fast user data 'entries' exposed to the client for vertex shaders.
-constexpr uint32 MaxFastUserDataEntriesVs = (VertexOffsetReg - FastUserDataStartReg);
-// Maximum number of fast user data 'entries' exposed to the client for pixel shaders.
-constexpr uint32 MaxFastUserDataEntriesPs = (NumUserDataRegisters - FastUserDataStartReg);
 // Maximum number of fast user data 'entries' exposed to the client for compute shader stage.
 constexpr uint32 MaxFastUserDataEntriesCompute = (CsSpillTableAddrReg - FastUserDataStartReg);
-// Maximum number of fast user data 'entries' exposed to the client for other shader stages.
-constexpr uint32 MaxFastUserDataEntries = (EsGsLdsSizeReg - FastUserDataStartReg);
-
-// Maximum number of fast user data 'entries' exposed to the client for each shader stage.
-constexpr uint32 FastUserDataEntriesByStage[] =
-{
-   MaxFastUserDataEntriesCompute, // Compute
-   MaxFastUserDataEntriesVs,      // Vertex
-   MaxFastUserDataEntriesVs,      // Hull     - merged stage might require Api-Vs to use Vs-specific registers.
-   MaxFastUserDataEntries,        // Domain
-   MaxFastUserDataEntriesVs,      // Geometry - merged stage might require Api-Vs to use Vs-specific registers.
-   MaxFastUserDataEntriesPs,      // Pixel
-};
-
-static_assert(Util::ArrayLen(FastUserDataEntriesByStage) == Pal::NumShaderTypes,
-              "There must be an entry in FastUserDataEntriesByState[] for each Pal::ShaderType.");
 
 // HW doesn't provide enumerations for the values of the DB_DFSM_CONTROL.PUNCHOUT_MODE field.  Give
 // some nice names here.
@@ -590,10 +550,6 @@ struct GraphicsPipelineSignature
     // Register address for the draw index of a multi-draw. This is an optional feature of each pipeline, so it may
     // be unmapped.
     uint16  drawIndexRegAddr;
-    // Register address for the start index offset of a draw for an NGG Fast Launch VS.
-    uint16  startIndexRegAddr;
-    // Register address for the Log2(sizeof(indexType)) of a draw for an NGG Fast Launch VS.
-    uint16  log2IndexSizeRegAddr;
 
     // First user-data entry which is spilled to GPU memory. A value of 'NoUserDataSpilling' indicates the pipeline
     // does not spill user-data entries to memory.

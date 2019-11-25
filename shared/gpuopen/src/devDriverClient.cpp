@@ -90,9 +90,7 @@ namespace DevDriver
     {
         if (m_pMsgChannel != nullptr)
         {
-            Result result = m_pMsgChannel->Unregister();
-            DD_ASSERT(result == Result::Success);
-            DD_UNUSED(result);
+            m_pMsgChannel->Unregister();
 
             for (auto &pClient : m_pClients)
             {

@@ -200,10 +200,10 @@ static constexpr ThreadTraceTokenConfig SqttTokenConfigNoInst    =
     TokenType::Event     |
     TokenType::EventCs   |
     TokenType::EventGfx1 |
-    TokenType::RegCs
-    | TokenType::WaveRdy
-    | TokenType::UtilCounter
-    , RegType::AllRegWrites
+    TokenType::RegCs     |
+    TokenType::WaveRdy   |
+    TokenType::UtilCounter,
+    RegType::AllRegWrites
 };
 
 // Collect a minimal set of tokens (timestamps + events)
@@ -319,7 +319,7 @@ void FillSqttAsicInfo(
         }
         PAL_ASSERT((seIndex == 0) || (computeUnitPerShaderEngine == computeUnitPerPreviousShaderEngine));
     }
-#if PAL_BUILD_GFX10 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 491
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 491
     if (properties.gfxLevel > Pal::GfxIpLevel::GfxIp9)
     {
         pAsicInfo->computeUnitPerShaderEngine = computeUnitPerShaderEngine * 2;

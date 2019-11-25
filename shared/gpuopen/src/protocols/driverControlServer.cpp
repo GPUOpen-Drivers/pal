@@ -28,7 +28,15 @@
 #include "protocols/systemProtocols.h"
 
 #define DRIVERCONTROL_SERVER_MIN_VERSION 1
+
+// Gate the maximum version of the protocol based on the gpuopen interface version.
+// Protocol versions beyond DRIVERCONTROL_DRIVER_INTERFACE_CLEANUP_VERSION require special server side support
+// which is only available via the new gpuopen interface.
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION
 #define DRIVERCONTROL_SERVER_MAX_VERSION DRIVERCONTROL_PROTOCOL_VERSION
+#else
+#define DRIVERCONTROL_SERVER_MAX_VERSION DRIVERCONTROL_DRIVER_INTERFACE_CLEANUP_VERSION
+#endif
 
 namespace DevDriver
 {

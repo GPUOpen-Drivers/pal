@@ -245,7 +245,6 @@ private:
         {
             PM4_ME_CONTEXT_REG_RMW        dbRenderOverride;
             PM4ME_NON_SAMPLE_EVENT_WRITE  flushDfsm;
-
             PM4PFP_SET_UCONFIG_REG        hdrGeStereoCntlGePcAlloc;
             regGE_STEREO_CNTL             geStereoCntl;
             regGE_PC_ALLOC                gePcAlloc;
@@ -328,6 +327,7 @@ private:
 
                 PM4PFP_SET_CONTEXT_REG      hdrCbCoverageOutCntl;
                 regCB_COVERAGE_OUT_CONTROL  cbCoverageOutCntl;
+
                 PM4_PFP_SET_CONTEXT_REG  hdrVgtGsOnchipCntl;
                 regVGT_GS_ONCHIP_CNTL    vgtGsOnchipCntl;
 

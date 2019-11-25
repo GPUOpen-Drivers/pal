@@ -274,8 +274,8 @@ extern uint32 AtomicDecrement(volatile uint32* pValue);
 /// The original value of *pTarget is returned as a result.
 ///
 /// @param [in,out] pTarget  Pointer to the destination value of the operation.
-/// @param [in]     oldValue Literal value to compare *pTarget to.
-/// @param [in]     newValue Literal value to replace *pTarget with if *pTarget matches oldValue.
+/// @param [in]     oldValue Value to compare *pTarget to.
+/// @param [in]     newValue Value to replace *pTarget with if *pTarget matches oldValue.
 ///
 /// @returns Previous value at *pTarget.
 extern uint32 AtomicCompareAndSwap(volatile uint32* pTarget, uint32 oldValue, uint32 newValue);
@@ -305,20 +305,36 @@ extern uint64 AtomicExchange64(volatile uint64* pTarget, uint64 value);
 /// @returns Previous value at *ppTarget.
 extern void* AtomicExchangePointer(void*volatile* ppTarget, void* pValue);
 
-/// Atomically add a literal to the specific 32-bit unsigned integer.
+/// Atomically add a value to the specific 32-bit unsigned integer.
 ///
 /// @param [in,out] pAddend Pointer to the value to be modified.
-/// @param [in]     value   Literal value to add to *pAddend.
+/// @param [in]     value   Value to add to *pAddend.
 ///
 /// @returns Result of the add operation.
 extern uint32 AtomicAdd(volatile uint32* pAddend, uint32 value);
 
-/// Atomically add a literal to the specified 64-bit unsigned integer.
+/// Atomically add a value to the specified 64-bit unsigned integer.
 ///
 /// @param [in,out] pAddend Pointer to the value to be modified.
-/// @param [in]     value   Literal value to add to *pAddend.
+/// @param [in]     value   Value to add to *pAddend.
 ///
 /// @returns Result of the add operation.
 extern uint64 AtomicAdd64(volatile uint64* pAddend, uint64 value);
+
+/// Atomically OR a value to the specific 32-bit unsigned integer.
+///
+/// @param [in,out] pTarget Pointer to the value to be modified.
+/// @param [in]     value   Value to OR to *pTarget.
+///
+/// @returns The original value of *pTarget.
+extern uint32 AtomicOr(volatile uint32* pTarget, uint32 value);
+
+/// Atomically OR a value to the specified 64-bit unsigned integer.
+///
+/// @param [in,out] pTarget Pointer to the value to be modified.
+/// @param [in]     value   Value to OR to *pTarget.
+///
+/// @returns The original value of *pTarget.
+extern uint64 AtomicOr64(volatile uint64* pTarget, uint64 value);
 
 } // Util

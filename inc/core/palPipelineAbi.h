@@ -50,7 +50,7 @@ constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 constexpr uint32 MetadataNoteType = 32; ///< NT_AMDGPU_METADATA
 
 constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
-constexpr uint32 PipelineMetadataMinorVersion = 2;  ///< Pipeline Metadata Minor Version
+constexpr uint32 PipelineMetadataMinorVersion = 3;  ///< Pipeline Metadata Minor Version
 
 constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                     ///  PipelineMetadataEntry value when saving to ELF.
@@ -80,6 +80,7 @@ enum class AmdGpuMachineType : uint8
     Gfx906  = 0x2f,  ///< EF_AMDGPU_MACH_AMDGCN_GFX906
     Gfx909  = 0x31,  ///< EF_AMDGPU_MACH_AMDGCN_GFX909
     Gfx1010 = 0x33,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1010
+    Gfx1012 = 0x35,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1012
 };
 
 /// Enumerates the steppng values for each GPU supported by PAL (and by PAL's ABI).  There are many duplicates
@@ -120,6 +121,7 @@ enum GfxIpStepping : uint16
 
     // GFXIP 10.1.x steppings:
     GfxIpSteppingNavi10        = 0,
+    GfxIpSteppingNavi14        = 2,
 
 };
 
@@ -317,11 +319,12 @@ static const char* const PipelineMetadataNameStrings[] =
     "INTERNAL_PIPELINE_HASH_DWORD2",
     "INTERNAL_PIPELINE_HASH_DWORD3",
 
-#if PAL_BUILD_GFX10 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
     "CS_WAVE_FRONT_SIZE",
 #else
     "RESERVED2",
 #endif
+
 };
 
 /// The pipeline ABI note types.
@@ -657,11 +660,13 @@ enum class PipelineMetadataType : uint32
     InternalPipelineHashDword2,   ///< Dword 2 of a 128-bit hash identifying the internal pipeline (unique portion).
     InternalPipelineHashDword3,   ///< Dword 3 of a 128-bit hash identifying the internal pipeline (unique portion).
 
-#if PAL_BUILD_GFX10 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 495
     CsWaveFrontSize,              ///< Wave front size.
 #else
     Reserved10,                   ///< Reserved for future use.
 #endif
+
+    Reserved11,                   ///< Reserved for future use
 
     Count,
 

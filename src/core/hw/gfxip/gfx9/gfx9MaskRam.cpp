@@ -108,7 +108,7 @@ void Gfx9MaskRam::CalcDataOffsetEquation(
 {
     const auto*            pParent        = m_image.Parent();
     const AddrSwizzleMode  swizzleMode    = GetSwizzleMode();
-    const uint32           blockSizeLog2  = Log2(AddrMgr2::GetBlockSize(swizzleMode));
+    const uint32           blockSizeLog2  = Log2(m_pGfxDevice->Parent()->GetAddrMgr()->GetBlockSize(swizzleMode));
     const uint32           bppLog2        = GetBytesPerPixelLog2();
     const uint32           numSamplesLog2 = GetNumSamplesLog2();
 
@@ -274,7 +274,8 @@ void Gfx9MaskRam::CalcPipeEquation(
 {
     const int32            numSamplesLog2     = GetNumSamplesLog2();
     const AddrSwizzleMode  swizzleMode        = GetSwizzleMode();
-    const uint32           blockSizeLog2      = Log2(AddrMgr2::GetBlockSize(swizzleMode));
+    const Pal::Device*     pDevice            = m_pGfxDevice->Parent();
+    const uint32           blockSizeLog2      = Log2(pDevice->GetAddrMgr()->GetBlockSize(swizzleMode));
     const uint32           pipeInterleaveLog2 = m_pGfxDevice->GetPipeInterleaveLog2();
 
     CompPair  tileMin = { MetaDataAddrCompX, 3};
@@ -378,7 +379,7 @@ void Gfx9MaskRam::CalcPipeEquation(
         pPipe->XorIn(&xorMask);
     }
 
-    pPipe->PrintEquation(m_pGfxDevice->Parent());
+    pPipe->PrintEquation(pDevice);
 }
 
 // =====================================================================================================================
@@ -873,7 +874,7 @@ void Gfx9MaskRam::CalcRbEquation(
 uint32 Gfx9MaskRam::CapPipe() const
 {
     const AddrSwizzleMode  swizzleMode        = GetSwizzleMode();
-    const uint32           blockSizeLog2      = Log2(AddrMgr2::GetBlockSize(swizzleMode));
+    const uint32           blockSizeLog2      = Log2(m_pGfxDevice->Parent()->GetAddrMgr()->GetBlockSize(swizzleMode));
     const uint32           numSesLog2         = m_pGfxDevice->GetNumShaderEnginesLog2();
     const uint32           pipeInterleaveLog2 = m_pGfxDevice->GetPipeInterleaveLog2();
 
@@ -1269,7 +1270,7 @@ void Gfx9MaskRam::AddMetaPipeBits(
 
     const Pal::Device*     pPalDevice                  = m_pGfxDevice->Parent();
     const AddrSwizzleMode  swizzleMode                 = GetSwizzleMode();
-    const uint32           blockSizeLog2               = Log2(AddrMgr2::GetBlockSize(swizzleMode));
+    const uint32           blockSizeLog2               = Log2(pPalDevice->GetAddrMgr()->GetBlockSize(swizzleMode));
     const uint32           bppLog2                     = GetBytesPerPixelLog2();
     const uint32           effectiveNumPipesLog2       = GetEffectiveNumPipes();
     const uint32           numPipesLog2                = m_pGfxDevice->GetNumPipesLog2();
@@ -1576,13 +1577,12 @@ void Gfx9MaskRam::GetData2DParams(
     Extent2d pipeAnchorLog2 = {};
     GetPipeAnchorSize(&pipeAnchorLog2);
 
+    const Pal::Device*     pPalDevice     = m_pGfxDevice->Parent();
     const AddrSwizzleMode  swizzleMode    = GetSwizzleMode();
     const uint32           bppLog2        = GetBytesPerPixelLog2();
     const uint32           numPipesLog2   = GetEffectiveNumPipes();
     const uint32           numSamplesLog2 = GetNumSamplesLog2();
-    const uint32           blockSizeLog2  = Log2(AddrMgr2::GetBlockSize(swizzleMode));
-
-    const Pal::Device* pPalDevice = m_pGfxDevice->Parent();
+    const uint32           blockSizeLog2  = Log2(pPalDevice->GetAddrMgr()->GetBlockSize(swizzleMode));
 
     if (m_pipeDist == PipeDist16x16)
     {
@@ -1800,7 +1800,7 @@ void Gfx9MaskRam::GetData2DParamsNew(
     GetPipeAnchorSize(&pipeAnchorLog2);
 
     const AddrSwizzleMode  swizzleMode    = GetSwizzleMode();
-    const uint32           blockSizeLog2  = Log2(AddrMgr2::GetBlockSize(swizzleMode));
+    const uint32           blockSizeLog2  = Log2(m_pGfxDevice->Parent()->GetAddrMgr()->GetBlockSize(swizzleMode));
     const uint32           bppLog2        = GetBytesPerPixelLog2();
     const uint32           numPipesLog2   = GetEffectiveNumPipes();
     const uint32           numSamplesLog2 = GetNumSamplesLog2();
@@ -1987,7 +1987,7 @@ void Gfx9MaskRam::GetPixelBlockSize(
     ) const
 {
     const AddrSwizzleMode  swizzleMode    = GetSwizzleMode();
-    const uint32           blockSizeLog2  = Log2(AddrMgr2::GetBlockSize(swizzleMode));
+    const uint32           blockSizeLog2  = Log2(m_pGfxDevice->Parent()->GetAddrMgr()->GetBlockSize(swizzleMode));
     const uint32           bppLog2        = GetBytesPerPixelLog2();
     const uint32           numSamplesLog2 = GetNumSamplesLog2();
 
@@ -2470,7 +2470,7 @@ void Gfx9MaskRam::CalcMetaEquationGfx10()
     // The equation is currently 32-bits long, but on GFX10, the equation is an offset into one meta-block
     // (unlike on GFX9 where the equation is an offset into the entire mask-ram), so trim this down to the
     // the log2 of one meta-block.
-    FinalizeMetaEquation(AddrMgr2::GetBlockSize(swizzleMode));
+    FinalizeMetaEquation(pPalDevice->GetAddrMgr()->GetBlockSize(swizzleMode));
 }
 
 //=============== Implementation for Gfx9Htile: ========================================================================
@@ -3957,25 +3957,25 @@ regSQ_IMG_RSRC_WORD1 Gfx9Fmask::Gfx9FmaskFormat(
         constexpr IMG_NUM_FORMAT_FMASK FMaskFormatTbl[4][4] =
         {
             // Two-sample formats
-            { IMG_NUM_FORMAT_FMASK_8_2_1,         // One fragment
-              IMG_NUM_FORMAT_FMASK_8_2_2, },      // Two fragments
+            { IMG_NUM_FORMAT_FMASK_8_2_1__CORE,      // One fragment
+              IMG_NUM_FORMAT_FMASK_8_2_2__CORE, },   // Two fragments
 
             // Four-sample formats
-            { IMG_NUM_FORMAT_FMASK_8_4_1,         // One fragment
-              IMG_NUM_FORMAT_FMASK_8_4_2,         // Two fragments
-              IMG_NUM_FORMAT_FMASK_8_4_4, },      // Four fragments
+            { IMG_NUM_FORMAT_FMASK_8_4_1__CORE,      // One fragment
+              IMG_NUM_FORMAT_FMASK_8_4_2__CORE,      // Two fragments
+              IMG_NUM_FORMAT_FMASK_8_4_4__CORE, },   // Four fragments
 
             // Eight-sample formats
-            { IMG_NUM_FORMAT_FMASK_8_8_1,         // One fragment
-              IMG_NUM_FORMAT_FMASK_16_8_2,        // Two fragments
-              IMG_NUM_FORMAT_FMASK_32_8_4,        // Four fragments
-              IMG_NUM_FORMAT_FMASK_32_8_8, },     // Eight fragments
+            { IMG_NUM_FORMAT_FMASK_8_8_1__CORE,      // One fragment
+              IMG_NUM_FORMAT_FMASK_16_8_2,           // Two fragments
+              IMG_NUM_FORMAT_FMASK_32_8_4,           // Four fragments
+              IMG_NUM_FORMAT_FMASK_32_8_8__CORE, },  // Eight fragments
 
             // Sixteen-sample formats
-            { IMG_NUM_FORMAT_FMASK_16_16_1,       // One fragment
-              IMG_NUM_FORMAT_FMASK_32_16_2,       // Two fragments
-              IMG_NUM_FORMAT_FMASK_64_16_4,       // Four fragments
-              IMG_NUM_FORMAT_FMASK_64_16_8, },    // Eight fragments
+            { IMG_NUM_FORMAT_FMASK_16_16_1,          // One fragment
+              IMG_NUM_FORMAT_FMASK_32_16_2,          // Two fragments
+              IMG_NUM_FORMAT_FMASK_64_16_4__CORE,    // Four fragments
+              IMG_NUM_FORMAT_FMASK_64_16_8__CORE, }, // Eight fragments
         };
 
         const uint32 log2Samples   = Log2(samples);
@@ -4011,13 +4011,13 @@ IMG_FMT Gfx9Fmask::Gfx10FmaskFormat(
         switch (m_addrOutput.bpp)
         {
         case 8:
-            imgFmt = IMG_FMT_8_UINT__GFX10CORE;
+            imgFmt = IMG_FMT_8_UINT;
             break;
         case 16:
-            imgFmt = IMG_FMT_16_UINT__GFX10CORE;
+            imgFmt = IMG_FMT_16_UINT;
             break;
         case 32:
-            imgFmt = IMG_FMT_32_UINT__GFX10CORE;
+            imgFmt = IMG_FMT_32_UINT;
             break;
         case 64:
             imgFmt = IMG_FMT_32_32_UINT__GFX10CORE;

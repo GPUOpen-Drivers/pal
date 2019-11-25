@@ -212,11 +212,12 @@ Result QueryPool::BindGpuMemory(
     {
         m_gpuMemory.Update(pGpuMemory, offset);
 
-        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
-            this,
-            m_boundSizeInBytes,
-            pGpuMemory,
-            offset);
+        GpuMemoryResourceBindEventData data = {};
+        data.pObj = this;
+        data.pGpuMemory = pGpuMemory;
+        data.requiredGpuMemSize = m_boundSizeInBytes;
+        data.offset = offset;
+        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(data);
     }
 
     return result;

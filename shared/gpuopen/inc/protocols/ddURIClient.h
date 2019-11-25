@@ -33,6 +33,7 @@
 
 #include "baseProtocolClient.h"
 #include "ddUriInterface.h"
+#include <util/vector.h>
 
 namespace DevDriver
 {
@@ -71,6 +72,15 @@ namespace DevDriver
             // the entire response.
             Result ReadFullResponse(void* pDstBuffer, const size_t bufferSize);
 
+            // Helper function used execute a URI request and read the response back if necessary
+            Result TransactURIRequest(
+                const void*     pPostDataBuffer,
+                uint32          postDataSize,
+                Vector<uint8>*  pResponseBuffer,
+                URIDataFormat   expectedResponseFormat,
+                const char*     pFormatString,
+                ...);
+
         private:
             void ResetState() override;
 
@@ -100,7 +110,8 @@ namespace DevDriver
                 TransferProtocol::PullBlock* pBlock;
             };
 
-            Context m_context;
+            Context           m_context;
+            Vector<char, 256> m_requestStringBuffer;
         };
     }
 } // DevDriver

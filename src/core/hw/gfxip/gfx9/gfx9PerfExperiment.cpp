@@ -58,6 +58,7 @@ constexpr uint32  SqttGfx9HiWaterValue = 4;
 constexpr uint32  SqttGfx9RegMaskDefault   = 0xFF;
 constexpr uint32  SqttGfx9TokenMaskDefault = 0xBFFF;
 constexpr uint32  SqttGfx9InstMaskDefault  = 0xFFFFFFFF;
+
 // Stall when at 6/8s of the output buffer because data will still come in from already-issued waves
 constexpr uint32  SqttGfx10HiWaterValue = 5;
 // Safe defaults for token exclude mask and register include mask for the gfx10 SQTT_TOKEN_MASK register.

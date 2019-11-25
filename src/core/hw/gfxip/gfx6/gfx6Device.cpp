@@ -896,19 +896,6 @@ Result Device::CreateComputePipeline(
 
     *ppPipeline = pPipeline;
 
-    if (result == Result::Success)
-    {
-        ResourceDescriptionPipeline desc = {};
-        desc.pPipelineInfo = &pPipeline->GetInfo();
-        desc.pCreateFlags = &createInfo.flags;
-        ResourceCreateEventData data = {};
-        data.type = ResourceType::Pipeline;
-        data.pResourceDescData = static_cast<void*>(&desc);
-        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
-        data.pObj = pPipeline;
-        m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
-    }
-
     return result;
 }
 
@@ -949,19 +936,6 @@ Result Device::CreateGraphicsPipeline(
         {
             *ppPipeline = pPipeline;
         }
-    }
-
-    if (result == Result::Success)
-    {
-        ResourceDescriptionPipeline desc = {};
-        desc.pPipelineInfo = &pPipeline->GetInfo();
-        desc.pCreateFlags = &createInfo.flags;
-        ResourceCreateEventData data = {};
-        data.type = ResourceType::Pipeline;
-        data.pResourceDescData = static_cast<void*>(&desc);
-        data.resourceDescSize = sizeof(ResourceDescriptionPipeline);
-        data.pObj = pPipeline;
-        m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
     }
 
     return result;
@@ -2739,10 +2713,6 @@ void InitializeGpuChipProperties(
     pInfo->gfx6.numTcaBlocks            = 2;
 
     pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
-    memcpy(&pInfo->gfxip.fastUserDataEntries[0], &FastUserDataEntriesByStage[0], sizeof(FastUserDataEntriesByStage));
-
-    static_assert(sizeof(pInfo->gfxip.fastUserDataEntries) == sizeof(FastUserDataEntriesByStage),
-                  "Mismatch between gfxip::fastUserDataEntries[] and FastUserDataEntriesByStage[]!");
 
     // The maximum amount of LDS space that can be shared by a group of threads (wave/ threadgroup) in bytes.
     pInfo->gfxip.ldsSizePerCu = 65536;
@@ -3338,7 +3308,7 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.timestampSupport                = 1;
     pUniversal->flags.borderColorPaletteSupport       = 1;
     pUniversal->flags.queryPredicationSupport         = 1;
-    pUniversal->flags.memoryPredicationSupport        = 1;
+    pUniversal->flags.memory64bPredicationSupport     = 1;
     pUniversal->flags.conditionalExecutionSupport     = 1;
     pUniversal->flags.loopExecutionSupport            = 1;
     pUniversal->flags.constantEngineSupport           = 1;
@@ -3379,7 +3349,8 @@ void InitializeGpuEngineProperties(
     pCompute->flags.timestampSupport                = 1;
     pCompute->flags.borderColorPaletteSupport       = 1;
     pCompute->flags.queryPredicationSupport         = 1;
-    pCompute->flags.memoryPredicationSupport        = 1;
+    pCompute->flags.memory32bPredicationSupport     = 1;
+    pCompute->flags.memory64bPredicationSupport     = 1;
     pCompute->flags.regMemAccessSupport             = 1;
     pCompute->flags.indirectBufferSupport           = 1;
     pCompute->flags.supportsMismatchedTileTokenCopy = 1;
@@ -3402,7 +3373,7 @@ void InitializeGpuEngineProperties(
     // doesn't need to understand.
     auto*const pDma = &pInfo->perEngine[EngineTypeDma];
 
-    pDma->flags.memoryPredicationSupport        = 1;
+    pDma->flags.memory32bPredicationSupport     = 1;
     pDma->flags.supportsImageInitBarrier        = 1;
     pDma->flags.supportsImageInitPerSubresource = 1;
     pDma->flags.supportsMismatchedTileTokenCopy = 1;

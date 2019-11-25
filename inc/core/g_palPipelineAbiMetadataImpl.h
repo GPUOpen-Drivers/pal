@@ -923,12 +923,6 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.numInterpolants = (result == Result::Success);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::ScratchMemorySize):
-                PAL_ASSERT(pMetadata->hasEntry.scratchMemorySize == 0);
-                result = pReader->UnpackNext(&pMetadata->scratchMemorySize);
-                pMetadata->hasEntry.scratchMemorySize = (result == Result::Success);
-                break;
-
             case HashLiteralString(PipelineMetadataKey::CalcWaveBreakSizeAtDrawTime):
             {
                 PAL_ASSERT(pMetadata->hasEntry.calcWaveBreakSizeAtDrawTime == 0);

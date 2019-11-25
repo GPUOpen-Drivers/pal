@@ -153,6 +153,7 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.debugForceSurfaceAlignment = 0;
     m_settings.debugForceResourceAdditionalPadding = 0;
+    m_settings.overlayReportMes = true;
     m_settings.numSettings = g_palNumSettings;
 }
 
@@ -551,6 +552,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDebugForceResourceAdditionalPaddingStr,
                            Util::ValueType::Uint64,
                            &m_settings.debugForceResourceAdditionalPadding,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOverlayReportMesStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.overlayReportMes,
                            InternalSettingScope::PrivatePalKey);
 
 }
@@ -1021,6 +1027,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.debugForceResourceAdditionalPadding);
     m_settingsInfoMap.Insert(3601080919, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.overlayReportMes;
+    info.valueSize = sizeof(m_settings.overlayReportMes);
+    m_settingsInfoMap.Insert(1685803860, info);
+
 }
 
 // =====================================================================================================================
@@ -1042,7 +1053,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 616573810;
+            component.settingsDataHash = 3334904986;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

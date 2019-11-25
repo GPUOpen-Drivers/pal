@@ -221,6 +221,10 @@ enum struct Result : uint32
     InsufficientMemory = 8,
     InvalidParameter = 9,
     InvalidClientId = 10,
+    ConnectionExists = 11,
+    FileNotFound = 12,
+    FunctionNotFound = 13,
+    InterfaceNotFound = 14,
 
     //// URI PROTOCOL  ////
     UriServiceRegistrationError = 1000,

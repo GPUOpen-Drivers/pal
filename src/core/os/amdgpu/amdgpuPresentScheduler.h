@@ -39,6 +39,7 @@ namespace Amdgpu
 
 class Device;
 class PresentFence;
+class Queue;
 class WindowSystem;
 
 // =====================================================================================================================
@@ -62,13 +63,15 @@ public:
 
 private:
     PresentScheduler(Device* pDevice, WindowSystem* pWindowSystem);
-    virtual ~PresentScheduler() { }
+    virtual ~PresentScheduler();
 
     virtual Result Init(IDevice*const pSlaveDevices[], void* pPlacementAddr) override;
     virtual Result PreparePresent(IQueue* pQueue, PresentSchedulerJob* pJob) override;
 
     virtual Result ProcessPresent(const PresentSwapChainInfo& presentInfo, IQueue* pQueue, bool isInline) override;
     virtual Result FailedToQueuePresentJob(const PresentSwapChainInfo& presentInfo, IQueue* pQueue) override;
+
+    virtual bool CanInlinePresent(const PresentSwapChainInfo& presentInfo, const IQueue& queue) const override;
 
     WindowSystem*const m_pWindowSystem; // A cached pointer to our parent swap chain's WindowSystem.
 

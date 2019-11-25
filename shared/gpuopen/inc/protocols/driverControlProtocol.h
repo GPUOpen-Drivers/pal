@@ -27,7 +27,7 @@
 
 #include "gpuopen.h"
 
-#define DRIVERCONTROL_PROTOCOL_VERSION 6
+#define DRIVERCONTROL_PROTOCOL_VERSION 7
 
 #define DRIVERCONTROL_PROTOCOL_MINIMUM_VERSION 1
 
@@ -35,6 +35,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  7.0    | Corrected a back-compat issue related to the new device clock query code.                                |
 *|  6.0    | Added ability to query device clock frequencies for a given clock mode.                                  |
 *|  5.0    | Cleaned up the driver facing interface.                                                                  |
 *|  4.0    | Added HaltedOnPostDeviceInit state.                                                                      |
@@ -45,6 +46,7 @@
 ***********************************************************************************************************************
 */
 
+#define DRIVERCONTROL_QUERY_BY_MODE_BACK_COMPAT_VERSION  7
 #define DRIVERCONTROL_QUERY_DEVICE_CLOCKS_BY_MODE_VERSION  6
 #define DRIVERCONTROL_DRIVER_INTERFACE_CLEANUP_VERSION 5
 #define DRIVERCONTROL_HALTEDPOSTDEVICEINIT_VERSION 4

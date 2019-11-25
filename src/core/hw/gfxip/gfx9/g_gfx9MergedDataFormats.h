@@ -470,9 +470,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_INVALID,                     // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -494,9 +494,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_INVALID,                     // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_4_4__CORE,         // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -530,9 +530,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_4_4_4_4,                     // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_4_4_4_4,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -554,9 +554,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_5_6_5,                       // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_5_6_5,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -578,9 +578,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_1_5_5_5,                     // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_1_5_5_5,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -602,9 +602,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_5_5_5_1,                     // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_5_5_5_1,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -638,9 +638,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_8,                           // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -650,9 +650,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_8,                           // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -758,9 +758,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_8_8,                         // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -770,9 +770,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_8_8,                         // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -854,9 +854,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_8_8_8_8,                     // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -866,9 +866,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_8_8_8_8,                     // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -974,9 +974,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_2_10_10_10,                  // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -986,9 +986,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_2_10_10_10,                  // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -1070,9 +1070,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_16,                          // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -1082,9 +1082,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_16,                          // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -1166,9 +1166,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_16_16,                       // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -1178,9 +1178,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_16_16,                       // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -1250,9 +1250,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_16_16_16_16,                 // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -1262,9 +1262,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_16_16_16_16,                 // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -2294,9 +2294,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_INVALID,                     // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_GB_GR__CORE,       // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -2318,9 +2318,9 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         COLOR_INVALID,                     // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
         IMG_DATA_FORMAT_BG_RG__CORE,       // Image Channel Format
-        IMG_NUM_FORMAT_USCALED__CORE,      // Image Numeric Format
+        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
         BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED__CORE,      // Buffer Numeric Format
+        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -2473,12 +2473,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -2547,12 +2547,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X8_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::X8_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -2621,12 +2621,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X16_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::X16_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -2695,12 +2695,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X8Y8_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::X8Y8_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -2769,12 +2769,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -2843,12 +2843,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X16Y16_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::X16Y16_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -2917,12 +2917,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -2991,12 +2991,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3065,12 +3065,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3139,12 +3139,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X10Y10Z10W2_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::X10Y10Z10W2_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3213,12 +3213,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X8Y8Z8W8_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::X8Y8Z8W8_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3287,12 +3287,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3361,12 +3361,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X16Y16Z16W16_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::X16Y16Z16W16_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3435,12 +3435,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3509,12 +3509,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3583,12 +3583,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3657,12 +3657,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X5Y6Z5_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3731,12 +3731,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X5Y5Z5W1_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3805,12 +3805,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X1Y5Z5W5_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3879,12 +3879,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X4Y4Z4W4_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -3953,86 +3953,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-      },
-    },
-    { IMG_DATA_FORMAT_INVALID,
-      {
-          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4101,12 +4027,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4175,12 +4101,86 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+      },
+    },
+    { IMG_DATA_FORMAT_INVALID,
+      {
+          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4249,12 +4249,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4323,12 +4323,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4397,12 +4397,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4471,12 +4471,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4545,12 +4545,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4619,86 +4619,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-      },
-    },
-    { IMG_DATA_FORMAT_INVALID,
-      {
-          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4767,12 +4693,86 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+      },
+    },
+    { IMG_DATA_FORMAT_INVALID,
+      {
+          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4841,12 +4841,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X8Y8_Z8Y8_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4915,12 +4915,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Y8X8_Y8Z8_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -4989,12 +4989,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5063,12 +5063,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5137,12 +5137,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5211,12 +5211,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5285,12 +5285,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5359,12 +5359,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5433,12 +5433,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5507,12 +5507,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5581,86 +5581,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-      },
-    },
-    { IMG_DATA_FORMAT_INVALID,
-      {
-          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5729,12 +5655,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5803,12 +5729,86 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+      },
+    },
+    { IMG_DATA_FORMAT_INVALID,
+      {
+          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5877,12 +5877,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::AstcLdr5x5_Unorm,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::AstcLdr6x5_Unorm,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -5951,12 +5951,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::AstcHdr5x5_Float,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::AstcHdr6x5_Float,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6025,12 +6025,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::AstcLdr5x5_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::AstcLdr6x5_Srgb,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6099,86 +6099,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-      },
-    },
-    { IMG_DATA_FORMAT_INVALID,
-      {
-          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6247,86 +6173,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-      },
-    },
-    { IMG_DATA_FORMAT_INVALID,
-      {
-          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6395,86 +6247,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-      },
-    },
-    { IMG_DATA_FORMAT_INVALID,
-      {
-          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-               ChNumFormat::Undefined,
-          },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6543,12 +6321,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6617,12 +6395,234 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+      },
+    },
+    { IMG_DATA_FORMAT_INVALID,
+      {
+          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+      },
+    },
+    { IMG_DATA_FORMAT_INVALID,
+      {
+          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_UINT / IMG_NUM_FORMAT_ASTC_2D_6x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SINT / IMG_NUM_FORMAT_ASTC_2D_8x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_8x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_FLOAT / IMG_NUM_FORMAT_ASTC_2D_8x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SRGB__CORE / IMG_NUM_FORMAT_ASTC_2D_10x6__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x8__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_10x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+      },
+    },
+    { IMG_DATA_FORMAT_INVALID,
+      {
+          { // IMG_NUM_FORMAT_UNORM / IMG_NUM_FORMAT_ASTC_2D_4x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SNORM / IMG_NUM_FORMAT_ASTC_2D_5x4__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+               ChNumFormat::Undefined,
+          },
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6691,12 +6691,12 @@ constexpr MergedImgDataFmtInfo Gfx9MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_USCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
+          { // IMG_NUM_FORMAT_USCALED / IMG_NUM_FORMAT_ASTC_2D_5x5__GFX09
                ChNumFormat::X4Y4_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // IMG_NUM_FORMAT_SSCALED__CORE / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
+          { // IMG_NUM_FORMAT_SSCALED / IMG_NUM_FORMAT_ASTC_2D_6x5__GFX09
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6772,12 +6772,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6816,12 +6816,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::X8_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::X8_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6860,12 +6860,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::X16_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::X16_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6904,12 +6904,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::X8Y8_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::X8Y8_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6948,12 +6948,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -6992,12 +6992,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::X16Y16_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::X16Y16_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7036,12 +7036,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7080,12 +7080,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7124,12 +7124,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7168,12 +7168,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::X10Y10Z10W2_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::X10Y10Z10W2_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7212,12 +7212,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::X8Y8Z8W8_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::X8Y8Z8W8_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7256,12 +7256,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7300,12 +7300,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::X16Y16Z16W16_Uscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::X16Y16Z16W16_Sscaled,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7344,12 +7344,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7388,12 +7388,12 @@ constexpr MergedBufDataFmtInfo Gfx9MergedBufDataFmtTbl[] =
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_USCALED__CORE
+          { // BUF_NUM_FORMAT_USCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
           },
-          { // BUF_NUM_FORMAT_SSCALED__CORE
+          { // BUF_NUM_FORMAT_SSCALED
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7769,8 +7769,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8_Uscaled,           // ChNumFormat
         COLOR_8,                           // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
-        IMG_FMT_8_USCALED__GFX10CORE,      // Image Channel Format
-        BUF_FMT_8_USCALED__GFX10CORE,      // Buffer Image Format
+        IMG_FMT_8_USCALED,                 // Image Channel Format
+        BUF_FMT_8_USCALED,                 // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -7779,8 +7779,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8_Sscaled,           // ChNumFormat
         COLOR_8,                           // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_FMT_8_SSCALED__GFX10CORE,      // Image Channel Format
-        BUF_FMT_8_SSCALED__GFX10CORE,      // Buffer Image Format
+        IMG_FMT_8_SSCALED,                 // Image Channel Format
+        BUF_FMT_8_SSCALED,                 // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -7789,8 +7789,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8_Uint,              // ChNumFormat
         COLOR_8,                           // CB Channel Format
         NUMBER_UINT,                       // CB Numeric Format
-        IMG_FMT_8_UINT__GFX10CORE,         // Image Channel Format
-        BUF_FMT_8_UINT__GFX10CORE,         // Buffer Image Format
+        IMG_FMT_8_UINT,                    // Image Channel Format
+        BUF_FMT_8_UINT,                    // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_8,                         // StencilFormat
     },
@@ -7799,8 +7799,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8_Sint,              // ChNumFormat
         COLOR_8,                           // CB Channel Format
         NUMBER_SINT,                       // CB Numeric Format
-        IMG_FMT_8_SINT__GFX10CORE,         // Image Channel Format
-        BUF_FMT_8_SINT__GFX10CORE,         // Buffer Image Format
+        IMG_FMT_8_SINT,                    // Image Channel Format
+        BUF_FMT_8_SINT,                    // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -7839,8 +7839,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::P8_Uint,              // ChNumFormat
         COLOR_8,                           // CB Channel Format
         NUMBER_UINT,                       // CB Numeric Format
-        IMG_FMT_8_UINT__GFX10CORE,         // Image Channel Format
-        BUF_FMT_8_UINT__GFX10CORE,         // Buffer Image Format
+        IMG_FMT_8_UINT,                    // Image Channel Format
+        BUF_FMT_8_UINT,                    // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -7849,8 +7849,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8Y8_Unorm,           // ChNumFormat
         COLOR_8_8,                         // CB Channel Format
         NUMBER_UNORM,                      // CB Numeric Format
-        IMG_FMT_8_8_UNORM__GFX10CORE,      // Image Channel Format
-        BUF_FMT_8_8_UNORM__GFX10CORE,      // Buffer Image Format
+        IMG_FMT_8_8_UNORM,                 // Image Channel Format
+        BUF_FMT_8_8_UNORM,                 // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -7859,8 +7859,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8Y8_Snorm,           // ChNumFormat
         COLOR_8_8,                         // CB Channel Format
         NUMBER_SNORM,                      // CB Numeric Format
-        IMG_FMT_8_8_SNORM__GFX10CORE,      // Image Channel Format
-        BUF_FMT_8_8_SNORM__GFX10CORE,      // Buffer Image Format
+        IMG_FMT_8_8_SNORM,                 // Image Channel Format
+        BUF_FMT_8_8_SNORM,                 // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -7869,8 +7869,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8Y8_Uscaled,         // ChNumFormat
         COLOR_8_8,                         // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
-        IMG_FMT_8_8_USCALED__GFX10CORE,    // Image Channel Format
-        BUF_FMT_8_8_USCALED__GFX10CORE,    // Buffer Image Format
+        IMG_FMT_8_8_USCALED,               // Image Channel Format
+        BUF_FMT_8_8_USCALED,               // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -7879,8 +7879,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8Y8_Sscaled,         // ChNumFormat
         COLOR_8_8,                         // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_FMT_8_8_SSCALED__GFX10CORE,    // Image Channel Format
-        BUF_FMT_8_8_SSCALED__GFX10CORE,    // Buffer Image Format
+        IMG_FMT_8_8_SSCALED,               // Image Channel Format
+        BUF_FMT_8_8_SSCALED,               // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -7889,8 +7889,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8Y8_Uint,            // ChNumFormat
         COLOR_8_8,                         // CB Channel Format
         NUMBER_UINT,                       // CB Numeric Format
-        IMG_FMT_8_8_UINT__GFX10CORE,       // Image Channel Format
-        BUF_FMT_8_8_UINT__GFX10CORE,       // Buffer Image Format
+        IMG_FMT_8_8_UINT,                  // Image Channel Format
+        BUF_FMT_8_8_UINT,                  // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -7899,8 +7899,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X8Y8_Sint,            // ChNumFormat
         COLOR_8_8,                         // CB Channel Format
         NUMBER_SINT,                       // CB Numeric Format
-        IMG_FMT_8_8_SINT__GFX10CORE,       // Image Channel Format
-        BUF_FMT_8_8_SINT__GFX10CORE,       // Buffer Image Format
+        IMG_FMT_8_8_SINT,                  // Image Channel Format
+        BUF_FMT_8_8_SINT,                  // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -7919,8 +7919,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::L8A8_Unorm,           // ChNumFormat
         COLOR_8_8,                         // CB Channel Format
         NUMBER_UNORM,                      // CB Numeric Format
-        IMG_FMT_8_8_UNORM__GFX10CORE,      // Image Channel Format
-        BUF_FMT_8_8_UNORM__GFX10CORE,      // Buffer Image Format
+        IMG_FMT_8_8_UNORM,                 // Image Channel Format
+        BUF_FMT_8_8_UNORM,                 // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8109,8 +8109,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16_Unorm,            // ChNumFormat
         COLOR_16,                          // CB Channel Format
         NUMBER_UNORM,                      // CB Numeric Format
-        IMG_FMT_16_UNORM__GFX10CORE,       // Image Channel Format
-        BUF_FMT_16_UNORM__GFX10CORE,       // Buffer Image Format
+        IMG_FMT_16_UNORM,                  // Image Channel Format
+        BUF_FMT_16_UNORM,                  // Buffer Image Format
         Z_16,                              // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8119,8 +8119,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16_Snorm,            // ChNumFormat
         COLOR_16,                          // CB Channel Format
         NUMBER_SNORM,                      // CB Numeric Format
-        IMG_FMT_16_SNORM__GFX10CORE,       // Image Channel Format
-        BUF_FMT_16_SNORM__GFX10CORE,       // Buffer Image Format
+        IMG_FMT_16_SNORM,                  // Image Channel Format
+        BUF_FMT_16_SNORM,                  // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8129,8 +8129,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16_Uscaled,          // ChNumFormat
         COLOR_16,                          // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
-        IMG_FMT_16_USCALED__GFX10CORE,     // Image Channel Format
-        BUF_FMT_16_USCALED__GFX10CORE,     // Buffer Image Format
+        IMG_FMT_16_USCALED,                // Image Channel Format
+        BUF_FMT_16_USCALED,                // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8139,8 +8139,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16_Sscaled,          // ChNumFormat
         COLOR_16,                          // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_FMT_16_SSCALED__GFX10CORE,     // Image Channel Format
-        BUF_FMT_16_SSCALED__GFX10CORE,     // Buffer Image Format
+        IMG_FMT_16_SSCALED,                // Image Channel Format
+        BUF_FMT_16_SSCALED,                // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8149,8 +8149,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16_Uint,             // ChNumFormat
         COLOR_16,                          // CB Channel Format
         NUMBER_UINT,                       // CB Numeric Format
-        IMG_FMT_16_UINT__GFX10CORE,        // Image Channel Format
-        BUF_FMT_16_UINT__GFX10CORE,        // Buffer Image Format
+        IMG_FMT_16_UINT,                   // Image Channel Format
+        BUF_FMT_16_UINT,                   // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8159,8 +8159,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16_Sint,             // ChNumFormat
         COLOR_16,                          // CB Channel Format
         NUMBER_SINT,                       // CB Numeric Format
-        IMG_FMT_16_SINT__GFX10CORE,        // Image Channel Format
-        BUF_FMT_16_SINT__GFX10CORE,        // Buffer Image Format
+        IMG_FMT_16_SINT,                   // Image Channel Format
+        BUF_FMT_16_SINT,                   // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8169,8 +8169,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16_Float,            // ChNumFormat
         COLOR_16,                          // CB Channel Format
         NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_FMT_16_FLOAT__GFX10CORE,       // Image Channel Format
-        BUF_FMT_16_FLOAT__GFX10CORE,       // Buffer Image Format
+        IMG_FMT_16_FLOAT,                  // Image Channel Format
+        BUF_FMT_16_FLOAT,                  // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8179,8 +8179,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::L16_Unorm,            // ChNumFormat
         COLOR_16,                          // CB Channel Format
         NUMBER_UNORM,                      // CB Numeric Format
-        IMG_FMT_16_UNORM__GFX10CORE,       // Image Channel Format
-        BUF_FMT_16_UNORM__GFX10CORE,       // Buffer Image Format
+        IMG_FMT_16_UNORM,                  // Image Channel Format
+        BUF_FMT_16_UNORM,                  // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8189,8 +8189,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16Y16_Unorm,         // ChNumFormat
         COLOR_16_16,                       // CB Channel Format
         NUMBER_UNORM,                      // CB Numeric Format
-        IMG_FMT_16_16_UNORM__GFX10CORE,    // Image Channel Format
-        BUF_FMT_16_16_UNORM__GFX10CORE,    // Buffer Image Format
+        IMG_FMT_16_16_UNORM,               // Image Channel Format
+        BUF_FMT_16_16_UNORM,               // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8199,8 +8199,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16Y16_Snorm,         // ChNumFormat
         COLOR_16_16,                       // CB Channel Format
         NUMBER_SNORM,                      // CB Numeric Format
-        IMG_FMT_16_16_SNORM__GFX10CORE,    // Image Channel Format
-        BUF_FMT_16_16_SNORM__GFX10CORE,    // Buffer Image Format
+        IMG_FMT_16_16_SNORM,               // Image Channel Format
+        BUF_FMT_16_16_SNORM,               // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8209,8 +8209,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16Y16_Uscaled,       // ChNumFormat
         COLOR_16_16,                       // CB Channel Format
         NUMBER_USCALED,                    // CB Numeric Format
-        IMG_FMT_16_16_USCALED__GFX10CORE,  // Image Channel Format
-        BUF_FMT_16_16_USCALED__GFX10CORE,  // Buffer Image Format
+        IMG_FMT_16_16_USCALED,             // Image Channel Format
+        BUF_FMT_16_16_USCALED,             // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8219,8 +8219,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16Y16_Sscaled,       // ChNumFormat
         COLOR_16_16,                       // CB Channel Format
         NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_FMT_16_16_SSCALED__GFX10CORE,  // Image Channel Format
-        BUF_FMT_16_16_SSCALED__GFX10CORE,  // Buffer Image Format
+        IMG_FMT_16_16_SSCALED,             // Image Channel Format
+        BUF_FMT_16_16_SSCALED,             // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8229,8 +8229,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16Y16_Uint,          // ChNumFormat
         COLOR_16_16,                       // CB Channel Format
         NUMBER_UINT,                       // CB Numeric Format
-        IMG_FMT_16_16_UINT__GFX10CORE,     // Image Channel Format
-        BUF_FMT_16_16_UINT__GFX10CORE,     // Buffer Image Format
+        IMG_FMT_16_16_UINT,                // Image Channel Format
+        BUF_FMT_16_16_UINT,                // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8239,8 +8239,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16Y16_Sint,          // ChNumFormat
         COLOR_16_16,                       // CB Channel Format
         NUMBER_SINT,                       // CB Numeric Format
-        IMG_FMT_16_16_SINT__GFX10CORE,     // Image Channel Format
-        BUF_FMT_16_16_SINT__GFX10CORE,     // Buffer Image Format
+        IMG_FMT_16_16_SINT,                // Image Channel Format
+        BUF_FMT_16_16_SINT,                // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8249,8 +8249,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X16Y16_Float,         // ChNumFormat
         COLOR_16_16,                       // CB Channel Format
         NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_FMT_16_16_FLOAT__GFX10CORE,    // Image Channel Format
-        BUF_FMT_16_16_FLOAT__GFX10CORE,    // Buffer Image Format
+        IMG_FMT_16_16_FLOAT,               // Image Channel Format
+        BUF_FMT_16_16_FLOAT,               // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8329,8 +8329,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X32_Uint,             // ChNumFormat
         COLOR_32,                          // CB Channel Format
         NUMBER_UINT,                       // CB Numeric Format
-        IMG_FMT_32_UINT__GFX10CORE,        // Image Channel Format
-        BUF_FMT_32_UINT__GFX10CORE,        // Buffer Image Format
+        IMG_FMT_32_UINT,                   // Image Channel Format
+        BUF_FMT_32_UINT,                   // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8339,8 +8339,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X32_Sint,             // ChNumFormat
         COLOR_32,                          // CB Channel Format
         NUMBER_SINT,                       // CB Numeric Format
-        IMG_FMT_32_SINT__GFX10CORE,        // Image Channel Format
-        BUF_FMT_32_SINT__GFX10CORE,        // Buffer Image Format
+        IMG_FMT_32_SINT,                   // Image Channel Format
+        BUF_FMT_32_SINT,                   // Buffer Image Format
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -8349,8 +8349,8 @@ constexpr MergedFlatFmtInfo Gfx10MergedChannelFmtInfoTbl[] =
         ChNumFormat::X32_Float,            // ChNumFormat
         COLOR_32,                          // CB Channel Format
         NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_FMT_32_FLOAT__GFX10CORE,       // Image Channel Format
-        BUF_FMT_32_FLOAT__GFX10CORE,       // Buffer Image Format
+        IMG_FMT_32_FLOAT,                  // Image Channel Format
+        BUF_FMT_32_FLOAT,                  // Buffer Image Format
         Z_32_FLOAT,                        // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
@@ -9292,33 +9292,33 @@ constexpr ChNumFormat Gfx10MergedImgDataFmtTbl[] =
     ChNumFormat::Undefined,             // IMG_FMT_INVALID
     ChNumFormat::X8_Unorm,              // IMG_FMT_8_UNORM
     ChNumFormat::X8_Snorm,              // IMG_FMT_8_SNORM
-    ChNumFormat::X8_Uscaled,            // IMG_FMT_8_USCALED__GFX10CORE
-    ChNumFormat::X8_Sscaled,            // IMG_FMT_8_SSCALED__GFX10CORE
-    ChNumFormat::X8_Uint,               // IMG_FMT_8_UINT__GFX10CORE
-    ChNumFormat::X8_Sint,               // IMG_FMT_8_SINT__GFX10CORE
-    ChNumFormat::X16_Unorm,             // IMG_FMT_16_UNORM__GFX10CORE
-    ChNumFormat::X16_Snorm,             // IMG_FMT_16_SNORM__GFX10CORE
-    ChNumFormat::X16_Uscaled,           // IMG_FMT_16_USCALED__GFX10CORE
-    ChNumFormat::X16_Sscaled,           // IMG_FMT_16_SSCALED__GFX10CORE
-    ChNumFormat::X16_Uint,              // IMG_FMT_16_UINT__GFX10CORE
-    ChNumFormat::X16_Sint,              // IMG_FMT_16_SINT__GFX10CORE
-    ChNumFormat::X16_Float,             // IMG_FMT_16_FLOAT__GFX10CORE
-    ChNumFormat::X8Y8_Unorm,            // IMG_FMT_8_8_UNORM__GFX10CORE
-    ChNumFormat::X8Y8_Snorm,            // IMG_FMT_8_8_SNORM__GFX10CORE
-    ChNumFormat::X8Y8_Uscaled,          // IMG_FMT_8_8_USCALED__GFX10CORE
-    ChNumFormat::X8Y8_Sscaled,          // IMG_FMT_8_8_SSCALED__GFX10CORE
-    ChNumFormat::X8Y8_Uint,             // IMG_FMT_8_8_UINT__GFX10CORE
-    ChNumFormat::X8Y8_Sint,             // IMG_FMT_8_8_SINT__GFX10CORE
-    ChNumFormat::X32_Uint,              // IMG_FMT_32_UINT__GFX10CORE
-    ChNumFormat::X32_Sint,              // IMG_FMT_32_SINT__GFX10CORE
-    ChNumFormat::X32_Float,             // IMG_FMT_32_FLOAT__GFX10CORE
-    ChNumFormat::X16Y16_Unorm,          // IMG_FMT_16_16_UNORM__GFX10CORE
-    ChNumFormat::X16Y16_Snorm,          // IMG_FMT_16_16_SNORM__GFX10CORE
-    ChNumFormat::X16Y16_Uscaled,        // IMG_FMT_16_16_USCALED__GFX10CORE
-    ChNumFormat::X16Y16_Sscaled,        // IMG_FMT_16_16_SSCALED__GFX10CORE
-    ChNumFormat::X16Y16_Uint,           // IMG_FMT_16_16_UINT__GFX10CORE
-    ChNumFormat::X16Y16_Sint,           // IMG_FMT_16_16_SINT__GFX10CORE
-    ChNumFormat::X16Y16_Float,          // IMG_FMT_16_16_FLOAT__GFX10CORE
+    ChNumFormat::X8_Uscaled,            // IMG_FMT_8_USCALED
+    ChNumFormat::X8_Sscaled,            // IMG_FMT_8_SSCALED
+    ChNumFormat::X8_Uint,               // IMG_FMT_8_UINT
+    ChNumFormat::X8_Sint,               // IMG_FMT_8_SINT
+    ChNumFormat::X16_Unorm,             // IMG_FMT_16_UNORM
+    ChNumFormat::X16_Snorm,             // IMG_FMT_16_SNORM
+    ChNumFormat::X16_Uscaled,           // IMG_FMT_16_USCALED
+    ChNumFormat::X16_Sscaled,           // IMG_FMT_16_SSCALED
+    ChNumFormat::X16_Uint,              // IMG_FMT_16_UINT
+    ChNumFormat::X16_Sint,              // IMG_FMT_16_SINT
+    ChNumFormat::X16_Float,             // IMG_FMT_16_FLOAT
+    ChNumFormat::X8Y8_Unorm,            // IMG_FMT_8_8_UNORM
+    ChNumFormat::X8Y8_Snorm,            // IMG_FMT_8_8_SNORM
+    ChNumFormat::X8Y8_Uscaled,          // IMG_FMT_8_8_USCALED
+    ChNumFormat::X8Y8_Sscaled,          // IMG_FMT_8_8_SSCALED
+    ChNumFormat::X8Y8_Uint,             // IMG_FMT_8_8_UINT
+    ChNumFormat::X8Y8_Sint,             // IMG_FMT_8_8_SINT
+    ChNumFormat::X32_Uint,              // IMG_FMT_32_UINT
+    ChNumFormat::X32_Sint,              // IMG_FMT_32_SINT
+    ChNumFormat::X32_Float,             // IMG_FMT_32_FLOAT
+    ChNumFormat::X16Y16_Unorm,          // IMG_FMT_16_16_UNORM
+    ChNumFormat::X16Y16_Snorm,          // IMG_FMT_16_16_SNORM
+    ChNumFormat::X16Y16_Uscaled,        // IMG_FMT_16_16_USCALED
+    ChNumFormat::X16Y16_Sscaled,        // IMG_FMT_16_16_SSCALED
+    ChNumFormat::X16Y16_Uint,           // IMG_FMT_16_16_UINT
+    ChNumFormat::X16Y16_Sint,           // IMG_FMT_16_16_SINT
+    ChNumFormat::X16Y16_Float,          // IMG_FMT_16_16_FLOAT
     ChNumFormat::Undefined,             // IMG_FMT_INVALID
     ChNumFormat::Undefined,             // IMG_FMT_INVALID
     ChNumFormat::Undefined,             // IMG_FMT_INVALID
@@ -9534,33 +9534,33 @@ constexpr ChNumFormat Gfx10MergedBufDataFmtTbl[] =
     ChNumFormat::Undefined,             // BUF_FMT_INVALID
     ChNumFormat::X8_Unorm,              // BUF_FMT_8_UNORM
     ChNumFormat::X8_Snorm,              // BUF_FMT_8_SNORM
-    ChNumFormat::X8_Uscaled,            // BUF_FMT_8_USCALED__GFX10CORE
-    ChNumFormat::X8_Sscaled,            // BUF_FMT_8_SSCALED__GFX10CORE
-    ChNumFormat::X8_Uint,               // BUF_FMT_8_UINT__GFX10CORE
-    ChNumFormat::X8_Sint,               // BUF_FMT_8_SINT__GFX10CORE
-    ChNumFormat::X16_Unorm,             // BUF_FMT_16_UNORM__GFX10CORE
-    ChNumFormat::X16_Snorm,             // BUF_FMT_16_SNORM__GFX10CORE
-    ChNumFormat::X16_Uscaled,           // BUF_FMT_16_USCALED__GFX10CORE
-    ChNumFormat::X16_Sscaled,           // BUF_FMT_16_SSCALED__GFX10CORE
-    ChNumFormat::X16_Uint,              // BUF_FMT_16_UINT__GFX10CORE
-    ChNumFormat::X16_Sint,              // BUF_FMT_16_SINT__GFX10CORE
-    ChNumFormat::X16_Float,             // BUF_FMT_16_FLOAT__GFX10CORE
-    ChNumFormat::X8Y8_Unorm,            // BUF_FMT_8_8_UNORM__GFX10CORE
-    ChNumFormat::X8Y8_Snorm,            // BUF_FMT_8_8_SNORM__GFX10CORE
-    ChNumFormat::X8Y8_Uscaled,          // BUF_FMT_8_8_USCALED__GFX10CORE
-    ChNumFormat::X8Y8_Sscaled,          // BUF_FMT_8_8_SSCALED__GFX10CORE
-    ChNumFormat::X8Y8_Uint,             // BUF_FMT_8_8_UINT__GFX10CORE
-    ChNumFormat::X8Y8_Sint,             // BUF_FMT_8_8_SINT__GFX10CORE
-    ChNumFormat::X32_Uint,              // BUF_FMT_32_UINT__GFX10CORE
-    ChNumFormat::X32_Sint,              // BUF_FMT_32_SINT__GFX10CORE
-    ChNumFormat::X32_Float,             // BUF_FMT_32_FLOAT__GFX10CORE
-    ChNumFormat::X16Y16_Unorm,          // BUF_FMT_16_16_UNORM__GFX10CORE
-    ChNumFormat::X16Y16_Snorm,          // BUF_FMT_16_16_SNORM__GFX10CORE
-    ChNumFormat::X16Y16_Uscaled,        // BUF_FMT_16_16_USCALED__GFX10CORE
-    ChNumFormat::X16Y16_Sscaled,        // BUF_FMT_16_16_SSCALED__GFX10CORE
-    ChNumFormat::X16Y16_Uint,           // BUF_FMT_16_16_UINT__GFX10CORE
-    ChNumFormat::X16Y16_Sint,           // BUF_FMT_16_16_SINT__GFX10CORE
-    ChNumFormat::X16Y16_Float,          // BUF_FMT_16_16_FLOAT__GFX10CORE
+    ChNumFormat::X8_Uscaled,            // BUF_FMT_8_USCALED
+    ChNumFormat::X8_Sscaled,            // BUF_FMT_8_SSCALED
+    ChNumFormat::X8_Uint,               // BUF_FMT_8_UINT
+    ChNumFormat::X8_Sint,               // BUF_FMT_8_SINT
+    ChNumFormat::X16_Unorm,             // BUF_FMT_16_UNORM
+    ChNumFormat::X16_Snorm,             // BUF_FMT_16_SNORM
+    ChNumFormat::X16_Uscaled,           // BUF_FMT_16_USCALED
+    ChNumFormat::X16_Sscaled,           // BUF_FMT_16_SSCALED
+    ChNumFormat::X16_Uint,              // BUF_FMT_16_UINT
+    ChNumFormat::X16_Sint,              // BUF_FMT_16_SINT
+    ChNumFormat::X16_Float,             // BUF_FMT_16_FLOAT
+    ChNumFormat::X8Y8_Unorm,            // BUF_FMT_8_8_UNORM
+    ChNumFormat::X8Y8_Snorm,            // BUF_FMT_8_8_SNORM
+    ChNumFormat::X8Y8_Uscaled,          // BUF_FMT_8_8_USCALED
+    ChNumFormat::X8Y8_Sscaled,          // BUF_FMT_8_8_SSCALED
+    ChNumFormat::X8Y8_Uint,             // BUF_FMT_8_8_UINT
+    ChNumFormat::X8Y8_Sint,             // BUF_FMT_8_8_SINT
+    ChNumFormat::X32_Uint,              // BUF_FMT_32_UINT
+    ChNumFormat::X32_Sint,              // BUF_FMT_32_SINT
+    ChNumFormat::X32_Float,             // BUF_FMT_32_FLOAT
+    ChNumFormat::X16Y16_Unorm,          // BUF_FMT_16_16_UNORM
+    ChNumFormat::X16Y16_Snorm,          // BUF_FMT_16_16_SNORM
+    ChNumFormat::X16Y16_Uscaled,        // BUF_FMT_16_16_USCALED
+    ChNumFormat::X16Y16_Sscaled,        // BUF_FMT_16_16_SSCALED
+    ChNumFormat::X16Y16_Uint,           // BUF_FMT_16_16_UINT
+    ChNumFormat::X16Y16_Sint,           // BUF_FMT_16_16_SINT
+    ChNumFormat::X16Y16_Float,          // BUF_FMT_16_16_FLOAT
     ChNumFormat::Undefined,             // BUF_FMT_INVALID
     ChNumFormat::Undefined,             // BUF_FMT_INVALID
     ChNumFormat::Undefined,             // BUF_FMT_INVALID

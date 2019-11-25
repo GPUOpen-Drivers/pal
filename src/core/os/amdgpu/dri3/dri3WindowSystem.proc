@@ -39,6 +39,7 @@ libxcb.so.1         @proc void xcb_screen_next (xcb_screen_iterator_t* pScreenIt
 libxcb.so.1         @proc xcb_visualtype_iterator_t xcb_depth_visuals_iterator (const xcb_depth_t* pDepth)
 libxcb.so.1         @proc const xcb_setup_t* xcb_get_setup (xcb_connection_t* pConnection)
 libxcb.so.1         @proc const xcb_setup_t* xcb_flush (xcb_connection_t* pConnection)
+libxcb.so.1         @proc void xcb_discard_reply (xcb_connection_t* pConnection, uint32 sequence)
 libxshmfence.so.1   @proc int32 xshmfence_unmap_shm (struct xshmfence* pFence)
 libxshmfence.so.1   @proc struct xshmfence* xshmfence_map_shm (int32 fence)
 libxshmfence.so.1   @proc int32 xshmfence_query (struct xshmfence* pFence)

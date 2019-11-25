@@ -659,6 +659,7 @@ void PipelineChunkVsPs::BuildPm4Headers(
         m_commands.sh.vs.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
                                                          &m_commands.sh.vs.hdrSpiShaderPgmChksum);
     }
+
     if ((loadInfo.enableNgg == false) && IsGfx10(chipProps.gfxLevel))
     {
         m_commands.sh.vs.spaceNeeded += cmdUtil.BuildSetOneShReg(Gfx10::mmSPI_SHADER_REQ_CTRL_VS,

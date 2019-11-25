@@ -130,11 +130,12 @@ Result BorderColorPalette::BindGpuMemory(
             UpdateGpuMemoryBinding(static_cast<gpusize>(m_gpuMemory.GpuVirtAddr()));
         }
 
-        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(
-            this,
-            m_gpuMemSize,
-            pGpuMemory,
-            offset);
+        GpuMemoryResourceBindEventData data = {};
+        data.pObj = this;
+        data.pGpuMemory = pGpuMemory;
+        data.requiredGpuMemSize = m_gpuMemSize;
+        data.offset = offset;
+        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(data);
     }
 
     return result;

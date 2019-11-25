@@ -1438,7 +1438,8 @@ void ComputeCmdBuffer::CmdSetPredication(
 {
     // This emulation doesn't work for QueryPool based predication, fortunately DX12 just has Boolean type
     // predication.
-    PAL_ASSERT((predType == PredicateType::Boolean) && (pQueryPool == nullptr));
+    PAL_ASSERT(pQueryPool == nullptr);
+    PAL_ASSERT((predType == PredicateType::Boolean64) || (predType == PredicateType::Boolean32));
 
     // When gpuVirtAddr is 0, it means client is disabling/resetting predication
     m_gfxCmdBufState.flags.clientPredicate = (pGpuMemory != nullptr);
@@ -1463,8 +1464,11 @@ void ComputeCmdBuffer::CmdSetPredication(
         pCmdSpace += m_cmdUtil.BuildCondExec(gpuVirtAddr, CmdUtil::GetWriteDataHeaderSize() + 1, pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildWriteData(writeData, predCopyData, pCmdSpace);
 
-        pCmdSpace += m_cmdUtil.BuildCondExec(gpuVirtAddr + 4, CmdUtil::GetWriteDataHeaderSize() + 1, pCmdSpace);
-        pCmdSpace += m_cmdUtil.BuildWriteData(writeData, predCopyData, pCmdSpace);
+        if (predType == PredicateType::Boolean64)
+        {
+            pCmdSpace += m_cmdUtil.BuildCondExec(gpuVirtAddr + 4, CmdUtil::GetWriteDataHeaderSize() + 1, pCmdSpace);
+            pCmdSpace += m_cmdUtil.BuildWriteData(writeData, predCopyData, pCmdSpace);
+        }
 
         m_cmdStream.CommitCommands(pCmdSpace);
     }

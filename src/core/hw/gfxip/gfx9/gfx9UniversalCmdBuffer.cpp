@@ -86,6 +86,25 @@ constexpr uint32 GsStageId = static_cast<uint32>(HwShaderStage::Gs);
 constexpr uint32 VsStageId = static_cast<uint32>(HwShaderStage::Vs);
 constexpr uint32 PsStageId = static_cast<uint32>(HwShaderStage::Ps);
 
+// Lookup table for converting PAL primitive topologies to VGT hardware enums.
+constexpr VGT_DI_PRIM_TYPE TopologyToPrimTypeTable[] =
+{
+    DI_PT_POINTLIST,        // PointList
+    DI_PT_LINELIST,         // LineList
+    DI_PT_LINESTRIP,        // LineStrip
+    DI_PT_TRILIST,          // TriangleList
+    DI_PT_TRISTRIP,         // TriangleStrip
+    DI_PT_RECTLIST,         // RectList
+    DI_PT_QUADLIST,         // QuadList
+    DI_PT_QUADSTRIP,        // QuadStrip
+    DI_PT_LINELIST_ADJ,     // LineListAdj
+    DI_PT_LINESTRIP_ADJ,    // LineStripAdj
+    DI_PT_TRILIST_ADJ,      // TriangleListAdj
+    DI_PT_TRISTRIP_ADJ,     // TriangleStripAdj
+    DI_PT_PATCH,            // Patch
+    DI_PT_TRIFAN,           // TriangleFan
+};
+
 // =====================================================================================================================
 // Returns the entry in the pBinSize table that corresponds to "c".  It is the caller's responsibility to verify that
 // "c" can be found in the table.  If not, this routine could get into an infinite loop.
@@ -303,6 +322,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.padParamCacheSpace        =
             ((pPublicSettings->contextRollOptimizationFlags & PadParamCacheSpace) != 0);
     m_cachedSettings.disableVertGrouping       = settings.disableGeCntlVtxGrouping;
+
     m_cachedSettings.prefetchIndexBufferForNgg = settings.waEnableIndexBufferPrefetchForNgg;
     m_cachedSettings.waCeDisableIb2            = settings.waCeDisableIb2;
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
@@ -392,10 +412,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                                                                                &m_rbPlusPm4Img.header);
     }
 
-    SwitchDrawFunctions(
-        false,
-        false,
-        false);
+    SwitchDrawFunctions(false, false);
 }
 
 // =====================================================================================================================
@@ -563,10 +580,7 @@ void UniversalCmdBuffer::ResetState()
     }
 
     SetUserDataValidationFunctions(false, false, false);
-    SwitchDrawFunctions(
-        false,
-        false,
-        false);
+    SwitchDrawFunctions(false, false);
 
     m_vgtDmaIndexType.u32All = 0;
     m_vgtDmaIndexType.bits.SWAP_MODE  = VGT_DMA_SWAP_NONE;
@@ -654,11 +668,9 @@ void UniversalCmdBuffer::ResetState()
     m_drawTimeHwState.dbCountControl.bits.SLICE_EVEN_ENABLE = 1;
     m_drawTimeHwState.dbCountControl.bits.SLICE_ODD_ENABLE  = 1;
 
-    m_vertexOffsetReg           = UserDataNotMapped;
-    m_drawIndexReg              = UserDataNotMapped;
-    m_nggState.startIndexReg    = UserDataNotMapped;
-    m_nggState.log2IndexSizeReg = UserDataNotMapped;
-    m_nggState.numSamples       = 1;
+    m_vertexOffsetReg     = UserDataNotMapped;
+    m_drawIndexReg        = UserDataNotMapped;
+    m_nggState.numSamples = 1;
 
     m_pSignatureCs         = &NullCsSignature;
     m_pSignatureGfx        = &NullGfxSignature;
@@ -696,25 +708,17 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
         SetUserDataValidationFunctions(tessEnabled, gsEnabled, isNgg);
 
-        const bool newIsNggFastLaunch    = (pNewPipeline != nullptr) && pNewPipeline->IsNggFastLaunch();
-        const bool oldIsNggFastLaunch    = (pOldPipeline != nullptr) && pOldPipeline->IsNggFastLaunch();
-        const bool newUsesViewInstancing = (pNewPipeline != nullptr) && pNewPipeline->UsesViewInstancing();
-        const bool oldUsesViewInstancing = (pOldPipeline != nullptr) && pOldPipeline->UsesViewInstancing();
-        const bool newUsesUavExport      = (pNewPipeline != nullptr) && pNewPipeline->UsesUavExport();
-        const bool oldUsesUavExport      = (pOldPipeline != nullptr) && pOldPipeline->UsesUavExport();
+        const bool newUsesViewInstancing  = (pNewPipeline != nullptr) && pNewPipeline->UsesViewInstancing();
+        const bool oldUsesViewInstancing  = (pOldPipeline != nullptr) && pOldPipeline->UsesViewInstancing();
+        const bool newUsesUavExport       = (pNewPipeline != nullptr) && pNewPipeline->UsesUavExport();
+        const bool oldUsesUavExport       = (pOldPipeline != nullptr) && pOldPipeline->UsesUavExport();
         const bool newNeedsUavExportFlush = (pNewPipeline != nullptr) && pNewPipeline->NeedsUavExportFlush();
         const bool oldNeedsUavExportFlush = (pOldPipeline != nullptr) && pOldPipeline->NeedsUavExportFlush();
 
-        // NGG Fast Launch pipelines require issuing different packets for indexed draws. We'll need to switch the
-        // draw function pointers around to handle this case.
-        if ((oldIsNggFastLaunch     != newIsNggFastLaunch)     ||
-            (oldNeedsUavExportFlush != newNeedsUavExportFlush) ||
+        if ((oldNeedsUavExportFlush != newNeedsUavExportFlush) ||
             (oldUsesViewInstancing  != newUsesViewInstancing))
         {
-            SwitchDrawFunctions(
-                newNeedsUavExportFlush,
-                newUsesViewInstancing,
-                newIsNggFastLaunch);
+            SwitchDrawFunctions(newNeedsUavExportFlush, newUsesViewInstancing);
         }
 
         // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.  This
@@ -751,13 +755,13 @@ void UniversalCmdBuffer::CmdBindPipeline(
             if (oldUsesUavExport == false)
             {
                 // Invalidate color caches so upcoming uav exports don't overlap previous normal exports
-                uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-                pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(GetEngineType(),
-                                                                  CACHE_FLUSH_AND_INV_TS_EVENT,
-                                                                  TcCacheOp::Nop,
-                                                                  TimestampGpuVirtAddr(),
-                                                                  pCmdSpace);
-                m_deCmdStream.CommitCommands(pCmdSpace);
+                uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+                pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(EngineTypeUniversal,
+                                                                    CACHE_FLUSH_AND_INV_TS_EVENT,
+                                                                    TcCacheOp::Nop,
+                                                                    TimestampGpuVirtAddr(),
+                                                                    pDeCmdSpace);
+                m_deCmdStream.CommitCommands(pDeCmdSpace);
             }
         }
 
@@ -888,17 +892,6 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         // We need to update the primitive shader constant buffer with this new pipeline.
         pCurrPipeline->UpdateNggPrimCb(&m_state.primShaderCbLayout.pipelineStateCb);
         SetPrimShaderWorkload();
-
-        if (m_nggState.startIndexReg != m_pSignatureGfx->startIndexRegAddr)
-        {
-            m_nggState.startIndexReg = m_pSignatureGfx->startIndexRegAddr;
-            m_drawTimeHwState.valid.indexOffset = 0;
-        }
-        if (m_nggState.log2IndexSizeReg != m_pSignatureGfx->log2IndexSizeRegAddr)
-        {
-            m_nggState.log2IndexSizeReg = m_pSignatureGfx->log2IndexSizeRegAddr;
-            m_drawTimeHwState.valid.log2IndexSize = 0;
-        }
     }
 
     if (m_drawIndexReg != m_pSignatureGfx->drawIndexRegAddr)
@@ -1008,10 +1001,9 @@ void UniversalCmdBuffer::CmdBindIndexData(
 
     if (m_graphicsState.iaState.indexAddr != gpuAddr)
     {
-        m_drawTimeHwState.dirty.indexBufferBase        = 1;
-        m_drawTimeHwState.valid.nggIndexBufferBaseAddr = 0;
-        m_drawTimeHwState.nggIndexBufferPfStartAddr    = 0;
-        m_drawTimeHwState.nggIndexBufferPfEndAddr      = 0;
+        m_drawTimeHwState.dirty.indexBufferBase     = 1;
+        m_drawTimeHwState.nggIndexBufferPfStartAddr = 0;
+        m_drawTimeHwState.nggIndexBufferPfEndAddr   = 0;
     }
 
     if (m_graphicsState.iaState.indexCount != indexCount)
@@ -1021,8 +1013,7 @@ void UniversalCmdBuffer::CmdBindIndexData(
 
     if (m_graphicsState.iaState.indexType != indexType)
     {
-        m_drawTimeHwState.dirty.indexType     = 1;
-        m_drawTimeHwState.valid.log2IndexSize = 0;
+        m_drawTimeHwState.dirty.indexType = 1;
         m_vgtDmaIndexType.bits.INDEX_TYPE = VgtIndexTypeLookup[static_cast<uint32>(indexType)];
     }
 
@@ -1162,65 +1153,33 @@ uint32* UniversalCmdBuffer::BuildSetDepthBounds(
 void UniversalCmdBuffer::CmdSetInputAssemblyState(
     const InputAssemblyStateParams& params)
 {
-    m_graphicsState.inputAssemblyState = params;
-    m_graphicsState.dirtyFlags.validationBits.inputAssemblyState = 1;
+    regVGT_PRIMITIVE_TYPE vgtPrimitiveType = { };
+    vgtPrimitiveType.bits.PRIM_TYPE = TopologyToPrimTypeTable[static_cast<uint32>(params.topology)];
 
-    InputAssemblyStatePm4Img pm4Image = {};
-    BuildSetInputAssemblyState(params, m_device, reinterpret_cast<uint32*>(&pm4Image));
-    m_state.primShaderCbLayout.renderStateCb.primitiveRestartIndex = params.primitiveRestartIndex;
-    m_state.primShaderCbLayout.pipelineStateCb.vgtPrimitiveType    = pm4Image.primType.u32All;
-    m_nggState.flags.dirty.inputAssemblyState                      = 1;
-
-    constexpr size_t Pm4ImageSize = sizeof(InputAssemblyStatePm4Img) >> 2;
+    regVGT_MULTI_PRIM_IB_RESET_INDX vgtMultiPrimIbResetIndx = { };
+    vgtMultiPrimIbResetIndx.bits.RESET_INDX = params.primitiveRestartIndex;
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(Pm4ImageSize, &pm4Image, pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
 
-// =====================================================================================================================
-// Builds the packets for setting the input assembly stae in the command space provided.
-uint32* UniversalCmdBuffer::BuildSetInputAssemblyState(
-    const InputAssemblyStateParams& params,
-    const Device&                   device,
-    uint32*                         pCmdSpace)
-{
-    constexpr VGT_DI_PRIM_TYPE TopologyToPrimTypeTbl[] =
     {
-        DI_PT_POINTLIST,        // PointList
-        DI_PT_LINELIST,         // LineList
-        DI_PT_LINESTRIP,        // LineStrip
-        DI_PT_TRILIST,          // TriangleList
-        DI_PT_TRISTRIP,         // TriangleStrip
-        DI_PT_RECTLIST,         // RectList
-        DI_PT_QUADLIST,         // QuadList
-        DI_PT_QUADSTRIP,        // QuadStrip
-        DI_PT_LINELIST_ADJ,     // LineListAdj
-        DI_PT_LINESTRIP_ADJ,    // LineStripAdj
-        DI_PT_TRILIST_ADJ,      // TriangleListAdj
-        DI_PT_TRISTRIP_ADJ,     // TriangleStripAdj
-        DI_PT_PATCH,            // Patch
-        DI_PT_TRIFAN,           // TriangleFan
-    };
+        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmVGT_PRIMITIVE_TYPE,
+                                                         vgtPrimitiveType.u32All,
+                                                         pDeCmdSpace,
+                                                         index__pfp_set_uconfig_reg_index__prim_type__GFX09);
+    }
 
-    size_t                                totalDwords   = 0;
-    InputAssemblyStatePm4Img*             pImage        = reinterpret_cast<InputAssemblyStatePm4Img*>(pCmdSpace);
-    PFP_SET_UCONFIG_REG_INDEX_index_enum  primTypeIndex = index__pfp_set_uconfig_reg_index__prim_type__GFX09;
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_MULTI_PRIM_IB_RESET_INDX,
+                                                      vgtMultiPrimIbResetIndx.u32All,
+                                                      pDeCmdSpace);
 
-    totalDwords += device.CmdUtil().BuildSetOneConfigReg(mmVGT_PRIMITIVE_TYPE,
-                                                         &pImage->hdrPrimType,
-                                                         primTypeIndex);
-    totalDwords += device.CmdUtil().BuildSetOneContextReg(mmVGT_MULTI_PRIM_IB_RESET_INDX,
-                                                          &pImage->hdrVgtMultiPrimIbResetIndex);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
 
-    // Initialise register data
-    pImage->primType.u32All = 0;
-    pImage->primType.bits.PRIM_TYPE = TopologyToPrimTypeTbl[static_cast<uint32>(params.topology)];
+    m_graphicsState.inputAssemblyState = params;
+    m_graphicsState.dirtyFlags.validationBits.inputAssemblyState   = 1;
 
-    pImage->vgtMultiPrimIbResetIndex.u32All = 0;
-    pImage->vgtMultiPrimIbResetIndex.bits.RESET_INDX = params.primitiveRestartIndex;
-
-    return pCmdSpace + totalDwords;
+    m_state.primShaderCbLayout.renderStateCb.primitiveRestartIndex = params.primitiveRestartIndex;
+    m_state.primShaderCbLayout.pipelineStateCb.vgtPrimitiveType    = vgtPrimitiveType.u32All;
+    m_nggState.flags.dirty.inputAssemblyState                      = 1;
 }
 
 // =====================================================================================================================
@@ -1788,7 +1747,7 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
                 auto*const  pSrd = &pBufferSrd->gfx10;
 
                 pSrd->add_tid_enable = 0;
-                pSrd->format         = BUF_FMT_32_UINT__GFX10CORE;
+                pSrd->most.format    = BUF_FMT_32_UINT;
                 pSrd->oob_select     = SQ_OOB_INDEX_ONLY;
             }
             else
@@ -2305,7 +2264,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 // Issues an indexed draw command. We must discard the draw if indexCount or instanceCount are zero. To avoid branching,
 // we will rely on the HW to discard the draw for us.
 template <bool IssueSqttMarkerEvent,
-          bool IsNggFastLaunch,
           bool HasUavExport,
           bool ViewInstancingEnable,
           bool DescribeDrawDispatch>
@@ -2370,78 +2328,56 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
             {
                 pDeCmdSpace = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
 
-                if (IsNggFastLaunch == false)
+                if (pThis->IsNested() && (pThis->m_graphicsState.iaState.indexAddr == 0))
                 {
-                    if (pThis->IsNested() && (pThis->m_graphicsState.iaState.indexAddr == 0))
-                    {
-                        // If IB state is not bound, nested command buffers must use DRAW_INDEX_OFFSET_2 so that
-                        // we can inherit th IB base and size from direct command buffer
-                        pDeCmdSpace += CmdUtil::BuildDrawIndexOffset2(indexCount,
-                                                                      validIndexCount,
-                                                                      firstIndex,
-                                                                      pThis->PacketPredicate(),
-                                                                      pDeCmdSpace);
-                    }
-                    else
-                    {
-                        // Compute the address of the IB. We must add the index offset specified by firstIndex into
-                        // our address because DRAW_INDEX_2 doesn't take an offset param.
-                        const uint32  indexSize   = 1 << static_cast<uint32>(pThis->m_graphicsState.iaState.indexType);
-                        const gpusize gpuVirtAddr = pThis->m_graphicsState.iaState.indexAddr + (indexSize * firstIndex);
-
-                        pDeCmdSpace += CmdUtil::BuildDrawIndex2(indexCount,
-                                                                validIndexCount,
-                                                                gpuVirtAddr,
-                                                                pThis->PacketPredicate(),
-                                                                pDeCmdSpace);
-                    }
+                    // If IB state is not bound, nested command buffers must use DRAW_INDEX_OFFSET_2 so that
+                    // we can inherit th IB base and size from direct command buffer
+                    pDeCmdSpace += CmdUtil::BuildDrawIndexOffset2(indexCount,
+                                                                  validIndexCount,
+                                                                  firstIndex,
+                                                                  pThis->PacketPredicate(),
+                                                                  pDeCmdSpace);
                 }
                 else
                 {
-                    // NGG Fast Launch pipelines treat all draws as auto-index draws.
-                    pDeCmdSpace += CmdUtil::BuildDrawIndexAuto(indexCount,
-                                                               false,
-                                                               pThis->PacketPredicate(),
-                                                               pDeCmdSpace);
+                    // Compute the address of the IB. We must add the index offset specified by firstIndex into
+                    // our address because DRAW_INDEX_2 doesn't take an offset param.
+                    const uint32  indexSize   = 1 << static_cast<uint32>(pThis->m_graphicsState.iaState.indexType);
+                    const gpusize gpuVirtAddr = pThis->m_graphicsState.iaState.indexAddr + (indexSize * firstIndex);
+
+                    pDeCmdSpace += CmdUtil::BuildDrawIndex2(indexCount,
+                                                            validIndexCount,
+                                                            gpuVirtAddr,
+                                                            pThis->PacketPredicate(),
+                                                            pDeCmdSpace);
                 }
             }
         }
     }
     else
     {
-        if (IsNggFastLaunch == false)
+        if (pThis->IsNested() && (pThis->m_graphicsState.iaState.indexAddr == 0))
         {
-            if (pThis->IsNested() && (pThis->m_graphicsState.iaState.indexAddr == 0))
-            {
-                // If IB state is not bound, nested command buffers must use DRAW_INDEX_OFFSET_2 so that
-                // we can inherit th IB base and size from direct command buffer
-                pDeCmdSpace += CmdUtil::BuildDrawIndexOffset2(indexCount,
-                                                              validIndexCount,
-                                                              firstIndex,
-                                                              pThis->PacketPredicate(),
-                                                              pDeCmdSpace);
-            }
-            else
-            {
-                // Compute the address of the IB. We must add the index offset specified by firstIndex into
-                // our address because DRAW_INDEX_2 doesn't take an offset param.
-                const uint32  indexSize   = 1 << static_cast<uint32>(pThis->m_graphicsState.iaState.indexType);
-                const gpusize gpuVirtAddr = pThis->m_graphicsState.iaState.indexAddr + (indexSize * firstIndex);
-
-                pDeCmdSpace += CmdUtil::BuildDrawIndex2(indexCount,
-                                                        validIndexCount,
-                                                        gpuVirtAddr,
-                                                        pThis->PacketPredicate(),
-                                                        pDeCmdSpace);
-            }
+            // If IB state is not bound, nested command buffers must use DRAW_INDEX_OFFSET_2 so that
+            // we can inherit th IB base and size from direct command buffer
+            pDeCmdSpace += CmdUtil::BuildDrawIndexOffset2(indexCount,
+                                                          validIndexCount,
+                                                          firstIndex,
+                                                          pThis->PacketPredicate(),
+                                                          pDeCmdSpace);
         }
         else
         {
-            // NGG Fast Launch pipelines treat all draws as auto-index draws.
-            pDeCmdSpace += CmdUtil::BuildDrawIndexAuto(indexCount,
-                                                       false,
-                                                       pThis->PacketPredicate(),
-                                                       pDeCmdSpace);
+            // Compute the address of the IB. We must add the index offset specified by firstIndex into
+            // our address because DRAW_INDEX_2 doesn't take an offset param.
+            const uint32  indexSize   = 1 << static_cast<uint32>(pThis->m_graphicsState.iaState.indexType);
+            const gpusize gpuVirtAddr = pThis->m_graphicsState.iaState.indexAddr + (indexSize * firstIndex);
+
+            pDeCmdSpace += CmdUtil::BuildDrawIndex2(indexCount,
+                                                    validIndexCount,
+                                                    gpuVirtAddr,
+                                                    pThis->PacketPredicate(),
+                                                    pDeCmdSpace);
         }
     }
 
@@ -2570,7 +2506,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 // =====================================================================================================================
 // Issues an indirect indexed draw command. We must discard the draw if indexCount or instanceCount are zero.
 // We will rely on the HW to discard the draw for us.
-template <bool IssueSqttMarkerEvent, bool IsNggFastLaunch, bool ViewInstancingEnable, bool DescribeDrawDispatch>
+template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     ICmdBuffer*       pCmdBuffer,
     const IGpuMemory& gpuMemory,
@@ -2608,23 +2544,16 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
                                          ShaderGraphics,
                                          pDeCmdSpace);
 
-    const uint16 vtxOffsetReg   = pThis->GetVertexOffsetRegAddr();
-    const uint16 instOffsetReg  = pThis->GetInstanceOffsetRegAddr();
-    const uint16 indexOffsetReg = pThis->GetStartIndexRegAddr();
+    const uint16 vtxOffsetReg  = pThis->GetVertexOffsetRegAddr();
+    const uint16 instOffsetReg = pThis->GetInstanceOffsetRegAddr();
 
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
-
-    if (IsNggFastLaunch)
-    {
-        pThis->m_deCmdStream.NotifyIndirectShRegWrite(indexOffsetReg);
-    }
 
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
     if (ViewInstancingEnable)
     {
-        const Pal::Device*  pParentDev         = pThis->m_device.Parent();
         const auto*const    pPipeline          =
             static_cast<const GraphicsPipeline*>(pThis->m_graphicsState.pipelineState.pPipeline);
         const auto&         viewInstancingDesc = pPipeline->GetViewInstancingDesc();
@@ -2642,20 +2571,15 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
                 pDeCmdSpace = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
 
                 {
-                    if ((IsNggFastLaunch == false) ||
-                        (pParentDev->EngineProperties().cpUcodeVersion > UcodeVersionNggIndexedIndirectDraw))
-                    {
-                        pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexIndirectMulti(offset,
-                                                                                    vtxOffsetReg,
-                                                                                    instOffsetReg,
-                                                                                    pThis->m_drawIndexReg,
-                                                                                    indexOffsetReg,
-                                                                                    stride,
-                                                                                    maximumCount,
-                                                                                    countGpuAddr,
-                                                                                    pThis->PacketPredicate(),
-                                                                                    pDeCmdSpace);
-                    }
+                    pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexIndirectMulti(offset,
+                                                                                vtxOffsetReg,
+                                                                                instOffsetReg,
+                                                                                pThis->m_drawIndexReg,
+                                                                                stride,
+                                                                                maximumCount,
+                                                                                countGpuAddr,
+                                                                                pThis->PacketPredicate(),
+                                                                                pDeCmdSpace);
                 }
             }
         }
@@ -2663,20 +2587,15 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     else
     {
         {
-            if ((IsNggFastLaunch == false) ||
-                (pThis->m_device.Parent()->EngineProperties().cpUcodeVersion > UcodeVersionNggIndexedIndirectDraw))
-            {
-                pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexIndirectMulti(offset,
-                                                                            vtxOffsetReg,
-                                                                            instOffsetReg,
-                                                                            pThis->m_drawIndexReg,
-                                                                            indexOffsetReg,
-                                                                            stride,
-                                                                            maximumCount,
-                                                                            countGpuAddr,
-                                                                            pThis->PacketPredicate(),
-                                                                            pDeCmdSpace);
-            }
+            pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexIndirectMulti(offset,
+                                                                        vtxOffsetReg,
+                                                                        instOffsetReg,
+                                                                        pThis->m_drawIndexReg,
+                                                                        stride,
+                                                                        maximumCount,
+                                                                        countGpuAddr,
+                                                                        pThis->PacketPredicate(),
+                                                                        pDeCmdSpace);
         }
     }
 
@@ -4803,43 +4722,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     return pDeCmdSpace;
 }
 
-// =====================================================================================================================
-// Performs draw-time dirty state validation. Returns the next unused DWORD in pDeCmdSpace.  Wrapper to determine
-// if the pipeline is NGG Fast Launch before calling the real ValidateDraw() function.
-template <bool Indexed,
-          bool Indirect,
-          bool Pm4OptImmediate,
-          bool PipelineDirty,
-          bool StateDirty,
-          bool IsNgg>
-uint32* UniversalCmdBuffer::ValidateDraw(
-    const ValidateDrawInfo& drawInfo,
-    uint32*                 pDeCmdSpace)
-{
-    if (IsNgg && static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline)->IsNggFastLaunch())
-    {
-        pDeCmdSpace = ValidateDraw<Indexed,
-            Indirect,
-            Pm4OptImmediate,
-            PipelineDirty,
-            StateDirty,
-            IsNgg,
-            true>(drawInfo, pDeCmdSpace);
-    }
-    else
-    {
-        pDeCmdSpace = ValidateDraw<Indexed,
-            Indirect,
-            Pm4OptImmediate,
-            PipelineDirty,
-            StateDirty,
-            IsNgg,
-            false>(drawInfo, pDeCmdSpace);
-    }
-
-    return pDeCmdSpace;
-}
-
 // Helper structure to convert uint32 to a float.
 union Uint32ToFloat
 {
@@ -5046,8 +4928,7 @@ template <bool Indexed,
           bool Pm4OptImmediate,
           bool PipelineDirty,
           bool StateDirty,
-          bool IsNgg,
-          bool IsNggFastLaunch>
+          bool IsNgg>
 uint32* UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo,      // Draw info
     uint32*                 pDeCmdSpace)   // Write new draw-engine commands here.
@@ -5376,14 +5257,11 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     }
 
     // Validate the per-draw HW state.
-    pDeCmdSpace = ValidateDrawTimeHwState<Indexed,
-                                          Indirect,
-                                          IsNggFastLaunch,
-                                          Pm4OptImmediate>(paScModeCntl1,
-                                                           dbCountControl,
-                                                           vgtMultiPrimIbResetEn,
-                                                           drawInfo,
-                                                           pDeCmdSpace);
+    pDeCmdSpace = ValidateDrawTimeHwState<Indexed, Indirect, Pm4OptImmediate>(paScModeCntl1,
+                                                                              dbCountControl,
+                                                                              vgtMultiPrimIbResetEn,
+                                                                              drawInfo,
+                                                                              pDeCmdSpace);
 
     pDeCmdSpace = m_workaroundState.PreDraw<Indirect, StateDirty, Pm4OptImmediate>(m_graphicsState,
                                                                                    &m_deCmdStream,
@@ -6371,7 +6249,8 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
     regIA_MULTI_VGT_PARAM iaMultiVgtParam
     ) const
 {
-    const     auto*  pPipeline            = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+    const     auto*  pPalPipeline         = m_graphicsState.pipelineState.pPipeline;
+    const     auto*  pPipeline            = static_cast<const GraphicsPipeline*>(pPalPipeline);
     const     bool   isTess               = pPipeline->IsTessEnabled();
     const     bool   isNggFastLaunch      = pPipeline->IsNggFastLaunch();
     const     bool   disableVertGrouping  = (m_cachedSettings.disableVertGrouping && (isNggFastLaunch == false));
@@ -6408,7 +6287,7 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
 // =====================================================================================================================
 // Update the HW state and write the necessary packets to push any changes to the HW. Returns the next unused DWORD
 // in pDeCmdSpace.
-template <bool Indexed, bool Indirect, bool IsNggFastLaunch, bool Pm4OptImmediate>
+template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
 uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
     regPA_SC_MODE_CNTL_1          paScModeCntl1,         // PA_SC_MODE_CNTL_1 register value.
     regDB_COUNT_CONTROL           dbCountControl,        // DB_COUNT_CONTROL register value.
@@ -6493,8 +6372,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
                 // Write the INDEX_BASE packet.
                 if (m_drawTimeHwState.dirty.indexBufferBase != 0)
                 {
-                    m_drawTimeHwState.dirty.indexBufferBase        = 0;
-                    m_drawTimeHwState.valid.nggIndexBufferBaseAddr = 0;
+                    m_drawTimeHwState.dirty.indexBufferBase = 0;
                     pDeCmdSpace += CmdUtil::BuildIndexBase(m_graphicsState.iaState.indexAddr, pDeCmdSpace);
                 }
 
@@ -6548,106 +6426,6 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
 
             pDeCmdSpace += CmdUtil::BuildNumInstances(drawInfo.instanceCount, pDeCmdSpace);
         }
-    }
-
-    if (IsNggFastLaunch)
-    {
-        pDeCmdSpace = ValidateDrawTimeNggFastLaunchState<Indexed, Indirect, Pm4OptImmediate>(drawInfo, pDeCmdSpace);
-    }
-
-    return pDeCmdSpace;
-}
-
-// =====================================================================================================================
-template <bool indexed, bool indirect, bool pm4OptImmediate>
-uint32* UniversalCmdBuffer::ValidateDrawTimeNggFastLaunchState(
-    const ValidateDrawInfo& drawInfo,
-    uint32*                 pDeCmdSpace)
-{
-    if (indexed)
-    {
-        if (indirect == false)
-        {
-            // Write the index buffer address for NGG.
-            if ((m_drawTimeHwState.nggIndexBufferBaseAddr != m_graphicsState.iaState.indexAddr) ||
-                (m_drawTimeHwState.valid.nggIndexBufferBaseAddr == 0))
-            {
-                // We'll write the index buffer address a little later in this function. For now just update the
-                // current index buffer base address.
-                m_drawTimeHwState.nggIndexBufferBaseAddr       = m_graphicsState.iaState.indexAddr;
-                m_drawTimeHwState.valid.nggIndexBufferBaseAddr = 0;
-            }
-        }
-
-        // Write the Log2(sizeof(indexType)) user data register.
-        if ((m_drawTimeHwState.log2IndexSize != Log2IndexSize[m_vgtDmaIndexType.bits.INDEX_TYPE]) ||
-            (m_drawTimeHwState.valid.log2IndexSize == 0))
-        {
-            // This register should be mapped!
-            PAL_ASSERT(m_nggState.log2IndexSizeReg != UserDataNotMapped);
-
-            m_drawTimeHwState.log2IndexSize       = Log2IndexSize[m_vgtDmaIndexType.bits.INDEX_TYPE];
-            m_drawTimeHwState.valid.log2IndexSize = 1;
-
-#if PAL_DBG_COMMAND_COMMENTS
-            pDeCmdSpace += m_cmdUtil.BuildCommentString("NGG: Log2IndexSize", pDeCmdSpace);
-#endif
-            pDeCmdSpace =
-                m_deCmdStream.WriteSetOneShReg<ShaderGraphics, pm4OptImmediate>(m_nggState.log2IndexSizeReg,
-                                                                                m_drawTimeHwState.log2IndexSize,
-                                                                                pDeCmdSpace);
-        }
-
-    }
-    else
-    {
-        // Non-indexed draws might still need to write the index buffer address, as the shader uses a value of zero
-        // to determine whether or not to perform index buffer fetches at runtime.
-        if ((m_drawTimeHwState.nggIndexBufferBaseAddr != 0) ||
-            (m_drawTimeHwState.valid.nggIndexBufferBaseAddr == 0))
-        {
-            m_drawTimeHwState.nggIndexBufferBaseAddr       = 0;
-            m_drawTimeHwState.valid.nggIndexBufferBaseAddr = 0;
-        }
-    }
-
-    // Write the index offset user data register.
-    if (indirect)
-    {
-        m_drawTimeHwState.valid.indexOffset = 0;
-    }
-    else if ((m_drawTimeHwState.startIndex != drawInfo.firstIndex) || (m_drawTimeHwState.valid.indexOffset == 0))
-    {
-        // This register should be mapped!
-        PAL_ASSERT(m_nggState.startIndexReg != UserDataNotMapped);
-
-        m_drawTimeHwState.startIndex        = drawInfo.firstIndex;
-        m_drawTimeHwState.valid.indexOffset = 1;
-#if PAL_DBG_COMMAND_COMMENTS
-        pDeCmdSpace += m_cmdUtil.BuildCommentString("NGG: StartIndex", pDeCmdSpace);
-#endif
-
-        pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics, pm4OptImmediate>(m_nggState.startIndexReg,
-                                                                                      drawInfo.firstIndex,
-                                                                                      pDeCmdSpace);
-    }
-
-    // Write the index buffer address to the HW-GS's user-data address lo/hi.
-    // These two SGPRs are always loaded by HW-GS's and as such can be repurposed for the index buffer base address.
-    // We might need to write this even in auto-index draws as the shader uses a value of zero to determine whether
-    // or not to perform index buffer fetches at runtime.
-    if (m_drawTimeHwState.valid.nggIndexBufferBaseAddr == 0)
-    {
-        m_drawTimeHwState.valid.nggIndexBufferBaseAddr = 1;
-#if PAL_DBG_COMMAND_COMMENTS
-        pDeCmdSpace += m_cmdUtil.BuildCommentString("NGG: IndexBufferBaseAddr", pDeCmdSpace);
-#endif
-
-        pDeCmdSpace = m_deCmdStream.WriteSetSeqShRegs(mmSPI_SHADER_USER_DATA_ADDR_LO_GS,
-                                                      mmSPI_SHADER_USER_DATA_ADDR_HI_GS,
-                                                      ShaderGraphics,
-                                                      &m_drawTimeHwState.nggIndexBufferBaseAddr,
-                                                      pDeCmdSpace);
     }
 
     return pDeCmdSpace;
@@ -7817,6 +7595,10 @@ void UniversalCmdBuffer::CmdSetPredication(
     bool                accumulateData)
 {
     PAL_ASSERT((pQueryPool == nullptr) || (pGpuMemory == nullptr));
+    PAL_ASSERT(
+        (predType != PredicateType::Boolean32) ||
+        (m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport != 0)
+    );
 
     m_gfxCmdBufState.flags.clientPredicate = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
     m_gfxCmdBufState.flags.packetPredicate = m_gfxCmdBufState.flags.clientPredicate;
@@ -8177,11 +7959,9 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
 
     if (cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr)
     {
-        m_vertexOffsetReg           = cmdBuffer.m_vertexOffsetReg;
-        m_drawIndexReg              = cmdBuffer.m_drawIndexReg;
-        m_nggState.startIndexReg    = cmdBuffer.m_nggState.startIndexReg;
-        m_nggState.log2IndexSizeReg = cmdBuffer.m_nggState.log2IndexSizeReg;
-        m_nggState.numSamples       = cmdBuffer.m_nggState.numSamples;
+        m_vertexOffsetReg     = cmdBuffer.m_vertexOffsetReg;
+        m_drawIndexReg        = cmdBuffer.m_drawIndexReg;
+        m_nggState.numSamples = cmdBuffer.m_nggState.numSamples;
 
         // Update the functions that are modified by nested command list
         m_pfnValidateUserDataGfx                    = cmdBuffer.m_pfnValidateUserDataGfx;
@@ -8462,10 +8242,10 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
         // All user-data entries have been uploaded into CE RAM and GPU memory, so we can safely "call" the nested
         // command buffer's command streams.
 
-        const bool exclusiveSubmit = pCallee->IsExclusiveSubmit();
-        const bool allowIb2Launch = (pCallee->AllowLaunchViaIb2() &&
-                                     ((pCallee->m_state.flags.containsDrawIndirect == 0)
-                                      || (IsGfx10(m_gfxIpLevel) == true)));
+        const bool exclusiveSubmit  = pCallee->IsExclusiveSubmit();
+        const bool allowIb2Launch   = (pCallee->AllowLaunchViaIb2() &&
+                                       ((pCallee->m_state.flags.containsDrawIndirect == 0) ||
+                                       (IsGfx10(m_gfxIpLevel) == true)));
         const bool allowIb2LaunchCe = (allowIb2Launch && (m_cachedSettings.waCeDisableIb2 == 0));
 
         m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
@@ -8643,7 +8423,7 @@ uint32* UniversalCmdBuffer::BuildWriteViewId(
 
 // =====================================================================================================================
 // Switch draw functions - the actual assignment
-template <bool ViewInstancing, bool NggFastLaunch, bool HasUavExport, bool IssueSqtt, bool DescribeDrawDispatch>
+template <bool ViewInstancing, bool HasUavExport, bool IssueSqtt, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal()
 {
     m_funcTable.pfnCmdDraw
@@ -8653,45 +8433,24 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal()
     m_funcTable.pfnCmdDrawIndirectMulti
         = CmdDrawIndirectMulti<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
     m_funcTable.pfnCmdDrawIndexed
-        = CmdDrawIndexed<IssueSqtt, NggFastLaunch, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+        = CmdDrawIndexed<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
     m_funcTable.pfnCmdDrawIndexedIndirectMulti
-        = CmdDrawIndexedIndirectMulti<IssueSqtt, NggFastLaunch, ViewInstancing, DescribeDrawDispatch>;
+        = CmdDrawIndexedIndirectMulti<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
 }
 
 // =====================================================================================================================
 // Switch draw functions - overloaded internal implementation for switching function params to template params
-template <bool ViewInstancing, bool NggFastLaunch,  bool IssueSqtt, bool DescribeDrawDispatch>
+template <bool ViewInstancing, bool IssueSqtt, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
     bool hasUavExport)
 {
     if (hasUavExport)
     {
-        SwitchDrawFunctionsInternal<ViewInstancing, NggFastLaunch, true, IssueSqtt, DescribeDrawDispatch>();
+        SwitchDrawFunctionsInternal<ViewInstancing, true, IssueSqtt, DescribeDrawDispatch>();
     }
     else
     {
-        SwitchDrawFunctionsInternal<ViewInstancing, NggFastLaunch, false, IssueSqtt, DescribeDrawDispatch>();
-    }
-}
-
-// =====================================================================================================================
-// Switch draw functions - overloaded internal implementation for switching function params to template params
-template <bool NggFastLaunch, bool IssueSqtt, bool DescribeDrawDispatch>
-void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
-    bool hasUavExport,
-    bool viewInstancingEnable)
-{
-    if (viewInstancingEnable)
-    {
-        SwitchDrawFunctionsInternal<true, NggFastLaunch, IssueSqtt, DescribeDrawDispatch>(
-            hasUavExport
-            );
-    }
-    else
-    {
-        SwitchDrawFunctionsInternal<false, NggFastLaunch, IssueSqtt, DescribeDrawDispatch>(
-            hasUavExport
-            );
+        SwitchDrawFunctionsInternal<ViewInstancing, false, IssueSqtt, DescribeDrawDispatch>();
     }
 }
 
@@ -8700,20 +8459,15 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
 template <bool IssueSqtt, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
     bool hasUavExport,
-    bool viewInstancingEnable,
-    bool nggFastLaunch)
+    bool viewInstancingEnable)
 {
-    if (nggFastLaunch)
+    if (viewInstancingEnable)
     {
-        SwitchDrawFunctionsInternal<true, IssueSqtt, DescribeDrawDispatch>(
-            hasUavExport,
-            viewInstancingEnable);
+        SwitchDrawFunctionsInternal<true, IssueSqtt, DescribeDrawDispatch>(hasUavExport);
     }
     else
     {
-        SwitchDrawFunctionsInternal<false, IssueSqtt, DescribeDrawDispatch>(
-            hasUavExport,
-            viewInstancingEnable);
+        SwitchDrawFunctionsInternal<false, IssueSqtt, DescribeDrawDispatch>(hasUavExport);
     }
 }
 
@@ -8721,31 +8475,20 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
 // Switch draw functions.
 void UniversalCmdBuffer::SwitchDrawFunctions(
     bool hasUavExport,
-    bool viewInstancingEnable,
-    bool nggFastLaunch)
+    bool viewInstancingEnable)
 {
     if (m_cachedSettings.issueSqttMarkerEvent)
     {
         PAL_ASSERT(m_cachedSettings.describeDrawDispatch == 1);
-
-        SwitchDrawFunctionsInternal<true, true>(
-            hasUavExport,
-            viewInstancingEnable,
-            nggFastLaunch);
+        SwitchDrawFunctionsInternal<true, true>(hasUavExport, viewInstancingEnable);
     }
     else if (m_cachedSettings.describeDrawDispatch)
     {
-        SwitchDrawFunctionsInternal<false, true>(
-            hasUavExport,
-            viewInstancingEnable,
-            nggFastLaunch);
+        SwitchDrawFunctionsInternal<false, true>(hasUavExport, viewInstancingEnable);
     }
     else
     {
-        SwitchDrawFunctionsInternal<false, false>(
-            hasUavExport,
-            viewInstancingEnable,
-            nggFastLaunch);
+        SwitchDrawFunctionsInternal<false, false>(hasUavExport, viewInstancingEnable);
     }
 }
 

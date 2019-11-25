@@ -627,13 +627,16 @@ void Platform::LogEvent(
     {
     case PalEvent::CreateGpuMemory:
     case PalEvent::DestroyGpuMemory:
-    case PalEvent::GpuMemoryResourceBind:
     case PalEvent::GpuMemoryCpuMap:
     case PalEvent::GpuMemoryCpuUnmap:
     case PalEvent::GpuMemoryAddReference:
     case PalEvent::GpuMemoryRemoveReference:
         // These functions are not currently supported/expected through the PAL interface
         PAL_ASSERT_ALWAYS();
+        break;
+    case PalEvent::GpuMemoryResourceBind:
+        PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(GpuMemoryResourceBindEventData)));
+        m_eventProvider.LogGpuMemoryResourceBindEvent(*(static_cast<const GpuMemoryResourceBindEventData*>(pEventData)));
         break;
     case PalEvent::GpuMemoryResourceCreate:
         PAL_ASSERT((pEventData != nullptr) && (eventDataSize == sizeof(ResourceCreateEventData)));

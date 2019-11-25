@@ -234,6 +234,14 @@ namespace DevDriver
             return result;
         };
 
+        Result Thread::SetNameRaw(const char* pThreadName)
+        {
+            // TODO: Investigate how to do this in system threads
+            DD_PRINT(LogLevel::Warn, "SetName() called, but not implemented for system threads");
+            DD_UNUSED(pThreadName);
+            return Result::Error;
+        }
+
         Result Thread::Join(uint32 timeoutInMs)
         {
             Result result = IsJoinable() ? Result::Success : Result::Error;

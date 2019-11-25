@@ -202,20 +202,18 @@ void EventProvider::LogDestroyGpuMemoryEvent(
 // =====================================================================================================================
 // Logs an event when a resource has GPU memory bound to it.
 void EventProvider::LogGpuMemoryResourceBindEvent(
-    const IDestroyable* pObj,
-    gpusize             requiredGpuMemSize,
-    const IGpuMemory*   pGpuMemory,
-    gpusize             offset)
+    const GpuMemoryResourceBindEventData& eventData)
 {
     static constexpr PalEvent EventId = PalEvent::GpuMemoryResourceBind;
     if (ShouldLog(EventId))
     {
         GpuMemoryResourceBindData data = {};
-        data.handle = reinterpret_cast<GpuMemHandle>(pGpuMemory);
-        data.gpuVirtualAddr = pGpuMemory->Desc().gpuVirtAddr;
-        data.resourceHandle = reinterpret_cast<ResourceHandle>(pObj);
-        data.requiredSize = requiredGpuMemSize;
-        data.offset = offset;
+        data.handle = reinterpret_cast<GpuMemHandle>(eventData.pGpuMemory);
+        data.gpuVirtualAddr = eventData.pGpuMemory->Desc().gpuVirtAddr;
+        PAL_ASSERT(eventData.pObj != nullptr);
+        data.resourceHandle = reinterpret_cast<ResourceHandle>(eventData.pObj);
+        data.requiredSize = eventData.requiredGpuMemSize;
+        data.offset = eventData.offset;
 
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
         // Call the EventServer
@@ -361,6 +359,7 @@ void EventProvider::LogGpuMemoryResourceCreateEvent(
     if (ShouldLog(EventId))
     {
         GpuMemoryResourceCreateData data = {};
+        PAL_ASSERT(eventData.pObj != nullptr);
         data.handle = reinterpret_cast<ResourceHandle>(eventData.pObj);
         data.type = eventData.type;
         data.descriptionSize = eventData.resourceDescSize;
@@ -390,6 +389,7 @@ void EventProvider::LogGpuMemoryResourceDestroyEvent(
     if (ShouldLog(EventId))
     {
         GpuMemoryResourceDestroyData data = {};
+        PAL_ASSERT(eventData.pObj != nullptr);
         data.handle = reinterpret_cast<ResourceHandle>(eventData.pObj);
 
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
@@ -415,6 +415,7 @@ void EventProvider::LogDebugNameEvent(
     if (ShouldLog(EventId))
     {
         DebugNameData data = {};
+        PAL_ASSERT(eventData.pObj != nullptr);
         data.handle = reinterpret_cast<ResourceHandle>(eventData.pObj);
         data.pDebugName = eventData.pDebugName;
         data.nameSize = static_cast<uint32>(strlen(eventData.pDebugName));

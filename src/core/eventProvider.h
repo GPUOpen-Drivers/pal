@@ -123,11 +123,7 @@ public:
 
     void LogDestroyGpuMemoryEvent(const GpuMemory* pGpuMemory);
 
-    void LogGpuMemoryResourceBindEvent(
-        const IDestroyable* pObj,
-        gpusize             requiredGpuMemSize,
-        const IGpuMemory*   pGpuMemory,
-        gpusize             offset);
+    void LogGpuMemoryResourceBindEvent(const GpuMemoryResourceBindEventData& eventData);
 
     void LogGpuMemoryCpuMapEvent(const GpuMemory* pGpuMemory);
 

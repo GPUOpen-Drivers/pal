@@ -103,10 +103,19 @@ enum class MiscEventType : uint32
     Trim = 5,
 };
 
+/// Describes the binding of a GPU Memory object to a resource
+struct GpuMemoryResourceBindEventData
+{
+    const void*         pObj;               ///< Opaque pointer to the resource having memory bound to it.
+    gpusize             requiredGpuMemSize; ///< GPU memory size required by pObj.
+    const IGpuMemory*   pGpuMemory;         ///< IGpuMemory object being bound to the resource.
+    gpusize             offset;             ///< Offset within pGpuMemory where the resource is being bound.
+};
+
 /// Describes the creation of an object relevant to GpuMemory event logging
 struct ResourceCreateEventData
 {
-    const IDestroyable* pObj;              ///< Pointer to the object that was created
+    const void*         pObj;              ///< Opaque pointer to the object that was created
     ResourceType        type;              ///< Type of resource being described
     const void*         pResourceDescData; ///< Pointer to memory containing the resource type-specific description data
     uint32              resourceDescSize;  ///< Size of the memory pointed to by pEventData
@@ -115,14 +124,14 @@ struct ResourceCreateEventData
 // Event data related to the destruction of an object relevant to GpuMemory event logging
 struct ResourceDestroyEventData
 {
-    const IDestroyable* pObj;  ///< Pointer to the object being destroyed
+    const void* pObj;  ///< Opaque pointer to the object being destroyed
 };
 
 /// Event data related for a DebugName event
 struct DebugNameEventData
 {
-    const IDestroyable* pObj;
-    const char*         pDebugName;
+    const void* pObj;       ///< Opaque pointer to the object being named.
+    const char* pDebugName; ///< String name being given to the object.
 };
 
 /// Event data for a GpuMemoryMisc event

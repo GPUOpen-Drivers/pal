@@ -258,4 +258,22 @@ uint64 AtomicAdd64(
     return __sync_add_and_fetch(pAddend, value);
 }
 
+// =====================================================================================================================
+// Atomically OR two 32-bit integers, returning the original value.
+uint32 AtomicOr(
+    volatile uint32* pTarget,
+    uint32           value)
+{
+    return __sync_fetch_and_or(pTarget, value);
+}
+
+// =====================================================================================================================
+// Atomically OR two 64-bit integers, returning the original value.
+uint64 AtomicOr64(
+    volatile uint64* pTarget,
+    uint64           value)
+{
+    return __sync_fetch_and_or(pTarget, value);
+}
+
 } // Util

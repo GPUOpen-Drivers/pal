@@ -182,6 +182,7 @@ private:
     const Dri3LoaderFuncs&      m_dri3Procs;
 #endif
     const SwizzledFormat   m_format;              // format for presentable image
+    uint32                 m_depth;               // depth for presentable image
     const SwapChainMode    m_swapChainMode;       // swapchain mode
     const xcb_window_t     m_hWindow;             // xcb window created by App
     xcb_connection_t*      m_pConnection;         // xcb connection created by App

@@ -10,7 +10,11 @@ project(MetroHash VERSION 1.0.0 LANGUAGES CXX)
 
 add_library(metrohash STATIC)
 
-target_include_directories(metrohash PUBLIC SYSTEM src)
+target_include_directories(metrohash
+    SYSTEM
+        PUBLIC
+            src
+)
 
 target_sources(metrohash PRIVATE src/metrohash.h
                                  src/metrohash64.h

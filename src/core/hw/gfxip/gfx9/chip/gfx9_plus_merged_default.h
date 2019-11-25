@@ -25,13 +25,6 @@
 
 #pragma once
 
-constexpr unsigned int mmATC_PERFCOUNTER0_CFG_DEFAULT                     = 0x0000;
-constexpr unsigned int mmATC_PERFCOUNTER1_CFG_DEFAULT                     = 0x0000;
-constexpr unsigned int mmATC_PERFCOUNTER2_CFG_DEFAULT                     = 0x0000;
-constexpr unsigned int mmATC_PERFCOUNTER3_CFG_DEFAULT                     = 0x0000;
-constexpr unsigned int mmATC_PERFCOUNTER_HI_DEFAULT                       = 0x0000;
-constexpr unsigned int mmATC_PERFCOUNTER_LO_DEFAULT                       = 0x0000;
-constexpr unsigned int mmATC_PERFCOUNTER_RSLT_CNTL_DEFAULT                = 0x4000000;
 constexpr unsigned int mmCB_CGTT_SCLK_CTRL_DEFAULT                        = 0x0100;
 constexpr unsigned int mmCB_HW_MEM_ARBITER_RD_DEFAULT                     = 0x29000;
 constexpr unsigned int mmCB_HW_MEM_ARBITER_WR_DEFAULT                     = 0x29000;
@@ -283,9 +276,6 @@ constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_HP3D_DEFAULT                = 0x7C
 constexpr unsigned int mmSPI_WF_LIFETIME_CNTL_DEFAULT                     = 0x0000;
 constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_0_DEFAULT                  = 0x0100;
 constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_2_DEFAULT                  = 0x0100;
-constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_3_DEFAULT                  = 0x0100;
-constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_4_DEFAULT                  = 0x0100;
-constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_5_DEFAULT                  = 0x0100;
 constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_0_DEFAULT                 = 0x0000;
 constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_1_DEFAULT                 = 0x0000;
 constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_2_DEFAULT                 = 0x0000;
@@ -389,6 +379,13 @@ namespace Apu09_1xPlus
 
 namespace Core
 {
+    constexpr unsigned int mmATC_PERFCOUNTER0_CFG_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER1_CFG_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER2_CFG_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER3_CFG_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER_HI_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER_LO_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER_RSLT_CNTL_DEFAULT                = 0x4000000;
     constexpr unsigned int mmCB_BLEND0_CONTROL_DEFAULT                        = 0x4DCD0DCD;
     constexpr unsigned int mmCB_BLEND1_CONTROL_DEFAULT                        = 0x4DCD0DCD;
     constexpr unsigned int mmCB_BLEND2_CONTROL_DEFAULT                        = 0x4DCD0DCD;
@@ -1006,6 +1003,9 @@ namespace Core
     constexpr unsigned int mmSPI_SHADER_Z_FORMAT_DEFAULT                      = 0x000D;
     constexpr unsigned int mmSPI_TMPRING_SIZE_DEFAULT                         = 0x1CDCDCD;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_1_DEFAULT                  = 0x0100;
+    constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_3_DEFAULT                  = 0x0100;
+    constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_4_DEFAULT                  = 0x0100;
+    constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_5_DEFAULT                  = 0x0100;
     constexpr unsigned int mmSQ_IND_DATA_DEFAULT                              = 0xCDCDCDCD;
     constexpr unsigned int mmSQ_PERFCOUNTER0_HI_DEFAULT                       = 0xCDCDCDCD;
     constexpr unsigned int mmSQ_PERFCOUNTER0_LO_DEFAULT                       = 0xCDCDCDCD;

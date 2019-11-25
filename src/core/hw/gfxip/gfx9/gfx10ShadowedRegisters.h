@@ -154,4 +154,3 @@ const RegisterRange Gfx10CsShShadowRange[] =
 
 } // Gfx9
 } // Pal
-

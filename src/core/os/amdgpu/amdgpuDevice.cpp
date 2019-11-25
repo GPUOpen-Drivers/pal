@@ -1130,6 +1130,7 @@ void Device::InitGfx9CuMask(
             }
         }
     }
+
     if (IsGfx10(m_chipProperties.gfxLevel))
     {
         // In GFX 10, we need convert CU mask to WGP mask.
@@ -1451,10 +1452,8 @@ Result Device::InitMemQueueInfo()
 #endif
 
             case EngineTypeDma:
-                if ((m_chipProperties.ossLevel != OssIpLevel::None)
-                    // GFX10 parts have the DMA engine in the GFX block, not in the OSS
-                    || IsGfx10(m_chipProperties.gfxLevel)
-                    )
+                // GFX10 parts have the DMA engine in the GFX block, not in the OSS
+                if ((m_chipProperties.ossLevel != OssIpLevel::None) || IsGfx10(m_chipProperties.gfxLevel))
                 {
                     if (m_drmProcs.pfnAmdgpuQueryHwIpInfo(m_hDevice, AMDGPU_HW_IP_DMA, 0, &engineInfo) != 0)
                     {
@@ -3156,13 +3155,11 @@ void Device::UpdateMetaData(
 {
     amdgpu_bo_metadata metadata = {};
     const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
+    auto imageCreateInfo = image.GetImageCreateInfo();
 
     // First 32 dwords are reserved for open source components.
     auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
                               (&metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
-
-    pUmdMetaData->flags.mip_levels = image.GetImageCreateInfo().mipLevels;
-    pUmdMetaData->array_size       = image.GetImageCreateInfo().arraySize;
 
     if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
     {
@@ -3175,6 +3172,7 @@ void Device::UpdateMetaData(
         memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
         pUmdMetaData->width_in_pixels        = pSubResInfo->extentTexels.width;
         pUmdMetaData->height                 = pSubResInfo->extentTexels.height;
+        pUmdMetaData->depth                  = pSubResInfo->extentTexels.depth;
         pUmdMetaData->aligned_pitch_in_bytes = pSubResInfo->rowPitch;
         pUmdMetaData->aligned_height         = pSubResInfo->actualExtentTexels.height;
         pUmdMetaData->tile_index             = pTileInfo->tileIndex;
@@ -3230,20 +3228,29 @@ void Device::UpdateMetaData(
         memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
         pUmdMetaData->width_in_pixels        = pSubResInfo->extentTexels.width;
         pUmdMetaData->height                 = pSubResInfo->extentTexels.height;
+        pUmdMetaData->depth                  = pSubResInfo->extentTexels.depth;
         pUmdMetaData->aligned_pitch_in_bytes = pSubResInfo->rowPitch;
         pUmdMetaData->aligned_height         = pSubResInfo->actualExtentTexels.height;
         pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
 
         pUmdMetaData->pipeBankXor  = pTileInfo->pipeBankXor;
         pUmdMetaData->swizzleMode  = curSwizzleMode;
-        pUmdMetaData->resourceType = AMDGPU_ADDR_RSRC_TEX_2D;
+        pUmdMetaData->resourceType = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
     }
     else
     {
         PAL_NOT_IMPLEMENTED();
     }
 
-    pUmdMetaData->flags.optimal_shareable = image.GetImageCreateInfo().flags.optimalShareable;
+    pUmdMetaData->array_size              = imageCreateInfo.arraySize;
+    pUmdMetaData->flags.mip_levels        = imageCreateInfo.mipLevels;
+    pUmdMetaData->flags.cubemap           = imageCreateInfo.flags.cubemap;
+    pUmdMetaData->flags.render_target     = imageCreateInfo.usageFlags.colorTarget;
+    pUmdMetaData->flags.depth_stencil     = imageCreateInfo.usageFlags.depthStencil;
+    pUmdMetaData->flags.texture           = imageCreateInfo.usageFlags.shaderRead;
+    pUmdMetaData->flags.unodered_access   = imageCreateInfo.usageFlags.shaderWrite;
+    pUmdMetaData->flags.resource_type     = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
+    pUmdMetaData->flags.optimal_shareable = imageCreateInfo.flags.optimalShareable;
 
     if (pUmdMetaData->flags.optimal_shareable)
     {

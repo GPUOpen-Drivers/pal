@@ -419,6 +419,14 @@ public:
     ~Thread();
 
     Result Start(ThreadFunction pFnThreadFunc, void* pThreadParameter);
+
+    // Set the user-visible name for the thread using printf-style formatters
+    // This should only be called on valid thread objects. (Threads that have been started)
+    // This function will return Result::Error if it's called on an invalid thread.
+    // Note: This change is global to the thread and can be changed by other means
+    //       Treat this as an aid for people
+    Result SetName(const char* pFmt, ...);
+
     Result Join(uint32 timeoutInMs);
 
     bool IsJoinable() const;
@@ -435,6 +443,11 @@ private:
 
         onExit.Clear();
     }
+
+    // Set the thread name to a hard-coded string.
+    // The thread name passed to this function must be no larger than kThreadNameMaxLength including the NULL byte.
+    // If a larger string is passed, errors may occur on some platforms.
+    Result SetNameRaw(const char* pThreadName);
 
     ThreadFunction pFnFunction = nullptr;
     void*          pParameter  = nullptr;
@@ -706,6 +719,10 @@ static inline const char* ResultToString(Result result)
         case Result::InsufficientMemory: return "InsufficientMemory";
         case Result::InvalidParameter:   return "InvalidParameter";
         case Result::InvalidClientId:    return "InvalidClientId";
+        case Result::ConnectionExists:   return "ConnectionExists";
+        case Result::FileNotFound:       return "FileNotFound";
+        case Result::FunctionNotFound:   return "FunctionNotFound";
+        case Result::InterfaceNotFound:  return "InterfaceNotFound";
 
         //// URI PROTOCOL  ////
         case Result::UriServiceRegistrationError:  return "UriServiceRegistrationError";

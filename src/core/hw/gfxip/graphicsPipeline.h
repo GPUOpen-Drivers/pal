@@ -100,6 +100,7 @@ private:
         {
             uint32 gsEnabled             :  1; // Geometry shader is active.
             uint32 tessEnabled           :  1; // Tessellation shaders (HS/DS) are active.
+            uint32 placeholder0          :  2; // Placeholder for future features.
             uint32 streamOut             :  1; // Stream-output is active.
             uint32 adjacencyPrim         :  1; // Primitive topology contains adjacency info.
             uint32 vportArrayIdx         :  1; // GS outputs a viewport array index parameter.
@@ -114,9 +115,9 @@ private:
             uint32 psWritesDepth         :  1; // This pipeline explicitly outputs depth data.
             uint32 psUsesAppendConsume   :  1; // PS uses atomic append/consume instructions.
             uint32 perpLineEndCapsEnable :  1; // use perpendicular line end caps instead of axis-aligned end caps
-            uint32 placeholder0          :  1;
+            uint32 placeholder1          :  1;
             uint32 psWritesUavs          :  1; // PS writes at least one UAV.
-            uint32 reserved              : 14;
+            uint32 reserved              : 12;
         };
         uint32 u32All;
     } m_flags;

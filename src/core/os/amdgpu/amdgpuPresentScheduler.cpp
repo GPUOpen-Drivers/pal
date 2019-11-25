@@ -23,7 +23,9 @@
  *
  **********************************************************************************************************************/
 
+#include "palFormatInfo.h"
 #include "core/masterQueueSemaphore.h"
+#include "core/cmdBuffer.h"
 #include "core/os/amdgpu/amdgpuDevice.h"
 #include "core/os/amdgpu/amdgpuImage.h"
 #include "core/os/amdgpu/amdgpuPresentScheduler.h"
@@ -137,6 +139,11 @@ PresentScheduler::PresentScheduler(
 }
 
 // =====================================================================================================================
+PresentScheduler::~PresentScheduler()
+{
+}
+
+// =====================================================================================================================
 Result PresentScheduler::Init(
     IDevice*const pSlaveDevices[],
     void*         pPlacementAddr)
@@ -203,11 +210,12 @@ Result PresentScheduler::ProcessPresent(
     IQueue*                     pQueue,
     bool                        isInline)
 {
-    // The Linux present scheduler doesn't support inline presents because it doesn't use queues to execute presents.
-    PAL_ASSERT(isInline == false);
-
     SwapChain*const     pSwapChain    = static_cast<SwapChain*>(presentInfo.pSwapChain);
     const SwapChainMode swapChainMode = pSwapChain->CreateInfo().swapChainMode;
+
+    // The Linux present scheduler doesn't support inline presents because it doesn't use queues to execute presents.
+    // Unless swapChainMode is Immediate.
+    PAL_ASSERT((swapChainMode == SwapChainMode::Immediate) || (isInline == false));
 
     // We only support these modes on Linux.
     PAL_ASSERT((swapChainMode == SwapChainMode::Immediate) ||
@@ -254,7 +262,11 @@ Result PresentScheduler::PreparePresent(
     Result result = Result::Success;
 
     SubmitInfo submitInfo = {};
-    result = pQueue->Submit(submitInfo);
+
+    if (result == Result::Success)
+    {
+        result = pQueue->Submit(submitInfo);
+    }
 
     return result;
 }
@@ -319,5 +331,18 @@ Result PresentScheduler::SignalOnAcquire(
 
     return result;
 }
+
+// =====================================================================================================================
+bool PresentScheduler::CanInlinePresent(
+    const PresentSwapChainInfo& presentInfo,
+    const IQueue&               queue
+    ) const
+{
+    SwapChain*const     pSwapChain    = static_cast<SwapChain*>(presentInfo.pSwapChain);
+    const SwapChainMode swapChainMode = pSwapChain->CreateInfo().swapChainMode;
+
+    return swapChainMode == SwapChainMode::Immediate;
+}
+
 } // Amdgpu
 } // Pal

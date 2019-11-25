@@ -45,7 +45,8 @@ AddrMgr2::AddrMgr2(
     :
     // Note: Each subresource for AddrMgr2 hardware needs the following tiling information: the actual tiling
     // information for itself as computed by the AddrLib.
-    AddrMgr(pDevice, sizeof(TileInfo))
+    AddrMgr(pDevice, sizeof(TileInfo)),
+    m_varBlockSize(pDevice->GetGfxDevice()->GetVarBlockSize())
 {
 }
 
@@ -389,10 +390,11 @@ void AddrMgr2::InitTilingCaps(
     // of Images.
     // Note: Most YUV-packed formats can be interpreted in a shader as having a different effective bits-per-pixel than
     // the YUV format actually has. This requires that we use linear tiling because the tile swizzle pattern depends
-    // highly on the bits-per-pixel of the tiled Image. The only exception is the NV12 format. This needs to support
-    // tiling because NV12 Images can be presentable for some API's, and the display hardware requires tiling.
+    // highly on the bits-per-pixel of the tiled Image. The exception is NV12/P010 format. This needs to support
+    // tiling because NV12/P010 Images can be presentable for some API's, and the display hardware requires tiling.
     if ((createInfo.tiling == ImageTiling::Linear) ||
-        (Formats::IsYuv(createInfo.swizzledFormat.format) && (createInfo.swizzledFormat.format != ChNumFormat::NV12)))
+        (Formats::IsYuv(createInfo.swizzledFormat.format) &&
+        (pImage->GetGfxImage()->IsRestrictedTiledMultiMediaSurface() == false)))
     {
         // This Image is using linear tiling, so disable all other modes.
         pBlockSettings->macroThin4KB   = 1;
@@ -706,8 +708,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         {
             pOut->swizzleMode = ADDR_SW_LINEAR;
         }
-        else
-        if (createInfo.tiling == ImageTiling::Standard64Kb)
+        else if (createInfo.tiling == ImageTiling::Standard64Kb)
         {
             pOut->swizzleMode = ADDR_SW_64KB_S;
         }
@@ -1095,6 +1096,62 @@ Result AddrMgr2::InitSubresourceInfo(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Returns the size of one block (i.e., one tile) in terms of bytes.
+uint32 AddrMgr2::GetBlockSize(
+    AddrSwizzleMode swizzleMode
+    ) const
+{
+    uint32  blockSize = 0;
+
+    switch (swizzleMode)
+    {
+    case ADDR_SW_256B_S:
+    case ADDR_SW_256B_D:
+    case ADDR_SW_256B_R:
+        blockSize = 256;
+        break;
+
+    case ADDR_SW_4KB_Z:
+    case ADDR_SW_4KB_S:
+    case ADDR_SW_4KB_D:
+    case ADDR_SW_4KB_R:
+    case ADDR_SW_4KB_Z_X:
+    case ADDR_SW_4KB_S_X:
+    case ADDR_SW_4KB_D_X:
+    case ADDR_SW_4KB_R_X:
+        blockSize = 4096;
+        break;
+
+    case ADDR_SW_64KB_Z:
+    case ADDR_SW_64KB_S:
+    case ADDR_SW_64KB_D:
+    case ADDR_SW_64KB_R:
+    case ADDR_SW_64KB_Z_T:
+    case ADDR_SW_64KB_S_T:
+    case ADDR_SW_64KB_D_T:
+    case ADDR_SW_64KB_R_T:
+    case ADDR_SW_64KB_Z_X:
+    case ADDR_SW_64KB_S_X:
+    case ADDR_SW_64KB_D_X:
+    case ADDR_SW_64KB_R_X:
+        blockSize = 65536;
+        break;
+
+    case ADDR_SW_VAR_Z_X:
+    case ADDR_SW_VAR_R_X:
+        blockSize = m_varBlockSize;
+        break;
+
+    default:
+        break;
+    }
+
+    PAL_ASSERT(blockSize != 0);
+
+    return blockSize;
 }
 
 } // AddrMgr2

@@ -113,12 +113,14 @@ private:
             // Checksum register is optional, as not all GFX9+ hardware uses it. If we don't use it, NOP will be added.
             PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
             regSPI_SHADER_PGM_CHKSUM_GS  spiShaderPgmChksumGs;
+
             // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be added.
             PM4_ME_SET_SH_REG               hdrshaderUserAccumEsgs;
             regSPI_SHADER_USER_ACCUM_ESGS_0 shaderUserAccumEsgs0;
             regSPI_SHADER_USER_ACCUM_ESGS_1 shaderUserAccumEsgs1;
             regSPI_SHADER_USER_ACCUM_ESGS_2 shaderUserAccumEsgs2;
             regSPI_SHADER_USER_ACCUM_ESGS_3 shaderUserAccumEsgs3;
+
             // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
             // w/ the actual commands contained above.
             size_t  spaceNeeded;

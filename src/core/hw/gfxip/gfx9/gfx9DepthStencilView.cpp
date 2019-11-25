@@ -825,8 +825,21 @@ void Gfx10DepthStencilView::InitRegisters(
     m_pm4Cmds.dbZInfo.gfx10.ITERATE_FLUSH       = m_flags.depthMetadataTexFetch;
     m_pm4Cmds.dbStencilInfo.gfx10.ITERATE_FLUSH = m_flags.stencilMetadataTexFetch;
 
-    m_pm4Cmds.dbZInfo.bits.SW_MODE       = SW_64KB_Z_X;
-    m_pm4Cmds.dbStencilInfo.bits.SW_MODE = SW_64KB_Z_X;
+    const auto& depthAddrSettings   = m_pImage->GetAddrSettings(pDepthSubResInfo);
+    const auto& stencilAddrSettings = m_pImage->GetAddrSettings(pStencilSubResInfo);
+
+    if (depthAddrSettings.swizzleMode != ADDR_SW_64KB_Z_X)
+    {
+        PAL_NEVER_CALLED();
+    }
+
+    if (stencilAddrSettings.swizzleMode != ADDR_SW_64KB_Z_X)
+    {
+        PAL_NEVER_CALLED();
+    }
+
+    m_pm4Cmds.dbZInfo.bits.SW_MODE       = AddrMgr2::GetHwSwizzleMode(depthAddrSettings.swizzleMode);
+    m_pm4Cmds.dbStencilInfo.bits.SW_MODE = AddrMgr2::GetHwSwizzleMode(stencilAddrSettings.swizzleMode);
 
     m_pm4Cmds.dbZInfo.gfx10.FAULT_BEHAVIOR       = FAULT_ZERO;
     m_pm4Cmds.dbStencilInfo.gfx10.FAULT_BEHAVIOR = FAULT_ZERO;

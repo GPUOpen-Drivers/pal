@@ -94,6 +94,10 @@ namespace DevDriver
                                                 uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
                                                 uint32                 retryInMs   = kDefaultRetryTimeoutInMs);
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION)
+            // Returns the current device clock values in MHz
+            Result QueryDeviceClock(uint32 gpuIndex, float* pGpuClock, float* pMemClock);
+#endif
         };
     }
 } // DevDriver

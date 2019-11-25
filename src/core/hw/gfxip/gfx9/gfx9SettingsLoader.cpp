@@ -195,8 +195,10 @@ void SettingsLoader::ValidateSettings(
         }
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 548
     // Clamp the number of supported user-data entries between the number of fast-user-data registers available and
     pPalSettings->maxUserDataEntries = Min(pPalSettings->maxUserDataEntries, MaxUserDataEntries);
+#endif
 
     // If HTile is disabled, also disable the other settings whic
     // If HTile is disabled, also disable the other settings which depend on it:
@@ -255,7 +257,11 @@ void SettingsLoader::ValidateSettings(
         {
             // The suggested size of the tessellation factor buffer per SE is 0x4000 DWORDs, to account for the
             // multiples SA's per SE.
-            m_settings.tessFactorBufferSizePerSe = 0x4000;
+            // More updates:  It is true that for Navi10 this value should be 0xC000. This translates to 128
+            //                threadgroups per SPI for 3 control point patches and 64 patches per threadgroup.
+            //                GE has internal FIFO limits and that prevents it from launching more work.
+            //                So there is no point in increasing the size of the buffer
+            m_settings.tessFactorBufferSizePerSe = Gfx10::mmVGT_TF_RING_SIZE_DEFAULT / gfx9Props.numShaderEngines;
         }
 
         if ((m_settings.tessFactorBufferSizePerSe * gfx9Props.numShaderEngines) > VGT_TF_RING_SIZE__SIZE_MASK)
@@ -429,6 +435,27 @@ static void SetupNavi10Workarounds(
 } // PAL_BUILD_NAVI10
 
 // =====================================================================================================================
+// Setup workarounds that only apply to Navi14.
+static void SetupNavi14Workarounds(
+    const Pal::Device&  device,
+    Gfx9PalSettings*    pSettings,
+    PalSettings*        pCoreSettings)
+{
+    // Setup any Gfx10 workarounds.
+    SetupGfx10Workarounds(device, pSettings);
+
+    // Setup any Gfx10.1 workarounds.
+    SetupGfx101Workarounds(device, pSettings, pCoreSettings);
+
+    // Setup any Navi14 specific workarounds.
+
+    pSettings->waLateAllocGs0 = true;
+    pSettings->nggSupported   = false;
+
+    pSettings->waUtcL0InconsistentBigPage = true;
+}
+
+// =====================================================================================================================
 // Override Gfx9 layer settings. This also includes setting up the workaround flags stored in the settings structure
 // based on chip Family & ID.
 //
@@ -497,6 +524,10 @@ void SettingsLoader::OverrideDefaults(
         {
             SetupNavi10Workarounds(device, &m_settings, pSettings);
         }
+        else if (IsNavi14(device))
+        {
+            SetupNavi14Workarounds(device, &m_settings, pSettings);
+        }
 
         if (
             false)
@@ -506,6 +537,9 @@ void SettingsLoader::OverrideDefaults(
             m_settings.depthStencilFastClearComputeThresholdSingleSampled = (1024 * 1024) - 1;
             m_settings.binningContextStatesPerBin = 3;
             m_settings.binningPersistentStatesPerBin = 8;
+
+            // DB to CB copies are not supported on these platforms.
+            m_settings.allowDepthCopyResolve = false;
 
             m_settings.cbDbCachePolicy = (Gfx10CbDbCachePolicyLruCmask | Gfx10CbDbCachePolicyLruDcc |
                                           Gfx10CbDbCachePolicyLruFmask | Gfx10CbDbCachePolicyLruHtile);

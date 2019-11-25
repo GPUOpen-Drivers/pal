@@ -61,7 +61,7 @@ namespace DevDriver
         void Update(uint32 timeoutInMs = kDefaultUpdateTimeoutInMs) override final;
 
         Result Register(uint32 timeoutInMs = kLogicFailureTimeout) override final;
-        Result Unregister() override final;
+        void Unregister() override final;
         bool IsConnected() override final;
 
         Result SetStatusFlags(StatusFlags flags) override final;
@@ -144,9 +144,9 @@ namespace DevDriver
         };
 
         Result CreateMsgThread();
-        Result DestroyMsgThread();
+        void DestroyMsgThread();
 
-        Result Disconnect();
+        void Disconnect();
         bool HandleMessageReceived(const MessageBuffer& messageBuffer);
 
         Result SendSystem(ClientId dstClientId, SystemProtocol::SystemMessage message, const ClientMetadata& metadata);

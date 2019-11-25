@@ -1466,7 +1466,11 @@ enum class PredicateType : uint32
 {
     Zpass     = 1, ///< Enable occlusion predicate
     PrimCount = 2, ///< Enable streamout predicate
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 550
     Boolean   = 3, ///< CP PFP treats memory as a 64bit integer which is either false (0) or true, DX12 style.
+#endif
+    Boolean64 = 3, ///< CP PFP treats memory as a 64bit integer which is either false (0) or true, DX12 style.
+    Boolean32 = 4, ///< CP PFP treats memory as a 32bit integer which is either false (0) or true, Vulkan style.
 };
 
 /// Specifies how to interpret a clear color.

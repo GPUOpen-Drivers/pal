@@ -123,7 +123,6 @@ struct PipelineMetadata
     uint32                streamOutTableAddress;
     uint32                indirectUserDataTableAddresses[3];
     uint32                numInterpolants;
-    uint32                scratchMemorySize;
     char                  api[16];
     BinaryData            apiCreateInfo;
 
@@ -152,9 +151,9 @@ struct PipelineMetadata
             uint16 streamOutTableAddress          : 1;
             uint16 indirectUserDataTableAddresses : 1;
             uint16 numInterpolants                : 1;
-            uint16 scratchMemorySize              : 1;
+            uint16 placeholder0                   : 1;
             uint16 calcWaveBreakSizeAtDrawTime    : 1;
-            uint16 placeholder1                   : 1;
+            uint16 placeholder2                   : 1;
             uint16 api                            : 1;
             uint16 apiCreateInfo                  : 1;
             uint16 reserved                       : 1;
@@ -200,7 +199,6 @@ namespace PipelineMetadataKey
     static constexpr char StreamOutTableAddress[]          = ".stream_out_table_address";
     static constexpr char IndirectUserDataTableAddresses[] = ".indirect_user_data_table_addresses";
     static constexpr char NumInterpolants[]                = ".num_interpolants";
-    static constexpr char ScratchMemorySize[]              = ".scratch_memory_size";
     static constexpr char CalcWaveBreakSizeAtDrawTime[]    = ".calc_wave_break_size_at_draw_time";
     static constexpr char Api[]                            = ".api";
     static constexpr char ApiCreateInfo[]                  = ".api_create_info";

@@ -259,71 +259,65 @@ namespace DevDriver
 
             if (IsConnected() && (pGpuClock != nullptr) && (pMemClock != nullptr))
             {
-                SizedPayloadContainer container = {};
-                container.CreatePayload<QueryDeviceClockByModeRequestPayload>(gpuIndex, clockMode);
-
-                result = TransactDriverControlPayload(&container);
-                if (result == Result::Success)
+                if (m_pSession->GetVersion() >= DRIVERCONTROL_QUERY_BY_MODE_BACK_COMPAT_VERSION)
                 {
-                    const QueryDeviceClockByModeResponsePayload& response =
-                        container.GetPayload<QueryDeviceClockByModeResponsePayload>();
+                    SizedPayloadContainer container = {};
+                    container.CreatePayload<QueryDeviceClockByModeRequestPayload>(gpuIndex, clockMode);
 
-                    if (response.header.command == DriverControlMessage::QueryDeviceClockByModeResponse)
+                    result = TransactDriverControlPayload(&container);
+                    if (result == Result::Success)
                     {
-                        result = response.result;
-                        if (result == Result::Success)
+                        const QueryDeviceClockByModeResponsePayload& response =
+                            container.GetPayload<QueryDeviceClockByModeResponsePayload>();
+
+                        if (response.header.command == DriverControlMessage::QueryDeviceClockByModeResponse)
                         {
-                            *pGpuClock = response.gpuClock;
-                            *pMemClock = response.memClock;
+                            result = response.result;
+                            if (result == Result::Success)
+                            {
+                                *pGpuClock = response.gpuClock;
+                                *pMemClock = response.memClock;
+                            }
+                        }
+                        else
+                        {
+                            // Invalid response payload
+                            result = Result::Error;
                         }
                     }
-                    else
+                }
+                else
+                {
+                    // We're talking to an older driver so we need to use existing packets to accomplish our goals.
+                    // We'll do this by switching to the target mode, querying the data, and restoring it.
+
+                    // Query the current clock mode from the driver
+                    DeviceClockMode currentClockMode = DeviceClockMode::Unknown;
+                    result = QueryDeviceClockMode(gpuIndex, &currentClockMode);
+
+                    // Change the clock mode to the caller's requested mode so we can query information about it
+                    if (result == Result::Success)
                     {
-                        // Invalid response payload
-                        result = Result::Error;
+                        result = SetDeviceClockMode(gpuIndex, clockMode);
+                    }
+
+                    // Query the clock information
+                    if (result == Result::Success)
+                    {
+                        result = QueryDeviceClock(gpuIndex, pGpuClock, pMemClock);
+                    }
+
+                    // Restore the clock mode to what it was before we were called
+                    if (result == Result::Success)
+                    {
+                        result = SetDeviceClockMode(gpuIndex, currentClockMode);
                     }
                 }
             }
 
             return result;
         }
-
 #else
-        Result DriverControlClient::QueryDeviceClock(uint32 gpuIndex, float* pGpuClock, float* pMemClock)
-        {
-            Result result = Result::Error;
-
-            if (IsConnected() && (pGpuClock != nullptr) && (pMemClock != nullptr))
-            {
-                SizedPayloadContainer container = {};
-                container.CreatePayload<QueryDeviceClockRequestPayload>(gpuIndex);
-
-                result = TransactDriverControlPayload(&container);
-                if (result == Result::Success)
-                {
-                    const QueryDeviceClockResponsePayload& response =
-                        container.GetPayload<QueryDeviceClockResponsePayload>();
-
-                    if (response.header.command == DriverControlMessage::QueryDeviceClockResponse)
-                    {
-                        result = response.result;
-                        if (result == Result::Success)
-                        {
-                            *pGpuClock = response.gpuClock;
-                            *pMemClock = response.memClock;
-                        }
-                    }
-                    else
-                    {
-                        // Invalid response payload
-                        result = Result::Error;
-                    }
-                }
-            }
-
-            return result;
-        }
-
         Result DriverControlClient::QueryMaxDeviceClock(uint32 gpuIndex, float* pMaxGpuClock, float* pMaxMemClock)
         {
             Result result = Result::Error;
@@ -481,6 +475,45 @@ namespace DevDriver
 
             return result;
         }
+
+#if DD_VERSION_SUPPORTS(GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION)
+        // This function was previously exposed in the public interface but it's been replaced by a more efficient version.
+        // This version is being kept as an internal function since we can use it as part of the back-compat implementation.
+        Result DriverControlClient::QueryDeviceClock(uint32 gpuIndex, float* pGpuClock, float* pMemClock)
+        {
+            Result result = Result::Error;
+
+            if (IsConnected() && (pGpuClock != nullptr) && (pMemClock != nullptr))
+            {
+                SizedPayloadContainer container = {};
+                container.CreatePayload<QueryDeviceClockRequestPayload>(gpuIndex);
+
+                result = TransactDriverControlPayload(&container);
+                if (result == Result::Success)
+                {
+                    const QueryDeviceClockResponsePayload& response =
+                        container.GetPayload<QueryDeviceClockResponsePayload>();
+
+                    if (response.header.command == DriverControlMessage::QueryDeviceClockResponse)
+                    {
+                        result = response.result;
+                        if (result == Result::Success)
+                        {
+                            *pGpuClock = response.gpuClock;
+                            *pMemClock = response.memClock;
+                        }
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
+                    }
+                }
+            }
+
+            return result;
+        }
+#endif
     }
 
 } // DevDriver

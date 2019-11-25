@@ -2855,7 +2855,7 @@ size_t CmdUtil::BuildSetPredication(
 {
     static_assert(static_cast<uint32>(PredicateType::Zpass)     == SET_PRED_ZPASS &&
                   static_cast<uint32>(PredicateType::PrimCount) == SET_PRED_PRIMCOUNT &&
-                  static_cast<uint32>(PredicateType::Boolean)   == SET_PRED_MEM,
+                  static_cast<uint32>(PredicateType::Boolean64) == SET_PRED_MEM,
                   "Unexpected values for the PredicateType enum.");
 
     constexpr size_t PacketSize = PM4_CMD_SET_PREDICATION_DWORDS;

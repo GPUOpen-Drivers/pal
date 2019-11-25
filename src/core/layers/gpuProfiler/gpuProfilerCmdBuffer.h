@@ -43,6 +43,13 @@ namespace GpuProfiler
 class Device;
 class TargetCmdBuffer;
 
+// Used to track currently-bound compute/graphics pipeline/shader state during replay.
+struct PipelineState
+{
+    PipelineInfo pipelineInfo;
+    uint64       apiPsoHash;
+};
+
 // =====================================================================================================================
 // GpuProfiler implementation of the ICmdBuffer interface.  Instead of passing commands on to the next layer, the
 // various command buffer calls are tokenized and stored for later replay.  The Replay() interface will replay the
@@ -58,7 +65,6 @@ public:
               const CmdBufferCreateInfo& createInfo,
               bool                       logPipeStats,
               bool                       enableSqThreadTrace);
-    Result Init();
 
     // This function will playback the commands recorded by this command buffer into the specified target command
     // buffer while instrumenting it with additional commands to gather timing, perf counters, etc.
@@ -511,7 +517,7 @@ public:
     }
 
 private:
-    virtual ~CmdBuffer() { }
+    virtual ~CmdBuffer();
 
     static void PAL_STDCALL CmdSetUserDataCs(
         ICmdBuffer*   pCmdBuffer,
@@ -575,23 +581,16 @@ private:
         uint32      yDim,
         uint32      zDim);
 
-    // Allocate token space from the linear allocator.  This calls the Alloc() method directly instead of using
-    // PAL_MALLOC() for two reasons: 1. PAL_MALLOC() aligns all allocations to 64 bytes, which is undesirable here, and
-    // 2. it would be unseemly to use PAL_MALLOC() without corresponding PAL_FREE() calls, and tracking addresses
-    // where each free would be needed would be painful.
-    void* AllocTokenSpace(size_t numBytes, size_t alignment)
-    {
-        return m_tokenAllocator.Alloc(Util::AllocInfo(numBytes, alignment, false, Util::AllocInternal
-#if PAL_MEMTRACK
-                                                      , Util::MemBlkType::Malloc, nullptr, 0
-#endif
-                                                      ));
-    }
+    void* AllocTokenSpace(size_t numBytes, size_t alignment);
 
     // Insert a copy of the specified value into the token stream.
     template <typename T> void InsertToken(const T& token)
     {
-        *static_cast<T*>(AllocTokenSpace(sizeof(T), __alignof(T))) = token;
+        T*const pDst = static_cast<T*>(AllocTokenSpace(sizeof(T), __alignof(T)));
+        if (pDst != nullptr)
+        {
+            *pDst = token;
+        }
     }
 
     // Insert a copy of an array of values into the token stream.
@@ -600,7 +599,11 @@ private:
         InsertToken(count);
         if (count > 0)
         {
-            memcpy(AllocTokenSpace(sizeof(T) * count, __alignof(T)), pData, sizeof(T) * count);
+            void*const pDst = AllocTokenSpace(sizeof(T) * count, __alignof(T));
+            if (pDst != nullptr)
+            {
+                memcpy(pDst, pData, sizeof(T) * count);
+            }
         }
     }
 
@@ -608,9 +611,10 @@ private:
     // InsertToken().
     template <typename T> const T& ReadTokenVal()
     {
-        m_pTokenRdPtr = Util::VoidPtrAlign(m_pTokenRdPtr, __alignof(T));
-        const T& val = *reinterpret_cast<const T*>(m_pTokenRdPtr);
-        m_pTokenRdPtr = Util::VoidPtrInc(m_pTokenRdPtr, sizeof(T));
+        PAL_ASSERT(m_tokenStreamResult == Result::Success);
+        m_tokenReadOffset = Util::Pow2Align(m_tokenReadOffset, __alignof(T));
+        const T& val = *static_cast<T*>(Util::VoidPtrInc(m_pTokenStream, m_tokenReadOffset));
+        m_tokenReadOffset += sizeof(T);
         return val;
     }
 
@@ -621,9 +625,9 @@ private:
         uint32 count = ReadTokenVal<uint32>();
         if (count != 0)
         {
-            m_pTokenRdPtr = Util::VoidPtrAlign(m_pTokenRdPtr, __alignof(T));
-            *ppToken = reinterpret_cast<T*>(m_pTokenRdPtr);
-            m_pTokenRdPtr = Util::VoidPtrInc(m_pTokenRdPtr, sizeof(T) * count);
+            m_tokenReadOffset = Util::Pow2Align(m_tokenReadOffset, __alignof(T));
+            *ppToken = static_cast<T*>(Util::VoidPtrInc(m_pTokenStream, m_tokenReadOffset));
+            m_tokenReadOffset += sizeof(T) * count;
         }
         else
         {
@@ -764,15 +768,16 @@ private:
 
     void LogPostTimedCall(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer, LogItem* pLogItem);
 
-    Device*const                 m_pDevice;
-    const QueueType              m_queueType;
-    const EngineType             m_engineType;
+    Device*const     m_pDevice;
+    const QueueType  m_queueType;
+    const EngineType m_engineType;
 
-    Util::VirtualLinearAllocator m_tokenAllocator;   // Storage for tokenized commands.
-    void*                        m_pTokenStream;     // Base address of m_tokenAllocator.  Rewind here on command
-                                                     // buffer reset.
-    void*                        m_pTokenRdPtr;      // Current read pointer used as a convenience by all replay
-                                                     // methods.
+    // The token stream is a single block of memory that doubles in size each time it runs out of space.
+    void*            m_pTokenStream;      // Storage for tokenized commands. Rewind here on command buffer reset.
+    size_t           m_tokenStreamSize;   // The size of the token stream buffer in bytes.
+    size_t           m_tokenWriteOffset;  // Write the next token at this offset within the token stream.
+    size_t           m_tokenReadOffset;   // Read the next token at this offset within the token stream.
+    Result           m_tokenStreamResult; // This must be Success unless an error occured during AllocTokenSpace.
 
     struct
     {
@@ -794,18 +799,10 @@ private:
     } m_sampleFlags;
 
     // Track current bound compute pipeline/shader state during replay.
-    struct
-    {
-        PipelineInfo pipelineInfo;
-        uint64       apiPsoHash;
-    } m_cpState;
+    PipelineState m_cpState;
 
     // Track current bound graphics pipeline/shader state during replay.
-    struct
-    {
-        PipelineInfo pipelineInfo;
-        uint64       apiPsoHash;
-    } m_gfxpState;
+    PipelineState m_gfxpState;
 
     // State for disabling data gathering (e.g., timings, counters, etc.) for calls made in a larger timed scope.  For
     // example, commands in a while loop may play back multiple times, so we gather data for the entire while loop, and

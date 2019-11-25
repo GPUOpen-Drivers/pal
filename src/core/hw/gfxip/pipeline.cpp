@@ -46,10 +46,16 @@ constexpr size_t GpuMemByteAlign = 256;
 constexpr Abi::ApiShaderType PalToAbiShaderType[] =
 {
     Abi::ApiShaderType::Cs, // ShaderType::Cs
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 549
+    Abi::ApiShaderType::Count,
+#endif
     Abi::ApiShaderType::Vs, // ShaderType::Vs
     Abi::ApiShaderType::Hs, // ShaderType::Hs
     Abi::ApiShaderType::Ds, // ShaderType::Ds
     Abi::ApiShaderType::Gs, // ShaderType::Gs
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 549
+    Abi::ApiShaderType::Count,
+#endif
     Abi::ApiShaderType::Ps, // ShaderType::Ps
 };
 static_assert(ArrayLen(PalToAbiShaderType) == NumShaderTypes,

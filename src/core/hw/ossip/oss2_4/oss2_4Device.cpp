@@ -233,7 +233,7 @@ void InitializeGpuEngineProperties(
     auto*const pDma = &pInfo->perEngine[EngineTypeDma];
 
     pDma->flags.timestampSupport               = 1;
-    pDma->flags.memoryPredicationSupport       = 1;
+    pDma->flags.memory32bPredicationSupport    = 1;
 
     // For gfx8(ossip 2.4) APUs(Carrizo, Bristol, ...), on SDMA queue that supports SVM mode, UMD has to
     // use SVM mode. That is said, non-SVM mode is not supported on SDMA queue that supports SVM mode. The

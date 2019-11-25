@@ -256,6 +256,7 @@ static const MaxEventIds& GetEventLimits(
     case Pal::AsicRevision::Raven2:
         pOut = &Rv2xMaxPerfEventIds;
         break;
+    case Pal::AsicRevision::Navi14:
     case Pal::AsicRevision::Navi10:
         pOut = &Nv10MaxPerfEventIds;
         break;
@@ -345,6 +346,8 @@ static void Gfx10UpdateGdsBlockInfo(
     PerfCounterBlockInfo* pInfo)
 {
     {
+        using namespace Core;
+
         pInfo->numGenericSpmModules    = 1; // GDS_PERFCOUNTER0
         pInfo->numGenericLegacyModules = 3; // GDS_PERFCOUNTER1-3
         pInfo->numSpmWires             = 2;
@@ -709,13 +712,13 @@ static void Gfx9InitBasicBlockInfo(
     pGds->numGenericLegacyModules   = 3; // GDS_PERFCOUNTER1-3
     pGds->numSpmWires               = 2;
     pGds->spmBlockSelect            = Gfx9SpmGlobalBlockSelectGds;
-    pGds->maxEventId                = MaxGdsPerfcountSelectCore;
+    pGds->maxEventId                = MaxGdsPerfcountSelect;
 
     pGds->regAddr = { 0, {
-        { mmGDS_PERFCOUNTER0_SELECT, mmGDS_PERFCOUNTER0_SELECT1, mmGDS_PERFCOUNTER0_LO, mmGDS_PERFCOUNTER0_HI },
-        { mmGDS_PERFCOUNTER1_SELECT, 0,                          mmGDS_PERFCOUNTER1_LO, mmGDS_PERFCOUNTER1_HI },
-        { mmGDS_PERFCOUNTER2_SELECT, 0,                          mmGDS_PERFCOUNTER2_LO, mmGDS_PERFCOUNTER2_HI },
-        { mmGDS_PERFCOUNTER3_SELECT, 0,                          mmGDS_PERFCOUNTER3_LO, mmGDS_PERFCOUNTER3_HI },
+        { Core::mmGDS_PERFCOUNTER0_SELECT, Core::mmGDS_PERFCOUNTER0_SELECT1, Core::mmGDS_PERFCOUNTER0_LO, Core::mmGDS_PERFCOUNTER0_HI },
+        { Core::mmGDS_PERFCOUNTER1_SELECT, 0,                                Core::mmGDS_PERFCOUNTER1_LO, Core::mmGDS_PERFCOUNTER1_HI },
+        { Core::mmGDS_PERFCOUNTER2_SELECT, 0,                                Core::mmGDS_PERFCOUNTER2_LO, Core::mmGDS_PERFCOUNTER2_HI },
+        { Core::mmGDS_PERFCOUNTER3_SELECT, 0,                                Core::mmGDS_PERFCOUNTER3_LO, Core::mmGDS_PERFCOUNTER3_HI },
     }};
 
     PerfCounterBlockInfo*const pGrbm = &pInfo->block[static_cast<uint32>(GpuBlock::Grbm)];

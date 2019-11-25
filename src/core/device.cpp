@@ -516,7 +516,9 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.unboundDescriptorDebugSrdCount = 1;
     m_publicSettings.disableResourceProcessingManager = false;
     m_publicSettings.tcCompatibleMetaData = 0x7F;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 548
     m_publicSettings.maxUserDataEntries = 0xFFFFFFFF;
+#endif
     m_publicSettings.cpDmaCmdCopyMemoryMaxBytes = 64 * 1024;
     m_publicSettings.forceHighClocks = false;
     m_publicSettings.numScratchWavesPerCu = 16;
@@ -548,6 +550,7 @@ Result Device::SetupPublicSettingDefaults()
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 542
     m_publicSettings.ifhMode = PublicSettingIfhMode::IfhModeDisabled;
 #endif
+    m_publicSettings.depthClampBasedOnZExport = true;
     return ret;
 }
 
@@ -1779,7 +1782,12 @@ Result Device::GetProperties(
 
             pEngineInfo->flags.supportsTimestamps              = engineInfo.flags.timestampSupport;
             pEngineInfo->flags.supportsQueryPredication        = engineInfo.flags.queryPredicationSupport;
-            pEngineInfo->flags.supportsMemoryPredication       = engineInfo.flags.memoryPredicationSupport;
+            pEngineInfo->flags.supports32bitMemoryPredication  = engineInfo.flags.memory32bPredicationSupport;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 550
+            pEngineInfo->flags.supportsMemoryPredication       = engineInfo.flags.memory64bPredicationSupport;
+#else
+            pEngineInfo->flags.supports64bitMemoryPredication  = engineInfo.flags.memory64bPredicationSupport;
+#endif
             pEngineInfo->flags.supportsConditionalExecution    = engineInfo.flags.conditionalExecutionSupport;
             pEngineInfo->flags.supportsLoopExecution           = engineInfo.flags.loopExecutionSupport;
             pEngineInfo->flags.supportsRegMemAccess            = engineInfo.flags.regMemAccessSupport;
@@ -1900,9 +1908,6 @@ Result Device::GetProperties(
 
 #if PAL_BUILD_GFX
         pInfo->gfxipProperties.maxUserDataEntries = m_chipProperties.gfxip.maxUserDataEntries;
-        memcpy(&pInfo->gfxipProperties.fastUserDataEntries[0],
-               &m_chipProperties.gfxip.fastUserDataEntries[0],
-               sizeof(m_chipProperties.gfxip.fastUserDataEntries));
 #endif
 
         switch (m_chipProperties.gfxLevel)
@@ -4525,6 +4530,22 @@ void Device::ApplyDevOverlay(
                        "HDR: %s - Colorspace Format: %u",
                        UsingHdrColorspaceFormat() ? "Enabled" : "Disabled",
                        m_hdrColorspaceFormat);
+
+        m_pTextWriter->DrawDebugText(dstImage,
+                                     pCmdBuffer,
+                                     overlayTextBuffer,
+                                     0,
+                                     letterHeight);
+        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+    }
+
+    // If the setting is enabled, display a visual confirmation of MES HWS Mode (only for supported HW)
+    if (Settings().overlayReportMes && (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_1))
+    {
+        Util::Snprintf(overlayTextBuffer,
+                       OverlayTextBufferSize,
+                       "MES HWS: %s",
+                       (GetSchedulerMode() == SchedulerMode::MesHws) ? "Enabled" : "Disabled");
 
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,

@@ -522,6 +522,27 @@ const xcb_setup_t* Dri3LoaderFuncsProxy::pfnXcbFlush(
 }
 
 // =====================================================================================================================
+void Dri3LoaderFuncsProxy::pfnXcbDiscardReply(
+    xcb_connection_t*  pConnection,
+    uint32             sequence
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    m_pFuncs->pfnXcbDiscardReply(pConnection,
+                                 sequence);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbDiscardReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbDiscardReply(%p, %x)\n",
+        pConnection,
+        sequence);
+    m_paramLogger.Flush();
+}
+
+// =====================================================================================================================
 int32 Dri3LoaderFuncsProxy::pfnXshmfenceUnmapShm(
     struct xshmfence*  pFence
     ) const
@@ -1930,6 +1951,7 @@ Result Dri3Loader::Init(
             m_library[LibXcb].GetFunction("xcb_depth_visuals_iterator", &m_funcs.pfnXcbDepthVisualsIterator);
             m_library[LibXcb].GetFunction("xcb_get_setup", &m_funcs.pfnXcbGetSetup);
             m_library[LibXcb].GetFunction("xcb_flush", &m_funcs.pfnXcbFlush);
+            m_library[LibXcb].GetFunction("xcb_discard_reply", &m_funcs.pfnXcbDiscardReply);
         }
 
         // resolve symbols from libxshmfence.so.1

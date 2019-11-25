@@ -8566,17 +8566,17 @@ union GDS_PERFCOUNTER0_SELECT {
         unsigned int                                                              :  8;
     } bits, bitfields;
     struct {
-        unsigned int PERFCOUNTER_SELECT                                           : 10;
-        unsigned int PERFCOUNTER_SELECT1                                          : 10;
-        unsigned int                                                              : 12;
-    } gfx09_0;
-    struct {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE1                                                   :  4;
         unsigned int PERF_MODE                                                    :  4;
-    } gfx09_1xPlus;
+    } most;
+    struct {
+        unsigned int PERFCOUNTER_SELECT                                           : 10;
+        unsigned int PERFCOUNTER_SELECT1                                          : 10;
+        unsigned int                                                              : 12;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8585,17 +8585,17 @@ union GDS_PERFCOUNTER0_SELECT {
 
 union GDS_PERFCOUNTER0_SELECT1 {
     struct {
-        unsigned int PERFCOUNTER_SELECT2                                          : 10;
-        unsigned int PERFCOUNTER_SELECT3                                          : 10;
-        unsigned int                                                              : 12;
-    } gfx09_0;
-    struct {
         unsigned int PERF_SEL2                                                    : 10;
         unsigned int PERF_SEL3                                                    : 10;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE3                                                   :  4;
         unsigned int PERF_MODE2                                                   :  4;
-    } gfx09_1xPlus;
+    } most;
+    struct {
+        unsigned int PERFCOUNTER_SELECT2                                          : 10;
+        unsigned int PERFCOUNTER_SELECT3                                          : 10;
+        unsigned int                                                              : 12;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8629,17 +8629,17 @@ union GDS_PERFCOUNTER1_SELECT {
         unsigned int                                                              :  8;
     } bits, bitfields;
     struct {
-        unsigned int PERFCOUNTER_SELECT                                           : 10;
-        unsigned int PERFCOUNTER_SELECT1                                          : 10;
-        unsigned int                                                              : 12;
-    } gfx09_0;
-    struct {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE1                                                   :  4;
         unsigned int PERF_MODE                                                    :  4;
-    } gfx09_1xPlus;
+    } most;
+    struct {
+        unsigned int PERFCOUNTER_SELECT                                           : 10;
+        unsigned int PERFCOUNTER_SELECT1                                          : 10;
+        unsigned int                                                              : 12;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8673,17 +8673,17 @@ union GDS_PERFCOUNTER2_SELECT {
         unsigned int                                                              :  8;
     } bits, bitfields;
     struct {
-        unsigned int PERFCOUNTER_SELECT                                           : 10;
-        unsigned int PERFCOUNTER_SELECT1                                          : 10;
-        unsigned int                                                              : 12;
-    } gfx09_0;
-    struct {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE1                                                   :  4;
         unsigned int PERF_MODE                                                    :  4;
-    } gfx09_1xPlus;
+    } most;
+    struct {
+        unsigned int PERFCOUNTER_SELECT                                           : 10;
+        unsigned int PERFCOUNTER_SELECT1                                          : 10;
+        unsigned int                                                              : 12;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8717,17 +8717,17 @@ union GDS_PERFCOUNTER3_SELECT {
         unsigned int                                                              :  8;
     } bits, bitfields;
     struct {
-        unsigned int PERFCOUNTER_SELECT                                           : 10;
-        unsigned int PERFCOUNTER_SELECT1                                          : 10;
-        unsigned int                                                              : 12;
-    } gfx09_0;
-    struct {
         unsigned int PERF_SEL                                                     : 10;
         unsigned int PERF_SEL1                                                    : 10;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE1                                                   :  4;
         unsigned int PERF_MODE                                                    :  4;
-    } gfx09_1xPlus;
+    } most;
+    struct {
+        unsigned int PERFCOUNTER_SELECT                                           : 10;
+        unsigned int PERFCOUNTER_SELECT1                                          : 10;
+        unsigned int                                                              : 12;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10133,9 +10133,14 @@ union GRBM_PERFCOUNTER0_SELECT {
         unsigned int RLC_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int                                                              :  2;
         unsigned int UTCL2_BUSY_USER_DEFINED_MASK                                 :  1;
-        unsigned int EA_BUSY_USER_DEFINED_MASK                                    :  1;
+        unsigned int                                                              :  1;
         unsigned int RMI_BUSY_USER_DEFINED_MASK                                   :  1;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 30;
+        unsigned int EA_BUSY_USER_DEFINED_MASK                                    :  1;
+        unsigned int                                                              :  1;
+    } core;
     struct {
         unsigned int                                                              : 12;
         unsigned int VGT_BUSY_USER_DEFINED_MASK                                   :  1;
@@ -10225,9 +10230,14 @@ union GRBM_PERFCOUNTER1_SELECT {
         unsigned int RLC_BUSY_USER_DEFINED_MASK                                   :  1;
         unsigned int                                                              :  2;
         unsigned int UTCL2_BUSY_USER_DEFINED_MASK                                 :  1;
-        unsigned int EA_BUSY_USER_DEFINED_MASK                                    :  1;
+        unsigned int                                                              :  1;
         unsigned int RMI_BUSY_USER_DEFINED_MASK                                   :  1;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 30;
+        unsigned int EA_BUSY_USER_DEFINED_MASK                                    :  1;
+        unsigned int                                                              :  1;
+    } core;
     struct {
         unsigned int                                                              : 12;
         unsigned int VGT_BUSY_USER_DEFINED_MASK                                   :  1;
@@ -21086,9 +21096,13 @@ union SPI_SHADER_PGM_RSRC3_PS {
     struct {
         unsigned int CU_EN                                                        : 16;
         unsigned int WAVE_LIMIT                                                   :  6;
+        unsigned int                                                              : 10;
+    } bits, bitfields;
+    struct {
+        unsigned int                                                              : 22;
         unsigned int LOCK_LOW_THRESHOLD                                           :  4;
         unsigned int                                                              :  6;
-    } bits, bitfields;
+    } core;
     struct {
         unsigned int                                                              : 26;
         unsigned int SIMD_DISABLE                                                 :  4;
@@ -29377,7 +29391,7 @@ union TA_CNTL_AUX {
         unsigned int SCOAL_DSWIZZLE_N                                             :  1;
         unsigned int                                                              :  4;
         unsigned int TFAULT_EN_OVERRIDE                                           :  1;
-        unsigned int GATHERH_DST_SEL                                              :  1;
+        unsigned int                                                              :  1;
         unsigned int DISABLE_GATHER4_BC_SWIZZLE                                   :  1;
         unsigned int                                                              :  2;
         unsigned int ANISO_HALF_THRESH                                            :  2;
@@ -29406,6 +29420,11 @@ union TA_CNTL_AUX {
         unsigned int RESERVED                                                     :  3;
         unsigned int                                                              : 28;
     } most;
+    struct {
+        unsigned int                                                              :  6;
+        unsigned int GATHERH_DST_SEL                                              :  1;
+        unsigned int                                                              : 25;
+    } core;
     struct {
         unsigned int                                                              :  9;
         unsigned int NONIMG_ANISO_BYPASS                                          :  1;

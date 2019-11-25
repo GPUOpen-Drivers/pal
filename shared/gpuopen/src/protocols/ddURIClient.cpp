@@ -34,328 +34,411 @@
 
 namespace DevDriver
 {
-    namespace URIProtocol
+namespace URIProtocol
+{
+
+static constexpr URIDataFormat ResponseFormatToUriFormat(ResponseDataFormat format)
+{
+    static_assert(static_cast<uint32>(ResponseDataFormat::Unknown) == static_cast<uint32>(URIDataFormat::Unknown),
+                    "ResponseDataFormat and URIDataFormat no longer match");
+    static_assert(static_cast<uint32>(ResponseDataFormat::Text) == static_cast<uint32>(URIDataFormat::Text),
+                    "ResponseDataFormat and URIDataFormat no longer match");
+    static_assert(static_cast<uint32>(ResponseDataFormat::Binary) == static_cast<uint32>(URIDataFormat::Binary),
+                    "ResponseDataFormat and URIDataFormat no longer match");
+    static_assert(static_cast<uint32>(ResponseDataFormat::Count) == static_cast<uint32>(URIDataFormat::Count),
+                    "ResponseDataFormat and URIDataFormat no longer match");
+    return static_cast<URIDataFormat>(format);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Result URIClient::TransactURIRequest(
+    const void*     pPostDataBuffer,        /// [in] Post data to send to the remote client
+                                            ///      Can be set to nullptr if there's no post data to send
+    uint32          postDataSize,           /// [in] Size of the data pointed to by pPostDataBuffer
+    Vector<uint8>*  pResponseBuffer,        /// [in/out] Buffer to write the response data into
+                                            ///          Can be set to nullptr if there's no output data expected
+                                            ///          for the provided request
+    URIDataFormat   expectedResponseFormat, /// The expected format of the response data
+                                            /// The function will return an error if the response data format
+                                            /// doesn't match the format provided
+    const char*     pFormatString,          /// A format string used to generate the request string
+    ...)                                    /// Variable length argument list associated with pFormatString
+{
+    DD_ASSERT(pFormatString != nullptr);
+
+    Result result = Result::Success;
+
+    va_list args;
+
+    va_start(args, pFormatString);
+
+    int32 ret = Platform::Vsnprintf(
+        m_requestStringBuffer.Data(),
+        m_requestStringBuffer.Size(),
+        pFormatString,
+        args);
+
+    va_end(args);
+
+    // Check that we had enough space for the formatting.
+    // We may need to do it again.
+    if (static_cast<size_t>(ret) > m_requestStringBuffer.Size())
     {
-        static constexpr URIDataFormat ResponseFormatToUriFormat(ResponseDataFormat format)
+        m_requestStringBuffer.Resize(static_cast<size_t>(ret));
+
+        va_start(args, pFormatString);
+
+        ret = Platform::Vsnprintf(m_requestStringBuffer.Data(),
+            m_requestStringBuffer.Size(),
+            pFormatString,
+            args);
+
+        va_end(args);
+
+        // If we still failed to print the string properly after resizing, return an error.
+        if (static_cast<size_t>(ret) != m_requestStringBuffer.Size())
         {
-            static_assert(static_cast<uint32>(ResponseDataFormat::Unknown) == static_cast<uint32>(URIDataFormat::Unknown),
-                          "ResponseDataFormat and URIDataFormat no longer match");
-            static_assert(static_cast<uint32>(ResponseDataFormat::Text) == static_cast<uint32>(URIDataFormat::Text),
-                          "ResponseDataFormat and URIDataFormat no longer match");
-            static_assert(static_cast<uint32>(ResponseDataFormat::Binary) == static_cast<uint32>(URIDataFormat::Binary),
-                          "ResponseDataFormat and URIDataFormat no longer match");
-            static_assert(static_cast<uint32>(ResponseDataFormat::Count) == static_cast<uint32>(URIDataFormat::Count),
-                          "ResponseDataFormat and URIDataFormat no longer match");
-            return static_cast<URIDataFormat>(format);
+            result = Result::Error;
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        URIProtocol::ResponseHeader responseHeader = {};
+        result = RequestURI(m_requestStringBuffer.Data(), &responseHeader, pPostDataBuffer, postDataSize);
+
+        if (result == Result::Success)
+        {
+            // Verify the response format
+            result = (responseHeader.responseDataFormat == expectedResponseFormat) ? Result::Success
+                : Result::Error;
         }
 
-        // =====================================================================================================================
-        URIClient::URIClient(IMsgChannel* pMsgChannel)
-            : BaseProtocolClient(pMsgChannel, Protocol::URI, URI_CLIENT_MIN_VERSION, URI_CLIENT_MAX_VERSION)
+        // Receive a response if necessary
+        if ((result == Result::Success) && (pResponseBuffer != nullptr))
         {
-            memset(&m_context, 0, sizeof(m_context));
+            // Ensure we have enough buffer space to read the whole response.
+            pResponseBuffer->Resize(responseHeader.responseDataSizeInBytes);
+
+            result = ReadFullResponse(pResponseBuffer->Data(), pResponseBuffer->Size());
+        }
+    }
+
+    memset(m_requestStringBuffer.Data(), 0, m_requestStringBuffer.Size());
+
+    return result;
+}
+
+// =====================================================================================================================
+URIClient::URIClient(IMsgChannel* pMsgChannel)
+    : BaseProtocolClient(pMsgChannel, Protocol::URI, URI_CLIENT_MIN_VERSION, URI_CLIENT_MAX_VERSION)
+    , m_requestStringBuffer(pMsgChannel->GetAllocCb())
+{
+    // Make sure our buffer always has some space
+    m_requestStringBuffer.Resize(m_requestStringBuffer.Capacity());
+    memset(&m_context, 0, sizeof(m_context));
+}
+
+// =====================================================================================================================
+URIClient::~URIClient()
+{
+}
+
+// =====================================================================================================================
+Result URIClient::RequestURI(
+    const char*      pRequestString,
+    ResponseHeader*  pResponseHeader,
+    const void*      pPostData,
+    size_t           postDataSize)
+{
+    Result result = Result::UriInvalidParameters;
+
+    if ((m_context.state == State::Idle) &&
+        (pRequestString != nullptr))
+    {
+        // Setup some sensible defaults in the response header
+        if (pResponseHeader != nullptr)
+        {
+            pResponseHeader->responseDataSizeInBytes = 0;
+            pResponseHeader->responseDataFormat = URIDataFormat::Unknown;
         }
 
-        // =====================================================================================================================
-        URIClient::~URIClient()
+        // Set up the request payload.
+        SizedPayloadContainer container = {};
+        // If there's no post data just create the container with the request string directly
+        if ((pPostData == nullptr) || (postDataSize == 0))
         {
+            container.CreatePayload<URIRequestPayload>(pRequestString);
+            result = Result::Success;
         }
-
-        // =====================================================================================================================
-        Result URIClient::RequestURI(
-            const char*      pRequestString,
-            ResponseHeader*  pResponseHeader,
-            const void*      pPostData,
-            size_t           postDataSize)
+        else if (pPostData != nullptr)
         {
-            Result result = Result::UriInvalidParameters;
-
-            if ((m_context.state == State::Idle) &&
-                (pRequestString != nullptr))
+            // Try to fit the post data into a single message packet
+            if (postDataSize <= kMaxInlineDataSize)
             {
-                // Setup some sensible defaults in the response header
-                if (pResponseHeader != nullptr)
-                {
-                    pResponseHeader->responseDataSizeInBytes = 0;
-                    pResponseHeader->responseDataFormat = URIDataFormat::Unknown;
-                }
-
-                // Set up the request payload.
-                SizedPayloadContainer container = {};
-                // If there's no post data just create the container with the request string directly
-                if ((pPostData == nullptr) || (postDataSize == 0))
-                {
-                    container.CreatePayload<URIRequestPayload>(pRequestString);
-                    result = Result::Success;
-                }
-                else if (pPostData != nullptr)
-                {
-                    // Try to fit the post data into a single message packet
-                    if (postDataSize <= kMaxInlineDataSize)
-                    {
-                        // If the data fits into a single packet, setup the URI payload struct first
-                        container.CreatePayload<URIRequestPayload>(pRequestString,
-                                                                   TransferProtocol::kInvalidBlockId,
-                                                                   TransferDataFormat::Binary,
-                                                                   static_cast<uint32>(postDataSize));
-                        // Then copy the data into the payload right after the struct
-                        void* pPostDataLocation = GetInlineDataPtr(&container);
-                        memcpy(pPostDataLocation, pPostData, postDataSize);
-                        // And then update the payload size so the post data doesn't get trimmed off
-                        container.payloadSize = static_cast<uint32>(sizeof(URIRequestPayload) + postDataSize);
-                        result = Result::Success;
-                    }
-                    else
-                    {
-                        // If the data won't fit in a single packet we need to request a block from the server.
-                        // First send the post request, the response will tell us the block ID we should open to
-                        // push our data into.
-                        SizedPayloadContainer blockRequest = {};
-                        blockRequest.CreatePayload<URIPostRequestPayload>(pRequestString, static_cast<uint32>(postDataSize));
-                        result = TransactURIPayload(&blockRequest);
-                        if (result == Result::Success)
-                        {
-                            // Read the response and get the block ID to use for our post data
-                            const URIPostResponsePayload& response = blockRequest.GetPayload<URIPostResponsePayload>();
-                            const uint32 pushBlockId = response.blockId;
-                            result = response.result;
-                            if (result == Result::Success)
-                            {
-                                // Open the indicated block and send our data
-                                TransferProtocol::PushBlock* pPostBlock = m_pMsgChannel->GetTransferManager().OpenPushBlock(
-                                    m_pSession->GetDestinationClientId(),
-                                    pushBlockId,
-                                    postDataSize);
-
-                                if (pPostBlock != nullptr)
-                                {
-                                    result = pPostBlock->Write(static_cast<const uint8*>(pPostData), postDataSize);
-                                    if (result == Result::Success)
-                                    {
-                                        result = pPostBlock->Finalize();
-                                    }
-
-                                    m_pMsgChannel->GetTransferManager().ClosePushBlock(&pPostBlock);
-                                }
-                                else
-                                {
-                                    result = Result::UriFailedToAcquirePostBlock;
-                                }
-                            }
-
-                            // Finally setup the container to send the URI request, this time with the block ID that contains
-                            // our post data
-                            if (result == Result::Success)
-                            {
-                                container.CreatePayload<URIRequestPayload>(pRequestString,
-                                                                           pushBlockId,
-                                                                           TransferDataFormat::Binary,
-                                                                           static_cast<uint32>(postDataSize));
-                            }
-                        }
-                    }
-                }
-
-                // Issue a transaction.
-                if (result == Result::Success)
-                {
-                    result = TransactURIPayload(&container);
-                }
-
-                if (result == Result::Success)
-                {
-                    const URIResponsePayload& responsePayload = container.GetPayload<URIResponsePayload>();
-
-                    if (responsePayload.header.command == URIMessage::URIResponse)
-                    {
-                        result = responsePayload.result;
-                        if (result == Result::Success)
-                        {
-                            // We've successfully received the response. Extract the relevant fields from the response.
-                            if (responsePayload.blockId != TransferProtocol::kInvalidBlockId)
-                            {
-                                const TransferProtocol::BlockId& remoteBlockId = responsePayload.blockId;
-
-                                // Attempt to open the pull block containing the response data.
-                                // @Todo: Detect if the service returns the invalid block ID and treat that as a success.
-                                //        It will require a new protocol version because existing clients will fail if
-                                //        the invalid block ID is returned in lieu of a block of size 0.
-                                TransferProtocol::PullBlock* pPullBlock =
-                                    m_pMsgChannel->GetTransferManager().OpenPullBlock(GetRemoteClientId(), remoteBlockId);
-
-                                if (pPullBlock != nullptr)
-                                {
-                                    m_context.pBlock = pPullBlock;
-                                    const size_t blockSize = m_context.pBlock->GetBlockDataSize();
-
-                                    // We successfully opened the block. Return the block data size and format via the header.
-                                    // The header is optional so check for nullptr first.
-                                    if (pResponseHeader != nullptr)
-                                    {
-                                        // Set up some defaults for the response fields.
-                                        URIDataFormat responseDataFormat = URIDataFormat::Text;
-                                        if (m_pSession->GetVersion() >= URI_RESPONSE_FORMATS_VERSION)
-                                        {
-                                            responseDataFormat = ResponseFormatToUriFormat(responsePayload.format);
-                                        }
-
-                                        pResponseHeader->responseDataSizeInBytes = blockSize;
-                                        pResponseHeader->responseDataFormat = responseDataFormat;
-                                    }
-
-                                    // If the block size is non-zero we move to the read state
-                                    if (blockSize > 0)
-                                    {
-                                        // Set up internal state.
-                                        m_context.state = State::ReadResponse;
-                                    }
-                                    else // If the block size is zero we automatically close it and move back to idle
-                                    {
-                                        m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
-                                    }
-                                }
-                                else
-                                {
-                                    // Failed to open the response block.
-                                    result = Result::UriFailedToOpenResponseBlock;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return result;
-        }
-
-        // =====================================================================================================================
-        Result URIClient::ReadResponse(uint8* pDstBuffer, size_t bufferSize, size_t* pBytesRead)
-        {
-            Result result = Result::UriInvalidParameters;
-
-            if (m_context.state == State::ReadResponse)
-            {
-                result = m_context.pBlock->Read(pDstBuffer, bufferSize, pBytesRead);
-
-                // If we reach the end of the stream or we encounter an error, we should transition back to the idle state.
-                if ((result == Result::EndOfStream) ||
-                    (result == Result::Error))
-                {
-                    m_context.state = State::Idle;
-                    m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
-                }
-            }
-
-            return result;
-        }
-
-        // =====================================================================================================================
-        Result URIClient::AbortRequest()
-        {
-            Result result = Result::UriInvalidParameters;
-
-            if (m_context.state == State::ReadResponse)
-            {
-                m_context.state = State::Idle;
-                m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
-
+                // If the data fits into a single packet, setup the URI payload struct first
+                container.CreatePayload<URIRequestPayload>(pRequestString,
+                                                            TransferProtocol::kInvalidBlockId,
+                                                            TransferDataFormat::Binary,
+                                                            static_cast<uint32>(postDataSize));
+                // Then copy the data into the payload right after the struct
+                void* pPostDataLocation = GetInlineDataPtr(&container);
+                memcpy(pPostDataLocation, pPostData, postDataSize);
+                // And then update the payload size so the post data doesn't get trimmed off
+                container.payloadSize = static_cast<uint32>(sizeof(URIRequestPayload) + postDataSize);
                 result = Result::Success;
-            }
-
-            return result;
-        }
-
-        // =====================================================================================================================
-        Result URIClient::ReadFullResponse(void* pDstBuffer, const size_t bufferSize)
-        {
-            Result result = Result::Error;
-
-            // Ensure that the buffer to copy the response to is valid.
-            if (pDstBuffer != nullptr)
-            {
-                // Read all of the response bytes.
-                // We should expect to see an "EndOfStream" result if all response data was read successfully.
-                size_t totalBytesRead = 0;
-                do
-                {
-                    size_t bytesRead = 0;
-                    const size_t bytesRemaining = (bufferSize - totalBytesRead);
-                    const size_t bytesToRead = bytesRemaining;
-                    result = ReadResponse(reinterpret_cast<DevDriver::uint8*>(pDstBuffer) + totalBytesRead, bytesToRead, &bytesRead);
-                    totalBytesRead += bytesRead;
-                } while (result == DevDriver::Result::Success);
-
-                if (result == Result::EndOfStream)
-                {
-                    result = Result::Success;
-                }
             }
             else
             {
-                // The response buffer was invalid.
-                result = DevDriver::Result::InvalidParameter;
-            }
+                // If the data won't fit in a single packet we need to request a block from the server.
+                // First send the post request, the response will tell us the block ID we should open to
+                // push our data into.
+                SizedPayloadContainer blockRequest = {};
+                blockRequest.CreatePayload<URIPostRequestPayload>(pRequestString, static_cast<uint32>(postDataSize));
+                result = TransactURIPayload(&blockRequest);
+                if (result == Result::Success)
+                {
+                    // Read the response and get the block ID to use for our post data
+                    const URIPostResponsePayload& response = blockRequest.GetPayload<URIPostResponsePayload>();
+                    const uint32 pushBlockId = response.blockId;
+                    result = response.result;
+                    if (result == Result::Success)
+                    {
+                        // Open the indicated block and send our data
+                        TransferProtocol::PushBlock* pPostBlock = m_pMsgChannel->GetTransferManager().OpenPushBlock(
+                            m_pSession->GetDestinationClientId(),
+                            pushBlockId,
+                            postDataSize);
 
-            return result;
+                        if (pPostBlock != nullptr)
+                        {
+                            result = pPostBlock->Write(static_cast<const uint8*>(pPostData), postDataSize);
+                            if (result == Result::Success)
+                            {
+                                result = pPostBlock->Finalize();
+                            }
+
+                            m_pMsgChannel->GetTransferManager().ClosePushBlock(&pPostBlock);
+                        }
+                        else
+                        {
+                            result = Result::UriFailedToAcquirePostBlock;
+                        }
+                    }
+
+                    // Finally setup the container to send the URI request, this time with the block ID that contains
+                    // our post data
+                    if (result == Result::Success)
+                    {
+                        container.CreatePayload<URIRequestPayload>(pRequestString,
+                                                                    pushBlockId,
+                                                                    TransferDataFormat::Binary,
+                                                                    static_cast<uint32>(postDataSize));
+                    }
+                }
+            }
         }
 
-        // =====================================================================================================================
-        void URIClient::ResetState()
+        // Issue a transaction.
+        if (result == Result::Success)
         {
-            // Close the pull block if it's still valid.
-            if (m_context.pBlock != nullptr)
+            result = TransactURIPayload(&container);
+        }
+
+        if (result == Result::Success)
+        {
+            const URIResponsePayload& responsePayload = container.GetPayload<URIResponsePayload>();
+
+            if (responsePayload.header.command == URIMessage::URIResponse)
             {
-                m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
+                result = responsePayload.result;
+                if (result == Result::Success)
+                {
+                    // We've successfully received the response. Extract the relevant fields from the response.
+                    if (responsePayload.blockId != TransferProtocol::kInvalidBlockId)
+                    {
+                        const TransferProtocol::BlockId& remoteBlockId = responsePayload.blockId;
+
+                        // Attempt to open the pull block containing the response data.
+                        // @Todo: Detect if the service returns the invalid block ID and treat that as a success.
+                        //        It will require a new protocol version because existing clients will fail if
+                        //        the invalid block ID is returned in lieu of a block of size 0.
+                        TransferProtocol::PullBlock* pPullBlock =
+                            m_pMsgChannel->GetTransferManager().OpenPullBlock(GetRemoteClientId(), remoteBlockId);
+
+                        if (pPullBlock != nullptr)
+                        {
+                            m_context.pBlock = pPullBlock;
+                            const size_t blockSize = m_context.pBlock->GetBlockDataSize();
+
+                            // We successfully opened the block. Return the block data size and format via the header.
+                            // The header is optional so check for nullptr first.
+                            if (pResponseHeader != nullptr)
+                            {
+                                // Set up some defaults for the response fields.
+                                URIDataFormat responseDataFormat = URIDataFormat::Text;
+                                if (m_pSession->GetVersion() >= URI_RESPONSE_FORMATS_VERSION)
+                                {
+                                    responseDataFormat = ResponseFormatToUriFormat(responsePayload.format);
+                                }
+
+                                pResponseHeader->responseDataSizeInBytes = blockSize;
+                                pResponseHeader->responseDataFormat = responseDataFormat;
+                            }
+
+                            // If the block size is non-zero we move to the read state
+                            if (blockSize > 0)
+                            {
+                                // Set up internal state.
+                                m_context.state = State::ReadResponse;
+                            }
+                            else // If the block size is zero we automatically close it and move back to idle
+                            {
+                                m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
+                            }
+                        }
+                        else
+                        {
+                            // Failed to open the response block.
+                            result = Result::UriFailedToOpenResponseBlock;
+                        }
+                    }
+                }
             }
-
-            memset(&m_context, 0, sizeof(m_context));
-        }
-
-        // ============================================================================================================
-        // Helper method to send a payload, handling backwards compatibility and retrying.
-        Result URIClient::SendURIPayload(
-            const SizedPayloadContainer& container,
-            uint32 timeoutInMs,
-            uint32 retryInMs)
-        {
-            // Use the legacy size for the container if we're connected to an older client, otherwise use the real size.
-            const Version sessionVersion = (m_pSession.IsNull() == false) ? m_pSession->GetVersion() : 0;
-            const uint32 payloadSize = (sessionVersion >= URI_POST_PROTOCOL_VERSION) ? container.payloadSize
-                                                                                     : kLegacyMaxSize;
-
-            return SendSizedPayload(container.payload,
-                                    payloadSize,
-                                    timeoutInMs,
-                                    retryInMs);
-        }
-
-        // ============================================================================================================
-        // Helper method to handle receiving a payload from a SizedPayloadContainer, including retrying if busy.
-        Result URIClient::ReceiveURIPayload(
-            SizedPayloadContainer* pContainer,
-            uint32 timeoutInMs,
-            uint32 retryInMs)
-        {
-            return ReceiveSizedPayload(pContainer->payload,
-                                       sizeof(pContainer->payload),
-                                       &pContainer->payloadSize,
-                                       timeoutInMs,
-                                       retryInMs);
-        }
-
-        // ============================================================================================================
-        // Helper method to send and then receive using a SizedPayloadContainer object.
-        Result URIClient::TransactURIPayload(
-            SizedPayloadContainer* pContainer,
-            uint32 timeoutInMs,
-            uint32 retryInMs)
-        {
-            Result result = SendURIPayload(*pContainer, timeoutInMs, retryInMs);
-            if (result == Result::Success)
-            {
-                result = ReceiveURIPayload(pContainer, timeoutInMs, retryInMs);
-            }
-            return result;
         }
     }
+    return result;
+}
+
+// =====================================================================================================================
+Result URIClient::ReadResponse(uint8* pDstBuffer, size_t bufferSize, size_t* pBytesRead)
+{
+    Result result = Result::UriInvalidParameters;
+
+    if (m_context.state == State::ReadResponse)
+    {
+        result = m_context.pBlock->Read(pDstBuffer, bufferSize, pBytesRead);
+
+        // If we reach the end of the stream or we encounter an error, we should transition back to the idle state.
+        if ((result == Result::EndOfStream) ||
+            (result == Result::Error))
+        {
+            m_context.state = State::Idle;
+            m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result URIClient::AbortRequest()
+{
+    Result result = Result::UriInvalidParameters;
+
+    if (m_context.state == State::ReadResponse)
+    {
+        m_context.state = State::Idle;
+        m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
+
+        result = Result::Success;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result URIClient::ReadFullResponse(void* pDstBuffer, const size_t bufferSize)
+{
+    Result result = Result::Error;
+
+    // Ensure that the buffer to copy the response to is valid.
+    if (pDstBuffer != nullptr)
+    {
+        // Read all of the response bytes.
+        // We should expect to see an "EndOfStream" result if all response data was read successfully.
+        size_t totalBytesRead = 0;
+        do
+        {
+            size_t bytesRead = 0;
+            const size_t bytesRemaining = (bufferSize - totalBytesRead);
+            const size_t bytesToRead = bytesRemaining;
+            result = ReadResponse(reinterpret_cast<DevDriver::uint8*>(pDstBuffer) + totalBytesRead, bytesToRead, &bytesRead);
+            totalBytesRead += bytesRead;
+        } while (result == DevDriver::Result::Success);
+
+        if (result == Result::EndOfStream)
+        {
+            result = Result::Success;
+        }
+    }
+    else
+    {
+        // The response buffer was invalid.
+        result = DevDriver::Result::InvalidParameter;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+void URIClient::ResetState()
+{
+    // Close the pull block if it's still valid.
+    if (m_context.pBlock != nullptr)
+    {
+        m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
+    }
+
+    memset(&m_context, 0, sizeof(m_context));
+}
+
+// ============================================================================================================
+// Helper method to send a payload, handling backwards compatibility and retrying.
+Result URIClient::SendURIPayload(
+    const SizedPayloadContainer& container,
+    uint32 timeoutInMs,
+    uint32 retryInMs)
+{
+    // Use the legacy size for the container if we're connected to an older client, otherwise use the real size.
+    const Version sessionVersion = (m_pSession.IsNull() == false) ? m_pSession->GetVersion() : 0;
+    const uint32 payloadSize = (sessionVersion >= URI_POST_PROTOCOL_VERSION) ? container.payloadSize
+                                                                                : kLegacyMaxSize;
+
+    return SendSizedPayload(container.payload,
+                            payloadSize,
+                            timeoutInMs,
+                            retryInMs);
+}
+
+// ============================================================================================================
+// Helper method to handle receiving a payload from a SizedPayloadContainer, including retrying if busy.
+Result URIClient::ReceiveURIPayload(
+    SizedPayloadContainer* pContainer,
+    uint32 timeoutInMs,
+    uint32 retryInMs)
+{
+    return ReceiveSizedPayload(pContainer->payload,
+                                sizeof(pContainer->payload),
+                                &pContainer->payloadSize,
+                                timeoutInMs,
+                                retryInMs);
+}
+
+// ============================================================================================================
+// Helper method to send and then receive using a SizedPayloadContainer object.
+Result URIClient::TransactURIPayload(
+    SizedPayloadContainer* pContainer,
+    uint32 timeoutInMs,
+    uint32 retryInMs)
+{
+    Result result = SendURIPayload(*pContainer, timeoutInMs, retryInMs);
+    if (result == Result::Success)
+    {
+        result = ReceiveURIPayload(pContainer, timeoutInMs, retryInMs);
+    }
+    return result;
+}
+}
 
 } // DevDriver

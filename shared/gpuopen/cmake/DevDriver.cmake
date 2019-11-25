@@ -53,7 +53,7 @@ include(ProcessorCount)
 macro(apply_gpuopen_warnings _target)
 
     if(DEVDRIVER_USE_CPP17)
-        message(STATUS "Using C++17 for ${_target}")
+        message(VERBOSE "Using C++17 for ${_target}")
 
         # WA: CMake supports C++17 since version 3.8
         if (CMAKE_VERSION VERSION_LESS "3.8")

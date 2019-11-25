@@ -441,7 +441,6 @@ public:
         gpusize      offset,
         uint32       baseVtxLoc,
         uint32       startInstLoc,
-        uint32       startIndexLoc,
         Pm4Predicate predicate,
         void*        pBuffer) const;
     size_t BuildDrawIndexIndirectMulti(
@@ -449,7 +448,6 @@ public:
         uint32       baseVtxLoc,
         uint32       startInstLoc,
         uint32       drawIndexLoc,
-        uint32       startIndexLoc,
         uint32       stride,
         uint32       count,
         gpusize      countGpuAddr,

@@ -215,10 +215,12 @@ static PAL_INLINE ColorFormat HwColorFormat(
         hwColorFmt = HwColorFmt(MergedChannelFmtInfoTbl(gfxLevel, &pDevice->GetPlatform()->PlatformSettings()),
                                 format);
         break;
+
     case GfxIpLevel::GfxIp10_1:
         hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel, &pDevice->GetPlatform()->PlatformSettings()),
                                 format);
         break;
+
     default:
         PAL_NEVER_CALLED();
         break;
@@ -1301,15 +1303,23 @@ void RsrcProcMgr::ExpandDepthStencil(
         pComputeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
-        // Mark all the hTile data as fully expanded
-        InitHtile(pCmdBuffer, pComputeCmdStream, *pGfxImage, range);
-
-        // And wait for that to finish...
-        pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pComputeCmdSpace);
-        pComputeCmdStream->CommitCommands(pComputeCmdSpace);
-
+        // Restore the compute state here as the "initHtile" function is going to push the compute state again
+        // for its own purposes.
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+
+        // GFX10 supports shader-writes to an image with mask-ram; i.e., the HW automagically kept the mask-ram
+        // and the image data in sync, so there's no need to mark the hTile data as expanded.  Doing so would
+        // lead to corruption if compressed shader writes were enabled.
+        if (IsGfx9(device))
+        {
+            // Mark all the hTile data as fully expanded
+            InitHtile(pCmdBuffer, pComputeCmdStream, *pGfxImage, range);
+
+            // And wait for that to finish...
+            pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
+            pComputeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pComputeCmdSpace);
+            pComputeCmdStream->CommitCommands(pComputeCmdSpace);
+        }
     }
     else
     {
@@ -1938,16 +1948,18 @@ bool RsrcProcMgr::HwlCanDoFixedFuncResolve(
                                        imageRegion.dstMipLevel,
                                        imageRegion.dstSlice };
 
-        const auto*   pSrcSubResInfo   = srcImage.SubresourceInfo(srcSubResId);
-        const auto&   srcAddrSettings = pGfxSrcImage->GetAddrSettings(pSrcSubResInfo);
+        const auto* pSrcSubResInfo  = srcImage.SubresourceInfo(srcSubResId);
+        const auto* pSrcTileToken   = reinterpret_cast<const AddrMgr2::TileToken*>(&pSrcSubResInfo->tileToken);
+        const auto& srcAddrSettings = pGfxSrcImage->GetAddrSettings(pSrcSubResInfo);
 
-        const auto*   pDstSubResInfo   = dstImage.SubresourceInfo(dstSubResId);
-        const auto&   dstAddrSettings  = pGfxDstImage->GetAddrSettings(pDstSubResInfo);
+        const auto* pDstSubResInfo  = dstImage.SubresourceInfo(dstSubResId);
+        const auto* pDstTileToken   = reinterpret_cast<const AddrMgr2::TileToken*>(&pDstSubResInfo->tileToken);
+        const auto& dstAddrSettings = pGfxDstImage->GetAddrSettings(pDstSubResInfo);
 
         canDoFixedFuncResolve =
             ((memcmp(&pSrcSubResInfo->format, &pDstSubResInfo->format, sizeof(SwizzledFormat)) == 0) &&
              (memcmp(&imageRegion.srcOffset, &imageRegion.dstOffset, sizeof(Offset3d)) == 0)         &&
-             (srcAddrSettings.swizzleMode == dstAddrSettings.swizzleMode)                            &&
+             (pSrcTileToken->bits.swizzleMode == pDstTileToken->bits.swizzleMode)                    &&
              // CB ignores the slice_start field in MRT1, and instead uses the value from MRT0 when writing to MRT1.
              (srcSubResId.arraySlice == dstSubResId.arraySlice));
 
@@ -1996,6 +2008,8 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
     {
         uint32 mergedCount = 0;
 
+        const auto* const pAddrMgr = static_cast<const AddrMgr2::AddrMgr2*>(m_pDevice->Parent()->GetAddrMgr());
+
         for (uint32 region = 0; canDoDepthStencilCopyResolve && (region < regionCount); ++region)
         {
             const ImageResolveRegion& imageRegion = pRegions[region];
@@ -2019,8 +2033,8 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
 
             canDoDepthStencilCopyResolve &=
                 ((memcmp(&pSrcSubResInfo->format, &pDstSubResInfo->format, sizeof(SwizzledFormat)) == 0) &&
-                    (AddrMgr2::GetBlockSize(srcAddrSettings.swizzleMode) ==
-                        AddrMgr2::GetBlockSize(dstAddrSettings.swizzleMode)));
+                    (pAddrMgr->GetBlockSize(srcAddrSettings.swizzleMode) ==
+                        pAddrMgr->GetBlockSize(dstAddrSettings.swizzleMode)));
 
             static const uint32 HtileTexelAlignment = 8;
 
@@ -2136,9 +2150,7 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
     }
 
     // For Gfx9, we need do fixup after fixfuction or compute shader resolve.
-    if (canDoFixupForDstImage
-        && ((computeResolve == false) || (IsGfx10(device) == false))
-       )
+    if (canDoFixupForDstImage && ((computeResolve == false) || (IsGfx10(device) == false)))
     {
         BarrierInfo      barrierInfo = {};
         Pal::SubresRange range       = {};
@@ -3069,6 +3081,44 @@ void RsrcProcMgr::CommitBeginEndGfxCopy(
                                                      pCmdSpace);
 
     pCmdStream->CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
+// Returns a union of the HtileAspectMask enumerations that indicate which aspects need to be cleared.  A return value
+// of zero indicates that the initialization of hTile is a NOP for this particular clear range.
+uint32 RsrcProcMgr::GetInitHtileClearMask(
+    const Image&       dstImage,
+    const SubresRange& clearRange
+    ) const
+{
+    const Pal::Image*      pParentImg = dstImage.Parent();
+    const ImageCreateInfo& createInfo = pParentImg->GetImageCreateInfo();
+    const Gfx9Htile*       pHtile     = dstImage.GetHtile();
+
+    uint32 clearMask = 0;
+
+    // If all these conditions are true:
+    //    1) This depth image has both depth and stencil aspects
+    //    2) The client did not request separate initialization of the depth and stencil aspects
+    //    3) hTile supports both depth and stencil
+    //
+    // Then we need to initialize both aspects here.
+    if ((pParentImg->GetImageInfo().numPlanes == 2) &&
+        (createInfo.flags.perSubresInit == 0)       &&
+        (pHtile->TileStencilDisabled() == false))
+    {
+        clearMask = HtileAspectDepth | HtileAspectStencil;
+    }
+    else if (clearRange.startSubres.aspect == ImageAspect::Depth)
+    {
+        clearMask = HtileAspectDepth;
+    }
+    else if ((clearRange.startSubres.aspect == ImageAspect::Stencil) && (pHtile->TileStencilDisabled() == false))
+    {
+        clearMask = HtileAspectStencil;
+    }
+
+    return clearMask;
 }
 
 // =====================================================================================================================
@@ -5189,35 +5239,25 @@ void Gfx9RsrcProcMgr::InitHtile(
     ) const
 {
     const Pal::Image*      pParentImg = dstImage.Parent();
-    const Pal::Device*     pParentDev = pParentImg->GetDevice();
     const ImageCreateInfo& createInfo = pParentImg->GetImageCreateInfo();
     const auto*            pHtile     = dstImage.GetHtile();
-    const uint32           initValue  = pHtile->GetInitialValue();
+    const uint32           clearMask  = GetInitHtileClearMask(dstImage, clearRange);
 
     // There shouldn't be any 3D images with HTile allocations.
     PAL_ASSERT(createInfo.imageType != ImageType::Tex3d);
     PAL_ASSERT(pCmdBuffer->IsComputeSupported());
 
-    if (clearRange.startSubres.aspect == ImageAspect::Depth)
+    if (clearMask != 0)
     {
+        const uint32  initValue = pHtile->GetInitialValue();
+
         // We pass a dummy stencil value as the last parameter.
-        // The dummy stencil value won't be used in TheGfx9RsrcProcMgr::FastDepthStencilClearCompute.
+        // The dummy stencil value won't be used in Gfx9RsrcProcMgr::FastDepthStencilClearCompute.
         FastDepthStencilClearCompute(pCmdBuffer,
                                      dstImage,
                                      clearRange,
                                      initValue,
-                                     HtileAspectDepth,
-                                     0);
-    }
-    else if ((clearRange.startSubres.aspect == ImageAspect::Stencil) && (pHtile->TileStencilDisabled() == false))
-    {
-        // We pass a dummy stencil value as the last parameter.
-        // The dummy stencil value won't be used in TheGfx9RsrcProcMgr::FastDepthStencilClearCompute.
-        FastDepthStencilClearCompute(pCmdBuffer,
-                                     dstImage,
-                                     clearRange,
-                                     initValue,
-                                     HtileAspectStencil,
+                                     clearMask,
                                      0);
     }
 }
@@ -5890,7 +5930,8 @@ void Gfx10RsrcProcMgr::HwlDecodeBufferViewSrd(
     BufferViewInfo*  pViewInfo
     ) const
 {
-    const auto* pSrd = static_cast<const sq_buf_rsrc_t*>(pBufferViewSrd);
+    const auto*    pSrd  = static_cast<const sq_buf_rsrc_t*>(pBufferViewSrd);
+    const BUF_FMT  hwFmt = static_cast<BUF_FMT>(pSrd->most.format);
 
     // Verify that we have a buffer view SRD.
     PAL_ASSERT(pSrd->type == SQ_RSRC_BUF);
@@ -5905,7 +5946,7 @@ void Gfx10RsrcProcMgr::HwlDecodeBufferViewSrd(
         pViewInfo->range *= pViewInfo->stride;
     }
 
-    pViewInfo->swizzledFormat.format    = FmtFromHwBufFmt(static_cast<BUF_FMT>(pSrd->format),
+    pViewInfo->swizzledFormat.format    = FmtFromHwBufFmt(hwFmt,
                                                           m_pDevice->Parent()->ChipProperties().gfxLevel);
     pViewInfo->swizzledFormat.swizzle.r =
         ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_x));
@@ -5929,15 +5970,16 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
     SubresRange*          pSubresRange
     ) const
 {
-    const auto*  pSrd = static_cast<const sq_img_rsrc_t*>(pImageViewSrd);
+
+    const auto*    pSrd  = static_cast<const sq_img_rsrc_t*>(pImageViewSrd);
+    const IMG_FMT  hwFmt = static_cast<IMG_FMT>(pSrd->most.format);
 
     // Verify that we have an image view SRD.
     PAL_ASSERT((pSrd->type >= SQ_RSRC_IMG_1D) && (pSrd->type <= SQ_RSRC_IMG_2D_MSAA_ARRAY));
 
     const gpusize  srdBaseAddr = pSrd->base_address;
 
-    pSwizzledFormat->format    = FmtFromHwImgFmt(static_cast<IMG_FMT>(pSrd->format),
-                                                 m_pDevice->Parent()->ChipProperties().gfxLevel);
+    pSwizzledFormat->format    = FmtFromHwImgFmt(hwFmt, m_pDevice->Parent()->ChipProperties().gfxLevel);
     pSwizzledFormat->swizzle.r = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_x));
     pSwizzledFormat->swizzle.g = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_y));
     pSwizzledFormat->swizzle.b = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_z));
@@ -5988,6 +6030,8 @@ bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
     const ImageResolveRegion* pRegions
     ) const
 {
+
+    const Gfx9PalSettings& settings      = GetGfx9Settings(*m_pDevice->Parent());
     const ImageCreateInfo& srcCreateInfo = srcImage.GetImageCreateInfo();
     const ImageCreateInfo& dstCreateInfo = dstImage.GetImageCreateInfo();
 
@@ -6000,11 +6044,15 @@ bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
     AutoBuffer<const ImageResolveRegion*, 2 * MaxImageMipLevels, Platform>
         fixUpRegionList(regionCount, m_pDevice->GetPlatform());
 
-    bool canDoDepthStencilCopyResolve = (pGfxSrcImage->HasDsMetadata() || pGfxDstImage->HasDsMetadata());
+    bool canDoDepthStencilCopyResolve =
+        settings.allowDepthCopyResolve &&
+        (pGfxSrcImage->HasDsMetadata() || pGfxDstImage->HasDsMetadata());
 
     if (fixUpRegionList.Capacity() >= regionCount)
     {
         uint32 mergedCount = 0;
+
+        const auto* const pAddrMgr = static_cast<const AddrMgr2::AddrMgr2*>(m_pDevice->Parent()->GetAddrMgr());
 
         for (uint32 region = 0; canDoDepthStencilCopyResolve && (region < regionCount); ++region)
         {
@@ -6026,8 +6074,8 @@ bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
 
             canDoDepthStencilCopyResolve &=
                 ((memcmp(&pSrcSubResInfo->format, &pDstSubResInfo->format, sizeof(SwizzledFormat)) == 0) &&
-                    (AddrMgr2::GetBlockSize(srcAddrSettings.swizzleMode) ==
-                        AddrMgr2::GetBlockSize(dstAddrSettings.swizzleMode)) &&
+                    (pAddrMgr->GetBlockSize(srcAddrSettings.swizzleMode) ==
+                        pAddrMgr->GetBlockSize(dstAddrSettings.swizzleMode)) &&
                   AddrMgr2::IsZSwizzle(srcAddrSettings.swizzleMode) &&
                   AddrMgr2::IsZSwizzle(dstAddrSettings.swizzleMode));
 
@@ -6062,7 +6110,8 @@ bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
                 fixUpRegionList[mergedCount++] = &imageRegion;
 
                 // srcOffset and dstOffset have to match for a depth/stencil copy
-                canDoDepthStencilCopyResolve &= ((imageRegion.srcOffset.x == imageRegion.dstOffset.x) && (imageRegion.srcOffset.y == imageRegion.dstOffset.y));
+                canDoDepthStencilCopyResolve &= ((imageRegion.srcOffset.x == imageRegion.dstOffset.x) &&
+                                                 (imageRegion.srcOffset.y == imageRegion.dstOffset.y));
 
                 PAL_ASSERT((imageRegion.dstOffset.x >= 0) && (imageRegion.dstOffset.y >= 0));
 
@@ -6172,31 +6221,21 @@ void Gfx10RsrcProcMgr::InitHtile(
     ) const
 {
     const Pal::Image*      pParentImg = dstImage.Parent();
-    const Pal::Device*     pParentDev = pParentImg->GetDevice();
     const ImageCreateInfo& createInfo = pParentImg->GetImageCreateInfo();
-    const auto*            pHtile = dstImage.GetHtile();
-    const uint32           initValue = pHtile->GetInitialValue();
+    const auto*            pHtile     = dstImage.GetHtile();
+    const uint32           clearMask  = GetInitHtileClearMask(dstImage, clearRange);
 
     // There shouldn't be any 3D images with HTile allocations.
     PAL_ASSERT(createInfo.imageType != ImageType::Tex3d);
     PAL_ASSERT(pCmdBuffer->IsComputeSupported());
 
-    uint32 clearMask = 0;
+    if (clearMask != 0)
+    {
+        const uint32  initValue = pHtile->GetInitialValue();
+        const uint32  hTileMask = pHtile->GetAspectMask(clearMask);
 
-    // If htile is of depth only format, and the client is initialzing stencil aspect, we do nothing here.
-    if (clearRange.startSubres.aspect == ImageAspect::Depth)
-    {
-        clearMask         = HtileAspectDepth;
-        uint32  hTileMask = pHtile->GetAspectMask(clearMask);
         InitHtileData(pCmdBuffer, dstImage, clearRange, initValue, hTileMask);
-        FastDepthStencilClearComputeCommon(pCmdBuffer, dstImage.Parent(), clearMask);
-    }
-    else if ((clearRange.startSubres.aspect == ImageAspect::Stencil) && (pHtile->TileStencilDisabled() == false))
-    {
-        clearMask         = HtileAspectStencil;
-        uint32  hTileMask = pHtile->GetAspectMask(clearMask);
-        InitHtileData(pCmdBuffer, dstImage, clearRange, initValue, hTileMask);
-        FastDepthStencilClearComputeCommon(pCmdBuffer, dstImage.Parent(), clearMask);
+        FastDepthStencilClearComputeCommon(pCmdBuffer, pParentImg, clearMask);
     }
 }
 
@@ -6218,8 +6257,10 @@ void Gfx10RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
 
         device.CreateImageViewSrds(1, pImageView, pSrd);
 
-        // Leave "compression_en=1" so that the HW will update DCC memory with the "DCC is decompressed" code.
-        pSrd->write_compress_enable = 0;
+        {
+            // Leave "compression_en=1" so that the HW will update DCC memory with the "DCC is decompressed" code.
+            pSrd->most.write_compress_enable = 0;
+        }
     }
 }
 #endif
@@ -6257,8 +6298,11 @@ bool Gfx10RsrcProcMgr::HwlImageUsesCompressedWrites(
     ) const
 {
     const auto*  pSrd = reinterpret_cast<const sq_img_rsrc_t*>(pImageSrd);
-    PAL_ASSERT((pSrd->write_compress_enable == 0) || (pSrd->compression_en == 1));
-    const bool   usesCompressedWrites = (pSrd->write_compress_enable != 0);
+
+    const uint64  writeCompressBit = pSrd->most.write_compress_enable;
+
+    PAL_ASSERT((writeCompressBit == 0) || (pSrd->compression_en == 1));
+    const bool   usesCompressedWrites = (writeCompressBit != 0);
     return usesCompressedWrites;
 }
 

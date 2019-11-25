@@ -94,6 +94,20 @@ else()
     set(PAL_CLIENT_INTERFACE_MAJOR_VERSION ${PAL_MAJOR_VERSION})
 endif()
 
+if(DEFINED PAL_CLIENT_INTERFACE_MINOR_VERSION)
+    message(STATUS "Client configured PAL_INTERFACE_MINOR_VERSION as " ${PAL_CLIENT_INTERFACE_MINOR_VERSION})
+else()
+    file(STRINGS inc/core/palLib.h PAL_MINOR_VERSION REGEX "^#define PAL_INTERFACE_MINOR_VERSION [0-9]+")
+
+    if(PAL_MINOR_VERSION STREQUAL "")
+        message(STATUS "Failed to find PAL_INTERFACE_MINOR_VERSION")
+    else()
+        string(REGEX REPLACE "^#define PAL_INTERFACE_MINOR_VERSION " "" PAL_MINOR_VERSION ${PAL_MINOR_VERSION})
+        message(STATUS "Detected PAL_INTERFACE_MINOR_VERSION is " ${PAL_MINOR_VERSION})
+    endif()
+    set(PAL_CLIENT_INTERFACE_MINOR_VERSION ${PAL_MINOR_VERSION})
+endif()
+
 # Option Overrides #################################################################################
 # These are options that override PAL subproject options.  As these overrides are managed and force
 # set by PAL, mark_as_advanced is used to hide them from the CMake GUI.
@@ -129,6 +143,9 @@ if(PAL_BUILD_GFX9)
     endif()
     if(PAL_BUILD_GFX10)
         set(ADDR_GFX10_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with GFX10 support." FORCE)
+    endif()
+    if(PAL_BUILD_NAVI14)
+        set(ADDR_NAVI14_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with NAVI14 support." FORCE)
     endif()
 endif()
 

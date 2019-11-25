@@ -53,6 +53,7 @@ cmake_dependent_option(ADDR_RAVEN2_BUILD     "Build support for Raven 2?"    ON 
 
                 option(ADDR_AM_BUILD         "Build support for fmask addressing and addr5Swizzle?" OFF                        )
                 option(ADDR_LNX_KERNEL_BUILD "Linux kernel build?"                                  OFF                        )
+                option(ADDR_NAVI14_BUILD      "Build support for NAVI14?"    OFF                                               )
 
 add_library(addrlib STATIC "")
 
@@ -142,6 +143,9 @@ if(ADDR_GFX10_BUILD)
     target_include_directories(addrlib PRIVATE src/chip/gfx10)
 
     target_compile_definitions(addrlib PRIVATE ADDR_GFX10_BUILD)
+    if(ADDR_NAVI14_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_NAVI14_BUILD)
+    endif()
 endif()
 
     target_sources(addrlib PRIVATE src/amdgpu_asic_addr.h)

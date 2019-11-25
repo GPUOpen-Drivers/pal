@@ -221,6 +221,24 @@ void SettingsLoader::SetupHeapPerfRatings(
         pSettings->gpuReadPerfForGartCacheable = 9.7f;
     }
     else
+    if (IsNavi14(*(static_cast<Pal::Device*>(m_pDevice))))
+    {
+        pSettings->cpuWritePerfForLocal = 6.6f;
+        pSettings->cpuReadPerfForLocal = 0.019f;
+        pSettings->gpuWritePerfForLocal = 430.f;
+        pSettings->gpuReadPerfForLocal = 490.f;
+        pSettings->gpuWritePerfForInvisible = 450.f;
+        pSettings->gpuReadPerfForInvisible = 490.f;
+        pSettings->cpuWritePerfForGartUswc = 6.1f;
+        pSettings->cpuReadPerfForGartUswc = 0.07f;
+        pSettings->gpuWritePerfForGartUswc = 6.7f;
+        pSettings->gpuReadPerfForGartUswc = 9.7f;
+        pSettings->cpuWritePerfForGartCacheable = 7.8f;
+        pSettings->cpuReadPerfForGartCacheable = 7.8f;
+        pSettings->gpuWritePerfForGartCacheable = 5.9f;
+        pSettings->gpuReadPerfForGartCacheable = 9.7f;
+    }
+    else
     if (IsOland(*(static_cast<Pal::Device*>(m_pDevice))))
     {
         pSettings->cpuWritePerfForLocal = 4.9f;

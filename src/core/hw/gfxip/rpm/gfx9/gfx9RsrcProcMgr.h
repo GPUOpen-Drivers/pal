@@ -158,6 +158,10 @@ protected:
     explicit RsrcProcMgr(Device* pDevice);
     virtual ~RsrcProcMgr() {}
 
+    uint32  GetInitHtileClearMask(
+        const Image&       dstImage,
+        const SubresRange& clearRange) const;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
     virtual void HwlCreateDecompressResolveSafeImageViewSrds(
         uint32                numSrds,

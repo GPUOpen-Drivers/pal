@@ -5694,6 +5694,10 @@ void UniversalCmdBuffer::CmdSetPredication(
     bool                accumulateData)
 {
     PAL_ASSERT((pQueryPool == nullptr) || (pGpuMemory == nullptr));
+    PAL_ASSERT(
+        (predType != PredicateType::Boolean32) ||
+        (m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport != 0)
+    );
 
     m_gfxCmdBufState.flags.clientPredicate = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
     m_gfxCmdBufState.flags.packetPredicate = m_gfxCmdBufState.flags.clientPredicate;

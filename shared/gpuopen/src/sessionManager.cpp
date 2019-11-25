@@ -119,75 +119,17 @@ namespace DevDriver
     // Destroy
     //
     // Destroys the session manager object
-    Result SessionManager::Destroy()
+    void SessionManager::Destroy()
     {
-        Result result = Result::Error;
-
         if (m_pMessageChannel != nullptr)
         {
-            DD_PRINT(LogLevel::Info, "[SessionManager] Shutting down active sessions...");
+            ShutDownAllSessions();
 
-            m_sessionMutex.Lock();
-
-            // Unregister any protocol servers that are still registered.
-            for (auto& serverPair : m_protocolServers)
-            {
-                const Protocol protocol = serverPair.key;
-
-                // Notify any associated server sessions.
-                for (auto& sessionPair : m_sessions)
-                {
-                    auto& pSession = sessionPair.value;
-
-                    if (pSession->IsServerSession() && (pSession->GetProtocol() == protocol))
-                    {
-                        pSession->HandleUnregisterProtocolServer(pSession, serverPair.value);
-                    }
-                }
-            }
+            // Clear the list of registered protocol servers after all sessions have been disconnected
             m_protocolServers.Clear();
 
-            // Close all active client sessions.
-            for (auto& pair : m_sessions)
-            {
-                auto& pSession = pair.value;
-
-                if (pSession->IsClientSession())
-                {
-                    pSession->Shutdown(Result::Success);
-                }
-            }
-
-            m_sessionMutex.Unlock();
-
-            result = Result::Success;
-
-            constexpr uint32 kShutdownTimeoutInMs = 5000;
-
-            const uint64 absTimeoutTime = (Platform::GetCurrentTimeInMs() + kShutdownTimeoutInMs);
-
-            // Wait for all sessions to close.
-            while (m_sessions.Size() > 0)
-            {
-                m_pMessageChannel->Update();
-
-                if (Platform::GetCurrentTimeInMs() >= absTimeoutTime)
-                {
-                    DD_ASSERT_REASON("[SessionManager] Shutdown timeout exceeded!");
-                    result = Result::Error;
-                    break;
-                }
-            }
-
-            if (result == Result::Success)
-            {
-                DD_PRINT(LogLevel::Info, "[SessionManager] All sessions closed");
-
-                m_pMessageChannel = nullptr;
-            }
+            m_pMessageChannel = nullptr;
         }
-
-        return result;
     }
 
     Result SessionManager::EstablishSessionForClient(SharedPointer<ISession>*    ppSession,
@@ -305,6 +247,89 @@ namespace DevDriver
         return SharedPointer<Session>();
     }
 
+    void SessionManager::ShutDownAllSessions()
+    {
+        // Check if there's any sessions to shut down
+        if (m_sessions.IsEmpty() == false)
+        {
+            // If the message channel is still connected, attempt to gracefully shut down active sessions.
+            if (m_pMessageChannel->IsConnected())
+            {
+                DD_PRINT(LogLevel::Info, "[SessionManager] Gracefully shutting down active sessions...");
+
+                m_sessionMutex.Lock();
+
+                // Gracefully close all active sessions.
+                for (auto& pair : m_sessions)
+                {
+                    auto& pSession = pair.value;
+
+                    pSession->Shutdown(Result::Success);
+                }
+
+                m_sessionMutex.Unlock();
+
+                constexpr uint32 kShutdownTimeoutInMs = 5000;
+
+                const uint64 absTimeoutTime = (Platform::GetCurrentTimeInMs() + kShutdownTimeoutInMs);
+
+                // Wait for all sessions to close.
+                while (m_sessions.IsEmpty() == false)
+                {
+                    m_pMessageChannel->Update();
+
+                    if (m_pMessageChannel->IsConnected() == false)
+                    {
+                        // We lost our transport connection while updating the message channel.
+                        // Exit the loop early since there's no chance we'll receive more bus messages.
+
+                        DD_PRINT(LogLevel::Warn, "[SessionManager] Transport disconnected while shutting down sessions");
+
+                        break;
+                    }
+                    else if (Platform::GetCurrentTimeInMs() >= absTimeoutTime)
+                    {
+                        // This generally shouldn't happen so we alert here
+                        DD_ALERT_REASON("[SessionManager] Shutdown timeout exceeded!");
+
+                        break;
+                    }
+                }
+
+                DD_PRINT(LogLevel::Info, "[SessionManager] Graceful shutdown complete");
+            }
+
+            // Check if there's still active sessions after the graceful shutdown attempt
+            // This also handles the condition where we have a disconnected transport
+            if (m_sessions.IsEmpty() == false)
+            {
+                DD_PRINT(LogLevel::Info, "[SessionManager] Forcefully shutting down active sessions...");
+
+                m_sessionMutex.Lock();
+
+                // Forcefully close all active sessions.
+                for (auto& pair : m_sessions)
+                {
+                    auto& pSession = pair.value;
+
+                    pSession->Shutdown(Result::EndOfStream);
+                }
+
+                m_sessionMutex.Unlock();
+
+                // We should only need to update the sessions once after a forced shutdown.
+                // All sessions should exit after a single call because they should have been forcefully moved to the
+                // closed state earlier.
+                UpdateSessions();
+
+                DD_PRINT(LogLevel::Info, "[SessionManager] Forceful shutdown complete");
+            }
+
+            // We should definitely have no active sessions by this point or the forceful shutdown failed somehow.
+            DD_ASSERT(m_sessions.IsEmpty());
+        }
+    }
+
     void SessionManager::HandleClientDisconnection(ClientId dstClientId)
     {
         Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
@@ -318,6 +343,11 @@ namespace DevDriver
                 pSession->Shutdown(Result::NotReady);
             }
         }
+    }
+
+    void SessionManager::HandleTransportDisconnect()
+    {
+        ShutDownAllSessions();
     }
 
     void SessionManager::HandleReceivedSessionMessage(const MessageBuffer& messageBuffer)

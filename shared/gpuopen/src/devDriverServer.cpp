@@ -152,9 +152,7 @@ namespace DevDriver
         {
             DestroyProtocols();
 
-            Result result = m_pMsgChannel->Unregister();
-            DD_ASSERT(result == Result::Success);
-            DD_UNUSED(result);
+            m_pMsgChannel->Unregister();
 
             DD_DELETE(m_pMsgChannel, m_allocCb);
             m_pMsgChannel = nullptr;

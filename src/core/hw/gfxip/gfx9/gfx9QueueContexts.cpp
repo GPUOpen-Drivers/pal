@@ -1065,8 +1065,9 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
     pixelPipeStatControl.bits.counter_id      = PIXEL_PIPE_OCCLUSION_COUNT_0;
     pixelPipeStatControl.bits.stride          = PIXEL_PIPE_STRIDE_128_BITS;
 
-    const auto& chipProps     = m_pDevice->Parent()->ChipProperties();
-    const auto& gfx9ChipProps = chipProps.gfx9;
+    const Pal::Device&       palDevice     = *(m_pDevice->Parent());
+    const GpuChipProperties& chipProps     = palDevice.ChipProperties();
+    const auto&              gfx9ChipProps = chipProps.gfx9;
 
     pixelPipeStatControl.bits.instance_enable = ~(gfx9ChipProps.backendDisableMask) &
                                                 ((1 << gfx9ChipProps.numTotalRbs) - 1);
@@ -1104,6 +1105,10 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
             cmdUtil.BuildSetSeqContextRegs(Gfx10::mmDB_Z_READ_BASE_HI,
                                            Gfx10::mmDB_HTILE_DATA_BASE_HI,
                                            &m_universalPreamble.gfx10.hdrDbHi);
+
+        m_universalPreamble.spaceNeeded +=
+            cmdUtil.BuildSetOneContextReg(mmPA_CL_NGG_CNTL,
+                                          &m_universalPreamble.gfx10.hdrPaClNggCntl);
 
     }
 
@@ -1192,6 +1197,8 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
         pGfx10Preamble->geIndxOffset.bits.INDX_OFFSET = 0;
 
         // No need to set cbColor*Ext or db*Hi regs. 0 is the desired value and we memset m_universalPreamble.
+
+        pGfx10Preamble->paClNggCntl.u32All = 0;
 
     }
 

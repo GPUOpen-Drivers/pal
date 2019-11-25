@@ -127,6 +127,29 @@ namespace DevDriver
             return result;
         }
 
+        Result Thread::SetNameRaw(const char* pThreadName)
+        {
+            Result result = Result::Error;
+#if DD_PLATFORM_LINUX_UM && DD_PLATFORM_IS_GNU
+            const int ret = pthread_setname_np(hThread, pThreadName);
+            if (ret != 0)
+            {
+                DD_PRINT(LogLevel::Error,
+                         "pthread_setname_np() failed with: %d (0x%x)",
+                         ret,
+                         ret);
+            }
+            else
+            {
+                result = Result::Success;
+            }
+#else
+            DD_UNUSED(pThreadName);
+            DD_PRINT(LogLevel::Warn, "SetName() called, but not implemented for this platform");
+#endif
+            return result;
+        }
+
         Result Thread::Join(uint32 timeoutInMs)
         {
             Result result = Result::Error;
@@ -188,7 +211,7 @@ namespace DevDriver
             constexpr uint32 Flags = RTLD_LAZY;
             m_hLib = dlopen(pLibraryName, Flags);
 
-            return (m_hLib == nullptr) ? Result::Unavailable : Result::Success;
+            return (m_hLib == nullptr) ? Result::FileNotFound : Result::Success;
         }
 
         // Unloads this Shared Object if it was loaded previously.  Called automatically during the object destructor.

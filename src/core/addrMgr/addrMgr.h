@@ -74,6 +74,12 @@ public:
     // Returns the tile swizzle value for a particular subresource of an Image.
     virtual uint32 GetTileSwizzle(const Image* pImage, SubresId subresource) const = 0;
 
+    virtual uint32 GetBlockSize(AddrSwizzleMode swizzleMode) const
+    {
+        PAL_NEVER_CALLED();
+        return 0;
+    }
+
 protected:
     AddrMgr(
         const Device* pDevice,

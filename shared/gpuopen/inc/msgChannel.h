@@ -116,7 +116,7 @@ namespace DevDriver
 
         // Register, unregister, or check connected status.
         virtual Result Register(uint32 timeoutInMs = ~(0u)) = 0;
-        virtual Result Unregister() = 0;
+        virtual void Unregister() = 0;
         virtual bool IsConnected() = 0;
 
         // Send, receive, and forward messages

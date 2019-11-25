@@ -617,15 +617,14 @@ Result Image::Finalize(
                 {
                     needsDccStateMetaData = (sharedMetadata.dccStateMetaDataOffset  != 0);
                 }
-                else
-                // Currently DCC state metadata is only marked compressed when the image is bound in a color target.
-                // GFX10 allows DCC for a shader-writable image so if the image is used as UAV only then its DCC is in
-                // compressed state but its DCC state metadata is marked uncompressed (0) which causes a DCC decompress
-                // to be skipped and following read operation might get wrong data.
-                // Since GFX10 supports compression for almost all use cases, decompresses should be very rare, the
-                // solution is to disable tracking DCC state for shader writable image on GFX10.
-                if ((IsGfx10(m_device) && (m_createInfo.usageFlags.shaderWrite != 0)) == false)
+                else if ((IsGfx10(m_device) && (m_createInfo.usageFlags.shaderWrite != 0)) == false)
                 {
+                    // Currently DCC state metadata is only marked compressed when the image is bound in a color target.
+                    // GFX10 allows DCC for a shader-writable image so if the image is used as UAV only then its DCC is in
+                    // compressed state but its DCC state metadata is marked uncompressed (0) which causes a DCC decompress
+                    // to be skipped and following read operation might get wrong data.
+                    // Since GFX10 supports compression for almost all use cases, decompresses should be very rare, the
+                    // solution is to disable tracking DCC state for shader writable image on GFX10.
                     // We also need the DCC state metadata when DCC is enabled.
                     needsDccStateMetaData = true;
                 }
@@ -928,7 +927,6 @@ void Image::InitLayoutStateMasks()
         if (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0)
         {
             const Gfx9PalSettings& settings = GetGfx9Settings(m_device);
-
             // In Gfx10, UAV surface can have a DCC memory. So we allow compression for:
             //   - ShaderWrite (because the app can write compressed to the surface)
             //   - CopyDst     (because PAL copies can write compressed to the surface)
@@ -2447,13 +2445,9 @@ bool Image::IsComprFmaskShaderReadable(
 
         isComprFmaskShaderReadable = supportsMetaFetches &&
                                      isShaderReadable    &&
-
-                                     (
-                                        // The GFX10 fMask SRD will never set the "write" bit but we don't want
-                                        // to make a shader-writeable image disallow reading of fMask data either.
-                                        IsGfx10(m_device) ||
-                                        (m_pParent->IsShaderWritable() == false)
-                                     );
+                                     // The GFX10 fMask SRD will never set the "write" bit but we don't want
+                                     // to make a shader-writeable image disallow reading of fMask data either.
+                                     (IsGfx10(m_device) || (m_pParent->IsShaderWritable() == false));
     }
 
     return isComprFmaskShaderReadable;
@@ -3067,13 +3061,8 @@ bool Image::CanMipSupportMetaData(
     uint32 mip
     ) const
 {
-    bool supportsMetaData = true;
-
-    if (IsGfx10(*(m_gfxDevice.Parent())))
-    {
-        supportsMetaData = (mip <= m_addrSurfOutput[0].firstMipIdInTail);
-    }
-
+    const bool supportsMetaData = ((IsGfx10(*(m_gfxDevice.Parent())) == false) ||
+                                   (mip <= m_addrSurfOutput[0].firstMipIdInTail));
     return supportsMetaData;
 }
 
@@ -3347,8 +3336,8 @@ bool Image::IsHtileDepthOnly() const
     PAL_ASSERT(pParent->IsDepthStencil());
 
     // Use Z-only hTile if this image's format doesn't have a stencil aspect
-    if ((pDevice->SupportsStencil(createInfo.swizzledFormat.format, createInfo.tiling) == false)
-        || (settings.waForceZonlyHtileForMipmaps && (createInfo.mipLevels > 1))
+    if ((pDevice->SupportsStencil(createInfo.swizzledFormat.format, createInfo.tiling) == false) ||
+        (settings.waForceZonlyHtileForMipmaps && (createInfo.mipLevels > 1))
        )
     {
         PAL_ASSERT(pDevice->SupportsDepth(createInfo.swizzledFormat.format, createInfo.tiling));
