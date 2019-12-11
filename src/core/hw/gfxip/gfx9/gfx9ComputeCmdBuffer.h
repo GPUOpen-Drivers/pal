@@ -26,7 +26,6 @@
 #pragma once
 
 #include "core/hw/gfxip/computeCmdBuffer.h"
-#include "core/hw/gfxip/gfx9/gfx9Gds.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 
 namespace Pal
@@ -121,30 +120,6 @@ public:
         uint64            mask,
         CompareFunc       compareFunc) override;
     virtual void CmdEndWhile() override;
-
-    virtual void CmdLoadGds(
-        HwPipePoint       pipePoint,
-        uint32            dstGdsOffset,
-        const IGpuMemory& srcGpuMemory,
-        gpusize           srcMemOffset,
-        uint32            size) override;
-    virtual void CmdStoreGds(
-        HwPipePoint       pipePoint,
-        uint32            srcGdsOffset,
-        const IGpuMemory& dstGpuMemory,
-        gpusize           dstMemOffset,
-        uint32            size,
-        bool              waitForWC) override;
-    virtual void CmdUpdateGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            dataSize,
-        const uint32*     pData) override;
-    virtual void CmdFillGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            fillSize,
-        uint32            data) override;
 
     virtual void CmdCopyRegisterToMemory(
         uint32            srcRegisterOffset,
@@ -268,6 +243,9 @@ private:
     uint32* ValidateUserData(
         const ComputePipelineSignature* pPrevSignature,
         uint32*                         pCmdSpace);
+
+    void FixupUserSgprsOnPipelineSwitch(
+        const ComputePipelineSignature* pPrevSignature);
 
     uint32* WriteDirtyUserDataEntries(
         uint32* pCmdSpace);

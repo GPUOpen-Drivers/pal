@@ -69,25 +69,9 @@ struct CommonPreamblePm4Img
     size_t                             spaceNeeded;
 };
 
-// Describes the GDS User Data register value.
-struct GdsData
-{
-    uint32 gdsSize   : 16; // Size of GDS in bytes
-    uint32 gdsOffset : 16; // Offset into GDS for this partition, in bytes
-};
-
-// Represents an "image" of the PM4 headers necessary to write GDS partition offset and size in the compute stage
-// USER_DATA register as required by SC.
-struct GdsRangeCompute
-{
-    PM4MEC_SET_SH_REG  header;
-    GdsData            gdsData;
-};
-
 // Contains a subset of commands necessary to the compute preamble command stream.
 struct ComputePreamblePm4Img
 {
-    GdsRangeCompute  gdsRange;
     size_t           spaceNeeded;
 };
 
@@ -160,8 +144,6 @@ struct UniversalPreamblePm4Img
     PM4PFP_SET_CONTEXT_REG          hdrPaScGenericScissors;
     regPA_SC_GENERIC_SCISSOR_TL     paScGenericScissorTl;
     regPA_SC_GENERIC_SCISSOR_BR     paScGenericScissorBr;
-
-    GdsRangeCompute                 gdsRangeCompute;
 
     // GPU specific registers go in this union.  As the union has a variable valid size depending on the GPU
     // in use, this union must be the last PM4 data in this structure.

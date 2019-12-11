@@ -167,6 +167,7 @@ void PipelineChunkGs::LateInit(
     m_commands.sh.spiShaderPgmRsrc1Gs.u32All      = registers.At(mmSPI_SHADER_PGM_RSRC1_GS);
     m_commands.sh.spiShaderPgmRsrc2Gs.u32All      = registers.At(mmSPI_SHADER_PGM_RSRC2_GS);
     m_commands.dynamic.spiShaderPgmRsrc4Gs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC4_GS);
+
     registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_GS, &m_commands.dynamic.spiShaderPgmRsrc3Gs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to

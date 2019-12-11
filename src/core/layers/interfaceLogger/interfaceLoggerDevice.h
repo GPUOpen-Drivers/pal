@@ -44,9 +44,6 @@ public:
 
     // Public IDevice interface methods:
     virtual Result CommitSettingsAndInit() override;
-    virtual Result AllocateGds(
-        const DeviceGdsAllocInfo& requested,
-        DeviceGdsAllocInfo*       pAllocated) override;
     virtual Result Finalize(
         const DeviceFinalizeInfo& finalizeInfo) override;
     virtual Result Cleanup() override;

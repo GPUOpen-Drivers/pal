@@ -2562,7 +2562,10 @@ void UniversalCmdBuffer::CmdBindBorderColorPalette(
         if (pNewPalette != nullptr)
         {
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace = pNewPalette->WriteCommands(pipelineBindPoint, &m_deCmdStream, pDeCmdSpace);
+            pDeCmdSpace = pNewPalette->WriteCommands(pipelineBindPoint,
+                                                     TimestampGpuVirtAddr(),
+                                                     &m_deCmdStream,
+                                                     pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
 
@@ -3377,6 +3380,40 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
 }
 
 // =====================================================================================================================
+// Helper function responsible for handling user-SGPR updates during Dispatch-time validation when the active pipeline
+// has changed since the previous Dispathc operation.  It is expected that this will be called only when the pipeline
+// is changing and immediately before a call to WriteDirtyUserDataEntriesToUserSgprsCs().
+void UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
+    const ComputePipelineSignature* pPrevSignature)
+{
+    // As in WriteDirtyUserDataEntriesToUserSgprsCs, we assume that all fast user data fit in a single dirty bitfield.
+    static_assert(NumUserDataRegisters <= UserDataEntriesPerMask,
+                  "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
+
+    const bool   prevNoSpilling   = pPrevSignature->spillThreshold == NoUserDataSpilling;
+    const bool   nextNoSpilling   = m_pSignatureCs->spillThreshold == NoUserDataSpilling;
+    const uint16 prevFastUserData = prevNoSpilling ? pPrevSignature->userDataLimit : pPrevSignature->spillThreshold;
+    const uint16 nextFastUserData = nextNoSpilling ? m_pSignatureCs->userDataLimit : m_pSignatureCs->spillThreshold;
+
+    if (prevFastUserData < nextFastUserData)
+    {
+        // Compute the mask of all dirty bits from the end of the previous fast user data range to the end of the
+        // next fast user data range. This is required to handle these cases:
+        // 1. If the next spillThreshold is higher we need to migrate user data from the table to sgprs.
+        // 2. We only write fast user data up to the userDataLimit. If the client bound user data for the next pipeline
+        //    (higher limit) before binding the previous pipeline (lower limit) we wouldn't have written it out.
+        //
+        // This could be wasteful if the client binds a common set of user data and frequently switches between
+        // pipelines with different user data limits. We probably can't avoid that overhead without rewriting
+        // our compute user data management.
+        const size_t rewriteMask =
+            BitfieldGenMask<size_t>(nextFastUserData) & ~BitfieldGenMask<size_t>(prevFastUserData);
+
+        m_computeState.csUserDataEntries.dirty[0] |= rewriteMask;
+    }
+}
+
+// =====================================================================================================================
 // Helper function responsible for writing all dirty compute user-data entries to their respective user-SGPR's. Does not
 // do anything with entries which are mapped to the spill table.
 uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToUserSgprsCs(
@@ -3387,21 +3424,24 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToUserSgprsCs(
     // buffer.  The only way to correctly handle user-data inheritance is by using a fixed mapping.  This has the side
     // effect of allowing us to know that only the first few entries ever need to be written to user-SGPR's, which lets
     // us get away with only checking the first sub-mask of the user-data entries' wide-bitfield of dirty flags.
-    static_assert(MaxFastUserDataEntriesCs <= UserDataEntriesPerMask,
+    static_assert(NumUserDataRegisters <= UserDataEntriesPerMask,
                   "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
-    constexpr uint32 AllFastUserDataEntriesMask = ((1 << MaxFastUserDataEntriesCs) - 1);
-    uint16 userSgprDirtyMask = (m_computeState.csUserDataEntries.dirty[0] & AllFastUserDataEntriesMask);
+
+    const bool   noSpilling              = m_pSignatureCs->spillThreshold == NoUserDataSpilling;
+    const uint16 numFastUserDataEntries  = noSpilling ? m_pSignatureCs->userDataLimit : m_pSignatureCs->spillThreshold;
+    const size_t fastUserDataEntriesMask = BitfieldGenMask<size_t>(numFastUserDataEntries);
+    const size_t userSgprDirtyMask       = (m_computeState.csUserDataEntries.dirty[0] & fastUserDataEntriesMask);
 
     // Additionally, dirty compute user-data is always written to user-SGPR's if it could be mapped by a pipeline,
     // which lets us avoid any complex logic when switching pipelines.
     const uint16 baseUserSgpr = FirstUserDataRegAddr[static_cast<uint32>(HwShaderStage::Cs)];
 
-    for (uint16 e = 0; e < MaxFastUserDataEntriesCs; ++e)
+    for (uint16 e = 0; e < numFastUserDataEntries; ++e)
     {
         const uint16 firstEntry = e;
         uint16       entryCount = 0;
 
-        while ((e < MaxFastUserDataEntriesCs) && ((userSgprDirtyMask & (1 << e)) != 0))
+        while ((e < numFastUserDataEntries) && ((userSgprDirtyMask & (static_cast<size_t>(1) << e)) != 0))
         {
             ++entryCount;
             ++e;
@@ -3698,18 +3738,18 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserDataCpu(
             const uint32 lastMaskId  = (lastUserData   / UserDataEntriesPerMask);
             for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
             {
-                uint16 dirtyMask = m_graphicsState.gfxUserDataEntries.dirty[maskId];
+                size_t dirtyMask = m_graphicsState.gfxUserDataEntries.dirty[maskId];
                 if (maskId == firstMaskId)
                 {
                     // Ignore the dirty bits for any entries below the spill threshold.
-                    const uint16 firstEntryInMask = (spillThreshold & (UserDataEntriesPerMask - 1));
-                    dirtyMask &= ~((1 << firstEntryInMask) - 1);
+                    const uint32 firstEntryInMask = (spillThreshold & (UserDataEntriesPerMask - 1));
+                    dirtyMask &= ~BitfieldGenMask(static_cast<size_t>(firstEntryInMask));
                 }
                 if (maskId == lastMaskId)
                 {
                     // Ignore the dirty bits for any entries beyond the user-data limit.
-                    const uint16 lastEntryInMask = (lastUserData & (UserDataEntriesPerMask - 1));
-                    dirtyMask &= ((1 << (lastEntryInMask + 1)) - 1);
+                    const uint32 lastEntryInMask = (lastUserData & (UserDataEntriesPerMask - 1));
+                    dirtyMask &= BitfieldGenMask(static_cast<size_t>(lastEntryInMask + 1));
                 }
 
                 if (dirtyMask != 0)
@@ -3776,7 +3816,13 @@ uint32* UniversalCmdBuffer::ValidateComputeUserDataCeRam(
                (!HasPipelineChanged && (pPrevSignature == nullptr)));
 
     // Step #1:
-    // Write all dirty user-data entries to their mapped user SGPR's.
+    // Write all dirty user-data entries to their mapped user SGPR's. If the pipeline has changed we must also fixup
+    // the dirty bits because the prior compute pipeline could use fewer fast sgprs than the current pipeline.
+    if (HasPipelineChanged)
+    {
+        FixupUserSgprsOnPipelineSwitchCs(pPrevSignature);
+    }
+
     pDeCmdSpace = WriteDirtyUserDataEntriesToUserSgprsCs(pDeCmdSpace);
 
     const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
@@ -3813,10 +3859,13 @@ uint32* UniversalCmdBuffer::ValidateComputeUserDataCeRam(
             }
 
             // Step #4:
-            // If the spill table was relocated during step #4 above, or if the pipeline is changing and the previous
-            // pipeline did not spill any user-data entries, we must re-write the spill table GPU address to its
-            // user-SGPR.
-            if ((HasPipelineChanged && (pPrevSignature->spillThreshold == NoUserDataSpilling)) || relocated)
+            // We need to re-write the spill table GPU address to its user-SGPR if:
+            // - the spill table was relocated during step #3, or
+            // - the pipeline was changed and the previous pipeline either didn't spill or used a different spill reg.
+            if (relocated ||
+                (HasPipelineChanged &&
+                 ((pPrevSignature->spillThreshold == NoUserDataSpilling) ||
+                  (pPrevSignature->stage.spillTableRegAddr != m_pSignatureCs->stage.spillTableRegAddr))))
             {
                 const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateCs.gpuVirtAddr);
                 pDeCmdSpace =  m_deCmdStream.WriteSetOneShReg<ShaderCompute>(
@@ -3857,7 +3906,13 @@ uint32* UniversalCmdBuffer::ValidateComputeUserDataCpu(
                (!HasPipelineChanged && (pPrevSignature == nullptr)));
 
     // Step #1:
-    // Write all dirty user-data entries to their mapped user SGPR's.
+    // Write all dirty user-data entries to their mapped user SGPR's. If the pipeline has changed we must also fixup
+    // the dirty bits because the prior compute pipeline could use fewer fast sgprs than the current pipeline.
+    if (HasPipelineChanged)
+    {
+        FixupUserSgprsOnPipelineSwitchCs(pPrevSignature);
+    }
+
     pDeCmdSpace = WriteDirtyUserDataEntriesToUserSgprsCs(pDeCmdSpace);
 
     const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
@@ -3885,18 +3940,18 @@ uint32* UniversalCmdBuffer::ValidateComputeUserDataCpu(
             const uint32 lastMaskId  = (lastUserData   / UserDataEntriesPerMask);
             for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
             {
-                uint16 dirtyMask = m_computeState.csUserDataEntries.dirty[maskId];
+                size_t dirtyMask = m_computeState.csUserDataEntries.dirty[maskId];
                 if (maskId == firstMaskId)
                 {
                     // Ignore the dirty bits for any entries below the spill threshold.
-                    const uint16 firstEntryInMask = (spillThreshold & (UserDataEntriesPerMask - 1));
-                    dirtyMask &= ~((1 << firstEntryInMask) - 1);
+                    const uint32 firstEntryInMask = (spillThreshold & (UserDataEntriesPerMask - 1));
+                    dirtyMask &= ~BitfieldGenMask(static_cast<size_t>(firstEntryInMask));
                 }
                 if (maskId == lastMaskId)
                 {
                     // Ignore the dirty bits for any entries beyond the user-data limit.
-                    const uint16 lastEntryInMask = (lastUserData & (UserDataEntriesPerMask - 1));
-                    dirtyMask &= ((1 << (lastEntryInMask + 1)) - 1);
+                    const uint32 lastEntryInMask = (lastUserData & (UserDataEntriesPerMask - 1));
+                    dirtyMask &= BitfieldGenMask(static_cast<size_t>(lastEntryInMask + 1));
                 }
 
                 if (dirtyMask != 0)
@@ -3908,14 +3963,24 @@ uint32* UniversalCmdBuffer::ValidateComputeUserDataCpu(
         }
 
         // Step #3:
-        // Re-upload spill table contents if necessary, and write the new GPU virtual address to the user-SGPR.
+        // Re-upload spill table contents if necessary.
         if (reUpload)
         {
             UpdateUserDataTableCpu(&m_spillTable.stateCs,
                                    (userDataLimit - spillThreshold),
                                    spillThreshold,
                                    &m_computeState.csUserDataEntries.entries[0]);
+        }
 
+        // Step #4:
+        // We need to re-write the spill table GPU address to its user-SGPR if:
+        // - the spill table was reuploaded during step #3, or
+        // - the pipeline was changed and the previous pipeline either didn't spill or used a different spill reg.
+        if (reUpload ||
+            (HasPipelineChanged &&
+             ((pPrevSignature->spillThreshold == NoUserDataSpilling) ||
+              (pPrevSignature->stage.spillTableRegAddr != m_pSignatureCs->stage.spillTableRegAddr))))
+        {
             pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
                                                                         LowPart(m_spillTable.stateCs.gpuVirtAddr),
                                                                         pDeCmdSpace);
@@ -4790,74 +4855,6 @@ void UniversalCmdBuffer::RemoveQuery(
             PAL_ASSERT_ALWAYS();
         }
     }
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdLoadGds(
-    HwPipePoint       pipePoint,
-    uint32            dstGdsOffset,
-    const IGpuMemory& srcGpuMemory,
-    gpusize           srcMemOffset,
-    uint32            size)
-{
-    BuildLoadGds(&m_deCmdStream,
-                 &m_cmdUtil,
-                 pipePoint,
-                 dstGdsOffset,
-                 srcGpuMemory,
-                 srcMemOffset,
-                 size);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdStoreGds(
-    HwPipePoint       pipePoint,
-    uint32            srcGdsOffset,
-    const IGpuMemory& dstGpuMemory,
-    gpusize           dstMemOffset,
-    uint32            size,
-    bool              waitForWC)
-{
-    BuildStoreGds(&m_deCmdStream,
-                  &m_cmdUtil,
-                  pipePoint,
-                  srcGdsOffset,
-                  dstGpuMemory,
-                  dstMemOffset,
-                  size,
-                  waitForWC,
-                  false,
-                  TimestampGpuVirtAddr());
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdUpdateGds(
-    HwPipePoint       pipePoint,
-    uint32            gdsOffset,
-    uint32            dataSize,
-    const uint32*     pData)
-{
-    BuildUpdateGds(&m_deCmdStream,
-                   &m_cmdUtil,
-                   pipePoint,
-                   gdsOffset,
-                   dataSize,
-                   pData);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdFillGds(
-    HwPipePoint       pipePoint,
-    uint32            gdsOffset,
-    uint32            fillSize,
-    uint32            data)
-{
-    BuildFillGds(&m_deCmdStream,
-                 &m_cmdUtil,
-                 pipePoint,
-                 gdsOffset,
-                 fillSize,
-                 data);
 }
 
 // =====================================================================================================================

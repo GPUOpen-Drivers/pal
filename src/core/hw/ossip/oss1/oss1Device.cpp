@@ -230,8 +230,6 @@ void InitializeGpuEngineProperties(
     pDma->minLinearMemCopyAlignment.width      = 4;
     pDma->minLinearMemCopyAlignment.height     = 1;
     pDma->minLinearMemCopyAlignment.depth      = 1;
-    pDma->availableGdsSize                     = 0;
-    pDma->gdsSizePerEngine                     = 0;
     pDma->queueSupport                         = SupportQueueTypeDma;
 }
 

@@ -505,11 +505,6 @@ public:
     virtual Result CommitSettingsAndInit() override
         { return m_pNextLayer->CommitSettingsAndInit(); }
 
-    virtual Result AllocateGds(
-        const DeviceGdsAllocInfo&   requested,
-        DeviceGdsAllocInfo*         pAllocated) override
-        { return m_pNextLayer->AllocateGds(requested, pAllocated); }
-
     virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;
 
     virtual Result Cleanup() override
@@ -524,11 +519,6 @@ public:
     {
         return m_pNextLayer->ReadSetting(pSettingName, settingScope, valueType, pValue, bufferSz);
     }
-
-    virtual uint32 GetMaxAtomicCounters(
-        EngineType engineType,
-        uint32     maxNumEngines) const override
-        { return m_pNextLayer->GetMaxAtomicCounters(engineType, maxNumEngines); }
 
     virtual gpusize GetMaxGpuMemoryAlignment() const override
         { return m_pNextLayer->GetMaxGpuMemoryAlignment(); }
@@ -1765,60 +1755,6 @@ public:
         ImmediateDataWidth dataSize,
         gpusize            address) override
         { m_pNextLayer->CmdWriteImmediate(pipePoint, data, dataSize, address); }
-
-    virtual void CmdLoadGds(
-        HwPipePoint       pipePoint,
-        uint32            dstGdsOffset,
-        const IGpuMemory& srcGpuMemory,
-        gpusize           srcMemOffset,
-        uint32            size) override
-    {
-        m_pNextLayer->CmdLoadGds(pipePoint,
-                                 dstGdsOffset,
-                                 *NextGpuMemory(&srcGpuMemory),
-                                 srcMemOffset,
-                                 size);
-    }
-
-    virtual void CmdStoreGds(
-        HwPipePoint       pipePoint,
-        uint32            srcGdsOffset,
-        const IGpuMemory& dstGpuMemory,
-        gpusize           dstMemOffset,
-        uint32            size,
-        bool              waitForWC) override
-    {
-        m_pNextLayer->CmdStoreGds(pipePoint,
-                                  srcGdsOffset,
-                                  *NextGpuMemory(&dstGpuMemory),
-                                  dstMemOffset,
-                                  size,
-                                  waitForWC);
-    }
-
-    virtual void CmdUpdateGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            dataSize,
-        const uint32*     pData) override
-    {
-        m_pNextLayer->CmdUpdateGds(pipePoint,
-                                   gdsOffset,
-                                   dataSize,
-                                   pData);
-    }
-
-    virtual void CmdFillGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            fillSize,
-        uint32            data) override
-    {
-        m_pNextLayer->CmdFillGds(pipePoint,
-                                 gdsOffset,
-                                 fillSize,
-                                 data);
-    }
 
     virtual void CmdLoadBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override

@@ -73,10 +73,6 @@ public:
     virtual Result FreeGpuVirtualAddress(gpusize vaStartAddress, gpusize vaSize) override
         { return Result::ErrorUnavailable;}
 
-    virtual Result AllocateGds(
-        const DeviceGdsAllocInfo&   requested,
-        DeviceGdsAllocInfo*         pAllocated) override;
-
     Result AssignVirtualAddress(const Pal::GpuMemory& gpuMemory, gpusize* pGpuVirtAddr, VaPartition vaPartition);
 
     // NOTE: Part of the public IDevice interface.

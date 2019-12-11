@@ -423,7 +423,6 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx6/gfx6DepthStencilView.cpp
                 core/hw/gfxip/gfx6/gfx6Device.cpp
                 core/hw/gfxip/gfx6/gfx6FormatInfo.cpp
-                core/hw/gfxip/gfx6/gfx6Gds.cpp
                 core/hw/gfxip/gfx6/gfx6GraphicsPipeline.cpp
                 core/hw/gfxip/gfx6/gfx6Image.cpp
                 core/hw/gfxip/gfx6/gfx6IndirectCmdGenerator.cpp
@@ -489,7 +488,6 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx9/gfx9DepthStencilView.cpp
                 core/hw/gfxip/gfx9/gfx9Device.cpp
                 core/hw/gfxip/gfx9/gfx9FormatInfo.cpp
-                core/hw/gfxip/gfx9/gfx9Gds.cpp
                 core/hw/gfxip/gfx9/gfx9GraphicsPipeline.cpp
                 core/hw/gfxip/gfx9/gfx9Image.cpp
                 core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.cpp

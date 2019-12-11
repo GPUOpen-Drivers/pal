@@ -64,62 +64,53 @@ namespace V2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const SwizzleModeFlags Gfx10Lib::SwizzleModeTable[ADDR_SW_MAX_TYPE] =
-{//Linear 256B  4KB  64KB   Var    Z    Std   Disp  Rot   XOR    T    RtOpt
-    {1,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // ADDR_SW_LINEAR
-    {0,    1,    0,    0,    0,    0,    1,    0,    0,    0,    0,   0}, // ADDR_SW_256B_S
-    {0,    1,    0,    0,    0,    0,    0,    1,    0,    0,    0,   0}, // ADDR_SW_256B_D
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
+{//Linear 256B  4KB  64KB   Var    Z    Std   Disp  Rot   XOR    T     RtOpt Reserved
+    {1,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // ADDR_SW_LINEAR
+    {0,    1,    0,    0,    0,    0,    1,    0,    0,    0,    0,    0,    0}, // ADDR_SW_256B_S
+    {0,    1,    0,    0,    0,    0,    0,    1,    0,    0,    0,    0,    0}, // ADDR_SW_256B_D
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
 
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {0,    0,    1,    0,    0,    0,    1,    0,    0,    0,    0,   0}, // ADDR_SW_4KB_S
-    {0,    0,    1,    0,    0,    0,    0,    1,    0,    0,    0,   0}, // ADDR_SW_4KB_D
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    1,    0,    0,    0,    1,    0,    0,    0,    0,    0,    0}, // ADDR_SW_4KB_S
+    {0,    0,    1,    0,    0,    0,    0,    1,    0,    0,    0,    0,    0}, // ADDR_SW_4KB_D
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
 
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {0,    0,    0,    1,    0,    0,    1,    0,    0,    0,    0,   0}, // ADDR_SW_64KB_S
-    {0,    0,    0,    1,    0,    0,    0,    1,    0,    0,    0,   0}, // ADDR_SW_64KB_D
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    1,    0,    0,    1,    0,    0,    0,    0,    0,    0}, // ADDR_SW_64KB_S
+    {0,    0,    0,    1,    0,    0,    0,    1,    0,    0,    0,    0,    0}, // ADDR_SW_64KB_D
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
 
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
 
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {0,    0,    0,    1,    0,    0,    1,    0,    0,    1,    1,   0}, // ADDR_SW_64KB_S_T
-    {0,    0,    0,    1,    0,    0,    0,    1,    0,    1,    1,   0}, // ADDR_SW_64KB_D_T
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    1,    0,    0,    1,    0,    0,    1,    1,    0,    0}, // ADDR_SW_64KB_S_T
+    {0,    0,    0,    1,    0,    0,    0,    1,    0,    1,    1,    0,    0}, // ADDR_SW_64KB_D_T
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
 
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {0,    0,    1,    0,    0,    0,    1,    0,    0,    1,    0,   0}, // ADDR_SW_4KB_S_X
-    {0,    0,    1,    0,    0,    0,    0,    1,    0,    1,    0,   0}, // ADDR_SW_4KB_D_X
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    1,    0,    0,    0,    1,    0,    0,    1,    0,    0,    0}, // ADDR_SW_4KB_S_X
+    {0,    0,    1,    0,    0,    0,    0,    1,    0,    1,    0,    0,    0}, // ADDR_SW_4KB_D_X
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
 
-    {0,    0,    0,    1,    0,    1,    0,    0,    0,    1,    0,   0}, // ADDR_SW_64KB_Z_X
-    {0,    0,    0,    1,    0,    0,    1,    0,    0,    1,    0,   0}, // ADDR_SW_64KB_S_X
-    {0,    0,    0,    1,    0,    0,    0,    1,    0,    1,    0,   0}, // ADDR_SW_64KB_D_X
-    {0,    0,    0,    1,    0,    0,    0,    0,    0,    1,    0,   1}, // ADDR_SW_64KB_R_X
+    {0,    0,    0,    1,    0,    1,    0,    0,    0,    1,    0,    0,    0}, // ADDR_SW_64KB_Z_X
+    {0,    0,    0,    1,    0,    0,    1,    0,    0,    1,    0,    0,    0}, // ADDR_SW_64KB_S_X
+    {0,    0,    0,    1,    0,    0,    0,    1,    0,    1,    0,    0,    0}, // ADDR_SW_64KB_D_X
+    {0,    0,    0,    1,    0,    0,    0,    0,    0,    1,    0,    1,    0}, // ADDR_SW_64KB_R_X
 
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // Reserved
-    {1,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0}, // ADDR_SW_LINEAR_GENERAL
+    {0,    0,    0,    0,    1,    1,    0,    0,    0,    1,    0,    0,    0}, // ADDR_SW_VAR_Z_X
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    1,    0,    0,    0,    0,    1,    0,    1,    0}, // ADDR_SW_VAR_R_X
+    {1,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // ADDR_SW_LINEAR_GENERAL
 };
 
 const Dim3d Gfx10Lib::Block256_3d[] = {{8, 4, 8}, {4, 4, 8}, {4, 4, 4}, {4, 2, 4}, {2, 2, 4}};
 
-const Dim3d Gfx10Lib::Block64K_3d[] = {{64, 32, 32}, {32 , 32, 32}, {32, 32, 16}, {32, 16, 16}, {16, 16, 16}};
-const Dim3d Gfx10Lib::Block4K_3d[]  = {{16, 16, 16}, {8, 16, 16}, {8, 16, 8}, {8, 8, 8}, {4, 8, 8}};
-
-const Dim2d Gfx10Lib::Block64K_2d[] = {{256, 256}, {256 , 128}, {128, 128}, {128, 64}, {64, 64}};
-const Dim2d Gfx10Lib::Block4K_2d[]  = {{64, 64}, {64, 32}, {32, 32}, {32, 16}, {16, 16}};
-
 const Dim3d Gfx10Lib::Block64K_Log2_3d[] = {{6, 5, 5}, {5, 5, 5}, {5, 5, 4}, {5, 4, 4}, {4, 4, 4}};
 const Dim3d Gfx10Lib::Block4K_Log2_3d[]  = {{4, 4, 4}, {3, 4, 4}, {3, 4, 3}, {3, 3, 3}, {2, 3, 3}};
-
-const Dim2d Gfx10Lib::Block64K_Log2_2d[] = {{8, 8}, {8, 7}, {7, 7}, {7, 6}, {6, 6}};
-const Dim2d Gfx10Lib::Block4K_Log2_2d[]  = {{6, 6}, {6, 5}, {5, 5}, {5, 4}, {4, 4}};
 
 /**
 ************************************************************************************************************************
@@ -133,7 +124,6 @@ const Dim2d Gfx10Lib::Block4K_Log2_2d[]  = {{6, 6}, {6, 5}, {5, 5}, {5, 4}, {4, 
 Gfx10Lib::Gfx10Lib(const Client* pClient)
     :
     Lib(pClient),
-    m_numEquations(0),
     m_colorBaseIndex(0),
     m_xmaskBaseIndex(0),
     m_dccBaseIndex(0)
@@ -173,7 +163,8 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeHtileInfo(
 {
     ADDR_E_RETURNCODE ret = ADDR_OK;
 
-    if ((pIn->swizzleMode            != ADDR_SW_64KB_Z_X) ||
+    if (((pIn->swizzleMode != ADDR_SW_64KB_Z_X) &&
+         ((pIn->swizzleMode != ADDR_SW_VAR_Z_X) || (m_blockVarSizeLog2 == 0))) ||
         (pIn->hTileFlags.pipeAligned != TRUE))
     {
         ret = ADDR_INVALIDPARAMS;
@@ -183,7 +174,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeHtileInfo(
         Dim3d         metaBlk     = {0};
         const UINT_32 metaBlkSize = GetMetaBlkSize(Gfx10DataDepthStencil,
                                                    ADDR_RSRC_TEX_2D,
-                                                   ADDR_SW_64KB_Z_X,
+                                                   pIn->swizzleMode,
                                                    0,
                                                    0,
                                                    TRUE,
@@ -282,8 +273,10 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeCmaskInfo(
 {
     ADDR_E_RETURNCODE ret = ADDR_OK;
 
-    if ((pIn->resourceType           != ADDR_RSRC_TEX_2D) ||
-        (pIn->cMaskFlags.pipeAligned != TRUE))
+    if ((pIn->resourceType != ADDR_RSRC_TEX_2D) ||
+        (pIn->cMaskFlags.pipeAligned != TRUE)   ||
+        ((pIn->swizzleMode != ADDR_SW_64KB_Z_X) &&
+         ((pIn->swizzleMode != ADDR_SW_VAR_Z_X) || (m_blockVarSizeLog2 == 0))))
     {
         ret = ADDR_INVALIDPARAMS;
     }
@@ -292,7 +285,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeCmaskInfo(
         Dim3d         metaBlk     = {0};
         const UINT_32 metaBlkSize = GetMetaBlkSize(Gfx10DataFmask,
                                                    ADDR_RSRC_TEX_2D,
-                                                   ADDR_SW_64KB_Z_X,
+                                                   pIn->swizzleMode,
                                                    0,
                                                    0,
                                                    TRUE,
@@ -538,11 +531,12 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeCmaskAddrFromCoord(
         const UINT_32  fmaskElemLog2 = Log2(fmaskBpp >> 3);
         const UINT_32  pipeMask      = (1 << m_pipesLog2) - 1;
         const UINT_32  index         = m_xmaskBaseIndex + fmaskElemLog2;
-        const UINT_16* patIdxTable   = m_settings.supportRbPlus ? CMASK_64K_RBPLUS_PATIDX : CMASK_64K_PATIDX;
+        const UINT_8*  patIdxTable   = (pIn->swizzleMode == ADDR_SW_VAR_Z_X) ? CMASK_VAR_RBPLUS_PATIDX :
+                                       (m_settings.supportRbPlus ? CMASK_64K_RBPLUS_PATIDX : CMASK_64K_PATIDX);
 
         const UINT_32  blkSizeLog2  = Log2(output.metaBlkWidth) + Log2(output.metaBlkHeight) - 7;
         const UINT_32  blkMask      = (1 << blkSizeLog2) - 1;
-        const UINT_32  blkOffset    = ComputeOffsetFromSwizzlePattern(CMASK_64K_SW_PATTERN[patIdxTable[index]],
+        const UINT_32  blkOffset    = ComputeOffsetFromSwizzlePattern(CMASK_SW_PATTERN[patIdxTable[index]],
                                                                       blkSizeLog2 + 1, // +1 for nibble offset
                                                                       pIn->x,
                                                                       pIn->y,
@@ -606,11 +600,11 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeHtileAddrFromCoord(
             const UINT_32  numSampleLog2 = Log2(pIn->numSamples);
             const UINT_32  pipeMask      = (1 << m_pipesLog2) - 1;
             const UINT_32  index         = m_xmaskBaseIndex + numSampleLog2;
-            const UINT_16* patIdxTable   = m_settings.supportRbPlus ? HTILE_64K_RBPLUS_PATIDX : HTILE_64K_PATIDX;
+            const UINT_8*  patIdxTable   = m_settings.supportRbPlus ? HTILE_RBPLUS_PATIDX : HTILE_PATIDX;
 
             const UINT_32  blkSizeLog2   = Log2(output.metaBlkWidth) + Log2(output.metaBlkHeight) - 4;
             const UINT_32  blkMask       = (1 << blkSizeLog2) - 1;
-            const UINT_32  blkOffset     = ComputeOffsetFromSwizzlePattern(HTILE_64K_SW_PATTERN[patIdxTable[index]],
+            const UINT_32  blkOffset     = ComputeOffsetFromSwizzlePattern(HTILE_SW_PATTERN[patIdxTable[index]],
                                                                            blkSizeLog2 + 1, // +1 for nibble offset
                                                                            pIn->x,
                                                                            pIn->y,
@@ -703,7 +697,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeDccAddrFromCoord(
             const UINT_32  numPipeLog2 = m_pipesLog2;
             const UINT_32  pipeMask    = (1 << numPipeLog2) - 1;
             UINT_32        index       = m_dccBaseIndex + elemLog2;
-            const UINT_16* patIdxTable;
+            const UINT_8*  patIdxTable;
 
             if (m_settings.supportRbPlus)
             {
@@ -890,7 +884,7 @@ BOOL_32 Gfx10Lib::HwlInitGlobalParams(
 
             ADDR_ASSERT((m_numPkrLog2 <= m_pipesLog2) && ((m_pipesLog2 - m_numPkrLog2) <= 2));
 
-            ADDR_C_ASSERT(sizeof(HTILE_64K_RBPLUS_PATIDX) / sizeof(HTILE_64K_RBPLUS_PATIDX[0]) ==
+            ADDR_C_ASSERT(sizeof(HTILE_RBPLUS_PATIDX) / sizeof(HTILE_RBPLUS_PATIDX[0]) ==
                           sizeof(CMASK_64K_RBPLUS_PATIDX) / sizeof(CMASK_64K_RBPLUS_PATIDX[0]));
 
             if (m_numPkrLog2 >= 2)
@@ -905,11 +899,18 @@ BOOL_32 Gfx10Lib::HwlInitGlobalParams(
                                         static_cast<UINT_32>(ADDR_CONFIG_1_PIPE)  +
                                         1;
 
-            ADDR_C_ASSERT(sizeof(HTILE_64K_PATIDX) / sizeof(HTILE_64K_PATIDX[0]) == (numPipeType + 1) * MaxNumOfAA);
+            ADDR_C_ASSERT(sizeof(HTILE_PATIDX) / sizeof(HTILE_PATIDX[0]) == (numPipeType + 1) * MaxNumOfAA);
 
-            ADDR_C_ASSERT(sizeof(HTILE_64K_PATIDX) / sizeof(HTILE_64K_PATIDX[0]) ==
+            ADDR_C_ASSERT(sizeof(HTILE_PATIDX) / sizeof(HTILE_PATIDX[0]) ==
                           sizeof(CMASK_64K_PATIDX) / sizeof(CMASK_64K_PATIDX[0]));
         }
+    }
+
+    if (m_settings.supportRbPlus)
+    {
+        // VAR block size = 16K * num_pipes. For 4 pipe configuration, SW_VAR_* mode swizzle patterns are same as the
+        // corresponding SW_64KB_* mode
+        m_blockVarSizeLog2 = m_pipesLog2 + 14;
     }
 
     if (valid)
@@ -1291,35 +1292,6 @@ UINT_32 Gfx10Lib::GetMetaBlkSize(
 
 /**
 ************************************************************************************************************************
-*   Gfx10Lib::GetSwizzlePatternFromPatternInfo
-*
-*   @brief
-*       Get full swizzle pattern from info
-*
-*   @return
-*       N/A
-************************************************************************************************************************
-*/
-VOID Gfx10Lib::GetSwizzlePatternFromPatternInfo(
-    const ADDR_SW_PATINFO* pPatInfo,    ///< [in] swizzle pattern info
-    ADDR_BIT_SETTING*      pSwizzle     ///< [out] full swizzle pattern
-    ) const
-{
-    memcpy(pSwizzle,
-           GFX10_SW_PATTERN_NIBBLE01[pPatInfo->nibble01Idx],
-           sizeof(GFX10_SW_PATTERN_NIBBLE01[pPatInfo->nibble01Idx]));
-
-    memcpy(&pSwizzle[8],
-           GFX10_SW_PATTERN_NIBBLE2[pPatInfo->nibble2Idx],
-           sizeof(GFX10_SW_PATTERN_NIBBLE2[pPatInfo->nibble2Idx]));
-
-    memcpy(&pSwizzle[12],
-           GFX10_SW_PATTERN_NIBBLE3[pPatInfo->nibble3Idx],
-           sizeof(GFX10_SW_PATTERN_NIBBLE3[pPatInfo->nibble3Idx]));
-}
-
-/**
-************************************************************************************************************************
 *   Gfx10Lib::ConvertSwizzlePatternToEquation
 *
 *   @brief
@@ -1337,7 +1309,7 @@ VOID Gfx10Lib::ConvertSwizzlePatternToEquation(
     ADDR_EQUATION*         pEquation) ///< [out] equation converted from swizzle pattern
     const
 {
-    ADDR_BIT_SETTING fullSwizzlePattern[16];
+    ADDR_BIT_SETTING fullSwizzlePattern[20];
     GetSwizzlePatternFromPatternInfo(pPatInfo, fullSwizzlePattern);
 
     const ADDR_BIT_SETTING* pSwizzle      = fullSwizzlePattern;
@@ -1391,10 +1363,13 @@ VOID Gfx10Lib::ConvertSwizzlePatternToEquation(
     }
     else if (IsThin(rsrcType, swMode))
     {
-        const UINT_32 blkXLog2 = (blockSizeLog2 == 12) ? Block4K_Log2_2d[elemLog2].w : Block64K_Log2_2d[elemLog2].w;
-        const UINT_32 blkYLog2 = (blockSizeLog2 == 12) ? Block4K_Log2_2d[elemLog2].h : Block64K_Log2_2d[elemLog2].h;
-        const UINT_32 blkXMask = (1 << blkXLog2) - 1;
-        const UINT_32 blkYMask = (1 << blkYLog2) - 1;
+        Dim3d dim;
+        ComputeThinBlockDimension(&dim.w, &dim.h, &dim.d, 8u << elemLog2, 0, rsrcType, swMode);
+
+        const UINT_32 blkXLog2 = Log2(dim.w);
+        const UINT_32 blkYLog2 = Log2(dim.h);
+        const UINT_32 blkXMask = dim.w - 1;
+        const UINT_32 blkYMask = dim.h - 1;
 
         ADDR_BIT_SETTING swizzle[ADDR_MAX_EQUATION_BIT];
         UINT_32          xMask = 0;
@@ -1590,7 +1565,7 @@ VOID Gfx10Lib::ConvertSwizzlePatternToEquation(
 
         ADDR_ASSERT((xMask == blkXMask) && (yMask == blkYMask));
     }
-    else if (IsEquationCompatibleThick(rsrcType, swMode))
+    else
     {
         const UINT_32 blkXLog2 = (blockSizeLog2 == 12) ? Block4K_Log2_3d[elemLog2].w : Block64K_Log2_3d[elemLog2].w;
         const UINT_32 blkYLog2 = (blockSizeLog2 == 12) ? Block4K_Log2_3d[elemLog2].h : Block64K_Log2_3d[elemLog2].h;
@@ -1872,7 +1847,7 @@ VOID Gfx10Lib::InitEquationTable()
     {
         const AddrResourceType rsrcType = static_cast<AddrResourceType>(rsrcTypeIdx + ADDR_RSRC_TEX_2D);
 
-        for (UINT_32 swModeIdx = ADDR_SW_LINEAR + 1; swModeIdx < MaxSwMode; swModeIdx++)
+        for (UINT_32 swModeIdx = 0; swModeIdx < MaxSwModeType; swModeIdx++)
         {
             const AddrSwizzleMode swMode = static_cast<AddrSwizzleMode>(swModeIdx);
 
@@ -1883,16 +1858,29 @@ VOID Gfx10Lib::InitEquationTable()
 
                 if (pPatInfo != NULL)
                 {
-                    ADDR_EQUATION equation = {};
+                    ADDR_ASSERT(IsValidSwMode(swMode));
 
-                    ConvertSwizzlePatternToEquation(elemLog2, rsrcType, swMode, pPatInfo, &equation);
+                    if (pPatInfo->maxItemCount <= 3)
+                    {
+                        ADDR_EQUATION equation = {};
 
-                    equationIndex = m_numEquations;
-                    ADDR_ASSERT(equationIndex < EquationTableSize);
+                        ConvertSwizzlePatternToEquation(elemLog2, rsrcType, swMode, pPatInfo, &equation);
 
-                    m_equationTable[equationIndex] = equation;
+                        equationIndex = m_numEquations;
+                        ADDR_ASSERT(equationIndex < EquationTableSize);
 
-                    m_numEquations++;
+                        m_equationTable[equationIndex] = equation;
+
+                        m_numEquations++;
+                    }
+                    else
+                    {
+                        // We only see "ill" equation from 64/128 BPE + 3D resource + SW_64KB_D_X under RB+ case
+                        ADDR_ASSERT((elemLog2 == 3) || (elemLog2 == 4));
+                        ADDR_ASSERT(rsrcTypeIdx == 1);
+                        ADDR_ASSERT(swMode == ADDR_SW_64KB_D_X);
+                        ADDR_ASSERT(m_settings.supportRbPlus == 1);
+                    }
                 }
 
                 m_equationLookupTable[rsrcTypeIdx][swModeIdx][elemLog2] = equationIndex;
@@ -2228,7 +2216,7 @@ BOOL_32 Gfx10Lib::ValidateSwModeParams(
 {
     BOOL_32 valid = TRUE;
 
-    if (pIn->swizzleMode >= ADDR_SW_MAX_TYPE)
+    if ((pIn->swizzleMode >= ADDR_SW_MAX_TYPE) || (IsValidSwMode(pIn->swizzleMode) == FALSE))
     {
         ADDR_ASSERT_ALWAYS();
         valid = FALSE;
@@ -2247,8 +2235,10 @@ BOOL_32 Gfx10Lib::ValidateSwModeParams(
     const BOOL_32             thin3d      = flags.view3dAs2dArray;
     const BOOL_32             linear      = IsLinear(swizzle);
     const BOOL_32             blk256B     = IsBlock256b(swizzle);
+    const BOOL_32             blkVar      = IsBlockVariable(swizzle);
     const BOOL_32             isNonPrtXor = IsNonPrtXor(swizzle);
     const BOOL_32             prt         = flags.prt;
+    const BOOL_32             fmask       = flags.fmask;
 
     // Misc check
     if ((pIn->numFrags > 1) &&
@@ -2285,7 +2275,8 @@ BOOL_32 Gfx10Lib::ValidateSwModeParams(
     else if (tex2d)
     {
         if (((swizzleMask & Gfx10Rsrc2dSwModeMask) == 0) ||
-            (prt && ((swizzleMask & Gfx10Rsrc2dPrtSwModeMask) == 0)))
+            (prt && ((swizzleMask & Gfx10Rsrc2dPrtSwModeMask) == 0)) ||
+            (fmask && ((swizzleMask & Gfx10ZSwModeMask) == 0)))
         {
             ADDR_ASSERT_ALWAYS();
             valid = FALSE;
@@ -2362,6 +2353,14 @@ BOOL_32 Gfx10Lib::ValidateSwModeParams(
             valid = FALSE;
         }
     }
+    else if (blkVar)
+    {
+        if (m_blockVarSizeLog2 == 0)
+        {
+            ADDR_ASSERT_ALWAYS();
+            valid = FALSE;
+        }
+    }
 
     return valid;
 }
@@ -2404,14 +2403,89 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
     if (pIn->flags.fmask)
     {
-        pOut->swizzleMode                 = ADDR_SW_64KB_Z_X;
-        pOut->resourceType                = ADDR_RSRC_TEX_2D;
-        pOut->validBlockSet.value         = 0;
-        pOut->validBlockSet.macroThin64KB = 1;
-        pOut->canXor                      = TRUE;
-        pOut->validSwTypeSet.value        = AddrSwSetZ;
-        pOut->clientPreferredSwSet        = pOut->validSwTypeSet;
-        pOut->validSwModeSet.value        = Gfx10ZSwModeMask;
+        const BOOL_32 forbid64KbBlockType = pIn->forbiddenBlock.macroThin64KB ? TRUE : FALSE;
+        const BOOL_32 forbidVarBlockType  = ((m_blockVarSizeLog2 == 0) || (pIn->forbiddenBlock.var != 0));
+
+        if (forbid64KbBlockType && forbidVarBlockType)
+        {
+            // Invalid combination...
+            ADDR_ASSERT_ALWAYS();
+            returnCode = ADDR_INVALIDPARAMS;
+        }
+        else
+        {
+            pOut->resourceType                = ADDR_RSRC_TEX_2D;
+            pOut->validBlockSet.value         = 0;
+            pOut->validBlockSet.macroThin64KB = forbid64KbBlockType ? 0 : 1;
+            pOut->validBlockSet.var           = forbidVarBlockType  ? 0 : 1;
+            pOut->validSwModeSet.value        = 0;
+            pOut->validSwModeSet.sw64KB_Z_X   = forbid64KbBlockType ? 0 : 1;
+            pOut->validSwModeSet.swVar_Z_X    = forbidVarBlockType  ? 0 : 1;
+            pOut->canXor                      = TRUE;
+            pOut->validSwTypeSet.value        = AddrSwSetZ;
+            pOut->clientPreferredSwSet        = pOut->validSwTypeSet;
+
+            BOOL_32 use64KbBlockType = (forbid64KbBlockType == FALSE);
+
+            if ((forbid64KbBlockType == FALSE) && (forbidVarBlockType == FALSE))
+            {
+                const UINT_8  maxFmaskSwizzleModeType = 2;
+                const UINT_32 ratioLow                = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 3 : 2);
+                const UINT_32 ratioHi                 = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 2 : 1);
+                const UINT_32 fmaskBpp                = GetFmaskBpp(pIn->numSamples, pIn->numFrags);
+                const UINT_32 numSlices               = Max(pIn->numSlices, 1u);
+                const UINT_32 width                   = Max(pIn->width, 1u);
+                const UINT_32 height                  = Max(pIn->height, 1u);
+                const UINT_64 sizeAlignInElement      = Max(NextPow2(pIn->minSizeAlign) / (fmaskBpp >> 3), 1u);
+
+                AddrSwizzleMode swMode[maxFmaskSwizzleModeType]  = {ADDR_SW_64KB_Z_X, ADDR_SW_VAR_Z_X};
+                Dim3d           blkDim[maxFmaskSwizzleModeType]  = {{0}, {0}};
+                Dim3d           padDim[maxFmaskSwizzleModeType]  = {{0}, {0}};
+                UINT_64         padSize[maxFmaskSwizzleModeType] = {0};
+
+                for (UINT_8 i = 0; i < maxFmaskSwizzleModeType; i++)
+                {
+                    ComputeBlockDimensionForSurf(&blkDim[i].w,
+                                                 &blkDim[i].h,
+                                                 &blkDim[i].d,
+                                                 fmaskBpp,
+                                                 1,
+                                                 pOut->resourceType,
+                                                 swMode[i]);
+
+                    padSize[i] = ComputePadSize(&blkDim[i], width, height, numSlices, &padDim[i]);
+                    padSize[i] = PowTwoAlign(padSize[i], sizeAlignInElement);
+                }
+
+                if (GetBlockSizeLog2(swMode[1]) >= GetBlockSizeLog2(swMode[0]))
+                {
+                    if ((padSize[1] * ratioHi) <= (padSize[0] * ratioLow))
+                    {
+                        use64KbBlockType = FALSE;
+                    }
+                }
+                else
+                {
+                    if ((padSize[1] * ratioLow) < (padSize[0] * ratioHi))
+                    {
+                        use64KbBlockType = FALSE;
+                    }
+                }
+            }
+            else if (forbidVarBlockType)
+            {
+                use64KbBlockType = TRUE;
+            }
+
+            if (use64KbBlockType)
+            {
+                pOut->swizzleMode = ADDR_SW_64KB_Z_X;
+            }
+            else
+            {
+                pOut->swizzleMode = ADDR_SW_VAR_Z_X;
+            }
+        }
     }
     else
     {
@@ -2474,10 +2548,12 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                 ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThick4KBSwModeMask : 0);
             allowedSwModeSet.value |=
                 pIn->forbiddenBlock.macroThin64KB ? 0 :
-                ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThinSwModeMask : Gfx10Blk64KBSwModeMask);
+                ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThin64KBSwModeMask : Gfx10Blk64KBSwModeMask);
             allowedSwModeSet.value |=
                 pIn->forbiddenBlock.macroThick64KB ? 0 :
                 ((pOut->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThick64KBSwModeMask : 0);
+            allowedSwModeSet.value |=
+                pIn->forbiddenBlock.var ? 0 : (m_blockVarSizeLog2 ? Gfx10BlkVarSwModeMask : 0);
 
             if (pIn->preferredSwSet.value != 0)
             {
@@ -2494,6 +2570,11 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
             if (pIn->maxAlign > 0)
             {
+                if (pIn->maxAlign < (1u << m_blockVarSizeLog2))
+                {
+                    allowedSwModeSet.value &= ~Gfx10BlkVarSwModeMask;
+                }
+
                 if (pIn->maxAlign < Size64K)
                 {
                     allowedSwModeSet.value &= ~Gfx10Blk64KBSwModeMask;
@@ -2524,11 +2605,6 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
                 case ADDR_RSRC_TEX_3D:
                     allowedSwModeSet.value &= pIn->flags.prt ? Gfx10Rsrc3dPrtSwModeMask : Gfx10Rsrc3dSwModeMask;
-
-                    if (m_settings.supportRbPlus)
-                    {
-                        allowedSwModeSet.value &= ~Gfx10DisplaySwModeMask;
-                    }
 
                     if (pIn->flags.view3dAs2dArray)
                     {
@@ -2608,6 +2684,28 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                     pOut->clientPreferredSwSet.value = AddrSwSetAll;
                 }
 
+                // Apply optional restrictions
+                if ((pIn->flags.depth || pIn->flags.stencil) && msaa && m_configFlags.nonPower2MemConfig)
+                {
+                    if ((allowedSwModeSet.value &= ~Gfx10BlkVarSwModeMask) != 0)
+                    {
+                        // MSAA depth in non power of 2 memory configs would suffer from non-local channel accesses from
+                        // the GL2 in VAR mode, so it should be avoided.
+                        allowedSwModeSet.value &= ~Gfx10BlkVarSwModeMask;
+                    }
+                    else
+                    {
+                        // We should still be able to use VAR for non power of 2 memory configs with MSAA z/stencil.
+                        // But we have to suffer from low performance because there is no other choice...
+                        ADDR_ASSERT_ALWAYS();
+                    }
+                }
+
+                if (pIn->flags.needEquation)
+                {
+                    FilterInvalidEqSwizzleMode(allowedSwModeSet, pIn->resourceType, Log2(bpp >> 3));
+                }
+
                 if (allowedSwModeSet.value == Gfx10LinearSwModeMask)
                 {
                     pOut->swizzleMode = ADDR_SW_LINEAR;
@@ -2624,6 +2722,11 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                     {
                         AddrSwizzleMode swMode[AddrBlockMaxTiledType] = { ADDR_SW_LINEAR };
 
+                        if (m_blockVarSizeLog2 != 0)
+                        {
+                            swMode[AddrBlockVar] = ADDR_SW_VAR_R_X;
+                        }
+
                         if (pOut->resourceType == ADDR_RSRC_TEX_3D)
                         {
                             swMode[AddrBlockThick4KB]  = ADDR_SW_4KB_S;
@@ -2637,8 +2740,8 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                             swMode[AddrBlockThin64KB] = ADDR_SW_64KB_S;
                         }
 
-                        Dim3d   blkDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}};
-                        Dim3d   padDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}};
+                        Dim3d   blkDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}, {0}};
+                        Dim3d   padDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}, {0}};
                         UINT_64 padSize[AddrBlockMaxTiledType] = {0};
 
                         const UINT_32 ratioLow           = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 3 : 2);
@@ -2660,13 +2763,36 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                                                              swMode[i]);
 
                                 padSize[i] = ComputePadSize(&blkDim[i], width, height, numSlices, &padDim[i]);
-                                padSize[i] = PowTwoAlign(padSize[i], sizeAlignInElement);
+                                padSize[i] = PowTwoAlign(padSize[i] * numFrags, sizeAlignInElement);
 
-                                if ((minSize == 0) ||
-                                    ((padSize[i] * ratioHi) <= (minSize * ratioLow)))
+                                if (minSize == 0)
                                 {
                                     minSize    = padSize[i];
                                     minSizeBlk = i;
+                                }
+                                else
+                                {
+                                    // Due to the fact that VAR block size = 16KB * m_pipes, it is possible that VAR
+                                    // block size < 64KB. And ratio[Hi/Low] logic implicitly requires iterating from
+                                    // smaller block type to bigger block type. So we have to correct comparing logic
+                                    // according to the size of existing "minimun block" and size of coming/comparing
+                                    // block. The new logic can also be useful to any future change about AddrBlockType.
+                                    if (GetBlockSizeLog2(swMode[i]) >= GetBlockSizeLog2(swMode[minSizeBlk]))
+                                    {
+                                        if ((padSize[i] * ratioHi) <= (minSize * ratioLow))
+                                        {
+                                            minSize    = padSize[i];
+                                            minSizeBlk = i;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if ((padSize[i] * ratioLow) < (minSize * ratioHi))
+                                        {
+                                            minSize    = padSize[i];
+                                            minSizeBlk = i;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -2698,11 +2824,15 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                             ADDR_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
                             allowedSwModeSet.value &= Gfx10Rsrc3dThick64KBSwModeMask;
                         }
+                        else if (minSizeBlk == AddrBlockThin64KB)
+                        {
+                            allowedSwModeSet.value &= (pOut->resourceType == ADDR_RSRC_TEX_3D) ?
+                                                      Gfx10Rsrc3dThin64KBSwModeMask : Gfx10Blk64KBSwModeMask;
+                        }
                         else
                         {
-                            ADDR_ASSERT(minSizeBlk == AddrBlockThin64KB);
-                            allowedSwModeSet.value &= (pOut->resourceType == ADDR_RSRC_TEX_3D) ?
-                                                      Gfx10Rsrc3dThinSwModeMask : Gfx10Blk64KBSwModeMask;
+                            ADDR_ASSERT(minSizeBlk == AddrBlockVar);
+                            allowedSwModeSet.value &= Gfx10BlkVarSwModeMask;
                         }
                     }
 
@@ -3493,180 +3623,226 @@ const ADDR_SW_PATINFO* Gfx10Lib::GetSwizzlePatternInfo(
     const ADDR_SW_PATINFO* patInfo     = NULL;
     const UINT_32          swizzleMask = 1 << swizzleMode;
 
-    if (IsLinear(swizzleMode))
+    if (IsLinear(swizzleMode) == FALSE)
     {
-        // Should not be called
-        ADDR_ASSERT_ALWAYS();
-    }
-    else if (resourceType == ADDR_RSRC_TEX_3D)
-    {
-        ADDR_ASSERT(numFrag == 1);
-
-        if ((swizzleMask & Gfx10Rsrc3dSwModeMask) != 0)
+        if (IsBlockVariable(swizzleMode))
         {
-            if (IsRtOptSwizzle(swizzleMode))
+            if (m_blockVarSizeLog2 != 0)
             {
-                patInfo = m_settings.supportRbPlus ? SW_64K_R_X_1xaa_RBPLUS_PATINFO : SW_64K_R_X_1xaa_PATINFO;
-            }
-            else if (IsZOrderSwizzle(swizzleMode))
-            {
-                patInfo = m_settings.supportRbPlus ? SW_64K_Z_X_1xaa_RBPLUS_PATINFO : SW_64K_Z_X_1xaa_PATINFO;
-            }
-            else if (IsDisplaySwizzle(resourceType, swizzleMode))
-            {
-                ADDR_ASSERT(swizzleMode == ADDR_SW_64KB_D_X);
-                patInfo = m_settings.supportRbPlus ? SW_64K_D3_X_RBPLUS_PATINFO : SW_64K_D3_X_PATINFO;
-            }
-            else
-            {
-                ADDR_ASSERT(IsStandardSwizzle(resourceType, swizzleMode));
+                ADDR_ASSERT(m_settings.supportRbPlus);
 
-                if (IsBlock4kb(swizzleMode))
-                {
-                    if (swizzleMode == ADDR_SW_4KB_S)
-                    {
-                        patInfo = m_settings.supportRbPlus ? SW_4K_S3_RBPLUS_PATINFO : SW_4K_S3_PATINFO;
-                    }
-                    else
-                    {
-                        ADDR_ASSERT(swizzleMode == ADDR_SW_4KB_S_X);
-                        patInfo = m_settings.supportRbPlus ? SW_4K_S3_X_RBPLUS_PATINFO : SW_4K_S3_X_PATINFO;
-                    }
-                }
-                else
-                {
-                    if (swizzleMode == ADDR_SW_64KB_S)
-                    {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_S3_RBPLUS_PATINFO : SW_64K_S3_PATINFO;
-                    }
-                    else if (swizzleMode == ADDR_SW_64KB_S_X)
-                    {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_S3_X_RBPLUS_PATINFO : SW_64K_S3_X_PATINFO;
-                    }
-                    else
-                    {
-                        ADDR_ASSERT(swizzleMode == ADDR_SW_64KB_S_T);
-                        patInfo = m_settings.supportRbPlus ? SW_64K_S3_T_RBPLUS_PATINFO : SW_64K_S3_T_PATINFO;
-                    }
-                }
-            }
-        }
-    }
-    else
-    {
-        if ((swizzleMask & Gfx10Rsrc2dSwModeMask) != 0)
-        {
-            if (IsBlock256b(swizzleMode))
-            {
-                if (swizzleMode == ADDR_SW_256B_S)
-                {
-                    patInfo = m_settings.supportRbPlus ? SW_256_S_RBPLUS_PATINFO : SW_256_S_PATINFO;
-                }
-                else
-                {
-                    ADDR_ASSERT(swizzleMode == ADDR_SW_256B_D);
-                    patInfo = m_settings.supportRbPlus ? SW_256_D_RBPLUS_PATINFO : SW_256_D_PATINFO;
-                }
-            }
-            else if (IsBlock4kb(swizzleMode))
-            {
-                if (IsStandardSwizzle(resourceType, swizzleMode))
-                {
-                    if (swizzleMode == ADDR_SW_4KB_S)
-                    {
-                        patInfo = m_settings.supportRbPlus ? SW_4K_S_RBPLUS_PATINFO : SW_4K_S_PATINFO;
-                    }
-                    else
-                    {
-                        ADDR_ASSERT(swizzleMode == ADDR_SW_4KB_S_X);
-                        patInfo = m_settings.supportRbPlus ? SW_4K_S_X_RBPLUS_PATINFO : SW_4K_S_X_PATINFO;
-                    }
-                }
-                else
-                {
-                    if (swizzleMode == ADDR_SW_4KB_D)
-                    {
-                        patInfo = m_settings.supportRbPlus ? SW_4K_D_RBPLUS_PATINFO : SW_4K_D_PATINFO;
-                    }
-                    else
-                    {
-                        ADDR_ASSERT(swizzleMode == ADDR_SW_4KB_D_X);
-                        patInfo = m_settings.supportRbPlus ? SW_4K_D_X_RBPLUS_PATINFO : SW_4K_D_X_PATINFO;
-                    }
-                }
-            }
-            else
-            {
                 if (IsRtOptSwizzle(swizzleMode))
                 {
                     if (numFrag == 1)
                     {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_R_X_1xaa_RBPLUS_PATINFO : SW_64K_R_X_1xaa_PATINFO;
+                        patInfo = SW_VAR_R_X_1xaa_RBPLUS_PATINFO;
                     }
                     else if (numFrag == 2)
                     {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_R_X_2xaa_RBPLUS_PATINFO : SW_64K_R_X_2xaa_PATINFO;
+                        patInfo = SW_VAR_R_X_2xaa_RBPLUS_PATINFO;
                     }
                     else if (numFrag == 4)
                     {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_R_X_4xaa_RBPLUS_PATINFO : SW_64K_R_X_4xaa_PATINFO;
+                        patInfo = SW_VAR_R_X_4xaa_RBPLUS_PATINFO;
                     }
                     else
                     {
                         ADDR_ASSERT(numFrag == 8);
-                        patInfo = m_settings.supportRbPlus ? SW_64K_R_X_8xaa_RBPLUS_PATINFO : SW_64K_R_X_8xaa_PATINFO;
+                        patInfo = SW_VAR_R_X_8xaa_RBPLUS_PATINFO;
                     }
                 }
                 else if (IsZOrderSwizzle(swizzleMode))
                 {
                     if (numFrag == 1)
                     {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_Z_X_1xaa_RBPLUS_PATINFO : SW_64K_Z_X_1xaa_PATINFO;
+                        patInfo = SW_VAR_Z_X_1xaa_RBPLUS_PATINFO;
                     }
                     else if (numFrag == 2)
                     {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_Z_X_2xaa_RBPLUS_PATINFO : SW_64K_Z_X_2xaa_PATINFO;
+                        patInfo = SW_VAR_Z_X_2xaa_RBPLUS_PATINFO;
                     }
                     else if (numFrag == 4)
                     {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_Z_X_4xaa_RBPLUS_PATINFO : SW_64K_Z_X_4xaa_PATINFO;
+                        patInfo = SW_VAR_Z_X_4xaa_RBPLUS_PATINFO;
                     }
                     else
                     {
                         ADDR_ASSERT(numFrag == 8);
-                        patInfo = m_settings.supportRbPlus ? SW_64K_Z_X_8xaa_RBPLUS_PATINFO : SW_64K_Z_X_8xaa_PATINFO;
+                        patInfo = SW_VAR_Z_X_8xaa_RBPLUS_PATINFO;
                     }
+                }
+            }
+        }
+        else if (resourceType == ADDR_RSRC_TEX_3D)
+        {
+            ADDR_ASSERT(numFrag == 1);
+
+            if ((swizzleMask & Gfx10Rsrc3dSwModeMask) != 0)
+            {
+                if (IsRtOptSwizzle(swizzleMode))
+                {
+                    patInfo = m_settings.supportRbPlus ? SW_64K_R_X_1xaa_RBPLUS_PATINFO : SW_64K_R_X_1xaa_PATINFO;
+                }
+                else if (IsZOrderSwizzle(swizzleMode))
+                {
+                    patInfo = m_settings.supportRbPlus ? SW_64K_Z_X_1xaa_RBPLUS_PATINFO : SW_64K_Z_X_1xaa_PATINFO;
                 }
                 else if (IsDisplaySwizzle(resourceType, swizzleMode))
                 {
-                    if (swizzleMode == ADDR_SW_64KB_D)
+                    ADDR_ASSERT(swizzleMode == ADDR_SW_64KB_D_X);
+                    patInfo = m_settings.supportRbPlus ? SW_64K_D3_X_RBPLUS_PATINFO : SW_64K_D3_X_PATINFO;
+                }
+                else
+                {
+                    ADDR_ASSERT(IsStandardSwizzle(resourceType, swizzleMode));
+
+                    if (IsBlock4kb(swizzleMode))
                     {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_D_RBPLUS_PATINFO : SW_64K_D_PATINFO;
-                    }
-                    else if (swizzleMode == ADDR_SW_64KB_D_X)
-                    {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_D_X_RBPLUS_PATINFO : SW_64K_D_X_PATINFO;
+                        if (swizzleMode == ADDR_SW_4KB_S)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_4K_S3_RBPLUS_PATINFO : SW_4K_S3_PATINFO;
+                        }
+                        else
+                        {
+                            ADDR_ASSERT(swizzleMode == ADDR_SW_4KB_S_X);
+                            patInfo = m_settings.supportRbPlus ? SW_4K_S3_X_RBPLUS_PATINFO : SW_4K_S3_X_PATINFO;
+                        }
                     }
                     else
                     {
-                        ADDR_ASSERT(swizzleMode == ADDR_SW_64KB_D_T);
-                        patInfo = m_settings.supportRbPlus ? SW_64K_D_T_RBPLUS_PATINFO : SW_64K_D_T_PATINFO;
+                        if (swizzleMode == ADDR_SW_64KB_S)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_S3_RBPLUS_PATINFO : SW_64K_S3_PATINFO;
+                        }
+                        else if (swizzleMode == ADDR_SW_64KB_S_X)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_S3_X_RBPLUS_PATINFO : SW_64K_S3_X_PATINFO;
+                        }
+                        else
+                        {
+                            ADDR_ASSERT(swizzleMode == ADDR_SW_64KB_S_T);
+                            patInfo = m_settings.supportRbPlus ? SW_64K_S3_T_RBPLUS_PATINFO : SW_64K_S3_T_PATINFO;
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            if ((swizzleMask & Gfx10Rsrc2dSwModeMask) != 0)
+            {
+                if (IsBlock256b(swizzleMode))
+                {
+                    if (swizzleMode == ADDR_SW_256B_S)
+                    {
+                        patInfo = m_settings.supportRbPlus ? SW_256_S_RBPLUS_PATINFO : SW_256_S_PATINFO;
+                    }
+                    else
+                    {
+                        ADDR_ASSERT(swizzleMode == ADDR_SW_256B_D);
+                        patInfo = m_settings.supportRbPlus ? SW_256_D_RBPLUS_PATINFO : SW_256_D_PATINFO;
+                    }
+                }
+                else if (IsBlock4kb(swizzleMode))
+                {
+                    if (IsStandardSwizzle(resourceType, swizzleMode))
+                    {
+                        if (swizzleMode == ADDR_SW_4KB_S)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_4K_S_RBPLUS_PATINFO : SW_4K_S_PATINFO;
+                        }
+                        else
+                        {
+                            ADDR_ASSERT(swizzleMode == ADDR_SW_4KB_S_X);
+                            patInfo = m_settings.supportRbPlus ? SW_4K_S_X_RBPLUS_PATINFO : SW_4K_S_X_PATINFO;
+                        }
+                    }
+                    else
+                    {
+                        if (swizzleMode == ADDR_SW_4KB_D)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_4K_D_RBPLUS_PATINFO : SW_4K_D_PATINFO;
+                        }
+                        else
+                        {
+                            ADDR_ASSERT(swizzleMode == ADDR_SW_4KB_D_X);
+                            patInfo = m_settings.supportRbPlus ? SW_4K_D_X_RBPLUS_PATINFO : SW_4K_D_X_PATINFO;
+                        }
                     }
                 }
                 else
                 {
-                    if (swizzleMode == ADDR_SW_64KB_S)
+                    if (IsRtOptSwizzle(swizzleMode))
                     {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_S_RBPLUS_PATINFO : SW_64K_S_PATINFO;
+                        if (numFrag == 1)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_R_X_1xaa_RBPLUS_PATINFO : SW_64K_R_X_1xaa_PATINFO;
+                        }
+                        else if (numFrag == 2)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_R_X_2xaa_RBPLUS_PATINFO : SW_64K_R_X_2xaa_PATINFO;
+                        }
+                        else if (numFrag == 4)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_R_X_4xaa_RBPLUS_PATINFO : SW_64K_R_X_4xaa_PATINFO;
+                        }
+                        else
+                        {
+                            ADDR_ASSERT(numFrag == 8);
+                            patInfo = m_settings.supportRbPlus ? SW_64K_R_X_8xaa_RBPLUS_PATINFO : SW_64K_R_X_8xaa_PATINFO;
+                        }
                     }
-                    else if (swizzleMode == ADDR_SW_64KB_S_X)
+                    else if (IsZOrderSwizzle(swizzleMode))
                     {
-                        patInfo = m_settings.supportRbPlus ? SW_64K_S_X_RBPLUS_PATINFO : SW_64K_S_X_PATINFO;
+                        if (numFrag == 1)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_Z_X_1xaa_RBPLUS_PATINFO : SW_64K_Z_X_1xaa_PATINFO;
+                        }
+                        else if (numFrag == 2)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_Z_X_2xaa_RBPLUS_PATINFO : SW_64K_Z_X_2xaa_PATINFO;
+                        }
+                        else if (numFrag == 4)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_Z_X_4xaa_RBPLUS_PATINFO : SW_64K_Z_X_4xaa_PATINFO;
+                        }
+                        else
+                        {
+                            ADDR_ASSERT(numFrag == 8);
+                            patInfo = m_settings.supportRbPlus ? SW_64K_Z_X_8xaa_RBPLUS_PATINFO : SW_64K_Z_X_8xaa_PATINFO;
+                        }
+                    }
+                    else if (IsDisplaySwizzle(resourceType, swizzleMode))
+                    {
+                        if (swizzleMode == ADDR_SW_64KB_D)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_D_RBPLUS_PATINFO : SW_64K_D_PATINFO;
+                        }
+                        else if (swizzleMode == ADDR_SW_64KB_D_X)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_D_X_RBPLUS_PATINFO : SW_64K_D_X_PATINFO;
+                        }
+                        else
+                        {
+                            ADDR_ASSERT(swizzleMode == ADDR_SW_64KB_D_T);
+                            patInfo = m_settings.supportRbPlus ? SW_64K_D_T_RBPLUS_PATINFO : SW_64K_D_T_PATINFO;
+                        }
                     }
                     else
                     {
-                        ADDR_ASSERT(swizzleMode == ADDR_SW_64KB_S_T);
-                        patInfo = m_settings.supportRbPlus ? SW_64K_S_T_RBPLUS_PATINFO : SW_64K_S_T_PATINFO;
+                        if (swizzleMode == ADDR_SW_64KB_S)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_S_RBPLUS_PATINFO : SW_64K_S_PATINFO;
+                        }
+                        else if (swizzleMode == ADDR_SW_64KB_S_X)
+                        {
+                            patInfo = m_settings.supportRbPlus ? SW_64K_S_X_RBPLUS_PATINFO : SW_64K_S_X_PATINFO;
+                        }
+                        else
+                        {
+                            ADDR_ASSERT(swizzleMode == ADDR_SW_64KB_S_T);
+                            patInfo = m_settings.supportRbPlus ? SW_64K_S_T_RBPLUS_PATINFO : SW_64K_S_T_PATINFO;
+                        }
                     }
                 }
             }
@@ -3800,7 +3976,7 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceAddrFromCoordMacroTiled(
                 const UINT_32 xb        = pIn->x / localOut.blockWidth;
                 const UINT_64 blkIdx    = yb * pb + xb;
 
-                ADDR_BIT_SETTING fullSwizzlePattern[16];
+                ADDR_BIT_SETTING fullSwizzlePattern[20];
                 GetSwizzlePatternFromPatternInfo(pPatInfo, fullSwizzlePattern);
 
                 const UINT_32 blkOffset =
@@ -3870,7 +4046,7 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceAddrFromCoordMacroTiled(
 */
 UINT_32 Gfx10Lib::HwlComputeMaxBaseAlignments() const
 {
-    return Size64K;
+    return m_blockVarSizeLog2 ? Max(Size64K, 1u << m_blockVarSizeLog2) : Size64K;
 }
 
 /**
@@ -3885,26 +4061,47 @@ UINT_32 Gfx10Lib::HwlComputeMaxBaseAlignments() const
 */
 UINT_32 Gfx10Lib::HwlComputeMaxMetaBaseAlignments() const
 {
-    // Max base alignment for Htile
-    Dim3d         metaBlk     = {0};
-    const UINT_32 metaBlkSize = GetMetaBlkSize(Gfx10DataDepthStencil,
-                                               ADDR_RSRC_TEX_2D,
-                                               ADDR_SW_64KB_Z_X,
-                                               0,
-                                               0,
-                                               TRUE,
-                                               &metaBlk);
+    Dim3d metaBlk;
 
-    const  UINT_32 maxBaseAlignHtile = Max(metaBlkSize, 1u << (m_pipesLog2 + 11u));
+    const AddrSwizzleMode ValidSwizzleModeForXmask[] =
+    {
+        ADDR_SW_64KB_Z_X,
+        m_blockVarSizeLog2 ? ADDR_SW_VAR_Z_X : ADDR_SW_64KB_Z_X,
+    };
 
-    // Max base alignment for Cmask
-    const UINT_32 maxBaseAlignCmask = GetMetaBlkSize(Gfx10DataFmask,
-                                                     ADDR_RSRC_TEX_2D,
-                                                     ADDR_SW_64KB_Z_X,
-                                                     0,
-                                                     0,
-                                                     TRUE,
-                                                     &metaBlk);
+    UINT_32 maxBaseAlignHtile = 0;
+    UINT_32 maxBaseAlignCmask = 0;
+
+    for (UINT_32 swIdx = 0; swIdx < sizeof(ValidSwizzleModeForXmask) / sizeof(ValidSwizzleModeForXmask[0]); swIdx++)
+    {
+        for (UINT_32 bppLog2 = 0; bppLog2 < 3; bppLog2++)
+        {
+            for (UINT_32 numFragLog2 = 0; numFragLog2 < 4; numFragLog2++)
+            {
+                // Max base alignment for Htile
+                const UINT_32 metaBlkSizeHtile = GetMetaBlkSize(Gfx10DataDepthStencil,
+                                                                ADDR_RSRC_TEX_2D,
+                                                                ValidSwizzleModeForXmask[swIdx],
+                                                                bppLog2,
+                                                                numFragLog2,
+                                                                TRUE,
+                                                                &metaBlk);
+
+                maxBaseAlignHtile = Max(maxBaseAlignHtile, metaBlkSizeHtile);
+            }
+        }
+
+        // Max base alignment for Cmask
+        const UINT_32 metaBlkSizeCmask = GetMetaBlkSize(Gfx10DataFmask,
+                                                        ADDR_RSRC_TEX_2D,
+                                                        ValidSwizzleModeForXmask[swIdx],
+                                                        0,
+                                                        0,
+                                                        TRUE,
+                                                        &metaBlk);
+
+        maxBaseAlignCmask = Max(maxBaseAlignCmask, metaBlkSizeCmask);
+    }
 
     // Max base alignment for 2D Dcc
     const AddrSwizzleMode ValidSwizzleModeForDcc2D[] =
@@ -3912,6 +4109,7 @@ UINT_32 Gfx10Lib::HwlComputeMaxMetaBaseAlignments() const
         ADDR_SW_64KB_S_X,
         ADDR_SW_64KB_D_X,
         ADDR_SW_64KB_R_X,
+        m_blockVarSizeLog2 ? ADDR_SW_VAR_R_X : ADDR_SW_64KB_R_X,
     };
 
     UINT_32 maxBaseAlignDcc2D = 0;
@@ -3942,6 +4140,7 @@ UINT_32 Gfx10Lib::HwlComputeMaxMetaBaseAlignments() const
         ADDR_SW_64KB_S_X,
         ADDR_SW_64KB_D_X,
         ADDR_SW_64KB_R_X,
+        m_blockVarSizeLog2 ? ADDR_SW_VAR_R_X : ADDR_SW_64KB_R_X,
     };
 
     UINT_32 maxBaseAlignDcc3D = 0;

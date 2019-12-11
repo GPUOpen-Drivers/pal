@@ -493,6 +493,12 @@ public:
         gpusize                       rangeStartAddr,
         gpusize                       rangeSize,
         Developer::BarrierOperations* pOperations) const;
+    void FlushAndInvL2IfNeeded(
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        const BarrierInfo&            barrier,
+        uint32                        transitionId,
+        Developer::BarrierOperations* pOperations) const;
     void ExpandColor(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
@@ -503,6 +509,7 @@ public:
         Developer::BarrierOperations* pOperations) const;
     void TransitionDepthStencil(
         GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
         GfxCmdBufferState             cmdBufState,
         const BarrierInfo&            barrier,
         uint32                        transitionId,

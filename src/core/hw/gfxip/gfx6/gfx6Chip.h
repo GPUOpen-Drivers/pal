@@ -40,9 +40,6 @@
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_pm4_it_opcodes.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_pm4defs.h"
 
-// Disable the changes to GDS user-data register allocation for DX12
-#define PAL_COMPUTE_GDS_OPT 1
-
 // Put newly added registers definitions here to avoid getting lost when HW chip headers get regenerated,
 // Registers here can be simply removed once they are in place in HW chip header files over the time
 #define mmPA_SU_SMALL_PRIM_FILTER_CNTL__VI               0xA20C
@@ -142,12 +139,9 @@ using RegisterVector = Util::SparseVector<
 //
 // [0]  - For the global internal resource table (shader rings, offchip LDS buffers, etc.)
 // [1]  - For the constant buffer table (internal constant buffers, etc.)
-// [12] - For the per-Draw vertex offset
-// [13] - For the per-Draw instance offset
-// [14] - For the per-Queue GDS partition information
 // [15] - For the ES/GS LDS size when on-chip GS is enabled
 //
-// This leaves registers 2-11 available for the client's use.
+// This leaves registers [2,14] available for the client's use.
 constexpr uint32 NumUserDataRegisters = 16;
 
 // Starting user-data register index where the low 32 address bits of the global internal table pointer
@@ -157,33 +151,8 @@ constexpr uint32 InternalTblStartReg = 0;
 // (internal CBs) is written.
 constexpr uint32 ConstBufTblStartReg = (InternalTblStartReg + 1);
 
-#if !PAL_COMPUTE_GDS_OPT
-// User-data register where each shaders' GDS partition information is written.
-constexpr uint32 GdsRangeReg = 14;
-#endif
-
-#if !PAL_COMPUTE_GDS_OPT
-// First user data register where the API CS' per-Dispatch number of thread groups buffer GPU address is written.
-constexpr uint32 NumThreadGroupsReg = (GdsRangeReg - (sizeof(gpusize) / sizeof(uint32)));
-#else
-// User-data register where each shaders' GDS partition information is written.
-constexpr uint32 ComputeGdsRangeReg = (NumUserDataRegisters - 1);
-
-// First user data register where the API CS' per-Dispatch number of thread groups buffer GPU address is written.
-constexpr uint32 NumThreadGroupsReg = (ComputeGdsRangeReg - (sizeof(gpusize) / sizeof(uint32)));
-#endif
-
-// Unlike graphics pipelines, compute pipelines use a fixed mapping between user-data entries and physical user-data
-// registers. This means that we need to always use the same register for the spill table GPU address, so reserve a
-// register for that:
-// NOTE: We special-case this for Vulkan and non-Vulkan clients because we don't want clients which cannot use the
-// gl_numWorkGroups feature to permanently lose two user-data registers for compute.
-constexpr uint32 CsSpillTableAddrReg = (NumThreadGroupsReg - 1);
-
 // Starting user data register index where the client's fast user-data 'entries' are written.
-constexpr uint32 FastUserDataStartReg     = (ConstBufTblStartReg + 1);
-// Maximum number of fast user data 'entries' exposed to the client for compute shaders.
-constexpr uint32 MaxFastUserDataEntriesCs = (CsSpillTableAddrReg - FastUserDataStartReg);
+constexpr uint32 FastUserDataStartReg = (ConstBufTblStartReg + 1);
 
 // Number of PS input semantic registers.
 constexpr uint32 MaxPsInputSemantics = 32;

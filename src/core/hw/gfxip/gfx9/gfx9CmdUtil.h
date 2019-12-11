@@ -339,6 +339,8 @@ public:
     // Checks if the register offset provided can be read or written using a COPY_DATA packet.
     static bool CanUseCopyDataRegOffset(uint32 regOffset) { return (((~MaxCopyDataRegOffset) & regOffset) == 0); }
 
+    bool CanUseCsPartialFlush(EngineType engineType) const;
+
     size_t BuildAcquireMem(
         const AcquireMemInfo& acquireMemInfo,
         void*                 pBuffer) const;
@@ -670,6 +672,7 @@ public:
         gpusize dstGpuVirtAddr,
         gpusize srcGpuVirtAddr,
         void*   pBuffer);
+    size_t BuildWaitCsIdle(EngineType engineType, gpusize timestampGpuAddr, void* pBuffer) const;
     static size_t BuildWaitDmaData(void* pBuffer);
     static size_t BuildWaitOnCeCounter(bool invalidateKcache, void* pBuffer);
     static size_t BuildWaitOnDeCounterDiff(uint32 counterDiff, void* pBuffer);

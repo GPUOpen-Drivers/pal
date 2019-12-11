@@ -252,8 +252,6 @@ void InitializeGpuEngineProperties(
     pDma->minLinearMemCopyAlignment.height     = 1;
     pDma->minLinearMemCopyAlignment.depth      = 1;
     pDma->minTimestampAlignment                = 32; // The OSSIP 2.4 spec requires 256-bit alignment.
-    pDma->availableGdsSize                     = 0;
-    pDma->gdsSizePerEngine                     = 0;
     pDma->queueSupport                         = SupportQueueTypeDma;
 }
 

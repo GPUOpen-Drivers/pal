@@ -1664,19 +1664,6 @@ Result Device::GetMultiGpuCompatibility(
 }
 
 // =====================================================================================================================
-// Allocates GDS for individual engines.
-Result Device::AllocateGds(
-    const DeviceGdsAllocInfo&   requested,
-    DeviceGdsAllocInfo*         pAllocated)
-{
-    // TODO: implement it once amdgpu is ready.
-    PAL_NOT_IMPLEMENTED();
-    Result result = Result::ErrorUnavailable;
-
-    return result;
-}
-
-// =====================================================================================================================
 size_t Device::GpuMemoryObjectSize() const
 {
     return sizeof(Amdgpu::GpuMemory);
@@ -4218,7 +4205,6 @@ Result Device::ReserveGpuVirtualAddress(
         if (pInfo == nullptr)
         {
             ReservedVaRangeInfo info = {};
-            gpusize baseAllocated;
 
             result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(
                                                     m_hDevice,
@@ -4226,7 +4212,7 @@ Result Device::ReserveGpuVirtualAddress(
                                                     size,
                                                     0u,
                                                     baseVirtAddr,
-                                                    &baseAllocated,
+                                                    pGpuVirtAddr,
                                                     &info.vaHandle,
                                                     0u),
                                  Result::ErrorUnknown);
@@ -4234,8 +4220,8 @@ Result Device::ReserveGpuVirtualAddress(
 
             if (result == Result::Success)
             {
-                PAL_ASSERT(baseAllocated == baseVirtAddr);
-                m_reservedVaMap.Insert(baseVirtAddr, info);
+                PAL_ALERT(*pGpuVirtAddr != baseVirtAddr);
+                m_reservedVaMap.Insert(*pGpuVirtAddr, info);
             }
         }
         // Reservations using the same base address are not allowed

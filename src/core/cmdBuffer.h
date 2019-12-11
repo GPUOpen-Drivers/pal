@@ -537,37 +537,6 @@ public:
         gpusize            address) override
         { PAL_NEVER_CALLED(); }
 
-    virtual void CmdLoadGds(
-        HwPipePoint       pipePoint,
-        uint32            dstGdsOffset,
-        const IGpuMemory& srcGpuMemory,
-        gpusize           srcMemOffset,
-        uint32            size) override
-        { PAL_NEVER_CALLED(); }
-
-    virtual void CmdStoreGds(
-        HwPipePoint       pipePoint,
-        uint32            srcGdsOffset,
-        const IGpuMemory& dstGpuMemory,
-        gpusize           dstMemOffset,
-        uint32            size,
-        bool              waitForWC) override
-        { PAL_NEVER_CALLED(); }
-
-    virtual void CmdUpdateGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            dataSize,
-        const uint32*     pData) override
-        { PAL_NEVER_CALLED(); }
-
-    virtual void CmdFillGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            fillSize,
-        uint32            data) override
-        { PAL_NEVER_CALLED(); }
-
     virtual void CmdLoadBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override
         { PAL_NEVER_CALLED(); }

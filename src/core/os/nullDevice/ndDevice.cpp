@@ -248,15 +248,6 @@ Result Device::AddEmulatedPrivateScreen(
 }
 
 // =====================================================================================================================
-// Allocates GDS for individual engines.
-Result Device::AllocateGds(
-    const DeviceGdsAllocInfo&   requested,
-    DeviceGdsAllocInfo*         pAllocated)
-{
-    return Result::Success;
-}
-
-// =====================================================================================================================
 Result Device::AssignVirtualAddress(
     const Pal::GpuMemory&  gpuMemory,
     gpusize*               pGpuVirtAddr,

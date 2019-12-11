@@ -564,23 +564,24 @@ void RsrcProcMgr::CopyColorImageGraphics(
             pPreviousPipeline = pPipeline;
         }
 
-        // We'll setup both 2D and 3D src images as a 2D view.
-        //
-        // Is it legal for the shader to view 3D images as 2D?
-        ImageViewInfo imageView = {};
-        RpmUtil::BuildImageViewInfo(&imageView, srcImage, viewRange, srcFormat, srcImageLayout, device.TexOptLevel());
+        if (singleSubres == false)
+        {
+            // We'll setup both 2D and 3D src images as a 2D view.
+            //
+            // Is it legal for the shader to view 3D images as 2D?
+            ImageViewInfo imageView = {};
+            RpmUtil::BuildImageViewInfo(&imageView, srcImage, viewRange, srcFormat, srcImageLayout, device.TexOptLevel());
 
-        // Create an embedded SRD table and bind it to user data 1 for pixel work.
-        uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                   SrdDwordAlignment(),
-                                                                   SrdDwordAlignment(),
-                                                                   PipelineBindPoint::Graphics,
-                                                                   1);
+            // Create an embedded SRD table and bind it to user data 1 for pixel work.
+            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                       SrdDwordAlignment(),
+                                                                       SrdDwordAlignment(),
+                                                                       PipelineBindPoint::Graphics,
+                                                                       1);
 
-        PAL_ASSERT(singleSubres == false);
-
-        // Populate the table with an image view of the source image.
-        device.CreateImageViewSrds(1, &imageView, pSrdTable);
+            // Populate the table with an image view of the source image.
+            device.CreateImageViewSrds(1, &imageView, pSrdTable);
+        }
 
         // Give the gfxip layer a chance to optimize the hardware before we start copying.
         const uint32 bitsPerPixel = Formats::BitsPerPixel(dstFormat.format);
@@ -634,15 +635,67 @@ void RsrcProcMgr::CopyColorImageGraphics(
             const uint32 srcSlice    = ((srcCreateInfo.imageType == ImageType::Tex3d)
                                         ? copyRegion.srcOffset.z          + sliceOffset
                                         : copyRegion.srcSubres.arraySlice + sliceOffset);
-            const uint32 userData[4] =
-            {
-                reinterpret_cast<const uint32&>(xOffset),
-                reinterpret_cast<const uint32&>(yOffset),
-                srcSlice,
-                copyRegion.srcSubres.mipLevel
-            };
 
-            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 4, &userData[0]);
+            if (singleSubres)
+            {
+                const bool singleArrayAccess  = (srcCreateInfo.imageType != ImageType::Tex3d);
+                const bool singlezRangeAccess = (srcCreateInfo.imageType == ImageType::Tex3d) &&
+                                                HwlNeedSinglezRangeAccess();
+
+                viewRange.numMips     = 1;
+                viewRange.numSlices   = 1;
+                viewRange.startSubres = copyRegion.srcSubres;
+
+                if (singleArrayAccess)
+                {
+                    viewRange.startSubres.arraySlice += sliceOffset;
+                }
+
+                ImageViewInfo imageView = {};
+                RpmUtil::BuildImageViewInfo(&imageView,
+                                            srcImage,
+                                            viewRange,
+                                            srcFormat,
+                                            srcImageLayout,
+                                            device.TexOptLevel());
+
+                if (singlezRangeAccess)
+                {
+                    imageView.zRange.offset     = srcSlice;
+                    imageView.zRange.extent     = 1;
+                    imageView.flags.zRangeValid = 1;
+                }
+
+                // Create an embedded SRD table and bind it to user data 1 for pixel work.
+                uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                           SrdDwordAlignment(),
+                                                                           SrdDwordAlignment(),
+                                                                           PipelineBindPoint::Graphics,
+                                                                           1);
+
+                // Populate the table with an image view of the source image.
+                device.CreateImageViewSrds(1, &imageView, pSrdTable);
+
+                const uint32 userData[4] =
+                {
+                    reinterpret_cast<const uint32&>(xOffset),
+                    reinterpret_cast<const uint32&>(yOffset),
+                    (singleArrayAccess || singlezRangeAccess) ? 0 : sliceOffset,
+                    0
+                };
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 4, &userData[0]);
+            }
+            else
+            {
+                const uint32 userData[4] =
+                {
+                    reinterpret_cast<const uint32&>(xOffset),
+                    reinterpret_cast<const uint32&>(yOffset),
+                    srcSlice,
+                    copyRegion.srcSubres.mipLevel
+                };
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 4, &userData[0]);
+            }
 
             colorViewInfo.imageInfo.baseSubRes = copyRegion.dstSubres;
 
@@ -1342,6 +1395,13 @@ void RsrcProcMgr::GetCopyImageFormats(
     SwizzledFormat srcFormat = srcImage.SubresourceInfo(copyRegion.srcSubres)->format;
     SwizzledFormat dstFormat = dstImage.SubresourceInfo(copyRegion.dstSubres)->format;
 
+    const bool isSrcFormatReplaceable = srcImage.GetGfxImage()->IsFormatReplaceable(copyRegion.srcSubres,
+                                                                                    srcImageLayout,
+                                                                                    false);
+    const bool isDstFormatReplaceable = dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres,
+                                                                                    dstImageLayout,
+                                                                                    true);
+
     const bool chFmtsMatch  = Formats::ShareChFmt(srcFormat.format, dstFormat.format);
     const bool formatsMatch = (srcFormat.format == dstFormat.format) &&
                               (srcFormat.swizzle.swizzleValue == dstFormat.swizzle.swizzleValue);
@@ -1353,15 +1413,13 @@ void RsrcProcMgr::GetCopyImageFormats(
     *pTexelScale = 1;
 
     // First, determine if we must follow conversion copy rules.
-    if (TestAnyFlagSet(copyFlags, CopyFormatConversion)                     &&
+    if (TestAnyFlagSet(copyFlags, CopyFormatConversion)                            &&
         device.SupportsFormatConversionSrc(srcFormat.format, srcCreateInfo.tiling) &&
         device.SupportsFormatConversionDst(dstFormat.format, dstCreateInfo.tiling))
     {
         // Eventhough we're supposed to do a conversion copy, it will be faster if we can get away with a raw copy.
         // It will be safe to do a raw copy if the formats match and the target subresources support format replacement.
-        if (formatsMatch                                                                             &&
-            srcImage.GetGfxImage()->IsFormatReplaceable(copyRegion.srcSubres, srcImageLayout, false) &&
-            dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres, dstImageLayout, true))
+        if (formatsMatch && isSrcFormatReplaceable && isDstFormatReplaceable)
         {
             srcFormat = RpmUtil::GetRawFormat(srcFormat.format, pTexelScale, pSingleSubres);
             dstFormat = srcFormat;
@@ -1387,89 +1445,87 @@ void RsrcProcMgr::GetCopyImageFormats(
         // Due to hardware-specific compression modes, some image subresources might not support format replacement.
         // Note that the code above can force sRGB to UNORM even if format replacement is not supported because sRGB
         // values use the same bit representation as UNORM values, they just use a different color space.
-        if (srcImage.GetGfxImage()->IsFormatReplaceable(copyRegion.srcSubres, srcImageLayout, false))
+        if (isSrcFormatReplaceable && isDstFormatReplaceable)
         {
-            if (dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres, dstImageLayout, true))
+            // We should do a raw copy that respects channel swizzling if the flag is set and the channel formats
+            // don't match. The process is simple: keep the channel formats and try to find a single numeric format
+            // that fits both of them.
+            bool foundSwizzleFormats = false;
+
+            if (TestAnyFlagSet(copyFlags, CopyRawSwizzle) && (chFmtsMatch == false))
             {
-                // We should do a raw copy that respects channel swizzling if the flag is set and the channel formats
-                // don't match. The process is simple: keep the channel formats and try to find a single numeric format
-                // that fits both of them.
-                bool foundSwizzleFormats = false;
+                typedef ChNumFormat(PAL_STDCALL *FormatConversion)(ChNumFormat);
 
-                if (TestAnyFlagSet(copyFlags, CopyRawSwizzle) && (chFmtsMatch == false))
+                constexpr uint32 NumNumericFormats = 3;
+                constexpr FormatConversion FormatConversionFuncs[NumNumericFormats] =
                 {
-                    typedef ChNumFormat (PAL_STDCALL *FormatConversion)(ChNumFormat);
+                    &Formats::ConvertToUint,
+                    &Formats::ConvertToUnorm,
+                    &Formats::ConvertToFloat,
+                };
 
-                    constexpr uint32 NumNumericFormats = 3;
-                    constexpr FormatConversion FormatConversionFuncs[NumNumericFormats] =
+                for (uint32 idx = 0; idx < NumNumericFormats; ++idx)
+                {
+                    ChNumFormat tempSrcFmt = srcFormat.format;
+                    ChNumFormat tempDstFmt = dstFormat.format;
+
+                    tempSrcFmt = FormatConversionFuncs[idx](tempSrcFmt);
+                    tempDstFmt = FormatConversionFuncs[idx](tempDstFmt);
+
+                    if ((Formats::IsUndefined(tempSrcFmt) == false)           &&
+                        (Formats::IsUndefined(tempDstFmt) == false)           &&
+                        device.SupportsCopy(tempSrcFmt, srcCreateInfo.tiling) &&
+                        device.SupportsCopy(tempDstFmt, dstCreateInfo.tiling))
                     {
-                        &Formats::ConvertToUint,
-                        &Formats::ConvertToUnorm,
-                        &Formats::ConvertToFloat,
-                    };
-
-                    for (uint32 idx = 0; idx < NumNumericFormats; ++idx)
-                    {
-                        ChNumFormat tempSrcFmt = srcFormat.format;
-                        ChNumFormat tempDstFmt = dstFormat.format;
-
-                        tempSrcFmt = FormatConversionFuncs[idx](tempSrcFmt);
-                        tempDstFmt = FormatConversionFuncs[idx](tempDstFmt);
-
-                        if ((Formats::IsUndefined(tempSrcFmt) == false)           &&
-                            (Formats::IsUndefined(tempDstFmt) == false)           &&
-                            device.SupportsCopy(tempSrcFmt, srcCreateInfo.tiling) &&
-                            device.SupportsCopy(tempDstFmt, dstCreateInfo.tiling))
-                        {
-                            foundSwizzleFormats = true;
-                            srcFormat.format    = tempSrcFmt;
-                            dstFormat.format    = tempDstFmt;
-                            break;
-                        }
+                        foundSwizzleFormats = true;
+                        srcFormat.format    = tempSrcFmt;
+                        dstFormat.format    = tempDstFmt;
+                        break;
                     }
                 }
-
-                // If we either didn't try to find swizzling formats or weren't able to do so, execute a true raw copy.
-                if (foundSwizzleFormats == false)
-                {
-                    srcFormat = RpmUtil::GetRawFormat(srcFormat.format, pTexelScale, pSingleSubres);
-                    dstFormat = srcFormat;
-                }
             }
-            else
-            {
-                // We can replace the source format but not the destination format. This means that we must interpret
-                // the source subresource using the destination numeric format. We should keep the original source
-                // channel format if a swizzle copy was requested and is possible.
-                srcFormat.format = Formats::ConvertToDstNumFmt(srcFormat.format, dstFormat.format);
 
-                if ((TestAnyFlagSet(copyFlags, CopyRawSwizzle) == false) ||
-                    (device.SupportsCopy(srcFormat.format, srcCreateInfo.tiling) == false))
-                {
-                    srcFormat = dstFormat;
-                }
+            // If we either didn't try to find swizzling formats or weren't able to do so, execute a true raw copy.
+            if (foundSwizzleFormats == false)
+            {
+                srcFormat = RpmUtil::GetRawFormat(srcFormat.format, pTexelScale, pSingleSubres);
+                dstFormat = srcFormat;
+            }
+        }
+        // If one format is deemed "not replaceable" that means it may possibly be compressed. However,
+        // if it is compressed, it doesn't necessarily mean it's not replaceable. If we don't do a replacement,
+        // copying from one format to another may cause corruption, so we will arbitrarily choose to replace
+        // the source if the channels within the format match.
+        else if ((isSrcFormatReplaceable && (isDstFormatReplaceable == false)) || chFmtsMatch)
+        {
+            // We can replace the source format but not the destination format. This means that we must interpret
+            // the source subresource using the destination numeric format. We should keep the original source
+            // channel format if a swizzle copy was requested and is possible.
+            srcFormat.format = Formats::ConvertToDstNumFmt(srcFormat.format, dstFormat.format);
+
+            if ((TestAnyFlagSet(copyFlags, CopyRawSwizzle) == false) ||
+                (device.SupportsCopy(srcFormat.format, srcCreateInfo.tiling) == false))
+            {
+                srcFormat = dstFormat;
+            }
+        }
+        else if ((isSrcFormatReplaceable == false) && isDstFormatReplaceable)
+        {
+            // We can replace the destination format but not the source format. This means that we must interpret
+            // the destination subresource using the source numeric format. We should keep the original destination
+            // channel format if a swizzle copy was requested and is possible.
+            dstFormat.format = Formats::ConvertToDstNumFmt(dstFormat.format, srcFormat.format);
+
+            if ((TestAnyFlagSet(copyFlags, CopyRawSwizzle) == false) ||
+                (device.SupportsCopy(dstFormat.format, dstCreateInfo.tiling) == false))
+            {
+                dstFormat = srcFormat;
             }
         }
         else
         {
-            if (dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres, dstImageLayout, true))
-            {
-                // We can replace the destination format but not the source format. This means that we must interpret
-                // the destination subresource using the source numeric format. We should keep the original destination
-                // channel format if a swizzle copy was requested and is possible.
-                dstFormat.format = Formats::ConvertToDstNumFmt(dstFormat.format, srcFormat.format);
-
-                if ((TestAnyFlagSet(copyFlags, CopyRawSwizzle) == false) ||
-                    (device.SupportsCopy(dstFormat.format, dstCreateInfo.tiling) == false))
-                {
-                    dstFormat = srcFormat;
-                }
-            }
-            else
-            {
-                // We can't replace either format, both formats must match.
-                PAL_ASSERT(formatsMatch);
-            }
+            // We can't replace either format, both formats must match.
+            PAL_ASSERT(formatsMatch);
         }
     }
 
@@ -1478,7 +1534,7 @@ void RsrcProcMgr::GetCopyImageFormats(
     // We have specific code to handle srgb destination by treating it as unorm and handling gamma correction
     // manually. So it's ok to ignore SRGB for this assert.
     PAL_ASSERT(Formats::IsSrgb(dstFormat.format) ||
-               (device.SupportsImageWrite(dstFormat.format, dstCreateInfo.tiling)));
+        (device.SupportsImageWrite(dstFormat.format, dstCreateInfo.tiling)));
 
     *pSrcFormat = srcFormat;
     *pDstFormat = dstFormat;

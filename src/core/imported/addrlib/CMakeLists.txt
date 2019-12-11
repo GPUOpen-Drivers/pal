@@ -214,6 +214,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # [GCC] Options That Control Optimization
     #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
     target_compile_options(addrlib PRIVATE
+        -fno-strict-aliasing    # Disable optimizations that assume strict aliasing rules
         -fno-exceptions  # Disable exception handling support.
         -fno-rtti        # Disable run-time type information support.
         -fcheck-new      # Check if pointer returned by operator new is non-null.

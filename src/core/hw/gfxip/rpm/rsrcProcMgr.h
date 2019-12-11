@@ -261,6 +261,9 @@ protected:
         const Pal::Image&  dstImage) const
         { return false; }
 
+    //  If need to access single zRange for each subres independantly.
+    virtual bool HwlNeedSinglezRangeAccess() const { return false; }
+
     const ComputePipeline* GetLinearHtileClearPipeline(
         bool    expClearEnable,
         bool    tileStencilDisabled,

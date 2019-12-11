@@ -1268,7 +1268,7 @@ void GfxCmdBuffer::CmdBeginPerfExperiment(
     // may be needed during submit time.
     EnableSpmTrace();
 
-    pExperiment->IssueBegin(pCmdStream);
+    pExperiment->IssueBegin(this, pCmdStream);
     m_pCurrentExperiment = pExperiment;
 }
 
@@ -1296,7 +1296,7 @@ void GfxCmdBuffer::CmdEndPerfExperiment(
     // another.
     PAL_ASSERT((pPerfExperiment == m_pCurrentExperiment) || (m_pCurrentExperiment == nullptr));
 
-    pExperiment->IssueEnd(pCmdStream);
+    pExperiment->IssueEnd(this, pCmdStream);
 }
 
 // =====================================================================================================================

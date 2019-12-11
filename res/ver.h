@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 // Bump up after each promotion from stg/pal to stg/pal_prm
-#define PAL_VERSION_NUMBER_MAJOR        241
+#define PAL_VERSION_NUMBER_MAJOR        242
 
 // Bump up after each cherry-up from stg/pal to stg/pal_prm
 #define PAL_VERSION_NUMBER_MINOR        0

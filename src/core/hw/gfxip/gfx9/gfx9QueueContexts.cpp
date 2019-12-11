@@ -125,32 +125,6 @@ static void SetupCommonPreamble(
 }
 
 // =====================================================================================================================
-// Builds the GDS range PM4 packets for compute for the given queue.
-static void BuildGdsRangeCompute(
-    Device*           pDevice,
-    EngineType        engineType,
-    uint32            queueIndex,
-    GdsRangeCompute*  pGdsRange)
-{
-    // Get GDS range associated with this engine.
-    GdsInfo gdsInfo = pDevice->Parent()->GdsInfo(engineType, queueIndex);
-
-    // The register for SC work off of a zero-based address on Gfx9.
-    gdsInfo.offset = 0;
-
-    if ((engineType == EngineTypeUniversal) && pDevice->Parent()->PerPipelineBindPointGds())
-    {
-        // If per-pipeline bind point GDS partitions were requested then on the universal queue the GDS partition of the
-        // engine is split into two so we have to adjust the size.
-        gdsInfo.size /= 2;
-    }
-
-    pDevice->CmdUtil().BuildSetOneShReg(mmCOMPUTE_USER_DATA_0 + GdsRangeRegCompute, ShaderCompute, &pGdsRange->header);
-    pGdsRange->gdsData.gdsOffset = gdsInfo.offset;
-    pGdsRange->gdsData.gdsSize   = gdsInfo.size;
-}
-
-// =====================================================================================================================
 ComputeQueueContext::ComputeQueueContext(
     Device* pDevice,
     Queue*  pQueue,
@@ -205,7 +179,8 @@ Result ComputeQueueContext::Init()
 
     if (result == Result::Success)
     {
-        result = CreateTimestampMem();
+        // If we can't use a CS_PARTIAL_FLUSH on ACE we need to allocate an extra timestamp for a full wait-for-idle.
+        result = CreateTimestampMem(m_pDevice->CmdUtil().CanUseCsPartialFlush(EngineTypeCompute) == false);
     }
 
     if (result == Result::Success)
@@ -292,7 +267,14 @@ void ComputeQueueContext::RebuildCommandStreams()
     // the hardware requires a CS partial flush to operate properly.
     pCmdSpace = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
 
-    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeCompute, pCmdSpace);
+    if (m_pDevice->CmdUtil().CanUseCsPartialFlush(EngineTypeCompute))
+    {
+        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeCompute, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, m_waitForIdleTs.GpuVirtAddr(), pCmdSpace);
+    }
 
     // Copy the common preamble commands and compute-specific preamble commands.
     pCmdSpace = m_cmdStream.WritePm4Image(m_commonPreamble.spaceNeeded,  &m_commonPreamble,  pCmdSpace);
@@ -317,7 +299,7 @@ void ComputeQueueContext::RebuildCommandStreams()
                                           mem_space__mec_wait_reg_mem__memory_space,
                                           function__mec_wait_reg_mem__equal_to_the_reference_value,
                                           0,
-                                          m_timestampMem.GpuVirtAddr(),
+                                          m_exclusiveExecTs.GpuVirtAddr(),
                                           0,
                                           0xFFFFFFFF,
                                           pCmdSpace);
@@ -325,7 +307,7 @@ void ComputeQueueContext::RebuildCommandStreams()
     // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
     WriteDataInfo writeData = {};
     writeData.engineType = EngineTypeCompute;
-    writeData.dstAddr    = m_timestampMem.GpuVirtAddr();
+    writeData.dstAddr    = m_exclusiveExecTs.GpuVirtAddr();
     writeData.dstSel     = dst_sel__mec_write_data__memory;
 
     pCmdSpace += CmdUtil::BuildWriteData(writeData, 1, pCmdSpace);
@@ -365,7 +347,7 @@ void ComputeQueueContext::RebuildCommandStreams()
     releaseInfo.engineType     = EngineTypeCompute;
     releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
     releaseInfo.tcCacheOp      = TcCacheOp::WbInvL1L2;
-    releaseInfo.dstAddr        = m_timestampMem.GpuVirtAddr();
+    releaseInfo.dstAddr        = m_exclusiveExecTs.GpuVirtAddr();
     releaseInfo.dataSel        = data_sel__mec_release_mem__send_32_bit_low;
     releaseInfo.data           = 0;
 
@@ -395,14 +377,13 @@ void ComputeQueueContext::BuildComputePreambleHeaders()
 {
     memset(&m_computePreamble, 0, sizeof(m_computePreamble));
 
-    m_computePreamble.spaceNeeded += (sizeof(GdsRangeCompute) / sizeof(uint32));
+    m_computePreamble.spaceNeeded = 0;
 }
 
 // =====================================================================================================================
 // Sets up the compute-specific PM4 commands for the queue context preamble.
 void ComputeQueueContext::SetupComputePreambleRegisters()
 {
-    BuildGdsRangeCompute(m_pDevice, m_pEngine->Type(), m_queueId, &m_computePreamble.gdsRange);
 }
 
 // =====================================================================================================================
@@ -503,7 +484,8 @@ Result UniversalQueueContext::Init()
 
     if (result == Result::Success)
     {
-        result = CreateTimestampMem();
+        // The universal engine can always use CS_PARTIAL_FLUSH events so we don't need the wait-for-idle TS memory.
+        result = CreateTimestampMem(false);
     }
 
     if (result == Result::Success)
@@ -632,7 +614,7 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
                                           mem_space__pfp_wait_reg_mem__memory_space,
                                           function__pfp_wait_reg_mem__equal_to_the_reference_value,
                                           engine_sel__pfp_wait_reg_mem__prefetch_parser,
-                                          m_timestampMem.GpuVirtAddr(),
+                                          m_exclusiveExecTs.GpuVirtAddr(),
                                           0,
                                           UINT_MAX,
                                           pCmdSpace);
@@ -640,7 +622,7 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
     // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
     WriteDataInfo writeData = {};
     writeData.engineType = EngineTypeUniversal;
-    writeData.dstAddr    = m_timestampMem.GpuVirtAddr();
+    writeData.dstAddr    = m_exclusiveExecTs.GpuVirtAddr();
     writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
     writeData.dstSel     = dst_sel__pfp_write_data__memory;
 
@@ -1001,7 +983,7 @@ void UniversalQueueContext::RebuildCommandStreams()
     releaseInfo.engineType     = EngineTypeUniversal;
     releaseInfo.vgtEvent       = CACHE_FLUSH_AND_INV_TS_EVENT;
     releaseInfo.tcCacheOp      = TcCacheOp::WbInvL1L2;
-    releaseInfo.dstAddr        = m_timestampMem.GpuVirtAddr();
+    releaseInfo.dstAddr        = m_exclusiveExecTs.GpuVirtAddr();
     releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
     releaseInfo.data           = 0;
 
@@ -1036,8 +1018,6 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
     memset(&m_universalPreamble, 0, sizeof(m_universalPreamble));
 
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
-
-    m_universalPreamble.spaceNeeded += (sizeof(GdsRangeCompute) / sizeof(uint32));
 
     // Occlusion query control event, specifies that we want one counter to dump out every 128 bits for every
     // DB that the HW supports.
@@ -1142,8 +1122,6 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
     const Gfx9PalSettings& settings = m_pDevice->Settings();
     const auto&            device   = *(m_pDevice->Parent());
     const GfxIpLevel       gfxLevel = device.ChipProperties().gfxLevel;
-
-    BuildGdsRangeCompute(m_pDevice, EngineTypeUniversal, m_queueId, &m_universalPreamble.gdsRangeCompute);
 
     // TODO: Add support for Late Alloc VS Limit
 

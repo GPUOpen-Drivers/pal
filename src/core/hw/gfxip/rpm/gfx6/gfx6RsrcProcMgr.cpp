@@ -934,9 +934,11 @@ void RsrcProcMgr::ExpandDepthStencil(
             } // end loop through all the slices
         } // end loop through all the mip levels
 
+        const EngineType engineType = pCmdBuffer->GetEngineType();
+
         // Allow the rewrite of depth data to complete
-        uint32* pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pComputeCmdSpace);
+        uint32* pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
+        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
         // Mark all the hTile data as fully expanded
@@ -944,7 +946,7 @@ void RsrcProcMgr::ExpandDepthStencil(
 
         // And wait for that to finish...
         pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pComputeCmdSpace);
+        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -2359,16 +2361,18 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
         // We can't think of any efficient methods to handle cases like these and the inefficient methods are still
         // of questionable correctness.
 
+        const EngineType engineType = pCmdBuffer->GetEngineType();
+
         regCP_COHER_CNTL cpCoherCntl;
         cpCoherCntl.u32All = CpCoherCntlTexCacheMask;
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildGenericSync(cpCoherCntl,
                                                 SURFACE_SYNC_ENGINE_ME,
                                                 FullSyncBaseAddr,
                                                 FullSyncSize,
-                                                pCmdStream->GetEngineType() == EngineTypeCompute,
+                                                engineType == EngineTypeCompute,
                                                 pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
     }
@@ -3057,16 +3061,18 @@ void RsrcProcMgr::ClearHtileAspect(
     // is to add a CS_PARTIAL_FLUSH and a Texture Cache Flush after executing a single-aspect initialization.
     if (pHtile->GetHtileContents() == HtileContents::DepthStencil)
     {
+        const EngineType engineType = pCmdBuffer->GetEngineType();
+
         regCP_COHER_CNTL cpCoherCntl;
         cpCoherCntl.u32All = CpCoherCntlTexCacheMask;
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildGenericSync(cpCoherCntl,
                                                 SURFACE_SYNC_ENGINE_ME,
                                                 FullSyncBaseAddr,
                                                 FullSyncSize,
-                                                pCmdStream->GetEngineType() == EngineTypeCompute,
+                                                engineType == EngineTypeCompute,
                                                 pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
     }
@@ -3245,9 +3251,11 @@ void RsrcProcMgr::DccDecompressOnCompute(
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
     }
 
+    const EngineType engineType = pCmdBuffer->GetEngineType();
+
     // Make sure that the decompressed image data has been written before we start fixing up DCC memory.
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-    pComputeCmdSpace += m_cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pComputeCmdSpace);
+    pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
     // Put DCC memory itself back into a "fully decompressed" state.
@@ -3255,7 +3263,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
     // And let the DCC fixup finish as well
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-    pComputeCmdSpace += m_cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pComputeCmdSpace);
+    pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);

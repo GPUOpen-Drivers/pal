@@ -76,6 +76,62 @@ static IMsaaState* BarrierMsaaState(
 }
 
 // =====================================================================================================================
+// Make sure we handle L2 cache coherency properly because there are 2 categories of L2 access which use slightly
+// different addressing schemes.
+//
+// There are 2 categories of L2 access:
+//  Category A(implicit / indirect)
+//    Shader client read / write(texture unit)
+//      SRV(ie SRV metadata)
+//      UAV(ie UAV metadata)
+//    SDMA client read(decompress) / write(compress)
+//  Category B(explicit / direct)
+//    CB metadata
+//    DB metadata
+//    Direct meta - data read via SRV or SDMA
+//    Direct meta - data write via UAV or SDMA
+// On a Non-Power-2 config, F/I L2 is always needed in below cases:
+//  1. Cat A(write)->Cat B(read or write)
+//  2. Cat B(write)->Cat A(read or write)
+void Device::FlushAndInvL2IfNeeded(
+    GfxCmdBuffer*                 pCmdBuf,
+    CmdStream*                    pCmdStream,
+    const BarrierInfo&            barrier,
+    uint32                        transitionId,
+    Developer::BarrierOperations* pOperations
+    ) const
+{
+    const auto& transition = barrier.pTransitions[transitionId];
+    PAL_ASSERT(transition.imageInfo.pImage != nullptr);
+
+    const auto&      image                = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
+    const auto&      gfx9Image            = static_cast<const Image&>(*image.GetGfxImage());
+    const auto&      subresRange          = transition.imageInfo.subresRange;
+    constexpr uint32 MaybeTccMdShaderMask = (CoherShader | CoherCopy | CoherResolve | CoherClear);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
+    const uint32 srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
+#else
+    const uint32 srcCacheMask = transition.srcCacheMask;
+#endif
+
+    if (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) &&
+        gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
+    {
+        SyncReqs syncReqs   = {};
+        syncReqs.cacheFlags = (CacheSyncFlushTcc | CacheSyncInvTcc);
+
+        IssueSyncs(pCmdBuf,
+                   pCmdStream,
+                   syncReqs,
+                   barrier.waitPoint,
+                   image.GetGpuVirtualAddr(),
+                   gfx9Image.GetGpuMemSyncSize(),
+                   pOperations);
+    }
+}
+
+// =====================================================================================================================
 // Issue BLT operations (i.e., decompress, resummarize) necessary to convert a depth/stencil image from one ImageLayout
 // to another.
 //
@@ -86,6 +142,7 @@ static IMsaaState* BarrierMsaaState(
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
 void Device::TransitionDepthStencil(
     GfxCmdBuffer*                 pCmdBuf,
+    CmdStream*                    pCmdStream,
     GfxCmdBufferState             cmdBufState,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
@@ -154,6 +211,8 @@ void Device::TransitionDepthStencil(
 
             if (pMsaaState != nullptr)
             {
+                FlushAndInvL2IfNeeded(pCmdBuf, pCmdStream, barrier, transitionId, pOperations);
+
                 RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
                                                  image,
                                                  pMsaaState,
@@ -218,6 +277,8 @@ void Device::TransitionDepthStencil(
 
                     if (pMsaaState != nullptr)
                     {
+                        FlushAndInvL2IfNeeded(pCmdBuf, pCmdStream, barrier, transitionId, pOperations);
+
                         // DB blit to resummarize.
                         RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
                                                               image,
@@ -235,7 +296,7 @@ void Device::TransitionDepthStencil(
             }
         }
 
-        // Flush DB/TC caches after to memory after decompressing/resummarizing.
+        // Flush DB/TC caches to memory after decompressing/resummarizing.
         if (issuedBlt)
         {
             // Issue ACQUIRE_MEM stalls on depth/stencil surface writes and flush DB caches
@@ -470,6 +531,15 @@ void Device::ExpandColor(
             }
         }
 
+        // These CB decompress operations can only be performed on queues that support graphics
+        const bool willDoGfxBlt = (pCmdBuf->IsGraphicsSupported() &&
+                                   (dccDecompress || fastClearEliminate || fmaskDecompress));
+
+        if ((earlyPhase == false) && willDoGfxBlt)
+        {
+            FlushAndInvL2IfNeeded(pCmdBuf, pCmdStream, barrier, transitionId, pOperations);
+        }
+
         if (dccDecompress)
         {
             if (earlyPhase && WaEnableDccCacheFlushAndInvalidate())
@@ -689,7 +759,7 @@ void Device::FillCacheOperations(
     if (m_gfxIpLevel != GfxIpLevel::GfxIp9)
     {
         // On gfx10 here, invalidating the L0 V$ and the GL1 are treated the same
-        pOperations->caches.invalGl1    |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTcp);
+        pOperations->caches.invalGl1     |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTcp);
     }
 }
 
@@ -724,6 +794,14 @@ void Device::IssueSyncs(
 
     // We can't flush or invalidate CB metadata using an ACQUIRE_MEM so we must force a wait-on-eop-ts.
     if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbMd))
+    {
+        syncReqs.waitOnEopTs = 1;
+    }
+
+    // The CmdUtil might not permit us to use a CS_PARTIAL_FLUSH on this engine. If so we must fall back to a EOP TS.
+    // Typically we just hide this detail behind BuildWaitCsIdle but the barrier code might generate more efficient
+    // commands if we force it down the waitOnEopTs path preemptively.
+    if (syncReqs.csPartialFlush && (m_cmdUtil.CanUseCsPartialFlush(engineType) == false))
     {
         syncReqs.waitOnEopTs = 1;
     }
@@ -789,7 +867,7 @@ void Device::IssueSyncs(
         if (syncReqs.csPartialFlush)
         {
             // Waits in the CP ME for all previously issued CS waves to complete.
-            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pCmdSpace);
+            pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
             pOperations->pipelineStalls.csPartialFlush = 1;
         }
     }
@@ -942,7 +1020,14 @@ void Device::Barrier(
 
                     if (image.IsDepthStencil())
                     {
-                        TransitionDepthStencil(pCmdBuf, cmdBufState, barrier, i, true, &globalSyncReqs, &barrierOps);
+                        TransitionDepthStencil(pCmdBuf,
+                                               pCmdStream,
+                                               cmdBufState,
+                                               barrier,
+                                               i,
+                                               true,
+                                               &globalSyncReqs,
+                                               &barrierOps);
                     }
                     else
                     {
@@ -1274,7 +1359,7 @@ void Device::Barrier(
         // -------------------------------------------------------------------------------------------------------------
         // -- Perform late image transitions (layout changes and range-checked DB cache flushes).
         // -------------------------------------------------------------------------------------------------------------
-        SyncReqs initSyncReqs = { };
+        SyncReqs initSyncReqs = {};
 
         for (uint32 i = 0; i < barrier.transitionCount; i++)
         {
@@ -1343,6 +1428,14 @@ void Device::Barrier(
                             initSyncReqs.cacheFlags    |= CacheSyncInvTcp;
                             initSyncReqs.cacheFlags    |= CacheSyncInvTccMd;
                         }
+
+                        // F/I L2 since metadata init is a direct metadata write.  Refer to FlushAndInvL2IfNeeded for
+                        // full details of this issue.
+                        if (gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
+                        {
+                            initSyncReqs.cacheFlags |= CacheSyncFlushTcc;
+                            initSyncReqs.cacheFlags |= CacheSyncInvTcc;
+                        }
                     }
                 }
                 else if (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget))
@@ -1374,7 +1467,14 @@ void Device::Barrier(
                     if (image.IsDepthStencil())
                     {
                         // Issue a late-phase DB decompress, if necessary.
-                        TransitionDepthStencil(pCmdBuf, cmdBufState, barrier, i, false, &imageSyncReqs, &barrierOps);
+                        TransitionDepthStencil(pCmdBuf,
+                                               pCmdStream,
+                                               cmdBufState,
+                                               barrier,
+                                               i,
+                                               false,
+                                               &imageSyncReqs,
+                                               &barrierOps);
                     }
                     else
                     {

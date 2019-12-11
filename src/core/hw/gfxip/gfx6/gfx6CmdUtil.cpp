@@ -396,6 +396,24 @@ uint32 CmdUtil::WaitRegMemFuncFromCompareType(
 }
 
 // =====================================================================================================================
+// Returns if we can use CS_PARTIAL_FLUSH events on the given engine.
+bool CmdUtil::CanUseCsPartialFlush(
+    EngineType engineType
+    ) const
+{
+    const Gfx6PalSettings& hwlSettings = static_cast<const Device*>(m_device.GetGfxDevice())->Settings();
+
+    // The CP team says that CS_PARTIAL_FLUSH isn't supported on engines that have compute wave save restore (CWSR)
+    // enabled. Unfortunately, PAL doesn't know if CWSR is enabled when we write our PM4 and thus must always use
+    // EOP timestamp waits on compute engines just to be safe. It's still safe to use CS_PARTIAL_FLUSH on graphics
+    // engines so we will do so to avoid hurting performance. We've also put this on a setting for perf triage.
+    // Note that CWSR is only in gfx8+.
+    return (Pal::Device::EngineSupportsGraphics(engineType) ||
+            (m_chipFamily < GfxIpLevel::GfxIp8)             ||
+            (hwlSettings.disableAceCsPartialFlush == false));
+}
+
+// =====================================================================================================================
 // True if the specified register is in config reg space, false otherwise.
 bool CmdUtil::IsConfigReg(
     uint32 regAddr
@@ -2972,6 +2990,25 @@ size_t CmdUtil::BuildSurfaceSync(
     pPacket->cpCoherSize.bits.COHER_SIZE_256B = (alignedSize >> SizeShift);
 
     return PacketSize;
+}
+
+// =====================================================================================================================
+// Builds a PM4 command to stall the CP (ME or MEC) until all prior dispatches have finished. Note that we only need to
+// call this helper function on async compute engines; graphics engines can directly issue CS_PARTIAL_FLUSH events.
+// Returns the size of the PM4 command written, in DWORDs.
+size_t CmdUtil::BuildWaitCsIdle(
+    EngineType engineType,
+    gpusize    timestampGpuAddr, // This function may write a temporary EOP timestamp to this address.
+    void*      pBuffer           // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+    // Fall back to a EOP TS wait-for-idle if we can't safely use a CS_PARTIAL_FLUSH.
+    return CanUseCsPartialFlush(engineType)
+            ? BuildEventWrite(CS_PARTIAL_FLUSH, pBuffer)
+            : BuildWaitOnGenericEopEvent(BOTTOM_OF_PIPE_TS,
+                                         timestampGpuAddr,
+                                         (Pal::Device::EngineSupportsGraphics(engineType) == false),
+                                         pBuffer);
 }
 
 // =====================================================================================================================

@@ -349,6 +349,10 @@ struct GraphicsPipelineCreateInfo
                                                 ///  if no color target will be bound at this slot.
             uint8          channelWriteMask;    ///< Color target write mask.  Bit 0 controls the red channel, bit 1 is
                                                 ///  green, bit 2 is blue, and bit 3 is alpha.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 551
+            bool           forceAlphaToOne;     ///< Treat alpha as one regardless of the shader output.  Ignored unless
+                                                ///  supportAlphaToOne is set in DeviceProperties.
+#endif
         } target[MaxColorTargets];              ///< Per-MRT color target info.
     } cbState;                                  ///< Color target state.
 
@@ -415,12 +419,12 @@ struct PipelineInfo
 /// Used to represent API level shader stage.
 enum ShaderStageFlagBits : uint32
 {
-    ApiShaderStageCompute  = 0x00000001,
-    ApiShaderStageVertex   = 0x00000002,
-    ApiShaderStageHull     = 0x00000004,
-    ApiShaderStageDomain   = 0x00000008,
-    ApiShaderStageGeometry = 0x00000010,
-    ApiShaderStagePixel    = 0x00000020
+    ApiShaderStageCompute  = (1u << static_cast<uint32>(ShaderType::Compute)),
+    ApiShaderStageVertex   = (1u << static_cast<uint32>(ShaderType::Vertex)),
+    ApiShaderStageHull     = (1u << static_cast<uint32>(ShaderType::Hull)),
+    ApiShaderStageDomain   = (1u << static_cast<uint32>(ShaderType::Domain)),
+    ApiShaderStageGeometry = (1u << static_cast<uint32>(ShaderType::Geometry)),
+    ApiShaderStagePixel    = (1u << static_cast<uint32>(ShaderType::Pixel)),
 };
 
 /// Common shader pre and post compilation stats.
@@ -440,7 +444,7 @@ struct ShaderStats
 {
     uint32             shaderStageMask;        ///< Indicates the stages of the pipeline this shader is
                                                /// used for. If multiple bits are set, it implies
-                                               /// shaders were merged.
+                                               /// shaders were merged. See @ref ShaderStageFlagBits.
     CommonShaderStats  common;                 ///< The shader compilation parameters for this shader.
     /// Maximum number of VGPRs the compiler was allowed to use for this shader.  This limit will be the minimum
     /// of any architectural restriction and any client-requested limit intended to increase the number of waves in

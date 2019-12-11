@@ -1615,6 +1615,7 @@ Result PerfExperiment::GetSpmTraceLayout(
 // =====================================================================================================================
 // Issues commands into the specified command stream which instruct the HW to start recording performance data.
 void PerfExperiment::IssueBegin(
+    GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pPalCmdStream
     ) const
 {
@@ -1638,7 +1639,7 @@ void PerfExperiment::IssueBegin(
         const bool cacheFlush = ((m_createInfo.optionFlags.cacheFlushOnCounterCollection != 0) &&
                                  m_createInfo.optionValues.cacheFlushOnCounterCollection);
 
-        pCmdSpace = WriteWaitIdle(cacheFlush, pCmdStream, pCmdSpace);
+        pCmdSpace = WriteWaitIdle(cacheFlush, pCmdBuffer, pCmdStream, pCmdSpace);
 
         // Disable and reset all types of perf counters. We will enable the counters when everything is ready.
         // Note that PERFMON_ENABLE_MODE controls per-context filtering which we don't support.
@@ -1723,14 +1724,14 @@ void PerfExperiment::IssueBegin(
                 pCmdSpace += m_cmdUtil.BuildEventWrite(PS_PARTIAL_FLUSH, pCmdSpace);
             }
 
-            pCmdSpace = WriteWaitIdle(false, pCmdStream, pCmdSpace);
+            pCmdSpace = WriteWaitIdle(false, pCmdBuffer, pCmdStream, pCmdSpace);
         }
 
         if (m_hasGlobalCounters)
         {
             // This will transition the counter state from "reset" to "stop" and take the begin samples. It will
             // also reset all counters that have convenient reset bits in their config registers.
-            pCmdSpace = WriteStopAndSampleGlobalCounters(true, pCmdStream, pCmdSpace);
+            pCmdSpace = WriteStopAndSampleGlobalCounters(true, pCmdBuffer, pCmdStream, pCmdSpace);
         }
 
         // Tell the SPM counters and global counters start counting.
@@ -1769,6 +1770,7 @@ void PerfExperiment::IssueBegin(
 // =====================================================================================================================
 // Issues commands into the specified command stream which instruct the HW to stop recording performance data.
 void PerfExperiment::IssueEnd(
+    GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pPalCmdStream
     ) const
 {
@@ -1789,13 +1791,13 @@ void PerfExperiment::IssueEnd(
         const bool cacheFlush = ((m_createInfo.optionFlags.cacheFlushOnCounterCollection != 0) &&
                                  m_createInfo.optionValues.cacheFlushOnCounterCollection);
 
-        pCmdSpace = WriteWaitIdle(cacheFlush, pCmdStream, pCmdSpace);
+        pCmdSpace = WriteWaitIdle(cacheFlush, pCmdBuffer, pCmdStream, pCmdSpace);
 
         // This is the CP_PERFMON_CNTL state that should be currently active.
         if (m_hasGlobalCounters)
         {
             // This will transition the counter state from "start" to "stop" and take the end samples.
-            pCmdSpace = WriteStopAndSampleGlobalCounters(false, pCmdStream, pCmdSpace);
+            pCmdSpace = WriteStopAndSampleGlobalCounters(false, pCmdBuffer, pCmdStream, pCmdSpace);
         }
         else if (m_hasSpmTrace)
         {
@@ -1825,7 +1827,7 @@ void PerfExperiment::IssueEnd(
             // The old perf experiment code did a wait-idle between stopping SPM and resetting things. It said that
             // the RLC can page fault on its remaining writes if we reset things too early. This requirement isn't
             // captured in any HW programming docs but it does seem like a reasonable concern.
-            pCmdSpace = WriteWaitIdle(false, pCmdStream, pCmdSpace);
+            pCmdSpace = WriteWaitIdle(false, pCmdBuffer, pCmdStream, pCmdSpace);
         }
 
         // Start disabling and resetting state that we need to clean up. Note that things like the select registers
@@ -2683,9 +2685,10 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
 // A helper function for IssueBegin which writes the necessary commands to stop the global perf counters and sample
 // them. It will leave them stopped.
 uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
-    bool       isBeginSample,
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
+    bool          isBeginSample,
+    GfxCmdBuffer* pCmdBuffer,
+    CmdStream*    pCmdStream,
+    uint32*       pCmdSpace
     ) const
 {
     const EngineType engineType = pCmdStream->GetEngineType();
@@ -2699,7 +2702,7 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
     pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
     pCmdSpace += m_cmdUtil.BuildEventWrite(PERFCOUNTER_SAMPLE, pCmdSpace);
 
-    pCmdSpace = WriteWaitIdle(false, pCmdStream, pCmdSpace);
+    pCmdSpace = WriteWaitIdle(false, pCmdBuffer, pCmdStream, pCmdSpace);
 
     // Stop the global counters. If SPM is enabled we also stop its counters so that they don't sample our sampling.
     regCP_PERFMON_CNTL cpPerfmonCntl = {};
@@ -3033,9 +3036,10 @@ uint32* PerfExperiment::WriteUpdateWindowedCounters(
 // =====================================================================================================================
 // Writes the necessary packets to wait for GPU idle and optionally flush and invalidate all caches.
 uint32* PerfExperiment::WriteWaitIdle(
-    bool       flushCaches,
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
+    bool          flushCaches,
+    GfxCmdBuffer* pCmdBuffer,
+    CmdStream*    pCmdStream,
+    uint32*       pCmdSpace
     ) const
 {
     if (m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
@@ -3071,8 +3075,8 @@ uint32* PerfExperiment::WriteWaitIdle(
     }
     else
     {
-        // Wait for all work using a CS_PARTIAL_FLUSH. Use an ACQUIRE_MEM/SURFACE_SYNC to flush any caches.
-        pCmdSpace += m_cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
+        // Wait for all work to be idle and use an ACQUIRE_MEM to flush any caches.
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(EngineTypeCompute, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
 
         if (flushCaches)
         {

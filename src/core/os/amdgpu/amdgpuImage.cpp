@@ -362,8 +362,13 @@ void Image::GetExternalSharedImageCreateInfo(
 
     pCreateInfo->tiling = isLinearTiled ? ImageTiling::Linear : ImageTiling::Optimal;
 
-    pCreateInfo->mipLevels = pMetadata->flags.mip_levels;
-    pCreateInfo->arraySize = pMetadata->array_size;
+    //for the bo created by other driver(display), the miplevels and
+    //arraySize might not be initialized as 1, which will cause seqfault,
+    //set the default value as 1 here to provide the robustness when mipLevels and
+    //arraySize are zero
+    pCreateInfo->mipLevels = Util::Max(1u, static_cast<uint32>(pMetadata->flags.mip_levels));
+    pCreateInfo->arraySize = Util::Max(1u, static_cast<uint32>(pMetadata->array_size));
+
     pCreateInfo->samples   = 1;
     pCreateInfo->fragments = 1;
 

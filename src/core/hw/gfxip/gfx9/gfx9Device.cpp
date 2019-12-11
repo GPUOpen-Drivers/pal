@@ -1540,13 +1540,7 @@ Result Device::InitAddrLibCreateInput(
     ADDR_REGISTER_VALUE* pRegValue     // [out] Register Value
     ) const
 {
-    const GpuChipProperties& chipProps = m_pParent->ChipProperties();
-
-    pRegValue->gbAddrConfig = chipProps.gfx9.gbAddrConfig;
-
-    // addrlib asserts unless the varSize is >= 17 and <= 20.  Doesn't really matter what specific value we choose
-    // (for now...) because the Image::ComputeAddrSwizzleMode() function disallows use of VAR swizzle modes anyway.
-    pRegValue->blockVarSizeLog2 = 17;
+    pRegValue->gbAddrConfig = m_pParent->ChipProperties().gfx9.gbAddrConfig;
 
     return Result::Success;
 }
@@ -2272,6 +2266,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 
         bool                        overrideBaseResource       = false;
         bool                        overrideBaseResource96bpp  = false;
+        bool                        overrideZRangeOffset       = false;
         uint32                      widthScaleFactor           = 1;
         uint32                      workaroundWidthScaleFactor = 1;
         bool                        includePadding             = (viewInfo.flags.includePadding != 0);
@@ -2398,9 +2393,37 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                     // SRD. When baseSubResId is used to calculate the baseAddress value, the current array slice will
                     // will be included in the equation.
                     PAL_ASSERT(viewInfo.subresRange.numSlices == 1);
-                    baseSubResId.arraySlice = baseArraySlice;
-                    baseArraySlice          = 0;
 
+                    // For gfx9 3d texture, we need to access per z slice instead subresource.
+                    // Z slices are interleaved for mipmapped 3d texture. (each DepthPitch contains all the miplevels)
+                    // example: the memory layout for a 3 miplevel WxHxD 3d texture:
+                    // baseAddress(mip0) + DepthPitch * 0: subresource(mip0)'s 0 slice
+                    // baseAddress(mip1) + DepthPitch * 0: subresource(mip1)'s 0 slice
+                    // baseAddress(mip2) + DepthPitch * 0: subresource(mip2)'s 0 slice
+                    // baseAddress(mip0) + DepthPitch * 1: subresource(mip0)'s 1 slice
+                    // baseAddress(mip1) + DepthPitch * 1: subresource(mip1)'s 1 slice
+                    // baseAddress(mip2) + DepthPitch * 1: subresource(mip2)'s 1 slice
+                    // ...
+                    // baseAddress(mip0) + DepthPitch * (D-1): subresource(mip0)'s D-1 slice
+                    // baseAddress(mip1) + DepthPitch * (D-1): subresource(mip1)'s D-1 slice
+                    // baseAddress(mip2) + DepthPitch * (D-1): subresource(mip2)'s D-1 slice
+                    // When we try to view each subresource as 1 miplevel, we can't use srd.word5.bits.BASE_ARRAY to
+                    // access each z slices since the srd for hardware can't compute the correct z slice stride.
+                    // Instead we need a view to each slice.
+                    if (imageCreateInfo.imageType == ImageType::Tex3d)
+                    {
+                        PAL_ASSERT((viewInfo.flags.zRangeValid == 1) && (viewInfo.zRange.extent == 1));
+                        PAL_ASSERT(image.IsSubResourceLinear(baseSubResId));
+
+                        baseSubResId.arraySlice = 0;
+                        overrideZRangeOffset    = viewInfo.flags.zRangeValid;
+                    }
+                    else
+                    {
+                        baseSubResId.arraySlice = baseArraySlice;
+                    }
+
+                    baseArraySlice             = 0;
                     overrideBaseResource96bpp  = true;
 
                     pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
@@ -2669,7 +2692,13 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         {
             if ((imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1)) || overrideBaseResource96bpp)
             {
-                gpusize gpuVirtAddress         = pParent->GetSubresourceBaseAddr(baseSubResId);
+                gpusize gpuVirtAddress = pParent->GetSubresourceBaseAddr(baseSubResId);
+
+                if (overrideZRangeOffset)
+                {
+                    gpuVirtAddress += viewInfo.zRange.offset * pBaseSubResInfo->depthPitch;
+                }
+
                 srd.word0.bits.BASE_ADDRESS    = Get256BAddrLo(gpuVirtAddress);
                 srd.word1.bits.BASE_ADDRESS_HI = Get256BAddrHi(gpuVirtAddress);
             }
@@ -2790,6 +2819,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         }
 
         bool  overrideBaseResource              = false;
+        bool  overrideZRangeOffset              = false;
         bool  includePadding                    = (viewInfo.flags.includePadding != 0);
         const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(baseSubResId);
         const auto&                 surfSetting = image.GetAddrSettings(pSubResInfo);
@@ -2886,9 +2916,37 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                     // SRD. When baseSubResId is used to calculate the baseAddress value, the current array slice will
                     // will be included in the equation.
                     PAL_ASSERT(viewInfo.subresRange.numSlices == 1);
-                    baseSubResId.arraySlice = baseArraySlice;
-                    baseArraySlice          = 0;
 
+                    // For gfx10 3d texture, we need to access per z slice instead subresource.
+                    // Z slices are interleaved for mipmapped 3d texture. (each DepthPitch contains all the miplevels)
+                    // example: the memory layout for a 3 miplevel WxHxD 3d texture:
+                    // baseAddress(mip2) + DepthPitch * 0: subresource(mip2)'s 0 slice
+                    // baseAddress(mip1) + DepthPitch * 0: subresource(mip1)'s 0 slice
+                    // baseAddress(mip0) + DepthPitch * 0: subresource(mip0)'s 0 slice
+                    // baseAddress(mip2) + DepthPitch * 1: subresource(mip2)'s 1 slice
+                    // baseAddress(mip1) + DepthPitch * 1: subresource(mip1)'s 1 slice
+                    // baseAddress(mip0) + DepthPitch * 1: subresource(mip0)'s 1 slice
+                    // ...
+                    // baseAddress(mip2) + DepthPitch * (D-1): subresource(mip2)'s D-1 slice
+                    // baseAddress(mip1) + DepthPitch * (D-1): subresource(mip1)'s D-1 slice
+                    // baseAddress(mip0) + DepthPitch * (D-1): subresource(mip0)'s D-1 slice
+                    // When we try to view each subresource as 1 miplevel, we can't use srd.word5.bits.BASE_ARRAY to
+                    // access each z slices since the srd for hardware can't compute the correct z slice stride.
+                    // Instead we need a view to each slice.
+                    if (imageCreateInfo.imageType == ImageType::Tex3d)
+                    {
+                        PAL_ASSERT((viewInfo.flags.zRangeValid == 1) && (viewInfo.zRange.extent == 1));
+                        PAL_ASSERT(image.IsSubResourceLinear(baseSubResId));
+
+                        baseSubResId.arraySlice = 0;
+                        overrideZRangeOffset    = viewInfo.flags.zRangeValid;
+                    }
+                    else
+                    {
+                        baseSubResId.arraySlice = baseArraySlice;
+                    }
+
+                    baseArraySlice       = 0;
                     overrideBaseResource = true;
 
                     pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
@@ -3119,6 +3177,12 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             if ((imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1)) || overrideBaseResource)
             {
                 gpusize gpuVirtAddress = pParent->GetSubresourceBaseAddr(baseSubResId);
+
+                if (overrideZRangeOffset)
+                {
+                    gpuVirtAddress += viewInfo.zRange.offset * pBaseSubResInfo->depthPitch;
+                }
+
                 srd.base_address = gpuVirtAddress >> 8;
             }
             else
@@ -3983,7 +4047,6 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.doubleOffchipLdsBuffers = 1;
 
     pInfo->gfxip.vaRangeNumBits   = 48;
-    pInfo->gfxip.gdsSize          = 65536;
     pInfo->gfxip.hardwareContexts = 8;
 
     // Gfx9 HW supports all tessellation distribution modes.
@@ -4349,12 +4412,10 @@ void InitializeGpuEngineProperties(
         pDma->minTiledImageMemCopyAlignment.width  = 1;
         pDma->minTiledImageMemCopyAlignment.height = 1;
         pDma->minTiledImageMemCopyAlignment.depth  = 1;
-        pDma->minLinearMemCopyAlignment.width      = 1;
+        pDma->minLinearMemCopyAlignment.width      = 4;
         pDma->minLinearMemCopyAlignment.height     = 1;
         pDma->minLinearMemCopyAlignment.depth      = 1;
         pDma->minTimestampAlignment                = 8; // The OSSIP 5.0 spec requires 64-bit alignment.
-        pDma->availableGdsSize                     = 0;
-        pDma->gdsSizePerEngine                     = 0;
         pDma->queueSupport                         = SupportQueueTypeDma;
     }
 
@@ -4364,17 +4425,6 @@ void InitializeGpuEngineProperties(
     pInfo->perEngine[EngineTypeDma].flags.supportsImageInitBarrier        = 1;
     pInfo->perEngine[EngineTypeDma].flags.supportsMismatchedTileTokenCopy = 1;
     pInfo->perEngine[EngineTypeDma].flags.supportsUnmappedPrtPageAccess   = 1;
-
-    // TODO: Get these from KMD once the information is reported by it
-
-    {
-        // NOTE: NGG operates on the last few DWORDs of GDS thus the last 16 DWORDs are reserved.
-        pUniversal->availableGdsSize = 0xFC0;
-        pUniversal->gdsSizePerEngine = 0xFC0;
-
-        pCompute->availableGdsSize   = 0xFC0;
-        pCompute->gdsSizePerEngine   = 0xFC0;
-    }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     // Copy the compute properties into the exclusive compute engine properties

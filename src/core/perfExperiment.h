@@ -31,7 +31,9 @@
 namespace Pal
 {
 
+class CmdStream;
 class Device;
+class GfxCmdBuffer;
 
 // =====================================================================================================================
 // Core implementation of the IPerfExperiment interface.
@@ -44,11 +46,11 @@ public:
     virtual void Destroy() override { this->~PerfExperiment(); }
 
     // These functions are called internally by our command buffers.
-    virtual void IssueBegin(CmdStream* pPalCmdStream) const = 0;
-    virtual void IssueEnd(CmdStream* pPalCmdStream) const = 0;
+    virtual void IssueBegin(GfxCmdBuffer* pCmdBuffer, CmdStream* pPalCmdStream) const = 0;
+    virtual void IssueEnd(GfxCmdBuffer* pCmdBuffer, CmdStream* pPalCmdStream) const = 0;
 
-    virtual void BeginInternalOps(CmdStream* pCmdStream) const = 0;
-    virtual void EndInternalOps(CmdStream* pCmdStream) const = 0;
+    virtual void BeginInternalOps(CmdStream* pPalCmdStream) const = 0;
+    virtual void EndInternalOps(CmdStream* pPalCmdStream) const = 0;
 
     virtual void UpdateSqttTokenMask(CmdStream* pPalCmdStream, const ThreadTraceTokenConfig& sqttTokenConfig) const = 0;
 

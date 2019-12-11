@@ -3198,6 +3198,13 @@ uint32 Image::GetIterate256(
             iterate256 = 1;
         }
     }
+
+    // In cases where our VRAM bus width is not a power of two, we need to have iterate256 enabled at all times
+    if (IsPowerOfTwo(m_device.MemoryProperties().vramBusBitWidth) == false)
+    {
+        iterate256 = 1;
+    }
+
     return iterate256;
 }
 
@@ -3496,10 +3503,13 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         else
         {
             const int32 log2SamplesFragsDiff = Max<int32>(0, (log2Samples - gbAddrConfig.bits.MAX_COMPRESSED_FRAGS));
-            if (HasDccData() && (baseSubRes.flags.supportMetaDataTexFetch != 0) &&
-                (isNonPow2Vram || (samplesOverlap > log2SamplesFragsDiff)))
+	    if (isNonPow2Vram || (samplesOverlap > log2SamplesFragsDiff))
             {
-                firstMip = 0;
+                if ( (HasDccData() && (baseSubRes.flags.supportMetaDataTexFetch != 0)) ||
+                     (HasFmaskData() && (HasDccData() == false) && IsComprFmaskShaderReadable(baseSubRes.subresId)) )
+                {
+                    firstMip = 0;
+                }
             }
         }
     }

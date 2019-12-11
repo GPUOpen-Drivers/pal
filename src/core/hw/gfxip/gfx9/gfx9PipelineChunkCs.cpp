@@ -163,6 +163,7 @@ void PipelineChunkCs::LateInit(
             registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_2, &m_commands.set.regComputeUserAccum2.u32All);
             registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_3, &m_commands.set.regComputeUserAccum3.u32All);
         }
+
     }
 
     if (chipProps.gfx9.supportSpp == 1)
@@ -302,10 +303,6 @@ void PipelineChunkCs::SetupSignatureFromElf(
             else if (value == static_cast<uint32>(Abi::UserDataMapping::Workgroup))
             {
                 pSignature->numWorkGroupsRegAddr = static_cast<uint16>(offset);
-            }
-            else if (value == static_cast<uint32>(Abi::UserDataMapping::GdsRange))
-            {
-                PAL_ASSERT(offset == (mmCOMPUTE_USER_DATA_0 + GdsRangeRegCompute));
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderPerfData))
             {

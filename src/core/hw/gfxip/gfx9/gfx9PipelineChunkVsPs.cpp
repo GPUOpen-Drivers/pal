@@ -310,6 +310,7 @@ void PipelineChunkVsPs::LateInit(
             const uint16 vsCuDisableMaskHi = 0;
             m_commands.dynamic.vs.spiShaderPgmRsrc4Vs.bits.CU_EN =
                     m_device.GetCuEnableMaskHi(vsCuDisableMaskHi, settings.vsCuEnLimitMask);
+
         }
     } // if enableNgg == false
 

@@ -672,8 +672,9 @@ uint32* GraphicsPipeline::Prefetch(
 void GraphicsPipeline::BuildPm4Headers(
     const GraphicsPipelineUploader& uploader)
 {
-    const CmdUtil&      cmdUtil = m_pDevice->CmdUtil();
-    const RegisterInfo& regInfo = cmdUtil.GetRegInfo();
+    const CmdUtil&         cmdUtil  = m_pDevice->CmdUtil();
+    const RegisterInfo&    regInfo  = cmdUtil.GetRegInfo();
+    const Gfx9PalSettings& settings = m_pDevice->Settings();
 
     m_commands.common.spaceNeeded = cmdUtil.BuildContextRegRmw(mmDB_RENDER_OVERRIDE,
                                                                (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
@@ -682,11 +683,19 @@ void GraphicsPipeline::BuildPm4Headers(
                                                                0,
                                                                &m_commands.common.dbRenderOverride);
 
-    // - Driver must insert FLUSH_DFSM event whenever the ... channel mask changes (ARGB to RGB)
-    //
-    // Channel-mask changes refer to the CB_TARGET_MASK register
-    m_commands.common.spaceNeeded +=
-        cmdUtil.BuildNonSampleEventWrite(FLUSH_DFSM, EngineTypeUniversal, &m_commands.common.flushDfsm);
+    if (settings.disableDfsm == false)
+    {
+        // - Driver must insert FLUSH_DFSM event whenever the ... channel mask changes (ARGB to RGB)
+        //
+        // Channel-mask changes refer to the CB_TARGET_MASK register
+        m_commands.common.spaceNeeded +=
+            cmdUtil.BuildNonSampleEventWrite(FLUSH_DFSM, EngineTypeUniversal, &m_commands.common.flushDfsm);
+    }
+    else
+    {
+        m_commands.common.spaceNeeded +=
+            CmdUtil::BuildNop(CmdUtil::WriteNonSampleEventDwords, &m_commands.common.flushDfsm);
+    }
 
     if (IsGfx10(m_gfxLevel))
     {
@@ -874,8 +883,8 @@ void GraphicsPipeline::SetupCommonRegisters(
     // removing the dependence leads to perf regressions in some applications for Vulkan, DX and OGL.
     // The reason for perf drop can be narrowed down to the DepthExpand RPM pipeline. Disabling viewport clamping
     // (DISABLE_VIEWPORT_CLAMP = 1) for this pipeline results in heavy perf drops.
-    // It's also important to note that this issue is caused by the graphics depth fast clear not the depth expand itself.
-    // It simply reuses the same RPM pipeline from the depth expand.
+    // It's also important to note that this issue is caused by the graphics depth fast clear not the depth expand
+    // itself.  It simply reuses the same RPM pipeline from the depth expand.
 
     if (pPalSettings->depthClampBasedOnZExport == true)
     {
@@ -1290,9 +1299,12 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     // CB_TARGET_MASK comes from the RT write masks in the pipeline CB state structure.
     for (uint32 rt = 0; rt < MaxColorTargets; ++rt)
     {
-        const uint32 rtShift = (rt * 4); // Each RT uses four bits of CB_TARGET_MASK.
+        const auto&  cbTarget = createInfo.cbState.target[rt];
+        const uint32 rtShift  = (rt * 4); // Each RT uses four bits of CB_TARGET_MASK.
+
         m_commands.set.context.cbTargetMask.u32All |=
-                ((createInfo.cbState.target[rt].channelWriteMask & 0xF) << rtShift);
+                ((cbTarget.channelWriteMask & 0xF) << rtShift);
+
     }
 
     //      The bug manifests itself when an MRT is not enabled in the shader mask but is enabled in the target
@@ -1783,10 +1795,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             else if (value == static_cast<uint32>(Abi::UserDataMapping::Workgroup))
             {
                 PAL_ALERT_ALWAYS(); // These are for compute pipelines only!
-            }
-            else if (value == static_cast<uint32>(Abi::UserDataMapping::GdsRange))
-            {
-                PAL_ALERT_ALWAYS(); // This is only expected for compute pipelines on Gfx9+!
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::VertexBufferTable))
             {

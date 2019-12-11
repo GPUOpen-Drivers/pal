@@ -378,6 +378,21 @@ bool WideBitMaskScanReverse(
     return result;
 }
 
+/// Generates a bitmask.
+///
+/// @param [in] numBits  Number of bits to set (starting at 0)
+///
+/// @returns Bitmask in storage of type T with bits [0:numBits-1] set.
+template <typename T>
+T BitfieldGenMask(
+    T numBits)
+{
+    PAL_ASSERT(numBits <= (sizeof(T) * 8));
+
+    const T mask = (numBits < (sizeof(T) * 8)) ? ((static_cast<T>(1) << (numBits)) - static_cast<T>(1)) : static_cast<T>(-1);
+    return mask;
+}
+
 /// Determines if a value is a power of two.
 ///
 /// @returns True if it is a power of two, false otherwise.
@@ -861,6 +876,129 @@ PAL_INLINE void Wcstombs(
         // NULL terminate the string.
         pDst[dstSizeInBytes - 1] = '\0';
     }
+}
+
+/// Computes the Greatest Common Divisor of two numbers
+///
+/// @returns The GCD of the two inputs.
+template<typename T1, typename T2>
+PAL_INLINE typename std::common_type<T1, T2>::type Gcd(
+    T1 value1,
+    T2 value2)
+{
+    static_assert((std::is_integral<T1>::value == true) &&
+                  (std::is_integral<T2>::value == true),
+                  "GCD requires integral types");
+
+    static_assert((std::is_unsigned<T1>::value == true) &&
+                  (std::is_unsigned<T2>::value == true),
+                  "GCD requires unsigned types");
+
+    static_assert((std::is_same<T1, bool>::value == false) &&
+                  (std::is_same<T2, bool>::value == false),
+                  "GCD requires nonboolean types");
+
+    using T = typename std::common_type<T1, T2>::type;
+    T ret = 0u;
+
+    if (value1 == 0u)
+    {
+        ret = static_cast<T>(value2);
+    }
+    else if (value2 == 0u)
+    {
+        ret = static_cast<T>(value1);
+    }
+    else
+    {
+        uint32 value1TrailingZeros = 0u;
+        BitMaskScanForward(&value1TrailingZeros, value1);
+        uint32 value2TrailingZeros = 0u;
+        BitMaskScanForward(&value2TrailingZeros, value2);
+
+        const uint32 shift = Min(value1TrailingZeros, value2TrailingZeros);
+        value1 >>= value1TrailingZeros;
+        value2 >>= shift;
+
+        do
+        {
+            BitMaskScanForward(&value2TrailingZeros, value2);
+            value2 >>= value2TrailingZeros;
+
+            if (value1 > value2)
+            {
+                T tmp = value1;
+                value1 = value2;
+                value2 = tmp;
+            }
+
+            value2 -= value1;
+        }
+        while (value2 != 0);
+
+        ret = static_cast<T>(value1 << shift);
+    }
+
+    return ret;
+}
+
+/// Computes the Greatest Common Divisor of N numbers
+///
+/// @returns The GCD of the all inputs.
+template<typename T1,
+         typename T2,
+         typename... Ts>
+PAL_INLINE typename std::common_type<T1, T2, typename std::common_type<Ts...>::type>::type Gcd(
+    T1 value1,
+    T2 value2,
+    Ts... values)
+{
+    return Gcd(Gcd(value1, value2), values...);
+}
+
+/// Computes the Least Common Multiple of two numbers
+///
+/// @returns The LCM of the two inputs.
+template<typename T1, typename T2>
+PAL_INLINE typename std::common_type<T1, T2>::type Lcm(
+    T1 value1,
+    T2 value2)
+{
+    static_assert((std::is_integral<T1>::value == true) &&
+                  (std::is_integral<T2>::value == true),
+                  "LCM requires integral types");
+
+    static_assert((std::is_unsigned<T1>::value == true) &&
+                  (std::is_unsigned<T2>::value == true),
+                  "LCM requires unsigned types");
+
+    static_assert((std::is_same<T1, bool>::value == false) &&
+                  (std::is_same<T2, bool>::value == false),
+                  "LCM requires nonboolean types");
+
+    using T = typename std::common_type<T1, T2>::type;
+    T ret = 0u;
+
+    if ((value1 != 0u) && (value2 != 0u))
+    {
+        ret = static_cast<T>((value1 / Gcd(value1, value2)) * value2);
+    }
+
+    return ret;
+}
+
+/// Computes the Least Common Multiple of N numbers
+///
+/// @returns The LCM of all the inputs.
+template<typename T1,
+         typename T2,
+         typename... Ts>
+PAL_INLINE typename std::common_type<T1, T2, typename std::common_type<Ts...>::type>::type Lcm(
+    T1 value1,
+    T2 value2,
+    Ts... values)
+{
+    return Lcm(Lcm(value1, value2), values...);
 }
 
 } // Util

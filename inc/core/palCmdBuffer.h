@@ -2950,64 +2950,6 @@ public:
         ImmediateDataWidth dataSize,
         gpusize            address) = 0;
 
-    /// Loads the specified GDS range from GPU memory.
-    ///
-    /// For synchronization purposes, CmdLoadGds counts as a @ref CoherMemory operation on the specified GPU memory.
-    ///
-    /// @param [in] pipePoint       Specifies which pipeline stage the load should complete before.
-    /// @param [in] dstGdsOffset    Destination offset within the GDS. Must be a multiple of 4.
-    /// @param [in] srcGpuMemory    GPU memory object used as the source of the load operation.
-    /// @param [in] srcMemOffset    Source offset within the memory object. Must be a multiple of 4.
-    /// @param [in] size            Number of bytes to load. Must be a multiple of 4.
-    virtual void CmdLoadGds(
-        HwPipePoint       pipePoint,
-        uint32            dstGdsOffset,
-        const IGpuMemory& srcGpuMemory,
-        gpusize           srcMemOffset,
-        uint32            size) = 0;
-
-    /// Stores the specified GDS range to GPU memory.
-    ///
-    /// For synchronization purposes, CmdStoreGds counts as a @ref CoherMemory operation on the specified GPU memory.
-    ///
-    /// @param [in] pipePoint       Specifies which pipeline stage the store should happen after.
-    /// @param [in] srcGdsOffset    Source offset within the GDS. Must be a multiple of 4.
-    /// @param [in] dstGpuMemory    GPU memory object used as the destination of the store operation.
-    /// @param [in] dstMemOffset    Destination offset within the memory object. Must be a multiple of 4.
-    /// @param [in] size            Number of bytes to store. Must be a multiple of 4.
-    /// @param [in] waitForWC       Tells whether to wait for the write to memory to complete.
-    virtual void CmdStoreGds(
-        HwPipePoint       pipePoint,
-        uint32            srcGdsOffset,
-        const IGpuMemory& dstGpuMemory,
-        gpusize           dstMemOffset,
-        uint32            size,
-        bool              waitForWC = false) = 0;
-
-    /// Updates the specified GDS range with immediate data.
-    ///
-    /// @param [in] pipePoint       Specifies which pipeline stage the update should complete before.
-    /// @param [in] gdsOffset       Destination offset within the GDS. Must be a multiple of 4.
-    /// @param [in] dataSize        Number of bytes to update. Must be a multiple of 4.
-    /// @param [in] pData           Pointer to host data to be copied into GDS.
-    virtual void CmdUpdateGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            dataSize,
-        const uint32*     pData) = 0;
-
-    /// Fills the specified GDS range with the provided 32-bit data.
-    ///
-    /// @param [in] pipePoint       Specifies which pipeline stage the fill should complete before.
-    /// @param [in] gdsOffset       Destination offset within the GDS. Must be a multiple of 4.
-    /// @param [in] fillSize        Number of bytes to fill. Must be a multiple of 4.
-    /// @param [in] data            32-bit value to be repeated in the filled range.
-    virtual void CmdFillGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            fillSize,
-        uint32            data) = 0;
-
     /// Loads the current stream-out buffer-filled-sizes stored on the GPU from memory, typically from a target of a
     /// prior CmdSaveBufferFilledSizes() call.
     ///

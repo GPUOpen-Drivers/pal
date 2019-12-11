@@ -225,7 +225,6 @@ Device::Device(
     m_pTextWriter(nullptr),
     m_devDriverClientId(0),
     m_pFormatPropertiesTable(nullptr),
-    m_perPipelineBindPointGds(false),
 #if PAL_ENABLE_PRINTS_ASSERTS
     m_settingsCommitted(false),
     m_deviceFinalized(false),
@@ -255,10 +254,6 @@ Device::Device(
     m_texOptLevel(ImageTexOptLevel::Default),
     m_hdrColorspaceFormat(ScreenColorSpace::TfUndefined)
 {
-    // Note that this is just to depress buffer overrun warning/error caught by static code analysis, i.e., Buffer
-    // overrun while writing to 'm_gdsInfo[0]':  the writable size is '16' bytes, but '64' bytes might be written.
-    PAL_ANALYSIS_ASSUME(sizeof(m_gdsInfo) <= (sizeof(Pal::GdsInfo) * MaxAvailableEngines));
-
     memset(&m_finalizeInfo, 0, sizeof(m_finalizeInfo));
     memset(&m_privateScreenInfo[0], 0, sizeof(m_privateScreenInfo));
     memset(&m_pPrivateScreens[0], 0, sizeof(m_pPrivateScreens));
@@ -270,8 +265,6 @@ Device::Device(
     memset(&m_heapProperties[0], 0, sizeof(m_heapProperties));
     memset(&m_pEngines[0], 0, sizeof(m_pEngines));
     memset(&m_pDummyCommandStreams[0], 0, sizeof(m_pDummyCommandStreams));
-    memset(&m_gdsSizes, 0, sizeof(m_gdsSizes));
-    memset(m_gdsInfo, 0, sizeof(m_gdsInfo));
     memset(&m_gpuName[0], 0, sizeof(m_gpuName));
     memset(&m_flglState, 0, sizeof(m_flglState));
     memset(&m_flags, 0, sizeof(m_flags));
@@ -1765,8 +1758,6 @@ Result Device::GetProperties(
             pEngineInfo->minTiledImageMemCopyAlignment = engineInfo.minTiledImageMemCopyAlignment;
             pEngineInfo->minLinearMemCopyAlignment     = engineInfo.minLinearMemCopyAlignment;
             pEngineInfo->minTimestampAlignment         = engineInfo.minTimestampAlignment;
-            pEngineInfo->availableGdsSize              = engineInfo.availableGdsSize;
-            pEngineInfo->gdsSizePerEngine              = engineInfo.gdsSizePerEngine;
             pEngineInfo->maxNumDedicatedCu             = engineInfo.maxNumDedicatedCu;
 
             // This may have its own value in the future for now use maxNumDedicatedCu
@@ -2018,6 +2009,9 @@ Result Device::GetProperties(
 #endif
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock         = gfx9Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock           = gfx9Props.supportShaderDeviceClock;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 551
+            pInfo->gfxipProperties.flags.supportAlphaToOne                  = gfx9Props.supportAlphaToOne;
+#endif
             pInfo->gfxipProperties.flags.supportDoubleRate16BitInstructions =
                 gfx9Props.supportDoubleRate16BitInstructions;
             pInfo->gfxipProperties.flags.supportConservativeRasterization = gfx9Props.supportConservativeRasterization;
@@ -2124,7 +2118,6 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.maxAsyncComputeThreadGroupSize = m_chipProperties.gfxip.maxAsyncComputeThreadGroupSize;
 
         pInfo->gfxipProperties.maxBufferViewStride = MaxMemoryViewStride;
-        pInfo->gfxipProperties.gdsSize             = m_chipProperties.gfxip.gdsSize;
         pInfo->gfxipProperties.hardwareContexts    = m_chipProperties.gfxip.hardwareContexts;
         pInfo->gfxipProperties.maxPrimgroupSize    = m_chipProperties.gfxip.maxPrimgroupSize;
 
@@ -2229,32 +2222,6 @@ Result Device::GetPerfExperimentProperties(
     }
 
     return result;
-}
-
-// =====================================================================================================================
-// Computes the maximum number of atomic counters avaliable on the specified queue.
-// NOTE: Part of the public IDevice interface.
-uint32 Device::GetMaxAtomicCounters(
-    EngineType engineType,
-    uint32     maxNumEngines
-    ) const
-{
-    PAL_ASSERT(maxNumEngines > 0);
-    uint32 maxCounters = 0;
-
-    // If per pipeline bind point GDS is used then we have to report half the amount of atomic counters for
-    // universal engines.
-
-    if ((engineType == EngineTypeUniversal) && PerPipelineBindPointGds())
-    {
-        maxCounters = m_gdsSizes[engineType] / sizeof(uint32) / 2 / maxNumEngines;
-    }
-    else
-    {
-        maxCounters = m_gdsSizes[engineType] / sizeof(uint32) / maxNumEngines;
-    }
-
-    return maxCounters;
 }
 
 // =====================================================================================================================

@@ -43,75 +43,47 @@ BorderColorPalette::BorderColorPalette(
     const Device&                       device,
     const BorderColorPaletteCreateInfo& createInfo) :
     Pal::BorderColorPalette(*device.Parent(), createInfo, GpuMemAlignment),
-    m_device(device)
+    m_cmdUtil(device.CmdUtil()),
+    m_gpuVirtAddr(0)
 {
-    BuildPm4Headers();
-}
-
-// =====================================================================================================================
-// Sets up the image of PM4 commands used to write this border color palette to hardware.
-void BorderColorPalette::BuildPm4Headers()
-{
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
-
-    // We cannot fully initialize the GPU VA of the palette until it is bound to GPU memory.  This is done in
-    // HwlUpdateMemoryBinding(). Instead of explicitly setting each register value to zero, we can just zero-out the
-    // PM4 image and only setup the fields we know at init-time.
-    memset(&m_csPm4Cmds,  0, sizeof(m_csPm4Cmds));
-    memset(&m_gfxPm4Cmds, 0, sizeof(m_gfxPm4Cmds));
-
-    cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeCompute, &m_csPm4Cmds.csPartialFlush);
-    cmdUtil.BuildSetSeqConfigRegs(mmTA_CS_BC_BASE_ADDR,
-                                  mmTA_CS_BC_BASE_ADDR_HI,
-                                  &m_csPm4Cmds.setBcBaseAddrHdr);
-
-    cmdUtil.BuildSetSeqContextRegs(mmTA_BC_BASE_ADDR,
-                                   mmTA_BC_BASE_ADDR_HI,
-                                   &m_gfxPm4Cmds.setBcBaseAddrHdr);
 }
 
 // =====================================================================================================================
 // Writes the PM4 commands required to bind this pipeline to pCmdSpace. Returns the next unused DWORD in pCmdSpace.
 uint32* BorderColorPalette::WriteCommands(
     PipelineBindPoint bindPoint,
+    gpusize           timestampGpuAddr,
     CmdStream*        pCmdStream,
     uint32*           pCmdSpace
     ) const
 {
-    const void* pPm4Cmds      = nullptr;
-    size_t      pm4CmdEntries = 0;
-
-    switch (bindPoint)
+    // The address must be written in shifted 256-bit-aligned form.
+    const uint32 addrRegValues[2] =
     {
-    case PipelineBindPoint::Compute:
-        pPm4Cmds      = &m_csPm4Cmds;
-        pm4CmdEntries = (sizeof(m_csPm4Cmds) / sizeof(uint32));
-        break;
-    case PipelineBindPoint::Graphics:
-        pPm4Cmds      = &m_gfxPm4Cmds;
-        pm4CmdEntries = (sizeof(m_gfxPm4Cmds) / sizeof(uint32));
-        break;
-    default:
-        PAL_ALERT_ALWAYS();
-        break;
+        Get256BAddrLo(m_gpuVirtAddr),
+        Get256BAddrHi(m_gpuVirtAddr)
+    };
+
+    if (bindPoint == PipelineBindPoint::Compute)
+    {
+        // We must wait for idle before changing the compute state.
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(pCmdStream->GetEngineType(), timestampGpuAddr, pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(mmTA_CS_BC_BASE_ADDR,
+                                                      mmTA_CS_BC_BASE_ADDR_HI,
+                                                      addrRegValues,
+                                                      pCmdSpace);
+    }
+    else
+    {
+        PAL_ASSERT(bindPoint == PipelineBindPoint::Graphics);
+
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmTA_BC_BASE_ADDR,
+                                                       mmTA_BC_BASE_ADDR_HI,
+                                                       addrRegValues,
+                                                       pCmdSpace);
     }
 
-    return pCmdStream->WritePm4Image(pm4CmdEntries, pPm4Cmds, pCmdSpace);
-}
-
-// =====================================================================================================================
-// Notifies the HWL that the GPU memory binding for this border color palette has changed.
-void BorderColorPalette::UpdateGpuMemoryBinding(
-    gpusize gpuVirtAddr)
-{
-    const uint32 addrLow  = Get256BAddrLo(gpuVirtAddr);
-    const uint32 addrHigh = Get256BAddrHi(gpuVirtAddr);
-
-    m_csPm4Cmds.taCsBcBaseAddr.bits.ADDRESS   = addrLow;
-    m_csPm4Cmds.taCsBcBaseAddrHi.bits.ADDRESS = addrHigh;
-
-    m_gfxPm4Cmds.taBcBaseAddr.bits.ADDRESS    = addrLow;
-    m_gfxPm4Cmds.taBcBaseAddrHi.bits.ADDRESS  = addrHigh;
+    return pCmdSpace;
 }
 
 } // Gfx9

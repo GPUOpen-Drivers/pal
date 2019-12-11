@@ -130,11 +130,6 @@ public:
         void*    pStorage[MaxScreens],
         IScreen* pScreens[MaxScreens]);
 
-    // NOTE: Part of the public IDevice interface.
-    virtual Result AllocateGds(
-        const DeviceGdsAllocInfo&   requested,
-        DeviceGdsAllocInfo*         pAllocated) override;
-
     virtual Result GetCalibratedTimestamps(
         CalibratedTimestamps* pCalibratedTimestamps) const override;
 

@@ -148,10 +148,6 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdResetQueryPool,
     CmdBufferCmdWriteTimestamp,
     CmdBufferCmdWriteImmediate,
-    CmdBufferCmdLoadGds,
-    CmdBufferCmdStoreGds,
-    CmdBufferCmdUpdateGds,
-    CmdBufferCmdFillGds,
     CmdBufferCmdLoadBufferFilledSizes,
     CmdBufferCmdSaveBufferFilledSizes,
     CmdBufferCmdSetBufferFilledSize,
@@ -197,7 +193,6 @@ enum class InterfaceFunc : uint32
     ColorBlendStateDestroy,
     DepthStencilStateDestroy,
     DeviceCommitSettingsAndInit,
-    DeviceAllocateGds,
     DeviceFinalize,
     DeviceCleanup,
     DeviceSetMaxQueuedFrames,
@@ -476,7 +471,6 @@ public:
     void Struct(const DepthStencilStateCreateInfo& value);
     void Struct(const DepthStencilViewCreateInfo& value);
     void Struct(const DeviceFinalizeInfo& value);
-    void Struct(const DeviceGdsAllocInfo& value);
 
     void Struct(const DoppDesktopInfo& value);
     void Struct(const DoppRef& value);
@@ -718,7 +712,6 @@ public:
     void KeyAndStruct(const char* pKey, const DepthStencilStateCreateInfo& value)         { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const DepthStencilViewCreateInfo& value)          { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const DeviceFinalizeInfo& value)                  { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const DeviceGdsAllocInfo& value)                  { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const DoppDesktopInfo& value)                     { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const DoppRef& value)                             { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const DynamicComputeShaderInfo& value)            { Key(pKey); Struct(value); }

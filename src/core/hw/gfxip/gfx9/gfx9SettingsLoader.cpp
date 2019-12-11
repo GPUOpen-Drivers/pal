@@ -377,6 +377,8 @@ static void SetupGfx101Workarounds(
 
     pSettings->waCeDisableIb2 = true;
 
+    pSettings->waUtcL0InconsistentBigPage = true;
+
     {
         // The DB has a bug where an attempted depth expand of a Z16_UNORM 1xAA surface that has not had its
         // metadata initialized will cause the DBs to incorrectly calculate the amount of return data from the
@@ -430,8 +432,6 @@ static void SetupNavi10Workarounds(
 
     pSettings->waForceZonlyHtileForMipmaps = true;
 
-    pSettings->waUtcL0InconsistentBigPage = true;
-
 } // PAL_BUILD_NAVI10
 
 // =====================================================================================================================
@@ -451,8 +451,6 @@ static void SetupNavi14Workarounds(
 
     pSettings->waLateAllocGs0 = true;
     pSettings->nggSupported   = false;
-
-    pSettings->waUtcL0InconsistentBigPage = true;
 }
 
 // =====================================================================================================================

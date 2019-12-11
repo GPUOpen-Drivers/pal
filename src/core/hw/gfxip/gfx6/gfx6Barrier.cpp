@@ -828,10 +828,19 @@ void Device::IssueSyncs(
     Developer::BarrierOperations* pOperations
     ) const
 {
-    const bool isUniversal = (pCmdBuf->GetEngineType() == EngineTypeUniversal);
-    uint32*    pCmdSpace   = pCmdStream->ReserveCommands();
+    const EngineType engineType  = pCmdBuf->GetEngineType();
+    const bool       isUniversal = pCmdBuf->IsGraphicsSupported();
+    uint32*          pCmdSpace   = pCmdStream->ReserveCommands();
 
     FillCacheOperations(syncReqs, pOperations);
+
+    // The CmdUtil might not permit us to use a CS_PARTIAL_FLUSH on this engine. If so we must fall back to a EOP TS.
+    // Typically we just hide this detail behind BuildWaitCsIdle but the barrier code might generate more efficient
+    // commands if we force it down the waitOnEopTs path preemptively.
+    if (syncReqs.csPartialFlush && (m_cmdUtil.CanUseCsPartialFlush(engineType) == false))
+    {
+        syncReqs.waitOnEopTs = 1;
+    }
 
     if (syncReqs.waitOnEopTs)
     {
@@ -904,7 +913,7 @@ void Device::IssueSyncs(
         if (syncReqs.csPartialFlush)
         {
             // Waits in the CP ME for all previously issued CS waves to complete.
-            pCmdSpace += m_cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
+            pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
             pOperations->pipelineStalls.csPartialFlush = 1;
         }
     }

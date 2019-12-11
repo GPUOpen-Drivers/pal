@@ -64,10 +64,13 @@ public:
 protected:
     virtual ~QueueContext();
 
-    Result CreateTimestampMem();
+    Result CreateTimestampMem(bool needWaitForIdleMem);
 
     Device*const   m_pDevice;
-    BoundGpuMemory m_timestampMem; // All QueueContext subclasses require a 32-bit timestamp in local GPU memory.
+
+    // All QueueContext subclasses require at least one 32-bit timestamp in local GPU memory.
+    BoundGpuMemory m_exclusiveExecTs; // This TS prevents independent submissions from running at the same time.
+    BoundGpuMemory m_waitForIdleTs;   // This TS implements a full wait-for-idle.
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(QueueContext);

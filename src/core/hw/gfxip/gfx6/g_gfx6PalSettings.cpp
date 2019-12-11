@@ -143,6 +143,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.waMiscGsNullPrim = false;
     m_settings.waRotatedSwizzleDisablesOverwriteCombiner = false;
     m_settings.waLogicOpDisablesOverwriteCombiner = false;
+    m_settings.disableAceCsPartialFlush = true;
     m_settings.numSettings = g_gfx6PalNumSettings;
 }
 
@@ -574,6 +575,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLogicOpDisablesOverwriteCombinerStr,
                            Util::ValueType::Boolean,
                            &m_settings.waLogicOpDisablesOverwriteCombiner,
+                           InternalSettingScope::PrivatePalGfx6Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableAceCsPartialFlushStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.disableAceCsPartialFlush,
                            InternalSettingScope::PrivatePalGfx6Key);
 
 }
@@ -1032,6 +1038,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.waLogicOpDisablesOverwriteCombiner);
     m_settingsInfoMap.Insert(2566203469, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.disableAceCsPartialFlush;
+    info.valueSize = sizeof(m_settings.disableAceCsPartialFlush);
+    m_settingsInfoMap.Insert(4181362005, info);
+
 }
 
 // =====================================================================================================================
@@ -1053,7 +1064,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx6PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx6PalJsonData);
-            component.settingsDataHash = 2024565232;
+            component.settingsDataHash = 1029725581;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

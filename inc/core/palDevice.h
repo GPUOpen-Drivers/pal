@@ -871,9 +871,6 @@ struct DeviceProperties
                                                 ///  ICmdBuffer::CmdCopyTypedBuffer().
         uint32   minTimestampAlignment;         ///< If supportsTimestamps is set, this is the minimum address alignment
                                                 ///  in bytes of the dstOffset in ICmdBuffer::CmdWriteTimestamp().
-        uint32   availableGdsSize;              ///< Total GDS size in bytes available for all engines of a particular
-                                                ///  engine type.
-        uint32   gdsSizePerEngine;              ///< Maximum GDS size in bytes available for a single engine.
         uint32   maxNumDedicatedCu;             ///< The maximum number of dedicated CUs for the real time audio queue
         uint32   maxNumDedicatedCuPerQueue;     ///< The maximum number of dedicated CUs per queue
         uint32   dedicatedCuGranularity;        ///< The granularity at which compute units can be dedicated to a queue
@@ -1055,7 +1052,6 @@ struct DeviceProperties
         /// any compute shader on any queue.
         uint32 maxAsyncComputeThreadGroupSize;
         uint32 maxBufferViewStride; ///< Maximum stride, in bytes, that can be specified in a buffer view.
-        uint32 gdsSize;             ///< Size of the GDS of the GPU in bytes.
 
         uint32 hardwareContexts;    ///< Number of distinct state contexts available for graphics workloads.  Mostly
                                     ///  irrelevant to clients, but may be useful to tools.
@@ -1140,10 +1136,15 @@ struct DeviceProperties
 #endif
                 uint64 supportShaderSubgroupClock          :  1; ///< HW supports clock functions across subgroup.
                 uint64 supportShaderDeviceClock            :  1; ///< HW supports clock functions across device.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
-                uint64 reserved                            : 32; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 551
+                uint64 supportAlphaToOne                   :  1; ///< HW supports forcing PS output alpha channel to 1
 #else
+                uint64 placeholder8                        :  1; ///< Placeholder, do not use
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
                 uint64 reserved                            : 31; ///< Reserved for future use.
+#else
+                uint64 reserved                            : 30; ///< Reserved for future use.
 #endif
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
@@ -1349,19 +1350,6 @@ struct PrivateScreenNotifyInfo
     DestroyNotificationFunc        pfnOnDestroy;  ///< Pointer to client provdided function. PAL should call this when
                                                   ///  a private screen object is to be destroyed. The pOwner data is
                                                   ///  passed at @ref IPrivateScreen::BindOwner() time.
-};
-
-/// Specifies properties for GDS partition allocation.  Input and output structure for IDevice::AllocateGds().
-struct DeviceGdsAllocInfo
-{
-    uint32 gdsSizes[EngineTypeCount][MaxAvailableEngines]; ///< Specifies requested GDS size for individual engines
-    bool   perPipelineBindPointGds;                        ///< If set, each engine will split up their GDS equally
-                                                           ///  across all supported pipeline bind points. In practice
-                                                           ///  this means that for universal queues there will be two
-                                                           ///  equally sized partitions with the compute partition
-                                                           ///  starting at offset zero and the graphics partition
-                                                           ///  starting at the middle of the requested GDS partition's
-                                                           ///  size for that universal engine.
 };
 
 /// Specifies fullscreen frame metadata control flags. Used for the KMD to notify clients about which types of frame
@@ -2447,39 +2435,6 @@ public:
     ///          successfully as well.
     virtual Result CommitSettingsAndInit() = 0;
 
-    /// Allocates GDS for individual engines. Returns in a separate output parameter the actually allocated GDS
-    /// ranges. Must be called after @ref CommitSettingsAndInit() and before @ref Finalize(). Should only be used if
-    /// atomic counters weren't requested at platform creation time. When atomic counter support is requested GDS
-    /// allocation happens automatically and the paritions are split equally across the requested engines.
-    /// The GDS partitions allocated with this function can also be used as atomic counters, however, the clients
-    /// allocating GDS for atomic counters this way should only call GetMaxAtomicCounters() after calling this
-    /// function.
-    ///
-    /// @param [in] requested     Requested GDS allocation scheme.
-    /// @param [in] pAllocated    Allocated GDS partitioning. Can be null.
-    ///
-    /// @returns Success if allocating GDS for all engines has been successful.
-    ///          + ErrorOutOfGpuMemory if any subset of the GDS allocations have failed. In this case pAllocated gives
-    ///            information about which allocations succeeded and which failed. The caller can retry the allocation
-    ///            with a different setting which may succeed.
-    ///            NOTE: GDS allocations should only be requested when needed as it is not guaranteed that those
-    ///            resources can be freed until Device destruction.
-    virtual Result AllocateGds(
-        const DeviceGdsAllocInfo&   requested,
-        DeviceGdsAllocInfo*         pAllocated = nullptr) = 0;
-
-    /// Computes the maximum number of atomic counters avaliable for an engine ID with the specified engine type.
-    /// Will be the calculated available maximum per engine ID, up to maxNumEngines.
-    ///
-    /// @param [in] engineType    Selects which type of engine to query for atomic counters (e.g., universal or
-    ///                           compute).
-    /// @param [in] maxNumEngines Maximum number of engines that could be created during lifetime.
-    ///
-    /// @returns The maximum number of atomic counters avaliable per engine ID.
-    virtual uint32 GetMaxAtomicCounters(
-        EngineType engineType,
-        uint32     maxNumEngines) const = 0;
-
     /// Returns the largest possible GPU memory alignment requirement for any IGpuMemoryBindable object created on this
     /// device.
     ///
@@ -2496,8 +2451,6 @@ public:
     ///
     /// @note The only functions in IDevice that are able to be called before Finalize():
     ///         + The functions listed in IDevice::CommitSettingsAndInit().
-    ///         + AllocateGds()
-    ///         + GetMaxAtomicCounters()
     ///         + GetMaxGpuMemoryAlignment()
     ///         + GetProperties()
     ///

@@ -111,14 +111,6 @@ void ComputePipeline::SetupSignatureFromElf(
             {
                 m_signature.numWorkGroupsRegAddr = static_cast<uint16>(offset);
             }
-            else if (value == static_cast<uint32>(Abi::UserDataMapping::GdsRange))
-            {
-#if PAL_COMPUTE_GDS_OPT
-                PAL_ASSERT(offset == (mmCOMPUTE_USER_DATA_0 + ComputeGdsRangeReg));
-#else
-                PAL_ASSERT(offset == (mmCOMPUTE_USER_DATA_0 + GdsRangeReg));
-#endif
-            }
             else if ((value == static_cast<uint32>(Abi::UserDataMapping::VertexBufferTable)) ||
                      (value == static_cast<uint32>(Abi::UserDataMapping::StreamOutTable))    ||
                      (value == static_cast<uint32>(Abi::UserDataMapping::BaseVertex))        ||

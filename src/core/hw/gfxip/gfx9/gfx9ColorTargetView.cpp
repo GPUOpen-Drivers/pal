@@ -127,7 +127,7 @@ ColorTargetView::ColorTargetView(
         if (m_pDevice->Settings().waRotatedSwizzleDisablesOverwriteCombiner)
         {
             const auto* pPalImage = m_pImage->Parent();
-            const SubresId  subResId = { ImageAspect::Color, MipLevel(), 0 };
+            const SubresId  subResId = { m_subresource.aspect, MipLevel(), 0 };
             const auto*     pSubResInfo = pPalImage->SubresourceInfo(subResId);
             const auto&     surfSettings = m_pImage->GetAddrSettings(pSubResInfo);
 

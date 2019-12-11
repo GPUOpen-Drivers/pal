@@ -1666,12 +1666,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             {
                 PAL_ALERT_ALWAYS(); // These are for compute pipelines only!
             }
-            else if (value == static_cast<uint32>(Abi::UserDataMapping::GdsRange))
-            {
-#if !PAL_COMPUTE_GDS_OPT
-                PAL_ASSERT(offset == (BaseRegAddr[stageId] + GdsRangeReg));
-#endif
-            }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::VertexBufferTable))
             {
                 // There can be only one vertex buffer table per pipeline.

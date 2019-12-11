@@ -214,24 +214,8 @@ constexpr uint16 ConstBufTblStartReg = (InternalTblStartReg + 1);
 // case the spill table address will be in slot [15].
 constexpr uint32 NumUserDataRegistersCompute = 16;
 
-// User-data register where compute shaders' GDS partition information is written.
-constexpr uint32 GdsRangeRegCompute = (NumUserDataRegistersCompute - 1);
-
-// First user data register where the API CS' per-Dispatch number of thread groups buffer GPU address is written.
-constexpr uint32 NumThreadGroupsReg = (GdsRangeRegCompute - (sizeof(gpusize) / sizeof(uint32)));
-
-// Unlike graphics pipelines, compute pipelines use a fixed mapping between user-data entries and physical user-data
-// registers. This means that we need to always use the same register for the spill table GPU address, so reserve a
-// register for that:
-// NOTE: We special-case this for Vulkan and non-Vulkan clients because we don't want clients which cannot use the
-// gl_numWorkGroups feature to permanently lose two user-data registers for compute.
-constexpr uint32 CsSpillTableAddrReg = (NumThreadGroupsReg - 1);
-
 // Starting user data register index where the client's graphics fast user-data 'entries' are written for shaders.
 constexpr uint16 FastUserDataStartReg = (ConstBufTblStartReg + 1);
-
-// Maximum number of fast user data 'entries' exposed to the client for compute shader stage.
-constexpr uint32 MaxFastUserDataEntriesCompute = (CsSpillTableAddrReg - FastUserDataStartReg);
 
 // HW doesn't provide enumerations for the values of the DB_DFSM_CONTROL.PUNCHOUT_MODE field.  Give
 // some nice names here.

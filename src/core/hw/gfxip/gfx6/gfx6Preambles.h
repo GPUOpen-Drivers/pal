@@ -61,46 +61,9 @@ struct CommonPreamblePm4Img
     size_t                                    spaceNeeded;
 };
 
-// Describes the GDS User Data register value.
-struct GdsData
-{
-    uint32 gdsSize   : 16; // Size of GDS in bytes
-    uint32 gdsOffset : 16; // Offset into GDS for this partition, in bytes
-};
-
-#if !PAL_COMPUTE_GDS_OPT
-// Represents an "image" of the PM4 headers necessary to write GDS partition offset and size in graphics stage
-// USER_DATA registers as required by SC.
-struct GdsRangeGraphics
-{
-    PM4CMDSETDATA headerLs;
-    GdsData       gdsDataLs;
-    PM4CMDSETDATA headerHs;
-    GdsData       gdsDataHs;
-    PM4CMDSETDATA headerEs;
-    GdsData       gdsDataEs;
-    PM4CMDSETDATA headerGs;
-    GdsData       gdsDataGs;
-    PM4CMDSETDATA headerVs;
-    GdsData       gdsDataVs;
-    PM4CMDSETDATA headerPs;
-    GdsData       gdsDataPs;
-};
-#endif
-
-// Represents an "image" of the PM4 headers necessary to write GDS partition offset and size in the compute stage
-// USER_DATA register as required by SC.
-struct GdsRangeCompute
-{
-    PM4CMDSETDATA header;
-    GdsData       gdsData;
-};
-
 // Contains a subset of commands necessary to the compute preamble command stream.
 struct ComputePreamblePm4Img
 {
-    GdsRangeCompute       gdsRange;
-
     size_t                spaceNeeded;
 };
 
@@ -132,11 +95,6 @@ struct UniversalPreamblePm4Img
     PM4CMDSETDATA                 hdrPaScGenericScissorTlBr;
     regPA_SC_GENERIC_SCISSOR_TL   paScGenericScissorTl;
     regPA_SC_GENERIC_SCISSOR_BR   paScGenericScissorBr;
-
-#if !PAL_COMPUTE_GDS_OPT
-    GdsRangeGraphics   gdsRangeGraphics;
-#endif
-    GdsRangeCompute    gdsRangeCompute;
 
     size_t             spaceNeeded;
 };

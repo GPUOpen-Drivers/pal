@@ -1130,7 +1130,7 @@
         "Gfx10"
       ],
       "Defaults": {
-        "Default": false
+        "Default": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
@@ -1801,6 +1801,20 @@
       "Type": "bool",
       "VariableName": "gfx9OffChipHsSkipDataCopyNullPatch",
       "Name": "OffChipHsSkipDataCopyNullPatch"
+    },
+    {
+      "Description": "Maximum shader prefetch size in bytes.  Set arbitrarily large to use driver default.  Set to zero to disable",
+      "Tags": [
+        "Shader Options",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "shaderPrefetchSizeBytes",
+      "Name": "ShaderPrefetchSizeBytes"
     },
     {
       "Description": "Enables SC optimization to perform the offchip data copy from the hull shader to the domain shader using multiple waves.",
@@ -2886,6 +2900,20 @@
         "IsHex": false,
         "RereadSetting": true
       }
+    },
+    {
+      "Description": "If we should use EOP timestamp waits on ACE engines instead of CS_PARTIAL_FLUSH events. This is intended to fix a HW bug/feature which breaks CS_PARTIAL_FLUSH when compute wave save restore (CWSR) is on.",
+      "Tags": [
+        "General",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "disableAceCsPartialFlush",
+      "Name": "DisableAceCsPartialFlush"
     }
   ]
 }

@@ -336,19 +336,10 @@ void PipelineStatsQueryPool::OptimizedReset(
     if (pCmdBuffer->IsQueryAllowed(QueryPoolType::PipelineStats))
     {
         // Before we initialize out the GPU's destination memory, make sure the ASIC has finished any previous writing
-        // of pipeline stat data.
-
-        // Command buffers that do not support stats queries do not need to issue this wait because the caller must use
-        // semaphores to make sure all queries are complete.
-        if (pCmdBuffer->IsComputeSupported())
-        {
-            pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, pCmdBuffer->GetEngineType(), pCmdSpace);
-        }
-
-        // And make sure the graphics pipeline is idled here.
-        // TODO: Investigate if we can optimize this.
-        //       "This may not be needed on the compute queue; a CS_PARTIAL_FLUSH should be all we need to idle the
-        //       queue. Now that I think about it, we might just need a VS/PS/CS_PARTIAL_FLUSH on universal queue."
+        // of pipeline stat data. Command buffers that do not support stats queries do not need to issue this wait
+        // because the caller must use semaphores to make sure all queries are complete.
+        //
+        // TODO: Investigate if we can optimize this, we might just need a VS/PS/CS_PARTIAL_FLUSH on universal queue.
         pCmdSpace += cmdUtil.BuildWaitOnReleaseMemEvent(pCmdBuffer->GetEngineType(),
                                                         BOTTOM_OF_PIPE_TS,
                                                         TcCacheOp::Nop,

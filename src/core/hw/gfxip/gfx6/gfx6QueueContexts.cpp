@@ -120,103 +120,6 @@ static void SetupCommonPreamble(
     }
 }
 
-#if !PAL_COMPUTE_GDS_OPT
-// =====================================================================================================================
-// Returns the size, in DWORDS, of the appropriate GdsRange packet image struct.
-static size_t GetGdsCounterRangeSize(
-    bool isCompute)
-{
-    return (isCompute) ? (sizeof(GdsRangeCompute)  / sizeof(uint32)) :
-                         (sizeof(GdsRangeGraphics) / sizeof(uint32));
-}
-
-// =====================================================================================================================
-// Builds the GDS range PM4 packets for graphics for the given queue.
-static void BuildGdsRangeGraphics(
-    Device*           pDevice,
-    uint32            queueIndex,
-    GdsRangeGraphics* pGdsRange)
-{
-    // Get GDS range associated with this engine.
-    GdsInfo gdsInfo = pDevice->Parent()->GdsInfo(EngineTypeUniversal, queueIndex);
-
-    if (pDevice->Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp6)
-    {
-        // The register for SC does not work off of a zero-based address on Gfx6, instead relying on an accurate offset
-        // into the overall GDS allocation. But for newer HW we simply use a zero based offset.
-        gdsInfo.offset = 0;
-    }
-
-    if (pDevice->Parent()->PerPipelineBindPointGds())
-    {
-        // If per-pipeline bind point GDS partitions were requested then on the universal queue the GDS partition of the
-        // engine is split into two so we have to adjust the size.
-        // Additionally, as the graphics partition is in the second half, we also need to adjust the offset.
-        gdsInfo.size /= 2;
-        gdsInfo.offset += gdsInfo.size;
-    }
-
-    GdsData gdsData = {};
-    gdsData.gdsOffset = gdsInfo.offset;
-    gdsData.gdsSize   = gdsInfo.size;
-
-    const CmdUtil& cmdUtil = pDevice->CmdUtil();
-
-    // Setup the GDS data register write for the correct USER_DATA register in each stage
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_LS_0 + GdsRangeReg, ShaderGraphics, &pGdsRange->headerLs);
-    pGdsRange->gdsDataLs = gdsData;
-
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_HS_0 + GdsRangeReg, ShaderGraphics, &pGdsRange->headerHs);
-    pGdsRange->gdsDataHs = gdsData;
-
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_ES_0 + GdsRangeReg, ShaderGraphics, &pGdsRange->headerEs);
-    pGdsRange->gdsDataEs = gdsData;
-
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_GS_0 + GdsRangeReg, ShaderGraphics, &pGdsRange->headerGs);
-    pGdsRange->gdsDataGs = gdsData;
-
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_VS_0 + GdsRangeReg, ShaderGraphics, &pGdsRange->headerVs);
-    pGdsRange->gdsDataVs = gdsData;
-
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_PS_0 + GdsRangeReg, ShaderGraphics, &pGdsRange->headerPs);
-    pGdsRange->gdsDataPs = gdsData;
-}
-#endif
-
-// =====================================================================================================================
-// Builds the GDS range PM4 packets for compute for the given queue.
-static void BuildGdsRangeCompute(
-    Device*           pDevice,
-    EngineType        engineType,
-    uint32            queueIndex,
-    GdsRangeCompute*  pGdsRange)
-{
-    // Get GDS range associated with this engine.
-    GdsInfo gdsInfo = pDevice->Parent()->GdsInfo(engineType, queueIndex);
-
-    if (pDevice->Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp6)
-    {
-        // The register for SC does not work off of a zero-based address on Gfx6, instead relying on an accurate offset
-        // into the overall GDS allocation. But for newer HW we simply use a zero based offset.
-        gdsInfo.offset = 0;
-    }
-
-    if ((engineType == EngineTypeUniversal) && pDevice->Parent()->PerPipelineBindPointGds())
-    {
-        // If per-pipeline bind point GDS partitions were requested then on the universal queue the GDS partition of the
-        // engine is split into two so we have to adjust the size.
-        gdsInfo.size /= 2;
-    }
-
-#if !PAL_COMPUTE_GDS_OPT
-    pDevice->CmdUtil().BuildSetOneShReg(mmCOMPUTE_USER_DATA_0 + GdsRangeReg, ShaderCompute, &pGdsRange->header);
-#else
-    pDevice->CmdUtil().BuildSetOneShReg(mmCOMPUTE_USER_DATA_0 + ComputeGdsRangeReg, ShaderCompute, &pGdsRange->header);
-#endif
-    pGdsRange->gdsData.gdsOffset = gdsInfo.offset;
-    pGdsRange->gdsData.gdsSize   = gdsInfo.size;
-}
-
 // =====================================================================================================================
 ComputeQueueContext::ComputeQueueContext(
     Device* pDevice,
@@ -269,7 +172,8 @@ Result ComputeQueueContext::Init()
 
     if (result == Result::Success)
     {
-        result = CreateTimestampMem();
+        // If we can't use a CS_PARTIAL_FLUSH on ACE we need to allocate an extra timestamp for a full wait-for-idle.
+        result = CreateTimestampMem(m_pDevice->CmdUtil().CanUseCsPartialFlush(EngineTypeCompute) == false);
     }
 
     if (result == Result::Success)
@@ -360,7 +264,14 @@ void ComputeQueueContext::RebuildCommandStream()
     // the hardware requires a CS partial flush to operate properly.
     pCmdSpace = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
 
-    pCmdSpace += cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
+    if (m_pDevice->CmdUtil().CanUseCsPartialFlush(EngineTypeCompute))
+    {
+        pCmdSpace += cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, m_waitForIdleTs.GpuVirtAddr(), pCmdSpace);
+    }
 
     // Copy the common preamble commands and compute-specific preamble commands.
     pCmdSpace = m_cmdStream.WritePm4Image(m_commonPreamble.spaceNeeded,  &m_commonPreamble,  pCmdSpace);
@@ -386,7 +297,7 @@ void ComputeQueueContext::RebuildCommandStream()
     pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
                                          WAIT_REG_MEM_FUNC_EQUAL,
                                          WAIT_REG_MEM_ENGINE_PFP,
-                                         m_timestampMem.GpuVirtAddr(),
+                                         m_exclusiveExecTs.GpuVirtAddr(),
                                          0,
                                          0xFFFFFFFF,
                                          false,
@@ -394,7 +305,7 @@ void ComputeQueueContext::RebuildCommandStream()
 
     // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
     WriteDataInfo writeData = {};
-    writeData.dstAddr = m_timestampMem.GpuVirtAddr();
+    writeData.dstAddr = m_exclusiveExecTs.GpuVirtAddr();
     writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
 
     pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
@@ -433,7 +344,7 @@ void ComputeQueueContext::RebuildCommandStream()
     // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
     // We also use this pipelined event to flush and invalidate the shader L2 cache as described above.
     pCmdSpace += cmdUtil.BuildGenericEopEvent(BOTTOM_OF_PIPE_TS,
-                                              m_timestampMem.GpuVirtAddr(),
+                                              m_exclusiveExecTs.GpuVirtAddr(),
                                               EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
                                               0,
                                               true,
@@ -451,7 +362,7 @@ void ComputeQueueContext::RebuildCommandStream()
         pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
                                              WAIT_REG_MEM_FUNC_EQUAL,
                                              WAIT_REG_MEM_ENGINE_PFP,
-                                             m_timestampMem.GpuVirtAddr(),
+                                             m_exclusiveExecTs.GpuVirtAddr(),
                                              0,
                                              0xFFFFFFFF,
                                              false,
@@ -482,14 +393,13 @@ void ComputeQueueContext::BuildComputePreambleHeaders()
 {
     memset(&m_computePreamble, 0, sizeof(m_computePreamble));
 
-    m_computePreamble.spaceNeeded += (sizeof(GdsRangeCompute) / sizeof(uint32));
+    m_computePreamble.spaceNeeded = 0;
 }
 
 // =====================================================================================================================
 // Sets up the compute-specific PM4 commands for the queue context preamble.
 void ComputeQueueContext::SetupComputePreambleRegisters()
 {
-    BuildGdsRangeCompute(m_pDevice, m_pEngine->Type(), m_queueId, &m_computePreamble.gdsRange);
 }
 
 // =====================================================================================================================
@@ -592,7 +502,8 @@ Result UniversalQueueContext::Init()
 
     if (result == Result::Success)
     {
-        result = CreateTimestampMem();
+        // The universal engine can always use CS_PARTIAL_FLUSH events so we don't need the wait-for-idle TS memory.
+        result = CreateTimestampMem(false);
     }
 
     if (result == Result::Success)
@@ -722,7 +633,7 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
     pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
                                          WAIT_REG_MEM_FUNC_EQUAL,
                                          WAIT_REG_MEM_ENGINE_PFP,
-                                         m_timestampMem.GpuVirtAddr(),
+                                         m_exclusiveExecTs.GpuVirtAddr(),
                                          0,
                                          UINT_MAX,
                                          false,
@@ -730,7 +641,7 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
 
     // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
     WriteDataInfo writeData = {};
-    writeData.dstAddr   = m_timestampMem.GpuVirtAddr();
+    writeData.dstAddr   = m_exclusiveExecTs.GpuVirtAddr();
     writeData.engineSel = WRITE_DATA_ENGINE_PFP;
     writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
 
@@ -1172,7 +1083,7 @@ void UniversalQueueContext::RebuildCommandStreams()
     // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
     // We also use this pipelined event to flush and invalidate the shader L2 cache and RB caches as described above.
     pCmdSpace += cmdUtil.BuildEventWriteEop(CACHE_FLUSH_AND_INV_TS_EVENT,
-                                            m_timestampMem.GpuVirtAddr(),
+                                            m_exclusiveExecTs.GpuVirtAddr(),
                                             EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
                                             0,
                                             true,
@@ -1215,11 +1126,6 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
         cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
                                        mmPA_SC_GENERIC_SCISSOR_BR,
                                        &m_universalPreamble.hdrPaScGenericScissorTlBr);
-
-    m_universalPreamble.spaceNeeded += (sizeof(GdsRangeCompute) / sizeof(uint32));
-#if !PAL_COMPUTE_GDS_OPT
-    m_universalPreamble.spaceNeeded += GetGdsCounterRangeSize(false);
-#endif
 
     // Additional preamble for Universal Command Buffers (Gfx6 hardware only):
     //==================================================================================================================
@@ -1339,11 +1245,6 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
     m_universalPreamble.paScGenericScissorBr.u32All                     = 0;
     m_universalPreamble.paScGenericScissorBr.bits.BR_X                  = ScissorMaxBR;
     m_universalPreamble.paScGenericScissorBr.bits.BR_Y                  = ScissorMaxBR;
-
-#if !PAL_COMPUTE_GDS_OPT
-    BuildGdsRangeGraphics(m_pDevice, m_queueId, &m_universalPreamble.gdsRangeGraphics);
-#endif
-    BuildGdsRangeCompute(m_pDevice, m_pEngine->Type(), m_queueId, &m_universalPreamble.gdsRangeCompute);
 
     // Additional preamble for Universal Command Buffers (Gfx6 hardware only):
     //==================================================================================================================

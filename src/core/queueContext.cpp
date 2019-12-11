@@ -36,10 +36,18 @@ namespace Pal
 // =====================================================================================================================
 QueueContext::~QueueContext()
 {
-    if (m_timestampMem.IsBound())
+    if (m_waitForIdleTs.IsBound())
     {
-        m_pDevice->MemMgr()->FreeGpuMem(m_timestampMem.Memory(), m_timestampMem.Offset());
-        m_timestampMem.Update(nullptr, 0);
+        m_waitForIdleTs.Update(nullptr, 0);
+
+        // We assume we allocated this timestamp together with the exclusive exec TS.
+        PAL_ASSERT(m_exclusiveExecTs.IsBound());
+    }
+
+    if (m_exclusiveExecTs.IsBound())
+    {
+        m_pDevice->MemMgr()->FreeGpuMem(m_exclusiveExecTs.Memory(), m_exclusiveExecTs.Offset());
+        m_exclusiveExecTs.Update(nullptr, 0);
     }
 }
 
@@ -57,12 +65,14 @@ Result QueueContext::PreProcessSubmit(
 }
 
 // =====================================================================================================================
-// Suballocates a 32 bits of local GPU memory for our subclasses to use. The memory is mapped and initialized to zero.
-Result QueueContext::CreateTimestampMem()
+// Suballocates any timestamp memory needed by our subclasses. The memory is mapped and initialized to zero.
+Result QueueContext::CreateTimestampMem(
+    bool needWaitForIdleMem)
 {
+    // We always allocate the exclusive exec timestamp but might not need the wait-for-idle timestamp.
     GpuMemoryCreateInfo createInfo = { };
     createInfo.alignment = sizeof(uint32);
-    createInfo.size      = sizeof(uint32);
+    createInfo.size      = needWaitForIdleMem ? sizeof(uint64) : sizeof(uint32);
     createInfo.priority  = GpuMemPriority::Normal;
     createInfo.vaRange   = VaRange::Default;
     createInfo.heaps[0]  = GpuHeap::GpuHeapLocal;
@@ -78,15 +88,28 @@ Result QueueContext::CreateTimestampMem()
 
     if (result == Result::Success)
     {
-        m_timestampMem.Update(pGpuMemory, offset);
+        m_exclusiveExecTs.Update(pGpuMemory, offset);
+
+        if (needWaitForIdleMem)
+        {
+            m_waitForIdleTs.Update(pGpuMemory, offset + sizeof(uint32));
+        }
 
         void* pPtr = nullptr;
-        result     = m_timestampMem.Map(&pPtr);
+        result     = m_exclusiveExecTs.Map(&pPtr);
 
         if (result == Result::Success)
         {
-            *static_cast<uint32*>(pPtr) = 0;
-            result = m_timestampMem.Unmap();
+            if (needWaitForIdleMem)
+            {
+                *static_cast<uint64*>(pPtr) = 0;
+            }
+            else
+            {
+                *static_cast<uint32*>(pPtr) = 0;
+            }
+
+            result = m_exclusiveExecTs.Unmap();
         }
     }
 

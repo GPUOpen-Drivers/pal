@@ -99,13 +99,6 @@ struct DeviceInterfacePfnTable
 // Maximum number of excluded virtual address ranges.
 constexpr size_t MaxExcludedVaRanges = 32;
 
-// Struct describing GDS parition size and offset (in bytes) for a single engine
-struct GdsInfo
-{
-    uint32 size;
-    uint32 offset;
-};
-
 // Enumerates the internal virtual address space partitions used for supporting multiple VA ranges.
 enum class VaPartition : uint32
 {
@@ -317,9 +310,6 @@ struct GpuEngineProperties
                                                 // ICmdBuffer::CmdCopyTypedBuffer()
         uint32   minTimestampAlignment;         // If timestampSupport is set, this is the minimum address alignment in
                                                 // bytes of the dstOffset argument to ICmdBuffer::CmdWriteTimestamp().
-        uint32   availableGdsSize;              // Total GDS size in bytes available for all engines of a particular
-                                                // queue type.
-        uint32   gdsSizePerEngine;              // Maximum GDS size in bytes available for a single engine.
         uint32   queueSupport;                  // A mask of QueueTypeSupport flags indicating queue support.
         uint32   maxNumDedicatedCu;             // The maximum possible number of dedicated CUs per compute ring
         uint32   dedicatedCuGranularity;        // The granularity at which compute units can be dedicated to a queue.
@@ -632,7 +622,6 @@ struct GpuChipProperties
         uint32 realTimeCuMask;
         uint32 maxThreadGroupSize;
         uint32 maxAsyncComputeThreadGroupSize;
-        uint32 gdsSize;
         uint32 hardwareContexts;
         uint32 ldsSizePerThreadGroup;                // Maximum LDS size available per thread group in bytes.
         uint32 ldsSizePerCu;                         // Maximum LDS size available per CU in KB.
@@ -860,7 +849,8 @@ struct GpuChipProperties
                 uint64 placeholder3                             :  1;
                 uint64 supportShaderSubgroupClock               :  1; // HW supports clock functions across subgroup.
                 uint64 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
-                uint64 reserved                                 : 29;
+                uint64 supportAlphaToOne                        :  1; // HW supports forcing alpha channel to one
+                uint64 reserved                                 : 28;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
@@ -1014,11 +1004,6 @@ public:
         PAL_ASSERT(m_pGfxDevice != nullptr);
         m_pGfxDevice->BindTrapBuffer(pipelineType, pGpuMemory, offset);
     }
-
-    // NOTE: Part of the public IDevice interface.
-    virtual uint32 GetMaxAtomicCounters(
-        EngineType engineType,
-        uint32     maxNumEngines) const override;
 
     // NOTE: Part of the public IDevice interface.
     virtual bool ReadSetting(
@@ -1571,15 +1556,6 @@ public:
 
     ADDR_HANDLE AddrLibHandle() const { return GetAddrMgr()->AddrLibHandle(); }
 
-    const GdsInfo& GdsInfo(EngineType engineType, uint32 queueIndex) const
-        { return m_gdsInfo[static_cast<size_t>(engineType)][queueIndex]; }
-
-    const uint32 GdsEngineSizes(EngineType engineType) const
-        { return m_gdsSizes[static_cast<size_t>(engineType)]; }
-
-    const bool PerPipelineBindPointGds() const
-        { return m_perPipelineBindPointGds; }
-
     uint32 MaxQueueSemaphoreCount() const { return m_maxSemaphoreCount; }
 
     // Helper method to index into the format support info table.
@@ -1902,10 +1878,6 @@ protected:
     Engine*       m_pEngines[EngineTypeCount][MaxAvailableEngines];
 
     CmdStream*    m_pDummyCommandStreams[EngineTypeCount];
-
-    uint32        m_gdsSizes[EngineTypeCount];
-    Pal::GdsInfo  m_gdsInfo[EngineTypeCount][MaxAvailableEngines];
-    bool          m_perPipelineBindPointGds;
 
     char  m_gpuName[MaxDeviceName];
 

@@ -29,7 +29,6 @@
 #include "core/platform.h"
 #include "core/queue.h"
 #include "core/hw/gfxip/gfx6/g_gfx6MergedDataFormats.h"
-#include "core/hw/gfxip/gfx6/gfx6Gds.h"
 #include "core/hw/gfxip/gfx6/gfx6BorderColorPalette.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUploadRing.h"
@@ -2774,8 +2773,6 @@ void InitializeGpuChipProperties(
 
         pInfo->gfxip.vaRangeNumBits = 40;
 
-        pInfo->gfxip.gdsSize = 65536;
-
         pInfo->imageProperties.prtFeatures = Gfx6PrtFeatures;
         pInfo->gfxip.tcpSizeInBytes        = 16384;
 
@@ -2868,8 +2865,6 @@ void InitializeGpuChipProperties(
 
         pInfo->gfxip.vaRangeNumBits = 40;
 
-        pInfo->gfxip.gdsSize = 65536;
-
         pInfo->imageProperties.prtFeatures = Gfx7PrtFeatures;
         pInfo->gfxip.tcpSizeInBytes        = 16384;
 
@@ -2938,8 +2933,6 @@ void InitializeGpuChipProperties(
 
             pInfo->gfxip.vaRangeNumBits = 40;
 
-            pInfo->gfxip.gdsSize = 4096;
-
             pInfo->gfxip.tccSizeInBytes = 128 * 1024;
 
             pInfo->requiresOnionAccess = true;
@@ -2958,8 +2951,6 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.gsPrimBufferDepth = 768;
 
             pInfo->gfxip.vaRangeNumBits = 48;
-
-            pInfo->gfxip.gdsSize = 65536;
 
             pInfo->gfxip.tccSizeInBytes = 512 * 1024;
 
@@ -3003,8 +2994,6 @@ void InitializeGpuChipProperties(
 
         pInfo->gfxip.vaRangeNumBits = 40;
         pInfo->gfxip.tcpSizeInBytes = 16384;
-
-        pInfo->gfxip.gdsSize = 65536;
 
         pInfo->imageProperties.prtFeatures = Gfx8PrtFeatures;
 
@@ -3158,8 +3147,6 @@ void InitializeGpuChipProperties(
                                              : AsicRevision::Carrizo);
             pInfo->gfxStepping            = Abi::GfxIpSteppingCarrizo;
             pInfo->gfxip.tccSizeInBytes   = 512 * 1024;
-
-            pInfo->gfxip.gdsSize = 65536;
         }
         else if (ASICREV_IS_STONEY(pInfo->eRevId))
         {
@@ -3172,8 +3159,6 @@ void InitializeGpuChipProperties(
             pInfo->revision               = AsicRevision::Stoney;
             pInfo->gfxStepping            = Abi::GfxIpSteppingStoney;
             pInfo->gfxip.tccSizeInBytes   = 128 * 1024;
-
-            pInfo->gfxip.gdsSize = 4096;
         }
         break;
     default:
@@ -3378,36 +3363,6 @@ void InitializeGpuEngineProperties(
     pDma->flags.supportsImageInitPerSubresource = 1;
     pDma->flags.supportsMismatchedTileTokenCopy = 1;
     pDma->flags.supportsUnmappedPrtPageAccess   = 0; // SDMA can't ignore VM faults for PRT resources on GFXIP 6/7/8.
-
-    if (FAMILY_IS_SI(familyId))
-    {
-        // SI has static partitions thus its caps are special
-        pUniversal->availableGdsSize = 32768;
-        pUniversal->gdsSizePerEngine = 32768;
-
-        pCompute->availableGdsSize   = 32768;
-        pCompute->gdsSizePerEngine   = 16384;
-    }
-    else if (AMDGPU_IS_KALINDI(familyId, eRevId)  ||
-             AMDGPU_IS_GODAVARI(familyId, eRevId) ||
-             AMDGPU_IS_STONEY(familyId, eRevId))
-    {
-        // Only Kalindi, Godavari, and Stoney have 4KB GDS, all other ASICs have 64KB.
-        // That means the per-queue-type and per-engine limits are 1KB for these, 4KB for the rest.
-        pUniversal->availableGdsSize = 1024;
-        pUniversal->gdsSizePerEngine = 1024;
-
-        pCompute->availableGdsSize   = 1024;
-        pCompute->gdsSizePerEngine   = 1024;
-    }
-    else
-    {
-        pUniversal->availableGdsSize = 4096;
-        pUniversal->gdsSizePerEngine = 4096;
-
-        pCompute->availableGdsSize   = 4096;
-        pCompute->gdsSizePerEngine   = 4096;
-    }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     // Copy the compute properties into the exclusive compute engine properties

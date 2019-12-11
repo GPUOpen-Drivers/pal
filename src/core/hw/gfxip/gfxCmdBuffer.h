@@ -64,9 +64,9 @@ constexpr uint32 PredicationAlign = 16;
 constexpr uint32 MaxUserDataEntries = 128;
 
 // Wide-bitmask of one flag for every user-data entry.
-constexpr uint32 UserDataEntriesPerMask = (sizeof(uint16) << 3);
-constexpr uint32 NumUserDataFlagsParts  = (MaxUserDataEntries / UserDataEntriesPerMask);
-typedef uint16 UserDataFlags[NumUserDataFlagsParts];
+constexpr uint32 UserDataEntriesPerMask = (sizeof(size_t) << 3);
+constexpr uint32 NumUserDataFlagsParts = ((MaxUserDataEntries + UserDataEntriesPerMask - 1) / UserDataEntriesPerMask);
+typedef size_t UserDataFlags[NumUserDataFlagsParts];
 
 // Represents the user data entries for a particular shader stage.
 struct UserDataEntries

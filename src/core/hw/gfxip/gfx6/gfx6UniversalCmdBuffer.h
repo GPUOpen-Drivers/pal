@@ -27,7 +27,6 @@
 
 #include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/universalCmdBuffer.h"
-#include "core/hw/gfxip/gfx6/gfx6Gds.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
@@ -465,33 +464,6 @@ public:
     virtual void AddQuery(QueryPoolType queryPoolType, QueryControlFlags flags) override;
     virtual void RemoveQuery(QueryPoolType queryPoolType) override;
 
-    virtual void CmdLoadGds(
-        HwPipePoint       pipePoint,
-        uint32            dstGdsOffset,
-        const IGpuMemory& srcGpuMemory,
-        gpusize           srcMemOffset,
-        uint32            size) override;
-
-    virtual void CmdStoreGds(
-        HwPipePoint       pipePoint,
-        uint32            srcGdsOffset,
-        const IGpuMemory& dstGpuMemory,
-        gpusize           dstMemOffset,
-        uint32            size,
-        bool              waitForWC) override;
-
-    virtual void CmdUpdateGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            dataSize,
-        const uint32*     pData) override;
-
-    virtual void CmdFillGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            fillSize,
-        uint32            data) override;
-
     virtual void CmdLoadBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override;
 
@@ -884,6 +856,9 @@ private:
     uint8 FixupUserSgprsOnPipelineSwitch(
         const GraphicsPipelineSignature* pPrevSignature,
         uint32**                         ppDeCmdSpace);
+
+    void FixupUserSgprsOnPipelineSwitchCs(
+        const ComputePipelineSignature* pPrevSignature);
 
     template <typename PipelineSignature>
     void FixupSpillTableOnPipelineSwitch(

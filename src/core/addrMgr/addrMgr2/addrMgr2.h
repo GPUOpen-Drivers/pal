@@ -165,11 +165,9 @@ static bool IsStandardSwzzle(
     return ((swizzleMode == ADDR_SW_256B_S)    ||
             (swizzleMode == ADDR_SW_4KB_S)     ||
             (swizzleMode == ADDR_SW_64KB_S)    ||
-            (swizzleMode == ADDR_SW_VAR_S)     ||
             (swizzleMode == ADDR_SW_64KB_S_T)  ||
             (swizzleMode == ADDR_SW_4KB_S_X)   ||
-            (swizzleMode == ADDR_SW_64KB_S_X)  ||
-            (swizzleMode == ADDR_SW_VAR_S_X));
+            (swizzleMode == ADDR_SW_64KB_S_X));
 }
 
 // =====================================================================================================================
@@ -179,7 +177,6 @@ static bool IsZSwizzle(
 {
     return ((swizzleMode == ADDR_SW_4KB_Z)    ||
             (swizzleMode == ADDR_SW_64KB_Z)   ||
-            (swizzleMode == ADDR_SW_VAR_Z)    ||
             (swizzleMode == ADDR_SW_64KB_Z_T) ||
             (swizzleMode == ADDR_SW_4KB_Z_X)  ||
             (swizzleMode == ADDR_SW_64KB_Z_X) ||
@@ -196,9 +193,7 @@ static bool IsDisplayableSwizzle(
             (swizzleMode == ADDR_SW_4KB_D_X)  ||
             (swizzleMode == ADDR_SW_64KB_D)   ||
             (swizzleMode == ADDR_SW_64KB_D_T) ||
-            (swizzleMode == ADDR_SW_64KB_D_X) ||
-            (swizzleMode == ADDR_SW_VAR_D)    ||
-            (swizzleMode == ADDR_SW_VAR_D_X));
+            (swizzleMode == ADDR_SW_64KB_D_X));
 }
 
 // =====================================================================================================================
@@ -211,7 +206,6 @@ static bool IsRotatedSwizzle(
             (swizzleMode == ADDR_SW_64KB_R)   ||
             (swizzleMode == ADDR_SW_64KB_R_T) ||
             (swizzleMode == ADDR_SW_64KB_R_X) ||
-            (swizzleMode == ADDR_SW_VAR_R)    ||
             (swizzleMode == ADDR_SW_VAR_R_X));
 }
 
@@ -220,18 +214,38 @@ static bool IsRotatedSwizzle(
 static bool IsXorSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
-    return ((swizzleMode == ADDR_SW_4KB_Z_X)   ||
-            (swizzleMode == ADDR_SW_4KB_S_X)   ||
-            (swizzleMode == ADDR_SW_4KB_D_X)   ||
-            (swizzleMode == ADDR_SW_4KB_R_X)   ||
-            (swizzleMode == ADDR_SW_64KB_Z_X)  ||
-            (swizzleMode == ADDR_SW_64KB_S_X)  ||
-            (swizzleMode == ADDR_SW_64KB_D_X)  ||
-            (swizzleMode == ADDR_SW_64KB_R_X)  ||
-            (swizzleMode == ADDR_SW_VAR_Z_X)   ||
-            (swizzleMode == ADDR_SW_VAR_S_X)   ||
-            (swizzleMode == ADDR_SW_VAR_D_X)   ||
+    return ((swizzleMode == ADDR_SW_4KB_Z_X)  ||
+            (swizzleMode == ADDR_SW_4KB_S_X)  ||
+            (swizzleMode == ADDR_SW_4KB_D_X)  ||
+            (swizzleMode == ADDR_SW_4KB_R_X)  ||
+            (swizzleMode == ADDR_SW_64KB_Z_X) ||
+            (swizzleMode == ADDR_SW_64KB_S_X) ||
+            (swizzleMode == ADDR_SW_64KB_D_X) ||
+            (swizzleMode == ADDR_SW_64KB_R_X) ||
+            (swizzleMode == ADDR_SW_VAR_Z_X)  ||
             (swizzleMode == ADDR_SW_VAR_R_X));
+}
+
+// =====================================================================================================================
+// Returns the swizzle type for a given swizzle modes.
+static AddrSwType GetSwizzleType(
+    AddrSwizzleMode swizzleMode)
+{
+    // SW AddrLib will provide public enum ADDR_SW_MAX_SWTYPE/ADDR_SW_L for following private definition soon.
+    constexpr uint32 InvalidSwizzleMode = 5;
+    constexpr uint32 LinearSwizzleMode  = 4;
+    static_assert(LinearSwizzleMode == (static_cast<uint32>(ADDR_SW_R) + 1),
+                  "LinearSwizzleMode tile token is unexpected value!");
+
+    uint32 swType = IsZSwizzle(swizzleMode)           ? ADDR_SW_Z         :
+                    IsStandardSwzzle(swizzleMode)     ? ADDR_SW_S         :
+                    IsDisplayableSwizzle(swizzleMode) ? ADDR_SW_D         :
+                    IsRotatedSwizzle(swizzleMode)     ? ADDR_SW_R         :
+                    IsLinearSwizzleMode(swizzleMode)  ? LinearSwizzleMode : InvalidSwizzleMode;
+
+    PAL_ASSERT(swType != InvalidSwizzleMode);
+
+    return static_cast<AddrSwType>(swType);
 }
 
 // =====================================================================================================================
@@ -242,9 +256,7 @@ static AddrSwType GetMicroSwizzle(
     // It's illegal to call this on linear modes.
     PAL_ASSERT((swizzleMode != ADDR_SW_LINEAR) && (swizzleMode != ADDR_SW_LINEAR_GENERAL));
 
-    return (IsRotatedSwizzle(swizzleMode)     ? ADDR_SW_R :
-            IsDisplayableSwizzle(swizzleMode) ? ADDR_SW_D :
-            IsStandardSwzzle(swizzleMode)     ? ADDR_SW_S : ADDR_SW_Z);
+    return GetSwizzleType(swizzleMode);
 }
 
 // =====================================================================================================================
@@ -295,7 +307,7 @@ public:
         const Image& image,
         ImageAspect  aspect) const;
 
-    static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWTYPE_SET validSwSet);
+    static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWMODE_SET validSwModeSet);
 
     virtual uint32 GetBlockSize(AddrSwizzleMode swizzleMode) const;
 

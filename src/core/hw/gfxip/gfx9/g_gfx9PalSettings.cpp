@@ -105,7 +105,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.enableOnchipGs = true;
     m_settings.enableOutOfOrderPrimitives = OutOfOrderPrimSafe;
     m_settings.outOfOrderWatermark = 7;
-    m_settings.disableGeCntlVtxGrouping = false;
+    m_settings.disableGeCntlVtxGrouping = true;
     m_settings.gsCuGroupEnabled = false;
     m_settings.gsMaxLdsSize = 8192;
     m_settings.gsOffChipThreshold = 64;
@@ -146,6 +146,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.csCuEnLimitMask = 0xffffffff;
     m_settings.gfx9OffChipHsCopyMethod = Gfx9OffChipHsCopyAllAtEnd;
     m_settings.gfx9OffChipHsSkipDataCopyNullPatch = true;
+    m_settings.shaderPrefetchSizeBytes = 4294967295;
     m_settings.gfx9OffChipHsMultiWavePatchDataCopy = false;
     m_settings.gfx9OptimizeDsDataFetch = false;
     m_settings.nggSupported = true;
@@ -232,6 +233,7 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
+    m_settings.disableAceCsPartialFlush = true;
     m_settings.numSettings = g_gfx9PalNumSettings;
 }
 
@@ -635,6 +637,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.gfx9OffChipHsSkipDataCopyNullPatch,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pShaderPrefetchSizeBytesStr,
+                           Util::ValueType::Uint,
+                           &m_settings.shaderPrefetchSizeBytes,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOffChipHsMultiWavePatchDataCopyStr,
                            Util::ValueType::Boolean,
                            &m_settings.gfx9OffChipHsMultiWavePatchDataCopy,
@@ -968,6 +975,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdMultiSampledStr,
                            Util::ValueType::Uint,
                            &m_settings.depthStencilFastClearComputeThresholdMultiSampled,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableAceCsPartialFlushStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.disableAceCsPartialFlush,
                            InternalSettingScope::PrivatePalGfx9Key);
 
 }
@@ -1587,6 +1599,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gfx9OffChipHsSkipDataCopyNullPatch);
     m_settingsInfoMap.Insert(1952167388, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.shaderPrefetchSizeBytes;
+    info.valueSize = sizeof(m_settings.shaderPrefetchSizeBytes);
+    m_settingsInfoMap.Insert(2362905229, info);
+
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gfx9OffChipHsMultiWavePatchDataCopy;
     info.valueSize = sizeof(m_settings.gfx9OffChipHsMultiWavePatchDataCopy);
@@ -1922,6 +1939,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.depthStencilFastClearComputeThresholdMultiSampled);
     m_settingsInfoMap.Insert(2782857680, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.disableAceCsPartialFlush;
+    info.valueSize = sizeof(m_settings.disableAceCsPartialFlush);
+    m_settingsInfoMap.Insert(4181362005, info);
+
 }
 
 // =====================================================================================================================
@@ -1943,7 +1965,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3845646567;
+            component.settingsDataHash = 3194639298;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

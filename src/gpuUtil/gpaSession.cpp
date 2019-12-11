@@ -341,9 +341,6 @@ void FillSqttAsicInfo(
     pAsicInfo->gpuType                    = static_cast<SqttGpuType>(properties.gpuType);
     pAsicInfo->gfxIpLevel                 = GfxipToSqttGfxIpLevel(properties.gfxLevel);
     pAsicInfo->gpuIndex                   = properties.gpuIndex;
-    pAsicInfo->gdsSize                    = properties.gfxipProperties.gdsSize;
-    pAsicInfo->gdsPerShaderEngine         = properties.gfxipProperties.gdsSize /
-                                             properties.gfxipProperties.shaderCore.numShaderEngines;
     pAsicInfo->ceRamSize                  = properties.gfxipProperties.ceRamSize;
 
     pAsicInfo->maxNumberOfDedicatedCus    = properties.engineProperties[EngineTypeUniversal].maxNumDedicatedCu;

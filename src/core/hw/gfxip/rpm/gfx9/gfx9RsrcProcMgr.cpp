@@ -811,7 +811,7 @@ void RsrcProcMgr::FastDepthStencilClearComputeCommon(
         acquireInfo.sizeBytes     = FullSyncSize;
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
 
@@ -1299,8 +1299,8 @@ void RsrcProcMgr::ExpandDepthStencil(
         } // end loop through all the mip levels
 
         // Allow the rewrite of depth data to complete
-        uint32* pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pComputeCmdSpace);
+        uint32* pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
+        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
         // Restore the compute state here as the "initHtile" function is going to push the compute state again
@@ -1317,7 +1317,7 @@ void RsrcProcMgr::ExpandDepthStencil(
 
             // And wait for that to finish...
             pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-            pComputeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pComputeCmdSpace);
+            pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
             pComputeCmdStream->CommitCommands(pComputeCmdSpace);
         }
     }
@@ -2702,7 +2702,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
     // Make sure that the decompressed image data has been written before we start fixing up DCC memory.
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-    pComputeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pComputeCmdSpace);
+    pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -2722,7 +2722,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
     // And let the DCC fixup finish as well
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-    pComputeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pComputeCmdSpace);
+    pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 }
 
@@ -3444,10 +3444,9 @@ void RsrcProcMgr::CmdCopyImageToMemory(
                     Pal::CmdStream*  pPalCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
                     CmdStream*       pGfxCmdStream = static_cast<CmdStream*>(pPalCmdStream);
                     uint32*          pCmdSpace     = pGfxCmdStream->ReserveCommands();
+                    const EngineType engineType    = pGfxCmdStream->GetEngineType();
 
-                    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH,
-                                                                    EngineType::EngineTypeCompute,
-                                                                    pCmdSpace);
+                    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
 
                     // Two things can happen next. We will either be copying the leftover pixels with CPDMA or with
                     // more CS invocations. CPDMA is preferred, but we will fallback on CS if the copy is too large
@@ -3461,13 +3460,12 @@ void RsrcProcMgr::CmdCopyImageToMemory(
                         // Even though we have waited for the CS to finish, we may still run into a write after write
                         // hazard. We need to flush and invalidate the L2 cache as well.
                         AcquireMemInfo acquireInfo = {};
-                        acquireInfo.engineType  = EngineTypeCompute;
+                        acquireInfo.engineType  = engineType;
                         acquireInfo.tcCacheOp   = TcCacheOp::WbInvL1L2;
                         acquireInfo.baseAddress = dstGpuMemory.Desc().gpuVirtAddr;
                         acquireInfo.sizeBytes   = dstGpuMemory.Desc().size;
 
-                        pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo,
-                                                               pCmdSpace);
+                        pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
                     }
 
                     pGfxCmdStream->CommitCommands(pCmdSpace);

@@ -272,11 +272,11 @@ public:
     virtual Result GetSpmTraceLayout(SpmTraceLayout* pLayout) const override;
 
     // These functions are called internally by our command buffers.
-    virtual void IssueBegin(Pal::CmdStream* pPalCmdStream) const override;
-    virtual void IssueEnd(Pal::CmdStream* pPalCmdStream) const override;
+    virtual void IssueBegin(GfxCmdBuffer* pCmdBuffer, Pal::CmdStream* pPalCmdStream) const override;
+    virtual void IssueEnd(GfxCmdBuffer* pCmdBuffer, Pal::CmdStream* pPalCmdStream) const override;
 
-    virtual void BeginInternalOps(Pal::CmdStream* pCmdStream) const override;
-    virtual void EndInternalOps(Pal::CmdStream* pCmdStream) const override;
+    virtual void BeginInternalOps(Pal::CmdStream* pPalCmdStream) const override;
+    virtual void EndInternalOps(Pal::CmdStream* pPalCmdStream) const override;
 
     virtual void UpdateSqttTokenMask(
         Pal::CmdStream*               pPalCmdStream,
@@ -308,7 +308,12 @@ private:
     uint32* WriteStopThreadTraces(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteSelectRegisters(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteEnableCfgRegisters(bool enable, bool clear, CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    uint32* WriteStopAndSampleGlobalCounters(bool isBeginSample, CmdStream* pCmdStream, uint32* pCmdSpace) const;
+
+    uint32* WriteStopAndSampleGlobalCounters(bool          isBeginSample,
+                                             GfxCmdBuffer* pCmdBuffer,
+                                             CmdStream*    pCmdStream,
+                                             uint32*       pCmdSpace) const;
+
     uint32* WriteCopy64BitCounter(uint32     regAddrLo,
                                   uint32     regAddrHi,
                                   gpusize    destAddr,
@@ -319,7 +324,7 @@ private:
     uint32* WriteGrbmGfxIndexBroadcastSe(uint32 seIndex, CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteUpdateSpiConfigCntl(bool enableSqgEvents, CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteUpdateWindowedCounters(bool enable, CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    uint32* WriteWaitIdle(bool flushCaches, CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteWaitIdle(bool flushCaches, GfxCmdBuffer* pCmdBuffer, CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     // Helper functions to check if we've enabled any counters for a generic block.
     bool HasGenericCounters(GpuBlock block) const;

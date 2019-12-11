@@ -130,19 +130,8 @@ void AddrMgr2::BuildTileToken(
 {
     TileToken token = { };
 
-    constexpr uint32 InvalidSwizzleMode = 7;
-    constexpr uint32 LinearSwizzleMode  = 4;
-    static_assert(LinearSwizzleMode == (static_cast<uint32>(ADDR_SW_R) + 1),
-                  "LinearSwizzleMode tile token is unexpected value!");
-
     token.bits.elementSize = Log2(pSubResInfo->bitsPerTexel >> 3);
-    token.bits.swizzleMode = IsZSwizzle(swizzleMode)             ? ADDR_SW_Z         :
-                             IsStandardSwzzle(swizzleMode)       ? ADDR_SW_S         :
-                             IsDisplayableSwizzle(swizzleMode)   ? ADDR_SW_D         :
-                             IsRotatedSwizzle(swizzleMode)       ? ADDR_SW_R         :
-                             IsLinearSwizzleMode(swizzleMode)    ? LinearSwizzleMode :
-                                                                    InvalidSwizzleMode;
-    PAL_ASSERT(token.bits.swizzleMode != InvalidSwizzleMode);
+    token.bits.swizzleMode = GetSwizzleType(swizzleMode);
 
     pSubResInfo->tileToken = token.u32All;
 }
@@ -534,55 +523,9 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
 // that is returned by KMD
 bool AddrMgr2::IsValidToOverride(
     AddrSwizzleMode  primarySwMode,
-    ADDR2_SWTYPE_SET validSwSet)
+    ADDR2_SWMODE_SET validSwModeSet)
 {
-    ADDR2_SWTYPE_SET primarySwSet = {};
-
-    // Set up primary swizzle set based on swizzle mode
-    switch (primarySwMode)
-    {
-        case ADDR_SW_4KB_Z:
-        case ADDR_SW_64KB_Z:
-        case ADDR_SW_VAR_Z:
-        case ADDR_SW_64KB_Z_T:
-        case ADDR_SW_4KB_Z_X:
-        case ADDR_SW_64KB_Z_X:
-        case ADDR_SW_VAR_Z_X:
-            primarySwSet.value = 1 << ADDR_SW_Z;
-            break;
-        case ADDR_SW_256B_S:
-        case ADDR_SW_64KB_S:
-        case ADDR_SW_64KB_S_T:
-        case ADDR_SW_4KB_S_X:
-        case ADDR_SW_64KB_S_X:
-        case ADDR_SW_VAR_S_X:
-            primarySwSet.value = 1 << ADDR_SW_S;
-            break;
-        case ADDR_SW_256B_D:
-        case ADDR_SW_4KB_D:
-        case ADDR_SW_64KB_D:
-        case ADDR_SW_VAR_D:
-        case ADDR_SW_64KB_D_T:
-        case ADDR_SW_4KB_D_X:
-        case ADDR_SW_64KB_D_X:
-        case ADDR_SW_VAR_D_X:
-            primarySwSet.value = 1 << ADDR_SW_D;
-            break;
-        case ADDR_SW_256B_R:
-        case ADDR_SW_4KB_R:
-        case ADDR_SW_64KB_R:
-        case ADDR_SW_VAR_R:
-        case ADDR_SW_4KB_R_X:
-        case ADDR_SW_64KB_R_X:
-        case ADDR_SW_VAR_R_X:
-            primarySwSet.value = 1 << ADDR_SW_R;
-            break;
-        default:
-            PAL_ASSERT_ALWAYS();
-            break;
-    }
-
-    return TestAnyFlagSet(validSwSet.value, primarySwSet.value);
+    return TestAnyFlagSet(validSwModeSet.value, (1u << primarySwMode));
 }
 
 // =====================================================================================================================

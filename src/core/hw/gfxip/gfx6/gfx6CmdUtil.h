@@ -156,6 +156,7 @@ public:
     const RegisterInfo& GetRegInfo() const { return m_registerInfo; }
 
     bool IsPrivilegedConfigReg(uint32 regAddr) const;
+    bool CanUseCsPartialFlush(EngineType engineType) const;
 
     // Packet building functions in alphabetical order.
 
@@ -454,6 +455,7 @@ public:
         gpusize          sizeBytes,
         void*            pBuffer) const;
 
+    size_t BuildWaitCsIdle(EngineType engineType, gpusize timestampGpuAddr, void* pBuffer) const;
     size_t BuildWaitDmaData(void* pBuffer) const;
 
     size_t BuildWaitOnCeCounter(bool invalidateKcache, void* pBuffer) const;

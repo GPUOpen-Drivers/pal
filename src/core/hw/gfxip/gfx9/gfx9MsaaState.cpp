@@ -117,15 +117,22 @@ void MsaaState::BuildPm4Headers(
                 &m_pm4Image.dbReservedReg2);
     }
 
-    //     Driver must insert FLUSH_DFSM event whenever the AA mode changes if force_punchout is set to
-    //     auto as well as channel mask changes (ARGB to RGB)
-    //
-    // NOTE:  force_punchout is set to auto unless DFSM is disabled (which is a setting).  DFSM is enabled by default.
-    //        We already have conditionals for this PM4 image, so we can't add another one.  This event is
-    //        low-perf-impact, so just always issue it.
-    m_pm4Image.spaceNeeded += cmdUtil.BuildNonSampleEventWrite(FLUSH_DFSM,
-                                                               EngineTypeUniversal,
-                                                               &m_pm4Image.flushDfsm);
+    if (settings.disableDfsm == false)
+    {
+        //     Driver must insert FLUSH_DFSM event whenever the AA mode changes if force_punchout is set to
+        //     auto as well as channel mask changes (ARGB to RGB)
+        //
+        // NOTE:  force_punchout is set to auto unless DFSM is disabled.  DFSM is disabled by default.
+        //        We already have conditionals for this PM4 image, so we can't add another one.  This event is
+        //        low-perf-impact, so just always issue it.
+        m_pm4Image.spaceNeeded += cmdUtil.BuildNonSampleEventWrite(FLUSH_DFSM,
+                                                                   EngineTypeUniversal,
+                                                                   &m_pm4Image.flushDfsm);
+    }
+    else
+    {
+        m_pm4Image.spaceNeeded += CmdUtil::BuildNop(CmdUtil::WriteNonSampleEventDwords, &m_pm4Image.flushDfsm);
+    }
 }
 
 // =====================================================================================================================

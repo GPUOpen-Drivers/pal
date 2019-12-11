@@ -102,47 +102,6 @@ Result Device::CommitSettingsAndInit()
 }
 
 // =====================================================================================================================
-Result Device::AllocateGds(
-    const DeviceGdsAllocInfo& requested,
-    DeviceGdsAllocInfo*       pAllocated)
-{
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
-
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceAllocateGds;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result         = DeviceDecorator::AllocateGds(requested, pAllocated);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndStruct("requested", requested);
-        pLogContext->EndInput();
-
-        pLogContext->BeginOutput();
-        pLogContext->KeyAndEnum("result", result);
-
-        if (pAllocated != nullptr)
-        {
-            pLogContext->KeyAndStruct("allocated", *pAllocated);
-        }
-        else
-        {
-            pLogContext->KeyAndNullValue("allocated");
-        }
-
-        pLogContext->EndOutput();
-
-        pPlatform->LogEndFunc(pLogContext);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 Result Device::Finalize(
     const DeviceFinalizeInfo& finalizeInfo)
 {

@@ -512,7 +512,7 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
         if (pNewPalette != nullptr)
         {
             uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-            pCmdSpace = pNewPalette->WriteCommands(pipelineBindPoint, &m_cmdStream, pCmdSpace);
+            pCmdSpace = pNewPalette->WriteCommands(pipelineBindPoint, TimestampGpuVirtAddr(), &m_cmdStream, pCmdSpace);
             m_cmdStream.CommitCommands(pCmdSpace);
         }
 
@@ -537,6 +537,13 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 
     // Step #1:
     // Write all dirty user-data entries to their mapped user SGPR's and check if the spill table needs updating.
+    // If the pipeline has changed we must also fixup the dirty bits because the prior compute pipeline could use
+    // fewer fast sgprs than the current pipeline.
+    if (HasPipelineChanged)
+    {
+        FixupUserSgprsOnPipelineSwitch(pPrevSignature);
+    }
+
     pCmdSpace = WriteDirtyUserDataEntries(pCmdSpace);
 
     const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
@@ -564,9 +571,13 @@ uint32* ComputeCmdBuffer::ValidateUserData(
         }
 
         // Step #3:
-        // If the spill table was relocated during step #3, or if the pipeline is changing and the previous pipeline
-        // did not spill any user-data to memory, we need to re-write the spill table GPU address to its user-SGPR.
-        if ((HasPipelineChanged && (pPrevSignature->spillThreshold == NoUserDataSpilling)) || relocated)
+        // We need to re-write the spill table GPU address to its user-SGPR if:
+        // - the spill table was relocated during step #2, or
+        // - the pipeline was changed and the previous pipeline either didn't spill or used a different spill register.
+        if (relocated ||
+            (HasPipelineChanged &&
+             ((pPrevSignature->spillThreshold == NoUserDataSpilling) ||
+              (pPrevSignature->stage.spillTableRegAddr != m_pSignatureCs->stage.spillTableRegAddr))))
         {
             pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
                                                                     LowPart(m_spillTableCs.gpuVirtAddr),
@@ -671,6 +682,40 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
 }
 
 // =====================================================================================================================
+// Helper function responsible for handling user-SGPR updates during Dispatch-time validation when the active pipeline
+// has changed since the previous Dispathc operation.  It is expected that this will be called only when the pipeline
+// is changing and immediately before a call to WriteDirtyUserDataEntries().
+void ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
+    const ComputePipelineSignature* pPrevSignature)
+{
+    // As in WriteDirtyUserDataEntries, we assume that all fast user data fit in a single dirty bitfield.
+    static_assert(NumUserDataRegistersCompute <= UserDataEntriesPerMask,
+                  "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
+
+    const bool   prevNoSpilling   = pPrevSignature->spillThreshold == NoUserDataSpilling;
+    const bool   nextNoSpilling   = m_pSignatureCs->spillThreshold == NoUserDataSpilling;
+    const uint16 prevFastUserData = prevNoSpilling ? pPrevSignature->userDataLimit : pPrevSignature->spillThreshold;
+    const uint16 nextFastUserData = nextNoSpilling ? m_pSignatureCs->userDataLimit : m_pSignatureCs->spillThreshold;
+
+    if (prevFastUserData < nextFastUserData)
+    {
+        // Compute the mask of all dirty bits from the end of the previous fast user data range to the end of the
+        // next fast user data range. This is required to handle these cases:
+        // 1. If the next spillThreshold is higher we need to migrate user data from the table to sgprs.
+        // 2. We only write fast user data up to the userDataLimit. If the client bound user data for the next pipeline
+        //    (higher limit) before binding the previous pipeline (lower limit) we wouldn't have written it out.
+        //
+        // This could be wasteful if the client binds a common set of user data and frequently switches between
+        // pipelines with different user data limits. We probably can't avoid that overhead without rewriting
+        // our compute user data management.
+        const size_t rewriteMask =
+            BitfieldGenMask<size_t>(nextFastUserData) & ~BitfieldGenMask<size_t>(prevFastUserData);
+
+        m_computeState.csUserDataEntries.dirty[0] |= rewriteMask;
+    }
+}
+
+// =====================================================================================================================
 // Helper function responsible for writing all dirty user-data entries to their respective user-SGPR's.  Also checks if
 // any dirty user-data entries fall into the spill-table region and marks the spill table dirty accordingly.
 uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
@@ -681,10 +726,13 @@ uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
     // buffer.  The only way to correctly handle user-data inheritance is by using a fixed mapping.  This has the side
     // effect of allowing us to know that only the first few entries ever need to be written to user-SGPR's, which lets
     // us get away with only checking the first sub-mask of the user-data entries' wide-bitfield of dirty flags.
-    static_assert(MaxFastUserDataEntriesCompute <= UserDataEntriesPerMask,
+    static_assert(NumUserDataRegistersCompute <= UserDataEntriesPerMask,
                   "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
-    constexpr uint32 AllFastUserDataEntriesMask = ((1 << MaxFastUserDataEntriesCompute) - 1);
-    const uint16 userSgprDirtyMask = (m_computeState.csUserDataEntries.dirty[0] & AllFastUserDataEntriesMask);
+
+    const bool   noSpilling              = m_pSignatureCs->spillThreshold == NoUserDataSpilling;
+    const uint16 numFastUserDataEntries  = noSpilling ? m_pSignatureCs->userDataLimit : m_pSignatureCs->spillThreshold;
+    const size_t fastUserDataEntriesMask = BitfieldGenMask<size_t>(numFastUserDataEntries);
+    const size_t userSgprDirtyMask       = (m_computeState.csUserDataEntries.dirty[0] & fastUserDataEntriesMask);
 
     // Additionally, dirty compute user-data is always written to user-SGPR's if it could be mapped by a pipeline,
     // which lets us avoid any complex logic when switching pipelines.
@@ -692,9 +740,9 @@ uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
 
     uint16 lastEntry = 0;
     uint16 count     = 0;
-    for (uint16 e = 0; e < MaxFastUserDataEntriesCompute; ++e)
+    for (uint16 e = 0; e < numFastUserDataEntries; ++e)
     {
-        while ((e < MaxFastUserDataEntriesCompute) && ((userSgprDirtyMask & (1 << e)) != 0))
+        while ((e < numFastUserDataEntries) && ((userSgprDirtyMask & (static_cast<size_t>(1) << e)) != 0))
         {
             PAL_ASSERT((lastEntry == 0) || (lastEntry == (e - 1)));
             lastEntry = e;
@@ -730,18 +778,18 @@ uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
         const uint32 lastMaskId  = ((m_pSignatureCs->userDataLimit - 1) / UserDataEntriesPerMask);
         for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
         {
-            uint16 dirtyMask = m_computeState.csUserDataEntries.dirty[maskId];
+            size_t dirtyMask = m_computeState.csUserDataEntries.dirty[maskId];
             if (maskId == firstMaskId)
             {
                 // Ignore the dirty bits for any entries below the spill threshold.
-                const uint16 firstEntryInMask = (m_pSignatureCs->spillThreshold & (UserDataEntriesPerMask - 1));
-                dirtyMask &= ~((1 << firstEntryInMask) - 1);
+                const uint32 firstEntryInMask = (m_pSignatureCs->spillThreshold & (UserDataEntriesPerMask - 1));
+                dirtyMask &= ~BitfieldGenMask(static_cast<size_t>(firstEntryInMask));
             }
             if (maskId == lastMaskId)
             {
                 // Ignore the dirty bits for any entries beyond the user-data limit.
-                const uint16 lastEntryInMask = ((m_pSignatureCs->userDataLimit - 1) & (UserDataEntriesPerMask - 1));
-                dirtyMask &= ((1 << (lastEntryInMask + 1)) - 1);
+                const uint32 lastEntryInMask = ((m_pSignatureCs->userDataLimit - 1) & (UserDataEntriesPerMask - 1));
+                dirtyMask &= BitfieldGenMask(static_cast<size_t>(lastEntryInMask + 1));
             }
 
             if (dirtyMask != 0)
@@ -754,7 +802,7 @@ uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
 
     // Clear all dirty bits for user-data entries which were written to user-SGPR's.  These are cleared last because
     // some entries may be simultaneously spilled to GPU memory and mapped to a user-SGPR.
-    m_computeState.csUserDataEntries.dirty[0] &= ~AllFastUserDataEntriesMask;
+    m_computeState.csUserDataEntries.dirty[0] &= ~fastUserDataEntriesMask;
 
     return pCmdSpace;
 }
@@ -857,75 +905,6 @@ void ComputeCmdBuffer::CmdEndWhile()
     PAL_ASSERT(IsNested() == false);
 
     m_cmdStream.EndWhile();
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdLoadGds(
-    HwPipePoint       pipePoint,
-    uint32            dstGdsOffset,
-    const IGpuMemory& srcGpuMemory,
-    gpusize           srcMemOffset,
-    uint32            size)
-{
-    BuildLoadGds(&m_cmdStream,
-                 &m_cmdUtil,
-                 pipePoint,
-                 dstGdsOffset,
-                 srcGpuMemory,
-                 srcMemOffset,
-                 size);
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdStoreGds(
-    HwPipePoint       pipePoint,
-    uint32            srcGdsOffset,
-    const IGpuMemory& dstGpuMemory,
-    gpusize           dstMemOffset,
-    uint32            size,
-    bool              waitForWC)
-{
-    BuildStoreGds(&m_cmdStream,
-                  &m_cmdUtil,
-                  pipePoint,
-                  srcGdsOffset,
-                  dstGpuMemory,
-                  dstMemOffset,
-                  size,
-                  waitForWC,
-                  true,
-                  TimestampGpuVirtAddr());
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdUpdateGds(
-    HwPipePoint       pipePoint,
-    uint32            gdsOffset,
-    uint32            dataSize,
-    const uint32*     pData)
-{
-    BuildUpdateGds(&m_cmdStream,
-                   &m_cmdUtil,
-                   pipePoint,
-                   gdsOffset,
-                   dataSize,
-                   pData,
-                   true);
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdFillGds(
-    HwPipePoint       pipePoint,
-    uint32            gdsOffset,
-    uint32            fillSize,
-    uint32            data)
-{
-    BuildFillGds(&m_cmdStream,
-                 &m_cmdUtil,
-                 pipePoint,
-                 gdsOffset,
-                 fillSize,
-                 data);
 }
 
 // =====================================================================================================================
@@ -1092,7 +1071,7 @@ Result ComputeCmdBuffer::AddPostamble()
         // We also need a wait-for-idle before the atomic increment because command memory might be read or written
         // by dispatches. If we don't wait for idle then the driver might reset and write over that memory before the
         // shaders are done executing.
-        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeCompute, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(m_engineType, TimestampGpuVirtAddr(), pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
                                               m_cmdStream.GetFirstChunk()->BusyTrackerGpuAddr(),
                                               1,
@@ -1369,7 +1348,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    // Insert a CS_PARTIAL_FLUSH to make sure that the generated commands are written out to L2 before we attempt to
+    // Insert a wait-for-idle to make sure that the generated commands are written out to L2 before we attempt to
     // execute them.
     AcquireMemInfo acquireInfo = {};
     acquireInfo.flags.invSqK$ = 1;
@@ -1378,7 +1357,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
     acquireInfo.baseAddress   = FullSyncBaseAddr;
     acquireInfo.sizeBytes     = FullSyncSize;
 
-    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeCompute, pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(m_engineType, TimestampGpuVirtAddr(), pCmdSpace);
     pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
 
     // PFP_SYNC_ME cannot be used on an async compute engine

@@ -1136,57 +1136,6 @@ void CmdBuffer::CmdWriteImmediate(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdLoadGds(
-    HwPipePoint       pipePoint,
-    uint32            dstGdsOffset,
-    const IGpuMemory& srcGpuMemory,
-    gpusize           srcMemOffset,
-    uint32            size)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdLoadGds(pipePoint, dstGdsOffset, srcGpuMemory, srcMemOffset, size);
-    PostCall(CmdBufCallId::CmdLoadGds);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdStoreGds(
-    HwPipePoint       pipePoint,
-    uint32            srcGdsOffset,
-    const IGpuMemory& dstGpuMemory,
-    gpusize           dstMemOffset,
-    uint32            size,
-    bool              waitForWC)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdStoreGds(pipePoint, srcGdsOffset, dstGpuMemory, dstMemOffset, size, waitForWC);
-    PostCall(CmdBufCallId::CmdStoreGds);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdUpdateGds(
-    HwPipePoint   pipePoint,
-    uint32        gdsOffset,
-    uint32        dataSize,
-    const uint32* pData)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdUpdateGds(pipePoint, gdsOffset, dataSize, pData);
-    PostCall(CmdBufCallId::CmdUpdateGds);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdFillGds(
-    HwPipePoint pipePoint,
-    uint32      gdsOffset,
-    uint32      fillSize,
-    uint32      data)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdFillGds(pipePoint, gdsOffset, fillSize, data);
-    PostCall(CmdBufCallId::CmdFillGds);
-}
-
-// =====================================================================================================================
 void CmdBuffer::CmdLoadBufferFilledSizes(
     const gpusize (&gpuVirtAddr)[MaxStreamOutTargets])
 {

@@ -727,8 +727,6 @@ enum class UserDataMapping : uint32
                                     ///  graphics pipeline.
     Workgroup         = 0x10000006, ///< Thread group count (32-bit unsigned integer). Only supported by compute
                                     ///  pipelines.
-    GdsRange          = 0x10000007, ///< GDS range (32-bit unsigned integer: gdsSizeInBytes | (gdsOffsetInBytes << 16)).
-                                    ///  Only supported by compute pipelines.
     BaseIndex         = 0x10000008, ///< Index offset (32-bit unsigned integer). Only supported by the first stage in a
                                     ///  graphics pipeline.
     Log2IndexSize     = 0x10000009, ///< Base-2 logarithm of the size of each index buffer entry.
@@ -751,6 +749,8 @@ enum class UserDataMapping : uint32
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
 
+    GdsRange          = 0x10000007, ///< GDS range (32-bit unsigned integer: gdsSizeInBytes | (gdsOffsetInBytes << 16)).
+                                    ///  Only supported by compute pipelines.
     IndirectTableLow  = 0x20000000, ///< Low range of 32-bit pointer to GPU memory containing the
                                     ///  address of the indirect user data table.
                                     ///  Subtract 0x20000000.

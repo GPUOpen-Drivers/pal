@@ -26,7 +26,6 @@
 #pragma once
 
 #include "core/hw/gfxip/universalCmdBuffer.h"
-#include "core/hw/gfxip/gfx9/gfx9Gds.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9WorkaroundState.h"
@@ -65,11 +64,10 @@ struct UniversalCmdBufferState
             uint32 containsDrawIndirect  :  1;
             uint32 optimizeLinearGfxCpy  :  1;
             uint32 firstDrawExecuted     :  1;
-            uint32 fsrEnabled            :  1;
             uint32 placeholder0          :  1; // Placeholder for future feature support.
             uint32 cbTargetMaskChanged   :  1; // Flag setup at Pipeline bind-time informing the draw-time set
                                                // that the CB_TARGET_MASK has been changed.
-            uint32 reserved              : 21;
+            uint32 reserved              : 22;
         };
         uint32 u32All;
     } flags;
@@ -532,33 +530,6 @@ public:
     virtual void AddQuery(QueryPoolType queryPoolType, QueryControlFlags flags) override;
     virtual void RemoveQuery(QueryPoolType queryPoolType) override;
 
-    virtual void CmdLoadGds(
-        HwPipePoint       pipePoint,
-        uint32            dstGdsOffset,
-        const IGpuMemory& srcGpuMemory,
-        gpusize           srcMemOffset,
-        uint32            size) override;
-
-    virtual void CmdStoreGds(
-        HwPipePoint       pipePoint,
-        uint32            srcGdsOffset,
-        const IGpuMemory& dstGpuMemory,
-        gpusize           dstMemOffset,
-        uint32            size,
-        bool              waitForWC) override;
-
-    virtual void CmdUpdateGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            dataSize,
-        const uint32*     pData) override;
-
-    virtual void CmdFillGds(
-        HwPipePoint       pipePoint,
-        uint32            gdsOffset,
-        uint32            fillSize,
-        uint32            data) override;
-
     virtual void CmdLoadBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override;
 
@@ -1004,6 +975,9 @@ private:
     uint8 FixupUserSgprsOnPipelineSwitch(
         const GraphicsPipelineSignature* pPrevSignature,
         uint32**                         ppDeCmdSpace);
+
+    void FixupUserSgprsOnPipelineSwitchCs(
+        const ComputePipelineSignature* pPrevSignature);
 
     template <typename PipelineSignature>
     void FixupSpillTableOnPipelineSwitch(

@@ -335,13 +335,8 @@ void PipelineStatsQueryPool::OptimizedReset(
     if (pCmdBuffer->IsQueryAllowed(QueryPoolType::PipelineStats))
     {
         // Before we initialize out the GPU's destination memory, make sure the ASIC has finished any previous writing
-        // of pipeline stat data.
-
-        // Command buffers that do not support stats queries do not need to issue this wait because the caller must use
-        // semaphores to make sure all queries are complete.
-        pCmdSpace += cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
-
-        // And make sure the graphics pipeline is idled here.
+        // of pipeline stat data. Command buffers that do not support stats queries do not need to issue this wait
+        // because the caller must use semaphores to make sure all queries are complete.
         pCmdSpace += cmdUtil.BuildWaitOnGenericEopEvent(BOTTOM_OF_PIPE_TS,
                                                         pCmdBuffer->TimestampGpuVirtAddr(),
                                                         pCmdBuffer->GetEngineType() == EngineTypeCompute,

@@ -430,10 +430,6 @@ void SettingsLoader::OverrideDefaults(
         m_settings.gfx7AvoidVgtNullPrims = true;
     }
 
-#if PAL_AMDGPU_BUILD
-    m_settings.hiStencilEnable = false;
-#endif
-
     m_state = SettingsLoaderState::LateInit;
 }
 

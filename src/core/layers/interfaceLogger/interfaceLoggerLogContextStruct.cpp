@@ -1092,30 +1092,6 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
-    const DeviceGdsAllocInfo& value)
-{
-    BeginMap(false);
-    KeyAndBeginMap("gdsSizes", false);
-
-    for (uint32 engineType = 0; engineType < EngineTypeCount; ++engineType)
-    {
-        KeyAndBeginList(GetEngineName(static_cast<EngineType>(engineType)), true);
-
-        for (uint32 engineIdx = 0; engineIdx < MaxAvailableEngines; ++engineIdx)
-        {
-            Value(value.gdsSizes[engineType][engineIdx]);
-        }
-
-        EndList();
-    }
-
-    EndMap();
-    KeyAndValue("perPipelineBindPointGds", value.perPipelineBindPointGds);
-    EndMap();
-}
-
-// =====================================================================================================================
-void LogContext::Struct(
     Extent2d value)
 {
     BeginMap(true);

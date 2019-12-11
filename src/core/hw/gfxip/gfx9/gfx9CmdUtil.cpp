@@ -386,6 +386,19 @@ CmdUtil::CmdUtil(
 }
 
 // =====================================================================================================================
+// Returns if we can use CS_PARTIAL_FLUSH events on the given engine.
+bool CmdUtil::CanUseCsPartialFlush(
+    EngineType engineType
+    ) const
+{
+    // The CP team says that CS_PARTIAL_FLUSH isn't supported on engines that have compute wave save restore (CWSR)
+    // enabled. Unfortunately, PAL doesn't know if CWSR is enabled when we write our PM4 and thus must always use
+    // EOP timestamp waits on compute engines just to be safe. It's still safe to use CS_PARTIAL_FLUSH on graphics
+    // engines so we will do so to avoid hurting performance. We've also put this on a setting for perf triage.
+    return Pal::Device::EngineSupportsGraphics(engineType) || (m_device.Settings().disableAceCsPartialFlush == false);
+}
+
+// =====================================================================================================================
 // Returns the number of dwords required to chain two pm4 packet chunks together.
 uint32 CmdUtil::ChainSizeInDwords(
     EngineType engineType)
@@ -3386,6 +3399,22 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
     }
 
     return PacketSize;
+}
+
+// =====================================================================================================================
+// Builds a PM4 command to stall the CP (ME or MEC) until all prior dispatches have finished. Note that we only need to
+// call this helper function on async compute engines; graphics engines can directly issue CS_PARTIAL_FLUSH events.
+// Returns the size of the PM4 command written, in DWORDs.
+size_t CmdUtil::BuildWaitCsIdle(
+    EngineType engineType,
+    gpusize    timestampGpuAddr, // This function may write a temporary EOP timestamp to this address.
+    void*      pBuffer           // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+    // Fall back to a EOP TS wait-for-idle if we can't safely use a CS_PARTIAL_FLUSH.
+    return CanUseCsPartialFlush(engineType)
+            ? BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pBuffer)
+            : BuildWaitOnReleaseMemEvent(engineType, BOTTOM_OF_PIPE_TS, TcCacheOp::Nop, timestampGpuAddr, pBuffer);
 }
 
 // =====================================================================================================================

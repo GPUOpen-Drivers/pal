@@ -66,51 +66,50 @@ namespace V2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const SwizzleModeFlags Gfx9Lib::SwizzleModeTable[ADDR_SW_MAX_TYPE] =
-{//Linear 256B  4KB  64KB   Var    Z    Std   Disp  Rot   XOR    T     RtOpt
-    {1,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // ADDR_SW_LINEAR
-    {0,    1,    0,    0,    0,    0,    1,    0,    0,    0,    0,    0}, // ADDR_SW_256B_S
-    {0,    1,    0,    0,    0,    0,    0,    1,    0,    0,    0,    0}, // ADDR_SW_256B_D
-    {0,    1,    0,    0,    0,    0,    0,    0,    1,    0,    0,    0}, // ADDR_SW_256B_R
+{//Linear 256B  4KB  64KB   Var    Z    Std   Disp  Rot   XOR    T     RtOpt Reserved
+    {1,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // ADDR_SW_LINEAR
+    {0,    1,    0,    0,    0,    0,    1,    0,    0,    0,    0,    0,    0}, // ADDR_SW_256B_S
+    {0,    1,    0,    0,    0,    0,    0,    1,    0,    0,    0,    0,    0}, // ADDR_SW_256B_D
+    {0,    1,    0,    0,    0,    0,    0,    0,    1,    0,    0,    0,    0}, // ADDR_SW_256B_R
 
-    {0,    0,    1,    0,    0,    1,    0,    0,    0,    0,    0,    0}, // ADDR_SW_4KB_Z
-    {0,    0,    1,    0,    0,    0,    1,    0,    0,    0,    0,    0}, // ADDR_SW_4KB_S
-    {0,    0,    1,    0,    0,    0,    0,    1,    0,    0,    0,    0}, // ADDR_SW_4KB_D
-    {0,    0,    1,    0,    0,    0,    0,    0,    1,    0,    0,    0}, // ADDR_SW_4KB_R
+    {0,    0,    1,    0,    0,    1,    0,    0,    0,    0,    0,    0,    0}, // ADDR_SW_4KB_Z
+    {0,    0,    1,    0,    0,    0,    1,    0,    0,    0,    0,    0,    0}, // ADDR_SW_4KB_S
+    {0,    0,    1,    0,    0,    0,    0,    1,    0,    0,    0,    0,    0}, // ADDR_SW_4KB_D
+    {0,    0,    1,    0,    0,    0,    0,    0,    1,    0,    0,    0,    0}, // ADDR_SW_4KB_R
 
-    {0,    0,    0,    1,    0,    1,    0,    0,    0,    0,    0,    0}, // ADDR_SW_64KB_Z
-    {0,    0,    0,    1,    0,    0,    1,    0,    0,    0,    0,    0}, // ADDR_SW_64KB_S
-    {0,    0,    0,    1,    0,    0,    0,    1,    0,    0,    0,    0}, // ADDR_SW_64KB_D
-    {0,    0,    0,    1,    0,    0,    0,    0,    1,    0,    0,    0}, // ADDR_SW_64KB_R
+    {0,    0,    0,    1,    0,    1,    0,    0,    0,    0,    0,    0,    0}, // ADDR_SW_64KB_Z
+    {0,    0,    0,    1,    0,    0,    1,    0,    0,    0,    0,    0,    0}, // ADDR_SW_64KB_S
+    {0,    0,    0,    1,    0,    0,    0,    1,    0,    0,    0,    0,    0}, // ADDR_SW_64KB_D
+    {0,    0,    0,    1,    0,    0,    0,    0,    1,    0,    0,    0,    0}, // ADDR_SW_64KB_R
 
-    {0,    0,    0,    0,    1,    1,    0,    0,    0,    0,    0,    0}, // ADDR_SW_VAR_Z
-    {0,    0,    0,    0,    1,    0,    1,    0,    0,    0,    0,    0}, // ADDR_SW_VAR_S
-    {0,    0,    0,    0,    1,    0,    0,    1,    0,    0,    0,    0}, // ADDR_SW_VAR_D
-    {0,    0,    0,    0,    1,    0,    0,    0,    1,    0,    0,    0}, // ADDR_SW_VAR_R
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
 
-    {0,    0,    0,    1,    0,    1,    0,    0,    0,    1,    1,    0}, // ADDR_SW_64KB_Z_T
-    {0,    0,    0,    1,    0,    0,    1,    0,    0,    1,    1,    0}, // ADDR_SW_64KB_S_T
-    {0,    0,    0,    1,    0,    0,    0,    1,    0,    1,    1,    0}, // ADDR_SW_64KB_D_T
-    {0,    0,    0,    1,    0,    0,    0,    0,    1,    1,    1,    0}, // ADDR_SW_64KB_R_T
+    {0,    0,    0,    1,    0,    1,    0,    0,    0,    1,    1,    0,    0}, // ADDR_SW_64KB_Z_T
+    {0,    0,    0,    1,    0,    0,    1,    0,    0,    1,    1,    0,    0}, // ADDR_SW_64KB_S_T
+    {0,    0,    0,    1,    0,    0,    0,    1,    0,    1,    1,    0,    0}, // ADDR_SW_64KB_D_T
+    {0,    0,    0,    1,    0,    0,    0,    0,    1,    1,    1,    0,    0}, // ADDR_SW_64KB_R_T
 
-    {0,    0,    1,    0,    0,    1,    0,    0,    0,    1,    0,    0}, // ADDR_SW_4KB_Z_x
-    {0,    0,    1,    0,    0,    0,    1,    0,    0,    1,    0,    0}, // ADDR_SW_4KB_S_x
-    {0,    0,    1,    0,    0,    0,    0,    1,    0,    1,    0,    0}, // ADDR_SW_4KB_D_x
-    {0,    0,    1,    0,    0,    0,    0,    0,    1,    1,    0,    0}, // ADDR_SW_4KB_R_x
+    {0,    0,    1,    0,    0,    1,    0,    0,    0,    1,    0,    0,    0}, // ADDR_SW_4KB_Z_x
+    {0,    0,    1,    0,    0,    0,    1,    0,    0,    1,    0,    0,    0}, // ADDR_SW_4KB_S_x
+    {0,    0,    1,    0,    0,    0,    0,    1,    0,    1,    0,    0,    0}, // ADDR_SW_4KB_D_x
+    {0,    0,    1,    0,    0,    0,    0,    0,    1,    1,    0,    0,    0}, // ADDR_SW_4KB_R_x
 
-    {0,    0,    0,    1,    0,    1,    0,    0,    0,    1,    0,    0}, // ADDR_SW_64KB_Z_X
-    {0,    0,    0,    1,    0,    0,    1,    0,    0,    1,    0,    0}, // ADDR_SW_64KB_S_X
-    {0,    0,    0,    1,    0,    0,    0,    1,    0,    1,    0,    0}, // ADDR_SW_64KB_D_X
-    {0,    0,    0,    1,    0,    0,    0,    0,    1,    1,    0,    0}, // ADDR_SW_64KB_R_X
+    {0,    0,    0,    1,    0,    1,    0,    0,    0,    1,    0,    0,    0}, // ADDR_SW_64KB_Z_X
+    {0,    0,    0,    1,    0,    0,    1,    0,    0,    1,    0,    0,    0}, // ADDR_SW_64KB_S_X
+    {0,    0,    0,    1,    0,    0,    0,    1,    0,    1,    0,    0,    0}, // ADDR_SW_64KB_D_X
+    {0,    0,    0,    1,    0,    0,    0,    0,    1,    1,    0,    0,    0}, // ADDR_SW_64KB_R_X
 
-    {0,    0,    0,    0,    1,    1,    0,    0,    0,    1,    0,    0}, // ADDR_SW_VAR_Z_X
-    {0,    0,    0,    0,    1,    0,    1,    0,    0,    1,    0,    0}, // ADDR_SW_VAR_S_X
-    {0,    0,    0,    0,    1,    0,    0,    1,    0,    1,    0,    0}, // ADDR_SW_VAR_D_X
-    {0,    0,    0,    0,    1,    0,    0,    0,    1,    1,    0,    0}, // ADDR_SW_VAR_R_X
-    {1,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // ADDR_SW_LINEAR_GENERAL
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // Reserved
+    {1,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0}, // ADDR_SW_LINEAR_GENERAL
 };
 
-const UINT_32 Gfx9Lib::MipTailOffset256B[] = {2048, 1024, 512, 256, 128, 64, 32, 16,
-                                              8, 6, 5, 4, 3, 2, 1, 0};
+const UINT_32 Gfx9Lib::MipTailOffset256B[] = {2048, 1024, 512, 256, 128, 64, 32, 16, 8, 6, 5, 4, 3, 2, 1, 0};
 
 const Dim3d   Gfx9Lib::Block256_3dS[]  = {{16, 4, 4}, {8, 4, 4}, {4, 4, 4}, {2, 4, 4}, {1, 4, 4}};
 
@@ -127,8 +126,7 @@ const Dim3d   Gfx9Lib::Block256_3dZ[]  = {{8, 4, 8}, {4, 4, 8}, {4, 4, 4}, {4, 2
 */
 Gfx9Lib::Gfx9Lib(const Client* pClient)
     :
-    Lib(pClient),
-    m_numEquations(0)
+    Lib(pClient)
 {
     m_class = AI_ADDRLIB;
     memset(&m_settings, 0, sizeof(m_settings));
@@ -1218,11 +1216,6 @@ BOOL_32 Gfx9Lib::HwlInitGlobalParams(
                 break;
         }
 
-        m_blockVarSizeLog2 = pCreateIn->regValue.blockVarSizeLog2;
-        ADDR_ASSERT((m_blockVarSizeLog2 == 0) ||
-                    ((m_blockVarSizeLog2 >= 17u) && (m_blockVarSizeLog2 <= 20u)));
-        m_blockVarSizeLog2 = Min(Max(17u, m_blockVarSizeLog2), 20u);
-
         if ((m_rbPerSeLog2 == 1) &&
             (((m_pipesLog2 == 1) && ((m_seLog2 == 2) || (m_seLog2 == 3))) ||
              ((m_pipesLog2 == 2) && ((m_seLog2 == 1) || (m_seLog2 == 2)))))
@@ -1242,6 +1235,9 @@ BOOL_32 Gfx9Lib::HwlInitGlobalParams(
             }
 #endif
         }
+
+        // For simplicity we never allow VAR swizzle mode for GFX9, the actural value is 18 on GFX9
+        m_blockVarSizeLog2 = 0;
     }
     else
     {
@@ -2164,6 +2160,7 @@ BOOL_32 Gfx9Lib::IsEquationSupported(
     UINT_32          elementBytesLog2) const
 {
     BOOL_32 supported = (elementBytesLog2 < MaxElementBytesLog2) &&
+                        (IsValidSwMode(swMode) == TRUE) &&
                         (IsLinear(swMode) == FALSE) &&
                         (((IsTex2d(rsrcType) == TRUE) &&
                           ((elementBytesLog2 < 4) ||
@@ -2197,7 +2194,7 @@ VOID Gfx9Lib::InitEquationTable()
         AddrResourceType rsrcType = static_cast<AddrResourceType>(rsrcTypeIdx + ADDR_RSRC_TEX_2D);
 
         // Loop all possible swizzle mode
-        for (UINT_32 swModeIdx = 0; swModeIdx < MaxSwMode; swModeIdx++)
+        for (UINT_32 swModeIdx = 0; swModeIdx < MaxSwModeType; swModeIdx++)
         {
             AddrSwizzleMode swMode = static_cast<AddrSwizzleMode>(swModeIdx);
 
@@ -2209,7 +2206,7 @@ VOID Gfx9Lib::InitEquationTable()
                 // Check if the input is supported
                 if (IsEquationSupported(rsrcType, swMode, bppIdx))
                 {
-                    ADDR_EQUATION equation;
+                    ADDR_EQUATION     equation;
                     ADDR_E_RETURNCODE retCode;
 
                     memset(&equation, 0, sizeof(ADDR_EQUATION));
@@ -2954,14 +2951,10 @@ BOOL_32 Gfx9Lib::IsValidDisplaySwizzleMode(
             case ADDR_SW_4KB_R:
             case ADDR_SW_64KB_D:
             case ADDR_SW_64KB_R:
-            case ADDR_SW_VAR_D:
-            case ADDR_SW_VAR_R:
             case ADDR_SW_4KB_D_X:
             case ADDR_SW_4KB_R_X:
             case ADDR_SW_64KB_D_X:
             case ADDR_SW_64KB_R_X:
-            case ADDR_SW_VAR_D_X:
-            case ADDR_SW_VAR_R_X:
                 support = (pIn->bpp <= 64);
                 break;
 
@@ -2975,22 +2968,18 @@ BOOL_32 Gfx9Lib::IsValidDisplaySwizzleMode(
         {
             case ADDR_SW_4KB_D:
             case ADDR_SW_64KB_D:
-            case ADDR_SW_VAR_D:
             case ADDR_SW_64KB_D_T:
             case ADDR_SW_4KB_D_X:
             case ADDR_SW_64KB_D_X:
-            case ADDR_SW_VAR_D_X:
                 support = (pIn->bpp == 64);
                 break;
 
             case ADDR_SW_LINEAR:
             case ADDR_SW_4KB_S:
             case ADDR_SW_64KB_S:
-            case ADDR_SW_VAR_S:
             case ADDR_SW_64KB_S_T:
             case ADDR_SW_4KB_S_X:
             case ADDR_SW_64KB_S_X:
-            case ADDR_SW_VAR_S_X:
                 support = (pIn->bpp <= 64);
                 break;
 
@@ -3210,7 +3199,7 @@ BOOL_32 Gfx9Lib::ValidateSwModeParams(
 {
     BOOL_32 valid = TRUE;
 
-    if (pIn->swizzleMode >= ADDR_SW_MAX_TYPE)
+    if ((pIn->swizzleMode >= ADDR_SW_MAX_TYPE) || (IsValidSwMode(pIn->swizzleMode) == FALSE))
     {
         ADDR_ASSERT_ALWAYS();
         valid = FALSE;
@@ -3229,7 +3218,6 @@ BOOL_32 Gfx9Lib::ValidateSwModeParams(
     const AddrSwizzleMode  swizzle     = pIn->swizzleMode;
     const BOOL_32          linear      = IsLinear(swizzle);
     const BOOL_32          blk256B     = IsBlock256b(swizzle);
-    const BOOL_32          blkVar      = IsBlockVariable(swizzle);
     const BOOL_32          isNonPrtXor = IsNonPrtXor(swizzle);
 
     const ADDR2_SURFACE_FLAGS flags   = pIn->flags;
@@ -3337,11 +3325,6 @@ BOOL_32 Gfx9Lib::ValidateSwModeParams(
             valid = FALSE;
         }
     }
-    else if (blkVar)
-    {
-        ADDR_ASSERT_ALWAYS();
-        valid = FALSE;
-    }
 
     return valid;
 }
@@ -3444,7 +3427,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
 
     if (ValidateNonSwModeParams(&localIn))
     {
-        // Forbid swizzle mode(s) by client setting, for simplicity we never allow VAR swizzle mode for GFX9
+        // Forbid swizzle mode(s) by client setting
         ADDR2_SWMODE_SET allowedSwModeSet = {};
         allowedSwModeSet.value |= pIn->forbiddenBlock.linear ? 0 : Gfx9LinearSwModeMask;
         allowedSwModeSet.value |= pIn->forbiddenBlock.micro  ? 0 : Gfx9Blk256BSwModeMask;
@@ -3650,6 +3633,12 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                 pOut->clientPreferredSwSet.value = AddrSwSetAll;
             }
 
+            // Apply optional restrictions
+            if (pIn->flags.needEquation)
+            {
+                FilterInvalidEqSwizzleMode(allowedSwModeSet, pIn->resourceType, Log2(bpp >> 3));
+            }
+
             if (allowedSwModeSet.value == Gfx9LinearSwModeMask)
             {
                 pOut->swizzleMode = ADDR_SW_LINEAR;
@@ -3676,8 +3665,8 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                         swMode[AddrBlockThick64KB] = ADDR_SW_64KB_S;
                     }
 
-                    Dim3d   blkDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}};
-                    Dim3d   padDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}};
+                    Dim3d   blkDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}, {0}};
+                    Dim3d   padDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}, {0}, {0}, {0}};
                     UINT_64 padSize[AddrBlockMaxTiledType] = {0};
 
                     const UINT_32 ratioLow           = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 3 : 2);
@@ -3704,7 +3693,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                             }
 
                             padSize[i] = ComputePadSize(&blkDim[i], width, height, numSlices, &padDim[i]);
-                            padSize[i] = PowTwoAlign(padSize[i], sizeAlignInElement);
+                            padSize[i] = PowTwoAlign(padSize[i] * numFrags, sizeAlignInElement);
 
                             if ((minSize == 0) ||
                                 ((padSize[i] * ratioHi) <= (minSize * ratioLow)))
@@ -4582,7 +4571,7 @@ Dim3d Gfx9Lib::GetMipStartPos(
 
     // Report mip in tail if Mip0 is already in mip tail
     BOOL_32 inMipTail      = IsInMipTail(resourceType, swizzleMode, tailMaxDim, width, height, depth);
-    UINT_32 log2blkSize    = GetBlockSizeLog2(swizzleMode);
+    UINT_32 log2BlkSize    = GetBlockSizeLog2(swizzleMode);
     UINT_32 mipIndexInTail = mipId;
 
     if (inMipTail == FALSE)
@@ -4632,7 +4621,7 @@ Dim3d Gfx9Lib::GetMipStartPos(
 
             if (IsThick(resourceType, swizzleMode))
             {
-                UINT_32 dim = log2blkSize % 3;
+                UINT_32 dim = log2BlkSize % 3;
 
                 if (dim == 0)
                 {
@@ -4652,7 +4641,7 @@ Dim3d Gfx9Lib::GetMipStartPos(
             }
             else
             {
-                if (log2blkSize & 1)
+                if (log2BlkSize & 1)
                 {
                     inTail = (mipWidthInBlk <= 2) && (mipHeightInBlk == 1);
                 }
@@ -4682,7 +4671,7 @@ Dim3d Gfx9Lib::GetMipStartPos(
 
     if (inMipTail)
     {
-        UINT_32 index = mipIndexInTail + MaxMacroBits - log2blkSize;
+        UINT_32 index = mipIndexInTail + MaxMacroBits - log2BlkSize;
         ADDR_ASSERT(index < sizeof(MipTailOffset256B) / sizeof(UINT_32));
         *pMipTailBytesOffset = MipTailOffset256B[index] << 8;
     }
@@ -4763,7 +4752,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
         if (IsThin(pIn->resourceType, pIn->swizzleMode))
         {
             UINT_32 blockOffset = 0;
-            UINT_32 log2blkSize = GetBlockSizeLog2(pIn->swizzleMode);
+            UINT_32 log2BlkSize = GetBlockSizeLog2(pIn->swizzleMode);
 
             if (IsZOrderSwizzle(pIn->swizzleMode))
             {
@@ -4808,7 +4797,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
                     MortonGen2d((pIn->x / microBlockDim.w), (pIn->y / microBlockDim.h), 12) << 8;
 
                 // Sample bits start location
-                UINT_32 sampleStart = log2blkSize - Log2(pIn->numSamples);
+                UINT_32 sampleStart = log2BlkSize - Log2(pIn->numSamples);
                 // Join sample bits information to the highest Macro block bits
                 if (IsNonPrtXor(pIn->swizzleMode))
                 {
@@ -4821,7 +4810,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
                     // after this op, the blockOffset only contains log2 Macro block size bits
                     blockOffset %= (1 << sampleStart);
                     blockOffset |= (pIn->sample << sampleStart);
-                    ADDR_ASSERT((blockOffset >> log2blkSize) == 0);
+                    ADDR_ASSERT((blockOffset >> log2BlkSize) == 0);
                 }
             }
 
@@ -4830,7 +4819,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
                 // Mask off bits above Macro block bits to keep page synonyms working for prt
                 if (IsPrt(pIn->swizzleMode))
                 {
-                    blockOffset &= ((1 << log2blkSize) - 1);
+                    blockOffset &= ((1 << log2BlkSize) - 1);
                 }
 
                 // Preserve offset inside pipe interleave
@@ -4838,13 +4827,13 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
                 blockOffset >>= m_pipeInterleaveLog2;
 
                 // Pipe/Se xor bits
-                pipeBits = GetPipeXorBits(log2blkSize);
+                pipeBits = GetPipeXorBits(log2BlkSize);
                 // Pipe xor
                 pipeXor = FoldXor2d(blockOffset, pipeBits);
                 blockOffset >>= pipeBits;
 
                 // Bank xor bits
-                bankBits = GetBankXorBits(log2blkSize);
+                bankBits = GetBankXorBits(log2BlkSize);
                 // Bank Xor
                 bankXor = FoldXor2d(blockOffset, bankBits);
                 blockOffset >>= bankBits;
@@ -4859,7 +4848,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
             }
 
             ADDR_ASSERT((blockOffset | mipTailBytesOffset) == (blockOffset + mipTailBytesOffset));
-            ADDR_ASSERT((mipTailBytesOffset == 0u) || (blockOffset < (1u << log2blkSize)));
+            ADDR_ASSERT((mipTailBytesOffset == 0u) || (blockOffset < (1u << log2BlkSize)));
 
             blockOffset |= mipTailBytesOffset;
 
@@ -4874,7 +4863,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
             returnCode = ApplyCustomerPipeBankXor(pIn->swizzleMode, pIn->pipeBankXor,
                                                   bankBits, pipeBits, &blockOffset);
 
-            blockOffset %= (1 << log2blkSize);
+            blockOffset %= (1 << log2BlkSize);
 
             UINT_32 pitchInMacroBlock = localOut.mipChainPitch / localOut.blockWidth;
             UINT_32 paddedHeightInMacroBlock = localOut.mipChainHeight / localOut.blockHeight;
@@ -4884,11 +4873,11 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
                 ((pIn->y / localOut.blockHeight) + mipStartPos.h) * pitchInMacroBlock +
                 ((pIn->x / localOut.blockWidth) + mipStartPos.w);
 
-            pOut->addr = blockOffset | (macroBlockIndex << log2blkSize);
+            pOut->addr = blockOffset | (macroBlockIndex << log2BlkSize);
         }
         else
         {
-            UINT_32 log2blkSize = GetBlockSizeLog2(pIn->swizzleMode);
+            UINT_32 log2BlkSize = GetBlockSizeLog2(pIn->swizzleMode);
 
             Dim3d microBlockDim = Block1K_3d[log2ElementBytes];
 
@@ -4905,7 +4894,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
                 // Mask off bits above Macro block bits to keep page synonyms working for prt
                 if (IsPrt(pIn->swizzleMode))
                 {
-                    blockOffset &= ((1 << log2blkSize) - 1);
+                    blockOffset &= ((1 << log2BlkSize) - 1);
                 }
 
                 // Preserve offset inside pipe interleave
@@ -4913,13 +4902,13 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
                 blockOffset >>= m_pipeInterleaveLog2;
 
                 // Pipe/Se xor bits
-                pipeBits = GetPipeXorBits(log2blkSize);
+                pipeBits = GetPipeXorBits(log2BlkSize);
                 // Pipe xor
                 pipeXor = FoldXor3d(blockOffset, pipeBits);
                 blockOffset >>= pipeBits;
 
                 // Bank xor bits
-                bankBits = GetBankXorBits(log2blkSize);
+                bankBits = GetBankXorBits(log2BlkSize);
                 // Bank Xor
                 bankXor = FoldXor3d(blockOffset, bankBits);
                 blockOffset >>= bankBits;
@@ -4934,13 +4923,13 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
             }
 
             ADDR_ASSERT((blockOffset | mipTailBytesOffset) == (blockOffset + mipTailBytesOffset));
-            ADDR_ASSERT((mipTailBytesOffset == 0u) || (blockOffset < (1u << log2blkSize)));
+            ADDR_ASSERT((mipTailBytesOffset == 0u) || (blockOffset < (1u << log2BlkSize)));
             blockOffset |= mipTailBytesOffset;
 
             returnCode = ApplyCustomerPipeBankXor(pIn->swizzleMode, pIn->pipeBankXor,
                                                   bankBits, pipeBits, &blockOffset);
 
-            blockOffset %= (1 << log2blkSize);
+            blockOffset %= (1 << log2BlkSize);
 
             UINT_32 xb = pIn->x / localOut.blockWidth  + mipStartPos.w;
             UINT_32 yb = pIn->y / localOut.blockHeight + mipStartPos.h;
@@ -4951,7 +4940,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
                 (localOut.mipChainHeight / localOut.blockHeight) * pitchInBlock;
             UINT_64 blockIndex = zb * sliceSizeInBlock + yb * pitchInBlock + xb;
 
-            pOut->addr = blockOffset | (blockIndex << log2blkSize);
+            pOut->addr = blockOffset | (blockIndex << log2BlkSize);
         }
     }
     else
@@ -5028,6 +5017,60 @@ ADDR_E_RETURNCODE Gfx9Lib::ComputeSurfaceLinearPadding(
     }
 
     return returnCode;
+}
+
+/**
+************************************************************************************************************************
+*   Gfx9Lib::ComputeThinBlockDimension
+*
+*   @brief
+*       Internal function to get thin block width/height/depth in element from surface input params.
+*
+*   @return
+*       N/A
+************************************************************************************************************************
+*/
+VOID Gfx9Lib::ComputeThinBlockDimension(
+    UINT_32*         pWidth,
+    UINT_32*         pHeight,
+    UINT_32*         pDepth,
+    UINT_32          bpp,
+    UINT_32          numSamples,
+    AddrResourceType resourceType,
+    AddrSwizzleMode  swizzleMode) const
+{
+    ADDR_ASSERT(IsThin(resourceType, swizzleMode));
+
+    const UINT_32 log2BlkSize              = GetBlockSizeLog2(swizzleMode);
+    const UINT_32 eleBytes                 = bpp >> 3;
+    const UINT_32 microBlockSizeTableIndex = Log2(eleBytes);
+    const UINT_32 log2blkSizeIn256B        = log2BlkSize - 8;
+    const UINT_32 widthAmp                 = log2blkSizeIn256B / 2;
+    const UINT_32 heightAmp                = log2blkSizeIn256B - widthAmp;
+
+    ADDR_ASSERT(microBlockSizeTableIndex < sizeof(Block256_2d) / sizeof(Block256_2d[0]));
+
+    *pWidth  = (Block256_2d[microBlockSizeTableIndex].w << widthAmp);
+    *pHeight = (Block256_2d[microBlockSizeTableIndex].h << heightAmp);
+    *pDepth  = 1;
+
+    if (numSamples > 1)
+    {
+        const UINT_32 log2sample = Log2(numSamples);
+        const UINT_32 q          = log2sample >> 1;
+        const UINT_32 r          = log2sample & 1;
+
+        if (log2BlkSize & 1)
+        {
+            *pWidth  >>= q;
+            *pHeight >>= (q + r);
+        }
+        else
+        {
+            *pWidth  >>= (q + r);
+            *pHeight >>= q;
+        }
+    }
 }
 
 } // V2

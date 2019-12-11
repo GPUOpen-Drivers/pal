@@ -477,7 +477,7 @@ struct SubresLayout
 /// Selects a specific subresource of an image resource.
 struct SubresId
 {
-    ImageAspect aspect;      ///< Selects color, depth, or stencil plane.
+    ImageAspect aspect;      ///< Selects color, depth, stencil or ycbcr plane.
     uint32      mipLevel;    ///< Selects mip level.
     uint32      arraySlice;  ///< Selects array slice.
 };

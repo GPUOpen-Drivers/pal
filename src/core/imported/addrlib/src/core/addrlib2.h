@@ -67,6 +67,8 @@ struct SwizzleModeFlags
     UINT_32 isT             : 1;    // T mode
 
     UINT_32 isRtOpt         : 1;    // mode opt for render target
+
+    UINT_32 reserved        : 20;   // Reserved bits
 };
 
 struct Dim2d
@@ -93,7 +95,7 @@ enum AddrBlockType
     AddrBlockVar       = 5, // Resource uses var block, only valid for GFX9
     AddrBlockLinear    = 6, // Resource uses linear swizzle mode
 
-    AddrBlockMaxTiledType = AddrBlockThick64KB + 1,
+    AddrBlockMaxTiledType = AddrBlockVar + 1,
 };
 
 enum AddrSwSet
@@ -103,9 +105,7 @@ enum AddrSwSet
     AddrSwSetD = 1 << ADDR_SW_D,
     AddrSwSetR = 1 << ADDR_SW_R,
 
-    AddrSwSetAll         = AddrSwSetZ | AddrSwSetS | AddrSwSetD | AddrSwSetR,
-    AddrSwSet3dThinGfx10 = AddrSwSetZ | AddrSwSetR,
-    AddrSwSetColorGfx10  = AddrSwSetS | AddrSwSetD | AddrSwSetR,
+    AddrSwSetAll = AddrSwSetZ | AddrSwSetS | AddrSwSetD | AddrSwSetR,
 };
 
 const UINT_32 Size256 = 256u;
@@ -226,6 +226,11 @@ protected:
 
     static const UINT_32 MaxMipLevels = 16;
 
+    BOOL_32 IsValidSwMode(AddrSwizzleMode swizzleMode) const
+    {
+        return (*reinterpret_cast<const UINT_32*>(&m_swizzleModeTable[swizzleMode]) != 0);
+    }
+
     // Checking block size
     BOOL_32 IsBlock256b(AddrSwizzleMode swizzleMode) const
     {
@@ -345,7 +350,7 @@ protected:
         {
             blockSizeLog2 = 16;
         }
-        else if (IsBlockVariable(swizzleMode))
+        else if (IsBlockVariable(swizzleMode) && (m_blockVarSizeLog2 != 0))
         {
             blockSizeLog2 = m_blockVarSizeLog2;
         }
@@ -642,12 +647,29 @@ protected:
         AddrSwizzleMode  swizzleMode) const;
 
     ADDR_E_RETURNCODE ComputeBlockDimension(
-        UINT_32*          pWidth,
-        UINT_32*          pHeight,
-        UINT_32*          pDepth,
-        UINT_32           bpp,
-        AddrResourceType  resourceType,
-        AddrSwizzleMode   swizzleMode) const;
+        UINT_32*         pWidth,
+        UINT_32*         pHeight,
+        UINT_32*         pDepth,
+        UINT_32          bpp,
+        AddrResourceType resourceType,
+        AddrSwizzleMode  swizzleMode) const;
+
+    virtual VOID ComputeThinBlockDimension(
+        UINT_32*         pWidth,
+        UINT_32*         pHeight,
+        UINT_32*         pDepth,
+        UINT_32          bpp,
+        UINT_32          numSamples,
+        AddrResourceType resourceType,
+        AddrSwizzleMode  swizzleMode) const;
+
+    VOID ComputeThickBlockDimension(
+        UINT_32*         pWidth,
+        UINT_32*         pHeight,
+        UINT_32*         pDepth,
+        UINT_32          bpp,
+        AddrResourceType resourceType,
+        AddrSwizzleMode  swizzleMode) const;
 
     static UINT_64 ComputePadSize(
         const Dim3d*      pBlkDim,
@@ -782,6 +804,11 @@ protected:
 
     VOID ComputeQbStereoInfo(ADDR2_COMPUTE_SURFACE_INFO_OUTPUT* pOut) const;
 
+    VOID FilterInvalidEqSwizzleMode(
+        ADDR2_SWMODE_SET& allowedSwModeSet,
+        AddrResourceType  resourceType,
+        UINT_32           elemLog2) const;
+
     UINT_32 m_se;                       ///< Number of shader engine
     UINT_32 m_rbPerSe;                  ///< Number of render backend per shader engine
     UINT_32 m_maxCompFrag;              ///< Number of max compressed fragment
@@ -797,6 +824,22 @@ protected:
     UINT_32 m_blockVarSizeLog2;         ///< Log2 of block var size
 
     SwizzleModeFlags m_swizzleModeTable[ADDR_SW_MAX_TYPE];  ///< Swizzle mode table
+
+    // Max number of swizzle mode supported for equation
+    static const UINT_32    MaxSwModeType = 32;
+    // Max number of resource type (2D/3D) supported for equation
+    static const UINT_32    MaxRsrcType = 2;
+    // Max number of bpp (8bpp/16bpp/32bpp/64bpp/128bpp)
+    static const UINT_32    MaxElementBytesLog2  = 5;
+    // Almost all swizzle mode + resource type support equation
+    static const UINT_32    EquationTableSize = MaxElementBytesLog2 * MaxSwModeType * MaxRsrcType;
+    // Equation table
+    ADDR_EQUATION           m_equationTable[EquationTableSize];
+
+    // Number of equation entries in the table
+    UINT_32                 m_numEquations;
+    // Equation lookup table according to bpp and tile index
+    UINT_32                 m_equationLookupTable[MaxRsrcType][MaxSwModeType][MaxElementBytesLog2];
 
 private:
     // Disallow the copy constructor

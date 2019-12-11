@@ -223,6 +223,9 @@ protected:
         const Pal::Image&  srcImage,
         const Pal::Image&  dstImage) const override;
 
+    // On gfx9/gfx10, we need to use single z range for single subresource view.
+    virtual bool HwlNeedSinglezRangeAccess() const { return true; }
+
     virtual void HwlUpdateDstImageFmaskMetaData(
         GfxCmdBuffer*          pCmdBuffer,
         const Pal::Image&      srcImage,

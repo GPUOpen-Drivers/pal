@@ -28,6 +28,7 @@
 
 #include <stdint.h>
 #include "palInlineFuncs.h"
+#include "palPerfExperiment.h"
 
 /** Magic number for all SQTT files.
  */
@@ -120,7 +121,7 @@ static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
     {1, 1}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CPU_INFO,
-    {1, 0}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
+    {1, 1}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
     {1, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION
@@ -664,47 +665,60 @@ typedef struct SqttFileChunkCpuInfo
 
 typedef enum SpmGpuBlock
 {
-    CPF = 0,
-    IA,
-    VGT,
-    PA,
-    SC,
-    SPI,
-    SQ,
-    SX,
-    TA,
-    TD,
-    TCP,
-    TCC,
-    TCA,
-    DB,
-    CB,
-    GDS,
-    SRBM,
-    GRBM,
-    GRBMSE,
-    RLC,
-    DMA,
-    MC,
-    CPG,
-    CPC,
-    WD,
-    TCS,
-    ATC,
-    ATCL2,
-    MCVML2,
-    EA,
-    RPB,
-    RMI,
-
-    GE,
-    GL1A,
-    GL1C,
-    GL1CG,
-    GL2A,
-    GL2C,
+    CPF     = 0x0,
+    IA      = 0x1,
+    VGT     = 0x2,
+    PA      = 0x3,
+    SC      = 0x4,
+    SPI     = 0x5,
+    SQ      = 0x6,
+    SX      = 0x7,
+    TA      = 0x8,
+    TD      = 0x9,
+    TCP     = 0xA,
+    TCC     = 0xB,
+    TCA     = 0xC,
+    DB      = 0xD,
+    CB      = 0xE,
+    GDS     = 0xF,
+    SRBM    = 0x10,
+    GRBM    = 0x11,
+    GRBMSE  = 0x12,
+    RLC     = 0x13,
+    DMA     = 0x14,
+    MC      = 0x15,
+    CPG     = 0x16,
+    CPC     = 0x17,
+    WD      = 0x18,
+    TCS     = 0x19,
+    ATC     = 0x1A,
+    ATCL2   = 0x1B,
+    MCVML2  = 0x1C,
+    EA      = 0x1D,
+    RPB     = 0x1E,
+    RMI     = 0x1F,
+    UMCCH   = 0x20,
+    GE      = 0x21,
+    GL1A    = 0x22,
+    GL1C    = 0x23,
+    GL1CG   = 0x24,
+    GL2A    = 0x25,
+    GL2C    = 0x26,
+    CHA     = 0x27,
+    CHC     = 0x28,
+    CHCG    = 0x29,
+    GUS     = 0x2A,
+    GCR     = 0x2B,
+    PH      = 0x2C,
+    UTCL1   = 0x2D,
+    GEDIST  = 0x2E,
+    GESE    = 0x2F,
+    DF      = 0x3A,
     COUNT
 } SpmGpuBlock;
+
+static_assert(SpmGpuBlock::COUNT >= static_cast<uint32_t>(Pal::GpuBlock::Count),
+              "The SpmGpuBlock enumeration needs to be updated!");
 
 typedef struct SpmCounterInfo
 {
