@@ -155,6 +155,15 @@ enum QueueTypeSupport : uint32
     SupportQueueTypeTimer       = (1 << static_cast<uint32>(QueueTypeTimer)),
 };
 
+// Many command buffers break down into multiple command streams targeting internal sub-engines. For example, Universal
+// command buffers build a primary stream (DE) but may also build a second stream for the constant engine (CE).
+enum class SubEngineType : uint32
+{
+    Primary        = 0, // Subqueue that is the queue itself, rather than an ancilliary queue.
+    ConstantEngine = 1, // CP constant update engine that runs in parallel with draw engine.
+    Count,
+};
+
 /// Defines the execution priority for a queue, specified either at queue creation or via IQueue::SetExecutionPriority()
 /// on platforms that support it.  QueuePriority::Normal corresponds to the default priority.
 enum class QueuePriority : uint32
@@ -471,7 +480,7 @@ enum class ChNumFormat : uint32
     NV11                     = 0xA3,    ///< YUV 4:1:1 planar format, with 8 bits per luma and chroma sample.  The Y
                                         ///  plane is first, containing a uint8 per sample.  Next is a UV plane which
                                         ///  has interleaved U and V samples, each stored as a uint8.  Valid Image and
-                                        ///  Color-Target view formats are { X8, Unorm }, { Y8, Uint }, { X8Y8, Unorm }
+                                        ///  Color-Target view formats are { X8, Unorm }, { X8, Uint }, { X8Y8, Unorm }
                                         ///  and { X8Y8, Uint }.  When using an X8 channel format for the View, the view
                                         ///  only has access to the Y plane.  When using X8Y8, the view only has access
                                         ///  to the UV plane.
@@ -540,7 +549,7 @@ struct SwizzledFormat
 };
 
 /// Constant for undefined formats.
-const SwizzledFormat UndefinedSwizzledFormat =
+constexpr SwizzledFormat UndefinedSwizzledFormat =
 {
     ChNumFormat::Undefined,
     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },

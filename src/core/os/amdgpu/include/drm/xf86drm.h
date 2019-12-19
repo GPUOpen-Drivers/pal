@@ -78,16 +78,28 @@ extern "C" {
 
 #ifdef __OpenBSD__
 #define DRM_DIR_NAME  "/dev"
-#define DRM_DEV_NAME  "%s/drm%d"
-#define DRM_CONTROL_DEV_NAME  "%s/drmC%d"
-#define DRM_RENDER_DEV_NAME  "%s/drmR%d"
+#define DRM_PRIMARY_MINOR_NAME  "drm"
+#define DRM_CONTROL_MINOR_NAME  "drmC"
+#define DRM_RENDER_MINOR_NAME   "drmR"
 #else
 #define DRM_DIR_NAME  "/dev/dri"
-#define DRM_DEV_NAME  "%s/card%d"
-#define DRM_CONTROL_DEV_NAME  "%s/controlD%d"
-#define DRM_RENDER_DEV_NAME  "%s/renderD%d"
+#define DRM_PRIMARY_MINOR_NAME  "card"
+#define DRM_CONTROL_MINOR_NAME  "controlD"
+#define DRM_RENDER_MINOR_NAME   "renderD"
 #define DRM_PROC_NAME "/proc/dri/" /* For backward Linux compatibility */
 #endif
+
+#define DRM_DEV_NAME          "%s/" DRM_PRIMARY_MINOR_NAME "%d"
+#define DRM_CONTROL_DEV_NAME  "%s/" DRM_CONTROL_MINOR_NAME "%d"
+#define DRM_RENDER_DEV_NAME   "%s/" DRM_RENDER_MINOR_NAME  "%d"
+
+#define DRM_NODE_NAME_MAX \
+    (sizeof(DRM_DIR_NAME) + 1 /* slash */ \
+     + MAX3(sizeof(DRM_PRIMARY_MINOR_NAME), \
+            sizeof(DRM_CONTROL_MINOR_NAME), \
+            sizeof(DRM_RENDER_MINOR_NAME)) \
+     + sizeof("144") /* highest possible node number */ \
+     + 1) /* NULL-terminator */
 
 #define DRM_ERR_NO_DEVICE  (-1001)
 #define DRM_ERR_NO_ACCESS  (-1002)
@@ -733,6 +745,7 @@ extern void drmMsg(const char *format, ...) DRM_PRINTFLIKE(1, 2);
 
 extern int drmSetMaster(int fd);
 extern int drmDropMaster(int fd);
+extern int drmIsMaster(int fd);
 
 #define DRM_EVENT_CONTEXT_VERSION 4
 
@@ -875,6 +888,20 @@ extern int drmSyncobjWait(int fd, uint32_t *handles, unsigned num_handles,
 			  uint32_t *first_signaled);
 extern int drmSyncobjReset(int fd, const uint32_t *handles, uint32_t handle_count);
 extern int drmSyncobjSignal(int fd, const uint32_t *handles, uint32_t handle_count);
+extern int drmSyncobjTimelineSignal(int fd, const uint32_t *handles,
+				    uint64_t *points, uint32_t handle_count);
+extern int drmSyncobjTimelineWait(int fd, uint32_t *handles, uint64_t *points,
+				  unsigned num_handles,
+				  int64_t timeout_nsec, unsigned flags,
+				  uint32_t *first_signaled);
+extern int drmSyncobjQuery(int fd, uint32_t *handles, uint64_t *points,
+			   uint32_t handle_count);
+extern int drmSyncobjQuery2(int fd, uint32_t *handles, uint64_t *points,
+			    uint32_t handle_count, uint32_t flags);
+extern int drmSyncobjTransfer(int fd,
+			      uint32_t dst_handle, uint64_t dst_point,
+			      uint32_t src_handle, uint64_t src_point,
+			      uint32_t flags);
 
 #if defined(__cplusplus)
 }

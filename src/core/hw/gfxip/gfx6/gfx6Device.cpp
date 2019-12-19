@@ -1068,7 +1068,7 @@ size_t Device::GetColorBlendStateSize(
 {
     if (pResult != nullptr)
     {
-        *pResult = ColorBlendState::ValidateCreateInfo(this, createInfo);
+        *pResult = Result::Success;
     }
 
     return sizeof(ColorBlendState);
@@ -1081,11 +1081,8 @@ Result Device::CreateColorBlendState(
     IColorBlendState**               ppColorBlendState
     ) const
 {
-    ColorBlendState* pColorBlendState = PAL_PLACEMENT_NEW(pPlacementAddr) ColorBlendState(*this, createInfo);
-
-    PAL_ASSERT(pColorBlendState != nullptr);
-
-    *ppColorBlendState = pColorBlendState;
+    *ppColorBlendState = PAL_PLACEMENT_NEW(pPlacementAddr) ColorBlendState(*this, createInfo);
+    PAL_ASSERT(*ppColorBlendState != nullptr);
 
     return Result::Success;
 }
@@ -1111,20 +1108,10 @@ Result Device::CreateDepthStencilState(
     IDepthStencilState**               ppDepthStencilState
     ) const
 {
-    DepthStencilState* pDepthStencilState = PAL_PLACEMENT_NEW(pPlacementAddr) DepthStencilState(*this);
+    *ppDepthStencilState = PAL_PLACEMENT_NEW(pPlacementAddr) DepthStencilState(createInfo);
+    PAL_ASSERT(*ppDepthStencilState != nullptr);
 
-    Result result = pDepthStencilState->Init(createInfo);
-
-    if (result != Result::Success)
-    {
-        pDepthStencilState->Destroy();
-    }
-    else
-    {
-        *ppDepthStencilState = pDepthStencilState;
-    }
-
-    return result;
+    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -1148,20 +1135,10 @@ Result Device::CreateMsaaState(
     IMsaaState**               ppMsaaState
     ) const
 {
-    MsaaState* pMsaaState = PAL_PLACEMENT_NEW(pPlacementAddr) MsaaState();
+    *ppMsaaState = PAL_PLACEMENT_NEW(pPlacementAddr) MsaaState(*this, createInfo);
+    PAL_ASSERT(*ppMsaaState != nullptr);
 
-    Result result = pMsaaState->Init(*this, createInfo);
-
-    if (result != Result::Success)
-    {
-        pMsaaState->Destroy();
-    }
-    else
-    {
-        *ppMsaaState = pMsaaState;
-    }
-
-    return result;
+    return Result::Success;
 }
 
 // =====================================================================================================================

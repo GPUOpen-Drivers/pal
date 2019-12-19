@@ -25,6 +25,9 @@
 
 #pragma once
 
+#include "core/os/amdgpu/amdgpuDevice.h"
+#include "core/os/amdgpu/amdgpuGpuMemory.h"
+#include "core/os/amdgpu/amdgpuImage.h"
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
 #include "core/os/amdgpu/dri3/g_dri3Loader.h"
 
@@ -59,7 +62,10 @@ public:
 
     virtual Result WaitForCompletion(bool doWait) override;
 
+    virtual Result AssociatePriorRenderFence(IQueue* pQueue) override { return Result::Success; }
+
     void SetPresented(bool set) { m_presented = set; }
+    void AttachImage(Image* pImage) { m_pImage = pImage; }
 
     xcb_sync_fence_t  SyncFence() const { return m_syncFence; }
     struct xshmfence* ShmFence()  const { return m_pShmFence; }
@@ -74,6 +80,7 @@ private:
     xcb_sync_fence_t        m_syncFence;
     struct xshmfence*       m_pShmFence;
     bool                    m_presented;
+    Image*                  m_pImage;
 
     PAL_DISALLOW_DEFAULT_CTOR(Dri3PresentFence);
     PAL_DISALLOW_COPY_AND_ASSIGN(Dri3PresentFence);
@@ -145,6 +152,8 @@ public:
         PresentFence*               pIdleFence) override;
 
     virtual Result WaitForLastImagePresented() override;
+
+    virtual Result RequestImageWithIndex(uint32 index) override { return Result::Success; }
 
 private:
     Dri3WindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);

@@ -120,64 +120,6 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderRingSet);
 };
 
-// Represents an "image" of the PM4 commands necessary to write a UniversalRingSet to hardware. The required register
-// writes are grouped into sets based on sequential register addresses, so that we can minimize the amount of PM4 space
-// needed by setting several reg's in each packet.
-struct UniversalRingSetPm4Img
-{
-    PM4CMDEVENTWRITE              vsPartialFlush;
-    PM4CMDEVENTWRITE              vgtFlush;
-
-    PM4CMDSETDATA                 hdrEsGsGsVsRingSize;
-    regVGT_ESGS_RING_SIZE         vgtEsGsRingSize;
-    regVGT_GSVS_RING_SIZE         vgtGsVsRingSize;
-
-    PM4CMDSETDATA                 hdrTfMemoryBase;
-    regVGT_TF_MEMORY_BASE         vgtTfMemoryBase;
-
-    PM4CMDSETDATA                 hdrTfRingSize;
-    regVGT_TF_RING_SIZE           vgtTfRingSize;
-
-    PM4CMDSETDATA                 hdrHsOffchipParam;
-    regVGT_HS_OFFCHIP_PARAM       vgtHsOffchipParam;
-
-    // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
-    // actual commands contained within.
-    size_t                        spaceNeeded;
-};
-
-// Represents an "image" of the PM4 commands necessary to write a UniversalRingSet to hardware. Only include affected
-// registers not in Rlc save/restore list.
-struct UniversalRingSetNonRlcRestoredPm4Img
-{
-    PM4CMDSETDATA                 hdrLsUserData;
-    regSPI_SHADER_USER_DATA_LS_0  lsUserData0;
-
-    PM4CMDSETDATA                 hdrHsUserData;
-    regSPI_SHADER_USER_DATA_HS_0  hsUserData0;
-
-    PM4CMDSETDATA                 hdrEsUserData;
-    regSPI_SHADER_USER_DATA_ES_0  esUserData0;
-
-    PM4CMDSETDATA                 hdrGsUserData;
-    regSPI_SHADER_USER_DATA_GS_0  gsUserData0;
-
-    PM4CMDSETDATA                 hdrVsUserData;
-    regSPI_SHADER_USER_DATA_VS_0  vsUserData0;
-
-    PM4CMDSETDATA                 hdrPsUserData;
-    regSPI_SHADER_USER_DATA_PS_0  psUserData0;
-
-    PM4CMDSETDATA                 hdrComputeUserData;
-    regCOMPUTE_USER_DATA_0        computeUserData0;
-
-    PM4CMDSETDATA                 hdrGfxScratchRingSize;
-    regSPI_TMPRING_SIZE           gfxScratchRingSize;
-
-    PM4CMDSETDATA                 hdrComputeScratchRingSize;
-    regCOMPUTE_TMPRING_SIZE       computeScratchRingSize;
-};
-
 // =====================================================================================================================
 // Implements a ShaderRingSet for a Universal Queue.
 class UniversalRingSet : public ShaderRingSet
@@ -194,26 +136,21 @@ public:
     virtual uint32* WriteNonRlcRestoredRegs(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
 
 private:
-    void BuildPm4Headers();
+    struct
+    {
+        regVGT_ESGS_RING_SIZE    vgtEsGsRingSize;
+        regVGT_GSVS_RING_SIZE    vgtGsVsRingSize;
+        regVGT_TF_MEMORY_BASE    vgtTfMemoryBase;
+        regVGT_TF_RING_SIZE      vgtTfRingSize;
+        regVGT_HS_OFFCHIP_PARAM  vgtHsOffchipParam;
 
-    // Command images used to write this Ring-Set's state to hardware.
-    UniversalRingSetPm4Img               m_pm4Commands;
-    UniversalRingSetNonRlcRestoredPm4Img m_pm4NonRlcRestoredCommands;
+        // Note: These two are written separately, because they are not restored by the RLC.
+        regSPI_TMPRING_SIZE      gfxScratchRingSize;
+        regCOMPUTE_TMPRING_SIZE  computeScratchRingSize;
+    }  m_regs;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalRingSet);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalRingSet);
-};
-
-// Represents an "image" of the PM4 commands necessary to write a ComputeRingSet to hardware. The required register
-// writes are grouped into sets based on sequential register addresses, so that we can minimize the amount of PM4 space
-// needed by setting several reg's in each packet.
-struct ComputeRingSetPm4Img
-{
-    PM4CMDSETDATA           hdrComputeUserData;
-    regCOMPUTE_USER_DATA_0  computeUserData0;
-
-    PM4CMDSETDATA           hdrComputeScratchRingSize;
-    regCOMPUTE_TMPRING_SIZE computeScratchRingSize;
 };
 
 // =====================================================================================================================
@@ -235,9 +172,10 @@ public:
         { PAL_NEVER_CALLED(); return pCmdSpace; }
 
 private:
-    void BuildPm4Headers();
-
-    ComputeRingSetPm4Img m_pm4Commands; // Image of the PM4 commands used to write this Ring-Set's state to hardware.
+    struct
+    {
+        regCOMPUTE_TMPRING_SIZE  computeScratchRingSize;
+    }  m_regs;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputeRingSet);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeRingSet);

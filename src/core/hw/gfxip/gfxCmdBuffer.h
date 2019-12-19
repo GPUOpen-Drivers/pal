@@ -135,17 +135,6 @@ struct GfxCmdBufferState
     } flags;
 };
 
-// Internal flags for CmdScaledCopyImage.
-union ScaledCopyInternalFlags
-{
-    struct
-    {
-        uint32 srcSrgbAsUnorm :  1; // Treat the source image's SRGB data as UNORM data.
-        uint32 reserved       : 31;
-    };
-    uint32 u32All;
-};
-
 // Tracks the state of a user-data table stored in GPU memory.  The table's contents are managed using embedded data
 // and the CPU, or using GPU scratch memory and CE RAM.
 struct UserDataTableState

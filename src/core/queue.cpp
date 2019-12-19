@@ -41,11 +41,170 @@
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "palDequeImpl.h"
 #include "palSysUtil.h"
+#include "palAutoBuffer.h"
 
 using namespace Util;
 
 namespace Pal
 {
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+// Struct for passing the log file and pal setting pointers to the command buffer dump callback.
+struct CmdDumpToFilePayload
+{
+    File*               pLogFile;
+    const PalSettings*  pSettings;
+};
+
+// =====================================================================================================================
+// Helper fuction for writing out the header of a text dump of a command buffer.
+static Result WriteCmdBufferDumpHeaderToFile(
+    const CmdBufferDumpDesc&      cmdBufferDesc,
+    File*                         pLogFile,
+    uint64                        sizeOfBufferInDwords)
+{
+    const char* QueueTypeStrings[] =
+    {
+        "# Universal Queue - QueueContext",
+        "# Compute Queue - QueueContext",
+        "# DMA Queue - QueueContext",
+        "",
+    };
+
+    static_assert(ArrayLen(QueueTypeStrings) == static_cast<size_t>(QueueTypeCount),
+        "Mismatch between QueueTypeStrings array size and QueueTypeCount");
+
+    const char* EngineQueueStrings[] =
+    {
+        "# Universal Queue -",
+        "# Compute Queue -",
+        "# DMA Queue -",
+        " ",
+    };
+
+    static_assert(ArrayLen(EngineQueueStrings) == static_cast<size_t>(EngineTypeCount),
+        "Mismatch between UniversalQueueStrings array size and EngineTypeCount");
+
+    const char* commandString = "";
+    const char* suffix = "";
+
+    if ((cmdBufferDesc.flags.isPostamble == true) ||
+        (cmdBufferDesc.flags.isPreamble == true))
+    {
+        commandString = QueueTypeStrings[cmdBufferDesc.queueType];
+    }
+    else
+    {
+        commandString = EngineQueueStrings[cmdBufferDesc.engineType];
+
+        if (cmdBufferDesc.engineType == EngineTypeUniversal)
+        {
+            if (cmdBufferDesc.subEngineType == SubEngineType::Primary)
+            {
+                suffix = " DE";
+            }
+            else
+            {
+                suffix = " CE";
+            }
+        }
+    }
+
+    // First, output the header information.
+    constexpr size_t MaxLineSize = 128;
+    char line[MaxLineSize];
+
+    Snprintf(line, MaxLineSize, "%s%s%s%llu\n", commandString, suffix, " Command length = ", sizeOfBufferInDwords);
+    return pLogFile->Write(line, strlen(line));
+}
+
+// =====================================================================================================================
+// callback function for writing commmand buffers to a file.
+static void PAL_STDCALL WriteCmdDumpToFile(
+    const CmdBufferDumpDesc&        cmdBufferDesc,
+    const CmdBufferChunkDumpDesc*   pChunks,
+    uint32                          numChunks,
+    void*                           pUserData)
+{
+    CmdDumpToFilePayload* pPayload = reinterpret_cast<CmdDumpToFilePayload*>(pUserData);
+    File* pLogFile = pPayload->pLogFile;
+
+    const CmdBufDumpFormat dumpFormat = pPayload->pSettings->cmdBufDumpFormat;
+
+    Result result = Result::Success;
+
+    if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText)
+    {
+        // Compute the size of all data associated with this stream.
+        uint64 sizeOfBufferInDwords = 0;
+        for (uint32 index = 0; index < numChunks; ++index)
+        {
+            sizeOfBufferInDwords += NumBytesToNumDwords(static_cast<uint32>(pChunks[index].size));
+        }
+
+        result = WriteCmdBufferDumpHeaderToFile(cmdBufferDesc, pLogFile, sizeOfBufferInDwords);
+    }
+
+    uint32 subEngineId = 0; // DE subengine ID
+
+    if (cmdBufferDesc.subEngineType == SubEngineType::ConstantEngine)
+    {
+        if (cmdBufferDesc.flags.isPreamble == true)
+        {
+            subEngineId = 2; // CE preamble subengine ID
+        }
+        else
+        {
+            subEngineId = 1; // CE subengine ID
+        }
+    }
+    else if (cmdBufferDesc.engineType == EngineType::EngineTypeDma)
+    {
+        subEngineId = 4; // SDMA engine ID
+    }
+
+    // Next, walk through all the chunks that make up this command stream and write their command to the file.
+    for (uint32 index = 0; index < numChunks; ++index)
+    {
+        const CmdBufferChunkDumpDesc& chunkDesc = pChunks[index];
+
+        if ((dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
+            (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
+        {
+            if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders)
+            {
+                const CmdBufferDumpHeader chunkheader =
+                {
+                    static_cast<uint32>(sizeof(CmdBufferDumpHeader)),
+                    static_cast<uint32>(chunkDesc.size),
+                    subEngineId
+                };
+                pLogFile->Write(&chunkheader, sizeof(chunkheader));
+            }
+            pLogFile->Write(chunkDesc.pCommands, chunkDesc.size);
+        }
+        else
+        {
+            constexpr uint32 MaxLineSize = 16;
+            char line[MaxLineSize];
+
+            PAL_ASSERT(dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText);
+
+            const uint32 chunkSizeInDwords = NumBytesToNumDwords(static_cast<uint32>(chunkDesc.size));
+
+            for (uint32 idx = 0; idx < chunkSizeInDwords && (result == Result::Success); ++idx)
+            {
+                Snprintf(line, MaxLineSize, "0x%08x\n", reinterpret_cast<const uint32*>(chunkDesc.pCommands)[idx]);
+                result = pLogFile->Write(line, strlen(line));
+            }
+        }
+    }
+
+    // Don't bother returning an error if the command buffer wasn't dumped correctly as we don't want this to affect
+    // operation of the "important" stuff...  but still make it apparent that the dump file isn't accurate.
+    PAL_ALERT(result != Result::Success);
+}
+#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
 
 // =====================================================================================================================
 void SubmissionContext::TakeReference()
@@ -375,10 +534,40 @@ Result Queue::SubmitInternal(
 #if PAL_ENABLE_PRINTS_ASSERTS
     if (result == Result::Success)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+        if (IsCmdDumpEnabled())
+        {
+            Util::File logFile;
+            // Open file for write depending on the settings
+            const Result openResult = OpenCommandDumpFile(submitInfo, internalSubmitInfo, &logFile);
+
+            if (openResult == Result::Success) // file opened correctly
+            {
+                SubmitInfo submitInfoCopy = submitInfo;
+
+                CmdDumpToFilePayload payload = {};
+                payload.pLogFile  = &logFile;
+                payload.pSettings = &m_pDevice->Settings();
+
+                submitInfoCopy.pfnCmdDumpCb = WriteCmdDumpToFile;
+                submitInfoCopy.pUserData    = &payload;
+
+                DumpCmdBuffers(submitInfoCopy, internalSubmitInfo);
+            }
+        }
+#else // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 555
         // Dump command buffer
         DumpCmdToFile(submitInfo, internalSubmitInfo);
-    }
 #endif
+    }
+#endif // PAL_ENABLE_PRINTS_ASSERTS
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+    if ((submitInfo.pfnCmdDumpCb != nullptr) && (result == Result::Success))
+    {
+        DumpCmdBuffers(submitInfo, internalSubmitInfo);
+    }
+#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
 
     if (result == Result::Success)
     {
@@ -417,6 +606,235 @@ Result Queue::SubmitInternal(
 
     return result;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+// =====================================================================================================================
+// Calls DumpCmdStream on the preamble, postamble, and all the command streams in the submitInfo.
+void Queue::DumpCmdBuffers(
+    const SubmitInfo&           submitInfo,
+    const InternalSubmitInfo&   internalSubmitInfo
+    ) const
+{
+    for (uint32 idx = 0; idx < internalSubmitInfo.numPreambleCmdStreams; ++idx)
+    {
+        const CmdStream* const pCmdStream = internalSubmitInfo.pPreambleCmdStream[idx];
+        PAL_ASSERT(pCmdStream != nullptr);
+
+        CmdBufferDumpDesc cmdBufferDesc = {};
+
+        cmdBufferDesc.engineType       = GetEngineType();
+        cmdBufferDesc.queueType        = m_type;
+        cmdBufferDesc.subEngineType    = pCmdStream->GetSubEngineType();
+        cmdBufferDesc.flags.isPreamble = 1;
+        cmdBufferDesc.cmdBufferIdx     = UINT32_MAX;
+
+        DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
+    }
+
+    for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.cmdBufferCount; ++idxCmdBuf)
+    {
+        const CmdBuffer* const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idxCmdBuf]);
+        PAL_ASSERT(pCmdBuffer != nullptr);
+
+        for (uint32 idx = 0; idx < pCmdBuffer->NumCmdStreams(); ++idx)
+        {
+            const CmdStream* const pCmdStream = pCmdBuffer->GetCmdStream(idx);
+            PAL_ASSERT(pCmdStream != nullptr);
+
+            CmdBufferDumpDesc cmdBufferDesc = {};
+
+            cmdBufferDesc.engineType      = GetEngineType();
+            cmdBufferDesc.queueType       = m_type;
+            cmdBufferDesc.subEngineType   = pCmdStream->GetSubEngineType();
+            cmdBufferDesc.cmdBufferIdx    = idxCmdBuf;
+
+            DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
+        }
+    }
+
+    for (uint32 idx = 0; idx < internalSubmitInfo.numPostambleCmdStreams; ++idx)
+    {
+        const CmdStream* const pCmdStream = internalSubmitInfo.pPostambleCmdStream[idx];
+        PAL_ASSERT(pCmdStream != nullptr);
+
+        CmdBufferDumpDesc cmdBufferDesc = {};
+
+        cmdBufferDesc.engineType        = GetEngineType();
+        cmdBufferDesc.queueType         = m_type;
+        cmdBufferDesc.subEngineType     = pCmdStream->GetSubEngineType();
+        cmdBufferDesc.flags.isPostamble = 1;
+        cmdBufferDesc.cmdBufferIdx   = UINT32_MAX;
+
+        DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
+    }
+}
+
+// =====================================================================================================================
+// Iterates though the chunks in the command stream and sends them to the callback function for dumping.
+void Queue::DumpCmdStream(
+    const CmdBufferDumpDesc& cmdBufferDesc,
+    const CmdStream*         pCmdStream,
+    CmdDumpCallback          pfnCmdDumpCb,
+    void*                    pUserData
+    ) const
+{
+    PAL_ASSERT(pfnCmdDumpCb != nullptr);
+
+    // need to get the number of chunks in this stream for the auto buffer
+    const uint32 numOfChunks = pCmdStream->GetNumChunks();
+
+    AutoBuffer<CmdBufferChunkDumpDesc, 8, Platform> cmdBufferChunks(numOfChunks, m_pDevice->GetPlatform());
+
+    // Walk through all the chunks that make up this command stream and add them to the chunk list
+    for (auto iter = pCmdStream->GetFwdIterator(); iter.IsValid(); iter.Next())
+    {
+        const uint32 id                   = iter.Position();
+        const CmdStreamChunk* const chunk = iter.Get();
+        cmdBufferChunks[id].id            = id;
+        cmdBufferChunks[id].pCommands     = chunk->WriteAddr();
+        cmdBufferChunks[id].size          = chunk->DwordsAllocated() * static_cast<uint32>(sizeof(uint32));
+    }
+
+    pfnCmdDumpCb(cmdBufferDesc, cmdBufferChunks.Data(), numOfChunks, pUserData);
+}
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+// =====================================================================================================================
+// Helper function to find out if command dumping to file at submit time is enabled.
+bool Queue::IsCmdDumpEnabled() const
+{
+    // To dump the command buffer upon submission for the specified frames
+    const auto& settings              = m_pDevice->Settings();
+    const CmdBufDumpFormat dumpFormat = settings.cmdBufDumpFormat;
+    const uint32 frameCnt             = m_pDevice->GetFrameCount();
+
+    const bool cmdBufDumpEnabled = (m_pDevice->IsCmdBufDumpEnabled() ||
+        ((frameCnt >= settings.submitTimeCmdBufDumpStartFrame) &&
+         (frameCnt <= settings.submitTimeCmdBufDumpEndFrame)));
+
+    return ((settings.cmdBufDumpMode == CmdBufDumpModeSubmitTime) && cmdBufDumpEnabled);
+}
+
+// =====================================================================================================================
+// Opens the command buffer dump file and writes out the header according to settings.
+Result Queue::OpenCommandDumpFile(
+    const SubmitInfo&           submitInfo,
+    const InternalSubmitInfo&   internalSubmitInfo,
+    Util::File*                 pLogFile)
+{
+    // To dump the command buffer upon submission for the specified frames
+    const auto& settings              = m_pDevice->Settings();
+    const CmdBufDumpFormat dumpFormat = settings.cmdBufDumpFormat;
+
+    static const char* const pSuffix[] =
+    {
+        ".txt",     // CmdBufDumpFormat::CmdBufDumpFormatText
+        ".bin",     // CmdBufDumpFormat::CmdBufDumpFormatBinary
+        ".pm4"      // CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders
+    };
+
+    const uint32 frameCnt = m_pDevice->GetFrameCount();
+    const char* pLogDir   = &settings.cmdBufDumpDirectory[0];
+
+    // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
+    MkDir(pLogDir);
+
+    // Maximum length of a filename allowed for command buffer dumps, seems more reasonable than 32
+    constexpr uint32 MaxFilenameLength = 512;
+    char filename[MaxFilenameLength]   = {};
+
+    // Multiple submissions of one frame
+    if (m_lastFrameCnt == frameCnt)
+    {
+        m_submitIdPerFrame++;
+    }
+    else
+    {
+        // First submission of one frame
+        m_submitIdPerFrame = 0;
+    }
+
+    // Add queue type and this pointer to file name to make name unique since there could be multiple queues/engines
+    // and/or multiple vitual queues (on the same engine on) which command buffers are submitted
+    Snprintf(filename, MaxFilenameLength, "%s/Frame_%u_%p_%u_%04u%s",
+        pLogDir,
+        m_type,
+        this,
+        frameCnt,
+        m_submitIdPerFrame,
+        pSuffix[dumpFormat]);
+
+    m_lastFrameCnt = frameCnt;
+
+    if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText)
+    {
+        PAL_ALERT_MSG(pLogFile->Open(&filename[0], FileAccessMode::FileAccessWrite) != Result::Success,
+            "Failed to open CmdBuf dump file '%s'", filename);
+    }
+    else if ((dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
+        (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
+    {
+        const uint32 fileMode = FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary;
+        PAL_ALERT_MSG(pLogFile->Open(&filename[0], fileMode) != Result::Success,
+            "Failed to open CmdBuf dump file '%s'", filename);
+
+        if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders)
+        {
+            const CmdBufferDumpFileHeader fileHeader =
+            {
+                static_cast<uint32>(sizeof(CmdBufferDumpFileHeader)), // Structure size
+                1,                                                    // Header version
+                m_pDevice->ChipProperties().familyId,                 // ASIC family
+                m_pDevice->ChipProperties().eRevId,                   // ASIC revision
+                0                                                     // Reserved
+            };
+            pLogFile->Write(&fileHeader, sizeof(fileHeader));
+        }
+
+        CmdBufferListHeader listHeader =
+        {
+            static_cast<uint32>(sizeof(CmdBufferListHeader)),   // Structure size
+            EngineId(),                                         // Engine index
+            0                                                   // Number of command buffer chunks
+        };
+
+        for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.cmdBufferCount; ++idxCmdBuf)
+        {
+            PAL_ASSERT(submitInfo.ppCmdBuffers[idxCmdBuf] != nullptr);
+            const CmdBuffer* const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idxCmdBuf]);
+
+            for (uint32 idxStream = 0; idxStream < pCmdBuffer->NumCmdStreams(); ++idxStream)
+            {
+                listHeader.count += pCmdBuffer->GetCmdStream(idxStream)->GetNumChunks();
+            }
+        }
+
+        for (uint32 idx = 0; idx < internalSubmitInfo.numPreambleCmdStreams; ++idx)
+        {
+            PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
+            listHeader.count += internalSubmitInfo.pPreambleCmdStream[idx]->GetNumChunks();
+        }
+
+        for (uint32 idx = 0; idx < internalSubmitInfo.numPostambleCmdStreams; ++idx)
+        {
+            PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
+            listHeader.count += internalSubmitInfo.pPostambleCmdStream[idx]->GetNumChunks();
+        }
+
+        pLogFile->Write(&listHeader, sizeof(listHeader));
+    }
+    else
+    {
+        // If we get here, dumping is enabled, but it's not one of the modes listed above.
+        // Perhaps someone added a new mode?
+        PAL_ASSERT_ALWAYS();
+    }
+
+    return (pLogFile->IsOpen()) ? Result::Success : Result::ErrorInitializationFailed;
+}
+
+#endif // PAL_ENABLE_PRINTS_ASSERTS
+#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================

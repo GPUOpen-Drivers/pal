@@ -42,6 +42,7 @@ extern "C" {
 #endif
 
 struct drm_amdgpu_info_hw_ip;
+struct drm_amdgpu_bo_list_entry;
 struct drm_amdgpu_capability;
 
 /*--------------------------------------------------------------------------*/
@@ -67,11 +68,6 @@ struct drm_amdgpu_capability;
  */
 #define AMDGPU_QUERY_FENCE_TIMEOUT_IS_ABSOLUTE     (1 << 0)
 
-/**
- * Used in amdgpu_query_capability(), meaning if pin feature is enabled.
- */
-#define AMDGPU_CAP_PIN_MEM  (1 << 0)
-
 /*--------------------------------------------------------------------------*/
 /* ----------------------------- Enums ------------------------------------ */
 /*--------------------------------------------------------------------------*/
@@ -92,8 +88,8 @@ enum amdgpu_bo_handle_type {
 	/** DMA-buf fd handle */
 	amdgpu_bo_handle_type_dma_buf_fd = 2,
 
-	/** KMS handle, but re-importing as a DMABUF handle through
-	 *  drmPrimeHandleToFD is forbidden. (Glamor does that)
+	/** Deprecated in favour of and same behaviour as
+	 * amdgpu_bo_handle_type_kms, use that instead of this
 	 */
 	amdgpu_bo_handle_type_kms_noimport = 3,
 };
@@ -729,6 +725,29 @@ int amdgpu_create_bo_from_user_mem(amdgpu_device_handle dev,
 				    amdgpu_bo_handle *buf_handle);
 
 /**
+ * Validate if the user memory comes from BO
+ *
+ * \param dev - [in] Device handle. See #amdgpu_device_initialize()
+ * \param cpu - [in] CPU address of user allocated memory which we
+ * want to map to GPU address space (make GPU accessible)
+ * (This address must be correctly aligned).
+ * \param size - [in] Size of allocation (must be correctly aligned)
+ * \param buf_handle - [out] Buffer handle for the userptr memory
+ * if the user memory is not from BO, the buf_handle will be NULL.
+ * \param offset_in_bo - [out] offset in this BO for this user memory
+ *
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+*/
+int amdgpu_find_bo_by_cpu_mapping(amdgpu_device_handle dev,
+				  void *cpu,
+				  uint64_t size,
+				  amdgpu_bo_handle *buf_handle,
+				  uint64_t *offset_in_bo);
+
+/**
  * Request GPU access to physical memory from 3rd party device.
  *
  * \param dev - [in] Device handle. See #amdgpu_device_initialize()
@@ -773,30 +792,7 @@ int amdgpu_bo_get_phys_address(amdgpu_bo_handle buf_handle,
 					uint64_t *phys_address);
 
 /**
- * Validate if the user memory comes from BO
- *
- * \param dev - [in] Device handle. See #amdgpu_device_initialize()
- * \param cpu - [in] CPU address of user allocated memory which we
- * want to map to GPU address space (make GPU accessible)
- * (This address must be correctly aligned).
- * \param size - [in] Size of allocation (must be correctly aligned)
- * \param buf_handle - [out] Buffer handle for the userptr memory
- * if the user memory is not from BO, the buf_handle will be NULL.
- * \param offset_in_bo - [out] offset in this BO for this user memory
- *
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
-*/
-int amdgpu_find_bo_by_cpu_mapping(amdgpu_device_handle dev,
-				  void *cpu,
-				  uint64_t size,
-				  amdgpu_bo_handle *buf_handle,
-				  uint64_t *offset_in_bo);
-
-/**
- * Free previosuly allocated memory
+ * Free previously allocated memory
  *
  * \param   dev	       - \c [in] Device handle. See #amdgpu_device_initialize()
  * \param   buf_handle - \c [in]  Buffer handle to free
@@ -820,16 +816,13 @@ int amdgpu_bo_free(amdgpu_bo_handle buf_handle);
  *
  * \param   bo - \c [in]  Buffer object handle to increase the reference count
  *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
  * \sa amdgpu_bo_alloc(), amdgpu_bo_free()
  *
 */
 void amdgpu_bo_inc_ref(amdgpu_bo_handle bo);
 
 /**
- * Request CPU access to GPU accessable memory
+ * Request CPU access to GPU accessible memory
  *
  * \param   buf_handle - \c [in] Buffer handle
  * \param   cpu        - \c [out] CPU address to be used for access
@@ -871,6 +864,37 @@ int amdgpu_bo_cpu_unmap(amdgpu_bo_handle buf_handle);
 int amdgpu_bo_wait_for_idle(amdgpu_bo_handle buf_handle,
 			    uint64_t timeout_ns,
 			    bool *buffer_busy);
+
+/**
+ * Creates a BO list handle for command submission.
+ *
+ * \param   dev			- \c [in] Device handle.
+ *				   See #amdgpu_device_initialize()
+ * \param   number_of_buffers	- \c [in] Number of BOs in the list
+ * \param   buffers		- \c [in] List of BO handles
+ * \param   result		- \c [out] Created BO list handle
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+ * \sa amdgpu_bo_list_destroy_raw(), amdgpu_cs_submit_raw2()
+*/
+int amdgpu_bo_list_create_raw(amdgpu_device_handle dev,
+			      uint32_t number_of_buffers,
+			      struct drm_amdgpu_bo_list_entry *buffers,
+			      uint32_t *result);
+
+/**
+ * Destroys a BO list handle.
+ *
+ * \param   bo_list	- \c [in] BO list handle.
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+ * \sa amdgpu_bo_list_create_raw(), amdgpu_cs_submit_raw2()
+*/
+int amdgpu_bo_list_destroy_raw(amdgpu_device_handle dev, uint32_t bo_list);
 
 /**
  * Creates a BO list handle for command submission.
@@ -978,6 +1002,21 @@ int amdgpu_cs_ctx_create(amdgpu_device_handle dev,
 int amdgpu_cs_ctx_free(amdgpu_context_handle context);
 
 /**
+ * Override the submission priority for the given context using a master fd.
+ *
+ * \param   dev        - \c [in] device handle
+ * \param   context    - \c [in] context handle for context id
+ * \param   master_fd  - \c [in] The master fd to authorize the override.
+ * \param   priority   - \c [in] The priority to assign to the context.
+ *
+ * \return 0 on success or a a negative Posix error code on failure.
+ */
+int amdgpu_cs_ctx_override_priority(amdgpu_device_handle dev,
+                                    amdgpu_context_handle context,
+                                    int master_fd,
+                                    unsigned priority);
+
+/**
  * Query reset state for the specific GPU Context
  *
  * \param   context - \c [in]  GPU Context handle
@@ -992,6 +1031,21 @@ int amdgpu_cs_ctx_free(amdgpu_context_handle context);
 */
 int amdgpu_cs_query_reset_state(amdgpu_context_handle context,
 				uint32_t *state, uint32_t *hangs);
+
+/**
+ * Query reset state for the specific GPU Context.
+ *
+ * \param   context - \c [in]  GPU Context handle
+ * \param   flags   - \c [out] A combination of AMDGPU_CTX_QUERY2_FLAGS_*
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+ * \sa amdgpu_cs_ctx_create()
+ *
+*/
+int amdgpu_cs_query_reset_state2(amdgpu_context_handle context,
+				 uint64_t *flags);
 
 /*
  * Command Buffers Management
@@ -1373,7 +1427,7 @@ int amdgpu_read_mm_registers(amdgpu_device_handle dev, unsigned dword_offset,
  * \notes \n
  * It is client responsibility to correctly handle VA assignments and usage.
  * Neither kernel driver nor libdrm_amdpgu are able to prevent and
- * detect wrong va assignemnt.
+ * detect wrong va assignment.
  *
  * It is client responsibility to correctly handle multi-GPU cases and to pass
  * the corresponding arrays of all devices handles where corresponding VA will
@@ -1566,19 +1620,6 @@ int amdgpu_cs_signal_sem(amdgpu_device_handle dev,
 			 uint32_t ip_instance,
 			 uint32_t ring,
 			 amdgpu_sem_handle sem);
-/**
- *  reserve vmid for this process
- *
- * \param   dev    - [in] Device handle. See #amdgpu_device_initialize()
- */
-int amdgpu_cs_reserved_vmid(amdgpu_device_handle dev);
-
-/**
- *  unreserve vmid for this process
- *
- * \param   dev    - [in] Device handle. See #amdgpu_device_initialize()
- */
-int amdgpu_cs_unreserved_vmid(amdgpu_device_handle dev);
 
 /**
  *  wait sem
@@ -1621,6 +1662,20 @@ int amdgpu_cs_import_sem(amdgpu_device_handle dev,
  */
 int amdgpu_cs_destroy_sem(amdgpu_device_handle dev,
 			  amdgpu_sem_handle sem);
+
+/**
+ *  reserve vmid for this process
+ *
+ * \param   dev    - [in] Device handle. See #amdgpu_device_initialize()
+ */
+int amdgpu_cs_reserved_vmid(amdgpu_device_handle dev);
+
+/**
+ *  unreserve vmid for this process
+ *
+ * \param   dev    - [in] Device handle. See #amdgpu_device_initialize()
+ */
+int amdgpu_cs_unreserved_vmid(amdgpu_device_handle dev);
 
 /**
  *  Get the ASIC marketing name
@@ -1701,6 +1756,23 @@ int amdgpu_cs_syncobj_signal(amdgpu_device_handle dev,
 			     const uint32_t *syncobjs, uint32_t syncobj_count);
 
 /**
+ * Signal kernel timeline sync objects.
+ *
+ * \param dev           - \c [in] device handle
+ * \param syncobjs      - \c [in] array of sync object handles
+ * \param points	- \c [in] array of timeline points
+ * \param syncobj_count - \c [in] number of handles in syncobjs
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+*/
+int amdgpu_cs_syncobj_timeline_signal(amdgpu_device_handle dev,
+				      const uint32_t *syncobjs,
+				      uint64_t *points,
+				      uint32_t syncobj_count);
+
+/**
  *  Wait for one or all sync objects to signal.
  *
  * \param   dev	    - \c [in] self-explanatory
@@ -1719,6 +1791,63 @@ int amdgpu_cs_syncobj_wait(amdgpu_device_handle dev,
 			   uint32_t *handles, unsigned num_handles,
 			   int64_t timeout_nsec, unsigned flags,
 			   uint32_t *first_signaled);
+
+/**
+ *  Wait for one or all sync objects on their points to signal.
+ *
+ * \param   dev	    - \c [in] self-explanatory
+ * \param   handles - \c [in] array of sync object handles
+ * \param   points - \c [in] array of sync points to wait
+ * \param   num_handles - \c [in] self-explanatory
+ * \param   timeout_nsec - \c [in] self-explanatory
+ * \param   flags   - \c [in] a bitmask of DRM_SYNCOBJ_WAIT_FLAGS_*
+ * \param   first_signaled - \c [in] self-explanatory
+ *
+ * \return   0 on success\n
+ *          -ETIME - Timeout
+ *          <0 - Negative POSIX Error code
+ *
+ */
+int amdgpu_cs_syncobj_timeline_wait(amdgpu_device_handle dev,
+				    uint32_t *handles, uint64_t *points,
+				    unsigned num_handles,
+				    int64_t timeout_nsec, unsigned flags,
+				    uint32_t *first_signaled);
+/**
+ *  Query sync objects payloads.
+ *
+ * \param   dev	    - \c [in] self-explanatory
+ * \param   handles - \c [in] array of sync object handles
+ * \param   points - \c [out] array of sync points returned, which presents
+ * syncobj payload.
+ * \param   num_handles - \c [in] self-explanatory
+ *
+ * \return   0 on success\n
+ *          -ETIME - Timeout
+ *          <0 - Negative POSIX Error code
+ *
+ */
+int amdgpu_cs_syncobj_query(amdgpu_device_handle dev,
+			    uint32_t *handles, uint64_t *points,
+			    unsigned num_handles);
+/**
+ *  Query sync objects last signaled or submitted point.
+ *
+ * \param   dev	    - \c [in] self-explanatory
+ * \param   handles - \c [in] array of sync object handles
+ * \param   points - \c [out] array of sync points returned, which presents
+ * syncobj payload.
+ * \param   num_handles - \c [in] self-explanatory
+ * \param   flags   - \c [in] a bitmask of DRM_SYNCOBJ_QUERY_FLAGS_*
+ *
+ * \return   0 on success\n
+ *          -ETIME - Timeout
+ *          <0 - Negative POSIX Error code
+ *
+ */
+int amdgpu_cs_syncobj_query2(amdgpu_device_handle dev,
+			     uint32_t *handles, uint64_t *points,
+			     unsigned num_handles, uint32_t flags);
 
 /**
  *  Export kernel sync object to shareable fd.
@@ -1778,6 +1907,62 @@ int amdgpu_cs_syncobj_export_sync_file(amdgpu_device_handle dev,
 int amdgpu_cs_syncobj_import_sync_file(amdgpu_device_handle dev,
 				       uint32_t syncobj,
 				       int sync_file_fd);
+/**
+ *  Export kernel timeline sync object to a sync_file.
+ *
+ * \param   dev		- \c [in] device handle
+ * \param   syncobj	- \c [in] sync object handle
+ * \param   point	- \c [in] timeline point
+ * \param   flags	- \c [in] flags
+ * \param   sync_file_fd - \c [out] sync_file file descriptor.
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+ */
+int amdgpu_cs_syncobj_export_sync_file2(amdgpu_device_handle dev,
+					uint32_t syncobj,
+					uint64_t point,
+					uint32_t flags,
+					int *sync_file_fd);
+
+/**
+ *  Import kernel timeline sync object from a sync_file.
+ *
+ * \param   dev		- \c [in] device handle
+ * \param   syncobj	- \c [in] sync object handle
+ * \param   point	- \c [in] timeline point
+ * \param   sync_file_fd - \c [in] sync_file file descriptor.
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+ */
+int amdgpu_cs_syncobj_import_sync_file2(amdgpu_device_handle dev,
+					uint32_t syncobj,
+					uint64_t point,
+					int sync_file_fd);
+
+/**
+ *  transfer between syncbojs.
+ *
+ * \param   dev		- \c [in] device handle
+ * \param   dst_handle	- \c [in] sync object handle
+ * \param   dst_point	- \c [in] timeline point, 0 presents dst is binary
+ * \param   src_handle	- \c [in] sync object handle
+ * \param   src_point	- \c [in] timeline point, 0 presents src is binary
+ * \param   flags	- \c [in] flags
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+ */
+int amdgpu_cs_syncobj_transfer(amdgpu_device_handle dev,
+			       uint32_t dst_handle,
+			       uint64_t dst_point,
+			       uint32_t src_handle,
+			       uint64_t src_point,
+			       uint32_t flags);
 
 /**
  * Export an amdgpu fence as a handle (syncobj or fd).
@@ -1817,6 +2002,28 @@ int amdgpu_cs_submit_raw(amdgpu_device_handle dev,
 			 int num_chunks,
 			 struct drm_amdgpu_cs_chunk *chunks,
 			 uint64_t *seq_no);
+
+/**
+ * Submit raw command submission to the kernel with a raw BO list handle.
+ *
+ * \param   dev	       - \c [in] device handle
+ * \param   context    - \c [in] context handle for context id
+ * \param   bo_list_handle - \c [in] raw bo list handle (0 for none)
+ * \param   num_chunks - \c [in] number of CS chunks to submit
+ * \param   chunks     - \c [in] array of CS chunks
+ * \param   seq_no     - \c [out] output sequence number for submission.
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+ * \sa amdgpu_bo_list_create_raw(), amdgpu_bo_list_destroy_raw()
+ */
+int amdgpu_cs_submit_raw2(amdgpu_device_handle dev,
+			  amdgpu_context_handle context,
+			  uint32_t bo_list_handle,
+			  int num_chunks,
+			  struct drm_amdgpu_cs_chunk *chunks,
+			  uint64_t *seq_no);
 
 void amdgpu_cs_chunk_fence_to_dep(struct amdgpu_cs_fence *fence,
 				  struct drm_amdgpu_cs_chunk_dep *dep);

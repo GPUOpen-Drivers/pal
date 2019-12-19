@@ -2749,7 +2749,8 @@ public:
 
     /// Stalls the current thread until one or all of the specified fences have been reached by the device.
     ///
-    /// All fences must have been submitted at least once before this is called.  Using a zero timeout value returns
+    /// If waitAll is true all fences must have been submitted at least once before this is called;
+    /// otherwise at least one fence must have been submitted.  Using a zero timeout value returns
     /// immediately and can be used to determine the status of a set of fences without stalling.
     ///
     /// @param [in] fenceCount Number of fences to wait for (i.e., size of the ppFences array).

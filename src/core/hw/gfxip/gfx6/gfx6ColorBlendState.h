@@ -28,7 +28,6 @@
 #include "core/hw/gfxip/colorBlendState.h"
 #include "core/hw/gfxip/gfxBlendOptimizer.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
-#include "core/hw/gfxip/gfx6/gfx6Device.h"
 
 namespace Pal
 {
@@ -39,36 +38,12 @@ class CmdStream;
 class Device;
 
 // =====================================================================================================================
-// Represents an "image" of the PM4 commands necessary to write a BlendStatePm4Img to hardware.
-// The required register writes are grouped into sets based on sequential register addresses, so that we can minimize
-// the amount of PM4 space needed by setting several reg's in each packet.
-struct BlendStatePm4Img
-{
-    PM4CMDSETDATA               hdrCbBlendControl;
-
-    // Per-MRT blend control for MRTs 0..7
-    regCB_BLEND0_CONTROL        cbBlendControl[MaxColorTargets];
-
-    // Note: This packet is only used on GFX8+ hardware with the RB+ feature, which should be last in the PM4 image to
-    // eliminate any "gaps" on non-RB+ hardware.
-    PM4CMDSETDATA               hdrSxMrtBlendOpt;
-    regSX_MRT0_BLEND_OPT__VI    sxMrtBlendOpt[MaxColorTargets];
-
-    // Command space needed, in DWORDs. This field must always be last in the structure to not interfere w/ the actual
-    // commands contained within.
-    size_t                      spaceNeeded;
-};
-
-// =====================================================================================================================
 // GFX6-specific color blend  state implementation.  See IColorBlendState documentation for more details.
 class ColorBlendState : public Pal::ColorBlendState
 {
 public:
-    explicit ColorBlendState(const Device& device, const ColorBlendStateCreateInfo& createInfo);
-    void Init(const Device& device, const ColorBlendStateCreateInfo& createInfo);
-    static Result ValidateCreateInfo(const Device* pDevice, const ColorBlendStateCreateInfo& createInfo);
+    ColorBlendState(const Device& device, const ColorBlendStateCreateInfo& createInfo);
 
-    static size_t Pm4ImgSize() { return sizeof(BlendStatePm4Img); }
     uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     template <bool Pm4OptImmediate>
@@ -80,38 +55,43 @@ public:
         GfxBlendOptimizer::BlendOpts*  pBlendOpts,
         uint32*                        pCmdSpace) const;
 
-    bool IsBlendEnabled(uint32 slot) const { return ((m_blendEnableMask & (1 << slot)) != 0); }
-    uint32 BlendEnableMask() const { return m_blendEnableMask; }
+    bool IsBlendEnabled(uint32 slot) const { return ((m_flags.blendEnable & (1 << slot)) != 0); }
+    uint32 BlendEnableMask() const { return m_flags.blendEnable; }
 
     bool IsBlendCommutative(uint32 slot) const
     {
         PAL_ASSERT(slot < MaxColorTargets);
-        return (((m_blendCommutativeMask >> slot) & 0x1) != 0);
+        return (((m_flags.blendCommutative >> slot) & 0x1) != 0);
     }
 
-    // NOTE: Part of the IDestroyable public interface.
-    virtual void Destroy() override { this->~ColorBlendState(); }
-
-protected:
-    virtual ~ColorBlendState() {} // Destructor has nothing to do.
-
 private:
-    void BuildPm4Headers(const Device& device);
+    virtual ~ColorBlendState() { }
 
-    void InitBlendOpts(const ColorBlendStateCreateInfo& blend, bool isDualSrcBlend);
+    void Init(const ColorBlendStateCreateInfo& createInfo);
+    void InitBlendOpts(const ColorBlendStateCreateInfo& createInfo);
     void InitBlendCommutativeMask(const ColorBlendStateCreateInfo& createInfo);
 
     static BlendOp  HwBlendOp(Blend blendOp);
     static CombFunc HwBlendFunc(BlendFunc blendFunc);
     static bool     IsDualSrcBlendOption(Blend blend);
 
-    // Image of PM4 commands needed to write this object to hardware
-    BlendStatePm4Img             m_pm4Commands;
-    // Per MRT blend opts
-    GfxBlendOptimizer::BlendOpts m_blendOpts[MaxColorTargets * GfxBlendOptimizer::NumChannelWriteComb];
+    union
+    {
+        struct
+        {
+            uint32  blendEnable      :  8; // Indicates if blending is enabled for each target
+            uint32  blendCommutative :  8; // Indicates if blending is commutative for each target
+            uint32  dualSourceBlend  :  1; // Indicates if dual-source blending is enabled
+            uint32  rbPlus           :  1; // Indicates if RBPlus is enabled
+            uint32  reserved         : 14;
+        };
+        uint32  u32All;
+    } m_flags;
 
-    uint32  m_blendEnableMask;       // Indicates if blending is enabled for each target
-    uint32  m_blendCommutativeMask;  // Indicates if the blend state is commutative for each target
+    regCB_BLEND0_CONTROL      m_cbBlendControl[MaxColorTargets];
+    regSX_MRT0_BLEND_OPT__VI  m_sxMrtBlendOpt[MaxColorTargets];
+
+    GfxBlendOptimizer::BlendOpts  m_blendOpts[MaxColorTargets * GfxBlendOptimizer::NumChannelWriteComb];
 
     PAL_DISALLOW_COPY_AND_ASSIGN(ColorBlendState);
     PAL_DISALLOW_DEFAULT_CTOR(ColorBlendState);

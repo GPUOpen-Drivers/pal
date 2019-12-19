@@ -1915,6 +1915,21 @@
       "Type": "bool",
       "VariableName": "overlayReportMes",
       "Description": "Determines if the developer mode overlay will report information about MES HWS."
+    },
+    {
+      "Name": "MipGenUseFastPath",
+      "Tags": [
+        "General",
+        "Resource Settings",
+        "Performance"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "mipGenUseFastPath",
+      "Description": "Experimental, not yet production ready. If set, use a single-pass (for up to 12 mip levels) compute shader-based path for CmdGenerateMipmaps. Otherwise, use a multi-pass path based on ScaledCopyImage (may be graphics or compute)."
     }
   ],
   "DefinedConstants": [

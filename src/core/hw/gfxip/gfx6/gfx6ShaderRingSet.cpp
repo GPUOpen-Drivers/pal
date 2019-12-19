@@ -267,103 +267,7 @@ UniversalRingSet::UniversalRingSet(
                   static_cast<size_t>(ShaderRingType::NumUniversal),
                   static_cast<size_t>(ShaderRingSrd::NumUniversal))
 {
-    BuildPm4Headers();
-}
-
-// =====================================================================================================================
-// Assembles the PM4 packet headers contained in the image of PM4 commands for this Ring Set.
-void UniversalRingSet::BuildPm4Headers()
-{
-    memset(&m_pm4Commands, 0, sizeof(m_pm4Commands));
-    memset(&m_pm4NonRlcRestoredCommands, 0, sizeof(m_pm4NonRlcRestoredCommands));
-
-    uint32 mmVgtEsGsRingSize;
-    uint32 mmVgtGsVsRingSize;
-    uint32 mmVgtTfMemoryBase;
-    uint32 mmVgtTfRingSize;
-    uint32 mmVgtHsOffchipParam;
-
-    if (m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp6)
-    {
-        mmVgtEsGsRingSize   = mmVGT_ESGS_RING_SIZE__SI;
-        mmVgtGsVsRingSize   = mmVGT_GSVS_RING_SIZE__SI;
-        mmVgtTfMemoryBase   = mmVGT_TF_MEMORY_BASE__SI;
-        mmVgtTfRingSize     = mmVGT_TF_RING_SIZE__SI;
-        mmVgtHsOffchipParam = mmVGT_HS_OFFCHIP_PARAM__SI;
-    }
-    else
-    {
-        mmVgtEsGsRingSize   = mmVGT_ESGS_RING_SIZE__CI__VI;
-        mmVgtGsVsRingSize   = mmVGT_GSVS_RING_SIZE__CI__VI;
-        mmVgtTfMemoryBase   = mmVGT_TF_MEMORY_BASE__CI__VI;
-        mmVgtTfRingSize     = mmVGT_TF_RING_SIZE__CI__VI;
-        mmVgtHsOffchipParam = mmVGT_HS_OFFCHIP_PARAM__CI__VI;
-    }
-
-    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
-
-    // Setup m_pm4Commands
-    // Setup packets which issue VS_PARTIAL_FLUSH and VGT_FLUSH events to make sure it is safe to write the ring config
-    // registers.
-    m_pm4Commands.spaceNeeded += cmdUtil.BuildEventWrite(VS_PARTIAL_FLUSH, &m_pm4Commands.vsPartialFlush);
-    m_pm4Commands.spaceNeeded += cmdUtil.BuildEventWrite(VGT_FLUSH, &m_pm4Commands.vgtFlush);
-
-    // Setup the 1st PM4 packet, which sets the config registers VGT_ESGS_RING_SIZE and VGT_GSVS_RING_SIZE.
-    m_pm4Commands.spaceNeeded += cmdUtil.BuildSetSeqConfigRegs(mmVgtEsGsRingSize,
-                                                               mmVgtGsVsRingSize,
-                                                               &m_pm4Commands.hdrEsGsGsVsRingSize);
-
-    // Setup the 2nd PM4 packet, which sets the config register VGT_TF_MEMORY_BASE.
-    m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(mmVgtTfMemoryBase, &m_pm4Commands.hdrTfMemoryBase);
-
-    // Setup the 3rd PM4 packet, which sets the config register VGT_TF_RING_SIZE.
-    m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(mmVgtTfRingSize, &m_pm4Commands.hdrTfRingSize);
-
-    // Setup the 4th PM4 packet, which sets the config register VGT_HS_OFFCHIP_PARAM.
-    m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneConfigReg(mmVgtHsOffchipParam, &m_pm4Commands.hdrHsOffchipParam);
-
-    // Setup m_pm4NonRlcRestoredCommands
-    // Setup the 1th PM4 packet, which sets the graphics SH registers SPI_SHADER_USER_DATA_LS_0.
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_LS_0 + InternalTblStartReg,
-                             ShaderGraphics,
-                             &m_pm4NonRlcRestoredCommands.hdrLsUserData);
-
-    // Setup the 2nd PM4 packet, which sets the graphics SH registers SPI_SHADER_USER_DATA_HS_0.
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_HS_0 + InternalTblStartReg,
-                             ShaderGraphics,
-                             &m_pm4NonRlcRestoredCommands.hdrHsUserData);
-
-    // Setup the 3rd PM4 packet, which sets the graphics SH registers SPI_SHADER_USER_DATA_ES_0.
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_ES_0 + InternalTblStartReg,
-                             ShaderGraphics,
-                             &m_pm4NonRlcRestoredCommands.hdrEsUserData);
-
-    // Setup the 4th PM4 packet, which sets the graphics SH registers SPI_SHADER_USER_DATA_GS_0.
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_GS_0 + InternalTblStartReg,
-                             ShaderGraphics,
-                             &m_pm4NonRlcRestoredCommands.hdrGsUserData);
-
-    // Setup the 5th PM4 packet, which sets the graphics SH registers SPI_SHADER_USER_DATA_VS_0.
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_VS_0 + InternalTblStartReg,
-                             ShaderGraphics,
-                             &m_pm4NonRlcRestoredCommands.hdrVsUserData);
-
-    // Setup the 6th PM4 packet, which sets the graphics SH registers SPI_SHADER_USER_DATA_PS_0.
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_PS_0 + InternalTblStartReg,
-                             ShaderGraphics,
-                             &m_pm4NonRlcRestoredCommands.hdrPsUserData);
-
-    // Setup the 7th PM4 packet, which sets the compute registers COMPUTE_USER_DATA_0.
-    cmdUtil.BuildSetOneShReg(mmCOMPUTE_USER_DATA_0 + InternalTblStartReg,
-                             ShaderCompute,
-                             &m_pm4NonRlcRestoredCommands.hdrComputeUserData);
-
-    // Setup the 8th PM4 packet, which sets the context register SPI_TMPRING_SIZE for Gfx scratch memory.
-    cmdUtil.BuildSetOneContextReg(mmSPI_TMPRING_SIZE, &m_pm4NonRlcRestoredCommands.hdrGfxScratchRingSize);
-
-    // Setup the 9th PM4 packet, which sets the compute SH register COMPUTE_TMPRING_SIZE for Compute scratch memory.
-    cmdUtil.BuildSetOneShReg(mmCOMPUTE_TMPRING_SIZE, ShaderCompute,
-                             &m_pm4NonRlcRestoredCommands.hdrComputeScratchRingSize);
+    memset(&m_regs, 0, sizeof(m_regs));
 }
 
 // =====================================================================================================================
@@ -375,35 +279,23 @@ Result UniversalRingSet::Init()
 
     if (result == Result::Success)
     {
-        // Update our PM4 image with the GPU virtual address for the SRD table.
-        const uint32 srdTblVirtAddrLo = LowPart(m_srdTableMem.GpuVirtAddr());
-
-        m_pm4NonRlcRestoredCommands.lsUserData0.bits.DATA      = srdTblVirtAddrLo;
-        m_pm4NonRlcRestoredCommands.hsUserData0.bits.DATA      = srdTblVirtAddrLo;
-        m_pm4NonRlcRestoredCommands.esUserData0.bits.DATA      = srdTblVirtAddrLo;
-        m_pm4NonRlcRestoredCommands.gsUserData0.bits.DATA      = srdTblVirtAddrLo;
-        m_pm4NonRlcRestoredCommands.vsUserData0.bits.DATA      = srdTblVirtAddrLo;
-        m_pm4NonRlcRestoredCommands.psUserData0.bits.DATA      = srdTblVirtAddrLo;
-        m_pm4NonRlcRestoredCommands.computeUserData0.bits.DATA = srdTblVirtAddrLo;
-
         // Set up the SPI_TMPRING_SIZE for the graphics shader scratch ring.
         const ScratchRing*const pScratchRingGfx =
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::GfxScratch)]);
 
-        m_pm4NonRlcRestoredCommands.gfxScratchRingSize.bits.WAVES    = pScratchRingGfx->CalculateWaves();
-        m_pm4NonRlcRestoredCommands.gfxScratchRingSize.bits.WAVESIZE = pScratchRingGfx->CalculateWaveSize();
+        m_regs.gfxScratchRingSize.bits.WAVES    = pScratchRingGfx->CalculateWaves();
+        m_regs.gfxScratchRingSize.bits.WAVESIZE = pScratchRingGfx->CalculateWaveSize();
 
         // Set up the COMPUTE_TMPRING_SIZE for the compute shader scratch ring.
         const ScratchRing*const pScratchRingCs =
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
-        m_pm4NonRlcRestoredCommands.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
-        m_pm4NonRlcRestoredCommands.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+        m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
+        m_regs.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
 
         // The OFFCHIP_GRANULARITY field of VGT_HS_OFFCHIP_PRARM is determined at init-time by the value of the related
         // setting.
-        m_pm4Commands.vgtHsOffchipParam.bits.OFFCHIP_GRANULARITY__CI__VI =
-            m_pDevice->Settings().gfx7OffchipLdsBufferSize;
+        m_regs.vgtHsOffchipParam.bits.OFFCHIP_GRANULARITY__CI__VI = m_pDevice->Settings().gfx7OffchipLdsBufferSize;
     }
 
     return result;
@@ -433,11 +325,11 @@ Result UniversalRingSet::Validate(
         const ShaderRing*const  pOffchipLds     = m_ppRings[static_cast<size_t>(ShaderRingType::OffChipLds)];
 
         // Scratch rings:
-        m_pm4NonRlcRestoredCommands.gfxScratchRingSize.bits.WAVES        = pScratchRingGfx->CalculateWaves();
-        m_pm4NonRlcRestoredCommands.gfxScratchRingSize.bits.WAVESIZE     = pScratchRingGfx->CalculateWaveSize();
+        m_regs.gfxScratchRingSize.bits.WAVES        = pScratchRingGfx->CalculateWaves();
+        m_regs.gfxScratchRingSize.bits.WAVESIZE     = pScratchRingGfx->CalculateWaveSize();
 
-        m_pm4NonRlcRestoredCommands.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
-        m_pm4NonRlcRestoredCommands.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+        m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
+        m_regs.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
 
         const auto& chipProps = m_pDevice->Parent()->ChipProperties();
 
@@ -451,14 +343,14 @@ Result UniversalRingSet::Validate(
         const gpusize esGsRingSize  = pEsGsRing->MemorySizeDwords() >> GsRingSizeAlignmentShift;
         const gpusize gsVsRingSize  = pGsVsRing->MemorySizeDwords() >> GsRingSizeAlignmentShift;
 
-        m_pm4Commands.vgtEsGsRingSize.bits.MEM_SIZE = Min(gsMaxRingSize, esGsRingSize);
-        m_pm4Commands.vgtGsVsRingSize.bits.MEM_SIZE = Min(gsMaxRingSize, gsVsRingSize);
+        m_regs.vgtEsGsRingSize.bits.MEM_SIZE = Min(gsMaxRingSize, esGsRingSize);
+        m_regs.vgtGsVsRingSize.bits.MEM_SIZE = Min(gsMaxRingSize, gsVsRingSize);
 
         // Tess-Factor Buffer:
-        m_pm4Commands.vgtTfRingSize.bits.SIZE = pTfBuffer->MemorySizeDwords();
+        m_regs.vgtTfRingSize.bits.SIZE = pTfBuffer->MemorySizeDwords();
         if (pTfBuffer->IsMemoryValid())
         {
-            m_pm4Commands.vgtTfMemoryBase.bits.BASE = Get256BAddrLo(pTfBuffer->GpuVirtAddr());
+            m_regs.vgtTfMemoryBase.bits.BASE = Get256BAddrLo(pTfBuffer->GpuVirtAddr());
         }
 
         // Off-chip LDS Buffers:
@@ -467,11 +359,11 @@ Result UniversalRingSet::Validate(
         //       allocated space. Need to check this first.
         if ((pOffchipLds != nullptr) && pOffchipLds->IsMemoryValid())
         {
-            m_pm4Commands.vgtHsOffchipParam.bits.OFFCHIP_BUFFERING = pOffchipLds->ItemSizeMax();
+            m_regs.vgtHsOffchipParam.bits.OFFCHIP_BUFFERING = pOffchipLds->ItemSizeMax();
             if ((chipProps.gfxLevel != GfxIpLevel::GfxIp6) && (chipProps.gfxLevel != GfxIpLevel::GfxIp7))
             {
                 // On GFXIP8 and newer, the OFFCHIP_BUFFERING setting is biased by one (i.e., 0=1, 511=512, etc.).
-                m_pm4Commands.vgtHsOffchipParam.bits.OFFCHIP_BUFFERING--;
+                m_regs.vgtHsOffchipParam.bits.OFFCHIP_BUFFERING--;
             }
         }
     }
@@ -486,7 +378,45 @@ uint32* UniversalRingSet::WriteCommands(
     uint32*    pCmdSpace
     ) const
 {
-    return pCmdStream->WritePm4Image(m_pm4Commands.spaceNeeded, &m_pm4Commands, pCmdSpace);
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+
+    uint32 mmVgtEsGsRingSize;
+    uint32 mmVgtGsVsRingSize;
+    uint32 mmVgtTfMemoryBase;
+    uint32 mmVgtTfRingSize;
+    uint32 mmVgtHsOffchipParam;
+
+    if (cmdUtil.IpLevel() == GfxIpLevel::GfxIp6)
+    {
+        mmVgtEsGsRingSize   = mmVGT_ESGS_RING_SIZE__SI;
+        mmVgtGsVsRingSize   = mmVGT_GSVS_RING_SIZE__SI;
+        mmVgtTfMemoryBase   = mmVGT_TF_MEMORY_BASE__SI;
+        mmVgtTfRingSize     = mmVGT_TF_RING_SIZE__SI;
+        mmVgtHsOffchipParam = mmVGT_HS_OFFCHIP_PARAM__SI;
+    }
+    else
+    {
+        mmVgtEsGsRingSize   = mmVGT_ESGS_RING_SIZE__CI__VI;
+        mmVgtGsVsRingSize   = mmVGT_GSVS_RING_SIZE__CI__VI;
+        mmVgtTfMemoryBase   = mmVGT_TF_MEMORY_BASE__CI__VI;
+        mmVgtTfRingSize     = mmVGT_TF_RING_SIZE__CI__VI;
+        mmVgtHsOffchipParam = mmVGT_HS_OFFCHIP_PARAM__CI__VI;
+    }
+
+    // Issue VS_PARTIAL_FLUSH and VGT_FLUSH events to make sure it is safe to write the ring config registers.
+    pCmdSpace += cmdUtil.BuildEventWrite(VS_PARTIAL_FLUSH, pCmdSpace);
+    pCmdSpace += cmdUtil.BuildEventWrite(VGT_FLUSH, pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(mmVgtEsGsRingSize,
+                                                  mmVgtGsVsRingSize,
+                                                  &m_regs.vgtEsGsRingSize,
+                                                  pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmVgtTfMemoryBase,   m_regs.vgtTfMemoryBase.u32All,   pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmVgtTfRingSize,     m_regs.vgtTfRingSize.u32All,     pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmVgtHsOffchipParam, m_regs.vgtHsOffchipParam.u32All, pCmdSpace);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -496,9 +426,34 @@ uint32* UniversalRingSet::WriteNonRlcRestoredRegs(
     uint32*    pCmdSpace
     ) const
 {
-    return pCmdStream->WritePm4Image(sizeof(m_pm4NonRlcRestoredCommands) / sizeof(uint32),
-                                     &m_pm4NonRlcRestoredCommands,
-                                     pCmdSpace);
+    const uint32 srdTableBaseLo = LowPart(m_srdTableMem.GpuVirtAddr());
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmCOMPUTE_USER_DATA_0 + InternalTblStartReg,
+                                                             srdTableBaseLo,
+                                                             pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_TMPRING_SIZE,
+                                                            m_regs.computeScratchRingSize.u32All,
+                                                            pCmdSpace);
+
+    constexpr uint16 GfxSrdTableGpuVaLo[] =
+    {
+        mmSPI_SHADER_USER_DATA_LS_0 + InternalTblStartReg,
+        mmSPI_SHADER_USER_DATA_HS_0 + InternalTblStartReg,
+        mmSPI_SHADER_USER_DATA_ES_0 + InternalTblStartReg,
+        mmSPI_SHADER_USER_DATA_GS_0 + InternalTblStartReg,
+        mmSPI_SHADER_USER_DATA_VS_0 + InternalTblStartReg,
+        mmSPI_SHADER_USER_DATA_PS_0 + InternalTblStartReg,
+    };
+
+    for (uint32 s = 0; s < ArrayLen(GfxSrdTableGpuVaLo); ++s)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(GfxSrdTableGpuVaLo[s], srdTableBaseLo, pCmdSpace);
+    }
+
+    return pCmdStream->WriteSetOneContextReg(mmSPI_TMPRING_SIZE,
+                                             m_regs.gfxScratchRingSize.u32All,
+                                             pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -509,24 +464,7 @@ ComputeRingSet::ComputeRingSet(
                   static_cast<size_t>(ShaderRingType::NumCompute),
                   static_cast<size_t>(ShaderRingSrd::NumCompute))
 {
-    BuildPm4Headers();
-}
-
-// =====================================================================================================================
-// Assembles the PM4 packet headers contained in the image of PM4 commands for this Ring Set.
-void ComputeRingSet::BuildPm4Headers()
-{
-    memset(&m_pm4Commands, 0, sizeof(m_pm4Commands));
-
-    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
-
-    // Setup the 1st PM4 packet, which sets the compute registers COMPUTE_USER_DATA_0.
-    cmdUtil.BuildSetOneShReg(mmCOMPUTE_USER_DATA_0 + InternalTblStartReg,
-                             ShaderCompute,
-                             &m_pm4Commands.hdrComputeUserData);
-
-    // Setup the 2nd PM4 packet, which sets the Compute SH register COMPUTE_TMPRING_SIZE for Compute scratch memory.
-    cmdUtil.BuildSetOneShReg(mmCOMPUTE_TMPRING_SIZE, ShaderCompute, &m_pm4Commands.hdrComputeScratchRingSize);
+    memset(&m_regs, 0, sizeof(m_regs));
 }
 
 // =====================================================================================================================
@@ -538,15 +476,12 @@ Result ComputeRingSet::Init()
 
     if (result == Result::Success)
     {
-        // Update our PM4 image with the GPU virtual address for the SRD table.
-        m_pm4Commands.computeUserData0.bits.DATA = LowPart(m_srdTableMem.GpuVirtAddr());
-
         // Set up the SPI_TMPRING_SIZE for the compute shader scratch ring.
         const ScratchRing*const pScratchRingCs =
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
-        m_pm4Commands.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
-        m_pm4Commands.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+        m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
+        m_regs.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
     }
 
     return result;
@@ -568,8 +503,8 @@ Result ComputeRingSet::Validate(
         const ScratchRing*const pScratchRingCs =
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
-        m_pm4Commands.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
-        m_pm4Commands.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+        m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
+        m_regs.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
     }
 
     return result;
@@ -582,7 +517,15 @@ uint32* ComputeRingSet::WriteCommands(
     uint32*    pCmdSpace
     ) const
 {
-    return pCmdStream->WritePm4Image(sizeof(m_pm4Commands) / sizeof(uint32), &m_pm4Commands, pCmdSpace);
+    const uint32 srdTableBaseLo = LowPart(m_srdTableMem.GpuVirtAddr());
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + InternalTblStartReg,
+                                                            srdTableBaseLo,
+                                                            pCmdSpace);
+
+    return pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_TMPRING_SIZE,
+                                                       m_regs.computeScratchRingSize.u32All,
+                                                       pCmdSpace);
 }
 
 } // Gfx6

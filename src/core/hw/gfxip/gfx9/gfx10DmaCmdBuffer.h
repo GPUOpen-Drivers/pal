@@ -174,6 +174,8 @@ private:
     static void SetupMetaData(const DmaImageInfo&  image, PacketName*  pPacket, bool  imageIsDst);
 
     static bool ImageHasMetaData(const DmaImageInfo& imageInfo);
+    void WriteCondExecCmd(uint32* pCmdSpace, gpusize predMemory, uint32 skipCountInDwords) const;
+    void WriteFenceCmd(uint32* pCmdSpace, gpusize memory, uint32 predCopyData) const;
 
     uint32 GetImageZ(const DmaImageInfo&  dmaImageInfo, uint32  offsetZ) const;
 

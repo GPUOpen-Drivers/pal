@@ -65,6 +65,12 @@ enum class CommandListType : uint32
 // Maximum number of IB's we will specify in a single submission to the GPU.
 constexpr uint32 MaxIbsPerSubmit = 16;
 
+// Initial size of m_globalRefMap, the size of hashmap affects the performance of traversing the hashmap badly. When
+// perVmBo enabled, there is usually less than 3 presentable image in the m_globalRefMap. So set it 16 is enough for
+// most of the games when perVmBo enabled. When perVmBo disabled, set it 1024.
+constexpr uint32 MemoryRefMapElementsPerVmBo = 16;
+constexpr uint32 MemoryRefMapElements        = 1024;
+
 // =====================================================================================================================
 // The Linux SubmissionContext must own an amdgpu command submission context, the last submission fence on that context,
 // and a few other bits of constant state.
@@ -143,6 +149,8 @@ public:
 
     void  AssociateFenceWithContext(
         IFence* pFence);
+
+    void DirtyGlobalReferences();
 
     Result AddGpuMemoryReferences(
         uint32              gpuMemRefCount,
@@ -234,7 +242,6 @@ private:
     MemoryRefMap          m_globalRefMap;         // A hashmap acting as a refcounted list of memory references.
     bool                  m_globalRefDirty;       // Indicates m_globalRefMap has changed since the last submit.
     Util::RWLock          m_globalRefLock;        // Protect m_globalRefMap from muli-thread access.
-    uint32                m_internalMgrTimestamp; // Store timestamp of internal memory mgr.
     uint32                m_appMemRefCount;       // Store count of application's submission memory references.
     bool                  m_pendingWait;          // Queue needs a dummy submission between wait and signal.
     CmdUploadRing*        m_pCmdUploadRing;       // Uploads gfxip command streams to a large local memory buffer.

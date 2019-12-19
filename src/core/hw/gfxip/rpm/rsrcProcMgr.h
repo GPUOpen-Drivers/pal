@@ -47,7 +47,6 @@ struct ImageResolveRegion;
 struct MemoryCopyRegion;
 struct MemoryImageCopyRegion;
 class  MsaaState;
-union  ScaledCopyInternalFlags;
 
 static constexpr uint32 MaxLog2AaSamples   = 4; // Max AA sample rate is 16x.
 static constexpr uint32 MaxLog2AaFragments = 3; // Max fragments is 8.
@@ -105,8 +104,7 @@ public:
 
     void CmdScaledCopyImage(
         GfxCmdBuffer*           pCmdBuffer,
-        const ScaledCopyInfo&   copyInfo,
-        ScaledCopyInternalFlags flags) const;
+        const ScaledCopyInfo&   copyInfo) const;
 
     void CmdGenerateMipmaps(
         GfxCmdBuffer*         pCmdBuffer,
@@ -463,13 +461,11 @@ private:
 
     void ScaledCopyImageGraphics(
         GfxCmdBuffer*           pCmdBuffer,
-        const ScaledCopyInfo&   copyInfo,
-        ScaledCopyInternalFlags flags) const;
+        const ScaledCopyInfo&   copyInfo) const;
 
     void ScaledCopyImageCompute(
         GfxCmdBuffer*           pCmdBuffer,
-        const ScaledCopyInfo&   copyInfo,
-        ScaledCopyInternalFlags flags) const;
+        const ScaledCopyInfo&   copyInfo) const;
 
     void CopyDepthStencilImageGraphics(
         GfxCmdBuffer*          pCmdBuffer,
@@ -603,8 +599,15 @@ private:
 
     bool ScaledCopyImageUseGraphics(
         GfxCmdBuffer*           pCmdBuffer,
-        const ScaledCopyInfo&   copyInfo,
-        ScaledCopyInternalFlags flags) const;
+        const ScaledCopyInfo&   copyInfo) const;
+
+    void GenerateMipmapsFast(
+        GfxCmdBuffer*         pCmdBuffer,
+        const GenMipmapsInfo& genInfo) const;
+
+    void GenerateMipmapsSlow(
+        GfxCmdBuffer*         pCmdBuffer,
+        const GenMipmapsInfo& genInfo) const;
 
     GfxDevice*const  m_pDevice;
     uint32           m_srdAlignment; // All SRDs must be offset and size aligned to this many DWORDs.

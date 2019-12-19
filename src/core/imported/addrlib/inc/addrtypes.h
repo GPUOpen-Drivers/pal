@@ -196,7 +196,6 @@ typedef enum _AddrTileMode
 *   ADDR_SW_256B_* addressing block aligned size is 256B, for 2D/3D resource
 *   ADDR_SW_4KB_*  addressing block aligned size is 4KB, for 2D/3D resource
 *   ADDR_SW_64KB_* addressing block aligned size is 64KB, for 2D/3D resource
-*   ADDR_SW_VAR_*  addressing block aligned size is ASIC specific, for GFX10.2+ only
 *
 *   ADDR_SW_*_Z    For GFX9:
                    - for 2D resource, represents Z-order swizzle mode for depth/stencil/FMask

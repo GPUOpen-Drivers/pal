@@ -76,26 +76,6 @@ struct UniversalCmdBufferState
     uint32  minCounterDiff;
 };
 
-// Represents an "image" of the PM4 headers necessary to write NULL depth-stencil state to hardware. The required
-// register writes are grouped into sets based on sequential register addresses, so that we can minimize the amount
-// of PM4 space needed by setting several reg's in each packet.
-struct NullDepthStencilPm4Img
-{
-    PM4CMDSETDATA              hdrDbZInfo;
-    regDB_Z_INFO               dbZInfo;
-    regDB_STENCIL_INFO         dbStencilInfo;
-    regDB_Z_READ_BASE          dbZReadBase;
-    regDB_STENCIL_READ_BASE    dbStencilReadBase;
-    regDB_Z_WRITE_BASE         dbZWriteBase;
-    regDB_STENCIL_WRITE_BASE   dbStencilWriteBase;
-
-    PM4CMDSETDATA              hdrDbHtileDataBase;
-    regDB_HTILE_DATA_BASE      dbHtileDataBase;
-
-    PM4CMDSETDATA              hdrDbRenderControl;
-    regDB_RENDER_CONTROL       dbRenderControl;
-};
-
 // Structure used by UniversalCmdBuffer to track particular bits of hardware state that might need to be updated
 // per-draw. Note that the 'valid' flags exist to indicate when we don't know the actual value of certain state. For
 // example, we don't know what NUM_INSTANCES is set to at the beginning of a command buffer or after an indirect draw.
@@ -141,106 +121,6 @@ struct DrawTimeHwState
     regPA_SC_MODE_CNTL_1  paScModeCntl1;    // The current value of the PA_SC_MODE_CNTL1 register.
 };
 
-// Represents an image of the PM4 commands necessary to write RB-plus related info to hardware.
-struct RbPlusPm4Img
-{
-    PM4CMDSETDATA                header;
-    regSX_PS_DOWNCONVERT__VI     sxPsDownconvert;
-    regSX_BLEND_OPT_EPSILON__VI  sxBlendOptEpsilon;
-    regSX_BLEND_OPT_CONTROL__VI  sxBlendOptControl;
-
-    size_t  spaceNeeded;
-};
-
-struct ColorInfoReg
-{
-    PM4CMDSETDATA     header;
-    regCB_COLOR0_INFO cbColorInfo;
-};
-
-struct ScreenScissorReg
-{
-    PM4CMDSETDATA              hdrPaScScreenScissors;
-    regPA_SC_SCREEN_SCISSOR_TL paScScreenScissorTl;
-    regPA_SC_SCREEN_SCISSOR_BR paScScreenScissorBr;
-};
-
-constexpr size_t MaxNullColorTargetPm4ImgSize = sizeof(ColorInfoReg) * MaxColorTargets;
-
-struct BlendConstReg
-{
-    PM4CMDSETDATA     header;
-    regCB_BLEND_RED   red;
-    regCB_BLEND_GREEN green;
-    regCB_BLEND_BLUE  blue;
-    regCB_BLEND_ALPHA alpha;
-};
-
-struct InputAssemblyStatePm4Img
-{
-    PM4CMDSETDATA                       hdrPrimType;
-    regVGT_PRIMITIVE_TYPE               primType;
-
-    PM4CMDSETDATA                       hdrVgtMultiPrimIbResetEnable;
-    regVGT_MULTI_PRIM_IB_RESET_EN       vgtMultiPrimIbResetEnable;
-
-    PM4CMDSETDATA                       hdrVgtMultiPrimIbResetIndex;
-    regVGT_MULTI_PRIM_IB_RESET_INDX     vgtMultiPrimIbResetIndex;
-};
-
-struct StencilRefMasksReg
-{
-    PM4CMDSETDATA           header;
-    regDB_STENCILREFMASK    dbStencilRefMaskFront;
-    regDB_STENCILREFMASK_BF dbStencilRefMaskBack;
-};
-
-struct StencilRefMaskRmwReg
-{
-    PM4CMDREGRMW dbStencilRefMaskFront;
-    PM4CMDREGRMW dbStencilRefMaskBack;
-};
-
-constexpr size_t MaxStencilSetPm4ImgSize = sizeof(StencilRefMasksReg) > sizeof(StencilRefMaskRmwReg) ?
-                                           sizeof(StencilRefMasksReg) : sizeof(StencilRefMaskRmwReg);
-struct DepthBoundsStateReg
-{
-    PM4CMDSETDATA           header;
-    regDB_DEPTH_BOUNDS_MIN  dbDepthBoundsMin;
-    regDB_DEPTH_BOUNDS_MAX  dbDepthBoundsMax;
-};
-
-struct TriangleRasterStateReg
-{
-    PM4CMDSETDATA         header;
-    regPA_SU_SC_MODE_CNTL paSuScModeCntl;
-};
-
-struct DepthBiasStateReg
-{
-    PM4CMDSETDATA                     header;
-    regPA_SU_POLY_OFFSET_CLAMP        paSuPolyOffsetClamp;       // Poly offset clamp value
-    regPA_SU_POLY_OFFSET_FRONT_SCALE  paSuPolyOffsetFrontScale;  // Front-facing poly scale
-    regPA_SU_POLY_OFFSET_FRONT_OFFSET paSuPolyOffsetFrontOffset; // Front-facing poly offset
-    regPA_SU_POLY_OFFSET_BACK_SCALE   paSuPolyOffsetBackScale;   // Back-facing poly scale
-    regPA_SU_POLY_OFFSET_BACK_OFFSET  paSuPolyOffsetBackOffset;  // Back-facing poly offset
-};
-
-struct PointLineRasterStateReg
-{
-    PM4CMDSETDATA         paSuHeader;
-    regPA_SU_POINT_SIZE   paSuPointSize;
-    regPA_SU_POINT_MINMAX paSuPointMinMax;
-    regPA_SU_LINE_CNTL    paSuLineCntl;
-};
-
-struct GlobalScissorReg
-{
-    PM4CMDSETDATA              header;
-    regPA_SC_WINDOW_SCISSOR_TL topLeft;
-    regPA_SC_WINDOW_SCISSOR_BR bottomRight;
-};
-
 // Register state for a single viewport's X,Y,Z scales and offsets.
 struct VportScaleOffsetPm4Img
 {
@@ -275,22 +155,6 @@ struct ScissorRectPm4Img
     regPA_SC_VPORT_SCISSOR_0_BR br;
 };
 
-// Register state for a single plane's x y z w coordinates.
-struct UserClipPlaneStateReg
-{
-    regPA_CL_UCP_0_X    paClUcpX;
-    regPA_CL_UCP_0_Y    paClUcpY;
-    regPA_CL_UCP_0_Z    paClUcpZ;
-    regPA_CL_UCP_0_W    paClUcpW;
-};
-
-// Command for setting up user clip planes.
-struct UserClipPlaneStatePm4Img
-{
-    PM4CMDSETDATA           header;
-    UserClipPlaneStateReg   plane[6];
-};
-
 // PM4 image for loading context registers from memory
 struct LoadDataIndexPm4Img
 {
@@ -304,21 +168,6 @@ struct LoadDataIndexPm4Img
     // Command space needed, in DWORDs. This field must always be last in the structure to not
     // interfere w/ the actual commands contained within.
     size_t                  spaceNeeded;
-};
-
-// Register state for a clip rectangle's left top and right bottom parameters.
-struct ClipRectsStateReg
-{
-    regPA_SC_CLIPRECT_0_TL    paScClipRectTl;
-    regPA_SC_CLIPRECT_0_BR    paScClipRectBr;
-};
-
-// Command for setting up clip rects
-struct ClipRectsPm4Img
-{
-    PM4CMDSETDATA           header;
-    regPA_SC_CLIPRECT_RULE  paScClipRectRule;
-    ClipRectsStateReg       rects[MaxClipRects];
 };
 
 // =====================================================================================================================
@@ -365,35 +214,6 @@ public:
     virtual void CmdFlglSync() override;
     virtual void CmdFlglEnable() override;
     virtual void CmdFlglDisable() override;
-
-    static uint32* BuildSetBlendConst(const BlendConstParams& params, const CmdUtil& cmdUtil, uint32* pCmdSpace);
-    static uint32* BuildSetInputAssemblyState(
-        const InputAssemblyStateParams& params,
-        const Device&                   device,
-        uint32*                         pCmdSpace);
-    static uint32* BuildSetStencilRefMasks(
-        const StencilRefMaskParams& params,
-        const CmdUtil&              cmdUtil,
-        uint32*                     pCmdSpace);
-    static uint32* BuildSetDepthBounds(const DepthBoundsParams& params, const CmdUtil& cmdUtil, uint32* pCmdSpace);
-    static uint32* BuildSetTriangleRasterState(
-        const TriangleRasterStateParams& params,
-        const CmdUtil&                   cmdUtil,
-        uint32*                          pCmdSpace);
-    static uint32* BuildSetDepthBiasState(const DepthBiasParams& params, const CmdUtil& cmdUtil, uint32* pCmdSpace);
-    static uint32* BuildSetPointLineRasterState(
-        const PointLineRasterStateParams& params,
-        const CmdUtil&                    cmdUtil,
-        uint32*                           pCmdSpace);
-    static uint32* BuildSetGlobalScissor(
-        const GlobalScissorParams& params,
-        const CmdUtil&             cmdUtil,
-        uint32*                    pCmdSpace);
-    static uint32* BuildSetUserClipPlane(uint32               firstPlane,
-                                         uint32               count,
-                                         const UserClipPlane* pPlanes,
-                                         const CmdUtil&       cmdUtil,
-                                         uint32*              pCmdSpace);
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
@@ -926,12 +746,14 @@ private:
 
     UniversalCmdBufferState  m_state; // State tracking for internal cmd buffer operations
 
-    regVGT_DMA_INDEX_TYPE__VI  m_vgtDmaIndexType;     // Register setting for VGT_DMA_INDEX_TYPE
-    regSPI_VS_OUT_CONFIG       m_spiVsOutConfig;      // Register setting for VS_OUT_CONFIG
-    regSPI_PS_IN_CONTROL       m_spiPsInControl;      // Register setting for PS_IN_CONTROL
-    uint16                     m_vertexOffsetReg;     // Register where the vertex start offset is written
-    uint16                     m_drawIndexReg;        // Register where the draw index is written
-    RbPlusPm4Img               m_rbPlusPm4Img;        // PM4 image for RB Plus register state.
+    regSX_PS_DOWNCONVERT__VI     m_sxPsDownconvert;
+    regSX_BLEND_OPT_EPSILON__VI  m_sxBlendOptEpsilon;
+    regSX_BLEND_OPT_CONTROL__VI  m_sxBlendOptControl;
+    regVGT_DMA_INDEX_TYPE__VI    m_vgtDmaIndexType;     // Register setting for VGT_DMA_INDEX_TYPE
+    regSPI_VS_OUT_CONFIG         m_spiVsOutConfig;      // Register setting for VS_OUT_CONFIG
+    regSPI_PS_IN_CONTROL         m_spiPsInControl;      // Register setting for PS_IN_CONTROL
+    uint16                       m_vertexOffsetReg;     // Register where the vertex start offset is written
+    uint16                       m_drawIndexReg;        // Register where the draw index is written
 
     WorkaroundState  m_workaroundState;  // Manages several hardware workarounds whose states change between draws.
     DrawTimeHwState  m_drawTimeHwState;  // Tracks certain bits of HW-state that might need to be updated per draw.
@@ -956,7 +778,8 @@ private:
                                                     // groups on GFX7.
             uint32 describeDrawDispatch       :  1; // True if draws/dispatch shader IDs should be specified within the
                                                     // command stream for parsing by PktTools
-            uint32 reserved                   : 18;
+            uint32 rbPlusSupported            :  1; // True if RBPlus is supported by the device
+            uint32 reserved                   : 17;
         };
         uint32 u32All;
     } m_cachedSettings;

@@ -1317,7 +1317,9 @@ void RsrcProcMgr::ExpandDepthStencil(
 
             // And wait for that to finish...
             pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-            pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
+            pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType,
+                                                          pCmdBuffer->TimestampGpuVirtAddr(),
+                                                          pComputeCmdSpace);
             pComputeCmdStream->CommitCommands(pComputeCmdSpace);
         }
     }

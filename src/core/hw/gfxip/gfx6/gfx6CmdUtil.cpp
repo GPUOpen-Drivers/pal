@@ -3323,8 +3323,7 @@ size_t CmdUtil::BuildWriteConstRam(
 size_t CmdUtil::BuildWriteData(
     const WriteDataInfo& info,
     uint32               data,
-    void*                pBuffer // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     // Make sure the address and size are valid. For register writes we don't need the alignment requirement.
     PAL_ASSERT(((info.dstSel == WRITE_DATA_DST_SEL_REGISTER) || (info.dstSel == WRITE_DATA_DST_SEL_GDS)) ||
@@ -3360,8 +3359,7 @@ size_t CmdUtil::BuildWriteData(
     const WriteDataInfo& info,
     size_t               dwordsToWrite,
     const uint32*        pData,
-    void*                pBuffer        // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     // Make sure the address and size are valid. For register writes we don't need the alignment requirement.
     PAL_ASSERT(((info.dstSel == WRITE_DATA_DST_SEL_REGISTER) || (info.dstSel == WRITE_DATA_DST_SEL_GDS)) ||
@@ -3401,8 +3399,7 @@ size_t CmdUtil::BuildWriteDataPeriodic(
     size_t               dwordsPerPeriod,
     size_t               periodsToWrite,
     const uint32*        pPeriodData,
-    void*                pBuffer          // [out] Build the PM4 packet in this buffer.
-    ) const
+    void*                pBuffer) // [out] Build the PM4 packet in this buffer.
 {
     const size_t dwordsToWrite = dwordsPerPeriod * periodsToWrite;
 

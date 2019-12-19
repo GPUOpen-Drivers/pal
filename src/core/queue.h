@@ -366,6 +366,25 @@ private:
         const InternalSubmitInfo& internalSubmitInfo);
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+#if PAL_ENABLE_PRINTS_ASSERTS
+    bool IsCmdDumpEnabled() const;
+    Result Queue::OpenCommandDumpFile(
+        const SubmitInfo&           submitInfo,
+        const InternalSubmitInfo&   internalSubmitInfo,
+        Util::File*                 logFile);
+#endif // PAL_ENABLE_PRINTS_ASSERTS
+
+    void DumpCmdBuffers(
+        const SubmitInfo&         submitInfo,
+        const InternalSubmitInfo& internalSubmitInfo) const;
+    void DumpCmdStream(
+        const CmdBufferDumpDesc& cmdBufferDesc,
+        const CmdStream*         pCmdStream,
+        CmdDumpCallback          pCmdDumpCallback,
+        void*                    pUserData) const;
+#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     Result CreateTrackedCmdBuffer(TrackedCmdBuffer** ppTrackedCmdBuffer);
     void   DestroyTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer);

@@ -369,6 +369,7 @@ void AddrMgr2::InitTilingCaps(
     ADDR2_BLOCK_SET*    pBlockSettings
     ) const
 {
+    const PalSettings&     settings   = m_pDevice->Settings();
     const ImageCreateInfo& createInfo = pImage->GetImageCreateInfo();
 
     pBlockSettings->value = 0; // All modes (4kb, 64kb) are valid...
@@ -400,7 +401,6 @@ void AddrMgr2::InitTilingCaps(
     }
     else
     {
-        // We have to allow linear as linear format is required for some format types (1D-color and 32-32-32 for
         // some examples).  Address library should guarantee that we don't actually get a linear surface unless
         // it's the only option.
         pBlockSettings->linear        = 0;
@@ -409,7 +409,7 @@ void AddrMgr2::InitTilingCaps(
 
         // Disable 4kB swizzle mode so more surfaces get DCC memory.
         // Should only set disable4kBSwizzleMode for testing purposes.
-        const uint32 disable4KBSwizzleMode = GetDevice()->Settings().addr2Disable4kBSwizzleMode;
+        const uint32 disable4KBSwizzleMode = settings.addr2Disable4kBSwizzleMode;
 
         const auto imageType = pImage->GetGfxImage()->GetOverrideImageType();
 

@@ -783,6 +783,8 @@ public:
         uint32             connectorId,
         HdrOutputMetadata* pHdrMetaData) const;
 
+    void DirtyGlobalReferences();
+
     // NOTE: There are no API level residency functions on the queue and so references are added/removed by the device.
     //       Only submit-level residency model is supported so we need to populate the device global list to the queue.
     //       Then, at submit time the queue will submit it's own allocation list

@@ -194,10 +194,9 @@ Queue::Queue(
     m_hResourceList(nullptr),
     m_hDummyResourceList(nullptr),
     m_pDummyCmdStream(nullptr),
-    m_globalRefMap(m_pDevice->EngineProperties().maxUserMemRefsPerSubmission,
-                   m_pDevice->GetPlatform()),
+    m_globalRefMap(static_cast<Device*>(m_pDevice)->IsVmAlwaysValidSupported() ? MemoryRefMapElementsPerVmBo :
+                   MemoryRefMapElements, m_pDevice->GetPlatform()),
     m_globalRefDirty(true),
-    m_internalMgrTimestamp(0),
     m_appMemRefCount(0),
     m_pendingWait(false),
     m_pCmdUploadRing(nullptr),
@@ -335,10 +334,16 @@ Result Queue::AddGpuMemoryReferences(
 
     for (uint32 idx = 0; (idx < gpuMemRefCount) && (result == Result::Success); ++idx)
     {
-        uint32* pRefCount     = nullptr;
-        bool    alreadyExists = false;
+        uint32*    pRefCount     = nullptr;
+        bool       alreadyExists = false;
+        GpuMemory* pGpuMemory    = reinterpret_cast<GpuMemory*>(pGpuMemoryRefs[idx].pGpuMemory);
 
-        result = m_globalRefMap.FindAllocate(pGpuMemoryRefs[idx].pGpuMemory, &alreadyExists, &pRefCount);
+        if (pGpuMemory->IsVmAlwaysValid())
+        {
+            continue;
+        }
+
+        result = m_globalRefMap.FindAllocate(pGpuMemory, &alreadyExists, &pRefCount);
 
         if (result == Result::Success)
         {
@@ -1055,7 +1060,6 @@ Result Queue::UpdateResourceList(
         RWLockAuto<RWLock::ReadOnly> lock(&m_globalRefLock);
 
         const bool reuseResourceList = (m_globalRefDirty == false)                               &&
-                                       (pMemMgr->ReferenceWatermark() == m_internalMgrTimestamp) &&
                                        (memRefCount == 0)                                        &&
                                        (m_appMemRefCount == 0)                                   &&
                                        (m_hResourceList != nullptr)                              &&
@@ -1070,8 +1074,6 @@ Result Queue::UpdateResourceList(
                 result = static_cast<Device*>(m_pDevice)->DestroyResourceList(m_hResourceList);
                 m_hResourceList = nullptr;
             }
-
-            bool memListDirty = m_globalRefDirty;
 
             // First add all of the global memory references.
             if (result == Result::Success)
@@ -1102,31 +1104,6 @@ Result Queue::UpdateResourceList(
                     }
 
                     m_memListResourcesInList = m_numResourcesInList;
-                }
-            }
-
-            // Then, add all of the internal memory manager's memory references to the resource list. This should
-            // include things like shader rings as well as UDMA buffer chunks.
-            if (result == Result::Success)
-            {
-                // If both the references of global memory and internal memory manager's memory haven't been modified
-                // since the last submit, the resources in our UMD-side list (m_pResourceList) should be up to date.
-                // So, there is no need to re-walk through pMemMgr.
-                if ((memListDirty == false) && (pMemMgr->ReferenceWatermark() == m_internalMgrTimestamp))
-                {
-                    m_numResourcesInList += m_memMgrResourcesInList;
-                }
-                else
-                {
-                    m_internalMgrTimestamp = pMemMgr->ReferenceWatermark();
-                    auto iter = pMemMgr->GetRefListIter();
-                    while ((iter.Get() != nullptr) && (result == Result::_Success))
-                    {
-                        result = AppendResourceToList(static_cast<GpuMemory*>(iter.Get()->pGpuMemory));
-                        iter.Next();
-                    }
-
-                    m_memMgrResourcesInList = m_numResourcesInList - m_memListResourcesInList;
                 }
             }
 
@@ -1163,8 +1140,12 @@ Result Queue::AppendResourceToList(
 
     if ((m_numResourcesInList + 1) <= m_resourceListSize)
     {
+        Image* pImage = static_cast<Image*>(pGpuMemory->GetImage());
+
         // If VM is always valid, not necessary to add into the resource list.
-        if (pGpuMemory->IsVmAlwaysValid() == false)
+        // Presentable image which is already owned by Window System can't be added into reference list.
+        if ((pGpuMemory->IsVmAlwaysValid() == false) &&
+            ((pImage == nullptr) || (pImage->IsPresentable() == false) || pImage->GetIdle()))
         {
             m_pResourceList[m_numResourcesInList] = pGpuMemory->SurfaceHandle();
 
@@ -1479,6 +1460,15 @@ void Queue::AssociateFenceWithContext(
 {
     PAL_ASSERT(pFence != nullptr);
     static_cast<Fence*>(pFence)->AssociateWithContext(m_pSubmissionContext);
+}
+
+// =====================================================================================================================
+// Set globalRefDirty true so that the resource list of the queue could be rebuilt.
+void Queue::DirtyGlobalReferences()
+{
+    RWLockAuto<RWLock::ReadWrite> lock(&m_globalRefLock);
+
+    m_globalRefDirty = true;
 }
 
 } // Amdgpu

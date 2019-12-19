@@ -2052,9 +2052,7 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
 // =====================================================================================================================
 bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     GfxCmdBuffer*           pCmdBuffer,
-    const ScaledCopyInfo&   copyInfo,
-    ScaledCopyInternalFlags flags
-    ) const
+    const ScaledCopyInfo&   copyInfo) const
 {
     const auto&      srcInfo      = copyInfo.pSrcImage->GetImageCreateInfo();
     const auto&      dstInfo      = copyInfo.pDstImage->GetImageCreateInfo();
@@ -2093,17 +2091,15 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
 // =====================================================================================================================
 void RsrcProcMgr::CmdScaledCopyImage(
     GfxCmdBuffer*           pCmdBuffer,
-    const ScaledCopyInfo&   copyInfo,
-    ScaledCopyInternalFlags flags
-    ) const
+    const ScaledCopyInfo&   copyInfo) const
 {
-    const bool useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo, flags);
+    const bool useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo);
 
     if (useGraphicsCopy)
     {
         // Save current command buffer state.
         pCmdBuffer->PushGraphicsState();
-        ScaledCopyImageGraphics(pCmdBuffer, copyInfo, flags);
+        ScaledCopyImageGraphics(pCmdBuffer, copyInfo);
         // Restore original command buffer state.
         pCmdBuffer->PopGraphicsState();
     }
@@ -2111,7 +2107,7 @@ void RsrcProcMgr::CmdScaledCopyImage(
     {
         // Save current command buffer state and bind the pipeline.
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-        ScaledCopyImageCompute(pCmdBuffer, copyInfo, flags);
+        ScaledCopyImageCompute(pCmdBuffer, copyInfo);
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
     }
 }
@@ -2119,18 +2115,227 @@ void RsrcProcMgr::CmdScaledCopyImage(
 // =====================================================================================================================
 void RsrcProcMgr::CmdGenerateMipmaps(
     GfxCmdBuffer*         pCmdBuffer,
+    const GenMipmapsInfo& genInfo) const
+{
+    // The range cannot start at mip zero and cannot extend past the last mip level.
+    PAL_ASSERT((genInfo.range.startSubres.mipLevel >= 1) &&
+               ((genInfo.range.startSubres.mipLevel + genInfo.range.numMips) <=
+                genInfo.pImage->GetImageCreateInfo().mipLevels));
+
+    if (m_pDevice->Parent()->Settings().mipGenUseFastPath)
+    {
+        // Use compute shader-based path that can generate up to 12 mipmaps/array slice per pass.
+        GenerateMipmapsFast(pCmdBuffer, genInfo);
+    }
+    else
+    {
+        // Use multi-pass scaled copy image-based path.
+        GenerateMipmapsSlow(pCmdBuffer, genInfo);
+    }
+}
+
+// =====================================================================================================================
+void RsrcProcMgr::GenerateMipmapsFast(
+    GfxCmdBuffer*         pCmdBuffer,
+    const GenMipmapsInfo& genInfo
+    ) const
+{
+    const auto& device    = *m_pDevice->Parent();
+    const auto& image     = *static_cast<const Image*>(genInfo.pImage);
+    const auto& imageInfo = image.GetImageCreateInfo();
+
+    // The shader can only generate up to 12 mips in one pass.
+    constexpr uint32 MaxNumMips = 12;
+
+    const ComputePipeline*const pPipeline = GetPipeline(RpmComputePipeline::GenerateMipmaps);
+
+    // Save current command buffer state and bind the pipeline.
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+#else
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+#endif
+
+    BarrierInfo barrier = { };
+    barrier.waitPoint   = HwPipePreCs;
+
+    constexpr HwPipePoint PostCs = HwPipePostCs;
+    barrier.pipePointWaitCount   = 1;
+    barrier.pPipePoints          = &PostCs;
+
+    // If we need to generate more than MaxNumMips mip levels, then we will need to issue multiple dispatches with
+    // internal barriers in between, because the src mip of a subsequent pass is the last dst mip of the previous pass.
+    // Note that we don't need any barriers between per-array slice dispatches.
+    BarrierTransition transition = { };
+    transition.srcCacheMask = CoherShader;
+    transition.dstCacheMask = CoherShader;
+
+    // We will specify the base subresource later on.
+    transition.imageInfo.pImage                = genInfo.pImage;
+    transition.imageInfo.subresRange.numMips   = 1;
+    transition.imageInfo.subresRange.numSlices = genInfo.range.numSlices;
+    transition.imageInfo.oldLayout             = genInfo.genMipLayout;
+    transition.imageInfo.newLayout             = genInfo.genMipLayout;
+
+    barrier.transitionCount = 1;
+    barrier.pTransitions    = &transition;
+
+    barrier.reason = Developer::BarrierReasonUnknown;
+
+    SubresId srcSubres = genInfo.range.startSubres;
+    --srcSubres.mipLevel;
+
+    for (uint32 start = 0; start < genInfo.range.numMips; start += MaxNumMips, srcSubres.mipLevel += MaxNumMips)
+    {
+        const uint32 numMipsToGenerate = Min((genInfo.range.numMips - start), MaxNumMips);
+
+        // The shader can only handle one array slice per pass.
+        for (uint32 slice = 0; slice < genInfo.range.numSlices; ++slice, ++srcSubres.arraySlice)
+        {
+            const SubResourceInfo& subresInfo = *image.SubresourceInfo(srcSubres);
+
+            const SwizzledFormat srcFormat =
+                (genInfo.swizzledFormat.format != ChNumFormat::Undefined) ? genInfo.swizzledFormat : subresInfo.format;
+            SwizzledFormat dstFormat = srcFormat;
+
+            const uint32 threadsPerGroup[] =
+            {
+                RpmUtil::MinThreadGroups(subresInfo.extentTexels.width,  64),
+                RpmUtil::MinThreadGroups(subresInfo.extentTexels.height, 64),
+                1
+            };
+
+            const float invInputDims[] =
+            {
+                (1.0f / subresInfo.extentTexels.width),
+                (1.0f / subresInfo.extentTexels.height),
+            };
+
+            // Bind inline constants to user data 0+.
+            const uint32 copyData[] =
+            {
+                numMipsToGenerate,                                               // numMips
+                (threadsPerGroup[0] * threadsPerGroup[1] * threadsPerGroup[2]),  // numWorkGroups
+                reinterpret_cast<const uint32&>(invInputDims[0]),
+                reinterpret_cast<const uint32&>(invInputDims[1]),
+            };
+            const uint32 copyDataDwords = Util::NumBytesToNumDwords(sizeof(copyData));
+
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, copyDataDwords, &copyData[0]);
+
+            // Create an embedded user-data table and bind it.  We need an image view and a sampler for the src
+            // subresource, image views for MaxNumMips dst subresources, and a buffer SRD pointing to the atomic counter.
+            constexpr uint8  NumSlots   = 2 + MaxNumMips + 1;
+            uint32*          pUserData  = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                                 SrdDwordAlignment() * NumSlots,
+                                                                                 SrdDwordAlignment(),
+                                                                                 PipelineBindPoint::Compute,
+                                                                                 copyDataDwords);
+
+            // The hardware can't handle UAV stores using sRGB num format.  The resolve shaders already contain a
+            // linear-to-gamma conversion, but in order for that to work the output UAV's num format must be patched to
+            // be simple UNORM.
+            if (Formats::IsSrgb(dstFormat.format))
+            {
+                dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
+                PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
+
+                PAL_NOT_IMPLEMENTED_MSG(
+                    "Gamma correction for sRGB image writes is not yet implemented in the mipgen shader.");
+            }
+
+            SubresRange viewRange = { srcSubres, 1, 1 };
+
+            ImageViewInfo srcImageView = { };
+            RpmUtil::BuildImageViewInfo(&srcImageView,
+                                        image,
+                                        viewRange,
+                                        srcFormat,
+                                        genInfo.baseMipLayout,
+                                        device.TexOptLevel());
+
+            device.CreateImageViewSrds(1, &srcImageView, pUserData);
+            pUserData += SrdDwordAlignment();
+
+            SamplerInfo samplerInfo = { };
+            samplerInfo.filter      = genInfo.filter;
+            samplerInfo.addressU    = TexAddressMode::Clamp;
+            samplerInfo.addressV    = TexAddressMode::Clamp;
+            samplerInfo.addressW    = TexAddressMode::Clamp;
+            samplerInfo.compareFunc = CompareFunc::Always;
+            device.CreateSamplerSrds(1, &samplerInfo, pUserData);
+            pUserData += SrdDwordAlignment();
+
+            ImageViewInfo dstImageView[MaxNumMips] = { };
+            for (uint32 mip = 0; mip < MaxNumMips; ++mip)
+            {
+                if (mip < numMipsToGenerate)
+                {
+                    ++viewRange.startSubres.mipLevel;
+                }
+
+                RpmUtil::BuildImageViewInfo(&dstImageView[mip],
+                                            image,
+                                            viewRange,
+                                            dstFormat,
+                                            genInfo.genMipLayout,
+                                            device.TexOptLevel());
+            }
+
+            device.CreateImageViewSrds(MaxNumMips, &dstImageView[0], pUserData);
+
+            if (HwlImageUsesCompressedWrites(pUserData))
+            {
+                SubresRange dstRange = { srcSubres, numMipsToGenerate, 1 };
+                ++dstRange.startSubres.mipLevel;
+
+                HwlUpdateDstImageStateMetaData(pCmdBuffer, image, dstRange);
+            }
+            pUserData += (SrdDwordAlignment() * MaxNumMips);
+
+            // Allocate scratch memory for the global atomic counter and initialize it to 0.
+            const gpusize counterVa = pCmdBuffer->AllocateGpuScratchMem(1, Util::NumBytesToNumDwords(128));
+            pCmdBuffer->CmdWriteImmediate(HwPipePoint::HwPipeTop, 0, ImmediateDataWidth::ImmediateData32Bit, counterVa);
+
+            BufferViewInfo bufferView = { };
+            bufferView.gpuAddr        = counterVa;
+            bufferView.stride         = 0;
+            bufferView.range          = sizeof(uint32);
+            bufferView.swizzledFormat = UndefinedSwizzledFormat;
+
+            device.CreateUntypedBufferViewSrds(1, &bufferView, pUserData);
+
+            // Execute the dispatch.
+            pCmdBuffer->CmdDispatch(threadsPerGroup[0], threadsPerGroup[1], threadsPerGroup[2]);
+        }
+
+        srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
+
+        if ((start + MaxNumMips) < genInfo.range.numMips)
+        {
+            // If we need to do additional dispatches to handle more mip levels, issue a barrier between each pass.
+            transition.imageInfo.subresRange.startSubres          = srcSubres;
+            transition.imageInfo.subresRange.startSubres.mipLevel = (start + numMipsToGenerate);
+
+            pCmdBuffer->CmdBarrier(barrier);
+        }
+    }
+
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
+
+// =====================================================================================================================
+void RsrcProcMgr::GenerateMipmapsSlow(
+    GfxCmdBuffer*         pCmdBuffer,
     const GenMipmapsInfo& genInfo
     ) const
 {
     const Pal::Image*      pImage     = static_cast<const Pal::Image*>(genInfo.pImage);
     const ImageCreateInfo& createInfo = pImage->GetImageCreateInfo();
 
-    // The range cannot start at mip zero and cannot extend past the last mip level.
-    PAL_ASSERT((genInfo.range.startSubres.mipLevel >= 1) &&
-               ((genInfo.range.startSubres.mipLevel + genInfo.range.numMips) <= createInfo.mipLevels));
-
-    // Until the optimal path is ready we will use scaled image copies to generate each mip. Most of the copy state is
-    // identical but we must adjust the copy region for each generated subresource.
+    // We will use scaled image copies to generate each mip. Most of the copy state is identical but we must adjust the
+    // copy region for each generated subresource.
     ImageScaledCopyRegion region = {};
     region.srcSubres.aspect     = genInfo.range.startSubres.aspect;
     region.srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
@@ -2151,8 +2356,7 @@ void RsrcProcMgr::CmdGenerateMipmaps(
     copyInfo.filter         = genInfo.filter;
     copyInfo.rotation       = ImageRotation::Ccw0;
 
-    constexpr ScaledCopyInternalFlags NullInternalFlags = {};
-    const bool useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo, NullInternalFlags);
+    const bool useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo);
 
     // We need an internal barrier between each mip-level's scaled copy because the destination of the prior copy is
     // the source of the next copy. Note that we can't use CoherCopy here because we optimize it away in the barrier
@@ -2211,11 +2415,11 @@ void RsrcProcMgr::CmdGenerateMipmaps(
 
         if (useGraphicsCopy)
         {
-            ScaledCopyImageGraphics(pCmdBuffer, copyInfo, NullInternalFlags);
+            ScaledCopyImageGraphics(pCmdBuffer, copyInfo);
         }
         else
         {
-            ScaledCopyImageCompute(pCmdBuffer, copyInfo, NullInternalFlags);
+            ScaledCopyImageCompute(pCmdBuffer, copyInfo);
         }
 
         // If we're going to loop again...
@@ -2245,9 +2449,7 @@ void RsrcProcMgr::CmdGenerateMipmaps(
 // =====================================================================================================================
 void RsrcProcMgr::ScaledCopyImageGraphics(
     GfxCmdBuffer*           pCmdBuffer,
-    const ScaledCopyInfo&   copyInfo,
-    ScaledCopyInternalFlags flags
-    ) const
+    const ScaledCopyInfo&   copyInfo) const
 {
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
@@ -2552,7 +2754,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                                                                    1);
         // Follow up the compute path of scaled copy that SRGB can be treated as UNORM
         // when copying from SRGB -> XX.
-        if (flags.srcSrgbAsUnorm)
+        if (copyInfo.flags.srcSrgbAsUnorm)
         {
             srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
         }
@@ -2711,9 +2913,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 // =====================================================================================================================
 void RsrcProcMgr::ScaledCopyImageCompute(
     GfxCmdBuffer*           pCmdBuffer,
-    const ScaledCopyInfo&   copyInfo,
-    ScaledCopyInternalFlags flags
-    ) const
+    const ScaledCopyInfo&   copyInfo) const
 {
     const auto& device       = *m_pDevice->Parent();
     const auto* pSrcImage    = static_cast<const Image*>(copyInfo.pSrcImage);
@@ -2917,7 +3117,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             // Because the Srgb-as-Unorm sample is still gamma compressed and therefore no additional
             // conversion before shader export is needed.
             const uint32 enableGammaConversion =
-                (Formats::IsSrgb(dstFormat.format) && (flags.srcSrgbAsUnorm == 0)) ? 1 : 0;
+                (Formats::IsSrgb(dstFormat.format) && (copyInfo.flags.srcSrgbAsUnorm == 0)) ? 1 : 0;
 
             const uint32 copyData[] =
             {
@@ -2972,7 +3172,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                 PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
             }
 
-            if (flags.srcSrgbAsUnorm)
+            if (copyInfo.flags.srcSrgbAsUnorm)
             {
                 srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
             }

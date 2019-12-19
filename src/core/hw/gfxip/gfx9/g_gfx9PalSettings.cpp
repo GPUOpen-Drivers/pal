@@ -62,7 +62,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.copyDstIsCompressed = CopyDstComprAlwaysAllowGfx10;
 
     m_settings.allowBigPage = 0x3f;
-
     m_settings.disableBorderColorPaletteBinds = false;
     m_settings.drainPsOnOverlap = false;
     m_settings.printMetaEquationInfo = 0x0;
@@ -71,11 +70,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.alwaysDecompress = 0x0;
     m_settings.treat1dAs2d = true;
     m_settings.forceWaveBreakSize = Gfx10ForceWaveBreakSizeClient;
-
     m_settings.sdmaPreferCompressedSource = true;
-
     m_settings.useCompToSingle = 0x1f;
-
     m_settings.forceRegularClearCode = false;
     m_settings.forceGraphicsFillMemoryPath = false;
     m_settings.waitOnMetadataMipTail = false;
@@ -87,7 +83,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.dccOnComputeEnable = 0x3;
     m_settings.useDcc = 0x1ff;
     m_settings.cbDbCachePolicy = 0x0;
-
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
     m_settings.csSimdDestCntl = CsSimdDestCntlDefault;
@@ -124,11 +119,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.primGroupSize = 128;
     m_settings.gfx9RbPlusEnable = true;
     m_settings.gfx10SpiShaderLateAllocVsNumLines = 255;
-
     m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 0x80;
-
     m_settings.gfx10GePcAllocNumLinesPerSeNggCulling = 0x100;
-
     m_settings.numPsWavesSoftGroupedPerCu = 4;
     m_settings.numVsWavesSoftGroupedPerCu = 0;
     m_settings.switchVgtOnDraw = false;
@@ -156,7 +148,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.customBatchBinSize = 0x800080;
     m_settings.minBatchBinSize.width = 0;
     m_settings.minBatchBinSize.height = 0;
-
     m_settings.disableBinningPsKill = true;
     m_settings.disableBinningNoDb = false;
     m_settings.disableBinningBlendingOff = false;
@@ -184,15 +175,11 @@ void SettingsLoader::SetupDefaults()
     m_settings.waLogicOpDisablesOverwriteCombiner = false;
     m_settings.waRotatedSwizzleDisablesOverwriteCombiner = false;
     m_settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable = false;
-
     m_settings.waFixPostZConservativeRasterization = false;
-
     m_settings.waClampQuadDistributionFactor = false;
-
     m_settings.waWrite1xAASampleLocationsToZero = false;
     m_settings.waColorCacheControllerInvalidEviction = false;
     m_settings.waForceZonlyHtileForMipmaps = false;
-
     m_settings.waOverwriteCombinerTargetMaskOnly = false;
     m_settings.waDisableHtilePrefetch = false;
     m_settings.waMiscPopsMissedOverlap = false;
@@ -206,29 +193,18 @@ void SettingsLoader::SetupDefaults()
     m_settings.waForce256bCbFetch = false;
     m_settings.waCmaskImageSyncs = false;
     m_settings.waTessFactorBufferSizeLimitGeUtcl1Underflow = false;
-
     m_settings.waSdmaPreventCompressedSurfUse = false;
-
     m_settings.waVgtFlushNggToLegacyGs = false;
-
     m_settings.waVgtFlushNggToLegacy = false;
-
     m_settings.waEnableIndexBufferPrefetchForNgg = false;
-
     m_settings.waZ16Unorm1xAaDecompressUninitialized = false;
-
     m_settings.waLateAllocGs0 = false;
-
     m_settings.waIndexBufferZeroSize = false;
-
     m_settings.waStalledPopsMode = false;
-
     m_settings.waCeDisableIb2 = false;
 
     m_settings.waUtcL0InconsistentBigPage = false;
-
     m_settings.waTwoPlanesIterate256 = false;
-
     m_settings.waTessIncorrectRelativeIndex = false;
 
     m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
@@ -1965,7 +1941,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3194639298;
+            component.settingsDataHash = 3910758869;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

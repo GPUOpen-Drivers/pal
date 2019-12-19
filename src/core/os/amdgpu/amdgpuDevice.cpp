@@ -3932,6 +3932,19 @@ Result Device::RemoveGpuMemoryReferences(
 }
 
 // =====================================================================================================================
+// Set dirty for global memory reference list to all its queues
+void Device::DirtyGlobalReferences()
+{
+    MutexAuto lock(&m_queueLock);
+
+    for (auto iter = m_queues.Begin(); iter.IsValid(); iter.Next())
+    {
+        Queue*const pLinuxQueue = static_cast<Queue*>(iter.Get());
+        pLinuxQueue->DirtyGlobalReferences();
+    }
+}
+
+// =====================================================================================================================
 // Adds GPU memory objects to this device's global memory list and all per-queue lists.
 Result Device::AddGlobalReferences(
     uint32              gpuMemRefCount,

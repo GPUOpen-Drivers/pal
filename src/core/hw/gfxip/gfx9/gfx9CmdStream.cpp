@@ -495,6 +495,27 @@ uint32* CmdStream::WriteSetOneShReg<ShaderCompute>(
     uint32*       pCmdSpace);
 
 // =====================================================================================================================
+// Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+uint32* CmdStream::WriteSetOneShRegIndex(
+    uint32                          regAddr,
+    uint32                          regData,
+    Pm4ShaderType                   shaderType,
+    PFP_SET_SH_REG_INDEX_index_enum index,
+    uint32*                         pCmdSpace)
+{
+    if ((m_flags.optModeImmediate == 0) || m_pPm4Optimizer->MustKeepSetShReg(regAddr, regData))
+    {
+        const size_t totalDwords = m_cmdUtil.BuildSetOneShRegIndex(regAddr, shaderType, index, pCmdSpace);
+
+        pCmdSpace[CmdUtil::ShRegSizeDwords] = regData;
+        pCmdSpace += totalDwords;
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
 // Builds a PM4 packet to set the given registers unless the PM4 optimizer indicates that it is redundant.
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 uint32* CmdStream::WriteSetSeqShRegs(
@@ -516,6 +537,40 @@ uint32* CmdStream::WriteSetSeqShRegs(
     else
     {
         const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(startRegAddr, endRegAddr, shaderType, pCmdSpace);
+
+        memcpy(&pCmdSpace[CmdUtil::ShRegSizeDwords],
+               pData,
+               (totalDwords - CmdUtil::ShRegSizeDwords) * sizeof(uint32));
+        pCmdSpace += totalDwords;
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Builds a PM4 packet to set the given registers unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+uint32* CmdStream::WriteSetSeqShRegsIndex(
+    uint32                          startRegAddr,
+    uint32                          endRegAddr,
+    Pm4ShaderType                   shaderType,
+    const void*                     pData,
+    PFP_SET_SH_REG_INDEX_index_enum index,
+    uint32*                         pCmdSpace)
+{
+    if (m_flags.optModeImmediate == 1)
+    {
+        PM4_ME_SET_SH_REG setData;
+        m_cmdUtil.BuildSetSeqShRegsIndex(startRegAddr, endRegAddr, shaderType, index, &setData);
+
+        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setData,
+                                                                static_cast<const uint32*>(pData),
+                                                                pCmdSpace);
+    }
+    else
+    {
+        const size_t totalDwords =
+            m_cmdUtil.BuildSetSeqShRegsIndex(startRegAddr, endRegAddr, shaderType, index, pCmdSpace);
 
         memcpy(&pCmdSpace[CmdUtil::ShRegSizeDwords],
                pData,

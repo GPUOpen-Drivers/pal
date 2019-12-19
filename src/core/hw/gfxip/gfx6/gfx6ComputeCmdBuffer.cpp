@@ -658,10 +658,8 @@ void ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
     static_assert(NumUserDataRegisters <= UserDataEntriesPerMask,
                   "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
 
-    const bool   prevNoSpilling   = pPrevSignature->spillThreshold == NoUserDataSpilling;
-    const bool   nextNoSpilling   = m_pSignatureCs->spillThreshold == NoUserDataSpilling;
-    const uint16 prevFastUserData = prevNoSpilling ? pPrevSignature->userDataLimit : pPrevSignature->spillThreshold;
-    const uint16 nextFastUserData = nextNoSpilling ? m_pSignatureCs->userDataLimit : m_pSignatureCs->spillThreshold;
+    const size_t prevFastUserData = pPrevSignature->stage.userSgprCount;
+    const size_t nextFastUserData = m_pSignatureCs->stage.userSgprCount;
 
     if (prevFastUserData < nextFastUserData)
     {
@@ -674,8 +672,7 @@ void ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
         // This could be wasteful if the client binds a common set of user data and frequently switches between
         // pipelines with different user data limits. We probably can't avoid that overhead without rewriting
         // our compute user data management.
-        const size_t rewriteMask =
-            BitfieldGenMask<size_t>(nextFastUserData) & ~BitfieldGenMask<size_t>(prevFastUserData);
+        const size_t rewriteMask = BitfieldGenMask(nextFastUserData) & ~BitfieldGenMask(prevFastUserData);
 
         m_computeState.csUserDataEntries.dirty[0] |= rewriteMask;
     }
@@ -695,18 +692,17 @@ uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
     static_assert(NumUserDataRegisters <= UserDataEntriesPerMask,
                   "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
 
-    const bool   noSpilling              = m_pSignatureCs->spillThreshold == NoUserDataSpilling;
-    const uint16 numFastUserDataEntries  = noSpilling ? m_pSignatureCs->userDataLimit : m_pSignatureCs->spillThreshold;
-    const size_t fastUserDataEntriesMask = BitfieldGenMask<size_t>(numFastUserDataEntries);
+    const size_t numFastUserDataEntries  = m_pSignatureCs->stage.userSgprCount;
+    const size_t fastUserDataEntriesMask = BitfieldGenMask(numFastUserDataEntries);
     const size_t userSgprDirtyMask       = (m_computeState.csUserDataEntries.dirty[0] & fastUserDataEntriesMask);
 
     // Additionally, dirty compute user-data is always written to user-SGPR's if it could be mapped by a pipeline,
     // which lets us avoid any complex logic when switching pipelines.
-    constexpr uint16 BaseUserSgpr = FirstUserDataRegAddr[static_cast<uint32>(HwShaderStage::Cs)];
+    constexpr uint32 BaseUserSgpr = FirstUserDataRegAddr[static_cast<uint32>(HwShaderStage::Cs)];
 
-    uint16 lastEntry = 0;
-    uint16 count     = 0;
-    for (uint16 e = 0; e < numFastUserDataEntries; ++e)
+    uint32 lastEntry = 0;
+    uint32 count     = 0;
+    for (uint32 e = 0; e < numFastUserDataEntries; ++e)
     {
         while ((e < numFastUserDataEntries) && ((userSgprDirtyMask & (static_cast<size_t>(1) << e)) != 0))
         {
@@ -718,7 +714,7 @@ uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
 
         if (count > 0)
         {
-            const uint16 firstEntry = (lastEntry - count + 1);
+            const uint32 firstEntry = (lastEntry - count + 1);
             pCmdSpace = m_cmdStream.WriteSetSeqShRegs((BaseUserSgpr + firstEntry),
                                                       (BaseUserSgpr + lastEntry),
                                                       ShaderCompute,
@@ -733,7 +729,7 @@ uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
 
     // If the currently active pipeline spills any entries to GPU memory, we need to check if any of the dirty
     // user-data entries fall within the spilled region for the current pipeline.
-    if (noSpilling == false)
+    if (m_pSignatureCs->spillThreshold != NoUserDataSpilling)
     {
         PAL_ASSERT(m_pSignatureCs->userDataLimit != 0);
 

@@ -196,6 +196,9 @@ void SwapChain::WaitForImageIdle(
             PAL_ASSERT(result == Result::ErrorFenceNeverSubmitted);
         }
     }
+
+    // Android presents are queue operations. Let's call dequeue buffer here to request the ownership of buffer
+    m_pWindowSystem->RequestImageWithIndex(imageIndex);
 }
 
 // =====================================================================================================================

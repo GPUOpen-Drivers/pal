@@ -78,6 +78,7 @@ enum WsiPlatform : uint32
     Mir                         = 0x00000010,  ///< Mir platform, which is running upon Mir protocol developed by Canonical
     DirectDisplay               = 0x00000020,  ///< DirectDisplay platform, which can render and present directly to
                                                ///  display without using an intermediate window system.
+    Android                     = 0x00000040,  ///< Android platform which is supported platform for Android OS.
 };
 
 /// Describe the surface transform capability or status.

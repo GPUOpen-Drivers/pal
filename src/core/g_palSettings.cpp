@@ -70,6 +70,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.unboundDescriptorAddress = 0xdeadbeefdeadbeef;
     m_settings.clearAllocatedLfb = false;
     m_settings.addr2Disable4kBSwizzleMode = 0x0;
+
     m_settings.addr2DisableXorTileMode = false;
     m_settings.addr2DisableSModes8BppColor = false;
     m_settings.overlayReportHDR = true;
@@ -154,6 +155,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.debugForceSurfaceAlignment = 0;
     m_settings.debugForceResourceAdditionalPadding = 0;
     m_settings.overlayReportMes = true;
+    m_settings.mipGenUseFastPath = false;
     m_settings.numSettings = g_palNumSettings;
 }
 
@@ -557,6 +559,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOverlayReportMesStr,
                            Util::ValueType::Boolean,
                            &m_settings.overlayReportMes,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pMipGenUseFastPathStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.mipGenUseFastPath,
                            InternalSettingScope::PrivatePalKey);
 
 }
@@ -1032,6 +1039,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.overlayReportMes);
     m_settingsInfoMap.Insert(1685803860, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.mipGenUseFastPath;
+    info.valueSize = sizeof(m_settings.mipGenUseFastPath);
+    m_settingsInfoMap.Insert(3353227045, info);
+
 }
 
 // =====================================================================================================================
@@ -1053,7 +1065,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 3334904986;
+            component.settingsDataHash = 3355690354;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

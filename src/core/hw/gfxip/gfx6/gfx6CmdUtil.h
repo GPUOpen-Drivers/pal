@@ -487,23 +487,23 @@ public:
 
     size_t BuildWriteConstRam(const void* pSrcData, uint32 ramByteOffset, uint32 dwordSize, void* pBuffer) const;
 
-    size_t BuildWriteData(
+    static size_t BuildWriteData(
         const WriteDataInfo& info,
         uint32               data,
-        void*                pBuffer) const;
+        void*                pBuffer);
 
-    size_t BuildWriteData(
+    static size_t BuildWriteData(
         const WriteDataInfo& info,
         size_t               dwordsToWrite,
         const uint32*        pData,
-        void*                pBuffer) const;
+        void*                pBuffer);
 
-    size_t BuildWriteDataPeriodic(
+    static size_t BuildWriteDataPeriodic(
         const WriteDataInfo& info,
         size_t               dwordsPerPeriod,
         size_t               periodsToWrite,
         const uint32*        pPeriodData,
-        void*                pBuffer) const;
+        void*                pBuffer);
 
     size_t BuildCommentString(const char* pComment, void* pBuffer) const;
     size_t BuildNopPayload(const void* pPayload, uint32 payloadSize, void* pBuffer) const;
@@ -564,11 +564,11 @@ private:
     // - set_sh_reg
     // - set_sh_reg_offset
     // - write_gds
-    PAL_INLINE uint32 Type3Header(
+    static PAL_INLINE uint32 Type3Header(
         IT_OpCodeType opCode,
         size_t        packetSize,
         PM4ShaderType shaderType = ShaderGraphics,
-        PM4Predicate  predicate  = PredDisable) const
+        PM4Predicate  predicate  = PredDisable)
         { return PM4_TYPE_3_HDR(opCode, static_cast<uint32>(packetSize), shaderType, predicate); }
 
     // Helper method to generate the 2nd ordinal of a PM4CMDSETDATA packet:

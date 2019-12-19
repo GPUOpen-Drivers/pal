@@ -199,45 +199,69 @@ Result GpuMemory::AllocateOrPinMemory(
                 //   Follow current model
                 if ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible))
                 {
+                    bool  validHeapFound = false; // be pessimistic
+
                     // Linux kernel doesn't respect the priority of heaps, so:
                     // (1) Local memory: once invisible heap is selected, eliminate visible from the preferred heap.
                     // (2) Remote memory: just care about the first remote heap regardless of the second.
                     for (uint32 heap = 0; heap < m_heapCount; ++heap)
                     {
-                        switch (m_heaps[heap])
+                        const GpuHeap gpuHeap   = m_heaps[heap];
+                        const auto&   heapProps = m_pDevice->HeapProperties(gpuHeap);
+
+                        // Make sure the requested heap exists
+                        if (heapProps.heapSize != 0)
                         {
-                            case GpuHeapGartUswc:
-                                if ((allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_GTT) == 0)
-                                {
-                                    allocRequest.flags |= AMDGPU_GEM_CREATE_CPU_GTT_USWC;
-                                }
-                                // Fall through next
-                            case GpuHeapGartCacheable:
-                                allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_GTT;
-                                break;
-                            case GpuHeapLocal:
-                                if ((allocRequest.flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS) == 0)
-                                {
-                                    allocRequest.flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
-                                    if (IsBusAddressable())
+                            validHeapFound = true;
+
+                            switch (gpuHeap)
+                            {
+                                case GpuHeapGartUswc:
+                                    if ((allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_GTT) == 0)
                                     {
-                                        allocRequest.preferred_heap = AMDGPU_GEM_DOMAIN_DGMA;
+                                        allocRequest.flags |= AMDGPU_GEM_CREATE_CPU_GTT_USWC;
                                     }
-                                    else
+                                    // Fall through next
+                                case GpuHeapGartCacheable:
+                                    allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_GTT;
+                                    break;
+                                case GpuHeapLocal:
+                                    if ((allocRequest.flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS) == 0)
                                     {
-                                        allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_VRAM;
+                                        allocRequest.flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+                                        if (IsBusAddressable())
+                                        {
+                                            allocRequest.preferred_heap = AMDGPU_GEM_DOMAIN_DGMA;
+                                        }
+                                        else
+                                        {
+                                            allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_VRAM;
+                                        }
                                     }
-                                }
-                                break;
-                            case GpuHeapInvisible:
-                                allocRequest.flags          &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
-                                allocRequest.flags          |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
-                                allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_VRAM;
-                                break;
-                            default:
-                                PAL_ASSERT_ALWAYS();
-                                break;
+                                    break;
+                                case GpuHeapInvisible:
+                                    allocRequest.flags          &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+                                    allocRequest.flags          |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+                                    allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_VRAM;
+                                    break;
+                                default:
+                                    PAL_ASSERT_ALWAYS();
+                                    break;
+                            }
                         }
+                    }
+
+                    if (validHeapFound == false)
+                    {
+                        // Provide some info that we're getting into this path
+                        PAL_ALERT_ALWAYS();
+
+                        // Duplication of Windows path
+                        PAL_NOT_TESTED();
+
+                        // None of the heaps the client requested exist; provide a fallback to the GART heap here.
+                        allocRequest.flags          |= AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+                        allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_GTT;
                     }
                 }
                 else
@@ -289,6 +313,18 @@ Result GpuMemory::AllocateOrPinMemory(
                 m_hSurface = bufferHandle;
                 // Mapping the virtual address to the buffer object.
                 result = pDevice->MapVirtualAddress(bufferHandle, m_offset, m_desc.size, m_desc.gpuVirtAddr, m_mtype);
+            }
+
+            // Add internal memory to the global list, all of the internal memory are alwaysResident memory.
+            // When alwaysResident enabled by settings, resource list is not necessary.
+            if ((result == Result::Success) && (m_isVmAlwaysValid == false) && IsAlwaysResident() &&
+                (pDevice->Settings().alwaysResident == false))
+            {
+                GpuMemoryRef memRef = {};
+
+                memRef.pGpuMemory = this;
+
+                result = pDevice->AddGpuMemoryReferences(1, &memRef, nullptr, 0);
             }
         }
         else

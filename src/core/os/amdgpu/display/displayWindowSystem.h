@@ -71,6 +71,8 @@ public:
 
     virtual Result WaitForCompletion(bool doWait) override;
 
+    virtual Result AssociatePriorRenderFence(IQueue* pQueue) override { return Result::Success; }
+
     void SetPresentState(PresentState state) { m_presentState = state; }
     PresentState GetPresentState() const { return m_presentState; }
 
@@ -126,6 +128,8 @@ public:
         PresentFence*               pIdleFence) override;
 
     virtual Result WaitForLastImagePresented() override;
+
+    virtual Result RequestImageWithIndex(uint32 index) override { return Result::Success; }
 
 private:
     static void DisplayVblankCb(

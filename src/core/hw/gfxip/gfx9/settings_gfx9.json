@@ -19,9 +19,7 @@
     "Hardware Workarounds",
     "RPM",
     "Gfx9",
-    {
-      "Name": "Gfx10"
-    }
+    "Gfx10"
   ],
   "Settings": [
     {

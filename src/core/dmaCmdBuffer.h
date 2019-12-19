@@ -333,6 +333,8 @@ protected:
     const uint32 m_copyOverlapHazardSyncs;   // Bitmask that depons on image type (1D, 2D or 3D). The bit is set to 1
                                              // if we need to handle overlapping copy syncing during CmdBarrier.
     gpusize      m_predMemAddress;           // Memory predication will reference this address.
+    gpusize      m_predInternalAddr;         // Internal Memory predication will reference this address.
+    uint32       m_predCopyData;             // Predication copy data for "write data" cmd.
 
 private:
     void SetupDmaInfoSurface(

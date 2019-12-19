@@ -88,41 +88,6 @@ struct UniversalCmdBufferState
     Util::Abi::PrimShaderCbLayout  primShaderCbLayout;
 };
 
-// Represents an "image" of the PM4 headers necessary to write NULL depth-stencil state to hardware. The required
-// register writes are grouped into sets based on sequential register addresses, so that we can minimize the amount
-// of PM4 space needed by setting several reg's in each packet.
-struct NullDepthStencilPm4Img
-{
-    PM4PFP_SET_CONTEXT_REG       hdrDbRenderOverride2;
-    regDB_RENDER_OVERRIDE2       dbRenderOverride2;
-    regDB_HTILE_DATA_BASE        dbHtileDataBase;
-
-    PM4PFP_SET_CONTEXT_REG       hdrDbRenderControl;
-    regDB_RENDER_CONTROL         dbRenderControl;
-
-    // Note:  this must be last, because the size of this union is a constant, but the number of registers
-    //        written to the GPU is of a variable length.  This struct is copied into the PM4 stream "as is",
-    //        so any blank / unused spaces need to be at the end.
-    PM4PFP_SET_CONTEXT_REG       hdrDbInfo;
-    union
-    {
-        struct
-        {
-            regDB_Z_INFO                 dbZInfo;
-            regDB_STENCIL_INFO           dbStencilInfo;
-        } gfx9;
-
-        struct
-        {
-            uint32                       dbDepthInfo;
-            regDB_Z_INFO                 dbZInfo;
-            regDB_STENCIL_INFO           dbStencilInfo;
-
-            ///@note Writing HI base addresses in the preamble as they are known to be 0 always.
-        } gfx10;
-    };
-};
-
 // Structure used by UniversalCmdBuffer to track particular bits of hardware state that might need to be updated
 // per-draw. Note that the 'valid' flags exist to indicate when we don't know the actual value of certain state. For
 // example, we don't know what NUM_INSTANCES is set to at the beginning of a command buffer or after an indirect draw.
@@ -171,92 +136,6 @@ struct DrawTimeHwState
     gpusize                       nggIndexBufferPfEndAddr;   // End address of last IndexBuffer prefetch for NGG.
 };
 
-struct ColorInfoReg
-{
-    PM4PFP_SET_CONTEXT_REG header;
-    regCB_COLOR0_INFO      cbColorInfo;
-};
-
-struct ScreenScissorReg
-{
-    PM4PFP_SET_CONTEXT_REG     hdrPaScScreenScissors;
-    regPA_SC_SCREEN_SCISSOR_TL paScScreenScissorTl;
-    regPA_SC_SCREEN_SCISSOR_BR paScScreenScissorBr;
-};
-
-constexpr size_t MaxNullColorTargetPm4ImgSize = sizeof(ColorInfoReg) * MaxColorTargets;
-
-struct BlendConstReg
-{
-    PM4_PFP_SET_CONTEXT_REG header;
-    regCB_BLEND_RED         red;
-    regCB_BLEND_GREEN       green;
-    regCB_BLEND_BLUE        blue;
-    regCB_BLEND_ALPHA       alpha;
-};
-
-struct InputAssemblyStatePm4Img
-{
-    PM4_PFP_SET_UCONFIG_REG             hdrPrimType;
-    regVGT_PRIMITIVE_TYPE               primType;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrVgtMultiPrimIbResetIndex;
-    regVGT_MULTI_PRIM_IB_RESET_INDX     vgtMultiPrimIbResetIndex;
-};
-
-struct StencilRefMasksReg
-{
-    PM4_PFP_SET_CONTEXT_REG header;
-    regDB_STENCILREFMASK    dbStencilRefMaskFront;
-    regDB_STENCILREFMASK_BF dbStencilRefMaskBack;
-};
-
-struct StencilRefMaskRmwReg
-{
-    PM4_ME_REG_RMW dbStencilRefMaskFront;
-    PM4_ME_REG_RMW dbStencilRefMaskBack;
-};
-
-constexpr size_t MaxStencilSetPm4ImgSize = sizeof(StencilRefMasksReg) > sizeof(StencilRefMaskRmwReg) ?
-                                           sizeof(StencilRefMasksReg) : sizeof(StencilRefMaskRmwReg);
-struct DepthBoundsStateReg
-{
-    PM4_PFP_SET_CONTEXT_REG header;
-    regDB_DEPTH_BOUNDS_MIN  dbDepthBoundsMin;
-    regDB_DEPTH_BOUNDS_MAX  dbDepthBoundsMax;
-};
-
-struct TriangleRasterStateReg
-{
-    PM4_PFP_SET_CONTEXT_REG header;
-    regPA_SU_SC_MODE_CNTL   paSuScModeCntl;
-};
-
-struct DepthBiasStateReg
-{
-    PM4_PFP_SET_CONTEXT_REG           header;
-    regPA_SU_POLY_OFFSET_CLAMP        paSuPolyOffsetClamp;       // Poly offset clamp value
-    regPA_SU_POLY_OFFSET_FRONT_SCALE  paSuPolyOffsetFrontScale;  // Front-facing poly scale
-    regPA_SU_POLY_OFFSET_FRONT_OFFSET paSuPolyOffsetFrontOffset; // Front-facing poly offset
-    regPA_SU_POLY_OFFSET_BACK_SCALE   paSuPolyOffsetBackScale;   // Back-facing poly scale
-    regPA_SU_POLY_OFFSET_BACK_OFFSET  paSuPolyOffsetBackOffset;  // Back-facing poly offset
-};
-
-struct PointLineRasterStateReg
-{
-    PM4_PFP_SET_CONTEXT_REG paSuHeader;
-    regPA_SU_POINT_SIZE     paSuPointSize;
-    regPA_SU_POINT_MINMAX   paSuPointMinMax;
-    regPA_SU_LINE_CNTL      paSuLineCntl;
-};
-
-struct GlobalScissorReg
-{
-    PM4_PFP_SET_CONTEXT_REG    header;
-    regPA_SC_WINDOW_SCISSOR_TL topLeft;
-    regPA_SC_WINDOW_SCISSOR_BR bottomRight;
-};
-
 // Register state for a single viewport's X,Y,Z scales and offsets.
 struct VportScaleOffsetPm4Img
 {
@@ -289,22 +168,6 @@ struct ScissorRectPm4Img
 {
     regPA_SC_VPORT_SCISSOR_0_TL tl;
     regPA_SC_VPORT_SCISSOR_0_BR br;
-};
-
-// Register state for a single plane's x y z and w coordinates.
-struct UserClipPlaneStateReg
-{
-    regPA_CL_UCP_0_X            paClUcpX;
-    regPA_CL_UCP_0_Y            paClUcpY;
-    regPA_CL_UCP_0_Z            paClUcpZ;
-    regPA_CL_UCP_0_W            paClUcpW;
-};
-
-// Command for setting up user clip planes.
-struct UserClipPlaneStatePm4Img
-{
-    PM4_PFP_SET_CONTEXT_REG     header;
-    UserClipPlaneStateReg       plane[6];
 };
 
 // PM4 image for loading context registers from memory
@@ -368,21 +231,6 @@ struct NggState
     } flags;
 
     uint32 numSamples;  // Number of active MSAA samples.
-};
-
-// Register state for a clip rectangle's left top and right bottom parameters.
-struct ClipRectsStateReg
-{
-    regPA_SC_CLIPRECT_0_TL    paScClipRectTl;
-    regPA_SC_CLIPRECT_0_BR    paScClipRectBr;
-};
-
-// Command for setting up clip rects
-struct ClipRectsPm4Img
-{
-    PM4_PFP_SET_CONTEXT_REG header;
-    regPA_SC_CLIPRECT_RULE  paScClipRectRule;
-    ClipRectsStateReg       rects[MaxClipRects];
 };
 
 // =====================================================================================================================
@@ -1113,13 +961,15 @@ private:
     WorkaroundState          m_workaroundState;
     UniversalCmdBufferState  m_state; // State tracking for internal cmd buffer operations
 
+    regSX_PS_DOWNCONVERT                     m_sxPsDownconvert;
+    regSX_BLEND_OPT_EPSILON                  m_sxBlendOptEpsilon;
+    regSX_BLEND_OPT_CONTROL                  m_sxBlendOptControl;
     regVGT_DMA_INDEX_TYPE                    m_vgtDmaIndexType;   // Register setting for VGT_DMA_INDEX_TYPE
     regSPI_VS_OUT_CONFIG                     m_spiVsOutConfig;    // Register setting for VS_OUT_CONFIG
     regSPI_PS_IN_CONTROL                     m_spiPsInControl;    // Register setting for PS_IN_CONTROL
     regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL m_paScConsRastCntl;  // Register setting for PA_SC_CONSERV_RAST_CNTL
     uint16                                   m_vertexOffsetReg;   // Register where the vertex start offset is written
     uint16                                   m_drawIndexReg;      // Register where the draw index is written
-    RbPlusPm4Img                             m_rbPlusPm4Img;      // PM4 image for RB Plus register state
 
     const uint32  m_log2NumSes;
     const uint32  m_log2NumRbPerSe;
@@ -1175,13 +1025,14 @@ private:
                                                     // reduce context rolls.
             uint32 describeDrawDispatch       :  1; // True if draws/dispatch shader IDs should be specified within the
                                                     // command stream for parsing by PktTools
+            uint32 rbPlusSupported            :  1; // True if RBPlus is supported by the device
             uint32 disableVertGrouping        :  1; // Disable VertexGrouping.
             uint32 prefetchIndexBufferForNgg  :  1; // Prefetch index buffers to workaround misses in UTCL2 with NGG
             uint32 waCeDisableIb2             :  1; // Disable IB2's on the constant engine to workaround HW bug
             uint32 reserved2                  :  1;
             uint32 reserved3                  :  1;
             uint32 pbbMoreThanOneCtxState     :  1;
-            uint32 reserved                   :  2;
+            uint32 reserved                   :  1;
         };
         uint32 u32All;
     } m_cachedSettings;

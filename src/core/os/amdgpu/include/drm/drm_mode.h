@@ -33,7 +33,6 @@
 extern "C" {
 #endif
 
-#define DRM_DISPLAY_INFO_LEN	32
 #define DRM_CONNECTOR_NAME_LEN	32
 #define DRM_DISPLAY_MODE_LEN	32
 #define DRM_PROP_NAME_LEN	32
@@ -403,7 +402,7 @@ struct drm_mode_get_connector {
 /* the PROP_ATOMIC flag is used to hide properties from userspace that
  * is not aware of atomic properties.  This is mostly to work around
  * older userspace (DDX drivers) that read/write each prop they find,
- * witout being aware that this could be triggering a lengthy modeset.
+ * without being aware that this could be triggering a lengthy modeset.
  */
 #define DRM_MODE_PROP_ATOMIC        0x80000000
 
@@ -622,7 +621,8 @@ struct drm_color_ctm {
 
 struct drm_color_lut {
 	/*
-	 * Data is U0.16 fixed point format.
+	 * Values are mapped linearly to 0.0 - 1.0 range, with 0x0 == 0.0 and
+	 * 0xffff == 1.0.
 	 */
 	__u16 red;
 	__u16 green;
@@ -886,6 +886,25 @@ struct drm_mode_revoke_lease {
 	/** Unique ID of lessee
 	 */
 	__u32 lessee_id;
+};
+
+/**
+ * struct drm_mode_rect - Two dimensional rectangle.
+ * @x1: Horizontal starting coordinate (inclusive).
+ * @y1: Vertical starting coordinate (inclusive).
+ * @x2: Horizontal ending coordinate (exclusive).
+ * @y2: Vertical ending coordinate (exclusive).
+ *
+ * With drm subsystem using struct drm_rect to manage rectangular area this
+ * export it to user-space.
+ *
+ * Currently used by drm_mode_atomic blob property FB_DAMAGE_CLIPS.
+ */
+struct drm_mode_rect {
+	__s32 x1;
+	__s32 y1;
+	__s32 x2;
+	__s32 y2;
 };
 
 #if defined(__cplusplus)

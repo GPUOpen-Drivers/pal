@@ -1610,6 +1610,14 @@ bool Image::IsFastClearColorMetaFetchable(
                 // This channel isn't zero or one, so the fast-clear can't be meta-fetchable.
                 isMetaFetchable = false;
             }
+            else if ((pColor[cmpIdx] != 0) &&
+                     (m_pParent->GetDccFormatEncoding() == DccFormatEncoding::SignIndependent))
+            {
+                // cant allow special clear color code because the formats do not support DCC Constant
+                // encoding. This happens when we mix signed and unsigned formats. There is no problem with
+                // clearcolor0000.The issue is only seen when there is a 1 in any of the channels
+                isMetaFetchable = false;
+            }
             else
             {
                 switch (pSwizzle[cmpIdx])

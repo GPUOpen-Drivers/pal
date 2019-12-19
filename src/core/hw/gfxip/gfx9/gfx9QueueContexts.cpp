@@ -29,7 +29,6 @@
 #include "palAssert.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputeEngine.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
-#include "core/hw/gfxip/gfx9/gfx9Preambles.h"
 #include "core/hw/gfxip/gfx9/gfx9QueueContexts.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderRingSet.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalEngine.h"
@@ -46,82 +45,63 @@ namespace Gfx9
 {
 
 // =====================================================================================================================
-// Assembles and initializes the PM4 commands for the common preamble image.
-static void SetupCommonPreamble(
-    const Device*         pDevice,
-    EngineType            engineType,
-    CommonPreamblePm4Img* pCommonPreamble)
+// Writes commands which are common to the preambles for Compute and Universal queues.
+static uint32* WriteCommonPreamble(
+    const Device& device,
+    EngineType    engineType,
+    CmdStream*    pCmdStream,
+    uint32*       pCmdSpace)
 {
-    memset(pCommonPreamble, 0, sizeof(CommonPreamblePm4Img));
+    const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
 
-    const auto&            chipProps = pDevice->Parent()->ChipProperties().gfx9;
-    const Gfx9PalSettings& settings  = pDevice->Settings();
-    const CmdUtil&         cmdUtil   = pDevice->CmdUtil();
-
-    // First build the PM4 headers.
-    if (pDevice->Parent()->EngineSupportsCompute(engineType))
+    if (device.Parent()->EngineSupportsCompute(engineType))
     {
-        pCommonPreamble->spaceNeeded +=
-            cmdUtil.BuildSetSeqShRegsIndex(mmCOMPUTE_STATIC_THREAD_MGMT_SE0,
-                                           mmCOMPUTE_STATIC_THREAD_MGMT_SE1,
-                                           ShaderCompute,
-                                           index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                           &pCommonPreamble->hdrThreadMgmt01);
-
-        pCommonPreamble->spaceNeeded +=
-            cmdUtil.BuildSetSeqShRegsIndex(mmCOMPUTE_STATIC_THREAD_MGMT_SE2,
-                                           mmCOMPUTE_STATIC_THREAD_MGMT_SE3,
-                                           ShaderCompute,
-                                           index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                           &pCommonPreamble->hdrThreadMgmt23);
-
         // It's OK to set the CU mask to enable all CUs. The UMD does not need to know about active CUs and harvested
         // CUs at this point. Using the packet SET_SH_REG_INDEX, the umd mask will be ANDed with the kmd mask so that
         // UMD does not use the CUs that are intended for real time compute usage.
 
-        const uint16 cuEnableMask = pDevice->GetCuEnableMask(0, settings.csCuEnLimitMask);
+        const uint16 cuEnableMask = device.GetCuEnableMask(0, device.Settings().csCuEnLimitMask);
 
-        // Enable Compute workloads on all CU's of SE0/SE1 (unless masked).
-        pCommonPreamble->computeStaticThreadMgmtSe0.gfx09.SH0_CU_EN = cuEnableMask;
-        pCommonPreamble->computeStaticThreadMgmtSe0.gfx09.SH1_CU_EN = cuEnableMask;
+        regCOMPUTE_STATIC_THREAD_MGMT_SE0 computeStaticThreadMgmtPerSe = { };
+        computeStaticThreadMgmtPerSe.gfx09.SH0_CU_EN = cuEnableMask;
+        computeStaticThreadMgmtPerSe.gfx09.SH1_CU_EN = cuEnableMask;
 
-        if (chipProps.numShaderEngines > 1)
+        const uint32 masksPerSe[4] =
         {
-            pCommonPreamble->computeStaticThreadMgmtSe1.gfx09.SH0_CU_EN = cuEnableMask;
-            pCommonPreamble->computeStaticThreadMgmtSe1.gfx09.SH1_CU_EN = cuEnableMask;
+            computeStaticThreadMgmtPerSe.u32All,
+            ((chipProps.gfx9.numShaderEngines >= 2) ? computeStaticThreadMgmtPerSe.u32All : 0),
+            ((chipProps.gfx9.numShaderEngines >= 3) ? computeStaticThreadMgmtPerSe.u32All : 0),
+            ((chipProps.gfx9.numShaderEngines >= 4) ? computeStaticThreadMgmtPerSe.u32All : 0),
+        };
 
-            // Enable Compute workloads on all CU's of SE2/SE3 (unless masked).
-            if (chipProps.numShaderEngines > 2)
-            {
-                pCommonPreamble->computeStaticThreadMgmtSe2.gfx09.SH0_CU_EN = cuEnableMask;
-                pCommonPreamble->computeStaticThreadMgmtSe2.gfx09.SH1_CU_EN = cuEnableMask;
+        pCmdSpace = pCmdStream->WriteSetSeqShRegsIndex(mmCOMPUTE_STATIC_THREAD_MGMT_SE0,
+                                                       mmCOMPUTE_STATIC_THREAD_MGMT_SE1,
+                                                       ShaderCompute,
+                                                       &masksPerSe[0],
+                                                       index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                       pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetSeqShRegsIndex(mmCOMPUTE_STATIC_THREAD_MGMT_SE2,
+                                                       mmCOMPUTE_STATIC_THREAD_MGMT_SE3,
+                                                       ShaderCompute,
+                                                       &masksPerSe[2],
+                                                       index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                       pCmdSpace);
 
-                if (chipProps.numShaderEngines > 3)
-                {
-                    pCommonPreamble->computeStaticThreadMgmtSe3.gfx09.SH0_CU_EN = cuEnableMask;
-                    pCommonPreamble->computeStaticThreadMgmtSe3.gfx09.SH1_CU_EN = cuEnableMask;
-                }
-            }
-        }
-    }
-
-    pCommonPreamble->spaceNeeded +=
-        cmdUtil.BuildSetOneConfigReg(mmCP_COHER_START_DELAY, &pCommonPreamble->hdrCoherDelay);
-
-    // Now set up the values for the registers being written.
+    } // if compute supported
 
     // Give the CP_COHER register (used by acquire-mem packet) a chance to think a little bit before actually
     // doing anything.
-    const GfxIpLevel gfxLevel = pDevice->Parent()->ChipProperties().gfxLevel;
+    regCP_COHER_START_DELAY cpCoherStartDelay = { };
+    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        cpCoherStartDelay.bits.START_DELAY_COUNT = 0;
+    }
+    else if (IsGfx10(chipProps.gfxLevel))
+    {
+        cpCoherStartDelay.bits.START_DELAY_COUNT = mmCP_COHER_START_DELAY_DEFAULT;
+    }
 
-    if (gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        pCommonPreamble->cpCoherStartDelay.bits.START_DELAY_COUNT = 0;
-    }
-    else if (IsGfx10(gfxLevel))
-    {
-        pCommonPreamble->cpCoherStartDelay.bits.START_DELAY_COUNT = mmCP_COHER_START_DELAY_DEFAULT;
-    }
+    return pCmdStream->WriteSetOneConfigReg(mmCP_COHER_START_DELAY, cpCoherStartDelay.u32All, pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -156,9 +136,6 @@ ComputeQueueContext::ComputeQueueContext(
                          CmdStreamUsage::Postamble,
                          false)
 {
-    SetupCommonPreamble(pDevice, pEngine->Type(), &m_commonPreamble);
-    BuildComputePreambleHeaders();
-    SetupComputePreambleRegisters();
 }
 
 // =====================================================================================================================
@@ -185,7 +162,7 @@ Result ComputeQueueContext::Init()
 
     if (result == Result::Success)
     {
-        RebuildCommandStreams();
+        result = RebuildCommandStreams();
     }
 
     return result;
@@ -203,17 +180,20 @@ Result ComputeQueueContext::PreProcessSubmit(
 
     if ((result == Result::Success) && hasUpdated)
     {
-        RebuildCommandStreams();
+        result = RebuildCommandStreams();
     }
 
-    pSubmitInfo->pPreambleCmdStream[0]  = &m_perSubmitCmdStream;
-    pSubmitInfo->pPreambleCmdStream[1]  = &m_cmdStream;
-    pSubmitInfo->pPostambleCmdStream[0] = &m_postambleCmdStream;
+    if (result == Result::Success)
+    {
+        pSubmitInfo->pPreambleCmdStream[0]  = &m_perSubmitCmdStream;
+        pSubmitInfo->pPreambleCmdStream[1]  = &m_cmdStream;
+        pSubmitInfo->pPostambleCmdStream[0] = &m_postambleCmdStream;
 
-    pSubmitInfo->numPreambleCmdStreams  = 2;
-    pSubmitInfo->numPostambleCmdStreams = 1;
+        pSubmitInfo->numPreambleCmdStreams  = 2;
+        pSubmitInfo->numPostambleCmdStreams = 1;
 
-    pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
+        pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
+    }
 
     return result;
 }
@@ -233,7 +213,7 @@ void ComputeQueueContext::PostProcessSubmit()
 
 // =====================================================================================================================
 // Regenerates the contents of this context's internal command stream.
-void ComputeQueueContext::RebuildCommandStreams()
+Result ComputeQueueContext::RebuildCommandStreams()
 {
     /*
      * There are two preambles which PAL submits with every set of command buffers: one which executes as a preamble
@@ -252,109 +232,112 @@ void ComputeQueueContext::RebuildCommandStreams()
      * an end-of-pipe event that flushes all write caches and clears the timestamp back to zero.
      */
 
-    constexpr CmdStreamBeginFlags beginFlags = {};
-    const     CmdUtil&            cmdUtil    = m_pDevice->CmdUtil();
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
     // The drop-if-same-context queue preamble.
     //==================================================================================================================
 
     m_cmdStream.Reset(nullptr, true);
-    m_cmdStream.Begin(beginFlags, nullptr);
+    Result result = m_cmdStream.Begin({}, nullptr);
 
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-
-    // Write the shader ring-set's commands before the command stream's normal preamble. If the ring sizes have changed,
-    // the hardware requires a CS partial flush to operate properly.
-    pCmdSpace = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
-
-    if (m_pDevice->CmdUtil().CanUseCsPartialFlush(EngineTypeCompute))
+    if (result == Result::Success)
     {
-        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeCompute, pCmdSpace);
-    }
-    else
-    {
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+
+        // Write the shader ring-set's commands before the command stream's normal preamble. If the ring sizes have
+        // changed, the hardware requires a CS idle to operate properly.
+        pCmdSpace  = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
         pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, m_waitForIdleTs.GpuVirtAddr(), pCmdSpace);
+        pCmdSpace  = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, &m_cmdStream, pCmdSpace);
+
+        m_cmdStream.CommitCommands(pCmdSpace);
+        result = m_cmdStream.End();
     }
-
-    // Copy the common preamble commands and compute-specific preamble commands.
-    pCmdSpace = m_cmdStream.WritePm4Image(m_commonPreamble.spaceNeeded,  &m_commonPreamble,  pCmdSpace);
-    pCmdSpace = m_cmdStream.WritePm4Image(m_computePreamble.spaceNeeded, &m_computePreamble, pCmdSpace);
-
-    m_cmdStream.CommitCommands(pCmdSpace);
-    m_cmdStream.End();
 
     // The per-submit preamble.
     //==================================================================================================================
 
-    m_perSubmitCmdStream.Reset(nullptr, true);
-    m_perSubmitCmdStream.Begin(beginFlags, nullptr);
+    if (result == Result::Success)
+    {
+        m_perSubmitCmdStream.Reset(nullptr, true);
+        result = m_perSubmitCmdStream.Begin({}, nullptr);
+    }
 
-    pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
+    if (result == Result::Success)
+    {
+        uint32* pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
 
-    // The following wait, write data, and surface sync must be at the beginning of the per-submit preamble.
-    //
-    // Wait for a prior submission on this context to be idle before executing the command buffer streams.
-    // The timestamp memory is initialized to zero so the first submission on this context will not wait.
-    pCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeCompute,
-                                          mem_space__mec_wait_reg_mem__memory_space,
-                                          function__mec_wait_reg_mem__equal_to_the_reference_value,
-                                          0,
-                                          m_exclusiveExecTs.GpuVirtAddr(),
-                                          0,
-                                          0xFFFFFFFF,
-                                          pCmdSpace);
+        // The following wait, write data, and surface sync must be at the beginning of the per-submit preamble.
+        //
+        // Wait for a prior submission on this context to be idle before executing the command buffer streams.
+        // The timestamp memory is initialized to zero so the first submission on this context will not wait.
+        pCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeCompute,
+                                              mem_space__mec_wait_reg_mem__memory_space,
+                                              function__mec_wait_reg_mem__equal_to_the_reference_value,
+                                              0,
+                                              m_exclusiveExecTs.GpuVirtAddr(),
+                                              0,
+                                              0xFFFFFFFF,
+                                              pCmdSpace);
 
-    // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-    WriteDataInfo writeData = {};
-    writeData.engineType = EngineTypeCompute;
-    writeData.dstAddr    = m_exclusiveExecTs.GpuVirtAddr();
-    writeData.dstSel     = dst_sel__mec_write_data__memory;
+        // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
+        WriteDataInfo writeData = {};
+        writeData.engineType = EngineTypeCompute;
+        writeData.dstAddr    = m_exclusiveExecTs.GpuVirtAddr();
+        writeData.dstSel     = dst_sel__mec_write_data__memory;
 
-    pCmdSpace += CmdUtil::BuildWriteData(writeData, 1, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildWriteData(writeData, 1, pCmdSpace);
 
-    // Issue an acquire mem packet to invalidate all SQ caches (SQ I-cache and SQ K-cache).
-    //
-    // Our postamble stream flushes and invalidates the L1 and L2 with an EOP event at the conclusion of each user
-    // mode submission, but the SQC caches are not invalidated. We waited for that event just above this packet so
-    // the L1 and L2 cannot contain stale data. However, a well behaving app could read stale SQC data unless we
-    // invalidate those caches here.
-    AcquireMemInfo acquireInfo = {};
-    acquireInfo.flags.invSqI$ = 1;
-    acquireInfo.flags.invSqK$ = 1;
-    acquireInfo.tcCacheOp     = TcCacheOp::Nop;
-    acquireInfo.engineType    = EngineTypeCompute;
-    acquireInfo.baseAddress   = FullSyncBaseAddr;
-    acquireInfo.sizeBytes     = FullSyncSize;
+        // Issue an acquire mem packet to invalidate all SQ caches (SQ I-cache and SQ K-cache).
+        //
+        // Our postamble stream flushes and invalidates the L1 and L2 with an EOP event at the conclusion of each user
+        // mode submission, but the SQC caches are not invalidated. We waited for that event just above this packet so
+        // the L1 and L2 cannot contain stale data. However, a well behaving app could read stale SQC data unless we
+        // invalidate those caches here.
+        AcquireMemInfo acquireInfo = {};
+        acquireInfo.flags.invSqI$ = 1;
+        acquireInfo.flags.invSqK$ = 1;
+        acquireInfo.tcCacheOp     = TcCacheOp::Nop;
+        acquireInfo.engineType    = EngineTypeCompute;
+        acquireInfo.baseAddress   = FullSyncBaseAddr;
+        acquireInfo.sizeBytes     = FullSyncSize;
 
-    pCmdSpace += cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
 
-    m_perSubmitCmdStream.CommitCommands(pCmdSpace);
-    m_perSubmitCmdStream.End();
+        m_perSubmitCmdStream.CommitCommands(pCmdSpace);
+        result = m_perSubmitCmdStream.End();
+    }
 
     // The per-submit postamble.
     //==================================================================================================================
 
-    m_postambleCmdStream.Reset(nullptr, true);
-    m_postambleCmdStream.Begin(beginFlags, nullptr);
+    if (result == Result::Success)
+    {
+        m_postambleCmdStream.Reset(nullptr, true);
+        result = m_postambleCmdStream.Begin({}, nullptr);
+    }
 
-    pCmdSpace = m_postambleCmdStream.ReserveCommands();
+    if (result == Result::Success)
+    {
+        uint32* pCmdSpace = m_postambleCmdStream.ReserveCommands();
 
-    // This release mem must be at the end of the per-submit postamble.
-    //
-    // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
-    // We also use this pipelined event to flush and invalidate the shader L1 and L2 caches as described above.
-    ReleaseMemInfo releaseInfo = {};
-    releaseInfo.engineType     = EngineTypeCompute;
-    releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
-    releaseInfo.tcCacheOp      = TcCacheOp::WbInvL1L2;
-    releaseInfo.dstAddr        = m_exclusiveExecTs.GpuVirtAddr();
-    releaseInfo.dataSel        = data_sel__mec_release_mem__send_32_bit_low;
-    releaseInfo.data           = 0;
+        // This release mem must be at the end of the per-submit postamble.
+        //
+        // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
+        // We also use this pipelined event to flush and invalidate the shader L1 and L2 caches as described above.
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = EngineTypeCompute;
+        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
+        releaseInfo.tcCacheOp      = TcCacheOp::WbInvL1L2;
+        releaseInfo.dstAddr        = m_exclusiveExecTs.GpuVirtAddr();
+        releaseInfo.dataSel        = data_sel__mec_release_mem__send_32_bit_low;
+        releaseInfo.data           = 0;
 
-    pCmdSpace += cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
 
-    m_postambleCmdStream.CommitCommands(pCmdSpace);
-    m_postambleCmdStream.End();
+        m_postambleCmdStream.CommitCommands(pCmdSpace);
+        result = m_postambleCmdStream.End();
+    }
 
     // If this assert is hit, CmdBufInternalSuballocSize should be increased.
     PAL_ASSERT((m_cmdStream.GetNumChunks() == 1)          &&
@@ -369,21 +352,8 @@ void ComputeQueueContext::RebuildCommandStreams()
     // optimize-away this command stream.
     m_perSubmitCmdStream.EnableDropIfSameContext(false);
     m_postambleCmdStream.EnableDropIfSameContext(false);
-}
 
-// =====================================================================================================================
-// Assembles the compute-only specific PM4 headers for the queue context preamble.
-void ComputeQueueContext::BuildComputePreambleHeaders()
-{
-    memset(&m_computePreamble, 0, sizeof(m_computePreamble));
-
-    m_computePreamble.spaceNeeded = 0;
-}
-
-// =====================================================================================================================
-// Sets up the compute-specific PM4 commands for the queue context preamble.
-void ComputeQueueContext::SetupComputePreambleRegisters()
-{
+    return result;
 }
 
 // =====================================================================================================================
@@ -495,17 +465,12 @@ Result UniversalQueueContext::Init()
 
     if (result == Result::Success)
     {
-        SetupCommonPreamble(m_pDevice, m_pEngine->Type(), &m_commonPreamble);
-        BuildUniversalPreambleHeaders();
-        SetupUniversalPreambleRegisters();
+        result = BuildShadowPreamble();
+    }
 
-        // The shadow preamble should only be constructed for queues that need it.
-        if (m_useShadowing)
-        {
-            BuildShadowPreamble();
-        }
-
-        RebuildCommandStreams();
+    if (result == Result::Success)
+    {
+        result = RebuildCommandStreams();
     }
 
     return result;
@@ -580,33 +545,39 @@ Result UniversalQueueContext::AllocateShadowMemory()
 
 // =====================================================================================================================
 // Constructs the shadow memory initialization preamble command stream.
-void UniversalQueueContext::BuildShadowPreamble()
+Result UniversalQueueContext::BuildShadowPreamble()
 {
+    Result result = Result::Success;
+
     // This should only be called when state shadowing is being used.
-    PAL_ASSERT(m_useShadowing);
+    if (m_useShadowing)
+    {
+        m_shadowInitCmdStream.Reset(nullptr, true);
+        result = m_shadowInitCmdStream.Begin({}, nullptr);
 
-    constexpr CmdStreamBeginFlags beginFlags = {};
+        if (result == Result::Success)
+        {
+            // Generate a version of the per submit preamble that initializes shadow memory.
+            WritePerSubmitPreamble(&m_shadowInitCmdStream, true);
 
-    m_shadowInitCmdStream.Reset(nullptr, true);
-    m_shadowInitCmdStream.Begin(beginFlags, nullptr);
+            result = m_shadowInitCmdStream.End();
+        }
+    }
 
-    // Generate a version of the per submit preamble that initializes shadow memory.
-    BuildPerSubmitCommandStream(m_shadowInitCmdStream, true);
-
-    m_shadowInitCmdStream.End();
+    return result;
 }
 
 // =====================================================================================================================
 // Builds a per-submit command stream for the DE. Conditionally adds shadow memory initialization commands.
-void UniversalQueueContext::BuildPerSubmitCommandStream(
-    CmdStream& cmdStream,
+void UniversalQueueContext::WritePerSubmitPreamble(
+    CmdStream* pCmdStream,
     bool       initShadowMemory)
 {
     // Shadow memory should only be initialized when state shadowing is being used.
     PAL_ASSERT(m_useShadowing || (initShadowMemory == false));
 
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
-    uint32* pCmdSpace      = cmdStream.ReserveCommands();
+    uint32* pCmdSpace      = pCmdStream->ReserveCommands();
 
     // Wait for a prior submission on this context to be idle before executing the command buffer streams.
     // The timestamp memory is initialized to zero so the first submission on this context will not wait.
@@ -676,7 +647,7 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
     }
 
-    cmdStream.CommitCommands(pCmdSpace);
+    pCmdStream->CommitCommands(pCmdSpace);
 
     if (initShadowMemory)
     {
@@ -684,7 +655,7 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         const gpusize contextRegGpuAddr = (userCfgRegGpuAddr + (sizeof(uint32) * UserConfigRegCount));
         const gpusize shRegGpuAddr      = (contextRegGpuAddr + (sizeof(uint32) * CntxRegCount));
 
-        pCmdSpace = cmdStream.ReserveCommands();
+        pCmdSpace = pCmdStream->ReserveCommands();
 
         // Use a DMA_DATA packet to initialize all shadow memory to 0s explicitely.
         DmaDataInfo dmaData  = {};
@@ -711,24 +682,25 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
         pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
 
-        cmdStream.CommitCommands(pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
 
         // We do this after m_stateShadowPreamble, when the LOADs are done and HW knows the shadow memory.
         // First LOADs will load garbage. InitializeContextRegisters will init the register and also the shadow Memory.
         const auto& chipProps = m_pDevice->Parent()->ChipProperties();
         if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
         {
-            InitializeContextRegistersGfx9(&cmdStream, 0, nullptr, nullptr);
+            InitializeContextRegistersGfx9(pCmdStream, 0, nullptr, nullptr);
         }
         else
         {
             // The clear-state value associated with the PA_SC_TILE_STEERING_OVERRIDE register changes depending on
             // the GPU configuration, so program it as a "special case".
-            uint32  regOffset = mmPA_SC_TILE_STEERING_OVERRIDE;
+            const uint32 regOffset = mmPA_SC_TILE_STEERING_OVERRIDE;
+            const uint32 regValue  = chipProps.gfx9.paScTileSteeringOverride;
 
             if (IsGfx101(*m_pDevice->Parent()))
             {
-                InitializeContextRegistersNv10(&cmdStream,   1, &regOffset, &chipProps.gfx9.paScTileSteeringOverride);
+                InitializeContextRegistersNv10(pCmdStream, 1, &regOffset, &regValue);
             }
             else
             {
@@ -753,47 +725,50 @@ Result UniversalQueueContext::PreProcessSubmit(
     Result result     = Result::Success;
 
     // We only need to rebuild the command stream if the user submits at least one command buffer.
-    if ((result == Result::Success) && (submitInfo.cmdBufferCount != 0))
+    if (submitInfo.cmdBufferCount != 0)
     {
         result = m_pEngine->UpdateRingSet(&m_currentUpdateCounter, &hasUpdated);
 
         if ((result == Result::Success) && hasUpdated)
         {
-            RebuildCommandStreams();
+            result = RebuildCommandStreams();
         }
     }
 
-    uint32 preambleCount  = 0;
-    if (m_cePreambleCmdStream.IsEmpty() == false)
+    if (result == Result::Success)
     {
-        pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_cePreambleCmdStream;
+        uint32 preambleCount  = 0;
+        if (m_cePreambleCmdStream.IsEmpty() == false)
+        {
+            pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_cePreambleCmdStream;
+            ++preambleCount;
+        }
+
+        pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
         ++preambleCount;
-    }
 
-    pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
-    ++preambleCount;
+        if (m_pDevice->Parent()->Settings().commandBufferCombineDePreambles == false)
+        {
+            // Submit the per-context preamble independently.
+            pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_deCmdStream;
+            ++preambleCount;
+        }
 
-    if (m_pDevice->Parent()->Settings().commandBufferCombineDePreambles == false)
-    {
-        // Submit the per-context preamble independently.
-        pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_deCmdStream;
-        ++preambleCount;
-    }
+        uint32 postambleCount = 0;
+        if (m_cePostambleCmdStream.IsEmpty() == false)
+        {
+            pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_cePostambleCmdStream;
+            ++postambleCount;
+        }
 
-    uint32 postambleCount = 0;
-    if (m_cePostambleCmdStream.IsEmpty() == false)
-    {
-        pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_cePostambleCmdStream;
+        pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_dePostambleCmdStream;
         ++postambleCount;
+
+        pSubmitInfo->numPreambleCmdStreams  = preambleCount;
+        pSubmitInfo->numPostambleCmdStreams = postambleCount;
+
+        pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
     }
-
-    pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_dePostambleCmdStream;
-    ++postambleCount;
-
-    pSubmitInfo->numPreambleCmdStreams  = preambleCount;
-    pSubmitInfo->numPostambleCmdStreams = postambleCount;
-
-    pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
 
     return result;
 }
@@ -847,7 +822,7 @@ Result UniversalQueueContext::ProcessInitialSubmit(
 
 // =====================================================================================================================
 // Regenerates the contents of this context's internal command streams.
-void UniversalQueueContext::RebuildCommandStreams()
+Result UniversalQueueContext::RebuildCommandStreams()
 {
     /*
      * There are two DE preambles which PAL submits with every set of command buffers: one which executes as a preamble
@@ -879,41 +854,47 @@ void UniversalQueueContext::RebuildCommandStreams()
      * an end-of-pipe event that flushes all write caches and clears the timestamp back to zero.
      */
 
-    constexpr CmdStreamBeginFlags beginFlags = {};
-    const     CmdUtil&            cmdUtil    = m_pDevice->CmdUtil();
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
     // The drop-if-same-context DE preamble.
     //==================================================================================================================
 
     m_deCmdStream.Reset(nullptr, true);
-    m_deCmdStream.Begin(beginFlags, nullptr);
+    Result result = m_deCmdStream.Begin({}, nullptr);
 
-    uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+    if (result == Result::Success)
+    {
+        uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
 
-    // Copy the common preamble commands and the universal-specific preamble commands.
-    pCmdSpace = m_deCmdStream.WritePm4Image(m_universalPreamble.spaceNeeded, &m_universalPreamble, pCmdSpace);
-    pCmdSpace = m_deCmdStream.WritePm4Image(m_commonPreamble.spaceNeeded,    &m_commonPreamble,    pCmdSpace);
+        pCmdSpace = WriteUniversalPreamble(pCmdSpace);
 
-    // Write the shader ring-set's commands after the command stream's normal preamble. If the ring sizes have changed,
-    // the hardware requires a CS/VS/PS partial flush to operate properly.
-    pCmdSpace = m_pEngine->RingSet()->WriteCommands(&m_deCmdStream, pCmdSpace);
-    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
-    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
-    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+        // Write the shader ring-set's commands after the command stream's normal preamble.  If the ring sizes have
+        // changed, the hardware requires a CS/VS/PS partial flush to operate properly.
+        pCmdSpace  = m_pEngine->RingSet()->WriteCommands(&m_deCmdStream, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
 
-    m_deCmdStream.CommitCommands(pCmdSpace);
-    m_deCmdStream.End();
+        m_deCmdStream.CommitCommands(pCmdSpace);
+        result = m_deCmdStream.End();
+    }
 
     // The per-submit DE preamble.
     //==================================================================================================================
 
-    m_perSubmitCmdStream.Reset(nullptr, true);
-    m_perSubmitCmdStream.Begin(beginFlags, nullptr);
+    if (result == Result::Success)
+    {
+        m_perSubmitCmdStream.Reset(nullptr, true);
+        result = m_perSubmitCmdStream.Begin({}, nullptr);
+    }
 
-    // Generate a version of the per submit preamble that does not initialize shadow memory.
-    BuildPerSubmitCommandStream(m_perSubmitCmdStream, false);
+    if (result == Result::Success)
+    {
+        // Generate a version of the per submit preamble that does not initialize shadow memory.
+        WritePerSubmitPreamble(&m_perSubmitCmdStream, false);
 
-    m_perSubmitCmdStream.End();
+        result = m_perSubmitCmdStream.End();
+    }
 
     if (m_pDevice->Parent()->Settings().commandBufferCombineDePreambles)
     {
@@ -941,14 +922,20 @@ void UniversalQueueContext::RebuildCommandStreams()
                 static_cast<uint32>((ReservedCeRamDwords + m_pDevice->Parent()->CeRamDwordsUsed(EngineTypeUniversal)));
         }
 
-        m_cePreambleCmdStream.Reset(nullptr, true);
-        m_cePreambleCmdStream.Begin(beginFlags, nullptr);
+        if (result == Result::Success)
+        {
+            m_cePreambleCmdStream.Reset(nullptr, true);
+            result = m_cePreambleCmdStream.Begin({}, nullptr);
+        }
 
-        pCmdSpace  = m_cePreambleCmdStream.ReserveCommands();
-        pCmdSpace += CmdUtil::BuildLoadConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
-        m_cePreambleCmdStream.CommitCommands(pCmdSpace);
+        if (result == Result::Success)
+        {
+            uint32* pCmdSpace= m_cePreambleCmdStream.ReserveCommands();
+            pCmdSpace += CmdUtil::BuildLoadConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
+            m_cePreambleCmdStream.CommitCommands(pCmdSpace);
 
-        m_cePreambleCmdStream.End();
+            result = m_cePreambleCmdStream.End();
+        }
 
         // The postamble command stream which dumps CE RAM at the end of the submission are only necessary if (1) the
         // client requested that this Queue maintains persistent CE RAM contents, or (2) this Queue supports mid
@@ -956,41 +943,53 @@ void UniversalQueueContext::RebuildCommandStreams()
         if ((m_pQueue->PersistentCeRamSize() != 0) ||
             (m_pDevice->Parent()->Settings().commandBufferForceCeRamDumpInPostamble != false))
         {
-            m_cePostambleCmdStream.Reset(nullptr, true);
-            m_cePostambleCmdStream.Begin(beginFlags, nullptr);
+            if (result == Result::Success)
+            {
+                m_cePostambleCmdStream.Reset(nullptr, true);
+                result = m_cePostambleCmdStream.Begin({}, nullptr);
+            }
 
-            pCmdSpace  = m_cePostambleCmdStream.ReserveCommands();
-            pCmdSpace += CmdUtil::BuildDumpConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
-            m_cePostambleCmdStream.CommitCommands(pCmdSpace);
+            if (result == Result::Success)
+            {
+                uint32* pCmdSpace = m_cePostambleCmdStream.ReserveCommands();
+                pCmdSpace += CmdUtil::BuildDumpConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
+                m_cePostambleCmdStream.CommitCommands(pCmdSpace);
 
-            m_cePostambleCmdStream.End();
+                result = m_cePostambleCmdStream.End();
+            }
         }
     }
 
     // The per-submit DE postamble.
     //==================================================================================================================
 
-    m_dePostambleCmdStream.Reset(nullptr, true);
-    m_dePostambleCmdStream.Begin(beginFlags, nullptr);
+    if (result == Result::Success)
+    {
+        m_dePostambleCmdStream.Reset(nullptr, true);
+        result = m_dePostambleCmdStream.Begin({}, nullptr);
+    }
 
-    pCmdSpace = m_dePostambleCmdStream.ReserveCommands();
+    if (result == Result::Success)
+    {
+        uint32* pCmdSpace = m_dePostambleCmdStream.ReserveCommands();
 
-    // This EOP event packet must be at the end of the per-submit DE postamble.
-    //
-    // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
-    // We also use this pipelined event to flush and invalidate the L1, L2, and RB caches as described above.
-    ReleaseMemInfo releaseInfo = {};
-    releaseInfo.engineType     = EngineTypeUniversal;
-    releaseInfo.vgtEvent       = CACHE_FLUSH_AND_INV_TS_EVENT;
-    releaseInfo.tcCacheOp      = TcCacheOp::WbInvL1L2;
-    releaseInfo.dstAddr        = m_exclusiveExecTs.GpuVirtAddr();
-    releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
-    releaseInfo.data           = 0;
+        // This EOP event packet must be at the end of the per-submit DE postamble.
+        //
+        // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
+        // We also use this pipelined event to flush and invalidate the L1, L2, and RB caches as described above.
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = EngineTypeUniversal;
+        releaseInfo.vgtEvent       = CACHE_FLUSH_AND_INV_TS_EVENT;
+        releaseInfo.tcCacheOp      = TcCacheOp::WbInvL1L2;
+        releaseInfo.dstAddr        = m_exclusiveExecTs.GpuVirtAddr();
+        releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data           = 0;
 
-    pCmdSpace += cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
 
-    m_dePostambleCmdStream.CommitCommands(pCmdSpace);
-    m_dePostambleCmdStream.End();
+        m_dePostambleCmdStream.CommitCommands(pCmdSpace);
+        result = m_dePostambleCmdStream.End();
+    }
 
     // Since the contents of these command streams have changed since last time, we need to force these streams to
     // execute by not allowing the KMD to optimize-away these command stream the next time around.
@@ -1009,15 +1008,18 @@ void UniversalQueueContext::RebuildCommandStreams()
                (m_cePreambleCmdStream.GetNumChunks()  <= 1) &&
                (m_cePostambleCmdStream.GetNumChunks() <= 1) &&
                (m_dePostambleCmdStream.GetNumChunks() <= 1));
+
+    return result;
 }
 
 // =====================================================================================================================
-// Assembles the universal-only specific PM4 headers for the queue context preamble.
-void UniversalQueueContext::BuildUniversalPreambleHeaders()
+// Writes commands needed for the "Drop if same context" DE preamble.
+uint32* UniversalQueueContext::WriteUniversalPreamble(
+    uint32* pCmdSpace)
 {
-    memset(&m_universalPreamble, 0, sizeof(m_universalPreamble));
-
-    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+    const Pal::Device&       device    = *(m_pDevice->Parent());
+    const GpuChipProperties& chipProps = device.ChipProperties();
+    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
 
     // Occlusion query control event, specifies that we want one counter to dump out every 128 bits for every
     // DB that the HW supports.
@@ -1038,160 +1040,45 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
         uint32 u32All;
     };
 
-    PixelPipeStatControl pixelPipeStatControl = {};
-
     // Our occlusion query data is in pairs of [begin, end], each pair being 128 bits.
     // To emulate the deprecated ZPASS_DONE, we specify COUNT_0, a stride of 128 bits, and all RBs enabled.
+    PixelPipeStatControl pixelPipeStatControl = { };
     pixelPipeStatControl.bits.counter_id      = PIXEL_PIPE_OCCLUSION_COUNT_0;
     pixelPipeStatControl.bits.stride          = PIXEL_PIPE_STRIDE_128_BITS;
+    pixelPipeStatControl.bits.instance_enable = (~chipProps.gfx9.backendDisableMask) &
+                                                ((1 << chipProps.gfx9.numTotalRbs) - 1);
 
-    const Pal::Device&       palDevice     = *(m_pDevice->Parent());
-    const GpuChipProperties& chipProps     = palDevice.ChipProperties();
-    const auto&              gfx9ChipProps = chipProps.gfx9;
-
-    pixelPipeStatControl.bits.instance_enable = ~(gfx9ChipProps.backendDisableMask) &
-                                                ((1 << gfx9ChipProps.numTotalRbs) - 1);
-
-    m_universalPreamble.spaceNeeded +=
-        CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_CONTROL,
-                                       EngineTypeUniversal,
-                                       pixelPipeStatControl.u32All,
-                                       &m_universalPreamble.pixelPipeStatControl);
-
-    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        m_universalPreamble.spaceNeeded +=
-            cmdUtil.BuildSetSeqConfigRegs(Gfx09::mmVGT_MAX_VTX_INDX,
-                                          Gfx09::mmVGT_INDX_OFFSET,
-                                          &m_universalPreamble.gfx9.hdrVgtIndexRegs);
-    }
-    else if (IsGfx10(chipProps.gfxLevel))
-    {
-        m_universalPreamble.spaceNeeded +=
-            cmdUtil.BuildSetSeqConfigRegs(Gfx10::mmGE_MIN_VTX_INDX,
-                                          Gfx10::mmGE_INDX_OFFSET,
-                                          &m_universalPreamble.gfx10.hdrGeIndexRegs);
-
-        m_universalPreamble.spaceNeeded +=
-            cmdUtil.BuildSetOneConfigReg(Gfx10::mmGE_MAX_VTX_INDX,
-                                         &m_universalPreamble.gfx10.hdrMaxVtxIndexReg);
-
-        m_universalPreamble.spaceNeeded +=
-            cmdUtil.BuildSetSeqContextRegs(Gfx10::mmCB_COLOR0_BASE_EXT,
-                                           Gfx10::mmCB_COLOR7_DCC_BASE_EXT,
-                                           &m_universalPreamble.gfx10.hdrCbHi);
-
-        m_universalPreamble.spaceNeeded +=
-            cmdUtil.BuildSetSeqContextRegs(Gfx10::mmDB_Z_READ_BASE_HI,
-                                           Gfx10::mmDB_HTILE_DATA_BASE_HI,
-                                           &m_universalPreamble.gfx10.hdrDbHi);
-
-        m_universalPreamble.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmPA_CL_NGG_CNTL,
-                                          &m_universalPreamble.gfx10.hdrPaClNggCntl);
-
-    }
-
-    // TODO: The following are set on Gfx8 because the clear state doesn't set up these registers to our liking.
-    //       We might be able to remove these when the clear state for Gfx9 is finalized.
-    m_universalPreamble.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmVGT_OUT_DEALLOC_CNTL, &m_universalPreamble.hdrVgtOutDeallocCntl);
-
-    m_universalPreamble.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmVGT_TESS_DISTRIBUTION, &m_universalPreamble.hdrVgtTessDistribution);
-
-    m_universalPreamble.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmCB_DCC_CONTROL, &m_universalPreamble.hdrDccControl);
-
-    m_universalPreamble.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL, &m_universalPreamble.hdrSmallPrimFilterCntl);
-
-    m_universalPreamble.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmCOHER_DEST_BASE_HI_0, &m_universalPreamble.hdrCoherDestBaseHi);
-
-    m_universalPreamble.spaceNeeded +=
-        cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
-                                       mmPA_SC_GENERIC_SCISSOR_BR,
-                                       &m_universalPreamble.hdrPaScGenericScissors);
-}
-
-// =====================================================================================================================
-// Sets up the universal-specific PM4 commands for the queue context preamble.
-void UniversalQueueContext::SetupUniversalPreambleRegisters()
-{
-    const Gfx9PalSettings& settings = m_pDevice->Settings();
-    const auto&            device   = *(m_pDevice->Parent());
-    const GfxIpLevel       gfxLevel = device.ChipProperties().gfxLevel;
-
-    // TODO: Add support for Late Alloc VS Limit
-
-    m_universalPreamble.vgtOutDeallocCntl.u32All = 0;
+    pCmdSpace += CmdUtil::BuildSampleEventWrite(PIXEL_PIPE_STAT_CONTROL,
+                                                EngineTypeUniversal,
+                                                pixelPipeStatControl.u32All,
+                                                pCmdSpace);
 
     // The register spec suggests these values are optimal settings for Gfx9 hardware, when VS half-pack mode is
     // disabled. If half-pack mode is active, we need to use the legacy defaults which are safer (but less optimal).
-    if (settings.vsHalfPackThreshold >= MaxVsExportSemantics)
-    {
-        m_universalPreamble.vgtOutDeallocCntl.bits.DEALLOC_DIST = 32;
-    }
-    else
-    {
-        m_universalPreamble.vgtOutDeallocCntl.bits.DEALLOC_DIST = 16;
-    }
+    regVGT_OUT_DEALLOC_CNTL vgtOutDeallocCntl = { };
+    vgtOutDeallocCntl.bits.DEALLOC_DIST = (settings.vsHalfPackThreshold >= MaxVsExportSemantics) ? 32 : 16;
 
     // Set patch and donut distribution thresholds for tessellation. If we decide that this should be tunable
     // per-pipeline, we can move the registers to the Pipeline object (DXX currently uses per-Device thresholds).
-
-    const uint32 isolineDistribution   = settings.isolineDistributionFactor;
-    const uint32 triDistribution       = settings.triDistributionFactor;
-    const uint32 quadDistribution      = settings.quadDistributionFactor;
-    const uint32 donutDistribution     = settings.donutDistributionFactor;
-    const uint32 trapezoidDistribution = settings.trapezoidDistributionFactor;
-
-    m_universalPreamble.vgtTessDistribution.u32All             = 0;
-    m_universalPreamble.vgtTessDistribution.bits.ACCUM_ISOLINE = isolineDistribution;
-    m_universalPreamble.vgtTessDistribution.bits.ACCUM_TRI     = triDistribution;
-    m_universalPreamble.vgtTessDistribution.bits.ACCUM_QUAD    = quadDistribution;
-    m_universalPreamble.vgtTessDistribution.bits.DONUT_SPLIT   = donutDistribution;
-    m_universalPreamble.vgtTessDistribution.bits.TRAP_SPLIT    = trapezoidDistribution;
-
-    m_universalPreamble.paScGenericScissorTl.u32All                     = 0;
-    m_universalPreamble.paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = 1;
-    m_universalPreamble.paScGenericScissorBr.u32All                     = 0;
-    m_universalPreamble.paScGenericScissorBr.bits.BR_X                  = ScissorMaxBR;
-    m_universalPreamble.paScGenericScissorBr.bits.BR_Y                  = ScissorMaxBR;
-
-    if (gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        m_universalPreamble.gfx9.vgtMaxVtxIndx.bits.MAX_INDX    = 0xFFFFFFFF;
-        m_universalPreamble.gfx9.vgtMinVtxIndx.bits.MIN_INDX    = 0;
-        m_universalPreamble.gfx9.vgtIndxOffset.bits.INDX_OFFSET = 0;
-    }
-    else if (IsGfx10(gfxLevel))
-    {
-        Gfx10UniversalPreamblePm4Img*  pGfx10Preamble = &m_universalPreamble.gfx10;
-
-        pGfx10Preamble->geMaxVtxIndx.bits.MAX_INDX    = 0xFFFFFFFF;
-        pGfx10Preamble->geMinVtxIndx.bits.MIN_INDX    = 0;
-        pGfx10Preamble->geIndxOffset.bits.INDX_OFFSET = 0;
-
-        // No need to set cbColor*Ext or db*Hi regs. 0 is the desired value and we memset m_universalPreamble.
-
-        pGfx10Preamble->paClNggCntl.u32All = 0;
-
-    }
+    regVGT_TESS_DISTRIBUTION vgtTessDistribution = { };
+    vgtTessDistribution.bits.ACCUM_ISOLINE = settings.isolineDistributionFactor;
+    vgtTessDistribution.bits.ACCUM_TRI     = settings.triDistributionFactor;
+    vgtTessDistribution.bits.ACCUM_QUAD    = settings.quadDistributionFactor;
+    vgtTessDistribution.bits.DONUT_SPLIT   = settings.donutDistributionFactor;
+    vgtTessDistribution.bits.TRAP_SPLIT    = settings.trapezoidDistributionFactor;
 
     // Set-and-forget DCC register:
     //  This will stop compression to one of the four "magic" clear colors.
+    regCB_DCC_CONTROL cbDccControl = { };
     if (IsGfx091xPlus(device) && settings.forceRegularClearCode)
     {
-        m_universalPreamble.cbDccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_AC01 = 1;
+        cbDccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_AC01 = 1;
     }
 
-    // Set-and-forget DCC register:
-    if (IsGfx9(device))
+    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
-        m_universalPreamble.cbDccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
-        m_universalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK            = 4;
+        cbDccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
+        cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK            = 4;
     }
     else
     {
@@ -1202,7 +1089,7 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
         // FCE operation on that image will leave the comp-to-single in place.  Setting this bit to one will mean
         // that the FCE operation on that image will actually "eliminate the fast clear".  We want to leave this
         // at zero because the texture pipe can understand comp-to-single, so there's no need to fce those pixels.
-        m_universalPreamble.cbDccControl.gfx09_1xPlus.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
+        cbDccControl.gfx09_1xPlus.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
 
         // This register also contains various "DISABLE_CONSTANT_ENCODE" bits.  Those are the master switches
         // for CB-based rendering.  i.e., setting DISABLE_CONSTANT_ENCODE_REG will disable all compToReg
@@ -1214,37 +1101,121 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
         // it here, but it's privileged, and I can't.  GACK.  By default, both compToReg and compToSingle are
         // enabled for shader write operations.
 
-        m_universalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 6;
+        cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 6;
     }
 
-    // Small primitive filter control
+    regPA_SU_SMALL_PRIM_FILTER_CNTL paSuSmallPrimFilterCntl = { };
+    if (IsGfx091xPlus(device))
+    {
+        // Disable the SC compatability setting to support 1xMSAA sample locations.
+        paSuSmallPrimFilterCntl.gfx09_1xPlus.SC_1XMSAA_COMPATIBLE_DISABLE = 1;
+    }
+
     const uint32 smallPrimFilter = m_pDevice->GetSmallPrimFilter();
     if (smallPrimFilter != SmallPrimFilterDisable)
     {
-        m_universalPreamble.paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = 1;
+        paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = 1;
 
-        m_universalPreamble.paSuSmallPrimFilterCntl.bits.POINT_FILTER_DISABLE =
+        paSuSmallPrimFilterCntl.bits.POINT_FILTER_DISABLE =
             ((smallPrimFilter & SmallPrimFilterEnablePoint) == 0);
 
-        m_universalPreamble.paSuSmallPrimFilterCntl.bits.LINE_FILTER_DISABLE =
+        paSuSmallPrimFilterCntl.bits.LINE_FILTER_DISABLE =
             ((smallPrimFilter & SmallPrimFilterEnableLine) == 0);
 
-        m_universalPreamble.paSuSmallPrimFilterCntl.bits.TRIANGLE_FILTER_DISABLE =
+        paSuSmallPrimFilterCntl.bits.TRIANGLE_FILTER_DISABLE =
             ((smallPrimFilter & SmallPrimFilterEnableTriangle) == 0);
 
-        m_universalPreamble.paSuSmallPrimFilterCntl.bits.RECTANGLE_FILTER_DISABLE =
+        paSuSmallPrimFilterCntl.bits.RECTANGLE_FILTER_DISABLE =
             ((smallPrimFilter & SmallPrimFilterEnableRectangle) == 0);
     }
-    else
-    {
-        m_universalPreamble.paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = 0;
-    }
 
-    // Disable the SC compatability setting to support 1xMSAA sample locations.
-    if (IsGfx091xPlus(device))
+    struct
     {
-        m_universalPreamble.paSuSmallPrimFilterCntl.gfx09_1xPlus.SC_1XMSAA_COMPATIBLE_DISABLE = 1;
+        regPA_SC_GENERIC_SCISSOR_TL tl;
+        regPA_SC_GENERIC_SCISSOR_BR br;
+    } paScGenericScissor = { };
+
+    paScGenericScissor.tl.bits.WINDOW_OFFSET_DISABLE = 1;
+    paScGenericScissor.br.bits.BR_X = ScissorMaxBR;
+    paScGenericScissor.br.bits.BR_Y = ScissorMaxBR;
+
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_OUT_DEALLOC_CNTL,  vgtOutDeallocCntl.u32All,   pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_TESS_DISTRIBUTION, vgtTessDistribution.u32All, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_DCC_CONTROL,        cbDccControl.u32All,        pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL,
+                                                    paSuSmallPrimFilterCntl.u32All,
+                                                    pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCOHER_DEST_BASE_HI_0, 0, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
+                                                     mmPA_SC_GENERIC_SCISSOR_BR,
+                                                     &paScGenericScissor,
+                                                     pCmdSpace);
+
+    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        struct
+        {
+            regVGT_MAX_VTX_INDX  maxVtxIndx;
+            regVGT_MIN_VTX_INDX  minVtxIndx;
+            regVGT_INDX_OFFSET   indxOffset;
+        } vgt = { };
+        vgt.maxVtxIndx.bits.MAX_INDX = UINT_MAX;
+
+        pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx09::mmVGT_MAX_VTX_INDX,
+                                                        Gfx09::mmVGT_INDX_OFFSET,
+                                                        &vgt,
+                                                        pCmdSpace);
     }
+    else if (IsGfx10(chipProps.gfxLevel))
+    {
+        regGE_MAX_VTX_INDX geMaxVtxIndx = { };
+        geMaxVtxIndx.bits.MAX_INDX = UINT_MAX;
+
+        constexpr struct
+        {
+            regGE_MIN_VTX_INDX  minVtxIndx;
+            regGE_INDX_OFFSET   indxOffset;
+        } Ge = { };
+
+        pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10::mmGE_MAX_VTX_INDX, geMaxVtxIndx.u32All, pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx10::mmGE_MIN_VTX_INDX,
+                                                        Gfx10::mmGE_INDX_OFFSET,
+                                                        &Ge,
+                                                        pCmdSpace);
+
+        constexpr struct
+        {
+            regCB_COLOR0_BASE_EXT        cbColorBaseExt[MaxColorTargets];
+            regCB_COLOR0_CMASK_BASE_EXT  cbColorCmaskBaseExt[MaxColorTargets];
+            regCB_COLOR0_FMASK_BASE_EXT  cbColorFmaskBaseExt[MaxColorTargets];
+            regCB_COLOR0_DCC_BASE_EXT    cbColorDccBaseExt[MaxColorTargets];
+        } CbBaseHi = { };
+
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10::mmCB_COLOR0_BASE_EXT,
+                                                         Gfx10::mmCB_COLOR7_DCC_BASE_EXT,
+                                                         &CbBaseHi,
+                                                         pCmdSpace);
+
+        constexpr struct
+        {
+            regDB_Z_READ_BASE_HI          dbZReadBaseHi;
+            regDB_STENCIL_READ_BASE_HI    dbStencilReadBaseHi;
+            regDB_Z_WRITE_BASE_HI         dbZWriteBaseHi;
+            regDB_STENCIL_WRITE_BASE_HI   dbStencilWriteBaseHi;
+            regDB_HTILE_DATA_BASE_HI      dbHtileDataBaseHi;
+        } DbBaseHi = { };
+
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10::mmDB_Z_READ_BASE_HI,
+                                                         Gfx10::mmDB_HTILE_DATA_BASE_HI,
+                                                         &DbBaseHi,
+                                                         pCmdSpace);
+
+        regPA_CL_NGG_CNTL paClNggCntl = { };
+
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_NGG_CNTL, paClNggCntl.u32All, pCmdSpace);
+    } // if Gfx10.x
+
+    return WriteCommonPreamble(*m_pDevice, EngineTypeUniversal, &m_deCmdStream, pCmdSpace);
 }
 
 } // Gfx9

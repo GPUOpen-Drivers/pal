@@ -1621,20 +1621,22 @@ union ScaledCopyFlags
 {
     struct
     {
-        uint32 srcColorKey  : 1;  ///< If set, enables source color-keying by using the value in the ColorKey member.
-                                  ///  That is, any pixel in the source image that matches the color key should not be
-                                  ///  copied to the destination image, and all of the source pixels that do not match
-                                  ///  the color key should be copied. Mutually exclusive with dstColorKey.
-        uint32 dstColorKey  : 1;  ///< If set, enables destination color-keying by using the value in the ColorKey
-                                  ///  member. That is, any pixel in the destination image that matches the color key
-                                  ///  should be replaced with the corresponding pixel from the source image, and all of
-                                  ///  the destination pixels that do not match the color key should not be replaced.
-                                  ///  Mutually exclusive with srcColorKey.
-        uint32 srcAlpha     : 1;  ///< If set, use alpha channel in source surface as blend factor.
-                                  ///  color = src alpha * src color + (1.0 - src alpha) * dst color.
-        uint32 reserved     : 29; ///< reserved for future useage.
+        uint32 srcColorKey    : 1;  ///< If set, enables source color-keying by using the value in the ColorKey member.
+                                    ///  That is, any pixel in the source image that matches the color key should not be
+                                    ///  copied to the destination image, and all of the source pixels that do not match
+                                    ///  the color key should be copied. Mutually exclusive with dstColorKey.
+        uint32 dstColorKey    : 1;  ///< If set, enables destination color-keying by using the value in the ColorKey
+                                    ///  member. That is, any pixel in the destination image that matches the color key
+                                    ///  should be replaced with the corresponding pixel from the source image, and all of
+                                    ///  the destination pixels that do not match the color key should not be replaced.
+                                    ///  Mutually exclusive with srcColorKey.
+        uint32 srcAlpha       : 1;  ///< If set, use alpha channel in source surface as blend factor.
+                                    ///  color = src alpha * src color + (1.0 - src alpha) * dst color.
+        uint32 srcSrgbAsUnorm : 1;  ///< If set, an sRGB source image will be treated as linear UNORM. Has no effect if the
+                                    ///  source is not sRGB.
+        uint32 reserved       : 28; ///< reserved for future useage.
     };
-    uint32 u32All;                ///< Flags packed as uint32.
+    uint32 u32All;                  ///< Flags packed as uint32.
 };
 
 /// Input structure to @ref ICmdBuffer::CmdScaledCopyImage. Specifies parameters needed to execute CmdScaledCopyImage.

@@ -485,14 +485,17 @@ uint32 CmdUtil::BuildAcquireMemInternal(
     // Note that if sizeBytes is equal to FullSyncSize we should clamp it to the max virtual address.
     constexpr gpusize Alignment = 256;
     constexpr gpusize SizeShift = 8;
+    // For a full aperture invalidation we need to set all the bits of coher_size and coher_size_hi to 1.
+    // In total that's 32 + 8 == 40 bits.
+    constexpr gpusize FullApertureSize = (1ull << 40ull) - 1ull;
 
     const gpusize alignedAddress = Pow2AlignDown(acquireMemInfo.baseAddress, Alignment);
     const gpusize alignedSize = (acquireMemInfo.sizeBytes == FullSyncSize)
-                        ? m_device.Parent()->MemoryProperties().vaUsableEnd
-                        : Pow2Align(acquireMemInfo.sizeBytes + acquireMemInfo.baseAddress - alignedAddress, Alignment);
+                        ? FullApertureSize
+                        : (Pow2Align(acquireMemInfo.sizeBytes + acquireMemInfo.baseAddress - alignedAddress, Alignment) >> SizeShift);
 
-    pPacket->coher_size = LowPart(alignedSize >> SizeShift);
-    pPacket->ordinal4   = HighPart(alignedSize >> SizeShift);
+    pPacket->coher_size = LowPart(alignedSize);
+    pPacket->ordinal4   = HighPart(alignedSize);
 
     // Make sure that the size field doesn't overflow
     PAL_ASSERT (pPacket->bitfields4.reserved1 == 0);

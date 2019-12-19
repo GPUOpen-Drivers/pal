@@ -34,29 +34,16 @@ namespace Gfx6
 
 // =====================================================================================================================
 DepthStencilState::DepthStencilState(
-    const Device& device)
+    const DepthStencilStateCreateInfo& createInfo)
     :
     Pal::DepthStencilState()
 {
-    memset(&m_pm4Commands, 0, sizeof(m_pm4Commands));
     memset(&m_flags, 0, sizeof(m_flags));
 
-    BuildPm4Headers(device);
-}
+    m_dbDepthControl.u32All   = 0;
+    m_dbStencilControl.u32All = 0;
 
-// =====================================================================================================================
-// Builds the packet headers for the various PM4 images associated with this State Object.
-// Register values and packet payloads are computed elsewhere.
-void DepthStencilState::BuildPm4Headers(
-    const Device& device)
-{
-    const CmdUtil& cmdUtil = device.CmdUtil();
-
-    // 1st PM4 packet: sets the following context register: DB_DEPTH_CONTROL
-    cmdUtil.BuildSetOneContextReg(mmDB_DEPTH_CONTROL, &m_pm4Commands.hdrDbDepthControl);
-
-    // 2nd PM4 packet: sets the following context register: DB_STENCIL_CONTROL
-    cmdUtil.BuildSetOneContextReg(mmDB_STENCIL_CONTROL, &m_pm4Commands.hdrDbStencilControl);
+    Init(createInfo);
 }
 
 // =====================================================================================================================
@@ -64,18 +51,17 @@ void DepthStencilState::BuildPm4Headers(
 static bool CanRunOutOfOrder(
     CompareFunc func)
 {
-    const bool canRunOutOfOrder = ((func == CompareFunc::Less)      ||
-                                   (func == CompareFunc::Greater)   ||
-                                   (func == CompareFunc::Equal)     ||
-                                   (func == CompareFunc::LessEqual) ||
-                                   (func == CompareFunc::GreaterEqual));
-    return canRunOutOfOrder;
+    return ((func == CompareFunc::Less)      ||
+            (func == CompareFunc::Greater)   ||
+            (func == CompareFunc::Equal)     ||
+            (func == CompareFunc::LessEqual) ||
+            (func == CompareFunc::GreaterEqual));
 }
 
 // =====================================================================================================================
 // Performs Gfx6 hardware-specific initialization for a depth/stencil state object, including:
 // Set up the image of PM4 commands used to write the pipeline to HW.
-Result DepthStencilState::Init(
+void DepthStencilState::Init(
     const DepthStencilStateCreateInfo& dsState)
 {
     m_flags.isDepthEnabled = dsState.depthEnable;
@@ -111,36 +97,34 @@ Result DepthStencilState::Init(
         (dsState.depthFunc != CompareFunc::NotEqual);
 
     // Setup DB_DEPTH_CONTROL.
-    m_pm4Commands.dbDepthControl.bits.Z_ENABLE       = (dsState.depthEnable ? 1 : 0);
-    m_pm4Commands.dbDepthControl.bits.Z_WRITE_ENABLE = (dsState.depthWriteEnable ? 1 : 0);
-    m_pm4Commands.dbDepthControl.bits.ZFUNC          = HwDepthCompare(dsState.depthFunc);
+    m_dbDepthControl.bits.Z_ENABLE       = (dsState.depthEnable ? 1 : 0);
+    m_dbDepthControl.bits.Z_WRITE_ENABLE = (dsState.depthWriteEnable ? 1 : 0);
+    m_dbDepthControl.bits.ZFUNC          = HwDepthCompare(dsState.depthFunc);
 
-    m_pm4Commands.dbDepthControl.bits.STENCIL_ENABLE = (dsState.stencilEnable ? 1 : 0);
-    m_pm4Commands.dbDepthControl.bits.STENCILFUNC    = HwStencilCompare(dsState.front.stencilFunc);
-    m_pm4Commands.dbDepthControl.bits.STENCILFUNC_BF = HwStencilCompare(dsState.back.stencilFunc);
+    m_dbDepthControl.bits.STENCIL_ENABLE = (dsState.stencilEnable ? 1 : 0);
+    m_dbDepthControl.bits.STENCILFUNC    = HwStencilCompare(dsState.front.stencilFunc);
+    m_dbDepthControl.bits.STENCILFUNC_BF = HwStencilCompare(dsState.back.stencilFunc);
 
-    m_pm4Commands.dbDepthControl.bits.DEPTH_BOUNDS_ENABLE = (dsState.depthBoundsEnable ? 1 : 0);
+    m_dbDepthControl.bits.DEPTH_BOUNDS_ENABLE = (dsState.depthBoundsEnable ? 1 : 0);
     // Note: Always on
-    m_pm4Commands.dbDepthControl.bits.BACKFACE_ENABLE = 1;
+    m_dbDepthControl.bits.BACKFACE_ENABLE = 1;
 
     // Note: No mention of these in DB Programming Guide. Force off as this is not linked to any
     //      DX10/11 API features. Their need/use is unclear.
-    m_pm4Commands.dbDepthControl.bits.ENABLE_COLOR_WRITES_ON_DEPTH_FAIL  = 0;
-    m_pm4Commands.dbDepthControl.bits.DISABLE_COLOR_WRITES_ON_DEPTH_PASS = 0;
+    m_dbDepthControl.bits.ENABLE_COLOR_WRITES_ON_DEPTH_FAIL  = 0;
+    m_dbDepthControl.bits.DISABLE_COLOR_WRITES_ON_DEPTH_PASS = 0;
 
     // Setup DB_STENCIL_CONTROL.
 
     // front stencil
-    m_pm4Commands.dbStencilControl.bits.STENCILFAIL  = HwStencilOp(dsState.front.stencilFailOp);
-    m_pm4Commands.dbStencilControl.bits.STENCILZFAIL = HwStencilOp(dsState.front.stencilDepthFailOp);
-    m_pm4Commands.dbStencilControl.bits.STENCILZPASS = HwStencilOp(dsState.front.stencilPassOp);
+    m_dbStencilControl.bits.STENCILFAIL  = HwStencilOp(dsState.front.stencilFailOp);
+    m_dbStencilControl.bits.STENCILZFAIL = HwStencilOp(dsState.front.stencilDepthFailOp);
+    m_dbStencilControl.bits.STENCILZPASS = HwStencilOp(dsState.front.stencilPassOp);
 
     // back stencil
-    m_pm4Commands.dbStencilControl.bits.STENCILFAIL_BF  = HwStencilOp(dsState.back.stencilFailOp);
-    m_pm4Commands.dbStencilControl.bits.STENCILZFAIL_BF = HwStencilOp(dsState.back.stencilDepthFailOp);
-    m_pm4Commands.dbStencilControl.bits.STENCILZPASS_BF = HwStencilOp(dsState.back.stencilPassOp);
-
-    return Result::Success;
+    m_dbStencilControl.bits.STENCILFAIL_BF  = HwStencilOp(dsState.back.stencilFailOp);
+    m_dbStencilControl.bits.STENCILZFAIL_BF = HwStencilOp(dsState.back.stencilDepthFailOp);
+    m_dbStencilControl.bits.STENCILZPASS_BF = HwStencilOp(dsState.back.stencilPassOp);
 }
 
 // =====================================================================================================================
@@ -151,20 +135,8 @@ uint32* DepthStencilState::WriteCommands(
     uint32*    pCmdSpace
     ) const
 {
-    constexpr uint32 Pm4SizeInDwords = (sizeof(DepthStencilStatePm4Img) / sizeof(uint32));
-
-    // When the command stream is null, we are writing the commands for this state into a pre-allocated buffer that has
-    // enough space for the commands.
-    // When the command stream is non-null, we are writing the commands as part of a ICmdBuffer::CmdBind* call.
-    if (pCmdStream == nullptr)
-    {
-        memcpy(pCmdSpace, &m_pm4Commands, Pm4SizeInDwords * sizeof(uint32));
-        pCmdSpace += Pm4SizeInDwords;
-    }
-    else
-    {
-        pCmdSpace = pCmdStream->WritePm4Image(Pm4SizeInDwords, &m_pm4Commands, pCmdSpace);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_DEPTH_CONTROL,   m_dbDepthControl.u32All,   pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_STENCIL_CONTROL, m_dbStencilControl.u32All, pCmdSpace);
 
     return pCmdSpace;
 }

@@ -47,6 +47,9 @@ constexpr size_t NopSizeDwords = sizeof(SDMA_PKT_NOP) / sizeof(uint32);
 // consider the packetHeader size to be the packet size without any associated data.
 constexpr uint32 UpdateMemoryPacketHdrSizeInDwords = (sizeof(SDMA_PKT_WRITE_UNTILED) / sizeof(uint32)) - 1;
 
+// Predication Patch Offset as it requires 2 cond exec packet and 2 fence/"write data" packets
+constexpr uint32 PredPatchOffset = ((sizeof(SDMA_PKT_COND_EXE) * 2 + sizeof(SDMA_PKT_FENCE) * 2)/sizeof(uint32));
+
 // =====================================================================================================================
 DmaCmdBuffer::DmaCmdBuffer(
     Device&                    device,
@@ -292,26 +295,33 @@ void DmaCmdBuffer::EndExecutionMarker()
 uint32* DmaCmdBuffer::WritePredicateCmd(
     size_t  predicateDwords,
     uint32* pCmdSpace
-    ) const
+) const
 {
-    const size_t packetDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE));
-    auto*const   pPacket      = reinterpret_cast<SDMA_PKT_COND_EXE*>(pCmdSpace);
+    uint32 cmdWrittenInDwords        = 0;
+    const uint32 condExecCmdLengthInDwords = NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE));
+    const uint32 fenceCmdLengthInDwords    = NumBytesToNumDwords(sizeof(SDMA_PKT_FENCE));
 
-    SDMA_PKT_COND_EXE packet;
+    // LSB 0-31 bit predication
+    WriteCondExecCmd(pCmdSpace+ cmdWrittenInDwords, m_predMemAddress, fenceCmdLengthInDwords);
+    cmdWrittenInDwords += condExecCmdLengthInDwords;
 
-    PAL_NOT_TESTED();
+    // "Write data"
+    WriteFenceCmd(pCmdSpace+ cmdWrittenInDwords, m_predInternalAddr, m_predCopyData);
+    cmdWrittenInDwords += fenceCmdLengthInDwords;
 
-    packet.HEADER_UNION.DW_0_DATA      = 0;
-    packet.HEADER_UNION.op             = SDMA_OP_COND_EXE;
-    packet.ADDR_LO_UNION.addr_31_0     = LowPart(m_predMemAddress);
-    packet.ADDR_HI_UNION.addr_63_32    = HighPart(m_predMemAddress);
-    packet.REFERENCE_UNION.reference   = 1;
-    packet.EXEC_COUNT_UNION.DW_4_DATA  = 0;
-    packet.EXEC_COUNT_UNION.exec_count = predicateDwords;
+    // MSB 32-63 bit predication
+    WriteCondExecCmd(pCmdSpace + cmdWrittenInDwords, m_predMemAddress + 4, fenceCmdLengthInDwords);
+    cmdWrittenInDwords += condExecCmdLengthInDwords;
 
-    *pPacket = packet;
+    // "Write data"
+    WriteFenceCmd(pCmdSpace + cmdWrittenInDwords, m_predInternalAddr, m_predCopyData);
+    cmdWrittenInDwords += fenceCmdLengthInDwords;
 
-    return pCmdSpace + packetDwords;
+    // Actual predication with Internal Memory
+    WriteCondExecCmd(pCmdSpace + cmdWrittenInDwords, m_predInternalAddr, 0);
+    cmdWrittenInDwords += condExecCmdLengthInDwords;
+
+    return pCmdSpace + cmdWrittenInDwords;
 }
 
 // =====================================================================================================================
@@ -322,9 +332,49 @@ void DmaCmdBuffer::PatchPredicateCmd(
     void*  pPredicateCmd
     ) const
 {
-    auto*const pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>(pPredicateCmd);
+    auto*const pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>((uint32*)pPredicateCmd + PredPatchOffset);
+    pPacket->EXEC_COUNT_UNION.exec_count = predicateDwords - (Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE)) + PredPatchOffset);
 
-    pPacket->EXEC_COUNT_UNION.exec_count = predicateDwords;
+}
+// =====================================================================================================================
+void DmaCmdBuffer::WriteCondExecCmd(
+    uint32* pCmdSpace,
+    gpusize predMemory,
+    uint32 skipCountInDwords
+) const
+{
+    auto*const pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>(pCmdSpace);
+
+    SDMA_PKT_COND_EXE packet;
+    packet.HEADER_UNION.DW_0_DATA      = 0;
+    packet.HEADER_UNION.op             = SDMA_OP_COND_EXE;
+    packet.ADDR_LO_UNION.addr_31_0     = LowPart(predMemory);
+    packet.ADDR_HI_UNION.addr_63_32    = HighPart(predMemory);
+    packet.REFERENCE_UNION.reference   = 1;
+    packet.EXEC_COUNT_UNION.DW_4_DATA  = 0;
+    packet.EXEC_COUNT_UNION.exec_count = skipCountInDwords;
+    *pPacket = packet;
+}
+
+// =====================================================================================================================
+void DmaCmdBuffer::WriteFenceCmd(
+    uint32* pCmdSpace,
+    gpusize fenceMemory,
+    uint32  predCopyData
+) const
+{
+    PAL_ASSERT(IsPow2Aligned(fenceMemory, sizeof(uint32)));
+
+    auto*const       pFencePacket = reinterpret_cast<SDMA_PKT_FENCE*>(pCmdSpace);
+
+    SDMA_PKT_FENCE fencePacket;
+    fencePacket.HEADER_UNION.DW_0_DATA   = 0;
+    fencePacket.HEADER_UNION.op          = SDMA_OP_FENCE;
+    fencePacket.HEADER_UNION.mtype       = MTYPE_UC;
+    fencePacket.ADDR_LO_UNION.addr_31_0  = LowPart(fenceMemory);
+    fencePacket.ADDR_HI_UNION.addr_63_32 = HighPart(fenceMemory);
+    fencePacket.DATA_UNION.DW_3_DATA     = predCopyData;
+    *pFencePacket = fencePacket;
 }
 
 // =====================================================================================================================
@@ -1383,7 +1433,7 @@ uint32 DmaCmdBuffer::GetHwDimension(
     {
         const AddrSwizzleMode  swizzleMode = GetSwizzleMode(dmaImageInfo);
 
-        if ((swizzleMode == ADDR_SW_64KB_R_X) || (swizzleMode == ADDR_SW_64KB_Z_X))
+        if (AddrMgr2::IsRotatedSwizzle(swizzleMode) || AddrMgr2::IsZSwizzle(swizzleMode))
         {
             imageType = ImageType::Tex2d;
         }

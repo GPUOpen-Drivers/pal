@@ -56,20 +56,6 @@ target_sources(vam PRIVATE src/core/vammacros.h
                            src/core/vamdevice.h
                            src/core/vamdevice.cpp)
 
-#if ADDR_CLOSED_SOURCE
-if (CMAKE_SYSTEM_NAME MATCHES Windows)
-    # CMake-TODO: Why vam_basedrv.h is not part of VAM interface?
-    target_include_directories(vam PRIVATE
-                                      ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/shared)
-endif()
-
-# CMake-TODO: What these macros are used for?
-#             Should these be part of VAM interface?
-# - BUILDING_CMMQSLIB
-# - BUILDING_CMM
-# - _BASETSD_H_
-#endif // ADDR_CLOSED_SOURCE
-
 target_compile_definitions(vam PRIVATE $<$<CONFIG:Debug>:VAM_DEBUG>)
 
 set_target_properties(vam PROPERTIES CXX_STANDARD              11

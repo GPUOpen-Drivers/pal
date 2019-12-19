@@ -65,6 +65,8 @@ DmaCmdBuffer::DmaCmdBuffer(
     m_predMemEnabled(false),
     m_copyOverlapHazardSyncs(copyOverlapHazardSyncs),
     m_predMemAddress(0),
+    m_predInternalAddr(0),
+    m_predCopyData(0),
     m_pT2tEmbeddedGpuMemory(nullptr),
     m_t2tEmbeddedMemOffset(0)
 {
@@ -1389,10 +1391,17 @@ void DmaCmdBuffer::CmdSetPredication(
     // On DMA queue, this is the only supported predication
     PAL_ASSERT((pGpuMemory == nullptr) || (predType == PredicateType::Boolean32));
 
+    m_predInternalAddr = 0;
     m_predMemAddress = 0;
     if (pGpuMemory != nullptr)
     {
         m_predMemAddress = pGpuMemory->Desc().gpuVirtAddr + offset;
+        uint32 *pPredCpuAddr = CmdAllocateEmbeddedData(2, 1, &m_predInternalAddr);
+        // Execute if 64-bit value in memory are all 0 when predPolarity is false,
+        // or Execute if one or more bits of 64-bit value in memory are not 0 when predPolarity is true.
+        m_predCopyData = (predPolarity == true);
+        *pPredCpuAddr  = (predPolarity == false);
+
     }
 
     m_predMemEnabled = ((pQueryPool == nullptr) && (pGpuMemory == nullptr)) ? false : true;

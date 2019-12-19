@@ -374,6 +374,12 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success)
     {
         result = CreateRpmComputePipeline(
+            RpmComputePipeline::GenerateMipmaps, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
             RpmComputePipeline::HtileCopyAndFixUp, pDevice, pTable, pPipelineMem);
     }
 

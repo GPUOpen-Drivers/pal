@@ -27,7 +27,7 @@
 
 #include "core/queueContext.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
-#include "core/hw/gfxip/gfx9/gfx9Preambles.h"
+#include "core/hw/gfxip/gfx9/gfx9ShadowedRegisters.h"
 
 namespace Pal
 {
@@ -43,7 +43,7 @@ class ComputeQueueContext : public QueueContext
 {
 public:
     ComputeQueueContext(Device* pDevice, Queue* pQueue, Engine* pEngine, uint32 queueId);
-    virtual ~ComputeQueueContext() {}
+    virtual ~ComputeQueueContext() { }
 
     Result Init();
 
@@ -51,25 +51,19 @@ public:
     virtual void PostProcessSubmit() override;
 
 private:
-    void RebuildCommandStreams();
-
-    void BuildComputePreambleHeaders();
-    void SetupComputePreambleRegisters();
+    Result RebuildCommandStreams();
 
     Device*const        m_pDevice;
     Queue*const         m_pQueue;
     ComputeEngine*const m_pEngine;
     uint32              m_queueId;
-    uint32              m_currentUpdateCounter; // Current watermark for the device-initiated context updates that
-                                                // have been processed by this queue context.
 
-    // Command stream which restores hardware to a known state before launching command buffers.
-    CmdStream           m_cmdStream;
-    CmdStream           m_perSubmitCmdStream;
-    CmdStream           m_postambleCmdStream;
+    // Current watermark for the device-initiated context updates which have been processed by this queue context.
+    uint32  m_currentUpdateCounter;
 
-    CommonPreamblePm4Img  m_commonPreamble;  // Image of PM4 commands for common state.
-    ComputePreamblePm4Img m_computePreamble; // Image of PM4 commands for compute-only state.
+    CmdStream  m_cmdStream;
+    CmdStream  m_perSubmitCmdStream;
+    CmdStream  m_postambleCmdStream;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputeQueueContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeQueueContext);
@@ -89,21 +83,21 @@ public:
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
 private:
-    void RebuildCommandStreams();
-    Result AllocateShadowMemory();
-    void BuildShadowPreamble();
-    void BuildPerSubmitCommandStream(CmdStream& cmdStream, bool initShadowMemory);
+    Result BuildShadowPreamble();
+    Result RebuildCommandStreams();
 
-    void BuildUniversalPreambleHeaders();
-    void SetupUniversalPreambleRegisters();
+    Result AllocateShadowMemory();
+
+    void WritePerSubmitPreamble(CmdStream* pCmdStream, bool initShadowMemory);
+    uint32* WriteUniversalPreamble(uint32* pCmdSpace);
 
     Device*const          m_pDevice;
     Queue*const           m_pQueue;
     UniversalEngine*const m_pEngine;
     uint32                m_queueId;
 
-    uint32           m_currentUpdateCounter;  // Current watermark for the device-initiated context updates that have
-                                              // been processed by this queue context.
+    // Current watermark for the device-initiated context updates which have been processed by this queue context.
+    uint32  m_currentUpdateCounter;
 
     // GPU memory allocation used for shadowing persistent CE RAM between submissions.
     bool            m_useShadowing;
@@ -118,9 +112,6 @@ private:
     CmdStream  m_cePreambleCmdStream;
     CmdStream  m_cePostambleCmdStream;
     CmdStream  m_dePostambleCmdStream;
-
-    CommonPreamblePm4Img      m_commonPreamble;      // Image of PM4 commands for common state.
-    UniversalPreamblePm4Img   m_universalPreamble;   // Image of PM4 commands for universal-only state.
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalQueueContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalQueueContext);

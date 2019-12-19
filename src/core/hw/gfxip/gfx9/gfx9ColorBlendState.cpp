@@ -23,7 +23,6 @@
  *
  **********************************************************************************************************************/
 
-#include "core/device.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ColorBlendState.h"
@@ -42,34 +41,16 @@ ColorBlendState::ColorBlendState(
     const Device&                    device,
     const ColorBlendStateCreateInfo& createInfo)
     :
-    Pal::ColorBlendState(),
-    m_blendEnableMask(0),
-    m_blendReadsDestMask(0),
-    m_blendCommutativeMask(0)
+    Pal::ColorBlendState()
 {
-    memset(&m_pm4Commands, 0, sizeof(m_pm4Commands));
-    memset(&m_blendOpts[0], 0, sizeof(m_blendOpts));
-    BuildPm4Headers(device);
-    Init(device, createInfo);
-}
+    m_flags.u32All = 0;
+    m_flags.rbPlus = device.Settings().gfx9RbPlusEnable;
 
-// =====================================================================================================================
-// Builds the packet headers for the various PM4 images associated with this State Object.
-// Register values and packet payloads are computed elsewhere.
-void ColorBlendState::BuildPm4Headers(
-    const Device& device)
-{
-    const CmdUtil& cmdUtil = device.CmdUtil();
+    memset(&m_blendOpts[0],      0, sizeof(m_blendOpts));
+    memset(&m_cbBlendControl[0], 0, sizeof(m_cbBlendControl));
+    memset(&m_sxMrtBlendOpt[0],  0, sizeof(m_sxMrtBlendOpt));
 
-    // 1st PM4 packet: sets the following context registers: CB_BLEND0_CONTROL-CB_BLEND7_CONTROL
-    cmdUtil.BuildSetSeqContextRegs(mmCB_BLEND0_CONTROL,
-                                   mmCB_BLEND7_CONTROL,
-                                   &m_pm4Commands.hdrCbBlendControl);
-    // 2nd PM4 packet: sets the following context registers:
-    // mmSX_MRT0_BLEND_OPT - mmSX_MRT7_BLEND_OPT
-    cmdUtil.BuildSetSeqContextRegs(mmSX_MRT0_BLEND_OPT,
-                                   mmSX_MRT7_BLEND_OPT,
-                                   &m_pm4Commands.hdrSxMrtBlendOpt);
+    Init(createInfo);
 }
 
 // =====================================================================================================================
@@ -235,16 +216,6 @@ SX_OPT_COMB_FCN GetSxBlendFcn(
 }
 
 // =====================================================================================================================
-// Validates the create info for the color blend state.
-Result ColorBlendState::ValidateCreateInfo(
-    const Device*                    pDevice,
-    const ColorBlendStateCreateInfo& createInfo)
-{
-    // Nothing to validate.
-    return Result::Success;
-}
-
-// =====================================================================================================================
 static GfxBlendOptimizer::BlendOp HwEnumToBlendOp(
     uint32 hwEnum)
 {
@@ -316,64 +287,57 @@ static uint32 BlendOptToHw(
 // Performs Gfx9 hardware-specific initialization for a color blend state object, including:
 // Set up the image of PM4 commands used to write the pipeline to HW.
 void ColorBlendState::Init(
-    const Device&                         device,
-    const Pal::ColorBlendStateCreateInfo& blend)    // [in] Creation info
+    const ColorBlendStateCreateInfo& blend)
 {
     for (uint32 i = 0; i < MaxColorTargets; i++)
     {
         if (blend.targets[i].blendEnable)
         {
-            m_blendEnableMask |= (1 << i);
-            m_pm4Commands.cbBlendControl[i].bits.ENABLE = 1;
+            m_flags.blendEnable |= (1 << i);
+            m_cbBlendControl[i].bits.ENABLE = 1;
         }
-        m_pm4Commands.cbBlendControl[i].bits.SEPARATE_ALPHA_BLEND = 1;
-        m_pm4Commands.cbBlendControl[i].bits.COLOR_SRCBLEND       = HwBlendOp(blend.targets[i].srcBlendColor);
-        m_pm4Commands.cbBlendControl[i].bits.COLOR_DESTBLEND      = HwBlendOp(blend.targets[i].dstBlendColor);
-        m_pm4Commands.cbBlendControl[i].bits.ALPHA_SRCBLEND       = HwBlendOp(blend.targets[i].srcBlendAlpha);
-        m_pm4Commands.cbBlendControl[i].bits.ALPHA_DESTBLEND      = HwBlendOp(blend.targets[i].dstBlendAlpha);
-        m_pm4Commands.cbBlendControl[i].bits.COLOR_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncColor);
-        m_pm4Commands.cbBlendControl[i].bits.ALPHA_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncAlpha);
+        m_cbBlendControl[i].bits.SEPARATE_ALPHA_BLEND = 1;
+        m_cbBlendControl[i].bits.COLOR_SRCBLEND       = HwBlendOp(blend.targets[i].srcBlendColor);
+        m_cbBlendControl[i].bits.COLOR_DESTBLEND      = HwBlendOp(blend.targets[i].dstBlendColor);
+        m_cbBlendControl[i].bits.ALPHA_SRCBLEND       = HwBlendOp(blend.targets[i].srcBlendAlpha);
+        m_cbBlendControl[i].bits.ALPHA_DESTBLEND      = HwBlendOp(blend.targets[i].dstBlendAlpha);
+        m_cbBlendControl[i].bits.COLOR_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncColor);
+        m_cbBlendControl[i].bits.ALPHA_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncAlpha);
 
         // BlendOps are forced to ONE for MIN/MAX blend funcs
-        if ((m_pm4Commands.cbBlendControl[i].bits.COLOR_COMB_FCN == COMB_MIN_DST_SRC) ||
-            (m_pm4Commands.cbBlendControl[i].bits.COLOR_COMB_FCN == COMB_MAX_DST_SRC))
+        if ((m_cbBlendControl[i].bits.COLOR_COMB_FCN == COMB_MIN_DST_SRC) ||
+            (m_cbBlendControl[i].bits.COLOR_COMB_FCN == COMB_MAX_DST_SRC))
         {
-            m_pm4Commands.cbBlendControl[i].bits.COLOR_SRCBLEND  = BLEND_ONE;
-            m_pm4Commands.cbBlendControl[i].bits.COLOR_DESTBLEND = BLEND_ONE;
+            m_cbBlendControl[i].bits.COLOR_SRCBLEND  = BLEND_ONE;
+            m_cbBlendControl[i].bits.COLOR_DESTBLEND = BLEND_ONE;
         }
 
-        if ((m_pm4Commands.cbBlendControl[i].bits.ALPHA_COMB_FCN == COMB_MIN_DST_SRC) ||
-            (m_pm4Commands.cbBlendControl[i].bits.ALPHA_COMB_FCN == COMB_MAX_DST_SRC))
+        if ((m_cbBlendControl[i].bits.ALPHA_COMB_FCN == COMB_MIN_DST_SRC) ||
+            (m_cbBlendControl[i].bits.ALPHA_COMB_FCN == COMB_MAX_DST_SRC))
         {
-            m_pm4Commands.cbBlendControl[i].bits.ALPHA_SRCBLEND  = BLEND_ONE;
-            m_pm4Commands.cbBlendControl[i].bits.ALPHA_DESTBLEND = BLEND_ONE;
+            m_cbBlendControl[i].bits.ALPHA_SRCBLEND  = BLEND_ONE;
+            m_cbBlendControl[i].bits.ALPHA_DESTBLEND = BLEND_ONE;
         }
     }
 
-    bool isDualSrcBlend  = IsDualSrcBlendOption(blend.targets[0].srcBlendColor);
-    isDualSrcBlend |= IsDualSrcBlendOption(blend.targets[0].dstBlendColor);
-    isDualSrcBlend |= IsDualSrcBlendOption(blend.targets[0].srcBlendAlpha);
-    isDualSrcBlend |= IsDualSrcBlendOption(blend.targets[0].dstBlendAlpha);
+    m_flags.dualSourceBlend = (IsDualSrcBlendOption(blend.targets[0].srcBlendColor) |
+                               IsDualSrcBlendOption(blend.targets[0].dstBlendColor) |
+                               IsDualSrcBlendOption(blend.targets[0].srcBlendAlpha) |
+                               IsDualSrcBlendOption(blend.targets[0].dstBlendAlpha));
 
-    // CB_BLEND1_CONTROL.ENABLE must be 1 for dual source blend.
-    if (isDualSrcBlend == true)
-    {
-        m_pm4Commands.cbBlendControl[1].bits.ENABLE = 1;
-    }
+    // CB_BLEND1_CONTROL.ENABLE must be 1 for dual source blending.
+    m_cbBlendControl[1].bits.ENABLE |= m_flags.dualSourceBlend;
 
-    InitBlendOpts(blend, isDualSrcBlend);
+    InitBlendOpts(blend);
 
-    const Gfx9PalSettings& settings = device.Settings();
-
-    // sxMrtBlendOpt is defaulted to 0 for the case Rb+ is disabled, disable RB+ when dualSrcBlend is enabled
-    if ((settings.gfx9RbPlusEnable == true) && (isDualSrcBlend == false))
+    // SX blend optimizations must be disabled when RB+ is disabled or when dual-source blending is enabled.
+    if ((m_flags.dualSourceBlend == 0) && (m_flags.rbPlus != 0))
     {
         for (uint32 i = 0; i < MaxColorTargets; i++)
         {
             if (blend.targets[i].blendEnable == true)
             {
-                m_pm4Commands.sxMrtBlendOpt[i].bits.COLOR_SRC_OPT =
-                    GetSxBlendOptColor(blend.targets[i].srcBlendColor);
+                m_sxMrtBlendOpt[i].bits.COLOR_SRC_OPT = GetSxBlendOptColor(blend.targets[i].srcBlendColor);
 
                 // If src color factor constains Dst, don't optimize color DST. It was said blend factor
                 // SrcAlphaSaturate contains DST in RGB channels only.
@@ -383,15 +347,14 @@ void ColorBlendState::Init(
                     (blend.targets[i].srcBlendColor == Blend::OneMinusDstAlpha) ||
                     (blend.targets[i].srcBlendColor == Blend::SrcAlphaSaturate))
                 {
-                    m_pm4Commands.sxMrtBlendOpt[i].bits.COLOR_DST_OPT = BLEND_OPT_PRESERVE_NONE_IGNORE_NONE;
+                    m_sxMrtBlendOpt[i].bits.COLOR_DST_OPT = BLEND_OPT_PRESERVE_NONE_IGNORE_NONE;
                 }
                 else
                 {
-                    m_pm4Commands.sxMrtBlendOpt[i].bits.COLOR_DST_OPT =
-                        GetSxBlendOptColor(blend.targets[i].dstBlendColor);
+                    m_sxMrtBlendOpt[i].bits.COLOR_DST_OPT = GetSxBlendOptColor(blend.targets[i].dstBlendColor);
                 }
 
-                m_pm4Commands.sxMrtBlendOpt[i].bits.ALPHA_SRC_OPT = GetSxBlendOptAlpha(blend.targets[i].srcBlendAlpha);
+                m_sxMrtBlendOpt[i].bits.ALPHA_SRC_OPT = GetSxBlendOptAlpha(blend.targets[i].srcBlendAlpha);
 
                 // If src alpha factor contains DST, don't optimize alpha DST.
                 if ((blend.targets[i].srcBlendAlpha == Blend::DstColor) ||
@@ -399,36 +362,35 @@ void ColorBlendState::Init(
                     (blend.targets[i].srcBlendAlpha == Blend::DstAlpha) ||
                     (blend.targets[i].srcBlendAlpha == Blend::OneMinusDstAlpha))
                 {
-                    m_pm4Commands.sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = BLEND_OPT_PRESERVE_NONE_IGNORE_NONE;
+                    m_sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = BLEND_OPT_PRESERVE_NONE_IGNORE_NONE;
                 }
                 else
                 {
-                    m_pm4Commands.sxMrtBlendOpt[i].bits.ALPHA_DST_OPT =
-                        GetSxBlendOptAlpha(blend.targets[i].dstBlendAlpha);
+                    m_sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = GetSxBlendOptAlpha(blend.targets[i].dstBlendAlpha);
                 }
 
-                m_pm4Commands.sxMrtBlendOpt[i].bits.COLOR_COMB_FCN = GetSxBlendFcn(blend.targets[i].blendFuncColor);
-                m_pm4Commands.sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN = GetSxBlendFcn(blend.targets[i].blendFuncAlpha);
+                m_sxMrtBlendOpt[i].bits.COLOR_COMB_FCN = GetSxBlendFcn(blend.targets[i].blendFuncColor);
+                m_sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN = GetSxBlendFcn(blend.targets[i].blendFuncAlpha);
 
                 // BlendOpts are forced to ONE for MIN/MAX blend fcns
-                if ((m_pm4Commands.sxMrtBlendOpt[i].bits.COLOR_COMB_FCN == OPT_COMB_MIN) ||
-                    (m_pm4Commands.sxMrtBlendOpt[i].bits.COLOR_COMB_FCN == OPT_COMB_MAX))
+                if ((m_sxMrtBlendOpt[i].bits.COLOR_COMB_FCN == OPT_COMB_MIN) ||
+                    (m_sxMrtBlendOpt[i].bits.COLOR_COMB_FCN == OPT_COMB_MAX))
                 {
-                    m_pm4Commands.sxMrtBlendOpt[i].bits.COLOR_SRC_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
-                    m_pm4Commands.sxMrtBlendOpt[i].bits.COLOR_DST_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
+                    m_sxMrtBlendOpt[i].bits.COLOR_SRC_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
+                    m_sxMrtBlendOpt[i].bits.COLOR_DST_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
                 }
 
-                if ((m_pm4Commands.sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN == OPT_COMB_MIN) ||
-                    (m_pm4Commands.sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN == OPT_COMB_MAX))
+                if ((m_sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN == OPT_COMB_MIN) ||
+                    (m_sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN == OPT_COMB_MAX))
                 {
-                    m_pm4Commands.sxMrtBlendOpt[i].bits.ALPHA_SRC_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
-                    m_pm4Commands.sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
+                    m_sxMrtBlendOpt[i].bits.ALPHA_SRC_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
+                    m_sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
                 }
             }
             else
             {
-                m_pm4Commands.sxMrtBlendOpt[i].bits.COLOR_COMB_FCN = OPT_COMB_BLEND_DISABLED;
-                m_pm4Commands.sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN = OPT_COMB_BLEND_DISABLED;
+                m_sxMrtBlendOpt[i].bits.COLOR_COMB_FCN = OPT_COMB_BLEND_DISABLED;
+                m_sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN = OPT_COMB_BLEND_DISABLED;
             }
         }
     }
@@ -444,13 +406,24 @@ void ColorBlendState::Init(
 //      + Writing to Color channel only.
 //      + Writing to both Alpha and Color channels.
 void ColorBlendState::InitBlendOpts(
-    const Pal::ColorBlendStateCreateInfo& blend,    // [in] Creation info
-    bool                                  isDualSrcBlend)
+    const ColorBlendStateCreateInfo& blend)
 {
     using namespace GfxBlendOptimizer;
 
     for (uint32 ct = 0; ct < Pal::MaxColorTargets; ct++)
     {
+        // The logic assumes the separate alpha blend is always on
+        PAL_ASSERT(m_cbBlendControl[ct].bits.SEPARATE_ALPHA_BLEND == 1);
+
+        Input optInput = { };
+        optInput.srcBlend       = HwEnumToBlendOp(m_cbBlendControl[ct].bits.COLOR_SRCBLEND);
+        optInput.destBlend      = HwEnumToBlendOp(m_cbBlendControl[ct].bits.COLOR_DESTBLEND);
+        optInput.alphaSrcBlend  = HwEnumToBlendOp(m_cbBlendControl[ct].bits.ALPHA_SRCBLEND);
+        optInput.alphaDestBlend = HwEnumToBlendOp(m_cbBlendControl[ct].bits.ALPHA_DESTBLEND);
+
+        const uint32 colorCombFcn = m_cbBlendControl[ct].bits.COLOR_COMB_FCN;
+        const uint32 alphaCombFcn = m_cbBlendControl[ct].bits.ALPHA_COMB_FCN;
+
         for (uint32 idx = 0; idx < NumChannelWriteComb; idx++)
         {
             const uint32 optIndex = (ct * NumChannelWriteComb) + idx;
@@ -466,20 +439,8 @@ void ColorBlendState::InitBlendOpts(
             // Per discussions with HW engineers, RTL has issues with blend optimization for dual source blending.  HW
             // is already turning it off for that case.  Thus, driver must not turn it on as well for dual source
             // blending.
-            if ((blend.targets[ct].blendEnable == true) && (isDualSrcBlend == false))
+            if ((blend.targets[ct].blendEnable == true) && (m_flags.dualSourceBlend == 0))
             {
-                // The logic assumes the separate alpha blend is always on
-                PAL_ASSERT(m_pm4Commands.cbBlendControl[ct].bits.SEPARATE_ALPHA_BLEND == 1);
-
-                // Setup optimizer inputs based on the blend state
-                Input optInput;
-                memset(&optInput, 0, sizeof(optInput));
-
-                optInput.srcBlend       = HwEnumToBlendOp(m_pm4Commands.cbBlendControl[ct].bits.COLOR_SRCBLEND);
-                optInput.destBlend      = HwEnumToBlendOp(m_pm4Commands.cbBlendControl[ct].bits.COLOR_DESTBLEND);
-                optInput.alphaSrcBlend  = HwEnumToBlendOp(m_pm4Commands.cbBlendControl[ct].bits.ALPHA_SRCBLEND);
-                optInput.alphaDestBlend = HwEnumToBlendOp(m_pm4Commands.cbBlendControl[ct].bits.ALPHA_DESTBLEND);
-
                 // The three valid alpha/color combinations are:
                 //  - AlphaEnabled      = 0x01
                 //  - ColorEnabled      = 0x02
@@ -491,9 +452,6 @@ void ColorBlendState::InitBlendOpts(
                 // equation
                 optInput.colorWrite = TestAnyFlagSet(colorAlphaMask, ColorEnabled);
                 optInput.alphaWrite = TestAnyFlagSet(colorAlphaMask, AlphaEnabled);
-
-                const uint32 colorCombFcn = m_pm4Commands.cbBlendControl[ct].bits.COLOR_COMB_FCN;
-                const uint32 alphaCombFcn = m_pm4Commands.cbBlendControl[ct].bits.ALPHA_COMB_FCN;
 
                 // Try optimizing using the first pixel discard equation
                 if (((colorCombFcn == COMB_DST_PLUS_SRC)   ||
@@ -512,8 +470,8 @@ void ColorBlendState::InitBlendOpts(
                     m_blendOpts[optIndex].discardPixel = OptimizePixDiscard2(optInput);
                 }
             }
-        }
-    }
+        } // for each color/alpha combination
+    } // for each MRT
 }
 
 // =====================================================================================================================
@@ -524,22 +482,14 @@ uint32* ColorBlendState::WriteCommands(
     uint32*    pCmdSpace
     ) const
 {
-    static const uint32 Pm4SizeInDwords = (sizeof(BlendStatePm4Img) / sizeof(uint32));
-
-    // When the command stream is null, we are writing the commands for this state into a pre-allocated buffer that has
-    // enough space for the commands.
-    // When the command stream is non-null, we are writing the commands as part of a ICmdBuffer::CmdBind* call.
-    if (pCmdStream == nullptr)
-    {
-        memcpy(pCmdSpace, &m_pm4Commands, sizeof(m_pm4Commands));
-        pCmdSpace += Pm4SizeInDwords;
-    }
-    else
-    {
-        pCmdSpace = pCmdStream->WritePm4Image(Pm4SizeInDwords, &m_pm4Commands, pCmdSpace);
-    }
-
-    return pCmdSpace;
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_BLEND0_CONTROL,
+                                                   mmCB_BLEND7_CONTROL,
+                                                   &m_cbBlendControl[0],
+                                                   pCmdSpace);
+    return pCmdStream->WriteSetSeqContextRegs(mmSX_MRT0_BLEND_OPT,
+                                              mmSX_MRT7_BLEND_OPT,
+                                              &m_sxMrtBlendOpt[0],
+                                              pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -655,7 +605,7 @@ void ColorBlendState::InitBlendMasks(
                 (srcBlends[k] == Blend::DstColor)         ||
                 (srcBlends[k] == Blend::OneMinusDstColor))
             {
-                m_blendReadsDestMask |= (1 << rtIdx);
+                m_flags.blendReadsDst |= (1 << rtIdx);
             }
 
             // Min and max blend ops are always commutative as they ignore the blend multiplier and operate directly on
@@ -727,7 +677,7 @@ void ColorBlendState::InitBlendMasks(
 
         if (createInfo.targets[rtIdx].blendEnable && isCommutative[0] && isCommutative[1])
         {
-            m_blendCommutativeMask |= (1 << rtIdx);
+            m_flags.blendCommutative |= (1 << rtIdx);
         }
     }
 }

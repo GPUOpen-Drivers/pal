@@ -77,7 +77,8 @@ Dri3PresentFence::Dri3PresentFence(
     m_windowSystem(windowSystem),
     m_syncFence(0),
     m_pShmFence(nullptr),
-    m_presented(false)
+    m_presented(false),
+    m_pImage(nullptr)
 {
 }
 
@@ -232,6 +233,11 @@ Result Dri3PresentFence::WaitForCompletion(
                 result = Result::NotReady;
             }
         }
+    }
+
+    if (result == Result::Success)
+    {
+        m_pImage->SetIdle(true);
     }
 
     return result;
@@ -662,8 +668,8 @@ Result Dri3WindowSystem::Present(
     Dri3PresentFence*const pDri3IdleFence = static_cast<Dri3PresentFence*>(pIdleFence);
     const xcb_sync_fence_t waitSyncFence  = (pDri3WaitFence != nullptr) ? pDri3WaitFence->SyncFence() : 0;
     const xcb_sync_fence_t idleSyncFence  = (pDri3IdleFence != nullptr) ? pDri3IdleFence->SyncFence() : 0;
-    const Image&           srcImage       = static_cast<Image&>(*presentInfo.pSrcImage);
-    uint32                 pixmap         = srcImage.GetPresentImageHandle().hPixmap;
+    Image*                 pSrcImage      = static_cast<Image*>(presentInfo.pSrcImage);
+    uint32                 pixmap         = pSrcImage->GetPresentImageHandle().hPixmap;
     PresentMode            presentMode    = presentInfo.presentMode;
     PAL_ASSERT((pDri3IdleFence == nullptr) || (m_dri3Procs.pfnXshmfenceQuery(pDri3IdleFence->ShmFence()) == 0));
 
@@ -714,7 +720,10 @@ Result Dri3WindowSystem::Present(
         if (pDri3IdleFence != nullptr)
         {
             pDri3IdleFence->SetPresented(true);
+            pDri3IdleFence->AttachImage(pSrcImage);
         }
+
+        pSrcImage->SetIdle(false); // From now on, the image/buffer is owned by Xorg
 
         m_dri3Procs.pfnXcbFlush(m_pConnection);
     }

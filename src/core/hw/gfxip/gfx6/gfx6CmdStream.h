@@ -98,6 +98,20 @@ public:
     template <PM4ShaderType shaderType>
     uint32* WriteSetOneShReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
 
+    uint32* WriteSetOneShRegIndex(
+        uint32        regAddr,
+        uint32        regData,
+        PM4ShaderType shaderType,
+        uint32        index,
+        uint32*       pCmdSpace);
+    uint32* WriteSetSeqShRegsIndex(
+        uint32        startRegAddr,
+        uint32        endRegAddr,
+        PM4ShaderType shaderType,
+        const void*   pData,
+        uint32        index,
+        uint32*       pCmdSpace);
+
     template <bool pm4OptImmediate>
     uint32* WriteSetSeqContextRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);
     uint32* WriteSetSeqContextRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);

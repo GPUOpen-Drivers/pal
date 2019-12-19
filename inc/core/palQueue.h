@@ -80,6 +80,47 @@ enum class SubmitOptMode : uint32
     Count
 };
 
+/// Structure describing dump information for a command buffer.
+struct CmdBufferDumpDesc
+{
+    EngineType    engineType;       ///< The engine type that this buffer is targeted for.
+    QueueType     queueType;        ///< The type of queue that this buffer is being created on.
+    SubEngineType subEngineType;    ///< The ID of which sub-engine that this buffer is made for.
+
+    uint32        cmdBufferIdx;     ///< The index into the SubmitInfo ppCmdBuffers array that this
+                                    ///  command buffer dump came from.
+    union
+    {
+        struct
+        {
+            uint8 isPreamble  : 1;  ///< Set if the buffer is an internal preamble command buffer.
+            uint8 isPostamble : 1;  ///< Set if the buffer is an internal postamble command buffer.
+            uint8 reserved    : 6;  ///< Reserved for future use.
+        };
+        uint8 u32All;               ///< Flags packed as 8-bit uint.
+    } flags;
+
+};
+
+/// Structure describing a command buffer chunk for use while dumping command buffers.
+struct CmdBufferChunkDumpDesc
+{
+    uint32       id;        ///< ID (number) of this command chunk within the command buffer.
+    const void*  pCommands; ///< Pointer to the command data.
+    size_t       size;      ///< Size of valid data in bytes pointed to in pCommands.
+};
+
+/// Definition for command buffer dumping callback.
+///
+/// @param [in] cmdBufferDesc   Description of the command buffer.
+/// @param [in] pChunks         Pointer to an array of command buffer chunk descriptions.
+/// @param [in] numChunks       The number of chunks pointed to in pChunks.
+typedef void (PAL_STDCALL* CmdDumpCallback)(
+    const CmdBufferDumpDesc&      cmdBufferDesc,
+    const CmdBufferChunkDumpDesc* pChunks,
+    uint32                        numChunks,
+    void*                         pUserData);
+
 /// Specifies properties for @ref IQueue creation.  Input structure to IDevice::CreateQueue().
 struct QueueCreateInfo
 {
@@ -160,6 +201,11 @@ struct SubmitInfo
                                                   ///  for any of these GPU memory allocations.
     IFence*                 pFence;               ///< Null, or a fence object to be signaled once the last command
                                                   ///  buffer in the submission completes execution.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+    CmdDumpCallback         pfnCmdDumpCb;         ///< Null, or a callback function to handle the dumping of the
+                                                  ///  command buffers used in this submit.
+    void*                   pUserData;            ///< Client provided data to be passed to callback.
+#endif
 };
 
 /// The value of blockIfFlippingCount in @ref SubmitInfo cannot be greater than this value.

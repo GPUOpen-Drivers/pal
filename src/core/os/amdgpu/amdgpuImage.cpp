@@ -61,7 +61,10 @@ Image::~Image()
 {
     if (m_presentImageHandle.pBuffer != NullImageHandle.pBuffer)
     {
-        m_pWindowSystem->DestroyPresentableImage(m_presentImageHandle);
+        if (m_pWindowSystem != nullptr)
+        {
+            m_pWindowSystem->DestroyPresentableImage(m_presentImageHandle);
+        }
     }
 }
 
@@ -118,7 +121,6 @@ Result Image::CreatePresentableImage(
      Result result = Result::ErrorInvalidPointer;
 
     // Currently, all Linux presentable images require swap chains.
-    // For Android, SwapChain is managed by Loader. Loader will deliver the present buffer handle to Let ICD import
     if (createInfo.pSwapChain != nullptr)
     {
         auto*const      pSwapChain    = static_cast<Amdgpu::SwapChain*>(createInfo.pSwapChain);
@@ -575,6 +577,21 @@ Result Image::CreateExternalSharedImage(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Set the idle status of the image and dirty global references.
+void Image::SetIdle(
+    bool idle)
+{
+    if (m_idle != idle)
+    {
+        m_idle = idle;
+
+        auto*const pAmdgpuDevice = static_cast<Amdgpu::Device*>(m_pDevice);
+
+        pAmdgpuDevice->DirtyGlobalReferences();
+    }
 }
 
 } // Linux

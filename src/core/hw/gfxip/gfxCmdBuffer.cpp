@@ -714,10 +714,14 @@ void GfxCmdBuffer::CmdCopyTypedBuffer(
 void GfxCmdBuffer::CmdScaledCopyImage(
     const ScaledCopyInfo& copyInfo)
 {
-    constexpr ScaledCopyInternalFlags NullInternalFlags = {};
-
     PAL_ASSERT(copyInfo.pRegions != nullptr);
-    m_device.RsrcProcMgr().CmdScaledCopyImage(this, copyInfo, NullInternalFlags);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 552
+    ScaledCopyInfo localInfo = copyInfo;
+    localInfo.flags.srcSrgbAsUnorm = 0;
+    m_device.RsrcProcMgr().CmdScaledCopyImage(this, localInfo);
+#else
+    m_device.RsrcProcMgr().CmdScaledCopyImage(this, copyInfo);
+#endif
 }
 
 // =====================================================================================================================
@@ -798,9 +802,6 @@ void GfxCmdBuffer::CmdPresentBlt(
     region.dstSubres        = subres;
     region.numSlices        = 1;
 
-    ScaledCopyInternalFlags internalFlags = {};
-    internalFlags.srcSrgbAsUnorm          = (Formats::IsSrgb(srcImageInfo.swizzledFormat.format)) ? 1 : 0;
-
     const ImageLayout srcLayout =
     {
         LayoutPresentWindowed,
@@ -816,18 +817,19 @@ void GfxCmdBuffer::CmdPresentBlt(
     ScaledCopyInfo      copyInfo         = {};
     constexpr TexFilter DefaultTexFilter = {};
 
-    copyInfo.pSrcImage         = &srcImage;
-    copyInfo.srcImageLayout    = srcLayout;
-    copyInfo.pDstImage         = &dstImage;
-    copyInfo.dstImageLayout    = dstLayout;
-    copyInfo.regionCount       = 1;
-    copyInfo.pRegions          = &region;
-    copyInfo.filter            = DefaultTexFilter;
-    copyInfo.rotation          = ImageRotation::Ccw0;
-    copyInfo.pColorKey         = nullptr;
-    copyInfo.flags.srcColorKey = false;
+    copyInfo.pSrcImage              = &srcImage;
+    copyInfo.srcImageLayout         = srcLayout;
+    copyInfo.pDstImage              = &dstImage;
+    copyInfo.dstImageLayout         = dstLayout;
+    copyInfo.regionCount            = 1;
+    copyInfo.pRegions               = &region;
+    copyInfo.filter                 = DefaultTexFilter;
+    copyInfo.rotation               = ImageRotation::Ccw0;
+    copyInfo.pColorKey              = nullptr;
+    copyInfo.flags.srcColorKey      = false;
+    copyInfo.flags.srcSrgbAsUnorm   = Formats::IsSrgb(srcImageInfo.swizzledFormat.format) ? 1 : 0;
 
-    m_device.RsrcProcMgr().CmdScaledCopyImage(this, copyInfo, internalFlags);
+    m_device.RsrcProcMgr().CmdScaledCopyImage(this, copyInfo);
 }
 
 // =====================================================================================================================

@@ -26,6 +26,7 @@
 #pragma once
 
 #include "pal.h"
+#include "core/os/amdgpu/amdgpuQueue.h"
 
 namespace Pal
 {
@@ -113,6 +114,8 @@ public:
     // Wait for the window system to complete the present.
     virtual Result WaitForCompletion(bool doWait) = 0;
 
+    virtual Result AssociatePriorRenderFence(IQueue* pQueue) = 0;
+
 protected:
     PresentFence() { }
     virtual ~PresentFence() { }
@@ -166,6 +169,9 @@ public:
         WsiPlatform     wsiPlatform,
         uint32          connector,
         uint32*         pOutput);
+
+    virtual Result RequestImageWithIndex(
+        uint32          index) = 0;
 
     // Create a presentable image or pixmap from a buffer. This function is only meaningful for Dri3.
     virtual Result CreatePresentableImage(

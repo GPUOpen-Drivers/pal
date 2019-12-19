@@ -3278,6 +3278,7 @@ void Gfx9Dcc::SetControlReg()
             m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS   = 1;
 
             PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
+
         }
         else
         {

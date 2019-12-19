@@ -49,12 +49,12 @@ extern "C" {
  * header defining uint32_t, int32_t and uint16_t.
  *
  * It aims to provide a randr1.2 compatible interface for modesettings in the
- * kernel, the interface is also ment to be used by libraries like EGL.
+ * kernel, the interface is also meant to be used by libraries like EGL.
  *
  * More information can be found in randrproto.txt which can be found here:
  * http://gitweb.freedesktop.org/?p=xorg/proto/randrproto.git
  *
- * There are some major diffrences to be noted. Unlike the randr1.2 proto you
+ * There are some major differences to be noted. Unlike the randr1.2 proto you
  * need to create the memory object of the framebuffer yourself with the ttm
  * buffer object interface. This object needs to be pinned.
  */
@@ -348,7 +348,7 @@ extern void drmModeFreePlane( drmModePlanePtr ptr );
 extern void drmModeFreePlaneResources(drmModePlaneResPtr ptr);
 
 /**
- * Retrives all of the resources associated with a card.
+ * Retrieves all of the resources associated with a card.
  */
 extern drmModeResPtr drmModeGetResources(int fd);
 
@@ -357,7 +357,7 @@ extern drmModeResPtr drmModeGetResources(int fd);
  */
 
 /**
- * Retrive information about framebuffer bufferId
+ * Retrieve information about framebuffer bufferId
  */
 extern drmModeFBPtr drmModeGetFB(int fd, uint32_t bufferId);
 
@@ -397,7 +397,7 @@ extern int drmModeDirtyFB(int fd, uint32_t bufferId,
  */
 
 /**
- * Retrive information about the ctrt crtcId
+ * Retrieve information about the ctrt crtcId
  */
 extern drmModeCrtcPtr drmModeGetCrtc(int fd, uint32_t crtcId);
 

@@ -39,7 +39,7 @@ namespace Amdgpu
 {
 
 // More supported platforms could be added in the future.
-#if PAL_HAVE_WAYLAND_PLATFORM
+#if   PAL_HAVE_WAYLAND_PLATFORM
 constexpr uint32 SupportedPlatformMask =
     WsiPlatform::Xcb | WsiPlatform::Xlib | WsiPlatform::Wayland | WsiPlatform::DirectDisplay;
 #else

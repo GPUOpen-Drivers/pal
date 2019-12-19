@@ -325,6 +325,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     m_cachedSettings.prefetchIndexBufferForNgg = settings.waEnableIndexBufferPrefetchForNgg;
     m_cachedSettings.waCeDisableIb2            = settings.waCeDisableIb2;
+    m_cachedSettings.rbPlusSupported           = m_device.Parent()->ChipProperties().gfx9.rbPlus;
+
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
     // The bin size is choosen from the minimum size for Depth, Color and Fmask.
@@ -404,13 +406,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_paScConsRastCntl.u32All                         = 0;
     m_paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE = 1;
 
-    memset(&m_rbPlusPm4Img, 0, sizeof(m_rbPlusPm4Img));
-    if (m_device.Parent()->ChipProperties().gfx9.rbPlus != 0)
-    {
-        m_rbPlusPm4Img.spaceNeeded = m_device.CmdUtil().BuildSetSeqContextRegs(mmSX_PS_DOWNCONVERT,
-                                                                               mmSX_BLEND_OPT_CONTROL,
-                                                                               &m_rbPlusPm4Img.header);
-    }
+    m_sxPsDownconvert.u32All   = 0;
+    m_sxBlendOptEpsilon.u32All = 0;
+    m_sxBlendOptControl.u32All = 0;
 
     SwitchDrawFunctions(false, false);
 }
@@ -724,11 +722,11 @@ void UniversalCmdBuffer::CmdBindPipeline(
         // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.  This
         // should be done here instead of inside SwitchGraphicsPipeline() because RPM sometimes overrides these values
         // for certain blit operations.
-        if ((m_rbPlusPm4Img.spaceNeeded != 0) && (pNewPipeline != nullptr))
+        if ((m_cachedSettings.rbPlusSupported != 0) && (pNewPipeline != nullptr))
         {
-            m_rbPlusPm4Img.sxPsDownconvert   = pNewPipeline->SxPsDownconvert();
-            m_rbPlusPm4Img.sxBlendOptEpsilon = pNewPipeline->SxBlendOptEpsilon();
-            m_rbPlusPm4Img.sxBlendOptControl = pNewPipeline->SxBlendOptControl();
+            m_sxPsDownconvert   = pNewPipeline->SxPsDownconvert();
+            m_sxBlendOptEpsilon = pNewPipeline->SxBlendOptEpsilon();
+            m_sxBlendOptControl = pNewPipeline->SxBlendOptControl();
         }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 473
@@ -801,9 +799,12 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         m_pipelineCtxPm4Hash = ctxPm4Hash;
     }
 
-    if (m_rbPlusPm4Img.spaceNeeded != 0)
+    if (m_cachedSettings.rbPlusSupported != 0)
     {
-        pDeCmdSpace = m_deCmdStream.WritePm4Image(m_rbPlusPm4Img.spaceNeeded, &m_rbPlusPm4Img, pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT,
+                                                           mmSX_BLEND_OPT_CONTROL,
+                                                           &m_sxPsDownconvert,
+                                                           pDeCmdSpace);
         m_deCmdStream.SetContextRollDetected<true>();
     }
 
@@ -924,32 +925,13 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
     const MsaaQuadSamplePattern& quadSamplePattern)
 {
     PAL_ASSERT((numSamplesPerPixel > 0) && (numSamplesPerPixel <= MaxMsaaRasterizerSamples));
+
     m_graphicsState.quadSamplePatternState                           = quadSamplePattern;
     m_graphicsState.numSamplesPerPixel                               = numSamplesPerPixel;
     m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
 
-    MsaaSamplePositionsPm4Img samplePosPm4Image = {};
-
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
-    MsaaState::BuildSamplePosPm4Image(cmdUtil,
-                                      &samplePosPm4Image,
-                                      numSamplesPerPixel,
-                                      quadSamplePattern);
-
-    // Build and write register for MAX_SAMPLE_DIST
-    regPA_SC_AA_CONFIG paScAaConfig   = {};
-    uint32* pDeCmdSpace               = m_deCmdStream.ReserveCommands();
-    paScAaConfig.bits.MAX_SAMPLE_DIST = MsaaState::ComputeMaxSampleDistance(numSamplesPerPixel,
-                                                                            quadSamplePattern);
-    pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmPA_SC_AA_CONFIG,
-                                                   static_cast<uint32>(PA_SC_AA_CONFIG__MAX_SAMPLE_DIST_MASK),
-                                                   paScAaConfig.u32All,
-                                                   pDeCmdSpace);
-
-    // Write MSAA quad sample pattern registers
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(SizeOfMsaaSamplePositionsPm4ImageInDwords,
-                                              &samplePosPm4Image,
-                                              pDeCmdSpace);
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace = MsaaState::WriteSamplePositions(quadSamplePattern, numSamplesPerPixel, &m_deCmdStream, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
@@ -1087,31 +1069,13 @@ void UniversalCmdBuffer::CmdSetBlendConst(
     m_graphicsState.blendConstState                              = params;
     m_graphicsState.dirtyFlags.nonValidationBits.blendConstState = 1;
 
-    BlendConstReg pm4Image = {};
-    BuildSetBlendConst(params, m_cmdUtil, reinterpret_cast<uint32*>(&pm4Image));
-
-    constexpr size_t Pm4ImageSize = sizeof(BlendConstReg) >> 2;
-
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(Pm4ImageSize, &pm4Image, pDeCmdSpace);
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmCB_BLEND_RED,
+                                                       mmCB_BLEND_ALPHA,
+                                                       &params.blendConst[0],
+                                                       pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-
-// =====================================================================================================================
-// Builds the packets for setting the blend const in the command space provided.
-uint32* UniversalCmdBuffer::BuildSetBlendConst(
-    const BlendConstParams& params,
-    const CmdUtil&          cmdUtil,
-    uint32*                 pCmdSpace)
-{
-    BlendConstReg* pImage = reinterpret_cast<BlendConstReg*>(pCmdSpace);
-    const size_t totalDwords = cmdUtil.BuildSetSeqContextRegs(mmCB_BLEND_RED, mmCB_BLEND_ALPHA, &pImage->header);
-    pImage->red.f32All       = params.blendConst[0];
-    pImage->green.f32All     = params.blendConst[1];
-    pImage->blue.f32All      = params.blendConst[2];
-    pImage->alpha.f32All     = params.blendConst[3];
-
-    return pCmdSpace + totalDwords;
+    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -1122,30 +1086,14 @@ void UniversalCmdBuffer::CmdSetDepthBounds(
     m_graphicsState.depthBoundsState                              = params;
     m_graphicsState.dirtyFlags.nonValidationBits.depthBoundsState = 1;
 
-    DepthBoundsStateReg pm4Image = {};
-    BuildSetDepthBounds(params, m_cmdUtil, reinterpret_cast<uint32*>(&pm4Image));
-
-    constexpr size_t Pm4ImageSize = sizeof(DepthBoundsStateReg) >> 2;
-
+    const float depthBounds[2] = { params.min, params.max, };
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(Pm4ImageSize, &pm4Image, pDeCmdSpace);
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_DEPTH_BOUNDS_MIN,
+                                                       mmDB_DEPTH_BOUNDS_MAX,
+                                                       &depthBounds[0],
+                                                       pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-
-// =====================================================================================================================
-// Builds the packets for setting the depth bounds in the command space provided.
-uint32* UniversalCmdBuffer::BuildSetDepthBounds(
-    const DepthBoundsParams& params,
-    const CmdUtil&           cmdUtil,
-    uint32*                  pCmdSpace)
-{
-    DepthBoundsStateReg* pImage = reinterpret_cast<DepthBoundsStateReg*>(pCmdSpace);
-    const size_t totalDwords =
-        cmdUtil.BuildSetSeqContextRegs(mmDB_DEPTH_BOUNDS_MIN, mmDB_DEPTH_BOUNDS_MAX, &pImage->header);
-    pImage->dbDepthBoundsMin.f32All = params.min;
-    pImage->dbDepthBoundsMax.f32All = params.max;
-
-    return pCmdSpace + totalDwords;
+    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -1187,107 +1135,86 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
 void UniversalCmdBuffer::CmdSetStencilRefMasks(
     const StencilRefMaskParams& params)
 {
-    uint32 pm4Image[MaxStencilSetPm4ImgSize / sizeof(uint32)];
-
-    const uint32*const pPm4ImgEnd = BuildSetStencilRefMasks(params, m_cmdUtil, pm4Image);
-    const size_t       pm4ImgSize = pPm4ImgEnd - pm4Image;
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(pm4ImgSize, pm4Image, pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-
     SetStencilRefMasksState(params, &m_graphicsState.stencilRefMaskState);
     m_graphicsState.dirtyFlags.nonValidationBits.stencilRefMaskState = 1;
-}
 
-// =====================================================================================================================
-// Builds the packets for setting the stencil refs and masks in the command space provided.
-uint32* UniversalCmdBuffer::BuildSetStencilRefMasks(
-    const StencilRefMaskParams& params,
-    const CmdUtil&              cmdUtil,
-    uint32*                     pCmdSpace)
-{
-    uint8 flags = params.flags.u8All;
-    if (flags == 0xFF)
+    struct
     {
-        StencilRefMasksReg* pImage = reinterpret_cast<StencilRefMasksReg*>(pCmdSpace);
+        regDB_STENCILREFMASK     front;
+        regDB_STENCILREFMASK_BF  back;
+    } dbStencilRefMask = { };
 
-        pCmdSpace += cmdUtil.BuildSetSeqContextRegs(mmDB_STENCILREFMASK, mmDB_STENCILREFMASK_BF, &pImage->header);
+    dbStencilRefMask.front.bits.STENCILOPVAL       = params.frontOpValue;
+    dbStencilRefMask.front.bits.STENCILTESTVAL     = params.frontRef;
+    dbStencilRefMask.front.bits.STENCILMASK        = params.frontReadMask;
+    dbStencilRefMask.front.bits.STENCILWRITEMASK   = params.frontWriteMask;
+    dbStencilRefMask.back.bits.STENCILOPVAL_BF     = params.backOpValue;
+    dbStencilRefMask.back.bits.STENCILTESTVAL_BF   = params.backRef;
+    dbStencilRefMask.back.bits.STENCILMASK_BF      = params.backReadMask;
+    dbStencilRefMask.back.bits.STENCILWRITEMASK_BF = params.backWriteMask;
 
-        pImage->dbStencilRefMaskFront.bitfields.STENCILOPVAL     = params.frontOpValue;
-        pImage->dbStencilRefMaskFront.bitfields.STENCILTESTVAL   = params.frontRef;
-        pImage->dbStencilRefMaskFront.bitfields.STENCILMASK      = params.frontReadMask;
-        pImage->dbStencilRefMaskFront.bitfields.STENCILWRITEMASK = params.frontWriteMask;
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-        pImage->dbStencilRefMaskBack.bitfields.STENCILOPVAL_BF     = params.backOpValue;
-        pImage->dbStencilRefMaskBack.bitfields.STENCILTESTVAL_BF   = params.backRef;
-        pImage->dbStencilRefMaskBack.bitfields.STENCILMASK_BF      = params.backReadMask;
-        pImage->dbStencilRefMaskBack.bitfields.STENCILWRITEMASK_BF = params.backWriteMask;
+    if (params.flags.u8All == 0xFF)
+    {
+        pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_STENCILREFMASK,
+                                                           mmDB_STENCILREFMASK_BF,
+                                                           &dbStencilRefMask,
+                                                           pDeCmdSpace);
     }
     else
     {
-        uint32 accumFrontMask = 0;
-        uint32 accumFrontData = 0;
-        uint32 accumBackMask  = 0;
-        uint32 accumBackData  = 0;
-        StencilRefMaskRmwReg* pImage = reinterpret_cast<StencilRefMaskRmwReg*>(pCmdSpace);
-
         // Accumulate masks and shifted data based on which flags are set
         // 1. Front-facing primitives
+        uint32 frontMask = 0;
         if (params.flags.updateFrontRef)
         {
-            accumFrontMask |= DB_STENCILREFMASK__STENCILTESTVAL_MASK;
-            accumFrontData |= (params.frontRef << DB_STENCILREFMASK__STENCILTESTVAL__SHIFT);
+            frontMask |= DB_STENCILREFMASK__STENCILTESTVAL_MASK;
         }
         if (params.flags.updateFrontReadMask)
         {
-            accumFrontMask |= DB_STENCILREFMASK__STENCILMASK_MASK;
-            accumFrontData |= (params.frontReadMask << DB_STENCILREFMASK__STENCILMASK__SHIFT);
+            frontMask |= DB_STENCILREFMASK__STENCILMASK_MASK;
         }
         if (params.flags.updateFrontWriteMask)
         {
-            accumFrontMask |= DB_STENCILREFMASK__STENCILWRITEMASK_MASK;
-            accumFrontData |= (params.frontWriteMask << DB_STENCILREFMASK__STENCILWRITEMASK__SHIFT);
+            frontMask |= DB_STENCILREFMASK__STENCILWRITEMASK_MASK;
         }
         if (params.flags.updateFrontOpValue)
         {
-            accumFrontMask |= DB_STENCILREFMASK__STENCILOPVAL_MASK;
-            accumFrontData |= (params.frontOpValue << DB_STENCILREFMASK__STENCILOPVAL__SHIFT);
+            frontMask |= DB_STENCILREFMASK__STENCILOPVAL_MASK;
         }
 
         // 2. Back-facing primitives
+        uint32 backMask = 0;
         if (params.flags.updateBackRef)
         {
-            accumBackMask |= DB_STENCILREFMASK_BF__STENCILTESTVAL_BF_MASK;
-            accumBackData |= (params.backRef << DB_STENCILREFMASK_BF__STENCILTESTVAL_BF__SHIFT);
+            backMask |= DB_STENCILREFMASK_BF__STENCILTESTVAL_BF_MASK;
         }
         if (params.flags.updateBackReadMask)
         {
-            accumBackMask |= DB_STENCILREFMASK_BF__STENCILMASK_BF_MASK;
-            accumBackData |= (params.backReadMask << DB_STENCILREFMASK_BF__STENCILMASK_BF__SHIFT);
+            backMask |= DB_STENCILREFMASK_BF__STENCILMASK_BF_MASK;
         }
         if (params.flags.updateBackWriteMask)
         {
-            accumBackMask |= DB_STENCILREFMASK_BF__STENCILWRITEMASK_BF_MASK;
-            accumBackData |= (params.backWriteMask << DB_STENCILREFMASK_BF__STENCILWRITEMASK_BF__SHIFT);
+            backMask |= DB_STENCILREFMASK_BF__STENCILWRITEMASK_BF_MASK;
         }
         if (params.flags.updateBackOpValue)
         {
-            accumBackMask |= DB_STENCILREFMASK_BF__STENCILOPVAL_BF_MASK;
-            accumBackData |= (params.backOpValue << DB_STENCILREFMASK_BF__STENCILOPVAL_BF__SHIFT);
+            backMask |= DB_STENCILREFMASK_BF__STENCILOPVAL_BF_MASK;
         }
 
-        pCmdSpace += cmdUtil.BuildContextRegRmw(mmDB_STENCILREFMASK,
-                                                accumFrontMask,
-                                                accumFrontData,
-                                                &pImage->dbStencilRefMaskFront);
-        pCmdSpace += cmdUtil.BuildContextRegRmw(mmDB_STENCILREFMASK_BF,
-                                                accumBackMask,
-                                                accumBackData,
-                                                &pImage->dbStencilRefMaskBack);
+        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_STENCILREFMASK,
+                                                       frontMask,
+                                                       dbStencilRefMask.front.u32All,
+                                                       pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_STENCILREFMASK_BF,
+                                                       backMask,
+                                                       dbStencilRefMask.back.u32All,
+                                                       pDeCmdSpace);
     }
 
-    return pCmdSpace;
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -1566,8 +1493,7 @@ void UniversalCmdBuffer::CmdBindTargets(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    // Bind NULL for all remaining color target slots. We must build the PM4 image on the stack because we must call
-    // the command stream's WritePm4Image to keep the PM4 optimizer in the loop.
+    // Bind NULL for all remaining color target slots.
     if (newColorTargetMask != AllColorTargetSlotMask)
     {
         pDeCmdSpace = WriteNullColorTargets(pDeCmdSpace, newColorTargetMask, m_graphicsState.boundColorTargetMask);
@@ -1593,9 +1519,9 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                    &m_deCmdStream,
                                                    pDeCmdSpace);
 
-        TargetExtent2d depthViewExtent = pNewDepthView->GetExtent();
-        surfaceExtent.width  = Util::Min(surfaceExtent.width,  depthViewExtent.width);
-        surfaceExtent.height = Util::Min(surfaceExtent.height, depthViewExtent.height);
+        const TargetExtent2d depthViewExtent = pNewDepthView->GetExtent();
+        surfaceExtent.width  = Min(surfaceExtent.width,  depthViewExtent.width);
+        surfaceExtent.height = Min(surfaceExtent.height, depthViewExtent.height);
 
         if (pNewDepthView->GetImage()->HasWaTcCompatZRangeMetaData())
         {
@@ -1663,19 +1589,21 @@ void UniversalCmdBuffer::CmdBindTargets(
 
     if (surfaceExtent.value != m_graphicsState.targetExtent.value)
     {
-        // Set scissor owned by the target.
-        ScreenScissorReg* pScreenScissors = reinterpret_cast<ScreenScissorReg*>(pDeCmdSpace);
-        m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
-                                         mmPA_SC_SCREEN_SCISSOR_BR,
-                                         pScreenScissors);
-        pScreenScissors->paScScreenScissorTl.u32All    = 0;
-        pScreenScissors->paScScreenScissorBr.u32All    = 0;
-        pScreenScissors->paScScreenScissorBr.bits.BR_X = surfaceExtent.width;
-        pScreenScissors->paScScreenScissorBr.bits.BR_Y = surfaceExtent.height;
-
-        pDeCmdSpace += Util::NumBytesToNumDwords(sizeof(ScreenScissorReg));
-
         m_graphicsState.targetExtent.value = surfaceExtent.value;
+
+        struct
+        {
+            regPA_SC_SCREEN_SCISSOR_TL tl;
+            regPA_SC_SCREEN_SCISSOR_BR br;
+        } paScScreenScissor = { };
+
+        paScScreenScissor.br.bits.BR_X = surfaceExtent.width;
+        paScScreenScissor.br.bits.BR_Y = surfaceExtent.height;
+
+        pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
+                                                           mmPA_SC_SCREEN_SCISSOR_BR,
+                                                           &paScScreenScissor,
+                                                           pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -1793,13 +1721,24 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
 }
 
 // =====================================================================================================================
-// Generates PA_SU_SC_MODE_CNTL for the triangle raster state.
-static regPA_SU_SC_MODE_CNTL BuildPaSuScModeCntl(
+// Sets parameters controlling triangle rasterization.
+void UniversalCmdBuffer::CmdSetTriangleRasterState(
     const TriangleRasterStateParams& params)
 {
-    regPA_SU_SC_MODE_CNTL paSuScModeCntl;
+    CmdSetTriangleRasterStateInternal(params, false);
+}
 
-    paSuScModeCntl.u32All                        = 0;
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
+    const TriangleRasterStateParams& params,
+    bool                             optimizeLinearDestGfxCopy)
+{
+    m_state.flags.optimizeLinearGfxCpy                               = optimizeLinearDestGfxCopy;
+    m_graphicsState.triangleRasterState                              = params;
+    m_graphicsState.dirtyFlags.validationBits.triangleRasterState    = 1;
+    m_nggState.flags.dirty.triangleRasterState                       = 1;
+
+    regPA_SU_SC_MODE_CNTL paSuScModeCntl = { };
     paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.depthBiasEnable;
     paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.depthBiasEnable;
     paSuScModeCntl.bits.MULTI_PRIM_IB_ENA        = 1;
@@ -1810,16 +1749,28 @@ static regPA_SU_SC_MODE_CNTL BuildPaSuScModeCntl(
         static_cast<uint32>(FillMode::Solid)     == 2,
         "FillMode vs. PA_SU_SC_MODE_CNTL.POLY_MODE mismatch");
 
+    if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointWireframe)
+    {
+        m_graphicsState.triangleRasterState.frontFillMode = FillMode::Wireframe;
+        m_graphicsState.triangleRasterState.backFillMode  = FillMode::Wireframe;
+
+        paSuScModeCntl.bits.POLY_MODE            = 1;
+        paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(FillMode::Wireframe);
+        paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(FillMode::Wireframe);
+    }
+    else
+    {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 524
-    paSuScModeCntl.bits.POLY_MODE               = (params.fillMode != FillMode::Solid);
-    paSuScModeCntl.bits.POLYMODE_BACK_PTYPE     = static_cast<uint32>(params.fillMode);
-    paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE    = static_cast<uint32>(params.fillMode);
+        paSuScModeCntl.bits.POLY_MODE            = (params.fillMode != FillMode::Solid);
+        paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(params.fillMode);
+        paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(params.fillMode);
 #else
-    paSuScModeCntl.bits.POLY_MODE               = ((params.frontFillMode != FillMode::Solid) ||
-                                                   (params.backFillMode != FillMode::Solid));
-    paSuScModeCntl.bits.POLYMODE_BACK_PTYPE     = static_cast<uint32>(params.backFillMode);
-    paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE    = static_cast<uint32>(params.frontFillMode);
+        paSuScModeCntl.bits.POLY_MODE            = ((params.frontFillMode != FillMode::Solid) ||
+                                                    (params.backFillMode  != FillMode::Solid));
+        paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(params.backFillMode);
+        paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(params.frontFillMode);
 #endif
+    }
 
     constexpr uint32 FrontCull = static_cast<uint32>(CullMode::Front);
     constexpr uint32 BackCull  = static_cast<uint32>(CullMode::Back);
@@ -1827,8 +1778,18 @@ static regPA_SU_SC_MODE_CNTL BuildPaSuScModeCntl(
     static_assert((FrontCull | BackCull) == static_cast<uint32>(CullMode::FrontAndBack),
         "CullMode::FrontAndBack not a strict union of CullMode::Front and CullMode::Back");
 
-    paSuScModeCntl.bits.CULL_FRONT = ((static_cast<uint32>(params.cullMode) & FrontCull) != 0);
-    paSuScModeCntl.bits.CULL_BACK  = ((static_cast<uint32>(params.cullMode) & BackCull)  != 0);
+    if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointBackFrontFaceCull)
+    {
+        m_graphicsState.triangleRasterState.cullMode = CullMode::FrontAndBack;
+
+        paSuScModeCntl.bits.CULL_FRONT = 1;
+        paSuScModeCntl.bits.CULL_BACK  = 1;
+    }
+    else
+    {
+        paSuScModeCntl.bits.CULL_FRONT = ((static_cast<uint32>(params.cullMode) & FrontCull) != 0);
+        paSuScModeCntl.bits.CULL_BACK  = ((static_cast<uint32>(params.cullMode) & BackCull)  != 0);
+    }
 
     static_assert(
         static_cast<uint32>(FaceOrientation::Ccw) == 0 &&
@@ -1844,55 +1805,11 @@ static regPA_SU_SC_MODE_CNTL BuildPaSuScModeCntl(
 
     paSuScModeCntl.bits.PROVOKING_VTX_LAST = static_cast<uint32>(params.provokingVertex);
 
-    return paSuScModeCntl;
-}
-
-// =====================================================================================================================
-// Sets parameters controlling triangle rasterization.
-void UniversalCmdBuffer::CmdSetTriangleRasterState(
-    const TriangleRasterStateParams& params)
-{
-    m_state.flags.optimizeLinearGfxCpy                               = 0;
-
-    m_graphicsState.triangleRasterState                              = params;
-    m_graphicsState.dirtyFlags.validationBits.triangleRasterState    = 1;
-    m_nggState.flags.dirty.triangleRasterState                       = 1;
-
-    const TriangleRasterStateParams* pParams = &params;
-
-    if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointWireframe)
-    {
-        m_graphicsState.triangleRasterState.frontFillMode     = FillMode::Wireframe;
-        m_graphicsState.triangleRasterState.backFillMode      = FillMode::Wireframe;
-
-        pParams = &m_graphicsState.triangleRasterState;
-    }
-    else if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointBackFrontFaceCull)
-    {
-        m_graphicsState.triangleRasterState.cullMode = CullMode::FrontAndBack;
-
-        pParams = &m_graphicsState.triangleRasterState;
-    }
-
-    const regPA_SU_SC_MODE_CNTL paSuScModeCntl = BuildPaSuScModeCntl(*pParams);
-
     m_state.primShaderCbLayout.pipelineStateCb.paSuScModeCntl = paSuScModeCntl.u32All;
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_SC_MODE_CNTL, paSuScModeCntl.u32All, pDeCmdSpace);
-
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
-    const TriangleRasterStateParams& params,
-    bool                             optimizeLinearDestGfxCopy)
-{
-    // CmdSetTriangleRasterState always clear the optimizeLinearGfxCpy flag.
-    CmdSetTriangleRasterState(params);
-    m_state.flags.optimizeLinearGfxCpy = optimizeLinearDestGfxCopy;
 }
 
 // =====================================================================================================================
@@ -1900,56 +1817,39 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
 void UniversalCmdBuffer::CmdSetPointLineRasterState(
     const PointLineRasterStateParams& params)
 {
-    PointLineRasterStateReg pm4Image = {};
-    BuildSetPointLineRasterState(params, m_cmdUtil, reinterpret_cast<uint32*>(&pm4Image));
-
-    constexpr size_t Pm4ImageSize = sizeof(PointLineRasterStateReg) >> 2;
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(Pm4ImageSize, &pm4Image, pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-
     m_graphicsState.pointLineRasterState                              = params;
     m_graphicsState.dirtyFlags.nonValidationBits.pointLineRasterState = 1;
-}
-
-// =====================================================================================================================
-// Builds the packets for setting the point line raster state in the command space provided.
-uint32* UniversalCmdBuffer::BuildSetPointLineRasterState(
-    const PointLineRasterStateParams& params,
-    const CmdUtil&                    cmdUtil,
-    uint32*                           pCmdSpace)
-{
-    auto*const   pImage      = reinterpret_cast<PointLineRasterStateReg*>(pCmdSpace);
-    const size_t totalDwords = cmdUtil.BuildSetSeqContextRegs(mmPA_SU_POINT_SIZE,
-                                                              mmPA_SU_LINE_CNTL,
-                                                              &pImage->paSuHeader);
 
     // Point radius and line width are in 4-bit sub-pixel precision
     constexpr float  HalfSizeInSubPixels = 8.0f;
     constexpr uint32 MaxPointRadius      = USHRT_MAX;
     constexpr uint32 MaxLineWidth        = USHRT_MAX;
 
-    const uint32 pointRadius   = Min(static_cast<uint32>(params.pointSize * HalfSizeInSubPixels), MaxPointRadius);
-    const uint32 lineWidthHalf = Min(static_cast<uint32>(params.lineWidth * HalfSizeInSubPixels), MaxLineWidth);
+    const uint32 pointRadius    = Min(static_cast<uint32>(params.pointSize * HalfSizeInSubPixels), MaxPointRadius);
+    const uint32 pointRadiusMin = Min(static_cast<uint32>(params.pointSizeMin * HalfSizeInSubPixels), MaxPointRadius);
+    const uint32 pointRadiusMax = Min(static_cast<uint32>(params.pointSizeMax * HalfSizeInSubPixels), MaxPointRadius);
+    const uint32 lineWidthHalf  = Min(static_cast<uint32>(params.lineWidth * HalfSizeInSubPixels), MaxLineWidth);
 
-    pImage->paSuPointSize.u32All      = 0;
-    pImage->paSuPointSize.bits.WIDTH  = pointRadius;
-    pImage->paSuPointSize.bits.HEIGHT = pointRadius;
+    struct
+    {
+        regPA_SU_POINT_SIZE    paSuPointSize;
+        regPA_SU_POINT_MINMAX  paSuPointMinMax;
+        regPA_SU_LINE_CNTL     paSuLineCntl;
+    } regs = { };
 
-    pImage->paSuLineCntl.u32All     = 0;
-    pImage->paSuLineCntl.bits.WIDTH = lineWidthHalf;
+    regs.paSuPointSize.bits.WIDTH      = pointRadius;
+    regs.paSuPointSize.bits.HEIGHT     = pointRadius;
+    regs.paSuPointMinMax.bits.MIN_SIZE = pointRadiusMin;
+    regs.paSuPointMinMax.bits.MAX_SIZE = pointRadiusMax;
+    regs.paSuLineCntl.bits.WIDTH       = lineWidthHalf;
 
-    const uint32 pointRadiusMin =
-        Util::Min(static_cast<uint32>(params.pointSizeMin * HalfSizeInSubPixels), MaxPointRadius);
-    const uint32 pointRadiusMax =
-        Util::Min(static_cast<uint32>(params.pointSizeMax * HalfSizeInSubPixels), MaxPointRadius);
-
-    pImage->paSuPointMinMax.u32All        = 0;
-    pImage->paSuPointMinMax.bits.MIN_SIZE = pointRadiusMin;
-    pImage->paSuPointMinMax.bits.MAX_SIZE = pointRadiusMax;
-
-    return pCmdSpace + totalDwords;
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE,
+                                                       mmPA_SU_LINE_CNTL,
+                                                       &regs,
+                                                       pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -1957,42 +1857,35 @@ uint32* UniversalCmdBuffer::BuildSetPointLineRasterState(
 void UniversalCmdBuffer::CmdSetDepthBiasState(
     const DepthBiasParams& params)
 {
-    DepthBiasStateReg pm4Image = {};
-    BuildSetDepthBiasState(params, m_cmdUtil, reinterpret_cast<uint32*>(&pm4Image));
-
-    constexpr size_t Pm4ImageSize = sizeof(DepthBiasStateReg) >> 2;
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(Pm4ImageSize, &pm4Image, pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-
     m_graphicsState.depthBiasState                              = params;
     m_graphicsState.dirtyFlags.nonValidationBits.depthBiasState = 1;
-}
 
-// =====================================================================================================================
-// Builds the packets for setting the depth bias state in the command space provided.
-uint32* UniversalCmdBuffer::BuildSetDepthBiasState(
-    const DepthBiasParams& params,
-    const CmdUtil&         cmdUtil,
-    uint32*                pCmdSpace)
-{
-    DepthBiasStateReg* pImage       = reinterpret_cast<DepthBiasStateReg*>(pCmdSpace);
-    const size_t       totalDwords  =
-        cmdUtil.BuildSetSeqContextRegs(mmPA_SU_POLY_OFFSET_CLAMP, mmPA_SU_POLY_OFFSET_BACK_OFFSET, &pImage->header);
+    struct
+    {
+        regPA_SU_POLY_OFFSET_CLAMP        paSuPolyOffsetClamp;
+        regPA_SU_POLY_OFFSET_FRONT_SCALE  paSuPolyOffsetFrontScale;
+        regPA_SU_POLY_OFFSET_FRONT_OFFSET paSuPolyOffsetFrontOffset;
+        regPA_SU_POLY_OFFSET_BACK_SCALE   paSuPolyOffsetBackScale;
+        regPA_SU_POLY_OFFSET_BACK_OFFSET  paSuPolyOffsetBackOffset;
+    } regs = { };
 
     // NOTE: HW applies a factor of 1/16th to the Z gradients which we must account for.
     constexpr float HwOffsetScaleMultiplier = 16.0f;
-
     const float slopeScaleDepthBias = (params.slopeScaledDepthBias * HwOffsetScaleMultiplier);
 
-    pImage->paSuPolyOffsetClamp.f32All       = params.depthBiasClamp;
-    pImage->paSuPolyOffsetFrontScale.f32All  = slopeScaleDepthBias;
-    pImage->paSuPolyOffsetBackScale.f32All   = slopeScaleDepthBias;
-    pImage->paSuPolyOffsetFrontOffset.f32All = static_cast<float>(params.depthBias);
-    pImage->paSuPolyOffsetBackOffset.f32All  = static_cast<float>(params.depthBias);
+    regs.paSuPolyOffsetClamp.f32All       = params.depthBiasClamp;
+    regs.paSuPolyOffsetFrontScale.f32All  = slopeScaleDepthBias;
+    regs.paSuPolyOffsetBackScale.f32All   = slopeScaleDepthBias;
+    regs.paSuPolyOffsetFrontOffset.f32All = static_cast<float>(params.depthBias);
+    regs.paSuPolyOffsetBackOffset.f32All  = static_cast<float>(params.depthBias);
 
-    return pCmdSpace + totalDwords;
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SU_POLY_OFFSET_CLAMP,
+                                                       mmPA_SU_POLY_OFFSET_BACK_OFFSET,
+                                                       &regs,
+                                                       pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -2000,45 +1893,33 @@ uint32* UniversalCmdBuffer::BuildSetDepthBiasState(
 void UniversalCmdBuffer::CmdSetGlobalScissor(
     const GlobalScissorParams& params)
 {
-    GlobalScissorReg pm4Image = {};
-    BuildSetGlobalScissor(params, m_cmdUtil, reinterpret_cast<uint32*>(&pm4Image));
-
-    constexpr size_t Pm4ImageSize = sizeof(GlobalScissorReg) >> 2;
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(Pm4ImageSize, &pm4Image, pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-
     m_graphicsState.globalScissorState                              = params;
     m_graphicsState.dirtyFlags.nonValidationBits.globalScissorState = 1;
-}
 
-// =====================================================================================================================
-// Builds the packets for setting the global scissor rectangle in the command space provided.
-uint32* UniversalCmdBuffer::BuildSetGlobalScissor(
-    const GlobalScissorParams& params,
-    const CmdUtil&             cmdUtil,
-    uint32*                    pCmdSpace)
-{
-    GlobalScissorReg* pImage      = reinterpret_cast<GlobalScissorReg*>(pCmdSpace);
-    const size_t      totalDwords =
-        cmdUtil.BuildSetSeqContextRegs(mmPA_SC_WINDOW_SCISSOR_TL, mmPA_SC_WINDOW_SCISSOR_BR, &pImage->header);
-
-    pImage->topLeft.u32All     = 0;
-    pImage->bottomRight.u32All = 0;
+    struct
+    {
+        regPA_SC_WINDOW_SCISSOR_TL tl;
+        regPA_SC_WINDOW_SCISSOR_BR br;
+    } paScWindowScissor = { };
 
     const uint32 left   = params.scissorRegion.offset.x;
     const uint32 top    = params.scissorRegion.offset.y;
     const uint32 right  = params.scissorRegion.offset.x + params.scissorRegion.extent.width;
     const uint32 bottom = params.scissorRegion.offset.y + params.scissorRegion.extent.height;
 
-    pImage->topLeft.bits.WINDOW_OFFSET_DISABLE = 1;
-    pImage->topLeft.bits.TL_X     = Clamp<uint32>(left, 0, ScissorMaxTL);
-    pImage->topLeft.bits.TL_Y     = Clamp<uint32>(top, 0, ScissorMaxTL);
-    pImage->bottomRight.bits.BR_X = Clamp<uint32>(right, 0, ScissorMaxBR);
-    pImage->bottomRight.bits.BR_Y = Clamp<uint32>(bottom, 0, ScissorMaxBR);
+    paScWindowScissor.tl.bits.WINDOW_OFFSET_DISABLE = 1;
+    paScWindowScissor.tl.bits.TL_X = Clamp<uint32>(left,   0, ScissorMaxTL);
+    paScWindowScissor.tl.bits.TL_Y = Clamp<uint32>(top,    0, ScissorMaxTL);
+    paScWindowScissor.br.bits.BR_X = Clamp<uint32>(right,  0, ScissorMaxBR);
+    paScWindowScissor.br.bits.BR_Y = Clamp<uint32>(bottom, 0, ScissorMaxBR);
 
-    return pCmdSpace + totalDwords;
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_WINDOW_SCISSOR_TL,
+                                                       mmPA_SC_WINDOW_SCISSOR_BR,
+                                                       &paScWindowScissor,
+                                                       pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -3002,46 +2883,40 @@ void UniversalCmdBuffer::CmdInsertRgpTraceMarker(
 uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     uint32* pCmdSpace)
 {
-    NullDepthStencilPm4Img pm4Commands; // Intentionally left un-initialized; we will fully overwrite the important
-                                        // fields below.
-
-    // The screen scissor rect and the HTile base address need to be written regardless of GFXIP version.
-    size_t cmdDwords = (m_cmdUtil.BuildSetSeqContextRegs(mmDB_RENDER_OVERRIDE2,
-                                                         mmDB_HTILE_DATA_BASE,
-                                                         &pm4Commands.hdrDbRenderOverride2) +
-                        m_cmdUtil.BuildSetOneContextReg(mmDB_RENDER_CONTROL, &pm4Commands.hdrDbRenderControl));
-
-    pm4Commands.dbHtileDataBase.u32All   = 0;
-    pm4Commands.dbRenderOverride2.u32All = 0;
-
     // If the dbRenderControl.DEPTH_CLEAR_ENABLE bit is not reset to 0 after performing a graphics fast depth clear
     // then any following draw call with pixel shader z-imports will have their z components clamped to the clear
     // plane equation which was set in the fast clear.
     //
     //     [dbRenderControl.]DEPTH_CLEAR_ENABLE will modify the zplane of the incoming geometry to the clear plane.
     //     So if the shader uses this z plane (that is, z-imports are enabled), this can affect the color output.
-    pm4Commands.dbRenderControl.u32All = 0;
 
-    // The rest of the PM4 commands depend on which GFXIP version we are.
+    struct
+    {
+        regDB_RENDER_OVERRIDE2  dbRenderOverride2;
+        regDB_HTILE_DATA_BASE   dbHtileDataBase;
+    } regs1 = { };
+
+    struct
+    {
+        regDB_Z_INFO        dbZInfo;
+        regDB_STENCIL_INFO  dbStencilInfo;
+    } regs2 = { };
+
+    const regDB_RENDER_CONTROL dbRenderControl = { };
+
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
-        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(Gfx09::mmDB_Z_INFO,
-                                                      Gfx09::mmDB_STENCIL_INFO,
-                                                      &pm4Commands.hdrDbInfo);
-
-        pm4Commands.gfx9.dbZInfo.u32All       = 0;
-        pm4Commands.gfx9.dbStencilInfo.u32All = 0;
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx09::mmDB_Z_INFO,
+                                                         Gfx09::mmDB_STENCIL_INFO,
+                                                         &regs2,
+                                                         pCmdSpace);
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        // DB_DEPTH_INFO does not exist on some GFX10 configs. When it does, it preceeds DB_Z_INFO.
-        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs((Gfx10::mmDB_Z_INFO - 1),
-                                                      Gfx10::mmDB_STENCIL_INFO,
-                                                      &pm4Commands.hdrDbInfo);
-
-        pm4Commands.gfx10.dbDepthInfo               = 0;
-        pm4Commands.gfx10.dbZInfo.u32All            = 0;
-        pm4Commands.gfx10.dbStencilInfo.u32All      = 0;
+        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10::mmDB_Z_INFO,
+                                                         Gfx10::mmDB_STENCIL_INFO,
+                                                         &regs2,
+                                                         pCmdSpace);
 
     }
     else
@@ -3050,8 +2925,8 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
         PAL_ASSERT_ALWAYS();
     }
 
-    PAL_ASSERT(cmdDwords != 0);
-    return m_deCmdStream.WritePm4Image(cmdDwords, &pm4Commands, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_RENDER_OVERRIDE2, mmDB_HTILE_DATA_BASE, &regs1, pCmdSpace);
+    return m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_CONTROL, dbRenderControl.u32All, pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -3061,9 +2936,8 @@ uint32* UniversalCmdBuffer::WriteNullColorTargets(
     uint32  newColorTargetMask,
     uint32  oldColorTargetMask)
 {
-    // Scratch space for building the null color targets PM4 image.
-    uint32 pm4Commands[MaxNullColorTargetPm4ImgSize / sizeof(uint32)];
-    size_t cmdDwords = 0;
+    regCB_COLOR0_INFO cbColorInfo = { };
+    cbColorInfo.bits.FORMAT = COLOR_INVALID;
 
     // Compute a mask of slots which were previously bound to valid targets, but are now being bound to NULL.
     uint32 newNullSlotMask = (oldColorTargetMask & ~newColorTargetMask);
@@ -3072,20 +2946,12 @@ uint32* UniversalCmdBuffer::WriteNullColorTargets(
         uint32 slot = 0;
         BitMaskScanForward(&slot, newNullSlotMask);
 
-        auto*const pPm4Image = reinterpret_cast<ColorInfoReg*>(&pm4Commands[cmdDwords]);
-
-        cmdDwords += m_cmdUtil.BuildSetOneContextReg(mmCB_COLOR0_INFO + (slot * CbRegsPerSlot), &pPm4Image->header);
-
-        pPm4Image->cbColorInfo.u32All = 0;
-        pPm4Image->cbColorInfo.bits.FORMAT = COLOR_INVALID;
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_COLOR0_INFO + (slot * CbRegsPerSlot),
+                                                        cbColorInfo.u32All,
+                                                        pCmdSpace);
 
         // Clear the bit since we've already added it to our PM4 image.
         newNullSlotMask &= ~(1 << slot);
-    }
-
-    if (cmdDwords != 0)
-    {
-        pCmdSpace = m_deCmdStream.WritePm4Image(cmdDwords, &pm4Commands[0], pCmdSpace);
     }
 
     return pCmdSpace;
@@ -3326,16 +3192,19 @@ Result UniversalCmdBuffer::AddPreamble()
     if (isNested == false)
     {
         // Initialize screen scissor value.
-        ScreenScissorReg* pScreenScissors = reinterpret_cast<ScreenScissorReg*>(pDeCmdSpace);
-        m_cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
-                                         mmPA_SC_SCREEN_SCISSOR_BR,
-                                         pScreenScissors);
-        pScreenScissors->paScScreenScissorTl.u32All    = 0;
-        pScreenScissors->paScScreenScissorBr.u32All    = 0;
-        pScreenScissors->paScScreenScissorBr.bits.BR_X = m_graphicsState.targetExtent.width;
-        pScreenScissors->paScScreenScissorBr.bits.BR_Y = m_graphicsState.targetExtent.height;
+        struct
+        {
+            regPA_SC_SCREEN_SCISSOR_TL tl;
+            regPA_SC_SCREEN_SCISSOR_BR br;
+        } paScScreenScissor = { };
 
-        pDeCmdSpace += Util::NumBytesToNumDwords(sizeof(ScreenScissorReg));
+        paScScreenScissor.br.bits.BR_X = m_graphicsState.targetExtent.width;
+        paScScreenScissor.br.bits.BR_Y = m_graphicsState.targetExtent.height;
+
+        pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
+                                                           mmPA_SC_SCREEN_SCISSOR_BR,
+                                                           &paScScreenScissor,
+                                                           pDeCmdSpace);
     }
 
     if (m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0)
@@ -3958,10 +3827,8 @@ void UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
     static_assert(NumUserDataRegistersCompute <= UserDataEntriesPerMask,
                   "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
 
-    const bool   prevNoSpilling   = pPrevSignature->spillThreshold == NoUserDataSpilling;
-    const bool   nextNoSpilling   = m_pSignatureCs->spillThreshold == NoUserDataSpilling;
-    const uint16 prevFastUserData = prevNoSpilling ? pPrevSignature->userDataLimit : pPrevSignature->spillThreshold;
-    const uint16 nextFastUserData = nextNoSpilling ? m_pSignatureCs->userDataLimit : m_pSignatureCs->spillThreshold;
+    const size_t prevFastUserData = pPrevSignature->stage.userSgprCount;
+    const size_t nextFastUserData = m_pSignatureCs->stage.userSgprCount;
 
     if (prevFastUserData < nextFastUserData)
     {
@@ -3974,8 +3841,7 @@ void UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
         // This could be wasteful if the client binds a common set of user data and frequently switches between
         // pipelines with different user data limits. We probably can't avoid that overhead without rewriting
         // our compute user data management.
-        const size_t rewriteMask =
-            BitfieldGenMask<size_t>(nextFastUserData) & ~BitfieldGenMask<size_t>(prevFastUserData);
+        const size_t rewriteMask = BitfieldGenMask(nextFastUserData) & ~BitfieldGenMask(prevFastUserData);
 
         m_computeState.csUserDataEntries.dirty[0] |= rewriteMask;
     }
@@ -3995,19 +3861,18 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToUserSgprsCs(
     static_assert(NumUserDataRegistersCompute <= UserDataEntriesPerMask,
                   "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
 
-    const bool   noSpilling              = m_pSignatureCs->spillThreshold == NoUserDataSpilling;
-    const uint16 numFastUserDataEntries  = noSpilling ? m_pSignatureCs->userDataLimit : m_pSignatureCs->spillThreshold;
-    const size_t fastUserDataEntriesMask = BitfieldGenMask<size_t>(numFastUserDataEntries);
+    const size_t numFastUserDataEntries  = m_pSignatureCs->stage.userSgprCount;
+    const size_t fastUserDataEntriesMask = BitfieldGenMask(numFastUserDataEntries);
     const size_t userSgprDirtyMask       = (m_computeState.csUserDataEntries.dirty[0] & fastUserDataEntriesMask);
 
     // Additionally, dirty compute user-data is always written to user-SGPR's if it could be mapped by a pipeline,
     // which lets us avoid any complex logic when switching pipelines.
-    const uint16 baseUserSgpr = m_device.GetFirstUserDataReg(HwShaderStage::Cs);
+    const uint32 baseUserSgpr = m_device.GetFirstUserDataReg(HwShaderStage::Cs);
 
-    for (uint16 e = 0; e < numFastUserDataEntries; ++e)
+    for (uint32 e = 0; e < numFastUserDataEntries; ++e)
     {
-        const uint16 firstEntry = e;
-        uint16       entryCount = 0;
+        const uint32 firstEntry = e;
+        uint32       entryCount = 0;
 
         while ((e < numFastUserDataEntries) && ((userSgprDirtyMask & (static_cast<size_t>(1) << e)) != 0))
         {
@@ -4017,7 +3882,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToUserSgprsCs(
 
         if (entryCount > 0)
         {
-            const uint16 lastEntry = (firstEntry + entryCount - 1);
+            const uint32 lastEntry = (firstEntry + entryCount - 1);
             pDeCmdSpace = m_deCmdStream.WriteSetSeqShRegs((baseUserSgpr + firstEntry),
                                                           (baseUserSgpr + lastEntry),
                                                           ShaderCompute,
@@ -4047,7 +3912,7 @@ void UniversalCmdBuffer::UpdateUavExportTable()
             m_uavExportTable.srd[idx] = {};
         }
     }
-    m_uavExportTable.state.dirty = true;
+    m_uavExportTable.state.dirty = 1;
 }
 
 // =====================================================================================================================
@@ -7968,11 +7833,11 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_funcTable.pfnCmdDrawIndirectMulti         = cmdBuffer.m_funcTable.pfnCmdDrawIndirectMulti;
         m_funcTable.pfnCmdDrawIndexedIndirectMulti  = cmdBuffer.m_funcTable.pfnCmdDrawIndexedIndirectMulti;
 
-        if (m_rbPlusPm4Img.spaceNeeded != 0)
+        if (m_cachedSettings.rbPlusSupported != 0)
         {
-            m_rbPlusPm4Img.sxPsDownconvert   = cmdBuffer.m_rbPlusPm4Img.sxPsDownconvert;
-            m_rbPlusPm4Img.sxBlendOptEpsilon = cmdBuffer.m_rbPlusPm4Img.sxBlendOptEpsilon;
-            m_rbPlusPm4Img.sxBlendOptControl = cmdBuffer.m_rbPlusPm4Img.sxBlendOptControl;
+            m_sxPsDownconvert   = cmdBuffer.m_sxPsDownconvert;
+            m_sxBlendOptEpsilon = cmdBuffer.m_sxBlendOptEpsilon;
+            m_sxBlendOptControl = cmdBuffer.m_sxBlendOptControl;
         }
     }
 
@@ -8132,48 +7997,24 @@ void UniversalCmdBuffer::CmdSetUserClipPlanes(
     uint32               planeCount,
     const UserClipPlane* pPlanes)
 {
-    UserClipPlaneStatePm4Img pm4Image = {};
-
     PAL_ASSERT((planeCount > 0) && (planeCount <= 6));
 
-    BuildSetUserClipPlane(firstPlane,
-                          planeCount,
-                          pPlanes,
-                          m_cmdUtil,
-                          reinterpret_cast<uint32*>(&pm4Image));
+    // Make sure that the layout of Pal::UserClipPlane is equivalent to the layout of the PA_CL_UCP_* registers.  This
+    // lets us skip copying the data around an extra time.
+    static_assert((offsetof(UserClipPlane, x) == 0) &&
+                  (offsetof(UserClipPlane, y) == 4) &&
+                  (offsetof(UserClipPlane, z) == 8) &&
+                  (offsetof(UserClipPlane, w) == 12),
+                  "The layout of Pal::UserClipPlane must match the layout of the PA_CL_UCP* registers!");
 
-    const size_t Pm4ImageSize = ((planeCount * sizeof(UserClipPlaneStateReg)) >> 2) + CmdUtil::ContextRegSizeDwords;
+    constexpr uint16 RegStride = (mmPA_CL_UCP_1_X - mmPA_CL_UCP_0_X);
+    const uint16 startRegAddr  = static_cast<uint16>(mmPA_CL_UCP_0_X + (firstPlane * RegStride));
+    const uint16 endRegAddr    = static_cast<uint16>(mmPA_CL_UCP_0_W + ((firstPlane + planeCount - 1) * RegStride));
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(Pm4ImageSize, &pm4Image, pDeCmdSpace);
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(startRegAddr, endRegAddr, pPlanes, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
     m_deCmdStream.SetContextRollDetected<true>();
-}
-
-// =====================================================================================================================
-// Builds the packets for setting the user clip plane in the command space provided.
-uint32* UniversalCmdBuffer::BuildSetUserClipPlane(
-    uint32                     firstPlane,
-    uint32                     count,
-    const UserClipPlane*       pPlanes,
-    const CmdUtil&             cmdUtil,
-    uint32*                    pCmdSpace)
-{
-    UserClipPlaneStatePm4Img* pImage       = reinterpret_cast<UserClipPlaneStatePm4Img*>(pCmdSpace);
-    constexpr uint32          RegStride    = mmPA_CL_UCP_1_X - mmPA_CL_UCP_0_X;
-    const uint32              regStart     = mmPA_CL_UCP_0_X + firstPlane * RegStride;
-    const uint32              regEnd       = mmPA_CL_UCP_0_W + (firstPlane + count - 1) * RegStride;
-    const size_t              totalDwords  = cmdUtil.BuildSetSeqContextRegs(regStart, regEnd, &pImage->header);
-
-    for (uint32 i = 0; i < count; i++)
-    {
-        pImage->plane[i].paClUcpX.f32All = pPlanes[i].x;
-        pImage->plane[i].paClUcpY.f32All = pPlanes[i].y;
-        pImage->plane[i].paClUcpZ.f32All = pPlanes[i].z;
-        pImage->plane[i].paClUcpW.f32All = pPlanes[i].w;
-    }
-
-    return pCmdSpace + totalDwords;
 }
 
 // =====================================================================================================================
@@ -8185,27 +8026,6 @@ void UniversalCmdBuffer::CmdSetClipRects(
 {
     PAL_ASSERT(rectCount <= MaxClipRects);
 
-    ClipRectsPm4Img pm4Image = {};
-
-    constexpr uint32 RegStride   = mmPA_SC_CLIPRECT_1_TL - mmPA_SC_CLIPRECT_0_TL;
-    const uint32     regStart    = mmPA_SC_CLIPRECT_RULE;
-    const uint32     regEnd      = mmPA_SC_CLIPRECT_RULE + rectCount * RegStride;
-    const size_t     totalDwords = m_cmdUtil.BuildSetSeqContextRegs(regStart, regEnd, &pm4Image.header);
-
-    pm4Image.paScClipRectRule.bits.CLIP_RULE = clipRule;
-
-    for (uint32 i = 0; i < rectCount; i++)
-    {
-        pm4Image.rects[i].paScClipRectTl.bits.TL_X = pRectList[i].offset.x;
-        pm4Image.rects[i].paScClipRectTl.bits.TL_Y = pRectList[i].offset.y;
-        pm4Image.rects[i].paScClipRectBr.bits.BR_X = pRectList[i].offset.x + pRectList[i].extent.width;
-        pm4Image.rects[i].paScClipRectBr.bits.BR_Y = pRectList[i].offset.y + pRectList[i].extent.height;
-    }
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(totalDwords, &pm4Image, pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-
     m_graphicsState.clipRectsState.clipRule  = clipRule;
     m_graphicsState.clipRectsState.rectCount = rectCount;
     for (uint32 i = 0; i < rectCount; i++)
@@ -8213,6 +8033,35 @@ void UniversalCmdBuffer::CmdSetClipRects(
         m_graphicsState.clipRectsState.rectList[i] = pRectList[i];
     }
     m_graphicsState.dirtyFlags.nonValidationBits.clipRectsState = 1;
+
+    constexpr uint32 RegStride = (mmPA_SC_CLIPRECT_1_TL - mmPA_SC_CLIPRECT_0_TL);
+    const uint32 endRegAddr    = (mmPA_SC_CLIPRECT_RULE + rectCount * RegStride);
+
+    struct
+    {
+        regPA_SC_CLIPRECT_RULE paScClipRectRule;
+        struct
+        {
+            regPA_SC_CLIPRECT_0_TL tl;
+            regPA_SC_CLIPRECT_0_BR br;
+        } paScClipRect[MaxClipRects];
+    } regs; // Intentionally not initialized!
+
+    regs.paScClipRectRule.u32All = 0;
+    regs.paScClipRectRule.bits.CLIP_RULE = clipRule;
+
+    for (uint32 r = 0; r < rectCount; ++r)
+    {
+        regs.paScClipRect[r].tl.bits.TL_X = pRectList[r].offset.x;
+        regs.paScClipRect[r].tl.bits.TL_Y = pRectList[r].offset.y;
+        regs.paScClipRect[r].br.bits.BR_X = pRectList[r].offset.x + pRectList[r].extent.width;
+        regs.paScClipRect[r].br.bits.BR_Y = pRectList[r].offset.y + pRectList[r].extent.height;
+    }
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_CLIPRECT_RULE, endRegAddr, &regs, pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -8296,13 +8145,13 @@ void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
     PAL_ASSERT(pPipeline != nullptr);
 
     // Just update our PM4 image for RB+.  It will be written at draw-time along with the other pipeline registers.
-    if (m_rbPlusPm4Img.spaceNeeded != 0)
+    if (m_cachedSettings.rbPlusSupported != 0)
     {
         pPipeline->OverrideRbPlusRegistersForRpm(format,
                                                  targetIndex,
-                                                 &m_rbPlusPm4Img.sxPsDownconvert,
-                                                 &m_rbPlusPm4Img.sxBlendOptEpsilon,
-                                                 &m_rbPlusPm4Img.sxBlendOptControl);
+                                                 &m_sxPsDownconvert,
+                                                 &m_sxBlendOptEpsilon,
+                                                 &m_sxBlendOptControl);
     }
 }
 

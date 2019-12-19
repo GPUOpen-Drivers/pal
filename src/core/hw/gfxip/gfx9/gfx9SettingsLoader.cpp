@@ -527,21 +527,6 @@ void SettingsLoader::OverrideDefaults(
             SetupNavi14Workarounds(device, &m_settings, pSettings);
         }
 
-        if (
-            false)
-
-        {
-            m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 33;
-            m_settings.depthStencilFastClearComputeThresholdSingleSampled = (1024 * 1024) - 1;
-            m_settings.binningContextStatesPerBin = 3;
-            m_settings.binningPersistentStatesPerBin = 8;
-
-            // DB to CB copies are not supported on these platforms.
-            m_settings.allowDepthCopyResolve = false;
-
-            m_settings.cbDbCachePolicy = (Gfx10CbDbCachePolicyLruCmask | Gfx10CbDbCachePolicyLruDcc |
-                                          Gfx10CbDbCachePolicyLruFmask | Gfx10CbDbCachePolicyLruHtile);
-        }
     }
 
     m_state = SettingsLoaderState::LateInit;

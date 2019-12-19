@@ -225,6 +225,7 @@ Result PresentScheduler::ProcessPresent(
     // Ask the windowing system to present our image with the swap chain's idle fence. We don't need it to wait for
     // prior rendering because that was already done by our caller.
     PresentFence*const pIdleFence = pSwapChain->PresentIdleFence(presentInfo.imageIndex);
+    pIdleFence->AssociatePriorRenderFence(pQueue);
     Result             result     = m_pWindowSystem->Present(presentInfo,
                                                              nullptr,
                                                              pIdleFence);
@@ -333,6 +334,8 @@ Result PresentScheduler::SignalOnAcquire(
 }
 
 // =====================================================================================================================
+// The CanInlinePresent function should return true if its possible and desirable to immediately queue the present
+// on the given application queue. Inline presents cannot stall the calling thread.
 bool PresentScheduler::CanInlinePresent(
     const PresentSwapChainInfo& presentInfo,
     const IQueue&               queue
@@ -341,7 +344,9 @@ bool PresentScheduler::CanInlinePresent(
     SwapChain*const     pSwapChain    = static_cast<SwapChain*>(presentInfo.pSwapChain);
     const SwapChainMode swapChainMode = pSwapChain->CreateInfo().swapChainMode;
 
-    return swapChainMode == SwapChainMode::Immediate;
+    const bool canInline = (swapChainMode == SwapChainMode::Immediate);
+
+    return canInline;
 }
 
 } // Amdgpu

@@ -58,6 +58,7 @@ public:
     virtual void   Reset()                        override;
     virtual Result Trigger()                      override;
     virtual Result WaitForCompletion(bool doWait) override;
+    virtual Result AssociatePriorRenderFence(IQueue* pQueue) override { return Result::Success; }
 
     void AssociateImage(Image* pImage) { m_pImage = pImage; }
 
@@ -114,6 +115,8 @@ public:
         PresentFence*               pIdleFence) override;
 
     virtual Result WaitForLastImagePresented() override;
+
+    virtual Result RequestImageWithIndex(uint32 index) override { return Result::Success; }
 
     const WaylandLoader&      GetWaylandLoader() const                      { return m_waylandLoader; }
     const WaylandLoaderFuncs& GetWaylandProcs()  const                      { return m_waylandProcs; }

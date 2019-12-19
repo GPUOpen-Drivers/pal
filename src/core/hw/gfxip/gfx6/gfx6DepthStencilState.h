@@ -27,7 +27,6 @@
 
 #include "core/hw/gfxip/depthStencilState.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
-#include "core/hw/gfxip/gfx6/gfx6Device.h"
 
 namespace Pal
 {
@@ -37,28 +36,13 @@ namespace Gfx6
 class Device;
 
 // =====================================================================================================================
-// Represents an "image" of the PM4 commands necessary to write a DepthStencilState to hardware.
-// The required register writes are grouped into sets based on sequential register addresses, so that we can minimize
-// the amount of PM4 space needed by setting several reg's in each packet.
-struct DepthStencilStatePm4Img
-{
-    PM4CMDSETDATA           hdrDbDepthControl;   // 1st PM4 set data packet
-    regDB_DEPTH_CONTROL     dbDepthControl;      // Controls depth/stencil test.
-
-    PM4CMDSETDATA           hdrDbStencilControl; // 2nd PM4 set data packet
-    regDB_STENCIL_CONTROL   dbStencilControl;    // More controls for stencil test.
-};
-
-// =====================================================================================================================
 // Gfx6 hardware layer DepthStencil State class: implements GCN specific functionality for the ApiStateObject class,
 // specifically for depth/stencil state.
 class DepthStencilState : public Pal::DepthStencilState
 {
 public:
-    DepthStencilState(const Device& device);
-    Result Init(const DepthStencilStateCreateInfo& dsState);
+    explicit DepthStencilState(const DepthStencilStateCreateInfo& createInfo);
 
-    static size_t Pm4ImgSize() { return sizeof(DepthStencilStatePm4Img); }
     static CompareRef HwStencilCompare(CompareFunc func);
 
     uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
@@ -66,38 +50,41 @@ public:
     bool IsDepthEnabled() const { return (m_flags.isDepthEnabled != 0); }
     bool IsDepthWriteEnabled() const { return (m_flags.isDepthWriteEnabled != 0); }
     bool IsStencilWriteEnabled() const { return (m_flags.isStencilWriteEnabled != 0); }
+
     bool CanDepthRunOutOfOrder() const { return (m_flags.canDepthRunOutOfOrder != 0); }
     bool CanStencilRunOutOfOrder() const { return (m_flags.canStencilRunOutOfOrder != 0); }
     bool DepthForcesOrdering() const { return (m_flags.depthForcesOrdering != 0); }
 
-protected:
-    virtual ~DepthStencilState() {}
-
 private:
-    void BuildPm4Headers(const Device& device);
+    virtual ~DepthStencilState() { }
+
+    void Init(const DepthStencilStateCreateInfo& dsState);
 
     static CompareFrag HwDepthCompare(CompareFunc func);
     static ::StencilOp HwStencilOp(StencilOp stencilOp);
 
-    // Image of PM4 commands needed to write this object to hardware.
-    DepthStencilStatePm4Img  m_pm4Commands;
-
-    struct
+    union
     {
-        uint32 isDepthEnabled          : 1;
-        uint32 isDepthWriteEnabled     : 1;
-        uint32 isStencilWriteEnabled   : 1;
-        uint32 canDepthRunOutOfOrder   : 1;  // Indicates depth buffer will have the same result regardless of the order
-                                             // in which geometry is Z tested.
-        uint32 canStencilRunOutOfOrder : 1;  // Indicates stencil buffer will have the same result regardless of the
-                                             // order in which geometry is S tested.
-        uint32 depthForcesOrdering     : 1;  // Indicates depth test will force the geometry to be ordered in a
-                                             // predictable way.
-        uint32 reserved                : 26;
+        struct
+        {
+            uint32 isDepthEnabled          : 1;
+            uint32 isDepthWriteEnabled     : 1;
+            uint32 isStencilWriteEnabled   : 1;
+            uint32 canDepthRunOutOfOrder   : 1;  // Indicates depth buffer will have the same result regardless of the
+                                                 // order in which geometry is Z tested.
+            uint32 canStencilRunOutOfOrder : 1;  // Indicates stencil buffer will have the same result regardless of
+                                                 // the order in which geometry is S tested.
+            uint32 depthForcesOrdering     : 1;  // Indicates depth test will force the geometry to be ordered in a
+                                                 // predictable way.
+            uint32 reserved                : 26;
+        };
+        uint32 u32All;
     } m_flags;
 
+    regDB_DEPTH_CONTROL    m_dbDepthControl;
+    regDB_STENCIL_CONTROL  m_dbStencilControl;
+
     PAL_DISALLOW_COPY_AND_ASSIGN(DepthStencilState);
-    PAL_DISALLOW_DEFAULT_CTOR(DepthStencilState);
 };
 
 } // Gfx6

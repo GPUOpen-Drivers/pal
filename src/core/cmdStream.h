@@ -48,15 +48,6 @@ class IQueue;
 class Platform;
 enum  QueueType : uint32;
 
-// Many command buffers break down into multiple command streams targeting internal sub-engines. For example, Universal
-// command buffers build a primary stream (DE) but may also build a second stream for the constant engine (CE).
-enum class SubEngineType : uint32
-{
-    Primary        = 0, // Subqueue that is the queue itself, rather than an ancilliary queue.
-    ConstantEngine = 1, // CP constant update engine that runs in parallel with draw engine.
-    Count,
-};
-
 // Each submit to the hardware may include additional command streams that are executed before and after the command
 // buffer streams.
 enum class CmdStreamUsage : uint32

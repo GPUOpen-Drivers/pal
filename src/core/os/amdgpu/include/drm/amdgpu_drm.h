@@ -58,7 +58,6 @@ extern "C" {
 /* hybrid specific ioctls */
 #define DRM_AMDGPU_SEM			0x5b
 #define DRM_AMDGPU_GEM_DGMA		0x5c
-#define DRM_AMDGPU_FREESYNC		0x5d
 
 #define DRM_IOCTL_AMDGPU_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_CREATE, union drm_amdgpu_gem_create)
 #define DRM_IOCTL_AMDGPU_GEM_MMAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_MMAP, union drm_amdgpu_gem_mmap)
@@ -76,11 +75,9 @@ extern "C" {
 #define DRM_IOCTL_AMDGPU_VM		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_VM, union drm_amdgpu_vm)
 #define DRM_IOCTL_AMDGPU_FENCE_TO_HANDLE DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_FENCE_TO_HANDLE, union drm_amdgpu_fence_to_handle)
 #define DRM_IOCTL_AMDGPU_SCHED		DRM_IOW(DRM_COMMAND_BASE + DRM_AMDGPU_SCHED, union drm_amdgpu_sched)
-
 /* hybrid specific ioctls */
-#define DRM_IOCTL_AMDGPU_GEM_DGMA	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_DGMA, struct drm_amdgpu_gem_dgma)
 #define DRM_IOCTL_AMDGPU_SEM		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_SEM, union drm_amdgpu_sem)
-#define DRM_IOCTL_AMDGPU_FREESYNC	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_FREESYNC, struct drm_amdgpu_freesync)
+#define DRM_IOCTL_AMDGPU_GEM_DGMA	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_DGMA, struct drm_amdgpu_gem_dgma)
 
 /**
  * DOC: memory domains
@@ -117,7 +114,7 @@ extern "C" {
 					 AMDGPU_GEM_DOMAIN_VRAM | \
 					 AMDGPU_GEM_DOMAIN_GDS | \
 					 AMDGPU_GEM_DOMAIN_GWS | \
-					 AMDGPU_GEM_DOMAIN_OA |\
+					 AMDGPU_GEM_DOMAIN_OA | \
 					 AMDGPU_GEM_DOMAIN_DGMA)
 
 /* Flag that CPU access will be required for the case of VRAM domain */
@@ -140,6 +137,10 @@ extern "C" {
  * for the second page onward should be set to NC.
  */
 #define AMDGPU_GEM_CREATE_MQD_GFX9		(1 << 8)
+/* Flag that BO may contain sensitive data that must be wiped before
+ * releasing the memory
+ */
+#define AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE	(1 << 9)
 
 /* Hybrid specific */
 /* Flag that the memory allocation should be from top of domain */
@@ -228,13 +229,19 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_QUERY2_FLAGS_VRAMLOST (1<<1)
 /* indicate some job from this context once cause gpu hang */
 #define AMDGPU_CTX_QUERY2_FLAGS_GUILTY   (1<<2)
+/* indicate some errors are detected by RAS */
+#define AMDGPU_CTX_QUERY2_FLAGS_RAS_CE   (1<<3)
+#define AMDGPU_CTX_QUERY2_FLAGS_RAS_UE   (1<<4)
 
 /* Context priority level */
 #define AMDGPU_CTX_PRIORITY_UNSET       -2048
 #define AMDGPU_CTX_PRIORITY_VERY_LOW    -1023
 #define AMDGPU_CTX_PRIORITY_LOW         -512
 #define AMDGPU_CTX_PRIORITY_NORMAL      0
-/* Selecting a priority above NORMAL requires CAP_SYS_NICE or DRM_MASTER */
+/*
+ * When used in struct drm_amdgpu_ctx_in, a priority above NORMAL requires
+ * CAP_SYS_NICE or DRM_MASTER
+*/
 #define AMDGPU_CTX_PRIORITY_HIGH        512
 #define AMDGPU_CTX_PRIORITY_VERY_HIGH   1023
 
@@ -244,6 +251,7 @@ struct drm_amdgpu_ctx_in {
 	/** For future use, no flags defined so far */
 	__u32	flags;
 	__u32	ctx_id;
+	/** AMDGPU_CTX_PRIORITY_* */
 	__s32	priority;
 };
 
@@ -319,13 +327,15 @@ union drm_amdgpu_vm {
 
 /* sched ioctl */
 #define AMDGPU_SCHED_OP_PROCESS_PRIORITY_OVERRIDE	1
+#define AMDGPU_SCHED_OP_CONTEXT_PRIORITY_OVERRIDE	2
 
 struct drm_amdgpu_sched_in {
 	/* AMDGPU_SCHED_OP_* */
 	__u32	op;
 	__u32	fd;
+	/** AMDGPU_CTX_PRIORITY_* */
 	__s32	priority;
-	__u32	flags;
+	__u32   ctx_id;
 };
 
 union drm_amdgpu_sched {
@@ -382,6 +392,12 @@ struct drm_amdgpu_gem_dgma {
 /* GFX9 and later: */
 #define AMDGPU_TILING_SWIZZLE_MODE_SHIFT		0
 #define AMDGPU_TILING_SWIZZLE_MODE_MASK			0x1f
+#define AMDGPU_TILING_DCC_OFFSET_256B_SHIFT		5
+#define AMDGPU_TILING_DCC_OFFSET_256B_MASK		0xFFFFFF
+#define AMDGPU_TILING_DCC_PITCH_MAX_SHIFT		29
+#define AMDGPU_TILING_DCC_PITCH_MAX_MASK		0x3FFF
+#define AMDGPU_TILING_DCC_INDEPENDENT_64B_SHIFT		43
+#define AMDGPU_TILING_DCC_INDEPENDENT_64B_MASK		0x1
 
 /* Set/Get helpers for tiling flags. */
 #define AMDGPU_TILING_SET(field, value) \
@@ -573,7 +589,7 @@ struct drm_amdgpu_gem_va {
 #define AMDGPU_CHUNK_ID_SYNCOBJ_IN      0x04
 #define AMDGPU_CHUNK_ID_SYNCOBJ_OUT     0x05
 #define AMDGPU_CHUNK_ID_BO_HANDLES      0x06
-#define AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES  0x07
+#define AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES	0x07
 #define AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT    0x08
 #define AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_SIGNAL  0x09
 
@@ -618,6 +634,11 @@ union drm_amdgpu_cs {
  * caches (L2/vL1/sL1/I$). */
 #define AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE (1 << 3)
 
+/* Set GDS_COMPUTE_MAX_WAVE_ID = DEFAULT before PACKET3_INDIRECT_BUFFER.
+ * This will reset wave ID counters for the IB.
+ */
+#define AMDGPU_IB_FLAG_RESET_GDS_MAX_WAVE_ID (1 << 4)
+
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;
 	/** AMDGPU_IB_FLAG_* */
@@ -652,9 +673,9 @@ struct drm_amdgpu_cs_chunk_sem {
 };
 
 struct drm_amdgpu_cs_chunk_syncobj {
-    __u32 handle;
-    __u32 flags;
-    __u64 point;
+       __u32 handle;
+       __u32 flags;
+       __u64 point;
 };
 
 #define AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ	0
@@ -730,6 +751,9 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_GPM_MEM 0x10
 	/* Subquery id: Query GFX RLC SRLS firmware version */
 	#define AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_SRM_MEM 0x11
+	/* Subquery id: Query DMCU firmware version */
+	#define AMDGPU_INFO_FW_DMCU		0x12
+	#define AMDGPU_INFO_FW_TA		0x13
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
 /* the used VRAM size */
@@ -783,6 +807,37 @@ struct drm_amdgpu_cs_chunk_data {
 /* Number of VRAM page faults on CPU access. */
 #define AMDGPU_INFO_NUM_VRAM_CPU_PAGE_FAULTS	0x1E
 #define AMDGPU_INFO_VRAM_LOST_COUNTER		0x1F
+/* query ras mask of enabled features*/
+#define AMDGPU_INFO_RAS_ENABLED_FEATURES	0x20
+
+/* RAS MASK: UMC (VRAM) */
+#define AMDGPU_INFO_RAS_ENABLED_UMC			(1 << 0)
+/* RAS MASK: SDMA */
+#define AMDGPU_INFO_RAS_ENABLED_SDMA			(1 << 1)
+/* RAS MASK: GFX */
+#define AMDGPU_INFO_RAS_ENABLED_GFX			(1 << 2)
+/* RAS MASK: MMHUB */
+#define AMDGPU_INFO_RAS_ENABLED_MMHUB			(1 << 3)
+/* RAS MASK: ATHUB */
+#define AMDGPU_INFO_RAS_ENABLED_ATHUB			(1 << 4)
+/* RAS MASK: PCIE */
+#define AMDGPU_INFO_RAS_ENABLED_PCIE			(1 << 5)
+/* RAS MASK: HDP */
+#define AMDGPU_INFO_RAS_ENABLED_HDP			(1 << 6)
+/* RAS MASK: XGMI */
+#define AMDGPU_INFO_RAS_ENABLED_XGMI			(1 << 7)
+/* RAS MASK: DF */
+#define AMDGPU_INFO_RAS_ENABLED_DF			(1 << 8)
+/* RAS MASK: SMN */
+#define AMDGPU_INFO_RAS_ENABLED_SMN			(1 << 9)
+/* RAS MASK: SEM */
+#define AMDGPU_INFO_RAS_ENABLED_SEM			(1 << 10)
+/* RAS MASK: MP0 */
+#define AMDGPU_INFO_RAS_ENABLED_MP0			(1 << 11)
+/* RAS MASK: MP1 */
+#define AMDGPU_INFO_RAS_ENABLED_MP1			(1 << 12)
+/* RAS MASK: FUSE */
+#define AMDGPU_INFO_RAS_ENABLED_FUSE			(1 << 13)
 
 /* gpu capability */
 #define AMDGPU_INFO_CAPABILITY			0x50
@@ -1009,6 +1064,10 @@ struct drm_amdgpu_info_device {
 	__u64 high_va_offset;
 	/** The maximum high virtual address */
 	__u64 high_va_max;
+	/* gfx10 pa_sc_tile_steering_override */
+	__u32 pa_sc_tile_steering_override;
+	/* disabled TCCs */
+	__u64 tcc_disabled_mask;
 };
 
 struct drm_amdgpu_info_hw_ip {
@@ -1062,6 +1121,7 @@ struct drm_amdgpu_info_vce_clock_table {
 #define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
 #define AMDGPU_FAMILY_AI			141 /* Vega10 */
 #define AMDGPU_FAMILY_RV			142 /* Raven */
+#define AMDGPU_FAMILY_NV			143 /* Navi10 */
 
 /**
  *  Definition of System Unified Address (SUA) apertures
@@ -1085,18 +1145,6 @@ struct drm_amdgpu_capability {
 	uint32_t direct_gma_size;
 };
 
-/*
- * Definition of free sync enter and exit signals
- * We may have more options in the future
- */
-#define AMDGPU_FREESYNC_FULLSCREEN_ENTER		1
-#define AMDGPU_FREESYNC_FULLSCREEN_EXIT  		2
-
-struct drm_amdgpu_freesync {
-        __u32 op;			/* AMDGPU_FREESYNC_FULLSCREEN_ENTER or */
-					/* AMDGPU_FREESYNC_FULLSCREEN_ENTER */
-        __u32 spare[7];
-};
 
 #if defined(__cplusplus)
 }

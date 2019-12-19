@@ -153,7 +153,7 @@ struct PipelineMetadata
             uint16 numInterpolants                : 1;
             uint16 placeholder0                   : 1;
             uint16 calcWaveBreakSizeAtDrawTime    : 1;
-            uint16 placeholder2                   : 1;
+            uint16 placeholder1                   : 1;
             uint16 api                            : 1;
             uint16 apiCreateInfo                  : 1;
             uint16 reserved                       : 1;

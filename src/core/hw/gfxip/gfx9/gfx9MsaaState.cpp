@@ -38,28 +38,28 @@ namespace Gfx9
 
 constexpr uint32 NumSampleLocations = 16;
 
-// =====================================================================================================================
-// Helper function which computes the maximum sample distance (from pixel center) based on the specified sample
-// positions.
-uint32 MsaaState::ComputeMaxSampleDistance(
-    uint32                       numSamples,
-    const MsaaQuadSamplePattern& quadSamplePattern
-    )
+struct PaScCentroid
 {
-    uint32 distance = 0;
-    const Offset2d*const pSampleLocations = &quadSamplePattern.topLeft[0];
+    regPA_SC_CENTROID_PRIORITY_0 priority0;    // Centroid Priorities #0
+    regPA_SC_CENTROID_PRIORITY_1 priority1;    // Centroid Priorities #1
+};
 
-    for(uint32 i = 0; i < numSamples; ++i)
-    {
-        distance = Max(distance, static_cast<uint32>(Max(abs(pSampleLocations[i].x),
-                                                         abs(pSampleLocations[i].y))));
-    }
-
-    return distance;
-}
+struct PaScSampleQuad
+{
+    // MSAA sample locations for pixel 0,0 in a 2x2 Quad
+    regPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0  X0Y0[NumSampleQuadRegs];
+    // MSAA sample locations for pixel 1,0 in a 2x2 Quad
+    regPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0  X1Y0[NumSampleQuadRegs];
+    // MSAA sample locations for pixel 0,1 in a 2x2 Quad
+    regPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0  X0Y1[NumSampleQuadRegs];
+    // MSAA sample locations for pixel 1,1 in a 2x2 Quad
+    regPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0  X1Y1[NumSampleQuadRegs];
+};
 
 // =====================================================================================================================
-MsaaState::MsaaState()
+MsaaState::MsaaState(
+    const Device&              device,
+    const MsaaStateCreateInfo& createInfo)
     :
     Pal::MsaaState(),
     m_log2Samples(0),
@@ -67,82 +67,12 @@ MsaaState::MsaaState()
     m_pixelShaderSamples(0),
     m_log2OcclusionQuerySamples(0)
 {
-    m_paScConsRastCntl.u32All = 0;
-}
+    m_flags.u32All = 0;
+    m_flags.waFixPostZConservativeRasterization = device.Settings().waFixPostZConservativeRasterization;
+    m_flags.flushDfsm = (device.Settings().disableDfsm == false);
 
-// =====================================================================================================================
-// Assembles the PM4 headers for the commands in this MSAA state object.
-void MsaaState::BuildPm4Headers(
-    const Device& device)
-{
-    memset(&m_pm4Image, 0, sizeof(m_pm4Image));
-
-    const CmdUtil& cmdUtil  = device.CmdUtil();
-    const auto&    settings = GetGfx9Settings(*device.Parent());
-
-    // 1st PM4 packet
-    m_pm4Image.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_EQAA, &m_pm4Image.hdrDbEqaa);
-
-    // 2nd PM4 packet
-    m_pm4Image.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmPA_SC_AA_MASK_X0Y0_X1Y0,
-                                                             mmPA_SC_AA_MASK_X0Y1_X1Y1,
-                                                             &m_pm4Image.hdrPaScAaMask);
-    // 3rd PM4 packet
-    m_pm4Image.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SC_MODE_CNTL_0,
-                                                            &m_pm4Image.hdrPaScModeCntl0);
-
-    // 4th PM4 packet
-    m_pm4Image.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_ALPHA_TO_MASK,
-                                                            &m_pm4Image.hdrDbAlphaToMask);
-
-    // MSAA state is responsible for all the fields except for COVERAGE_TO_SHADER_SELECT, which is owned
-    // by the pipeline, MSAA_NUM_SAMPLES, which requires input from the pipeline, and MAX_SAMPLE_DIST_MASK which is
-    // set by CmdBuffer.
-    uint32 aaConfigMask = static_cast<uint32>(~(PA_SC_AA_CONFIG__COVERAGE_TO_SHADER_SELECT_MASK |
-                                                PA_SC_AA_CONFIG__MSAA_NUM_SAMPLES_MASK |
-                                                PA_SC_AA_CONFIG__MAX_SAMPLE_DIST_MASK));
-
-    m_pm4Image.spaceNeeded += cmdUtil.BuildContextRegRmw(
-                                mmPA_SC_AA_CONFIG,
-                                aaConfigMask,
-                                0,
-                                &m_pm4Image.paScAaConfig);
-
-    if (settings.waFixPostZConservativeRasterization)
-    {
-        m_pm4Image.spaceNeeded += cmdUtil.BuildContextRegRmw(
-                cmdUtil.GetRegInfo().mmDbDepthInfo,
-                static_cast<uint32>(~Nv10::DB_RESERVED_REG_2__FIELD_1_MASK),
-                0, // filled in by the "Init" function
-                &m_pm4Image.dbReservedReg2);
-    }
-
-    if (settings.disableDfsm == false)
-    {
-        //     Driver must insert FLUSH_DFSM event whenever the AA mode changes if force_punchout is set to
-        //     auto as well as channel mask changes (ARGB to RGB)
-        //
-        // NOTE:  force_punchout is set to auto unless DFSM is disabled.  DFSM is disabled by default.
-        //        We already have conditionals for this PM4 image, so we can't add another one.  This event is
-        //        low-perf-impact, so just always issue it.
-        m_pm4Image.spaceNeeded += cmdUtil.BuildNonSampleEventWrite(FLUSH_DFSM,
-                                                                   EngineTypeUniversal,
-                                                                   &m_pm4Image.flushDfsm);
-    }
-    else
-    {
-        m_pm4Image.spaceNeeded += CmdUtil::BuildNop(CmdUtil::WriteNonSampleEventDwords, &m_pm4Image.flushDfsm);
-    }
-}
-
-// =====================================================================================================================
-size_t MsaaState::Pm4ImgSize(
-    const Device&              device,
-    const MsaaStateCreateInfo& msaaState)
-{
-    size_t pm4ImgSize = sizeof(MsaaStatePm4Img);
-
-    return pm4ImgSize;
+    memset(&m_regs, 0, sizeof(m_regs));
+    Init(device, createInfo);
 }
 
 // =====================================================================================================================
@@ -152,17 +82,40 @@ uint32* MsaaState::WriteCommands(
     uint32*    pCmdSpace
     ) const
 {
-    // When the command stream is null, we are writing the commands for this state into a pre-allocated buffer that has
-    // enough space for the commands.
-    // When the command stream is non-null, we are writing the commands as part of a ICmdBuffer::CmdBind* call.
-    if (pCmdStream == nullptr)
+    uint32 paScAaConfigMask  = static_cast<uint32>(~(PA_SC_AA_CONFIG__COVERAGE_TO_SHADER_SELECT_MASK |
+                                                     PA_SC_AA_CONFIG__MSAA_NUM_SAMPLES_MASK          |
+                                                     PA_SC_AA_CONFIG__MAX_SAMPLE_DIST_MASK));
+
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_EQAA, m_regs.dbEqaa.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_AA_MASK_X0Y0_X1Y0,
+                                                   mmPA_SC_AA_MASK_X0Y1_X1Y1,
+                                                   &m_regs.paScAaMask1,
+                                                   pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_MODE_CNTL_0, m_regs.paScModeCntl0.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_ALPHA_TO_MASK, m_regs.dbAlphaToMask.u32All, pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteContextRegRmw(mmPA_SC_AA_CONFIG,
+                                               paScAaConfigMask,
+                                               m_regs.paScAaConfig.u32All,
+                                               pCmdSpace);
+
+    if (m_flags.waFixPostZConservativeRasterization != 0)
     {
-        memcpy(pCmdSpace, &m_pm4Image, m_pm4Image.spaceNeeded * sizeof(uint32));
-        pCmdSpace += m_pm4Image.spaceNeeded;
+        pCmdSpace = pCmdStream->WriteContextRegRmw(Nv10::mmDB_RESERVED_REG_2,
+                                                   static_cast<uint32>(~Nv10::DB_RESERVED_REG_2__FIELD_1_MASK),
+                                                   m_regs.dbReservedReg2,
+                                                   pCmdSpace);
     }
-    else
+
+    if (m_flags.flushDfsm != 0)
     {
-        pCmdSpace = pCmdStream->WritePm4Image(m_pm4Image.spaceNeeded, &m_pm4Image, pCmdSpace);
+        //     Driver must insert FLUSH_DFSM event whenever the AA mode changes if force_punchout is set to
+        //     auto as well as channel mask changes (ARGB to RGB)
+        //
+        // NOTE:  force_punchout is set to auto unless DFSM is disabled.  DFSM is disabled by default.
+        //        We already have conditionals for this PM4 image, so we can't add another one.  This event is
+        //        low-perf-impact, so just always issue it.
+        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(FLUSH_DFSM, EngineTypeUniversal, pCmdSpace);
     }
 
     return pCmdSpace;
@@ -170,20 +123,16 @@ uint32* MsaaState::WriteCommands(
 
 // =====================================================================================================================
 // Pre-constructs all the packets required to set the MSAA state
-Result MsaaState::Init(
+void MsaaState::Init(
     const Device&              device,
     const MsaaStateCreateInfo& msaaState)
 {
-    regPA_SC_AA_CONFIG  paScAaConfig    = {};
-    const auto&         settings        = GetGfx9Settings(*device.Parent());
+    const auto& settings = GetGfx9Settings(*device.Parent());
 
     m_log2Samples               = Log2(msaaState.coverageSamples);
     m_sampleMask                = msaaState.sampleMask;
     m_pixelShaderSamples        = msaaState.pixelShaderSamples;
     m_log2OcclusionQuerySamples = Log2(msaaState.occlusionQuerySamples);
-    m_paScConsRastCntl.u32All   = 0;
-
-    BuildPm4Headers(device);
 
     // Use the supplied sample mask to initialize the PA_SC_AA_MASK_** registers:
     uint32 usedMask    = (m_sampleMask & ((1 << NumSamples()) - 1));
@@ -196,47 +145,47 @@ Result MsaaState::Init(
         maskSamples <<= 1;
     }
 
-    m_pm4Image.paScAaMask1.u32All = ((usedMask << 16) | usedMask);
-    m_pm4Image.paScAaMask2.u32All = ((usedMask << 16) | usedMask);
+    m_regs.paScAaMask1.u32All = ((usedMask << 16) | usedMask);
+    m_regs.paScAaMask2.u32All = ((usedMask << 16) | usedMask);
 
     // Setup the PA_SC_MODE_CNTL_0 register
-    m_pm4Image.paScModeCntl0.u32All = 0;
+    m_regs.paScModeCntl0.u32All = 0;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 525
-    m_pm4Image.paScModeCntl0.bits.LINE_STIPPLE_ENABLE    = msaaState.flags.enableLineStipple;
+    m_regs.paScModeCntl0.bits.LINE_STIPPLE_ENABLE  = msaaState.flags.enableLineStipple;
 #endif
-    m_pm4Image.paScModeCntl0.bits.VPORT_SCISSOR_ENABLE   = 1;
-    m_pm4Image.paScModeCntl0.bits.MSAA_ENABLE            = (((NumSamples() > 1) ||
-                                                             (msaaState.flags.enable1xMsaaSampleLocations)) ? 1 : 0);
+    m_regs.paScModeCntl0.bits.VPORT_SCISSOR_ENABLE = 1;
+    m_regs.paScModeCntl0.bits.MSAA_ENABLE          = (((NumSamples() > 1) ||
+                                                      (msaaState.flags.enable1xMsaaSampleLocations)) ? 1 : 0);
+
     {
-        m_pm4Image.paScModeCntl0.core.ALTERNATE_RBS_PER_TILE = 1;
+        m_regs.paScModeCntl0.core.ALTERNATE_RBS_PER_TILE = 1;
     }
 
     // Setup the PA_SC_AA_CONFIG and DB_EQAA registers.
-    m_pm4Image.dbEqaa.bits.STATIC_ANCHOR_ASSOCIATIONS = 1;
-    m_pm4Image.dbEqaa.bits.HIGH_QUALITY_INTERSECTIONS = 1;
-    m_pm4Image.dbEqaa.bits.INCOHERENT_EQAA_READS      = 1;
-    m_pm4Image.dbEqaa.bits.INTERPOLATE_COMP_Z         = 1;
+    m_regs.dbEqaa.bits.STATIC_ANCHOR_ASSOCIATIONS = 1;
+    m_regs.dbEqaa.bits.HIGH_QUALITY_INTERSECTIONS = 1;
+    m_regs.dbEqaa.bits.INCOHERENT_EQAA_READS      = 1;
+    m_regs.dbEqaa.bits.INTERPOLATE_COMP_Z         = 1;
 
     if ((msaaState.coverageSamples > 1) || (msaaState.flags.enable1xMsaaSampleLocations))
     {
-        const uint32 log2ShaderExportSamples   = Log2(msaaState.shaderExportMaskSamples);
-
-        paScAaConfig.bits.MSAA_EXPOSED_SAMPLES = Log2(msaaState.exposedSamples);
+        const uint32 log2ShaderExportSamples = Log2(msaaState.shaderExportMaskSamples);
 
         // MAX_SAMPLE_DIST bits are written at CmdSetMsaaQuadSamplePattern based on the quadSamplePattern
         // via RMW packet.
-        paScAaConfig.bits.MAX_SAMPLE_DIST      = 0;
+        m_regs.paScAaConfig.bits.MAX_SAMPLE_DIST      = 0;
+        m_regs.paScAaConfig.bits.MSAA_EXPOSED_SAMPLES = Log2(msaaState.exposedSamples);
 
-        m_pm4Image.dbEqaa.bits.MAX_ANCHOR_SAMPLES        = Log2(msaaState.depthStencilSamples);
-        m_pm4Image.dbEqaa.bits.PS_ITER_SAMPLES           = Log2(msaaState.pixelShaderSamples);
-        m_pm4Image.dbEqaa.bits.MASK_EXPORT_NUM_SAMPLES   = log2ShaderExportSamples;
-        m_pm4Image.dbEqaa.bits.ALPHA_TO_MASK_NUM_SAMPLES = Log2(msaaState.alphaToCoverageSamples);
-        m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT  = log2ShaderExportSamples - Log2(msaaState.sampleClusters);
+        m_regs.dbEqaa.bits.MAX_ANCHOR_SAMPLES        = Log2(msaaState.depthStencilSamples);
+        m_regs.dbEqaa.bits.PS_ITER_SAMPLES           = Log2(msaaState.pixelShaderSamples);
+        m_regs.dbEqaa.bits.MASK_EXPORT_NUM_SAMPLES   = log2ShaderExportSamples;
+        m_regs.dbEqaa.bits.ALPHA_TO_MASK_NUM_SAMPLES = Log2(msaaState.alphaToCoverageSamples);
+        m_regs.dbEqaa.bits.OVERRASTERIZATION_AMOUNT  = log2ShaderExportSamples - Log2(msaaState.sampleClusters);
     }
 
     // The DB_SHADER_CONTROL register has a "ALPHA_TO_MASK_DISABLE" field that overrides this one.  DB_SHADER_CONTROL
     // is owned by the pipeline.  Always set this bit here and use the DB_SHADER_CONTROL to control the enabling.
-    m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_ENABLE = 1;
+    m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_ENABLE = 1;
 
     // The following code sets up the alpha to mask dithering pattern.
     // If all offsets are set to the same value then there will be no dithering, and the number of gradations of
@@ -249,51 +198,51 @@ Result MsaaState::Init(
     if (msaaState.flags.disableAlphaToCoverageDither)
 #endif
     {
-        m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET0 = 2;
-        m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET1 = 2;
-        m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET2 = 2;
-        m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET3 = 2;
-        m_pm4Image.dbAlphaToMask.bits.OFFSET_ROUND          = 0;
+        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET0 = 2;
+        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET1 = 2;
+        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET2 = 2;
+        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET3 = 2;
+        m_regs.dbAlphaToMask.bits.OFFSET_ROUND          = 0;
     }
     else
     {
-        m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET0 = 3;
-        m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET1 = 1;
-        m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET2 = 0;
-        m_pm4Image.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET3 = 2;
-        m_pm4Image.dbAlphaToMask.bits.OFFSET_ROUND          = 1;
+        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET0 = 3;
+        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET1 = 1;
+        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET2 = 0;
+        m_regs.dbAlphaToMask.bits.ALPHA_TO_MASK_OFFSET3 = 2;
+        m_regs.dbAlphaToMask.bits.OFFSET_ROUND          = 1;
     }
 
     if (msaaState.flags.enableConservativeRasterization)
     {
-        paScAaConfig.bits.AA_MASK_CENTROID_DTMN               = 1;
+        m_regs.paScAaConfig.bits.AA_MASK_CENTROID_DTMN = 1;
 
-        m_paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 0;
-        m_paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 1;
-        m_paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE          = 1;
-        m_paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE      = 1;
+        m_regs.paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 0;
+        m_regs.paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 1;
+        m_regs.paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE          = 1;
+        m_regs.paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE      = 1;
 
-        m_pm4Image.dbEqaa.bits.ENABLE_POSTZ_OVERRASTERIZATION = 0;
-        m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT       = 4;
+        m_regs.dbEqaa.bits.ENABLE_POSTZ_OVERRASTERIZATION = 0;
+        m_regs.dbEqaa.bits.OVERRASTERIZATION_AMOUNT       = 4;
 
         switch (msaaState.conservativeRasterizationMode)
         {
         case ConservativeRasterizationMode::Overestimate:
-            m_paScConsRastCntl.bits.OVER_RAST_ENABLE              = 1;
-            m_paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT       = 0;
-            m_paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
-            m_paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT      = 1;
-            m_paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 1;
-            m_paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE       = (settings.disableCoverageAaMask ? 0 : 1);
+            m_regs.paScConsRastCntl.bits.OVER_RAST_ENABLE              = 1;
+            m_regs.paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT       = 0;
+            m_regs.paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
+            m_regs.paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT      = 1;
+            m_regs.paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 1;
+            m_regs.paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE       = (settings.disableCoverageAaMask ? 0 : 1);
             break;
 
         case ConservativeRasterizationMode::Underestimate:
-            m_paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
-            m_paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT       = 1;
-            m_paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 1;
-            m_paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT      = 0;
-            m_paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
-            m_paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE       = 0;
+            m_regs.paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
+            m_regs.paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT       = 1;
+            m_regs.paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 1;
+            m_regs.paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT      = 0;
+            m_regs.paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
+            m_regs.paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE       = 0;
             break;
 
         case ConservativeRasterizationMode::Count:
@@ -303,21 +252,19 @@ Result MsaaState::Init(
     }
     else
     {
-        paScAaConfig.bits.AA_MASK_CENTROID_DTMN               = 0;
+        m_regs.paScAaConfig.bits.AA_MASK_CENTROID_DTMN = 0;
 
-        m_paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
-        m_paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
-        m_paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
-        m_paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 1;
-        m_paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 0;
-        m_paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE          = 0;
-        m_paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE      = 0;
+        m_regs.paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
+        m_regs.paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
+        m_regs.paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
+        m_regs.paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 1;
+        m_regs.paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 0;
+        m_regs.paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE          = 0;
+        m_regs.paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE      = 0;
     }
 
-    m_pm4Image.paScAaConfig.reg_data = paScAaConfig.u32All;
-
     if (settings.waFixPostZConservativeRasterization &&
-        (TestAllFlagsSet(m_pm4Image.paScAaMask1.u32All, ((1 << msaaState.exposedSamples) - 1)) == false))
+        (TestAllFlagsSet(m_regs.paScAaMask1.u32All, ((1 << msaaState.exposedSamples) - 1)) == false))
     {
         //    We have an issue in Navi10 related to Late - Z Conservative rasterization when the mask is partially lit.
         //
@@ -328,7 +275,7 @@ Result MsaaState::Init(
         //    lit.  The SWA would require that when PA_SC_AA_MASK_AA_MASK is partially lit with the number of
         //    samples defined by PA_SC_AA_CONFIG_MSAA_EXPOSED_SAMPLES, software would need to write the corresponding
         //    "PARTIALLY LIT" bit for that context.
-        m_pm4Image.dbReservedReg2.reg_data = Nv10::DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
+        m_regs.dbReservedReg2 = Nv10::DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
     }
 
     if (settings.waWrite1xAASampleLocationsToZero && (m_log2Samples == 0) && (usedMask != 0))
@@ -336,41 +283,16 @@ Result MsaaState::Init(
         // Writing to PA_SC_AA_SAMPLE_LOCS_X*Y* is not needed because it's set to all 0s in BuildPm4Headers(),
         // and the value will not be changed unless it's non-1xAA case (msaaState.coverageSamples > 1)
 
-        m_pm4Image.paScAaMask1.bits.AA_MASK_X0Y0 = 1;
-        m_pm4Image.paScAaMask1.bits.AA_MASK_X1Y0 = 1;
-        m_pm4Image.paScAaMask2.bits.AA_MASK_X0Y1 = 1;
-        m_pm4Image.paScAaMask2.bits.AA_MASK_X1Y1 = 1;
+        m_regs.paScAaMask1.bits.AA_MASK_X0Y0 = 1;
+        m_regs.paScAaMask1.bits.AA_MASK_X1Y0 = 1;
+        m_regs.paScAaMask2.bits.AA_MASK_X0Y1 = 1;
+        m_regs.paScAaMask2.bits.AA_MASK_X1Y1 = 1;
     }
-
-    return Result::Success;
-}
-
-// =====================================================================================================================
-// Constructs all the packets required to set the MSAA sample positions
-void MsaaState::BuildSamplePosPm4Image(
-    const CmdUtil&               cmdUtil,
-    MsaaSamplePositionsPm4Img*   pSamplePosPm4Image,
-    uint32                       numSamples,
-    const MsaaQuadSamplePattern& quadSamplePattern)
-{
-    // Setup the Centroid Priority registers
-    cmdUtil.BuildSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,
-                                   mmPA_SC_CENTROID_PRIORITY_1,
-                                   &pSamplePosPm4Image->hdrPaScCentroidPrio);
-
-    SetCentroidPriorities(&pSamplePosPm4Image->paScCentroid, &quadSamplePattern.topLeft[0], numSamples);
-
-    // Setup the sample locations registers
-    cmdUtil.BuildSetSeqContextRegs(mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0,
-                                   mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3,
-                                   &pSamplePosPm4Image->hdrPaScSampleQuad);
-
-    SetQuadSamplePattern(&pSamplePosPm4Image->paScSampleQuad, quadSamplePattern, numSamples);
 }
 
 // =====================================================================================================================
 // Sets the centroid priority register fields based on the specified sample positions.
-void MsaaState::SetCentroidPriorities(
+static void SetCentroidPriorities(
     PaScCentroid*   pPaScCentroid,
     const Offset2d* pSampleLocations,
     uint32          numSamples)
@@ -434,7 +356,7 @@ void MsaaState::SetCentroidPriorities(
 
 // =====================================================================================================================
 // Sets the sample locations register in the passed sample positions pm4 image.
-void MsaaState::SetQuadSamplePattern(
+static void SetQuadSamplePattern(
     PaScSampleQuad*              pPaScSampleQuad,
     const MsaaQuadSamplePattern& quadSamplePattern,
     uint32                       numSamples)
@@ -497,6 +419,55 @@ void MsaaState::SetQuadSamplePattern(
             pSampleQuad->u32All |= ((pSampleLocations[sampleIdx].y & BitMaskLocationCoordinate) << shiftY);
         }
     }
+}
+
+// =====================================================================================================================
+// Helper function which computes the maximum sample distance (from pixel center) based on the specified sample
+// positions.
+static uint32 ComputeMaxSampleDistance(
+    uint32                       numSamples,
+    const MsaaQuadSamplePattern& quadSamplePattern)
+{
+    uint32 distance = 0;
+
+    const Offset2d*const pSampleLocations = &quadSamplePattern.topLeft[0];
+    for(uint32 i = 0; i < numSamples; ++i)
+    {
+        distance = Max(distance, static_cast<uint32>(Max(abs(pSampleLocations[i].x),
+                                                         abs(pSampleLocations[i].y))));
+    }
+
+    return distance;
+}
+
+// =====================================================================================================================
+uint32* MsaaState::WriteSamplePositions(
+    const MsaaQuadSamplePattern& samplePattern,
+    uint32                       numSamples,
+    CmdStream*                   pCmdStream,
+    uint32*                      pCmdSpace)
+{
+    PaScCentroid paScCentroid = { };
+    SetCentroidPriorities(&paScCentroid, &samplePattern.topLeft[0], numSamples);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,
+                                                   mmPA_SC_CENTROID_PRIORITY_1,
+                                                   &paScCentroid,
+                                                   pCmdSpace);
+
+    PaScSampleQuad paScSampleQuad = { };
+    SetQuadSamplePattern(&paScSampleQuad, samplePattern, numSamples);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0,
+                                                   mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3,
+                                                   &paScSampleQuad,
+                                                   pCmdSpace);
+
+    regPA_SC_AA_CONFIG paScAaConfig = { };
+    paScAaConfig.bits.MAX_SAMPLE_DIST = ComputeMaxSampleDistance(numSamples, samplePattern);
+
+    return pCmdStream->WriteContextRegRmw(mmPA_SC_AA_CONFIG,
+                                          static_cast<uint32>(PA_SC_AA_CONFIG__MAX_SAMPLE_DIST_MASK),
+                                          paScAaConfig.u32All,
+                                          pCmdSpace);
 }
 
 } // Gfx9

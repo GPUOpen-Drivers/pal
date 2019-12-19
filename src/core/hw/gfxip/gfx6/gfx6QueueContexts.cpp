@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6ComputeEngine.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
-#include "core/hw/gfxip/gfx6/gfx6Preambles.h"
 #include "core/hw/gfxip/gfx6/gfx6QueueContexts.h"
 #include "core/hw/gfxip/gfx6/gfx6ShaderRingSet.h"
 #include "core/hw/gfxip/gfx6/gfx6UniversalEngine.h"
@@ -57,67 +56,51 @@ constexpr uint32 CmdStreamPerSubmit = 0;
 constexpr uint32 CmdStreamContext   = 1;
 
 // =====================================================================================================================
-// Assembles and initializes the PM4 commands for the common preamble image.
-static void SetupCommonPreamble(
-    Device*               pDevice,
-    CommonPreamblePm4Img* pCommonPreamble)
+// Writes commands which are common to the preambles for Compute and Universal queues.
+static uint32* WriteCommonPreamble(
+    const Device& device,
+    EngineType    engineType,
+    CmdStream*    pCmdStream,
+    uint32*       pCmdSpace)
 {
-    memset(pCommonPreamble, 0, sizeof(CommonPreamblePm4Img));
+    const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
 
-    const CmdUtil&           cmdUtil   = pDevice->CmdUtil();
-    const Gfx6PalSettings&   settings  = pDevice->Settings();
-    const GpuChipProperties& chipProps = pDevice->Parent()->ChipProperties();
+    // It's legal to set the CU mask to enable all CUs. The UMD does not need to know about active CUs and harvested
+    // CUs at this point. Using the packet SET_SH_REG_INDEX, the UMD mask will be ANDed with the KMD mask so that UMD
+    // does not use the CUs that are intended for real time compute usage.
 
-    // First build the PM4 headers.
+    const uint16 cuEnableMask = device.GetCuEnableMask(0, device.Settings().csCuEnLimitMask);
 
-    pCommonPreamble->spaceNeeded +=
-        cmdUtil.BuildSetSeqShRegsIndex(mmCOMPUTE_STATIC_THREAD_MGMT_SE0,
-                                       mmCOMPUTE_STATIC_THREAD_MGMT_SE1,
-                                       ShaderCompute,
-                                       SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
-                                       &pCommonPreamble->hdrThreadMgmt01);
+    regCOMPUTE_STATIC_THREAD_MGMT_SE0 computeStaticThreadMgmtPerSe = { };
+    computeStaticThreadMgmtPerSe.bits.SH0_CU_EN = cuEnableMask;
+    computeStaticThreadMgmtPerSe.bits.SH1_CU_EN = cuEnableMask;
+
+    const uint32 masksPerSe[4] =
+    {
+        computeStaticThreadMgmtPerSe.u32All,
+        ((chipProps.gfx6.numShaderEngines >= 2) ? computeStaticThreadMgmtPerSe.u32All : 0),
+        ((chipProps.gfx6.numShaderEngines >= 3) ? computeStaticThreadMgmtPerSe.u32All : 0),
+        ((chipProps.gfx6.numShaderEngines >= 4) ? computeStaticThreadMgmtPerSe.u32All : 0),
+    };
+
+    pCmdSpace = pCmdStream->WriteSetSeqShRegsIndex(mmCOMPUTE_STATIC_THREAD_MGMT_SE0,
+                                                   mmCOMPUTE_STATIC_THREAD_MGMT_SE1,
+                                                   ShaderCompute,
+                                                   &masksPerSe[0],
+                                                   SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
+                                                   pCmdSpace);
 
     if (chipProps.gfxLevel != GfxIpLevel::GfxIp6)
     {
-        // On Gfx6, the registers in the 3rd PM4 packet are not present; no need to build it.
-        pCommonPreamble->spaceNeeded +=
-            cmdUtil.BuildSetSeqShRegsIndex(mmCOMPUTE_STATIC_THREAD_MGMT_SE2__CI__VI,
-                                           mmCOMPUTE_STATIC_THREAD_MGMT_SE3__CI__VI,
-                                           ShaderCompute,
-                                           SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
-                                           &pCommonPreamble->hdrThreadMgmt23);
+        pCmdSpace = pCmdStream->WriteSetSeqShRegsIndex(mmCOMPUTE_STATIC_THREAD_MGMT_SE2__CI__VI,
+                                                       mmCOMPUTE_STATIC_THREAD_MGMT_SE3__CI__VI,
+                                                       ShaderCompute,
+                                                       &masksPerSe[2],
+                                                       SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
+                                                       pCmdSpace);
     }
 
-    // Now set up the values for the registers being written.
-
-    // It's legal to set the CU mask to enable all CUs. The UMD does not need to know about active CUs and harvested CUs
-    // at this point. Using the packet SET_SH_REG_INDEX, the UMD mask will be ANDed with the KMD mask so that UMD does
-    // not use the CUs that are intended for real time compute usage.
-
-    const uint16 cuEnableMask = pDevice->GetCuEnableMask(0, settings.csCuEnLimitMask);
-
-    // Enable Compute workloads on all CU's of SE0/SE1 (unless masked).
-    pCommonPreamble->computeStaticThreadMgmtSe0.bits.SH0_CU_EN = cuEnableMask;
-    pCommonPreamble->computeStaticThreadMgmtSe0.bits.SH1_CU_EN = cuEnableMask;
-
-    if (chipProps.gfx6.numShaderEngines > 1)
-    {
-        pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH0_CU_EN = cuEnableMask;
-        pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH1_CU_EN = cuEnableMask;
-
-        // Enable Compute workloads on all CU's of SE2/SE3 (unless masked).
-        if ((chipProps.gfxLevel != GfxIpLevel::GfxIp6) && (chipProps.gfx6.numShaderEngines > 2))
-        {
-            pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH0_CU_EN = cuEnableMask;
-            pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH1_CU_EN = cuEnableMask;
-
-            if (chipProps.gfx6.numShaderEngines > 3)
-            {
-                pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH0_CU_EN = cuEnableMask;
-                pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH1_CU_EN = cuEnableMask;
-            }
-        }
-    }
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -178,10 +161,7 @@ Result ComputeQueueContext::Init()
 
     if (result == Result::Success)
     {
-        SetupCommonPreamble(m_pDevice, &m_commonPreamble);
-        BuildComputePreambleHeaders();
-        SetupComputePreambleRegisters();
-        RebuildCommandStream();
+        result = RebuildCommandStream();
     }
 
     return result;
@@ -200,17 +180,20 @@ Result ComputeQueueContext::PreProcessSubmit(
 
     if ((result == Result::Success) && hasUpdated)
     {
-        RebuildCommandStream();
+        result = RebuildCommandStream();
     }
 
-    pSubmitInfo->pPreambleCmdStream[0]  = &m_perSubmitCmdStream;
-    pSubmitInfo->pPreambleCmdStream[1]  = &m_cmdStream;
-    pSubmitInfo->pPostambleCmdStream[0] = &m_postambleCmdStream;
+    if (result == Result::Success)
+    {
+        pSubmitInfo->pPreambleCmdStream[0]  = &m_perSubmitCmdStream;
+        pSubmitInfo->pPreambleCmdStream[1]  = &m_cmdStream;
+        pSubmitInfo->pPostambleCmdStream[0] = &m_postambleCmdStream;
 
-    pSubmitInfo->numPreambleCmdStreams  = 2;
-    pSubmitInfo->numPostambleCmdStreams = 1;
+        pSubmitInfo->numPreambleCmdStreams  = 2;
+        pSubmitInfo->numPostambleCmdStreams = 1;
 
-    pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
+        pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
+    }
 
     return result;
 }
@@ -230,7 +213,7 @@ void ComputeQueueContext::PostProcessSubmit()
 
 // =====================================================================================================================
 // Regenerates the contents of this context's internal command stream.
-void ComputeQueueContext::RebuildCommandStream()
+Result ComputeQueueContext::RebuildCommandStream()
 {
     /*
      * There are two preambles which PAL submits with every set of command buffers: one which executes as a preamble
@@ -249,116 +232,49 @@ void ComputeQueueContext::RebuildCommandStream()
      * an end-of-pipe event that flushes all write caches and clears the timestamp back to zero.
      */
 
-    constexpr CmdStreamBeginFlags beginFlags = {};
-    const CmdUtil&                cmdUtil    = m_pDevice->CmdUtil();
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
     // The drop-if-same-context queue preamble.
     //==================================================================================================================
 
     m_cmdStream.Reset(nullptr, true);
-    m_cmdStream.Begin(beginFlags, nullptr);
+    Result result = m_cmdStream.Begin({}, nullptr);
 
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-
-    // Write the shader ring-set's commands before the command stream's normal preamble. If the ring sizes have changed,
-    // the hardware requires a CS partial flush to operate properly.
-    pCmdSpace = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
-
-    if (m_pDevice->CmdUtil().CanUseCsPartialFlush(EngineTypeCompute))
+    if (result == Result::Success)
     {
-        pCmdSpace += cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+
+        // Write the shader ring-set's commands before the command stream's normal preamble. If the ring sizes have
+        // changed, the hardware requires a CS idle to operate properly.
+        pCmdSpace  = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
+
+        const gpusize waitTsGpuVa = (m_waitForIdleTs.IsBound() ? m_waitForIdleTs.GpuVirtAddr() : 0);
+        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, waitTsGpuVa, pCmdSpace);
+
+        pCmdSpace  = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, &m_cmdStream, pCmdSpace);
+        pCmdSpace  = WriteTrapInstallCmds(m_pDevice, &m_cmdStream, PipelineBindPoint::Compute, pCmdSpace);
+
+        m_cmdStream.CommitCommands(pCmdSpace);
+        result = m_cmdStream.End();
     }
-    else
-    {
-        pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, m_waitForIdleTs.GpuVirtAddr(), pCmdSpace);
-    }
-
-    // Copy the common preamble commands and compute-specific preamble commands.
-    pCmdSpace = m_cmdStream.WritePm4Image(m_commonPreamble.spaceNeeded,  &m_commonPreamble,  pCmdSpace);
-    pCmdSpace = m_cmdStream.WritePm4Image(m_computePreamble.spaceNeeded, &m_computePreamble, pCmdSpace);
-
-    pCmdSpace = WriteTrapInstallCmds(m_pDevice, &m_cmdStream, PipelineBindPoint::Compute, pCmdSpace);
-
-    m_cmdStream.CommitCommands(pCmdSpace);
-    m_cmdStream.End();
 
     // The per-submit preamble.
     //==================================================================================================================
 
-    m_perSubmitCmdStream.Reset(nullptr, true);
-    m_perSubmitCmdStream.Begin(beginFlags, nullptr);
-
-    pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
-
-    // The following wait, write data, and surface sync must be at the beginning of the per-submit preamble.
-    //
-    // Wait for a prior submission on this context to be idle before executing the command buffer streams.
-    // The timestamp memory is initialized to zero so the first submission on this context will not wait.
-    pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
-                                         WAIT_REG_MEM_FUNC_EQUAL,
-                                         WAIT_REG_MEM_ENGINE_PFP,
-                                         m_exclusiveExecTs.GpuVirtAddr(),
-                                         0,
-                                         0xFFFFFFFF,
-                                         false,
-                                         pCmdSpace);
-
-    // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-    WriteDataInfo writeData = {};
-    writeData.dstAddr = m_exclusiveExecTs.GpuVirtAddr();
-    writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
-
-    pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
-
-    // Issue a surface_sync or acquire mem packet to invalidate all L1 caches (TCP, SQ I-cache, SQ K-cache).
-    //
-    // Our postamble stream flushes and invalidates the L2 with an EOP event at the conclusion of each user mode
-    // submission, but the L1 shader caches (SQC/TCP) are not invalidated. We waited for that event just above this
-    // packet so the L2 cannot contain stale data. However, a well behaving app could read stale L1 data unless we
-    // invalidate those caches here.
-    regCP_COHER_CNTL invalidateL1Cache = {};
-    invalidateL1Cache.bits.SH_ICACHE_ACTION_ENA = 1;
-    invalidateL1Cache.bits.SH_KCACHE_ACTION_ENA = 1;
-    invalidateL1Cache.bits.TCL1_ACTION_ENA      = 1;
-
-    pCmdSpace += cmdUtil.BuildGenericSync(invalidateL1Cache,
-                                          SURFACE_SYNC_ENGINE_ME,
-                                          FullSyncBaseAddr,
-                                          FullSyncSize,
-                                          true,
-                                          pCmdSpace);
-
-    m_perSubmitCmdStream.CommitCommands(pCmdSpace);
-    m_perSubmitCmdStream.End();
-
-    // The per-submit postamble.
-    //==================================================================================================================
-
-    m_postambleCmdStream.Reset(nullptr, true);
-    m_postambleCmdStream.Begin(beginFlags, nullptr);
-
-    pCmdSpace = m_postambleCmdStream.ReserveCommands();
-
-    // This EOP event packet must be at the end of the per-submit postamble.
-    //
-    // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
-    // We also use this pipelined event to flush and invalidate the shader L2 cache as described above.
-    pCmdSpace += cmdUtil.BuildGenericEopEvent(BOTTOM_OF_PIPE_TS,
-                                              m_exclusiveExecTs.GpuVirtAddr(),
-                                              EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
-                                              0,
-                                              true,
-                                              true,
-                                              pCmdSpace);
-
-    // The gfx7 MEC microcode assumes that all RELEASE_MEMs in indirect buffers have the same VMID. If this assumption
-    // is broken timestamps from prior IBs will be written using the VMID of the current IB which will cause a page
-    // fault. PAL has no way to know if KMD is going to schedule work with different VMIDs on the same compute ring so
-    // we must assume the CP's assumption will be broken. In that case, we must guarantee that all of our timestamps
-    // are written before we end this postamble so that they use the proper VMID. We can do this by simply waiting on
-    // the EOP timestamp we just issued.
-    if (m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp7)
+    if (result == Result::Success)
     {
+        m_perSubmitCmdStream.Reset(nullptr, true);
+        result = m_perSubmitCmdStream.Begin({}, nullptr);
+    }
+
+    if (result == Result::Success)
+    {
+        uint32* pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
+
+        // The following wait, write data, and surface sync must be at the beginning of the per-submit preamble.
+        //
+        // Wait for a prior submission on this context to be idle before executing the command buffer streams.
+        // The timestamp memory is initialized to zero so the first submission on this context will not wait.
         pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
                                              WAIT_REG_MEM_FUNC_EQUAL,
                                              WAIT_REG_MEM_ENGINE_PFP,
@@ -367,10 +283,82 @@ void ComputeQueueContext::RebuildCommandStream()
                                              0xFFFFFFFF,
                                              false,
                                              pCmdSpace);
+
+        // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
+        WriteDataInfo writeData = {};
+        writeData.dstAddr = m_exclusiveExecTs.GpuVirtAddr();
+        writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+
+        pCmdSpace += cmdUtil.BuildWriteData(writeData, 1, pCmdSpace);
+
+        // Issue a surface_sync or acquire mem packet to invalidate all L1 caches (TCP, SQ I-cache, SQ K-cache).
+        //
+        // Our postamble stream flushes and invalidates the L2 with an EOP event at the conclusion of each user mode
+        // submission, but the L1 shader caches (SQC/TCP) are not invalidated. We waited for that event just above this
+        // packet so the L2 cannot contain stale data. However, a well behaving app could read stale L1 data unless we
+        // invalidate those caches here.
+        regCP_COHER_CNTL invalidateL1Cache = {};
+        invalidateL1Cache.bits.SH_ICACHE_ACTION_ENA = 1;
+        invalidateL1Cache.bits.SH_KCACHE_ACTION_ENA = 1;
+        invalidateL1Cache.bits.TCL1_ACTION_ENA      = 1;
+
+        pCmdSpace += cmdUtil.BuildGenericSync(invalidateL1Cache,
+                                              SURFACE_SYNC_ENGINE_ME,
+                                              FullSyncBaseAddr,
+                                              FullSyncSize,
+                                              true,
+                                              pCmdSpace);
+
+        m_perSubmitCmdStream.CommitCommands(pCmdSpace);
+        result = m_perSubmitCmdStream.End();
     }
 
-    m_postambleCmdStream.CommitCommands(pCmdSpace);
-    m_postambleCmdStream.End();
+    // The per-submit postamble.
+    //==================================================================================================================
+
+    if (result == Result::Success)
+    {
+        m_postambleCmdStream.Reset(nullptr, true);
+        result = m_postambleCmdStream.Begin({}, nullptr);
+    }
+
+    if (result == Result::Success)
+    {
+        uint32* pCmdSpace = m_postambleCmdStream.ReserveCommands();
+
+        // This EOP event packet must be at the end of the per-submit postamble.
+        //
+        // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
+        // We also use this pipelined event to flush and invalidate the shader L2 cache as described above.
+        pCmdSpace += cmdUtil.BuildGenericEopEvent(BOTTOM_OF_PIPE_TS,
+                                                  m_exclusiveExecTs.GpuVirtAddr(),
+                                                  EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
+                                                  0,
+                                                  true,
+                                                  true,
+                                                  pCmdSpace);
+
+        // The gfx7 MEC microcode assumes that all RELEASE_MEMs in indirect buffers have the same VMID.  If this
+        // assumption is broken, timestamps from prior IBs will be written using the VMID of the current IB which will
+        // cause a page fault.  PAL has no way to know if KMD is going to schedule work with different VMIDs on the same
+        // compute ring so we must assume the CP's assumption will be broken. In that case, we must guarantee that all of
+        // our timestamps are written before we end this postamble so that they use the proper VMID. We can do this by
+        // simply waiting on the EOP timestamp we just issued.
+        if (m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp7)
+        {
+            pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
+                                                 WAIT_REG_MEM_FUNC_EQUAL,
+                                                 WAIT_REG_MEM_ENGINE_PFP,
+                                                 m_exclusiveExecTs.GpuVirtAddr(),
+                                                 0,
+                                                 0xFFFFFFFF,
+                                                 false,
+                                                 pCmdSpace);
+        }
+
+        m_postambleCmdStream.CommitCommands(pCmdSpace);
+        result = m_postambleCmdStream.End();
+    }
 
     // If this assert is hit, CmdBufInternalSuballocSize should be increased.
     PAL_ASSERT((m_cmdStream.GetNumChunks() == 1)          &&
@@ -385,21 +373,8 @@ void ComputeQueueContext::RebuildCommandStream()
     // optimize-away this command stream.
     m_perSubmitCmdStream.EnableDropIfSameContext(false);
     m_postambleCmdStream.EnableDropIfSameContext(false);
-}
 
-// =====================================================================================================================
-// Assembles the compute-only specific PM4 headers for the queue context preamble.
-void ComputeQueueContext::BuildComputePreambleHeaders()
-{
-    memset(&m_computePreamble, 0, sizeof(m_computePreamble));
-
-    m_computePreamble.spaceNeeded = 0;
-}
-
-// =====================================================================================================================
-// Sets up the compute-specific PM4 commands for the queue context preamble.
-void ComputeQueueContext::SetupComputePreambleRegisters()
-{
+    return result;
 }
 
 // =====================================================================================================================
@@ -513,17 +488,12 @@ Result UniversalQueueContext::Init()
 
     if (result == Result::Success)
     {
-        SetupCommonPreamble(m_pDevice, &m_commonPreamble);
-        BuildUniversalPreambleHeaders();
-        SetupUniversalPreambleRegisters();
+        result = BuildShadowPreamble();
+    }
 
-        // The shadow preamble should only be constructed for queues that need it.
-        if (m_useShadowing)
-        {
-            BuildShadowPreamble();
-        }
-
-        RebuildCommandStreams();
+    if (result == Result::Success)
+    {
+        result = RebuildCommandStreams();
     }
 
     return result;
@@ -598,33 +568,39 @@ Result UniversalQueueContext::AllocateShadowMemory()
 
 // =====================================================================================================================
 // Constructs the shadow memory initialization preamble command stream.
-void UniversalQueueContext::BuildShadowPreamble()
+Result UniversalQueueContext::BuildShadowPreamble()
 {
+    Result result = Result::Success;
+
     // This should only be called when state shadowing is being used.
-    PAL_ASSERT(m_useShadowing);
+    if (m_useShadowing)
+    {
+        m_shadowInitCmdStream.Reset(nullptr, true);
+        result = m_shadowInitCmdStream.Begin({}, nullptr);
 
-    constexpr CmdStreamBeginFlags beginFlags = {};
+        if (result == Result::Success)
+        {
+            // Generate a version of the per submit preamble that initializes shadow memory.
+            WritePerSubmitPreamble(&m_shadowInitCmdStream, true);
 
-    m_shadowInitCmdStream.Reset(nullptr, true);
-    m_shadowInitCmdStream.Begin(beginFlags, nullptr);
+            result = m_shadowInitCmdStream.End();
+        }
+    }
 
-    // Generate a version of the per submit preamble that initializes shadow memory.
-    BuildPerSubmitCommandStream(m_shadowInitCmdStream, true);
-
-    m_shadowInitCmdStream.End();
+    return result;
 }
 
 // =====================================================================================================================
 // Builds a per-submit command stream for the DE. Conditionally adds shadow memory initialization commands.
-void UniversalQueueContext::BuildPerSubmitCommandStream(
-    CmdStream& cmdStream,
+void UniversalQueueContext::WritePerSubmitPreamble(
+    CmdStream* pCmdStream,
     bool       initShadowMemory)
 {
     // Shadow memory should only be initialized when state shadowing is being used.
     PAL_ASSERT(m_useShadowing || (initShadowMemory == false));
 
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
-    uint32* pCmdSpace      = cmdStream.ReserveCommands();
+    uint32* pCmdSpace      = pCmdStream->ReserveCommands();
 
     // The following wait, write data, and surface sync must be at the beginning of the per-submit DE preamble.
     //
@@ -682,16 +658,14 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         pCmdSpace += cmdUtil.BuildEventWrite(VGT_FLUSH,        pCmdSpace);
     }
 
-    // Set up state shadowing.
-    pCmdSpace = cmdStream.WritePm4Image(m_stateShadowPreamble.spaceNeeded,
-                                        &m_stateShadowPreamble,
-                                        pCmdSpace);
+    // Write commands to issue context_control and other state-shadowing related stuff.
+    pCmdSpace = WriteStateShadowingCommands(pCmdStream, pCmdSpace);
 
-    cmdStream.CommitCommands(pCmdSpace);
+    pCmdStream->CommitCommands(pCmdSpace);
 
     if (initShadowMemory)
     {
-        pCmdSpace = cmdStream.ReserveCommands();
+        pCmdSpace = pCmdStream->ReserveCommands();
 
         // Use a DMA_DATA packet to initialize all shadow memory to 0s explicitely.
         DmaDataInfo dmaData  = {};
@@ -731,14 +705,14 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
                                              pCmdSpace);
         gpuVirtAddr += (sizeof(uint32) * ShRegCount);
 
-        cmdStream.CommitCommands(pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
 
         // We do this after m_stateShadowPreamble, when the LOADs are done and HW knows the shadow memory.
         // First LOADs will load garbage. InitializeContextRegisters will init the register and also the shadow Memory.
         const auto& chipProps = m_pDevice->Parent()->ChipProperties();
         if (chipProps.gfxLevel >= GfxIpLevel::GfxIp8)
         {
-            InitializeContextRegistersGfx8(&cmdStream, 0, nullptr, nullptr);
+            InitializeContextRegistersGfx8(pCmdStream, 0, nullptr, nullptr);
         }
         else
         {
@@ -750,14 +724,12 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
     // When shadowing is enabled, these registers don't get lost so we only need to do this when shadowing is off.
     if (m_pDevice->WaForceToWriteNonRlcRestoredRegs() && (m_useShadowing == false))
     {
-        const auto* pRingSet = m_pEngine->RingSet();
-
         // Some hardware doesn't restore non-RLC registers following a power-management event. The workaround is to
         // restore those registers *every* submission, rather than just the ones following a ring resize event or
         // after a context switch between applications
-        pCmdSpace = cmdStream.ReserveCommands();
-        pCmdSpace = pRingSet->WriteNonRlcRestoredRegs(&cmdStream, pCmdSpace);
-        cmdStream.CommitCommands(pCmdSpace);
+        pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace = m_pEngine->RingSet()->WriteNonRlcRestoredRegs(pCmdStream, pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
     }
 }
 
@@ -776,47 +748,50 @@ Result UniversalQueueContext::PreProcessSubmit(
     Result result     = Result::Success;
 
     // We only need to rebuild the command stream if the user submits at least one command buffer.
-    if ((result == Result::Success) && (submitInfo.cmdBufferCount != 0))
+    if (submitInfo.cmdBufferCount != 0)
     {
         result = m_pEngine->UpdateRingSet(&m_currentUpdateCounter, &hasUpdated);
 
         if ((result == Result::Success) && hasUpdated)
         {
-            RebuildCommandStreams();
+            result = RebuildCommandStreams();
         }
     }
 
-    uint32 preambleCount  = 0;
-    if (m_cePreambleCmdStream.IsEmpty() == false)
+    if (result == Result::Success)
     {
-        pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_cePreambleCmdStream;
+        uint32 preambleCount  = 0;
+        if (m_cePreambleCmdStream.IsEmpty() == false)
+        {
+            pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_cePreambleCmdStream;
+            ++preambleCount;
+        }
+
+        pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
         ++preambleCount;
-    }
 
-    pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
-    ++preambleCount;
+        if (m_pDevice->CoreSettings().commandBufferCombineDePreambles == false)
+        {
+            // Submit the per-context preamble independently.
+            pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_deCmdStream;
+            ++preambleCount;
+        }
 
-    if (m_pDevice->CoreSettings().commandBufferCombineDePreambles == false)
-    {
-        // Submit the per-context preamble independently.
-        pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_deCmdStream;
-        ++preambleCount;
-    }
+        uint32 postambleCount = 0;
+        if (m_cePostambleCmdStream.IsEmpty() == false)
+        {
+            pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_cePostambleCmdStream;
+            ++postambleCount;
+        }
 
-    uint32 postambleCount = 0;
-    if (m_cePostambleCmdStream.IsEmpty() == false)
-    {
-        pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_cePostambleCmdStream;
+        pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_dePostambleCmdStream;
         ++postambleCount;
+
+        pSubmitInfo->numPreambleCmdStreams  = preambleCount;
+        pSubmitInfo->numPostambleCmdStreams = postambleCount;
+
+        pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
     }
-
-    pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_dePostambleCmdStream;
-    ++postambleCount;
-
-    pSubmitInfo->numPreambleCmdStreams  = preambleCount;
-    pSubmitInfo->numPostambleCmdStreams = postambleCount;
-
-    pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
 
     return result;
 }
@@ -874,7 +849,7 @@ Result UniversalQueueContext::ProcessInitialSubmit(
 
 // =====================================================================================================================
 // Regenerates the contents of this context's internal command streams.
-void UniversalQueueContext::RebuildCommandStreams()
+Result UniversalQueueContext::RebuildCommandStreams()
 {
     /*
      * There are two DE preambles which PAL submits with every set of command buffers: one which executes as a preamble
@@ -906,97 +881,74 @@ void UniversalQueueContext::RebuildCommandStreams()
      * an end-of-pipe event that flushes all write caches and clears the timestamp back to zero.
      */
 
-    constexpr CmdStreamBeginFlags beginFlags = {};
-    const     GpuChipProperties&  chipProps  = m_pDevice->Parent()->ChipProperties();
-    const     CmdUtil&            cmdUtil    = m_pDevice->CmdUtil();
+    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
     // The drop-if-same-context DE preamble.
     //==================================================================================================================
 
     m_deCmdStream.Reset(nullptr, true);
-    m_deCmdStream.Begin(beginFlags, nullptr);
+    Result result = m_deCmdStream.Begin({}, nullptr);
 
-    uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-
-    // Copy the common preamble commands and the universal-specific preamble commands.
-    pCmdSpace = m_deCmdStream.WritePm4Image(m_universalPreamble.spaceNeeded, &m_universalPreamble, pCmdSpace);
-    pCmdSpace = m_deCmdStream.WritePm4Image(m_commonPreamble.spaceNeeded,    &m_commonPreamble,    pCmdSpace);
-
-    if (m_gfx6UniversalPreamble.spaceNeeded > 0)
+    if (result == Result::Success)
     {
-        // Copy the Gfx6-specific universal preamble commands.
-        pCmdSpace = m_deCmdStream.WritePm4Image(m_gfx6UniversalPreamble.spaceNeeded, &m_gfx6UniversalPreamble, pCmdSpace);
+        uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+
+        pCmdSpace = WriteUniversalPreamble(pCmdSpace);
+
+        const auto* pRingSet = m_pEngine->RingSet();
+
+        // Write the shader ring-set's commands after the command stream's normal preamble. If the ring sizes have changed,
+        // the hardware requires a CS/VS/PS partial flush to operate properly.
+        pCmdSpace  = pRingSet->WriteCommands(&m_deCmdStream, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildEventWrite(VS_PARTIAL_FLUSH, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildEventWrite(PS_PARTIAL_FLUSH, pCmdSpace);
+
+        // @note: This condition is temporarily commented out to fix a regression that was specific to asics which required
+        //        the "waForceToWriteNonRlcRestoredRegs" workaround. Commenting out the condition causes the code to always
+        //        restore the non-RLC registers after every context switch, even on asics affected by the workaround. This
+        //        is necessary because of the clear state packet that happens earlier in the universal preamble. The code
+        //        before the regression used to submit the universal preamble first, then the per submit preamble, but the
+        //        code that caused the regression reversed the order to fix another issue. With the new setup, when we
+        //        switch contexts, we can end up loading the non-rlc registers in the per submit, then executing the
+        //        universal preamble which writes a clear state packet that clears some of the loaded registers. This can
+        //        be fixed by unconditionally loading the registers after the clear state in the universal preamble. We
+        //        still need the load in the per submit preamble for asics affected by the workaround though. If we're
+        //        using the same context, the universal preamble can be dropped and only the per submit preamble will run.
+        //
+        //        This temporary change will be removed by a later change related to mid command buffer preemption.
+        //if (m_pDevice->WaForceToWriteNonRlcRestoredRegs() == false)
+        {
+            // If the workaround is disabled, we only need to restore the non-RLC registers whenever the ring sizes
+            // are changed or after a context switch between applications.
+            pCmdSpace = pRingSet->WriteNonRlcRestoredRegs(&m_deCmdStream, pCmdSpace);
+        }
+
+        pCmdSpace = WriteTrapInstallCmds(m_pDevice, &m_deCmdStream, PipelineBindPoint::Graphics, pCmdSpace);
+        pCmdSpace = WriteTrapInstallCmds(m_pDevice, &m_deCmdStream, PipelineBindPoint::Compute, pCmdSpace);
+
+        m_deCmdStream.CommitCommands(pCmdSpace);
+        result = m_deCmdStream.End();
     }
-    else if (m_gfx8UniversalPreamble.spaceNeeded > 0)
-    {
-        // Copy the Gfx8-specific universal preamble commands.
-        pCmdSpace = m_deCmdStream.WritePm4Image(m_gfx8UniversalPreamble.spaceNeeded, &m_gfx8UniversalPreamble, pCmdSpace);
-    }
-
-    // Several context registers are considered "sticky" by the hardware team, which means that they broadcast their
-    // value to all eight render contexts. Clear state cannot reset them properly if another driver changes them,
-    // because that driver's writes will have clobbered the values in our clear state reserved GPU context. We need to
-    // restore default values here to be on the safe side.
-    constexpr uint32 StickyVgtRegValues[] =
-    {
-        UINT_MAX, // VGT_MAX_VTX_INDX
-        0,        // VGT_MIN_VTX_INDX
-        0,        // VGT_INDX_OFFSET
-    };
-    static_assert(sizeof(StickyVgtRegValues) == (sizeof(uint32) * (mmVGT_INDX_OFFSET - mmVGT_MAX_VTX_INDX + 1)),
-                  "Unexpected number of sticky VGT register values!");
-
-    pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmVGT_MAX_VTX_INDX,
-                                                     mmVGT_INDX_OFFSET,
-                                                     &StickyVgtRegValues[0],
-                                                     pCmdSpace);
-
-    const auto* pRingSet = m_pEngine->RingSet();
-
-    // Write the shader ring-set's commands after the command stream's normal preamble. If the ring sizes have changed,
-    // the hardware requires a CS/VS/PS partial flush to operate properly.
-    pCmdSpace = pRingSet->WriteCommands(&m_deCmdStream, pCmdSpace);
-
-    pCmdSpace += cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
-    pCmdSpace += cmdUtil.BuildEventWrite(VS_PARTIAL_FLUSH, pCmdSpace);
-    pCmdSpace += cmdUtil.BuildEventWrite(PS_PARTIAL_FLUSH, pCmdSpace);
-
-    // @note: This condition is temporarily commented out to fix a regression that was specific to asics which required
-    //        the "waForceToWriteNonRlcRestoredRegs" workaround. Commenting out the condition causes the code to always
-    //        restore the non-RLC registers after every context switch, even on asics affected by the workaround. This
-    //        is necessary because of the clear state packet that happens earlier in the universal preamble. The code
-    //        before the regression used to submit the universal preamble first, then the per submit preamble, but the
-    //        code that caused the regression reversed the order to fix another issue. With the new setup, when we
-    //        switch contexts, we can end up loading the non-rlc registers in the per submit, then executing the
-    //        universal preamble which writes a clear state packet that clears some of the loaded registers. This can
-    //        be fixed by unconditionally loading the registers after the clear state in the universal preamble. We
-    //        still need the load in the per submit preamble for asics affected by the workaround though. If we're
-    //        using the same context, the universal preamble can be dropped and only the per submit preamble will run.
-    //
-    //        This temporary change will be removed by a later change related to mid command buffer preemption.
-    //if (m_pDevice->WaForceToWriteNonRlcRestoredRegs() == false)
-    {
-        // If the workaround is disabled, we only need to restore the non-RLC registers whenever the ring sizes
-        // are changed or after a context switch between applications.
-        pCmdSpace = pRingSet->WriteNonRlcRestoredRegs(&m_deCmdStream, pCmdSpace);
-    }
-
-    pCmdSpace = WriteTrapInstallCmds(m_pDevice, &m_deCmdStream, PipelineBindPoint::Graphics, pCmdSpace);
-    pCmdSpace = WriteTrapInstallCmds(m_pDevice, &m_deCmdStream, PipelineBindPoint::Compute, pCmdSpace);
-
-    m_deCmdStream.CommitCommands(pCmdSpace);
-    m_deCmdStream.End();
 
     // The per-submit DE preamble.
     //==================================================================================================================
 
-    m_perSubmitCmdStream.Reset(nullptr, true);
-    m_perSubmitCmdStream.Begin(beginFlags, nullptr);
+    if (result == Result::Success)
+    {
+        m_perSubmitCmdStream.Reset(nullptr, true);
+        result = m_perSubmitCmdStream.Begin({}, nullptr);
+    }
 
-    // Generate a version of the per submit preamble that does not initialize shadow memory.
-    BuildPerSubmitCommandStream(m_perSubmitCmdStream, false);
+    if (result == Result::Success)
+    {
+        // Generate a version of the per submit preamble that does not initialize shadow memory.
+        WritePerSubmitPreamble(&m_perSubmitCmdStream, false);
 
-    m_perSubmitCmdStream.End();
+        result = m_perSubmitCmdStream.End();
+    }
 
     if (m_pDevice->CoreSettings().commandBufferCombineDePreambles)
     {
@@ -1007,10 +959,14 @@ void UniversalQueueContext::RebuildCommandStreams()
     // The per-submit CE premable, CE postamble, and DE postamble.
     //==================================================================================================================
 
-    // The DE postamble is always built. The CE preamble and postamble may not be needed.
-    m_dePostambleCmdStream.Reset(nullptr, true);
-    m_dePostambleCmdStream.Begin(beginFlags, nullptr);
+    if (result == Result::Success)
+    {
+        // The DE postamble is always built. The CE preamble and postamble may not be needed.
+        m_dePostambleCmdStream.Reset(nullptr, true);
+        result = m_dePostambleCmdStream.Begin({}, nullptr);
+    }
 
+    bool syncCeDeCounters = false;
     // If the client has requested that this Queue maintain persistent CE RAM contents, or if the Queue supports mid
     // command buffer preemption, we need to rebuild the CE preamble, as well as the CE & DE postambles.
     if ((m_pQueue->PersistentCeRamSize() != 0) || m_useShadowing)
@@ -1028,14 +984,20 @@ void UniversalQueueContext::RebuildCommandStreams()
                 static_cast<uint32>((ReservedCeRamDwords + m_pDevice->Parent()->CeRamDwordsUsed(EngineTypeUniversal)));
         }
 
-        m_cePreambleCmdStream.Reset(nullptr, true);
-        m_cePreambleCmdStream.Begin(beginFlags, nullptr);
+        if (result == Result::Success)
+        {
+            m_cePreambleCmdStream.Reset(nullptr, true);
+            result = m_cePreambleCmdStream.Begin({}, nullptr);
+        }
 
-        pCmdSpace  = m_cePreambleCmdStream.ReserveCommands();
-        pCmdSpace += cmdUtil.BuildLoadConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
-        m_cePreambleCmdStream.CommitCommands(pCmdSpace);
+        if (result == Result::Success)
+        {
+            uint32* pCmdSpace = m_cePreambleCmdStream.ReserveCommands();
+            pCmdSpace += cmdUtil.BuildLoadConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
+            m_cePreambleCmdStream.CommitCommands(pCmdSpace);
 
-        m_cePreambleCmdStream.End();
+            result = m_cePreambleCmdStream.End();
+        }
 
         // The postamble command streams which dump CE RAM at the end of the submission are only necessary if (1) the
         // client requested that this Queue maintains persistent CE RAM contents, or (2) this Queue supports mid
@@ -1046,51 +1008,59 @@ void UniversalQueueContext::RebuildCommandStreams()
             // On gfx6-7 we need to synchronize the CE/DE counters after the dump CE RAM because the dump writes to L2
             // and the load reads from memory. The DE postamble's EOP event will flush L2 but we still need to use the
             // CE/DE counters to stall the DE until the dump is complete.
-            const bool syncCounters = (chipProps.gfxLevel <= GfxIpLevel::GfxIp7);
+            syncCeDeCounters = (chipProps.gfxLevel <= GfxIpLevel::GfxIp7);
 
             // Note that it's illegal to touch the CE/DE counters in postamble streams if MCBP is enabled. In practice
             // we don't expect these two conditions to be enabled at the same time.
-            PAL_ASSERT((syncCounters == false) || (m_useShadowing == false));
+            PAL_ASSERT((syncCeDeCounters == false) || (m_useShadowing == false));
 
-            m_cePostambleCmdStream.Reset(nullptr, true);
-            m_cePostambleCmdStream.Begin(beginFlags, nullptr);
-
-            pCmdSpace  = m_cePostambleCmdStream.ReserveCommands();
-            pCmdSpace += cmdUtil.BuildDumpConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
-
-            if (syncCounters)
+            if (result == Result::Success)
             {
-                pCmdSpace += cmdUtil.BuildIncrementCeCounter(pCmdSpace);
+                m_cePostambleCmdStream.Reset(nullptr, true);
+                result = m_cePostambleCmdStream.Begin({}, nullptr);
             }
 
-            m_cePostambleCmdStream.CommitCommands(pCmdSpace);
-            m_cePostambleCmdStream.End();
-
-            if (syncCounters)
+            if (result == Result::Success)
             {
-                pCmdSpace  = m_dePostambleCmdStream.ReserveCommands();
-                pCmdSpace += cmdUtil.BuildWaitOnCeCounter(false, pCmdSpace);
-                pCmdSpace += cmdUtil.BuildIncrementDeCounter(pCmdSpace);
-                m_dePostambleCmdStream.CommitCommands(pCmdSpace);
+                uint32* pCmdSpace = m_cePostambleCmdStream.ReserveCommands();
+                pCmdSpace += cmdUtil.BuildDumpConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
+
+                if (syncCeDeCounters)
+                {
+                    pCmdSpace += cmdUtil.BuildIncrementCeCounter(pCmdSpace);
+                }
+
+                m_cePostambleCmdStream.CommitCommands(pCmdSpace);
+                result = m_cePostambleCmdStream.End();
             }
         }
     }
 
-    pCmdSpace = m_dePostambleCmdStream.ReserveCommands();
+    if (result == Result::Success)
+    {
+        uint32* pCmdSpace = m_dePostambleCmdStream.ReserveCommands();
 
-    // This EOP event packet must be at the end of the per-submit DE postamble.
-    //
-    // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
-    // We also use this pipelined event to flush and invalidate the shader L2 cache and RB caches as described above.
-    pCmdSpace += cmdUtil.BuildEventWriteEop(CACHE_FLUSH_AND_INV_TS_EVENT,
-                                            m_exclusiveExecTs.GpuVirtAddr(),
-                                            EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
-                                            0,
-                                            true,
-                                            pCmdSpace);
+        if (syncCeDeCounters)
+        {
+            pCmdSpace += cmdUtil.BuildWaitOnCeCounter(false, pCmdSpace);
+            pCmdSpace += cmdUtil.BuildIncrementDeCounter(pCmdSpace);
+        }
 
-    m_dePostambleCmdStream.CommitCommands(pCmdSpace);
-    m_dePostambleCmdStream.End();
+        // This EOP event packet must be at the end of the per-submit DE postamble.
+        //
+        // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
+        // We also use this pipelined event to flush and invalidate the shader L2 cache and RB caches as described
+        // above.
+        pCmdSpace += cmdUtil.BuildEventWriteEop(CACHE_FLUSH_AND_INV_TS_EVENT,
+                                                m_exclusiveExecTs.GpuVirtAddr(),
+                                                EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
+                                                0,
+                                                true,
+                                                pCmdSpace);
+
+        m_dePostambleCmdStream.CommitCommands(pCmdSpace);
+        result = m_dePostambleCmdStream.End();
+    }
 
     // Since the contents of these command streams have changed since last time, we need to force these streams to
     // execute by not allowing the KMD to optimize-away these command stream the next time around.
@@ -1109,145 +1079,49 @@ void UniversalQueueContext::RebuildCommandStreams()
                (m_cePreambleCmdStream.GetNumChunks()  <= 1) &&
                (m_cePostambleCmdStream.GetNumChunks() <= 1) &&
                (m_dePostambleCmdStream.GetNumChunks() <= 1));
+
+    return result;
 }
 
 // =====================================================================================================================
-// Assembles the universal-only specific PM4 headers for the queue context preamble.
-void UniversalQueueContext::BuildUniversalPreambleHeaders()
+// Writes commands needed for the "Drop if same context" DE preamble.
+uint32* UniversalQueueContext::WriteUniversalPreamble(
+    uint32* pCmdSpace)
 {
-    memset(&m_universalPreamble,     0, sizeof(m_universalPreamble));
-    memset(&m_gfx6UniversalPreamble, 0, sizeof(m_gfx6UniversalPreamble));
-    memset(&m_gfx8UniversalPreamble, 0, sizeof(m_gfx8UniversalPreamble));
-    memset(&m_stateShadowPreamble,   0, sizeof(m_stateShadowPreamble));
-
-    const CmdUtil& cmdUtil  = m_pDevice->CmdUtil();
-
-    m_universalPreamble.spaceNeeded +=
-        cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
-                                       mmPA_SC_GENERIC_SCISSOR_BR,
-                                       &m_universalPreamble.hdrPaScGenericScissorTlBr);
-
-    // Additional preamble for Universal Command Buffers (Gfx6 hardware only):
-    //==================================================================================================================
-
-    if (m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp6)
-    {
-        m_gfx6UniversalPreamble.spaceNeeded =
-            cmdUtil.BuildSetOneConfigReg(mmSPI_STATIC_THREAD_MGMT_3__SI,
-                                         &m_gfx6UniversalPreamble.hdrSpiThreadMgmt);
-    }
-
-    // Additional preamble for Universal Command Buffers (Gfx8 hardware only):
-    //==================================================================================================================
-
-    if (m_pDevice->Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp8)
-    {
-        // This packet is temporary because clear state should setup these registers. Unfortunately, on Gfx8, the clear
-        // state values for these are suboptimal.
-        m_gfx8UniversalPreamble.spaceNeeded =
-            cmdUtil.BuildSetOneContextReg(mmVGT_OUT_DEALLOC_CNTL, &m_gfx8UniversalPreamble.hdrVgtOutDeallocCntl);
-
-        m_gfx8UniversalPreamble.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmVGT_TESS_DISTRIBUTION__VI, &m_gfx8UniversalPreamble.hdrDistribution);
-
-        m_gfx8UniversalPreamble.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmCB_DCC_CONTROL__VI, &m_gfx8UniversalPreamble.hdrDccControl);
-
-        // Note that this register may not be present in non-Polaris10, but we choose to always write this register to
-        // be simple. If we make it optional by doing check m_pDevice->Settings().gfx8SmallPrimFilterCntl !=
-        // Gfx8SmallPrimFilterDisable, which is still fine but then this register has to be the last in preamble, which
-        // can't be guaranteed moving forward. The register write to non-Polaris10 is expected to be ignored by HW.
-        m_gfx8UniversalPreamble.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL__VI,
-                                          &m_gfx8UniversalPreamble.hdrSmallPrimFilterCntl);
-    }
-
-    // Additional preamble for state shadowing:
-    // =================================================================================================================
-
-    // Since PAL doesn't preserve GPU state across command buffer boundaries, we don't need to enable state shadowing,
-    // but we do need to enable loading context and SH registers.
-
-    CONTEXT_CONTROL_ENABLE shadowBits = {};
-    shadowBits.enableDw = 1;
-
-    CONTEXT_CONTROL_ENABLE loadBits = {};
-    loadBits.enableDw                 = 1;
-    loadBits.enableMultiCntxRenderReg = 1;
-    loadBits.enableCSSHReg            = 1;
-    loadBits.enableGfxSHReg           = 1;
-
-    if (m_useShadowing)
-    {
-        PAL_ASSERT(m_pDevice->Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp8);
-
-        // If mid command buffer preemption is enabled, shadowing and loading must be enabled for all register types,
-        // because the GPU state needs to be properly restored when this Queue resumes execution after being preempted.
-        // (Config registers are exempted because MCBP is not supported on pre-Gfx8 hardware.
-        loadBits.enableUserConfigReg__CI     = 1;
-        shadowBits                           = loadBits;
-        shadowBits.enableSingleCntxConfigReg = 1;
-
-        gpusize gpuVirtAddr = m_shadowGpuMem.GpuVirtAddr();
-
-        m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildLoadUserConfigRegs(gpuVirtAddr,
-                                                                             &UserConfigShadowRangeGfx7[0],
-                                                                             NumUserConfigShadowRangesGfx7,
-                                                                             &m_stateShadowPreamble.loadUserCfgRegs);
-        gpuVirtAddr += (sizeof(uint32) * UserConfigRegCount);
-
-        if (m_pDevice->Parent()->ChipProperties().gfx6.rbReconfigureEnabled)
-        {
-            m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildLoadContextRegs(gpuVirtAddr,
-                                                                              &ContextShadowRangeRbReconfig[0],
-                                                                              NumContextShadowRangesRbReconfig,
-                                                                              &m_stateShadowPreamble.loadContextRegs);
-        }
-        else
-        {
-            m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildLoadContextRegs(gpuVirtAddr,
-                                                                              &ContextShadowRange[0],
-                                                                              NumContextShadowRanges,
-                                                                              &m_stateShadowPreamble.loadContextRegs);
-        }
-        gpuVirtAddr += (sizeof(uint32) * CntxRegCountGfx7);
-
-        m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
-                                                                     &GfxShShadowRange[0],
-                                                                     NumGfxShShadowRanges,
-                                                                     ShaderGraphics,
-                                                                     &m_stateShadowPreamble.loadShRegsGfx);
-
-        m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
-                                                                     &CsShShadowRange[0],
-                                                                     NumCsShShadowRanges,
-                                                                     ShaderCompute,
-                                                                     &m_stateShadowPreamble.loadShRegsCs);
-        gpuVirtAddr += (sizeof(uint32) * ShRegCount);
-
-    }
-
-    m_stateShadowPreamble.spaceNeeded +=
-        cmdUtil.BuildContextControl(loadBits, shadowBits, &m_stateShadowPreamble.contextControl);
-
-    m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildClearState(&m_stateShadowPreamble.clearState);
-}
-
-// =====================================================================================================================
-// Sets up the universal-specific PM4 commands for the queue context preamble.
-void UniversalQueueContext::SetupUniversalPreambleRegisters()
-{
+    const Pal::Device&       device    = *(m_pDevice->Parent());
+    const GpuChipProperties& chipProps = device.ChipProperties();
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
-    m_universalPreamble.paScGenericScissorTl.u32All                     = 0;
-    m_universalPreamble.paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = 1;
-    m_universalPreamble.paScGenericScissorBr.u32All                     = 0;
-    m_universalPreamble.paScGenericScissorBr.bits.BR_X                  = ScissorMaxBR;
-    m_universalPreamble.paScGenericScissorBr.bits.BR_Y                  = ScissorMaxBR;
+    struct
+    {
+        regPA_SC_GENERIC_SCISSOR_TL  tl;
+        regPA_SC_GENERIC_SCISSOR_BR  br;
+    } paScGenericScissor = { };
 
-    // Additional preamble for Universal Command Buffers (Gfx6 hardware only):
-    //==================================================================================================================
+    paScGenericScissor.tl.bits.WINDOW_OFFSET_DISABLE = 1;
+    paScGenericScissor.br.bits.BR_X = ScissorMaxBR;
+    paScGenericScissor.br.bits.BR_Y = ScissorMaxBR;
+
+    // Several context registers are considered "sticky" by the hardware team, which means that they broadcast their
+    // value to all eight render contexts. Clear state cannot reset them properly if another driver changes them,
+    // because that driver's writes will have clobbered the values in our clear state reserved GPU context. We need
+    // to restore default values here to be on the safe side.
+    struct
+    {
+        regVGT_MAX_VTX_INDX  maxVtxIndx;
+        regVGT_MIN_VTX_INDX  minVtxIndx;
+        regVGT_INDX_OFFSET   indxOffset;
+    } vgt = { };
+    vgt.maxVtxIndx.bits.MAX_INDX = UINT_MAX;
+
+    pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
+                                                     mmPA_SC_GENERIC_SCISSOR_BR,
+                                                     &paScGenericScissor,
+                                                     pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmVGT_MAX_VTX_INDX,
+                                                     mmVGT_INDX_OFFSET,
+                                                     &vgt,
+                                                     pCmdSpace);
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp6)
     {
@@ -1260,8 +1134,8 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
         // Need to find a bit-mask which has the active and always-on CU masks for all shader engines and shader arrays
         // combined.
 
-        uint32 activeCuMask   = 0xFFFF;
-        uint32 alwaysOnCuMask = 0xFFFF;
+        uint32 activeCuMask   = USHRT_MAX;
+        uint32 alwaysOnCuMask = USHRT_MAX;
 
         for (size_t se = 0; se < chipProps.gfx6.numShaderEngines; ++se)
         {
@@ -1284,78 +1158,155 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
         PAL_ASSERT((alwaysOnCuMask != 0) && ((activeCuMask & alwaysOnCuMask) == alwaysOnCuMask));
 
         uint32 cuIndex = 0;
-        Util::BitMaskScanForward(&cuIndex, alwaysOnCuMask);
+        BitMaskScanForward(&cuIndex, alwaysOnCuMask);
 
-        const uint32 lsHsCuMask = (activeCuMask & ~(0x1 << cuIndex));
+        regSPI_STATIC_THREAD_MGMT_3__SI spiStaticThreadMgmt3 = { };
+        spiStaticThreadMgmt3.bits.LSHS_CU_EN = (activeCuMask & ~(0x1 << cuIndex));
 
-        m_gfx6UniversalPreamble.spiStaticThreadMgmt3.u32All = 0;
-        m_gfx6UniversalPreamble.spiStaticThreadMgmt3.bits.LSHS_CU_EN = lsHsCuMask;
+        pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmSPI_STATIC_THREAD_MGMT_3__SI,
+                                                       spiStaticThreadMgmt3.u32All,
+                                                       pCmdSpace);
     }
-
-    // Additional preamble for Universal Command Buffers (Gfx8 hardware only):
-    //==================================================================================================================
-
-    if (chipProps.gfxLevel >= GfxIpLevel::GfxIp8)
+    else if (chipProps.gfxLevel >= GfxIpLevel::GfxIp8)
     {
-        m_gfx8UniversalPreamble.vgtOutDeallocCntl.u32All = 0;
-
-        // The register spec suggests these values are optimal settings for Gfx8 hardware, when VS half-pack mode is
+        // The register spec suggests these values are optimal settings for Gfx9 hardware, when VS half-pack mode is
         // disabled. If half-pack mode is active, we need to use the legacy defaults which are safer (but less optimal).
-        if (settings.vsHalfPackThreshold >= MaxVsExportSemantics)
-        {
-            m_gfx8UniversalPreamble.vgtOutDeallocCntl.bits.DEALLOC_DIST = 32;
-        }
-        else
-        {
-            m_gfx8UniversalPreamble.vgtOutDeallocCntl.bits.DEALLOC_DIST = 16;
-        }
+        regVGT_OUT_DEALLOC_CNTL vgtOutDeallocCntl = { };
+        vgtOutDeallocCntl.bits.DEALLOC_DIST = (settings.vsHalfPackThreshold >= MaxVsExportSemantics) ? 32 : 16;
 
         // Set patch and donut distribution thresholds for tessellation. If we decide that this should be tunable
         // per-pipeline, we can move the registers to the Pipeline object (DXX currently uses per-Device thresholds).
-
-        const uint32 patchDistribution     = settings.gfx8PatchDistributionFactor;
-        const uint32 donutDistribution     = settings.gfx8DonutDistributionFactor;
-        const uint32 trapezoidDistribution = settings.gfx8TrapezoidDistributionFactor;
-
-        m_gfx8UniversalPreamble.vgtTessDistribution.u32All = 0;
-        m_gfx8UniversalPreamble.vgtTessDistribution.bits.ACCUM_ISOLINE = patchDistribution;
-        m_gfx8UniversalPreamble.vgtTessDistribution.bits.ACCUM_TRI     = patchDistribution;
-        m_gfx8UniversalPreamble.vgtTessDistribution.bits.ACCUM_QUAD    = patchDistribution;
-        m_gfx8UniversalPreamble.vgtTessDistribution.bits.DONUT_SPLIT   = donutDistribution;
-        m_gfx8UniversalPreamble.vgtTessDistribution.bits.TRAP_SPLIT    = trapezoidDistribution;
+        regVGT_TESS_DISTRIBUTION__VI vgtTessDistribution = { };
+        vgtTessDistribution.bits.ACCUM_ISOLINE = settings.gfx8PatchDistributionFactor;
+        vgtTessDistribution.bits.ACCUM_TRI     = settings.gfx8PatchDistributionFactor;
+        vgtTessDistribution.bits.ACCUM_QUAD    = settings.gfx8PatchDistributionFactor;
+        vgtTessDistribution.bits.DONUT_SPLIT   = settings.gfx8DonutDistributionFactor;
+        vgtTessDistribution.bits.TRAP_SPLIT    = settings.gfx8TrapezoidDistributionFactor;
 
         // Set-and-forget DCC register.
-        m_gfx8UniversalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
+        regCB_DCC_CONTROL__VI cbDccControl = { };
+        cbDccControl.bits.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
+        cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 4; // Should default to 4 according to register spec
+        cbDccControl.bits.OVERWRITE_COMBINER_DISABLE   = 0; // Default enable DCC overwrite combiner
 
-        // Should default to 4 according to register spec
-        m_gfx8UniversalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 4;
-
-        // Default enable DCC overwrite combiner
-        m_gfx8UniversalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_DISABLE = 0;
-
+        regPA_SU_SMALL_PRIM_FILTER_CNTL__VI paSuSmallPrimFilterCntl = { };
         // Polaris10 small primitive filter control
         const uint32 smallPrimFilter = m_pDevice->GetSmallPrimFilter();
         if (smallPrimFilter != SmallPrimFilterDisable)
         {
-            m_gfx8UniversalPreamble.paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = true;
+            paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = 1;
 
-            m_gfx8UniversalPreamble.paSuSmallPrimFilterCntl.bits.POINT_FILTER_DISABLE =
+            paSuSmallPrimFilterCntl.bits.POINT_FILTER_DISABLE =
                 ((smallPrimFilter & SmallPrimFilterEnablePoint) == 0);
 
-            m_gfx8UniversalPreamble.paSuSmallPrimFilterCntl.bits.LINE_FILTER_DISABLE =
+            paSuSmallPrimFilterCntl.bits.LINE_FILTER_DISABLE =
                 ((smallPrimFilter & SmallPrimFilterEnableLine) == 0);
 
-            m_gfx8UniversalPreamble.paSuSmallPrimFilterCntl.bits.TRIANGLE_FILTER_DISABLE =
+            paSuSmallPrimFilterCntl.bits.TRIANGLE_FILTER_DISABLE =
                 ((smallPrimFilter & SmallPrimFilterEnableTriangle) == 0);
 
-            m_gfx8UniversalPreamble.paSuSmallPrimFilterCntl.bits.RECTANGLE_FILTER_DISABLE =
+            paSuSmallPrimFilterCntl.bits.RECTANGLE_FILTER_DISABLE =
                 ((smallPrimFilter & SmallPrimFilterEnableRectangle) == 0);
         }
         else
         {
-            m_gfx8UniversalPreamble.paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = false;
+            paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = 0;
         }
+
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_OUT_DEALLOC_CNTL, vgtOutDeallocCntl.u32All, pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_TESS_DISTRIBUTION__VI,
+                                                        vgtTessDistribution.u32All,
+                                                        pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_DCC_CONTROL__VI,
+                                                        cbDccControl.u32All,
+                                                        pCmdSpace);
+
+        // Note that this register may not be present in non-Polaris10, but we choose to always write this register
+        // keep things simple.  Writes to this register on non-Polaris10 are expected to be ignored by HW.
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL__VI,
+                                                        paSuSmallPrimFilterCntl.u32All,
+                                                        pCmdSpace);
     }
+
+    return WriteCommonPreamble(*m_pDevice, EngineTypeUniversal, &m_deCmdStream, pCmdSpace);
+}
+
+// =====================================================================================================================
+// Writes commands issuing a context_control as well as other state-shadowing related things.
+uint32* UniversalQueueContext::WriteStateShadowingCommands(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace)
+{
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+
+    // By default, PAL doesn't preserve GPU state across command buffer boundaries, thus we don't need to enable state
+    // shadowing.  However, we do need to enable loading context registers to support loading fast-clear colors/values.
+
+    CONTEXT_CONTROL_ENABLE shadowBits = {};
+    shadowBits.enableDw = 1;
+
+    CONTEXT_CONTROL_ENABLE loadBits = {};
+    loadBits.enableDw                 = 1;
+    loadBits.enableMultiCntxRenderReg = 1;
+
+    if (m_useShadowing)
+    {
+        PAL_ASSERT(m_pDevice->Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp8);
+
+        // If mid command buffer preemption is enabled, shadowing and loading must be enabled for all register types
+        // because the GPU state needs to be properly restored when this Queue resumes execution after being preempted.
+        // (Config registers are excluded because MCBP is not supported on pre-Gfx8 hardware.
+        loadBits.enableUserConfigReg__CI = 1;
+        loadBits.enableCSSHReg           = 1;
+        loadBits.enableGfxSHReg          = 1;
+
+        shadowBits = loadBits;
+        shadowBits.enableSingleCntxConfigReg = 1;
+    }
+
+    pCmdSpace += cmdUtil.BuildContextControl(loadBits, shadowBits, pCmdSpace);
+    pCmdSpace += cmdUtil.BuildClearState(pCmdSpace);
+
+    if (m_useShadowing)
+    {
+        gpusize gpuVirtAddr = m_shadowGpuMem.GpuVirtAddr();
+
+        pCmdSpace += cmdUtil.BuildLoadUserConfigRegs(gpuVirtAddr,
+                                                     &UserConfigShadowRangeGfx7[0],
+                                                     NumUserConfigShadowRangesGfx7,
+                                                     pCmdSpace);
+        gpuVirtAddr += (sizeof(uint32) * UserConfigRegCount);
+
+        if (m_pDevice->Parent()->ChipProperties().gfx6.rbReconfigureEnabled)
+        {
+            pCmdSpace += cmdUtil.BuildLoadContextRegs(gpuVirtAddr,
+                                                      &ContextShadowRangeRbReconfig[0],
+                                                      NumContextShadowRangesRbReconfig,
+                                                      pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace += cmdUtil.BuildLoadContextRegs(gpuVirtAddr,
+                                                      &ContextShadowRange[0],
+                                                      NumContextShadowRanges,
+                                                      pCmdSpace);
+        }
+        gpuVirtAddr += (sizeof(uint32) * CntxRegCountGfx7);
+
+        pCmdSpace += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
+                                             &GfxShShadowRange[0],
+                                             NumGfxShShadowRanges,
+                                             ShaderGraphics,
+                                             pCmdSpace);
+        pCmdSpace += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
+                                             &CsShShadowRange[0],
+                                             NumCsShShadowRanges,
+                                             ShaderCompute,
+                                             pCmdSpace);
+        gpuVirtAddr += (sizeof(uint32) * ShRegCount);
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -1409,7 +1360,11 @@ static uint32* WriteTrapInstallCmds(
                 Get256BAddrHi(tmaGpuVirtAddr)
             };
 
-            pCmdSpace = pCmdStream->WriteSetSeqShRegs(pRegAddrs[i], pRegAddrs[i] + 3, shaderType, &regVals[0], pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetSeqShRegs(pRegAddrs[i],
+                                                      pRegAddrs[i] + 3,
+                                                      shaderType,
+                                                      &regVals[0],
+                                                      pCmdSpace);
         }
     }
 
