@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -46,6 +46,7 @@ namespace DevDriver
             , m_allocCb(allocCb)
             , m_state(SessionState::ReceivePayload)
             , m_pTransferManager(pTransferManager)
+            , m_eventPayloadPending(false)
 
         {
             DD_ASSERT(m_pTransferManager != nullptr);
@@ -81,6 +82,11 @@ namespace DevDriver
                         DD_ASSERT((result == Result::Error)    ||
                                   (result == Result::NotReady) ||
                                   (result == Result::EndOfStream));
+
+                        if (result == Result::NotReady)
+                        {
+                            SendEventData();
+                        }
                     }
                     break;
                 }
@@ -131,24 +137,6 @@ namespace DevDriver
                     break;
                 }
             }
-        }
-
-        Result EventServerSession::SendEventData(const void* pEventData, size_t eventDataSize)
-        {
-            Result result = Result::InvalidParameter;
-
-            // @TODO: Support blocking when larger packets need to be sent
-            //        Also, this should be writing into a larger ring buffer that gets flushed
-            //        periodically.
-            if (eventDataSize <= kMaxEventDataSize)
-            {
-                SizedPayloadContainer container;
-                container.CreatePayload<EventDataUpdatePayload>(pEventData, eventDataSize);
-
-                result = m_pSession->Send(container.payloadSize, &container.payload, kNoWait);
-            }
-
-            return result;
         }
 
         SessionState EventServerSession::HandleQueryProvidersRequest(SizedPayloadContainer& container)
@@ -212,6 +200,96 @@ namespace DevDriver
             container.CreatePayload<ApplyProviderUpdatesResponse>(result);
 
             return SessionState::SendPayload;
+        }
+
+        void EventServerSession::SendEventData()
+        {
+            Result result = Result::Success;
+
+            if (m_eventPayloadPending)
+            {
+                result = m_pSession->Send(m_eventPayloadContainer.payloadSize, &m_eventPayloadContainer.payload, kNoWait);
+                if (result == Result::Success)
+                {
+                    m_eventPayloadPending = false;
+                }
+            }
+
+            // Get the event queue from our event server pointer
+            Queue<EventChunkInfo>& eventQueue = m_pServer->m_eventChunkQueue;
+
+            if ((result == Result::Success) && (eventQueue.IsEmpty() == false))
+            {
+                while(eventQueue.IsEmpty() == false)
+                {
+                    EventChunkInfo* pChunkInfo = eventQueue.PeekFront();
+
+                    EventChunk* pChunk = pChunkInfo->pChunk;
+
+                    DD_ASSERT(pChunk != nullptr);
+                    DD_ASSERT(pChunk->dataSize > 0);
+
+                    size_t bytesRemaining = (pChunk->dataSize - pChunkInfo->bytesSent);
+
+                    // We should never end up with 0 bytes to send or it means this chunk wasn't properly removed from the queue
+                    // after sending data.
+                    DD_ASSERT(bytesRemaining > 0);
+
+                    // Write as much of the chunk into packets as we can
+                    while (bytesRemaining > 0)
+                    {
+                        const size_t bytesToSend = Platform::Min(bytesRemaining, kMaxEventDataSize);
+                        const uint8* pDataPtr = (pChunk->data + pChunkInfo->bytesSent);
+
+                        m_eventPayloadContainer.CreatePayload<EventDataUpdatePayload>(pDataPtr, bytesToSend);
+
+                        pChunkInfo->bytesSent += bytesToSend;
+
+                        bytesRemaining = (pChunk->dataSize - pChunkInfo->bytesSent);
+
+                        result = m_pSession->Send(m_eventPayloadContainer.payloadSize, &m_eventPayloadContainer.payload, kNoWait);
+
+                        if (result != Result::Success)
+                        {
+                            m_eventPayloadPending = true;
+
+                            break;
+                        }
+                    }
+
+                    if (result == Result::Success)
+                    {
+                        // We should never have a successful result with leftover bytes
+                        DD_ASSERT(bytesRemaining == 0);
+
+                        // Remove the chunk from the queue
+                        eventQueue.PopFront();
+
+                        // Return the chunk to the chunk pool
+                        m_pServer->FreeEventChunk(pChunk);
+                    }
+                    else if (result == Result::NotReady)
+                    {
+                        // We filled up the send window so there's nothing more we can do here
+
+                        // If we sent all the remaining bytes in the chunk, remove it from the queue
+                        if (bytesRemaining == 0)
+                        {
+                            eventQueue.PopFront();
+
+                            // Return the chunk to the chunk pool
+                            m_pServer->FreeEventChunk(pChunk);
+                        }
+
+                        break;
+                    }
+                    else
+                    {
+                        // We've encountered an error, stop sending chunks
+                        break;
+                    }
+                }
+            }
         }
     }
 }

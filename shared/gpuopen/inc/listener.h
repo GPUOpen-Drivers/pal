@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -45,10 +45,11 @@ namespace DevDriver
         {
             uint32 enableKernelTransport : 1;  // Enables a special transport that allows clients to communicate across
                                                // the user mode / kernel mode boundary
-            uint32 enableServer : 1;           // Enables the built-in listener server which allows the listener to
+            uint32 enableServer          : 1;  // Enables the built-in listener server which allows the listener to
                                                // communicate at an application protocol level with other clients on
                                                // the bus
-            uint32 reserved     : 30;          // Reserved for future usage
+            uint32 enableEmbeddedClient  : 1;  // Enables the kernel version of the built-in listener server
+            uint32 reserved              : 29; // Reserved for future usage
         };
         uint32     value;
     };

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -336,6 +336,12 @@ void SettingsLoader::ValidateSettings(
     if ((m_settings.binningContextStatesPerBin > 1) || (m_settings.binningPersistentStatesPerBin > 1))
     {
         m_settings.batchBreakOnNewPixelShader = true;
+    }
+
+    // Since XGMI is much faster than PCIe, PAL should not reduce the number of RBs to increase the PCIe throughput
+    if (chipProps.p2pSupport.xgmiEnabled != 0)
+    {
+        pSettings->nonlocalDestGraphicsCopyRbs = UINT_MAX;
     }
 
     m_state = SettingsLoaderState::Final;

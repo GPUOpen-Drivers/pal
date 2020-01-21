@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -58,8 +58,8 @@ struct Gfx10ChipSettings
         UINT_32 supportRbPlus       : 1;
         UINT_32 dsMipmapHtileFix    : 1;
         UINT_32 dccUnsup3DSwDis     : 1;
-        UINT_32                     : 1;
-        UINT_32 reserved2           : 27;
+        UINT_32                     : 2;
+        UINT_32 reserved2           : 26;
     };
 };
 

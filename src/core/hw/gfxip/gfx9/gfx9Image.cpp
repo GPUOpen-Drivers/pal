@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -615,16 +615,10 @@ Result Image::Finalize(
 
                 if (useSharedMetadata)
                 {
-                    needsDccStateMetaData = (sharedMetadata.dccStateMetaDataOffset  != 0);
+                    needsDccStateMetaData = (sharedMetadata.dccStateMetaDataOffset != 0);
                 }
-                else if ((IsGfx10(m_device) && (m_createInfo.usageFlags.shaderWrite != 0)) == false)
+                else
                 {
-                    // Currently DCC state metadata is only marked compressed when the image is bound in a color target.
-                    // GFX10 allows DCC for a shader-writable image so if the image is used as UAV only then its DCC is in
-                    // compressed state but its DCC state metadata is marked uncompressed (0) which causes a DCC decompress
-                    // to be skipped and following read operation might get wrong data.
-                    // Since GFX10 supports compression for almost all use cases, decompresses should be very rare, the
-                    // solution is to disable tracking DCC state for shader writable image on GFX10.
                     // We also need the DCC state metadata when DCC is enabled.
                     needsDccStateMetaData = true;
                 }
@@ -916,12 +910,13 @@ void Image::InitLayoutStateMasks()
     {
         PAL_ASSERT(Parent()->IsDepthStencil() == false);
 
+        // Always allow compression for layouts that only support the color target usage.
+        ImageLayout compressedWriteLayout = {};
+        compressedWriteLayout.usages  = LayoutColorTarget;
+        compressedWriteLayout.engines = LayoutUniversalEngine;
+
         ImageLayout compressedLayout        = {};
         ImageLayout fmaskDecompressedLayout = {};
-
-        // Always allow compression for layouts that only support the color target usage.
-        compressedLayout.usages  = LayoutColorTarget;
-        compressedLayout.engines = LayoutUniversalEngine;
 
         // Additional usages may be allowed for an image in the compressed state.
         if (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0)
@@ -936,7 +931,9 @@ void Image::InitLayoutStateMasks()
             // resolve to compress the destination data.
             if (IsGfx10(m_device))
             {
-                compressedLayout.usages |= LayoutShaderWrite;
+                {
+                    compressedWriteLayout.usages |= LayoutShaderWrite;
+                }
 
                 // If we don't ever want copyDst to be compressed, then we're done. Otherwise, it should be on if
                 // it's generally enabled or if it's enabled for readable formats and this image is readable.
@@ -944,13 +941,13 @@ void Image::InitLayoutStateMasks()
                     ((settings.copyDstIsCompressed != CopyDstComprAllowForReadableFormatsGfx10) ||
                      ImageSupportsShaderReadsAndWrites()))
                 {
-                    compressedLayout.usages |= LayoutCopyDst;
+                    compressedWriteLayout.usages |= LayoutCopyDst;
                 }
             }
 
             if (TestAnyFlagSet(UseComputeExpand, (isMsaa ? UseComputeExpandMsaaDcc : UseComputeExpandDcc)))
             {
-                compressedLayout.engines |= LayoutComputeEngine;
+                compressedWriteLayout.engines |= LayoutComputeEngine;
             }
 
             if (isMsaa)
@@ -980,7 +977,7 @@ void Image::InitLayoutStateMasks()
                 {
                     // Avoid DCC decompresses of copy destinations by promising to use graphics blits in RPM.
                     // This is not fully implemented and is unsafe. It exists as a perf debug tool.
-                    compressedLayout.usages |= LayoutCopyDst;
+                    compressedWriteLayout.usages |= LayoutCopyDst;
                 }
 
                 // We can keep this layout compressed if all view formats are DCC compatible.
@@ -991,7 +988,7 @@ void Image::InitLayoutStateMasks()
 
                 if (IsGfx10(m_device) && (isMsaa == false) && (m_pImageInfo->resolveMethod.fixedFunc == 0))
                 {
-                    compressedLayout.usages |= LayoutResolveDst;
+                    compressedWriteLayout.usages |= LayoutResolveDst;
                 }
             }
 
@@ -1004,7 +1001,7 @@ void Image::InitLayoutStateMasks()
                 PAL_ASSERT(((pBaseSubResInfo->bitsPerTexel / 8) < 4) ||
                            TestAnyFlagSet(m_layoutToState.color.compressed.usages, LayoutPresentFullscreen) == false);
             }
-        }
+        } // if supportMetaDataTexFetch
         else if (isMsaa && isComprFmaskShaderReadable)
         {
             // We can't be tc-compatible here
@@ -1037,6 +1034,14 @@ void Image::InitLayoutStateMasks()
             // Postpone all decompresses for the ResolveSrc state from Barrier-time to Resolve-time.
             compressedLayout.usages |= LayoutResolveSrc;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
+            // If copy to the image is always fully copy, fix up metadata to uncompressed state instead of heavy expand
+            // at barrier to "LayoutCopyDst" if this isn't a compressed copy.
+            if (m_createInfo.flags.fullCopyDstOnly != 0)
+            {
+                compressedLayout.usages |= LayoutCopyDst;
+            }
+#endif
             if (HasFmaskData())
             {
                 // Our copy path has been designed to allow color compressed MSAA copy sources.
@@ -1065,9 +1070,14 @@ void Image::InitLayoutStateMasks()
         // b. Pixel shader resolve :- There is no need to issue DccExpand at barrier time.
         if (m_createInfo.flags.fullResolveDstOnly == 1)
         {
-            compressedLayout.usages |= LayoutResolveDst;
+            compressedWriteLayout.usages |= LayoutResolveDst;
         }
 
+        // The compressWriteLayout set must always be a subset of the compressedLayout set.
+        compressedLayout.usages  |= compressedWriteLayout.usages;
+        compressedLayout.engines |= compressedWriteLayout.engines;
+
+        m_layoutToState.color.compressedWrite   = compressedWriteLayout;
         m_layoutToState.color.compressed        = compressedLayout;
         m_layoutToState.color.fmaskDecompressed = fmaskDecompressedLayout;
 
@@ -1140,6 +1150,9 @@ void Image::InitLayoutStateMasks()
                 }
             }
         }
+
+        // Copy to depth always goes through gfx path with compression enabled.
+        compressedLayouts.usages |= LayoutCopyDst;
 
         // If the depth-stencil image is always be fully overwritten when being resolved:
         // a. Fix-function/Compute Shader resolve :- Instead of expanding HTILE, we can fixup HTILE after resolve.
@@ -2607,26 +2620,29 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
     // Image must have hTile data for a meta-data texture fetch to make sense.  This function is called before any
     // hTile memory has been allocated, so we can't look to see if hTile memory actually exists, because it won't.
     const HtileUsageFlags  hTileUsage = Gfx9Htile::UseHtileForImage(m_device, (*this));
-    if ((hTileUsage.dsMetadata != 0) && isFmtLegal)
+    if (hTileUsage.dsMetadata != 0)
     {
-        if ((m_createInfo.samples > 1) &&
-            // MSAA meta-data surfaces are only texture fetchable if allowed in the caps.
-            TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, TexFetchMetaDataCapsMsaaDepth))
+        if (isFmtLegal)
         {
-            texFetchAllowed = true;
+            if ((m_createInfo.samples > 1) &&
+                // MSAA meta-data surfaces are only texture fetchable if allowed in the caps.
+                TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, TexFetchMetaDataCapsMsaaDepth))
+            {
+                texFetchAllowed = true;
+            }
+            else if ((m_createInfo.samples == 1) &&
+                     TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, TexFetchMetaDataCapsNoAaDepth))
+            {
+                texFetchAllowed = true;
+            }
         }
-        else if ((m_createInfo.samples == 1) &&
-                 TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, TexFetchMetaDataCapsNoAaDepth))
-        {
-            texFetchAllowed = true;
-        }
-    }
 
-    if ((subResource.aspect == ImageAspect::Stencil) && IsHtileDepthOnly())
-    {
-        // If this is the stencil aspect and the hTile data will only contain Z data, then we can't meta-fetch
-        // this data.
-        texFetchAllowed = false;
+        if ((subResource.aspect == ImageAspect::Stencil) && IsHtileDepthOnly())
+        {
+            // If this is the stencil aspect and the hTile data will only contain Z data, then we can't meta-fetch
+            // this data.
+            texFetchAllowed = false;
+        }
     }
 
     return texFetchAllowed;
@@ -3036,6 +3052,8 @@ void Image::BuildMetadataLookupTableBufferView(
     uint32 mipLevel
     ) const
 {
+    const auto& settings = m_device.Settings();
+
     pViewInfo->gpuAddr        = Parent()->GetGpuVirtualAddr() + m_metaDataLookupTableOffsets[mipLevel];
     pViewInfo->range          = m_metaDataLookupTableSizes[mipLevel];
     pViewInfo->stride         = 1;
@@ -3511,7 +3529,7 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         else
         {
             const int32 log2SamplesFragsDiff = Max<int32>(0, (log2Samples - gbAddrConfig.bits.MAX_COMPRESSED_FRAGS));
-	    if (isNonPow2Vram || (samplesOverlap > log2SamplesFragsDiff))
+        if (isNonPow2Vram || (samplesOverlap > log2SamplesFragsDiff))
             {
                 if ( (HasDccData() && (baseSubRes.flags.supportMetaDataTexFetch != 0)) ||
                      (HasFmaskData() && (HasDccData() == false) && IsComprFmaskShaderReadable(baseSubRes.subresId)) )

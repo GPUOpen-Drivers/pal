@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -79,79 +79,52 @@ public:
 
     gpusize LsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_commands.sh.spiShaderPgmLoLs.bits.MEM_BASE,
-                                  m_commands.sh.spiShaderPgmHiLs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoLs.bits.MEM_BASE,
+                                  m_regs.sh.spiShaderPgmHiLs.bits.MEM_BASE);
     }
 
     gpusize HsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_commands.sh.spiShaderPgmLoHs.bits.MEM_BASE,
-                                  m_commands.sh.spiShaderPgmHiHs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoHs.bits.MEM_BASE,
+                                  m_regs.sh.spiShaderPgmHiHs.bits.MEM_BASE);
     }
 
     const ShaderStageInfo& StageInfoLs() const { return m_stageInfoLs; }
     const ShaderStageInfo& StageInfoHs() const { return m_stageInfoHs; }
 
 private:
-    void BuildPm4Headers(bool enableLoadIndexPath);
+    const Device&  m_device;
 
-    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
-    struct Pm4Commands
+    struct
     {
         struct
         {
-            PM4CMDSETDATA               hdrSpiShaderPgmHs;
             regSPI_SHADER_PGM_LO_HS     spiShaderPgmLoHs;
             regSPI_SHADER_PGM_HI_HS     spiShaderPgmHiHs;
             regSPI_SHADER_PGM_RSRC1_HS  spiShaderPgmRsrc1Hs;
             regSPI_SHADER_PGM_RSRC2_HS  spiShaderPgmRsrc2Hs;
 
-            PM4CMDSETDATA                 hdrSpiShaderUserDataHs;
-            regSPI_SHADER_USER_DATA_HS_1  spiShaderUserDataLoHs;
-
-            PM4CMDSETDATA                 hdrSpiShaderUserDataLs;
-            regSPI_SHADER_USER_DATA_LS_1  spiShaderUserDataLoLs;
-
-            // NOTE: Due to a hardware bug, we may need to issue multiple writes of the SPI_SHADER_RSRC2_LS register.  This
-            // packet (which issues the normal write) must immediately precede the ones inside the 'spiBug' structure below.
-            PM4CMDSETDATA               hdrSpiShaderPgmLs;
             regSPI_SHADER_PGM_LO_LS     spiShaderPgmLoLs;
             regSPI_SHADER_PGM_HI_LS     spiShaderPgmHiLs;
             regSPI_SHADER_PGM_RSRC1_LS  spiShaderPgmRsrc1Ls;
             regSPI_SHADER_PGM_RSRC2_LS  spiShaderPgmRsrc2Ls;
 
-            // Optional PM4 packet used for an SPI hardware bug workaround.
-            struct
-            {
-                PM4CMDSETDATA               hdrSpiShaderPgmRsrcLs;
-                regSPI_SHADER_PGM_RSRC1_LS  spiShaderPgmRsrc1Ls;
-                regSPI_SHADER_PGM_RSRC2_LS  spiShaderPgmRsrc2Ls;
-            } spiBug;
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
+            regSPI_SHADER_USER_DATA_HS_0  userDataInternalTableHs;
+            regSPI_SHADER_USER_DATA_LS_0  userDataInternalTableLs;
         } sh;
 
         struct
         {
-            PM4CMDSETDATA              hdrVgtHosTessLevel;
             regVGT_HOS_MAX_TESS_LEVEL  vgtHosMaxTessLevel;
             regVGT_HOS_MIN_TESS_LEVEL  vgtHosMinTessLevel;
         } context;
 
         struct
         {
-            PM4CMDSETDATA                       hdrPgmRsrc3Ls;
             regSPI_SHADER_PGM_RSRC3_LS__CI__VI  spiShaderPgmRsrc3Ls;
-
-            PM4CMDSETDATA                       hdrPgmRsrc3Hs;
             regSPI_SHADER_PGM_RSRC3_HS__CI__VI  spiShaderPgmRsrc3Hs;
         } dynamic;
-    };
-
-    const Device&  m_device;
-    Pm4Commands    m_commands;
+    }  m_regs;
 
     const PerfDataInfo*const  m_pLsPerfDataInfo; // LS performance data information.
     const PerfDataInfo*const  m_pHsPerfDataInfo; // HS performance data information.

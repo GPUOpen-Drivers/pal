@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +39,7 @@ namespace Gfx9
 {
 
 class ComputePipelineUploader;
+class CmdStream;
 
 // =====================================================================================================================
 // GFX9 compute pipeline class: implements GFX9 specific functionality for the ComputePipeline class.
@@ -49,7 +50,7 @@ public:
     virtual ~ComputePipeline() { }
 
     uint32* WriteCommands(
-        Pal::CmdStream*                 pCmdStream,
+        CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
         const DynamicComputeShaderInfo& csInfo,
         bool                            prefetch) const;
@@ -67,6 +68,12 @@ public:
         const GpuChipProperties& chipProps,
         uint32                   maxWavesPerCu);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+    virtual Result LinkWithLibraries(
+        const IShaderLibrary*const* ppLibraryList,
+        uint32                      libraryCount) override;
+#endif
+
 protected:
     virtual Result HwlInit(
         const ComputePipelineCreateInfo& createInfo,
@@ -79,8 +86,8 @@ private:
 
     Device*const  m_pDevice;
 
-    ComputePipelineSignature    m_signature;
-    PipelineChunkCs             m_chunkCs;
+    ComputePipelineSignature  m_signature;
+    PipelineChunkCs           m_chunkCs;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);

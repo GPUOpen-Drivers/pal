@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -127,6 +127,7 @@ constexpr FormatFeatureFlags IrXsCBX                  = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIflCBX               = static_cast<FormatFeatureFlags>(IrXsIflCB | FormatFeatureFormatConversion);
 constexpr FormatFeatureFlags IrXsXdIflCBX             = static_cast<FormatFeatureFlags>(IrXsIflCBX | FormatFeatureFormatConversionDst);
 constexpr FormatFeatureFlags IrXsXdIflIfmmCBX         = static_cast<FormatFeatureFlags>(IrXsXdIflCBX | Ifmm);
+constexpr FormatFeatureFlags IrXsXdIflCBXP            = static_cast<FormatFeatureFlags>(IrXsXdIflCBX | FormatFeatureWindowedPresent);
 constexpr FormatFeatureFlags IrXsXdIflIfmmCBXP        = static_cast<FormatFeatureFlags>(IrXsXdIflIfmmCBX | FormatFeatureWindowedPresent);
 constexpr FormatFeatureFlags IrXsXdIflIfmmTaCBXP      = static_cast<FormatFeatureFlags>(IrXsXdIflIfmmCBXP | Ta);
 constexpr FormatFeatureFlags IrXsCBP                  = static_cast<FormatFeatureFlags>(IrXsCB | FormatFeatureWindowedPresent);
@@ -146,6 +147,7 @@ constexpr FormatFeatureFlags IrXsCBMX                 = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIflCBMX              = static_cast<FormatFeatureFlags>(IrXsIflCBM | FormatFeatureFormatConversion);
 constexpr FormatFeatureFlags IrXsXdIflCBMX            = static_cast<FormatFeatureFlags>(IrXsIflCBMX | FormatFeatureFormatConversionDst);
 constexpr FormatFeatureFlags IrXsXdIflIfmmCBMX        = static_cast<FormatFeatureFlags>(IrXsXdIflCBMX | Ifmm);
+constexpr FormatFeatureFlags IrXsXdIflCBMXP           = static_cast<FormatFeatureFlags>(IrXsXdIflCBMX | FormatFeatureWindowedPresent);
 constexpr FormatFeatureFlags IrXsXdIflIfmmCBMXP       = static_cast<FormatFeatureFlags>(IrXsXdIflIfmmCBMX | FormatFeatureWindowedPresent);
 constexpr FormatFeatureFlags IrXsXdIflIfmmTaCBMXP     = static_cast<FormatFeatureFlags>(IrXsXdIflIfmmCBMXP | Ta);
 constexpr FormatFeatureFlags IrXsCBMP                 = static_cast<FormatFeatureFlags>(IrXsCBM | FormatFeatureWindowedPresent);
@@ -231,10 +233,12 @@ constexpr FormatFeatureFlags IrXsIwXdIfmmTrTwCBXP     = static_cast<FormatFeatur
                                                                                         FormatFeatureWindowedPresent);
 constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwCBXP  = static_cast<FormatFeatureFlags>(IrXsIwXdIflIfmmTrTwCBX |
                                                                                         FormatFeatureWindowedPresent);
-constexpr FormatFeatureFlags IrXsIwXdIaTrTwTaCBXP     = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCBX | Ia | Ta |
+constexpr FormatFeatureFlags IrXsIwXdTrTwCBXP         = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCBX |
                                                                                         FormatFeatureWindowedPresent);
-constexpr FormatFeatureFlags IrXsIwXdIaIflTrTwTaCBXP  = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBX | Ia | Ta |
+constexpr FormatFeatureFlags IrXsIwXdIaTrTwTaCBXP     = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCBXP | Ia | Ta);
+constexpr FormatFeatureFlags IrXsIwXdIflTrTwCBXP      = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBX |
                                                                                         FormatFeatureWindowedPresent);
+constexpr FormatFeatureFlags IrXsIwXdIaIflTrTwTaCBXP  = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBXP | Ia | Ta);
 constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwTaCBXP = static_cast<FormatFeatureFlags>(IrXsIwXdIflIfmmTrTwTaCBX |
                                                                                          FormatFeatureWindowedPresent);
 constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwTaCBMXP = static_cast<FormatFeatureFlags>(IrXsIwXdIflIfmmTrTwTaCBXP |
@@ -242,6 +246,8 @@ constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwTaCBMXP = static_cast<FormatFeat
 constexpr FormatFeatureFlags IrXsIwXdIaIflIfmmTrTwTaCBXP = static_cast<FormatFeatureFlags>(IrXsIwXdIaIflTrTwTaCBXP | Ifmm);
 constexpr FormatFeatureFlags IrXsIwXdTrTwCBMX         = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCMX |
                                                                                         FormatFeatureColorTargetBlend);
+constexpr FormatFeatureFlags IrXsIwXdTrTwCBDMX        = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCBMX |
+                                                                                        FormatFeatureDepthTarget);
 constexpr FormatFeatureFlags IrXsIwXdIflTrTwCBMX      = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCMX |
                                                                                         FormatFeatureColorTargetBlend);
 constexpr FormatFeatureFlags IrXsIwXdIfmmTrTwCBMX     = static_cast<FormatFeatureFlags>(IrXsIwXdIfmmTrTwCMX |
@@ -257,10 +263,12 @@ constexpr FormatFeatureFlags IrXsIwXdIflTrTwCBDMX     = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIwXdIfmmTrTwCBDMX    = static_cast<FormatFeatureFlags>(IrXsIwXdIfmmTrTwCBMX |
                                                                                         FormatFeatureDepthTarget);
 constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwCBDMX = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBDMX | Ifmm);
-constexpr FormatFeatureFlags IrXsIwXdIaTrTwTaCBMXP    = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCBMX | Ia | Ta |
+constexpr FormatFeatureFlags IrXsIwXdTrTwCBMXP        = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCBMX |
                                                                                         FormatFeatureWindowedPresent);
-constexpr FormatFeatureFlags IrXsIwXdIaIflTrTwTaCBMXP = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBMX | Ia | Ta |
+constexpr FormatFeatureFlags IrXsIwXdIaTrTwTaCBMXP    = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCBMXP | Ia | Ta);
+constexpr FormatFeatureFlags IrXsIwXdIflTrTwCBMXP     = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBMX |
                                                                                         FormatFeatureWindowedPresent);
+constexpr FormatFeatureFlags IrXsIwXdIaIflTrTwTaCBMXP = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBMXP | Ia | Ta);
 constexpr FormatFeatureFlags IrXsIwXdIaIflIfmmTrTwTaCBMXP = static_cast<FormatFeatureFlags>(IrXsIwXdIaIflTrTwTaCBMXP | Ifmm);
 constexpr FormatFeatureFlags IrXsIwXdIaIflTrTwTaCBDMX = static_cast<FormatFeatureFlags>(IrXsIwXdIaIflTrTwTaCBMXP |
                                                                                         FormatFeatureDepthTarget);

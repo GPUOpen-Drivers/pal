@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -32,14 +32,13 @@
 #pragma once
 
 #include <protocols/ddEventProtocol.h>
+#include <protocols/ddEventServer.h>
 #include <ddTransferManager.h>
 
 namespace DevDriver
 {
     namespace EventProtocol
     {
-        class EventServer;
-
         enum class SessionState
         {
             ReceivePayload = 0,
@@ -55,13 +54,13 @@ namespace DevDriver
 
             void UpdateSession();
 
-            Result SendEventData(const void* pEventData, size_t eventDataSize);
-
         private:
             // Protocol message handlers
             SessionState HandleQueryProvidersRequest(SizedPayloadContainer& container);
             SessionState HandleAllocateProviderUpdatesRequest(SizedPayloadContainer& container);
             SessionState HandleApplyProviderUpdatesRequest(SizedPayloadContainer& container);
+
+            void SendEventData();
 
             EventServer*                                 m_pServer;
             SharedPointer<ISession>                      m_pSession;
@@ -70,6 +69,8 @@ namespace DevDriver
             SessionState                                 m_state;
             TransferProtocol::TransferManager*           m_pTransferManager;
             SharedPointer<TransferProtocol::ServerBlock> m_pUpdateBlock;
+            SizedPayloadContainer                        m_eventPayloadContainer;
+            bool                                         m_eventPayloadPending;
         };
     }
 }

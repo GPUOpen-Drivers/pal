@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -395,10 +395,8 @@ Result Queue::SubmitOverlayCmdBuffer(
         if (settings.debugOverlayConfig.visualConfirmEnabled == true)
         {
             const PlatformProperties& properties   = static_cast<Platform*>(m_pDevice->GetPlatform())->Properties();
-            const ExpectedPresentMode expectedMode =
-                ((properties.explicitPresentModes == 0) ? ExpectedPresentMode::Unknown  :
-                 (presentMode == PresentMode::Windowed) ? ExpectedPresentMode::Windowed :
-                                                          ExpectedPresentMode::Fullscreen);
+            const PresentMode expectedMode =
+                ((properties.explicitPresentModes == 0) ? PresentMode::Count : presentMode);
 
             m_pDevice->GetTextWriter().WriteVisualConfirm(image, pTrackedCmdBuffer->pCmdBuffer, expectedMode);
 

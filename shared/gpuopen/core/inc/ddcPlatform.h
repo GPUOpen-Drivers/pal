@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -185,14 +185,14 @@ namespace DevDriver
         DevDriver::check_expr_is_bool(statement);                                         \
         if (!(statement))                                                                 \
         {                                                                                 \
-            DD_PRINT(DevDriver::LogLevel::Warn, "%s (%d): Warning triggered in %s: %s\n", \
+            DD_PRINT(DevDriver::LogLevel::Warn, "%s (%d): Warning triggered in %s: %s",   \
                 __FILE__, __LINE__, __func__, DD_STRINGIFY(statement));                   \
         }                                                                                 \
     } while (0)
 
     #define DD_WARN_REASON(reason) do                                                 \
     {                                                                                 \
-        DD_PRINT(DevDriver::LogLevel::Warn, "%s (%d): Warning triggered in %s: %s\n", \
+        DD_PRINT(DevDriver::LogLevel::Warn, "%s (%d): Warning triggered in %s: %s",   \
             __FILE__, __LINE__, __func__, reason);                                    \
     } while (0)
 
@@ -201,7 +201,7 @@ namespace DevDriver
         DevDriver::check_expr_is_bool(statement);                                         \
         if (!(statement))                                                                 \
         {                                                                                 \
-            DD_PRINT(DevDriver::LogLevel::Error, "%s (%d): Assertion failed in %s: %s\n", \
+            DD_PRINT(DevDriver::LogLevel::Error, "%s (%d): Assertion failed in %s: %s",   \
                 __FILE__, __LINE__, __func__, DD_STRINGIFY(statement));                   \
             DD_ASSERT_DEBUG_BREAK();                                                      \
         }                                                                                 \
@@ -209,7 +209,7 @@ namespace DevDriver
 
     #define DD_ASSERT_REASON(reason) do                                               \
     {                                                                                 \
-        DD_PRINT(DevDriver::LogLevel::Error, "%s (%d): Assertion failed in %s: %s\n", \
+        DD_PRINT(DevDriver::LogLevel::Error, "%s (%d): Assertion failed in %s: %s",   \
             __FILE__, __LINE__, __func__, reason);                                    \
         DD_ASSERT_DEBUG_BREAK();                                                      \
     } while (0)
@@ -519,6 +519,9 @@ private:
 ProcessId GetProcessId();
 
 uint64 GetCurrentTimeInMs();
+
+uint64 QueryTimestampFrequency();
+uint64 QueryTimestamp();
 
 // Todo: Remove Sleep() entirely from our platform API. It cannot be used in the KMD and should not be used
 // anywhere else either.

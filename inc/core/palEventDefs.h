@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@
 
 #include "pal.h"
 #include "palPipeline.h"
+#include "palShaderLibrary.h"
 
 #define PAL_GPU_MEMORY_LOGGING_VERSION 531
 
@@ -204,6 +205,13 @@ struct ResourceDescriptionPipeline
 {
     const PipelineInfo*        pPipelineInfo;  //< Pointer to the PipelineInfo.
     const PipelineCreateFlags* pCreateFlags;   //< Pipeline create flags.
+};
+
+/// Describes a Shader Library Resource,
+struct ResourceDescriptionShaderLibrary
+{
+    const LibraryInfo*        pLibrarynfo;  //< Pointer to the LibraryInfo.
+    const LibraryCreateFlags* pCreateFlags; //< LibraryInfo create flags.
 };
 
 /// Bitmask flags used to describe a Heap resource for GPU memory event logging.

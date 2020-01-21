@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -217,13 +217,13 @@ public:
         uint32                      maximumCount
         ) const;
 
-    virtual void ExpandDepthStencil(
+    virtual bool ExpandDepthStencil(
         GfxCmdBuffer*        pCmdBuffer,
         const Image&         image,
         const IMsaaState*    pMsaaState,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&   range
-    ) const;
+        ) const;
 
     void ResummarizeDepthStencil(
         GfxCmdBuffer*        pCmdBuffer,
@@ -287,9 +287,9 @@ protected:
 
     const MsaaState* GetMsaaState(uint32 samples, uint32 fragments) const;
 
-    const GraphicsPipeline* GetCopyDepthStencilMsaaPipeline(bool isDepth,
-                                                            bool isDepthStencil,
-                                                            uint32 numSamples) const;
+    const GraphicsPipeline* GetCopyDepthStencilPipeline(bool isDepth,
+                                                        bool isDepthStencil,
+                                                        uint32 numSamples) const;
 
     void GenericColorBlit(
         GfxCmdBuffer*        pCmdBuffer,
@@ -362,21 +362,14 @@ private:
         const uint32*      pConvertedColor,
         const SubresRange& clearRange) const = 0;
 
-    virtual void HwlUpdateDstImageFmaskMetaData(
+    virtual void HwlFixupCopyDstImageMetaData(
         GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      srcImage,
+        const Pal::Image*      pSrcImage,
         const Pal::Image&      dstImage,
-        uint32                 regionCount,
+        ImageLayout            dstImageLayout,
         const ImageCopyRegion* pRegions,
-        uint32                 flags) const = 0;
-
-    virtual bool HwlImageUsesCompressedWrites(
-        const uint32* pImageSrd) const = 0;
-
-    virtual void HwlUpdateDstImageStateMetaData(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      dstImage,
-        const SubresRange&     range) const = 0;
+        uint32                 regionCount,
+        bool                   isFmaskCopyOptimized) const = 0;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
     virtual void HwlCreateDecompressResolveSafeImageViewSrds(
@@ -557,13 +550,15 @@ private:
         const Box*                 pBoxes,
         uint32                     mip,
         ColorTargetViewCreateInfo* pColorViewInfo,
-        BindTargetParams*          pBindTargetsInfo) const;
+        BindTargetParams*          pBindTargetsInfo,
+        uint32                     xRightShift) const;
 
     void ClearImageOneBox(
         GfxCmdBuffer*          pCmdBuffer,
         const SubResourceInfo& subResInfo,
         const Box*             pBox,
-        bool                   hasBoxes) const;
+        bool                   hasBoxes,
+        uint32                 xRightShift) const;
 
     void ConvertYuvToRgb(
         GfxCmdBuffer*                     pCmdBuffer,

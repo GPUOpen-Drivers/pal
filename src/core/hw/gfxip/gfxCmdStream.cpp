@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -260,11 +260,9 @@ void GfxCmdStream::If(
     // The PM4 optimizer has no understanding of control flow. Just turn off optimization when we start using it.
     if (m_flags.optimizeCommands == 1)
     {
-        PAL_ALERT_ALWAYS();
-
+        PAL_ALERT_ALWAYS_MSG("PM4 Optimizer has no understanding of flow control.  Optimization is being disabled to"
+                             " prevent issues.");
         m_flags.optimizeCommands = 0;
-        m_flags.optModeImmediate = 0;
-        m_flags.optModeFinalized = 0;
     }
 
     // The CP has no equivalent to CompareFunc::Never so we need to use CompareFunc::Always and swap the branches.
@@ -355,11 +353,9 @@ void GfxCmdStream::While(
     // The PM4 optimizer has no understanding of control flow. Just turn off optimization when we start using it.
     if (m_flags.optimizeCommands == 1)
     {
-        PAL_ALERT_ALWAYS();
-
+        PAL_ALERT_ALWAYS_MSG("PM4 Optimizer has no understanding of flow control.  Optimization is being disabled to"
+                             " prevent issues.");
         m_flags.optimizeCommands = 0;
-        m_flags.optModeImmediate = 0;
-        m_flags.optModeFinalized = 0;
     }
 
     // The CP has no equivalent to CompareFunc::Never so we need to use CompareFunc::Always and swap the branches.

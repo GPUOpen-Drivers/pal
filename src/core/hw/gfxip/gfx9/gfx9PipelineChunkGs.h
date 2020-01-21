@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -79,126 +79,75 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-    uint32 GsVsRingItemSize() const { return m_commands.context.gsVsRingItemSize.bits.ITEMSIZE; }
+    uint32 GsVsRingItemSize() const { return m_regs.context.vgtGsVsRingItemSize.bits.ITEMSIZE; }
 
     gpusize EsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_commands.sh.spiShaderPgmLoEs.bits.MEM_BASE,
-                                  m_commands.sh.spiShaderPgmHiEs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoEs.bits.MEM_BASE,
+                                  m_regs.sh.spiShaderPgmHiEs.bits.MEM_BASE);
     }
 
     const ShaderStageInfo& StageInfo() const { return m_stageInfo; }
 
 private:
-    void BuildPm4Headers(
-        bool                            enableLoadIndexPath,
-        const GraphicsPipelineLoadInfo& loadInfo);
+    const Device&  m_device;
 
-    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
-    struct Pm4Commands
+    struct
     {
         struct
         {
-            PM4_ME_SET_SH_REG        hdrSpiShaderPgmGs;
-            regSPI_SHADER_PGM_LO_ES  spiShaderPgmLoEs;
-            regSPI_SHADER_PGM_HI_ES  spiShaderPgmHiEs;
+            regSPI_SHADER_PGM_LO_ES       spiShaderPgmLoEs;
+            regSPI_SHADER_PGM_HI_ES       spiShaderPgmHiEs;
+            regSPI_SHADER_PGM_RSRC1_GS    spiShaderPgmRsrc1Gs;
+            regSPI_SHADER_PGM_RSRC2_GS    spiShaderPgmRsrc2Gs;
 
-            PM4_ME_SET_SH_REG           hdrSpiShaderPgmRsrcGs;
-            regSPI_SHADER_PGM_RSRC1_GS  spiShaderPgmRsrc1Gs;
-            regSPI_SHADER_PGM_RSRC2_GS  spiShaderPgmRsrc2Gs;
+            regSPI_SHADER_PGM_CHKSUM_GS      spiShaderPgmChksumGs;
+            regSPI_SHADER_USER_ACCUM_ESGS_0  spiShaderUserAccumEsGs0;
+            regSPI_SHADER_USER_ACCUM_ESGS_1  spiShaderUserAccumEsGs1;
+            regSPI_SHADER_USER_ACCUM_ESGS_2  spiShaderUserAccumEsGs2;
+            regSPI_SHADER_USER_ACCUM_ESGS_3  spiShaderUserAccumEsGs3;
 
-            PM4_ME_SET_SH_REG             hdrSpiShaderUserDataGs;
-            uint32                        spiShaderUserDataLoGs;
-
-            // Checksum register is optional, as not all GFX9+ hardware uses it. If we don't use it, NOP will be added.
-            PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
-            regSPI_SHADER_PGM_CHKSUM_GS  spiShaderPgmChksumGs;
-
-            // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be added.
-            PM4_ME_SET_SH_REG               hdrshaderUserAccumEsgs;
-            regSPI_SHADER_USER_ACCUM_ESGS_0 shaderUserAccumEsgs0;
-            regSPI_SHADER_USER_ACCUM_ESGS_1 shaderUserAccumEsgs1;
-            regSPI_SHADER_USER_ACCUM_ESGS_2 shaderUserAccumEsgs2;
-            regSPI_SHADER_USER_ACCUM_ESGS_3 shaderUserAccumEsgs3;
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
-        } sh; // Writes SH registers when using the SET path.
+            regSPI_SHADER_USER_DATA_GS_0  userDataInternalTable;
+            regSPI_SHADER_USER_DATA_GS_0  userDataLdsEsGsSize;
+            uint16  ldsEsGsSizeRegAddrGs;
+            uint16  ldsEsGsSizeRegAddrVs;
+        } sh;
 
         struct
         {
-            PM4_ME_SET_SH_REG             hdrEsGsSizeForGs;
-            regSPI_SHADER_USER_DATA_ES_0  gsUserDataLdsEsGsSize;
-
-            PM4_ME_SET_SH_REG             hdrEsGsSizeForVs;
-            regSPI_SHADER_USER_DATA_VS_0  vsUserDataLdsEsGsSize;
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
-        } shLds; // Writes SH registers when using the SET path for ES/GS LDS bytes.
-
-        struct
-        {
-            PM4_PFP_SET_CONTEXT_REG  hdrVgtGsMaxVertOut;
-            regVGT_GS_MAX_VERT_OUT   vgtGsMaxVertOut;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrVgtGsInstanceCnt;
-            regVGT_GS_INSTANCE_CNT   vgtGsInstanceCnt;
-
-            PM4_PFP_SET_CONTEXT_REG    hdrEsGsVsRingItemSize;
-            regVGT_ESGS_RING_ITEMSIZE  esGsRingItemSize;
-            regVGT_GSVS_RING_ITEMSIZE  gsVsRingItemSize;
-
-            PM4_PFP_SET_CONTEXT_REG    hdrVgtGsPerVsRingsPrimType;
+            regVGT_GS_MAX_VERT_OUT     vgtGsMaxVertOut;
+            regVGT_GS_INSTANCE_CNT     vgtGsInstanceCnt;
+            regVGT_ESGS_RING_ITEMSIZE  vgtEsGsRingItemSize;
+            regVGT_GSVS_RING_ITEMSIZE  vgtGsVsRingItemSize;
             regVGT_GS_PER_VS           vgtGsPerVs;
             regVGT_GSVS_RING_OFFSET_1  vgtGsVsRingOffset1;
             regVGT_GSVS_RING_OFFSET_2  vgtGsVsRingOffset2;
             regVGT_GSVS_RING_OFFSET_3  vgtGsVsRingOffset3;
             regVGT_GS_OUT_PRIM_TYPE    vgtGsOutPrimType;
-
-            PM4_PFP_SET_CONTEXT_REG    hdrVgtGsVertItemSize;
             regVGT_GS_VERT_ITEMSIZE    vgtGsVertItemSize0;
             regVGT_GS_VERT_ITEMSIZE_1  vgtGsVertItemSize1;
             regVGT_GS_VERT_ITEMSIZE_2  vgtGsVertItemSize2;
             regVGT_GS_VERT_ITEMSIZE_3  vgtGsVertItemSize3;
 
-            PM4_ME_SET_CONTEXT_REG  hdrVgtMaxPrimsPerSubgrp;
             union
             {
-                uint32                            u32All;
-                regVGT_GS_MAX_PRIMS_PER_SUBGROUP  gfx9;
-                regGE_MAX_OUTPUT_PER_SUBGROUP     gfx10;
-            } maxPrimsPerSubgrp;
+                regVGT_GS_MAX_PRIMS_PER_SUBGROUP  vgtGsMaxPrimsPerSubgroup;
+                regGE_MAX_OUTPUT_PER_SUBGROUP     geMaxOutputPerSubgroup;
+            };
 
-            PM4_PFP_SET_CONTEXT_REG   hdrSpiShaderIdxFormat;
             regSPI_SHADER_IDX_FORMAT  spiShaderIdxFormat;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrGeNggSubgrpCntl;
-            regGE_NGG_SUBGRP_CNTL    geNggSubgrpCntl;
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
-        } context; // Writes context registers when using the SET path.
+            regGE_NGG_SUBGRP_CNTL     geNggSubgrpCntl;
+        } context;
 
         struct
         {
-            PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc3Gs;
             regSPI_SHADER_PGM_RSRC3_GS  spiShaderPgmRsrc3Gs;
-
-            PM4_ME_SET_SH_REG           hdrPgmRsrc4Gs;
             regSPI_SHADER_PGM_RSRC4_GS  spiShaderPgmRsrc4Gs;
-        } dynamic; // Contains state which depends on bind-time parameters.
-    };
-
-    const Device&  m_device;
-    Pm4Commands    m_commands;
+        } dynamic;
+    }  m_regs;
 
     const PerfDataInfo*const  m_pPerfDataInfo;   // GS performance data information.
-
-    ShaderStageInfo  m_stageInfo;
+    ShaderStageInfo           m_stageInfo;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkGs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkGs);

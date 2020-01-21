@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -186,7 +186,9 @@ Result GpuMemory::ValidateCreateInfo(
                 result = Result::ErrorInvalidValue;
             }
         }
-        else if ((createInfo.descrVirtAddr != 0) && (createInfo.flags.useReservedGpuVa == false))
+        else if ((createInfo.descrVirtAddr != 0) &&
+                 (createInfo.flags.useReservedGpuVa == false) &&
+                 (createInfo.vaRange != VaRange::CaptureReplay))
         {
             // The "descrVirtAddr" field is only used for the ShadowDescriptorTable VA range.
             result = Result::ErrorInvalidValue;
@@ -603,6 +605,10 @@ Result GpuMemory::Init(
 #endif
             }
         }
+        else if (createInfo.vaRange == VaRange::CaptureReplay)
+        {
+            baseVirtAddr = createInfo.replayVirtAddr;
+        }
 
         if (result == Result::Success && (Desc().flags.isExternPhys == false))
         {
@@ -854,12 +860,13 @@ Result GpuMemory::Init(
     m_flags.nonLocalOnly        = m_pOriginalMem->m_flags.nonLocalOnly;
     m_flags.interprocess        = m_pOriginalMem->m_flags.interprocess;
     m_flags.globalGpuVa         = m_pOriginalMem->m_flags.globalGpuVa;
+    m_flags.useReservedGpuVa    = (m_vaPartition == VaPartition::Svm);
     m_flags.cpuVisible          = m_pOriginalMem->m_flags.cpuVisible;
     m_flags.peerWritable        = m_pOriginalMem->m_flags.peerWritable;
     PAL_ASSERT(m_flags.peerWritable == 1);
 
     // Set the gpuVirtAddr if the GPU VA is visible to all devices
-    if (IsGlobalGpuVa())
+    if (IsGlobalGpuVa() || IsGpuVaPreReserved())
     {
         m_desc.gpuVirtAddr = m_pOriginalMem->m_desc.gpuVirtAddr;
     }

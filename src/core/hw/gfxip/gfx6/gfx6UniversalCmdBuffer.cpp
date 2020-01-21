@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -905,6 +905,10 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
         DI_PT_TRISTRIP_ADJ,     // TriangleStripAdj
         DI_PT_PATCH,            // Patch
         DI_PT_TRIFAN,           // TriangleFan
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
+        DI_PT_LINELOOP,         // LineLoop
+        DI_PT_POLYGON,          // Polygon
+#endif
     };
 
     regVGT_PRIMITIVE_TYPE vgtPrimitiveType = { };
@@ -2589,7 +2593,7 @@ Result UniversalCmdBuffer::AddPreamble()
         regValue.bits.BLEND_OPT_DONT_RD_DST   = dontRdDst;
         regValue.bits.BLEND_OPT_DISCARD_PIXEL = discardPixel;
 
-        if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
+        if (m_deCmdStream.Pm4OptimizerEnabled())
         {
             pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<true>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
                                                                  BlendOptRegMask,
@@ -3830,7 +3834,7 @@ template <bool indexed, bool indirect>
 void UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo)
 {
-    if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
+    if (m_deCmdStream.Pm4OptimizerEnabled())
     {
         ValidateDraw<indexed, indirect, true>(drawInfo);
     }
@@ -4242,7 +4246,7 @@ uint32* UniversalCmdBuffer::ValidateViewports(
 uint32* UniversalCmdBuffer::ValidateViewports(
     uint32*    pDeCmdSpace)
 {
-    if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
+    if (m_deCmdStream.Pm4OptimizerEnabled())
     {
         pDeCmdSpace = ValidateViewports<true>(pDeCmdSpace);
     }
@@ -4340,7 +4344,7 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
 uint32* UniversalCmdBuffer::ValidateScissorRects(
     uint32*    pDeCmdSpace)
 {
-    if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
+    if (m_deCmdStream.Pm4OptimizerEnabled())
     {
         pDeCmdSpace = ValidateScissorRects<true>(pDeCmdSpace);
     }
@@ -4865,30 +4869,15 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
     regDB_COUNT_CONTROL* pDbCountControl,
     uint32*              pDeCmdSpace)
 {
-    if (IsQueryActive(QueryPoolType::Occlusion) && (NumActiveQueries(QueryPoolType::Occlusion) != 0))
+    const bool HasActiveQuery = IsQueryActive(QueryPoolType::Occlusion) &&
+                                (NumActiveQueries(QueryPoolType::Occlusion) != 0);
+
+    if (HasActiveQuery)
     {
         // Only update the value of DB_COUNT_CONTROL if there are active queries. If no queries are active,
         // the new SAMPLE_RATE value is ignored by the HW and the register will be written the next time a query
         // is activated.
         pDbCountControl->bits.SAMPLE_RATE = log2SampleRate;
-
-        //   Since 8xx, the ZPass count controls have moved to a separate register call DB_COUNT_CONTROL.
-        //   PERFECT_ZPASS_COUNTS forces all partially covered tiles to be detail walked, and not setting it will count
-        //   all HiZ passed tiles as 8x#samples worth of zpasses.  Therefore in order for vis queries to get the right
-        //   zpass counts, PERFECT_ZPASS_COUNTS should be set to 1, but this will hurt performance when z passing
-        //   geometry does not actually write anything (ZFail Shadow volumes for example).
-
-        // Hardware does not enable depth testing when issuing a depth only render pass with depth writes disabled.
-        // Unfortunately this corner case prevents depth tiles from being generated and when setting
-        // PERFECT_ZPASS_COUNTS = 0, the hardware relies on counting at the tile granularity for binary occlusion
-        // queries.  With the depth test disabled and PERFECT_ZPASS_COUNTS = 0, there will be 0 tiles generated which
-        // will cause the binary occlusion test to always generate depth pass counts of 0.
-        // Setting PERFECT_ZPASS_COUNTS = 1 forces tile generation and reliable binary occlusion query results.
-        pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = 1;
-
-        // Gfx6 and Gfx7/8 ASICs have different master enable flags
-        pDbCountControl->bits.ZPASS_ENABLE__CI__VI    = 1;
-        pDbCountControl->bits.ZPASS_INCREMENT_DISABLE = 0;
     }
     else if (IsNested())
     {
@@ -4907,6 +4896,28 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
                                                                             pDbCountControl->u32All,
                                                                             pDeCmdSpace);
         }
+    }
+
+    if (HasActiveQuery ||
+        (IsNested() && m_graphicsState.inheritedState.stateFlags.occlusionQuery))
+    {
+        //   Since 8xx, the ZPass count controls have moved to a separate register call DB_COUNT_CONTROL.
+        //   PERFECT_ZPASS_COUNTS forces all partially covered tiles to be detail walked, and not setting it will count
+        //   all HiZ passed tiles as 8x#samples worth of zpasses.  Therefore in order for vis queries to get the right
+        //   zpass counts, PERFECT_ZPASS_COUNTS should be set to 1, but this will hurt performance when z passing
+        //   geometry does not actually write anything (ZFail Shadow volumes for example).
+
+        // Hardware does not enable depth testing when issuing a depth only render pass with depth writes disabled.
+        // Unfortunately this corner case prevents depth tiles from being generated and when setting
+        // PERFECT_ZPASS_COUNTS = 0, the hardware relies on counting at the tile granularity for binary occlusion
+        // queries.  With the depth test disabled and PERFECT_ZPASS_COUNTS = 0, there will be 0 tiles generated which
+        // will cause the binary occlusion test to always generate depth pass counts of 0.
+        // Setting PERFECT_ZPASS_COUNTS = 1 forces tile generation and reliable binary occlusion query results.
+        pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = 1;
+
+        // Gfx6 and Gfx7/8 ASICs have different master enable flags
+        pDbCountControl->bits.ZPASS_ENABLE__CI__VI    = 1;
+        pDbCountControl->bits.ZPASS_INCREMENT_DISABLE = 0;
     }
     else
     {
@@ -4982,6 +4993,10 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
 
     bool switchOnEop = ((primTopology == PrimitiveTopology::TriangleStripAdj) ||
                         (primTopology == PrimitiveTopology::TriangleFan) ||
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
+                        (primTopology == PrimitiveTopology::LineLoop) ||
+                        (primTopology == PrimitiveTopology::Polygon) ||
+#endif
                         (primitiveRestartEnabled &&
                          ((m_device.Support4VgtWithResetIdx() == false) ||
                           ((primTopology != PrimitiveTopology::PointList) &&

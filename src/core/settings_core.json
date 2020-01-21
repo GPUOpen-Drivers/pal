@@ -1316,47 +1316,6 @@
         "IsEnum": true,
         "Values": [
           {
-            "Name": "Pm4OptModeImmediate",
-            "Value": 0,
-            "Description": "When commands are written to the command stream's reserve buffer."
-          },
-          {
-            "Name": "Pm4OptModeFinalized",
-            "Value": 1,
-            "Description": "When a command stream's command chunks are finalized."
-          }
-        ],
-        "Name": "Pm4OptMode",
-        "IsExlusive": true
-      },
-      "Name": "CmdBufOptimizePm4Mode",
-      "Tags": [
-        "Command Buffer"
-      ],
-      "Defaults": {
-        "Default": "Pm4OptModeImmediate"
-      },
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              0,
-              1
-            ],
-            "Name": "CmdBufOptimizePm4Mode"
-          }
-        ]
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "enum",
-      "VariableName": "cmdBufOptimizePm4Mode",
-      "Description": "When PM4 optimization is enabled this setting controls when command streams will use the optimizer."
-    },
-    {
-      "ValidValues": {
-        "IsEnum": true,
-        "Values": [
-          {
             "Name": "CmdBufForceCpuUpdatePathDefault",
             "Value": 0,
             "Description": "No override, use client's preference."

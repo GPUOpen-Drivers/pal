@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -193,9 +193,10 @@ typedef enum _AddrTileMode
 * @note
 *
 *   ADDR_SW_LINEAR linear aligned addressing mode, for 1D/2D/3D resource
-*   ADDR_SW_256B_* addressing block aligned size is 256B, for 2D/3D resource
+*   ADDR_SW_256B_* addressing block aligned size is 256B, for 2D resource
 *   ADDR_SW_4KB_*  addressing block aligned size is 4KB, for 2D/3D resource
-*   ADDR_SW_64KB_* addressing block aligned size is 64KB, for 2D/3D resource
+*   ADDR_SW_64KB_* addressing block aligned size is 64KB, for 1D/2D/3D resource
+*   ADDR_SW_VAR_*  addressing block aligned size is ASIC specific
 *
 *   ADDR_SW_*_Z    For GFX9:
                    - for 2D resource, represents Z-order swizzle mode for depth/stencil/FMask

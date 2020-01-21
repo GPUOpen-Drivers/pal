@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -347,7 +347,9 @@ namespace DevDriver
         // Resizes the vector. Implicitly destroys objects if newSize is smaller than the existing size.
         void Resize(size_t newSize)
         {
+            // TODO: Reserve should return whether allocation failed
             Reserve(newSize);
+
             // If the object isn't a POD and we are shrinking the size, we need to replace destroyed objects with
             // default constructed instances.
             if (!Platform::IsPod<T>::Value)
@@ -358,6 +360,38 @@ namespace DevDriver
                 }
             }
             m_size = newSize;
+        }
+
+        // Resizes the vector, zeroing additional elements
+        //
+        // Warning: This will break badly if your type cannot be safely memset() to 0!
+        void ResizeAndZero(size_t newSize)
+        {
+            // TODO: Reserve should return whether allocation failed
+            Reserve(newSize);
+
+            if (newSize > m_size)
+            {
+                memset(&m_pData[m_size], 0, (newSize - m_size) * sizeof(T));
+            }
+            else if (newSize < m_size)
+            {
+                // This function only makes sense when increasing the size (or leaving the size as-is).
+                // If you're decreasing the size, prefer calling Resize directly.
+                DD_WARN_REASON("Calling ResizeAndZero to shrink acts just like Resize() - prefer calling Vector::Resize instead");
+            }
+
+            m_size = newSize;
+        }
+
+        // Grows the vector by the specified number of elements and returns the previous size
+        size_t Grow(size_t numElements)
+        {
+            const size_t oldSize = m_size;
+
+            Resize(m_size + numElements);
+
+            return oldSize;
         }
 
         // Iterator creation function

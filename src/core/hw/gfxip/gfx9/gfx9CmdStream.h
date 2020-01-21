@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -56,12 +56,6 @@ public:
 
     virtual Result Begin(CmdStreamBeginFlags flags, Util::VirtualLinearAllocator* pMemAllocator) override;
     virtual void   Reset(CmdAllocator* pNewAllocator, bool returnGpuMemory) override;
-
-    // Public command interface:
-    // The command stream client should call these special functions whenever it wishes to copy pre-built PM4 images
-    // to the reserve buffer or wishes to build any of the relevant packets directly in the reserve buffer. These
-    // functions give the PM4 optimizer a chance to optimize before anything is written to the reserve buffer.
-    uint32* WritePm4Image(size_t sizeInDwords, const void* pImage, uint32* pCmdSpace);
 
     template <bool pm4OptImmediate>
     uint32* WriteContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData, uint32* pCmdSpace);

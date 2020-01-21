@@ -22,8 +22,10 @@ function(dd_third_party_disable_warnings name)
 
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
+        #if DD_ACCESS_INTERNAL
         # [MSVC] Warning Level
         #   https://docs.microsoft.com/en-us/cpp/build/reference/compiler-option-warning-level
+        #endif
         target_compile_options(${name}
             PRIVATE
                 /w
@@ -59,9 +61,9 @@ function(dd_third_party_add_lib)
     # 'options' is a list of things that are used or not - like `--flags` in CLI apps.
     set(options         "")
     # 'multiValueArgs' is a list of things that have one or more arguments.
-    set(multiValueArgs  "")
+    set(multiValueArgs  TARGETS)
     # 'oneValueArgs' is a list of things that expect exactly one argument, like `-j12`, `-j=12`, or `-j 12`.
-    set(oneValueArgs    TARGET DIRECTORY)
+    set(oneValueArgs    DIRECTORY)
 
     cmake_parse_arguments(third_party "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -86,33 +88,42 @@ function(dd_third_party_add_lib)
     message(VERBOSE "Adding third party target \"${third_party_TARGET}\" from ${CMAKE_CURRENT_SOURCE_DIR}/${third_party_DIRECTORY}")
     add_subdirectory("${third_party_DIRECTORY}" EXCLUDE_FROM_ALL)
 
-    if (TARGET ${third_party_TARGET})
+    set(BAD_TARGETS "")
 
-        amd_target_options(${third_party_TARGET})
-        dd_third_party_disable_warnings(${third_party_TARGET})
+    foreach(target ${third_party_TARGETS})
+        if (TARGET ${target})
 
-        # Only libraries need PIC enabled
-        get_target_property(target_type ${third_party_TARGET} TYPE)
-        if (target_type STREQUAL "STATIC_LIBRARY")
+            amd_target_options(${target})
+            dd_third_party_disable_warnings(${target})
 
-            set_target_properties(${third_party_TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+            # Only libraries need PIC enabled
+            get_target_property(target_type ${target} TYPE)
+            if (target_type STREQUAL "STATIC_LIBRARY")
+
+                set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+            endif()
+
+            # INTERFACE_LIBRARY targets have restricted properties, so we skip them.
+            if (NOT target_type STREQUAL "INTERFACE_LIBRARY")
+
+                set_target_properties(${target}
+                    PROPERTIES
+                        FOLDER "Third Party"
+                )
+
+            endif()
+
+        else()
+
+            list(APPEND BAD_TARGETS "${target}")
+            message(WARNING "Failed to add third party target ${target}")
 
         endif()
+    endforeach()
 
-        # INTERFACE_LIBRARY targets have restricted properties, so we skip them.
-        if (NOT target_type STREQUAL "INTERFACE_LIBRARY")
-
-            set_target_properties(${third_party_TARGET}
-                PROPERTIES
-                    FOLDER              "Third Party"
-            )
-
-        endif()
-
-    else()
-
-        message(FATAL_ERROR "Failed to add third party target ${third_party_TARGET}")
-
+    if (BAD_TARGETS)
+        message(FATAL_ERROR "Failed to add some third party targets")
     endif()
 
 endfunction()
@@ -121,7 +132,10 @@ endfunction()
 # WA: Check that this target hasn't already been added (Only until we have a global CMake context)
 if (NOT TARGET mpack)
 
-    dd_third_party_add_lib(TARGET mpack)
+    dd_third_party_add_lib(
+        TARGETS   mpack
+        DIRECTORY mpack
+    )
 
 endif()
 
@@ -129,7 +143,10 @@ endif()
 # WA: Check that this target hasn't already been added (Only until we have a global CMake context)
 if (NOT TARGET rapidjson)
 
-    dd_third_party_add_lib(TARGET rapidjson)
+    dd_third_party_add_lib(
+        TARGETS   rapidjson
+        DIRECTORY rapidjson
+    )
 
 endif()
 
@@ -137,21 +154,30 @@ endif()
 # WA: Check that this target hasn't already been added (Only until we have a global CMake context)
 if (NOT TARGET metrohash)
 
-    dd_third_party_add_lib(TARGET metrohash)
+    dd_third_party_add_lib(
+        TARGETS   metrohash
+        DIRECTORY metrohash
+    )
 
 endif()
 
 ### Fast (De)Compression ###
-# WA: Until we have a global CMake context, we need to check that this target hasn't been added already.
+# WA: Check that these targets haven't already been added (Only until we have a global CMake context)
 if (NOT TARGET lz4)
 
-    dd_third_party_add_lib(TARGET lz4)
+    dd_third_party_add_lib(
+        TARGETS   lz4 xxhash
+        DIRECTORY lz4
+    )
 
 endif()
 
 ### C++ Unit Tests ###
 if (NOT TARGET gtest)
 
-    dd_third_party_add_lib(TARGET gtest)
+    dd_third_party_add_lib(
+        TARGETS   gtest
+        DIRECTORY gtest
+    )
 
 endif()

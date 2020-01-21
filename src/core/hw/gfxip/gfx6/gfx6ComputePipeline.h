@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,7 @@ namespace Gfx6
 {
 
 class ComputePipelineUploader;
+class CmdStream;
 
 // =====================================================================================================================
 // GFX6 compute pipeline class: implements GFX6 specific functionality for the ComputePipeline class.
@@ -48,7 +49,7 @@ public:
     virtual ~ComputePipeline() { }
 
     uint32* WriteCommands(
-        Pal::CmdStream*                 pCmdStream,
+        CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
         const DynamicComputeShaderInfo& csInfo,
         bool                            prefetch) const;
@@ -68,9 +69,10 @@ protected:
         Util::MsgPackReader*             pMetadataReader) override;
 
 private:
+    uint32* WriteShCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+
     uint32 CalcMaxWavesPerSh(uint32 maxWavesPerCu) const;
 
-    void BuildPm4Headers(const ComputePipelineUploader& uploader);
     void UpdateRingSizes(const CodeObjectMetadata& metadata);
 
     void SetupSignatureFromElf(
@@ -79,47 +81,31 @@ private:
 
     Device*const  m_pDevice;
 
-    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
-    struct Pm4Commands
+    struct
     {
-        struct
-        {
-            PM4CMDLOADDATAINDEX  loadShRegIndex;
-        } loadIndex; // LOAD_INDEX path, used for universal command buffers on updated microcode.
+        regCOMPUTE_NUM_THREAD_X  computeNumThreadX;
+        regCOMPUTE_NUM_THREAD_Y  computeNumThreadY;
+        regCOMPUTE_NUM_THREAD_Z  computeNumThreadZ;
+        regCOMPUTE_PGM_LO        computePgmLo;
+        regCOMPUTE_PGM_HI        computePgmHi;
+        regCOMPUTE_PGM_RSRC1     computePgmRsrc1;
+        regCOMPUTE_USER_DATA_0   computeUserDataLo;
 
         struct
         {
-            PM4CMDSETDATA            hdrComputeNumThread;
-            regCOMPUTE_NUM_THREAD_X  computeNumThreadX;
-            regCOMPUTE_NUM_THREAD_Y  computeNumThreadY;
-            regCOMPUTE_NUM_THREAD_Z  computeNumThreadZ;
-
-            PM4CMDSETDATA      hdrComputePgm;
-            regCOMPUTE_PGM_LO  computePgmLo;
-            regCOMPUTE_PGM_HI  computePgmHi;
-
-            PM4CMDSETDATA         hdrComputePgmRsrc1;
-            regCOMPUTE_PGM_RSRC1  computePgmRsrc1;
-
-            PM4CMDSETDATA           hdrComputeUserData;
-            regCOMPUTE_USER_DATA_0  computeUserDataLo;
-        } set; // SET path, used for compute command buffers & legacy microcode.  The MEC doesn't support
-               // LOAD_SH_REG_INDEX.
-
-        struct
-        {
-            PM4CMDSETDATA         hdrComputePgmRsrc2;
-            regCOMPUTE_PGM_RSRC2  computePgmRsrc2;
-
-            PM4CMDSETDATA               hdrComputeResourceLimits;
+            regCOMPUTE_PGM_RSRC2        computePgmRsrc2;
             regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
         } dynamic; // Contains state which depends on bind-time parameters.
+    }  m_regs;
 
-        PipelinePrefetchPm4 prefetch;
-    };
+    struct
+    {
+        gpusize  gpuVirtAddr;
+        uint32   count;
+    }  m_loadPath;
 
-    ComputePipelineSignature     m_signature;
-    Pm4Commands                  m_commands;
+    PipelinePrefetchPm4       m_prefetch;
+    ComputePipelineSignature  m_signature;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);

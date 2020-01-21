@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -96,7 +96,11 @@ enum class PrimitiveTopology : uint32
     TriangleListAdj  = 0xA,
     TriangleStripAdj = 0xB,
     Patch            = 0xC,
-    TriangleFan      = 0xD
+    TriangleFan      = 0xD,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
+    LineLoop         = 0xE,
+    Polygon          = 0xF
+#endif
 };
 
 /// Specifies how triangle primitives should be rasterized.
@@ -386,8 +390,12 @@ union InheritedStateFlags
         /// should not modify this state.
         uint32 targetViewState : 1;
 
+        /// Occlusion query is inherited from the root-level command buffer. The nested command buffer
+        /// should not modify this state.
+        uint32 occlusionQuery : 1;
+
         /// Reserved for future usage.
-        uint32 reserved : 31;
+        uint32 reserved : 30;
     };
 
     /// Flags packed as 32-bit uint.
@@ -1473,17 +1481,6 @@ enum class PredicateType : uint32
     Boolean32 = 4, ///< CP PFP treats memory as a 32bit integer which is either false (0) or true, Vulkan style.
 };
 
-/// Specifies how to interpret a clear color.
-enum class ClearColorType : uint32
-{
-    Uint  = 0, ///< The color is stored as an unsigned integer in RGBA order in u32Color. It will be swizzled and
-               ///  compacted before it is written to memory.
-    Sint  = 1, ///< The color is stored as a signed integer in RGBA order in i32Color. It will be swizzled and
-               ///  compacted before it is written to memory.
-    Float = 2, ///< The color is stored as floating point in RGBA order. It will be swizzled and converted to the
-               ///  appropriate numeric format before it is written to memory.
-};
-
 /// Bitfield structure used to specify masks for functions that operate on depth and/or stencil aspects of an image.
 union DepthStencilSelectFlags
 {
@@ -1501,18 +1498,6 @@ union DepthStencilSelectFlags
 
     /// Flags packed as 32-bit uint.
     uint32 u32All;
-};
-
-/// Contains everything necessary to store and interpret a clear color.
-struct ClearColor
-{
-    ClearColorType type;    ///< How to interpret this clear color.
-
-    union
-    {
-        uint32 u32Color[4]; ///< The clear color, interpreted as four unsigned integers.
-        float  f32Color[4]; ///< The clear color, interpreted as four floating point values.
-    };
 };
 
 /// Specifies information related to clearing a bound color target.  Input structure to CmdClearBoundColorTargets().
@@ -1614,6 +1599,9 @@ struct CmdPostProcessFrameInfo
         const IGpuMemory* pSrcTypedBuffer; ///< The typed buffer to postprocess.
                                            ///  Must have been created as a typed buffer.
     };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
+    PresentMode presentMode;               /// The Presentation Mode of the application.
+#endif
 };
 
 /// External flags for ScaledCopyImage.

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -333,7 +333,9 @@ void DmaCmdBuffer::PatchPredicateCmd(
     ) const
 {
     auto*const pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>((uint32*)pPredicateCmd + PredPatchOffset);
-    pPacket->EXEC_COUNT_UNION.exec_count = predicateDwords - (Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE)) + PredPatchOffset);
+
+    pPacket->EXEC_COUNT_UNION.exec_count = predicateDwords -
+                                           (Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE)) + PredPatchOffset);
 
 }
 // =====================================================================================================================

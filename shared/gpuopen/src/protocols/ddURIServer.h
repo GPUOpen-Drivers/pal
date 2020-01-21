@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -37,12 +37,12 @@
 #include "util/vector.h"
 #include "ddUriInterface.h"
 
+#include <protocols/ddInternalService.h>
+
 namespace DevDriver
 {
     namespace URIProtocol
     {
-        constexpr const char* kInternalServiceName = "internal";
-
         // The protocol server implementation for the uri protocol.
         class URIServer : public BaseProtocolServer
         {
@@ -84,11 +84,18 @@ namespace DevDriver
             Result ServiceRequest(const char*         pServiceName,
                                   IURIRequestContext* pRequestContext);
 
+            // Callback to query registered services for use with RouterInternalService
+            // This must only be called when the internal mutex is already owned. It does not lock internally.
+            static Result QueryRegisteredServices(void* pUserdata, Vector<const IService*>* pServices);
+
             // Mutex used for synchronizing the registered services list.
             Platform::Mutex m_mutex;
 
             // A hashmap of all the registered services.
             HashMap<uint64, ServiceInfo, 8> m_registeredServices;
+
+            // An always-available service for diagnostic and information queries
+            InternalService m_internalService;
 
             class URISession;
         };

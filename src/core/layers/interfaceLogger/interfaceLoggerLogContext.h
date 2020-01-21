@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -680,7 +680,6 @@ public:
     void KeyAndObject(const char* pKey, const IQueueSemaphore* pDecorator)       { Key(pKey); Object(pDecorator); }
     void KeyAndObject(const char* pKey, const IScreen* pDecorator)               { Key(pKey); Object(pDecorator); }
     void KeyAndObject(const char* pKey, const ISwapChain* pDecorator)            { Key(pKey); Object(pDecorator); }
-
     void KeyAndStruct(const char* pKey, const AcquireNextImageInfo& value)                { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const BarrierInfo& value)                         { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const AcquireReleaseInfo& value)                  { Key(pKey); Struct(value); }

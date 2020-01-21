@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -84,10 +84,7 @@ PipelineChunkVsPs::PipelineChunkVsPs(
     m_pVsPerfDataInfo(pVsPerfDataInfo),
     m_pPsPerfDataInfo(pPsPerfDataInfo)
 {
-    m_spiPsInControl.u32All = 0;
-    m_spiVsOutConfig.u32All = 0;
-
-    memset(&m_commands,  0, sizeof(m_commands));
+    memset(&m_regs, 0, sizeof(m_regs));
     memset(&m_stageInfoVs, 0, sizeof(m_stageInfoVs));
     memset(&m_stageInfoPs, 0, sizeof(m_stageInfoPs));
 
@@ -106,25 +103,25 @@ void PipelineChunkVsPs::EarlyInit(
     PAL_ASSERT(pInfo != nullptr);
 
     // Determine if stream-out is enabled for this pipeline.
-    registers.HasEntry(mmVGT_STRMOUT_CONFIG, &m_commands.streamOut.vgtStrmoutConfig.u32All);
+    registers.HasEntry(mmVGT_STRMOUT_CONFIG, &m_regs.context.vgtStrmoutConfig.u32All);
 
     // Determine the number of PS interpolators and save them for LateInit to consume.
-    pInfo->interpolatorCount = 0;
+    m_regs.context.interpolatorCount = 0;
     for (uint16 i = 0; i < MaxPsInputSemantics; ++i)
     {
         const uint16 offset = (mmSPI_PS_INPUT_CNTL_0 + i);
-        if (registers.HasEntry(offset, &m_commands.context.spiPsInputCntl[i].u32All) == false)
+        if (registers.HasEntry(offset, &m_regs.context.spiPsInputCntl[i].u32All) == false)
         {
             break;
         }
 
-        ++(pInfo->interpolatorCount);
+        ++m_regs.context.interpolatorCount;
     }
 
     const Gfx6PalSettings& settings = m_device.Settings();
     if (settings.enableLoadIndexForObjectBinds != false)
     {
-        pInfo->loadedCtxRegCount += (BaseLoadedCntxRegCount + pInfo->interpolatorCount);
+        pInfo->loadedCtxRegCount += (BaseLoadedCntxRegCount + m_regs.context.interpolatorCount);
         pInfo->loadedShRegCount  +=  BaseLoadedShRegCount;
 
         if (UsesStreamOut())
@@ -145,12 +142,8 @@ void PipelineChunkVsPs::LateInit(
     GraphicsPipelineUploader*           pUploader,
     MetroHash64*                        pHasher)
 {
-    const bool useLoadIndexPath = pUploader->EnableLoadIndexPath();
-
     const Gfx6PalSettings&   settings  = m_device.Settings();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
-    BuildPm4Headers(useLoadIndexPath, loadInfo.interpolatorCount);
 
     Abi::PipelineSymbolEntry symbol = {};
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::VsMainEntry, &symbol))
@@ -159,14 +152,14 @@ void PipelineChunkVsPs::LateInit(
         const gpusize programGpuVa = (pUploader->CodeGpuVirtAddr() + symbol.value);
         PAL_ASSERT(programGpuVa == Pow2Align(programGpuVa, 256));
 
-        m_commands.sh.spiShaderPgmLoVs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
-        m_commands.sh.spiShaderPgmHiVs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
+        m_regs.sh.spiShaderPgmLoVs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
+        m_regs.sh.spiShaderPgmHiVs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::VsShdrIntrlTblPtr, &symbol))
     {
         const gpusize srdTableGpuVa = (pUploader->DataGpuVirtAddr() + symbol.value);
-        m_commands.sh.spiShaderUserDataLoVs.bits.DATA = LowPart(srdTableGpuVa);
+        m_regs.sh.userDataInternalTableVs.bits.DATA = LowPart(srdTableGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::VsDisassembly, &symbol))
@@ -180,14 +173,14 @@ void PipelineChunkVsPs::LateInit(
         const gpusize programGpuVa = (pUploader->CodeGpuVirtAddr() + symbol.value);
         PAL_ASSERT(programGpuVa == Pow2Align(programGpuVa, 256));
 
-        m_commands.sh.spiShaderPgmLoPs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
-        m_commands.sh.spiShaderPgmHiPs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
+        m_regs.sh.spiShaderPgmLoPs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
+        m_regs.sh.spiShaderPgmHiPs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::PsShdrIntrlTblPtr, &symbol))
     {
         const gpusize srdTableGpuVa = (pUploader->DataGpuVirtAddr() + symbol.value);
-        m_commands.sh.spiShaderUserDataLoPs.bits.DATA = LowPart(srdTableGpuVa);
+        m_regs.sh.userDataInternalTablePs.bits.DATA = LowPart(srdTableGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::PsDisassembly, &symbol))
@@ -195,68 +188,67 @@ void PipelineChunkVsPs::LateInit(
         m_stageInfoPs.disassemblyLength = static_cast<size_t>(symbol.size);
     }
 
-    m_commands.sh.spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
-    m_commands.sh.spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
-    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI, &m_commands.dynamic.spiShaderPgmRsrc3Vs.u32All);
+    m_regs.sh.spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
+    m_regs.sh.spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI, &m_regs.dynamic.spiShaderPgmRsrc3Vs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
-    m_commands.sh.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE = (settings.vsCuGroupEnabled ? 1 : 0);
+    m_regs.sh.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE = (settings.vsCuGroupEnabled ? 1 : 0);
 
-    m_commands.sh.spiShaderPgmRsrc1Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_PS);
-    m_commands.sh.spiShaderPgmRsrc2Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_PS);
-    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI, &m_commands.dynamic.spiShaderPgmRsrc3Ps.u32All);
+    m_regs.sh.spiShaderPgmRsrc1Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_PS);
+    m_regs.sh.spiShaderPgmRsrc2Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_PS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI, &m_regs.dynamic.spiShaderPgmRsrc3Ps.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_DISABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
-    m_commands.sh.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.psCuGroupEnabled ? 0 : 1);
+    m_regs.sh.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.psCuGroupEnabled ? 0 : 1);
 
-    m_commands.context.paClVsOutCntl.u32All      = registers.At(mmPA_CL_VS_OUT_CNTL);
+    m_regs.context.paClVsOutCntl.u32All = registers.At(mmPA_CL_VS_OUT_CNTL);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
     if (createInfo.rsState.clipDistMask != 0)
     {
-        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_0 &= (createInfo.rsState.clipDistMask & 0x1) != 0;
-        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_1 &= (createInfo.rsState.clipDistMask & 0x2) != 0;
-        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_2 &= (createInfo.rsState.clipDistMask & 0x4) != 0;
-        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_3 &= (createInfo.rsState.clipDistMask & 0x8) != 0;
-        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_4 &= (createInfo.rsState.clipDistMask & 0x10) != 0;
-        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_5 &= (createInfo.rsState.clipDistMask & 0x20) != 0;
-        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_6 &= (createInfo.rsState.clipDistMask & 0x40) != 0;
-        m_commands.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_7 &= (createInfo.rsState.clipDistMask & 0x80) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_0 &= (createInfo.rsState.clipDistMask & 0x1) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_1 &= (createInfo.rsState.clipDistMask & 0x2) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_2 &= (createInfo.rsState.clipDistMask & 0x4) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_3 &= (createInfo.rsState.clipDistMask & 0x8) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_4 &= (createInfo.rsState.clipDistMask & 0x10) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_5 &= (createInfo.rsState.clipDistMask & 0x20) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_6 &= (createInfo.rsState.clipDistMask & 0x40) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_7 &= (createInfo.rsState.clipDistMask & 0x80) != 0;
     }
 #endif
 
-    m_commands.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
-    m_commands.context.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
+    m_regs.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
+    m_regs.context.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
 
     // If the number of VS output semantics exceeds the half-pack threshold, then enable VS half-pack mode.  Keep in
     // mind that the number of VS exports are represented by a -1 field in the HW register!
-    m_spiVsOutConfig.u32All = registers.At(mmSPI_VS_OUT_CONFIG);
-    if ((m_spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u) > settings.vsHalfPackThreshold)
+    m_regs.context.spiVsOutConfig.u32All = registers.At(mmSPI_VS_OUT_CONFIG);
+    if ((m_regs.context.spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u) > settings.vsHalfPackThreshold)
     {
-        m_spiVsOutConfig.bits.VS_HALF_PACK = 1;
+        m_regs.context.spiVsOutConfig.bits.VS_HALF_PACK = 1;
     }
 
-    m_spiPsInControl.u32All                      = registers.At(mmSPI_PS_IN_CONTROL);
-    m_commands.context.spiBarycCntl.u32All       = registers.At(mmSPI_BARYC_CNTL);
-    m_commands.context.spiPsInputAddr.u32All     = registers.At(mmSPI_PS_INPUT_ADDR);
-    m_commands.context.spiPsInputEna.u32All      = registers.At(mmSPI_PS_INPUT_ENA);
-    m_commands.context.spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
-    m_commands.context.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
+    m_regs.context.spiPsInControl.u32All     = registers.At(mmSPI_PS_IN_CONTROL);
+    m_regs.context.spiBarycCntl.u32All       = registers.At(mmSPI_BARYC_CNTL);
+    m_regs.context.spiPsInputAddr.u32All     = registers.At(mmSPI_PS_INPUT_ADDR);
+    m_regs.context.spiPsInputEna.u32All      = registers.At(mmSPI_PS_INPUT_ENA);
+    m_regs.context.spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
+    m_regs.context.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
 
     if (UsesStreamOut())
     {
         for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
         {
-            m_commands.streamOut.stride[i].vgtStrmoutVtxStride.u32All = registers.At(VgtStrmoutVtxStrideAddr[i]);
+            m_regs.context.vgtStrmoutVtxStride[i].u32All = registers.At(VgtStrmoutVtxStrideAddr[i]);
         }
 
-        m_commands.streamOut.vgtStrmoutBufferConfig.u32All = registers.At(mmVGT_STRMOUT_BUFFER_CONFIG);
+        m_regs.context.vgtStrmoutBufferConfig.u32All = registers.At(mmVGT_STRMOUT_BUFFER_CONFIG);
     }
 
-    pHasher->Update(m_commands.context);
-    pHasher->Update(m_commands.streamOut);
+    pHasher->Update(m_regs.context);
 
     if (chipProps.gfxLevel >= GfxIpLevel::GfxIp7)
     {
@@ -267,47 +259,47 @@ void PipelineChunkVsPs::LateInit(
             vsCuDisableMask = 0x2;
         }
 
-        m_commands.dynamic.spiShaderPgmRsrc3Vs.bits.CU_EN = m_device.GetCuEnableMask(vsCuDisableMask,
-                                                                                     settings.vsCuEnLimitMask);
-        m_commands.dynamic.spiShaderPgmRsrc3Ps.bits.CU_EN = m_device.GetCuEnableMask(0, settings.psCuEnLimitMask);
+        m_regs.dynamic.spiShaderPgmRsrc3Vs.bits.CU_EN = m_device.GetCuEnableMask(vsCuDisableMask,
+                                                                                 settings.vsCuEnLimitMask);
+        m_regs.dynamic.spiShaderPgmRsrc3Ps.bits.CU_EN = m_device.GetCuEnableMask(0, settings.psCuEnLimitMask);
     }
 
-    if (useLoadIndexPath)
+    if (pUploader->EnableLoadIndexPath())
     {
-        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_VS, m_commands.sh.spiShaderPgmLoVs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_VS, m_commands.sh.spiShaderPgmHiVs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_PS, m_commands.sh.spiShaderPgmLoPs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_PS, m_commands.sh.spiShaderPgmHiPs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_VS, m_regs.sh.spiShaderPgmLoVs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_VS, m_regs.sh.spiShaderPgmHiVs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_PS, m_regs.sh.spiShaderPgmLoPs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_PS, m_regs.sh.spiShaderPgmHiPs);
 
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_VS, m_commands.sh.spiShaderPgmRsrc1Vs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_VS, m_commands.sh.spiShaderPgmRsrc2Vs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_PS, m_commands.sh.spiShaderPgmRsrc1Ps);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_PS, m_commands.sh.spiShaderPgmRsrc2Ps);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_VS, m_regs.sh.spiShaderPgmRsrc1Vs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_VS, m_regs.sh.spiShaderPgmRsrc2Vs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_PS, m_regs.sh.spiShaderPgmRsrc1Ps);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_PS, m_regs.sh.spiShaderPgmRsrc2Ps);
 
-        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg, m_commands.sh.spiShaderUserDataLoVs);
-        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg, m_commands.sh.spiShaderUserDataLoPs);
+        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTableVs);
+        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTablePs);
 
-        pUploader->AddCtxReg(mmSPI_SHADER_POS_FORMAT,     m_commands.context.spiShaderPosFormat);
-        pUploader->AddCtxReg(mmSPI_SHADER_Z_FORMAT,       m_commands.context.spiShaderZFormat);
-        pUploader->AddCtxReg(mmSPI_SHADER_COL_FORMAT,     m_commands.context.spiShaderColFormat);
-        pUploader->AddCtxReg(mmPA_CL_VS_OUT_CNTL,         m_commands.context.paClVsOutCntl);
-        pUploader->AddCtxReg(mmVGT_PRIMITIVEID_EN,        m_commands.context.vgtPrimitiveIdEn);
-        pUploader->AddCtxReg(mmSPI_BARYC_CNTL,            m_commands.context.spiBarycCntl);
-        pUploader->AddCtxReg(mmSPI_PS_INPUT_ENA,          m_commands.context.spiPsInputEna);
-        pUploader->AddCtxReg(mmSPI_PS_INPUT_ADDR,         m_commands.context.spiPsInputAddr);
-        pUploader->AddCtxReg(mmVGT_STRMOUT_CONFIG,        m_commands.streamOut.vgtStrmoutConfig);
-        pUploader->AddCtxReg(mmVGT_STRMOUT_BUFFER_CONFIG, m_commands.streamOut.vgtStrmoutBufferConfig);
+        pUploader->AddCtxReg(mmSPI_SHADER_POS_FORMAT,     m_regs.context.spiShaderPosFormat);
+        pUploader->AddCtxReg(mmSPI_SHADER_Z_FORMAT,       m_regs.context.spiShaderZFormat);
+        pUploader->AddCtxReg(mmSPI_SHADER_COL_FORMAT,     m_regs.context.spiShaderColFormat);
+        pUploader->AddCtxReg(mmPA_CL_VS_OUT_CNTL,         m_regs.context.paClVsOutCntl);
+        pUploader->AddCtxReg(mmVGT_PRIMITIVEID_EN,        m_regs.context.vgtPrimitiveIdEn);
+        pUploader->AddCtxReg(mmSPI_BARYC_CNTL,            m_regs.context.spiBarycCntl);
+        pUploader->AddCtxReg(mmSPI_PS_INPUT_ENA,          m_regs.context.spiPsInputEna);
+        pUploader->AddCtxReg(mmSPI_PS_INPUT_ADDR,         m_regs.context.spiPsInputAddr);
+        pUploader->AddCtxReg(mmVGT_STRMOUT_CONFIG,        m_regs.context.vgtStrmoutConfig);
+        pUploader->AddCtxReg(mmVGT_STRMOUT_BUFFER_CONFIG, m_regs.context.vgtStrmoutBufferConfig);
 
-        for (uint16 i = 0; i < loadInfo.interpolatorCount; ++i)
+        for (uint16 i = 0; i < m_regs.context.interpolatorCount; ++i)
         {
-            pUploader->AddCtxReg(mmSPI_PS_INPUT_CNTL_0 + i, m_commands.context.spiPsInputCntl[i]);
+            pUploader->AddCtxReg(mmSPI_PS_INPUT_CNTL_0 + i, m_regs.context.spiPsInputCntl[i]);
         }
 
         if (UsesStreamOut())
         {
             for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
             {
-                pUploader->AddCtxReg(VgtStrmoutVtxStrideAddr[i], m_commands.streamOut.stride[i].vgtStrmoutVtxStride);
+                pUploader->AddCtxReg(VgtStrmoutVtxStrideAddr[i], m_regs.context.vgtStrmoutVtxStride[i]);
             }
         }
     }
@@ -326,37 +318,61 @@ uint32* PipelineChunkVsPs::WriteShCommands(
 {
     if (UseLoadIndexPath == false)
     {
-        constexpr uint32 SpaceNeededSh = sizeof(m_commands.sh) / sizeof(uint32);
-        pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededSh, &m_commands.sh, pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
+                                                  mmSPI_SHADER_PGM_RSRC2_VS,
+                                                  ShaderGraphics,
+                                                  &m_regs.sh.spiShaderPgmLoVs,
+                                                  pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_PS,
+                                                  mmSPI_SHADER_PGM_RSRC2_PS,
+                                                  ShaderGraphics,
+                                                  &m_regs.sh.spiShaderPgmLoPs,
+                                                  pCmdSpace);
+
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
+                                                                 m_regs.sh.userDataInternalTableVs.u32All,
+                                                                 pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
+                                                                 m_regs.sh.userDataInternalTablePs.u32All,
+                                                                 pCmdSpace);
     }
 
-    // NOTE: The dynamic register PM4 image headers will be zero if the GPU doesn't support these registers.
-    if (m_commands.dynamic.hdrPgmRsrc3Vs.header.u32All != 0)
+    // The "dynamic" registers don't exist on Gfx6.
+    if (m_device.CmdUtil().IpLevel() >= GfxIpLevel::GfxIp7)
     {
-        auto dynamicCmds = m_commands.dynamic;
+        auto dynamic = m_regs.dynamic;
 
         if (vsStageInfo.wavesPerSh > 0)
         {
-            dynamicCmds.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
+            dynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
         }
 
         if (psStageInfo.wavesPerSh > 0)
         {
-            dynamicCmds.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = psStageInfo.wavesPerSh;
+            dynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = psStageInfo.wavesPerSh;
         }
 
         if (vsStageInfo.cuEnableMask != 0)
         {
-            dynamicCmds.spiShaderPgmRsrc3Vs.bits.CU_EN &= vsStageInfo.cuEnableMask;
+            dynamic.spiShaderPgmRsrc3Vs.bits.CU_EN &= vsStageInfo.cuEnableMask;
         }
 
         if (psStageInfo.cuEnableMask != 0)
         {
-            dynamicCmds.spiShaderPgmRsrc3Ps.bits.CU_EN &= psStageInfo.cuEnableMask;
+            dynamic.spiShaderPgmRsrc3Ps.bits.CU_EN &= psStageInfo.cuEnableMask;
         }
 
-        constexpr uint32 SpaceNeededDynamic = sizeof(m_commands.dynamic) / sizeof(uint32);
-        pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededDynamic, &dynamicCmds, pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI,
+                                                      dynamic.spiShaderPgmRsrc3Vs.u32All,
+                                                      ShaderGraphics,
+                                                      SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
+                                                      pCmdSpace);
+
+        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI,
+                                                      dynamic.spiShaderPgmRsrc3Ps.u32All,
+                                                      ShaderGraphics,
+                                                      SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
+                                                      pCmdSpace);
     }
 
     if (m_pVsPerfDataInfo->regOffset != UserDataNotMapped)
@@ -404,8 +420,49 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
     // NOTE: It is expected that this function will only ever be called when the set path is in use.
     PAL_ASSERT(UseLoadIndexPath == false);
 
-    pCmdSpace = pCmdStream->WritePm4Image(m_commands.context.spaceNeeded, &m_commands.context, pCmdSpace);
-    return pCmdStream->WritePm4Image(m_commands.streamOut.spaceNeeded, &m_commands.streamOut, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
+                                                   mmSPI_SHADER_COL_FORMAT,
+                                                   &m_regs.context.spiShaderPosFormat,
+                                                   pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
+                                                  m_regs.context.paClVsOutCntl.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_PRIMITIVEID_EN,
+                                                  m_regs.context.vgtPrimitiveIdEn.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmSPI_BARYC_CNTL, m_regs.context.spiBarycCntl.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_ENA,
+                                                   mmSPI_PS_INPUT_ADDR,
+                                                   &m_regs.context.spiPsInputEna,
+                                                   pCmdSpace);
+
+    if (m_regs.context.interpolatorCount > 0)
+    {
+        const uint32 endRegisterAddr = (mmSPI_PS_INPUT_CNTL_0 + m_regs.context.interpolatorCount - 1);
+        PAL_ASSERT(endRegisterAddr <= mmSPI_PS_INPUT_CNTL_31);
+
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
+                                                       endRegisterAddr,
+                                                       &m_regs.context.spiPsInputCntl[0],
+                                                       pCmdSpace);
+    }
+
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_CONFIG,
+                                                   mmVGT_STRMOUT_BUFFER_CONFIG,
+                                                   &m_regs.context.vgtStrmoutConfig,
+                                                   pCmdSpace);
+
+    if (UsesStreamOut())
+    {
+        for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
+        {
+            pCmdSpace = pCmdStream->WriteSetOneContextReg(VgtStrmoutVtxStrideAddr[i],
+                                                          m_regs.context.vgtStrmoutVtxStride[i].u32All,
+                                                          pCmdSpace);
+        }
+    }
+
+    return pCmdSpace;
 }
 
 // Instantiate template versions for the linker.
@@ -419,84 +476,6 @@ uint32* PipelineChunkVsPs::WriteContextCommands<true>(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const;
-
-// =====================================================================================================================
-// Assembles the PM4 headers for the commands in this pipeline chunk.
-void PipelineChunkVsPs::BuildPm4Headers(
-    bool   enableLoadIndexPath,
-    uint32 interpolatorCount)
-{
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
-
-    cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
-                              mmSPI_SHADER_PGM_RSRC2_VS,
-                              ShaderGraphics,
-                              &m_commands.sh.hdrSpiShaderPgmVs);
-
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
-                             ShaderGraphics,
-                             &m_commands.sh.hdrSpiShaderUserDataVs);
-
-    cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_PS,
-                              mmSPI_SHADER_PGM_RSRC2_PS,
-                              ShaderGraphics,
-                              &m_commands.sh.hdrSpiSHaderPgmPs);
-
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
-                             ShaderGraphics,
-                             &m_commands.sh.hdrSpiShaderUserDataPs);
-
-    m_commands.context.spaceNeeded =  cmdUtil.BuildSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
-                                                                     mmSPI_SHADER_COL_FORMAT,
-                                                                     &m_commands.context.hdrOutFormat);
-
-    m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
-                                                                    &m_commands.context.hdrVsOutCntl);
-    m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_PRIMITIVEID_EN,
-                                                                    &m_commands.context.hdrPrimId);
-
-    m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmSPI_BARYC_CNTL,
-                                                                    &m_commands.context.hdrBarycCntl);
-
-    m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_ENA,
-                                                                     mmSPI_PS_INPUT_ADDR,
-                                                                     &m_commands.context.hdrPsIn);
-
-    if (interpolatorCount > 0)
-    {
-        PAL_ASSERT(interpolatorCount <= MaxPsInputSemantics);
-        m_commands.context.spaceNeeded +=
-            cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
-                                           (mmSPI_PS_INPUT_CNTL_0 + interpolatorCount - 1),
-                                           &m_commands.context.hdrPsInputs);
-    }
-
-    m_commands.streamOut.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmVGT_STRMOUT_CONFIG,
-                                                                      mmVGT_STRMOUT_BUFFER_CONFIG,
-                                                                      &m_commands.streamOut.hdrStrmoutCfg);
-    if (UsesStreamOut())
-    {
-        for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
-        {
-            m_commands.streamOut.spaceNeeded += cmdUtil.BuildSetOneContextReg(
-                VgtStrmoutVtxStrideAddr[i],
-                &m_commands.streamOut.stride[i].hdrVgtStrmoutVtxStride);
-        }
-    }
-
-    if (m_device.Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp7)
-    {
-        cmdUtil.BuildSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI,
-                                      ShaderGraphics,
-                                      SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
-                                      &m_commands.dynamic.hdrPgmRsrc3Vs);
-
-        cmdUtil.BuildSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI,
-                                      ShaderGraphics,
-                                      SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
-                                      &m_commands.dynamic.hdrPgmRsrc3Ps);
-    }
-}
 
 } // Gfx6
 } // Pal

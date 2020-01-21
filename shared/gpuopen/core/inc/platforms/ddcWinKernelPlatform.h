@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -79,7 +79,6 @@
 // do that validation in a Debug build and behave like DD_ASSUME() in Release build.
 //
 // [MSVC] __assume()
-//  ~ https://docs.microsoft.com/en-us/cpp/intrinsics/assume
 //
 // [C++] Contracts: expects, ensures, assert, axiom
 //  ~ https://en.cppreference.com/w/cpp/language/attributes/contract
@@ -116,7 +115,7 @@ namespace DevDriver
         // Libraries should never be used in the kernel but we need to define the handle type so we don't get compile
         // errors from the platform headers. The library implementation should remain undefined so we'll get linker
         // errors if someone attempts to use it.
-        typedef HMODULE LibraryHandle;
+        typedef void* LibraryHandle;
 
         constexpr ThreadHandle kInvalidThreadHandle = NULL;
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -145,15 +145,8 @@ Result CmdStream::Begin(
     CmdStreamBeginFlags     flags,
     VirtualLinearAllocator* pMemAllocator)
 {
-    const auto optMode = m_pDevice->Settings().cmdBufOptimizePm4Mode;
-
     m_flags.prefetchCommands = flags.prefetchCommands;
     m_flags.optimizeCommands = flags.optimizeCommands;
-    m_flags.optModeImmediate = flags.optimizeCommands && (optMode == Pm4OptModeImmediate);
-    m_flags.optModeFinalized = flags.optimizeCommands && (optMode == Pm4OptModeFinalized);
-
-    // The number of optMode flags must be 0 or 1 depending on the value of optimizeCommands.
-    PAL_ASSERT((m_flags.optModeImmediate + m_flags.optModeFinalized) == m_flags.optimizeCommands);
 
     // Save the caller's memory allocator for later use.
     m_pMemAllocator = pMemAllocator;

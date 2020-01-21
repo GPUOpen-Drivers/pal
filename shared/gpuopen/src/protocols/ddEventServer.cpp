@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,7 @@
 */
 
 #include <protocols/ddEventServer.h>
+#include <protocols/ddEventProvider.h>
 #include <protocols/ddEventProtocol.h>
 #include <protocols/ddEventServerSession.h>
 #include <ddTransferManager.h>
@@ -48,8 +49,20 @@ namespace EventProtocol
 EventServer::EventServer(IMsgChannel* pMsgChannel)
     : BaseProtocolServer(pMsgChannel, Protocol::Event, EVENT_SERVER_MIN_VERSION, EVENT_SERVER_MAX_VERSION)
     , m_eventProviders(pMsgChannel->GetAllocCb())
+    , m_eventChunkPool(pMsgChannel->GetAllocCb())
+    , m_eventChunkAllocList(pMsgChannel->GetAllocCb())
+    , m_eventChunkQueue(pMsgChannel->GetAllocCb())
+    , m_pActiveSession(nullptr)
 {
     DD_ASSERT(m_pMsgChannel != nullptr);
+}
+
+EventServer::~EventServer()
+{
+    for (EventChunk* pChunk : m_eventChunkAllocList)
+    {
+        DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
+    }
 }
 
 bool EventServer::AcceptSession(const SharedPointer<ISession>& pSession)
@@ -61,8 +74,6 @@ bool EventServer::AcceptSession(const SharedPointer<ISession>& pSession)
 
 void EventServer::SessionEstablished(const SharedPointer<ISession>& pSession)
 {
-    Platform::LockGuard<Platform::Mutex> sessionLock(m_activeSessionMutex);
-
     // Allocate session data for the newly established session
     EventServerSession* pEventSession = DD_NEW(EventServerSession, m_pMsgChannel->GetAllocCb())(m_pMsgChannel->GetAllocCb(), pSession, this, &m_pMsgChannel->GetTransferManager());
     pSession->SetUserData(pEventSession);
@@ -75,13 +86,23 @@ void EventServer::UpdateSession(const SharedPointer<ISession>& pSession)
     EventServerSession* pEventSession = reinterpret_cast<EventServerSession*>(pSession->GetUserData());
     DD_ASSERT(pEventSession == m_pActiveSession);
 
+    m_eventProvidersMutex.Lock();
+
+    const uint64 currentTime = Platform::GetCurrentTimeInMs();
+    for (auto providerIter : m_eventProviders)
+    {
+        providerIter.value->Update(currentTime);
+    }
+
+    m_eventProvidersMutex.Unlock();
+
+    Platform::LockGuard<Platform::Mutex> queueLock(m_eventQueueMutex);
+
     pEventSession->UpdateSession();
 }
 
 void EventServer::SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason)
 {
-    Platform::LockGuard<Platform::Mutex> sessionLock(m_activeSessionMutex);
-
     DD_UNUSED(terminationReason);
     EventServerSession* pEventSession = reinterpret_cast<EventServerSession*>(pSession->SetUserData(nullptr));
     DD_ASSERT(pEventSession == m_pActiveSession);
@@ -95,7 +116,7 @@ void EventServer::SessionTerminated(const SharedPointer<ISession>& pSession, Res
     }
 }
 
-Result EventServer::RegisterProvider(IEventProvider* pProvider)
+Result EventServer::RegisterProvider(BaseEventProvider* pProvider)
 {
     Result result = Result::InvalidParameter;
 
@@ -122,7 +143,7 @@ Result EventServer::RegisterProvider(IEventProvider* pProvider)
     return result;
 }
 
-Result EventServer::UnregisterProvider(IEventProvider* pProvider)
+Result EventServer::UnregisterProvider(BaseEventProvider* pProvider)
 {
     Result result = Result::InvalidParameter;
 
@@ -147,16 +168,80 @@ Result EventServer::UnregisterProvider(IEventProvider* pProvider)
     return result;
 }
 
-Result EventServer::LogEvent(const void* pEventData, size_t eventDataSize)
+Result EventServer::AllocateEventChunk(EventChunk** ppChunk)
 {
-    DD_PRINT(LogLevel::Verbose, "Logging event with size %zu", eventDataSize);
+    DD_ASSERT(ppChunk != nullptr);
 
-    Result result = Result::Unavailable;
+    Platform::LockGuard<Platform::Mutex> poolLock(m_eventPoolMutex);
 
-    Platform::LockGuard<Platform::Mutex> sessionLock(m_activeSessionMutex);
-    if (m_pActiveSession != nullptr)
+    Result result = Result::Success;
+
+    if (m_eventChunkPool.IsEmpty() == false)
     {
-        result = m_pActiveSession->SendEventData(pEventData, eventDataSize);
+        EventChunk* pChunk;
+        m_eventChunkPool.PopBack(&pChunk);
+
+        // Reset the chunk before we hand it back to the caller
+        pChunk->dataSize = 0;
+
+        *ppChunk = pChunk;
+    }
+    else
+    {
+        EventChunk* pChunk = reinterpret_cast<EventChunk*>(DD_CALLOC(sizeof(EventChunk),
+                                                                     alignof(EventChunk),
+                                                                     m_pMsgChannel->GetAllocCb()));
+        if (pChunk != nullptr)
+        {
+            if (m_eventChunkAllocList.PushBack(pChunk))
+            {
+                *ppChunk = pChunk;
+            }
+            else
+            {
+                DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
+
+                result = Result::InsufficientMemory;
+            }
+        }
+        else
+        {
+            result = Result::InsufficientMemory;
+        }
+    }
+
+    return result;
+}
+
+void EventServer::FreeEventChunk(EventChunk* pChunk)
+{
+    DD_ASSERT(pChunk != nullptr);
+
+    Platform::LockGuard<Platform::Mutex> poolLock(m_eventPoolMutex);
+
+    DD_UNHANDLED_RESULT(m_eventChunkPool.PushBack(pChunk) ? Result::Success : Result::InsufficientMemory);
+}
+
+Result EventServer::EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks)
+{
+    DD_ASSERT(ppChunks != nullptr);
+
+    Platform::LockGuard<Platform::Mutex> queueLock(m_eventQueueMutex);
+
+    Result result = Result::Success;
+
+    for (size_t chunkIndex = 0; chunkIndex < numChunks; ++chunkIndex)
+    {
+        EventChunkInfo chunkInfo = {};
+        chunkInfo.pChunk         = ppChunks[chunkIndex];
+        chunkInfo.bytesSent      = 0;
+
+        result = (m_eventChunkQueue.PushBack(chunkInfo) ? Result::Success : Result::InsufficientMemory);
+
+        if (result != Result::Success)
+        {
+            break;
+        }
     }
 
     return result;
@@ -179,7 +264,7 @@ Result EventServer::BuildQueryProvidersResponse(BlockId* pBlockId)
 
             for (const auto& providerPair : m_eventProviders)
             {
-                const IEventProvider* pProvider = providerPair.value;
+                const BaseEventProvider* pProvider = providerPair.value;
 
                 // Write the provider header
                 const ProviderDescriptionHeader providerHeader = pProvider->GetHeader();
@@ -222,7 +307,7 @@ Result EventServer::ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate)
         const auto providerIter = m_eventProviders.Find(providerId);
         if (providerIter != m_eventProviders.End())
         {
-            IEventProvider* pProvider = providerIter->value;
+            BaseEventProvider* pProvider = providerIter->value;
             if (pUpdate->isEnabled)
             {
                 pProvider->Enable();

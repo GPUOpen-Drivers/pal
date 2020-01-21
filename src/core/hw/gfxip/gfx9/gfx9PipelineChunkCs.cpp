@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@
 
 #include "core/platform.h"
 #include "core/hw/gfxip/computePipeline.h"
+#include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
@@ -65,7 +66,9 @@ PipelineChunkCs::PipelineChunkCs(
     m_pCsPerfDataInfo(pPerfDataInfo),
     m_pStageInfo(pStageInfo)
 {
-    memset(&m_commands, 0, sizeof(m_commands));
+    memset(&m_regs, 0, sizeof(m_regs));
+    memset(&m_loadPath, 0, sizeof(m_loadPath));
+    memset(&m_prefetch, 0, sizeof(m_prefetch));
     m_pStageInfo->stageId = Abi::HardwareStage::Cs;
 }
 
@@ -122,12 +125,10 @@ void PipelineChunkCs::LateInit(
     uint32*                          pThreadsPerTgZ,
     CsPipelineUploader*              pUploader)
 {
-    const auto&              cmdUtil          = m_device.CmdUtil();
-    const auto&              regInfo          = cmdUtil.GetRegInfo();
-    const GpuChipProperties& chipProps        = m_device.Parent()->ChipProperties();
-    const bool               useLoadIndexPath = pUploader->EnableLoadIndexPath();
+    const auto&              cmdUtil   = m_device.CmdUtil();
+    const auto&              regInfo   = cmdUtil.GetRegInfo();
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    BuildPm4Headers(*pUploader);
     Abi::PipelineSymbolEntry csProgram  = { };
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsMainEntry, &csProgram))
     {
@@ -135,33 +136,33 @@ void PipelineChunkCs::LateInit(
         const gpusize csProgramVa = (csProgram.value + pUploader->CodeGpuVirtAddr());
         PAL_ASSERT(IsPow2Aligned(csProgramVa, 256u));
 
-        m_commands.set.computePgmLo.bits.DATA = Get256BAddrLo(csProgramVa);
-        m_commands.set.computePgmHi.bits.DATA = Get256BAddrHi(csProgramVa);
+        m_regs.computePgmLo.bits.DATA = Get256BAddrLo(csProgramVa);
+        m_regs.computePgmHi.bits.DATA = Get256BAddrHi(csProgramVa);
     }
 
     Abi::PipelineSymbolEntry csSrdTable = { };
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &csSrdTable))
     {
         const gpusize csSrdTableVa = (csSrdTable.value + pUploader->DataGpuVirtAddr());
-        m_commands.set.computeUserDataLo.bits.DATA = LowPart(csSrdTableVa);
+        m_regs.userDataInternalTable.bits.DATA = LowPart(csSrdTableVa);
     }
 
-    m_commands.set.computePgmRsrc1.u32All     = registers.At(mmCOMPUTE_PGM_RSRC1);
-    m_commands.dynamic.computePgmRsrc2.u32All = registers.At(mmCOMPUTE_PGM_RSRC2);
-    m_commands.set.computeNumThreadX.u32All   = registers.At(mmCOMPUTE_NUM_THREAD_X);
-    m_commands.set.computeNumThreadY.u32All   = registers.At(mmCOMPUTE_NUM_THREAD_Y);
-    m_commands.set.computeNumThreadZ.u32All   = registers.At(mmCOMPUTE_NUM_THREAD_Z);
+    m_regs.computePgmRsrc1.u32All         = registers.At(mmCOMPUTE_PGM_RSRC1);
+    m_regs.dynamic.computePgmRsrc2.u32All = registers.At(mmCOMPUTE_PGM_RSRC2);
+    m_regs.computeNumThreadX.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_X);
+    m_regs.computeNumThreadY.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_Y);
+    m_regs.computeNumThreadZ.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_Z);
 
     if (IsGfx10(chipProps.gfxLevel))
     {
-        m_commands.set.computePgmRsrc3.u32All = registers.At(Gfx10::mmCOMPUTE_PGM_RSRC3);
+        m_regs.computePgmRsrc3.u32All = registers.At(Gfx10::mmCOMPUTE_PGM_RSRC3);
 
         if (chipProps.gfx9.supportSpiPrefPriority)
         {
-            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_0, &m_commands.set.regComputeUserAccum0.u32All);
-            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_1, &m_commands.set.regComputeUserAccum1.u32All);
-            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_2, &m_commands.set.regComputeUserAccum2.u32All);
-            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_3, &m_commands.set.regComputeUserAccum3.u32All);
+            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_0, &m_regs.computeUserAccum0.u32All);
+            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_1, &m_regs.computeUserAccum1.u32All);
+            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_2, &m_regs.computeUserAccum2.u32All);
+            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_3, &m_regs.computeUserAccum3.u32All);
         }
 
     }
@@ -169,58 +170,61 @@ void PipelineChunkCs::LateInit(
     if (chipProps.gfx9.supportSpp == 1)
     {
         PAL_ASSERT(regInfo.mmComputeShaderChksum != 0);
-        registers.HasEntry(regInfo.mmComputeShaderChksum, &m_commands.set.computeShaderChksum.u32All);
+        registers.HasEntry(regInfo.mmComputeShaderChksum, &m_regs.computeShaderChksum.u32All);
     }
 
-    *pThreadsPerTgX = m_commands.set.computeNumThreadX.bits.NUM_THREAD_FULL;
-    *pThreadsPerTgY = m_commands.set.computeNumThreadY.bits.NUM_THREAD_FULL;
-    *pThreadsPerTgZ = m_commands.set.computeNumThreadZ.bits.NUM_THREAD_FULL;
+    *pThreadsPerTgX = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
+    *pThreadsPerTgY = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
+    *pThreadsPerTgZ = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
     if (pUploader->EnableLoadIndexPath())
     {
-        pUploader->AddShReg(mmCOMPUTE_PGM_LO, m_commands.set.computePgmLo);
-        pUploader->AddShReg(mmCOMPUTE_PGM_HI, m_commands.set.computePgmHi);
+        m_loadPath.gpuVirtAddr = pUploader->ShRegGpuVirtAddr();
+        m_loadPath.count       = pUploader->ShRegisterCount();
 
-        pUploader->AddShReg((mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg), m_commands.set.computeUserDataLo);
+        pUploader->AddShReg(mmCOMPUTE_PGM_LO, m_regs.computePgmLo);
+        pUploader->AddShReg(mmCOMPUTE_PGM_HI, m_regs.computePgmHi);
 
-        pUploader->AddShReg(mmCOMPUTE_PGM_RSRC1,    m_commands.set.computePgmRsrc1);
-        pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_X, m_commands.set.computeNumThreadX);
-        pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_commands.set.computeNumThreadY);
-        pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_commands.set.computeNumThreadZ);
+        pUploader->AddShReg((mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg), m_regs.userDataInternalTable);
+
+        pUploader->AddShReg(mmCOMPUTE_PGM_RSRC1,    m_regs.computePgmRsrc1);
+        pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_X, m_regs.computeNumThreadX);
+        pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_regs.computeNumThreadY);
+        pUploader->AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_regs.computeNumThreadZ);
 
         if (IsGfx10(chipProps.gfxLevel))
         {
-            pUploader->AddShReg(Gfx10::mmCOMPUTE_PGM_RSRC3, m_commands.set.computePgmRsrc3);
+            pUploader->AddShReg(Gfx10::mmCOMPUTE_PGM_RSRC3, m_regs.computePgmRsrc3);
 
-            if (chipProps.gfx9.supportSpiPrefPriority)
+            if (chipProps.gfx9.supportSpiPrefPriority != 0)
             {
-                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_0, m_commands.set.regComputeUserAccum0);
-                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_1, m_commands.set.regComputeUserAccum1);
-                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_2, m_commands.set.regComputeUserAccum2);
-                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_3, m_commands.set.regComputeUserAccum3);
+                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_0, m_regs.computeUserAccum0);
+                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_1, m_regs.computeUserAccum1);
+                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_2, m_regs.computeUserAccum2);
+                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_3, m_regs.computeUserAccum3);
             }
         }
 
-        if (chipProps.gfx9.supportSpp == 1)
+        if (chipProps.gfx9.supportSpp != 0)
         {
-            pUploader->AddShReg(regInfo.mmComputeShaderChksum, m_commands.set.computeShaderChksum);
+            pUploader->AddShReg(regInfo.mmComputeShaderChksum, m_regs.computeShaderChksum);
         }
     }
 
-    registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_commands.dynamic.computeResourceLimits.u32All);
+    registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_regs.dynamic.computeResourceLimits.u32All);
 
     const uint32 threadsPerGroup = (*pThreadsPerTgX) * (*pThreadsPerTgY) * (*pThreadsPerTgZ);
     const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, wavefrontSize);
 
     // SIMD_DEST_CNTL: Controls which SIMDs thread groups get scheduled on.  If the number of
     // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.
-    m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
+    m_regs.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
 
     // Force even distribution on all SIMDs in CU for workgroup size is 64
     // This has shown some good improvements if #CU per SE not a multiple of 4
     if (((chipProps.gfx9.numShaderArrays * chipProps.gfx9.numCuPerSh) & 0x3) && (wavesPerGroup == 1))
     {
-        m_commands.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST = 1;
+        m_regs.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST = 1;
     }
 
     if (m_device.Parent()->LegacyHwsTrapHandlerPresent() && (chipProps.gfxLevel == GfxIpLevel::GfxIp9))
@@ -231,8 +235,8 @@ void PipelineChunkCs::LateInit(
 
         // TODO: Handle the case where the client enabled a trap handler and the hardware scheduler's trap handler
         // is already active!
-        PAL_ASSERT(m_commands.dynamic.computePgmRsrc2.bits.TRAP_PRESENT == 0);
-        m_commands.dynamic.computePgmRsrc2.bits.TRAP_PRESENT = 1;
+        PAL_ASSERT(m_regs.dynamic.computePgmRsrc2.bits.TRAP_PRESENT == 0);
+        m_regs.dynamic.computePgmRsrc2.bits.TRAP_PRESENT = 1;
     }
 
     const auto& settings = m_device.Settings();
@@ -241,25 +245,25 @@ void PipelineChunkCs::LateInit(
     // LOCK_THRESHOLD's maximum value: (6 bits), in units of 4, so it is max of 252.
     constexpr uint32 Gfx9MaxLockThreshold = 252;
     PAL_ASSERT(settings.csLockThreshold <= Gfx9MaxLockThreshold);
-    m_commands.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD = Min((settings.csLockThreshold >> 2),
-                                                                        (Gfx9MaxLockThreshold >> 2));
+    m_regs.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD = Min((settings.csLockThreshold >> 2),
+                                                                   (Gfx9MaxLockThreshold >> 2));
 
     // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If no override is set, just keep
     // the existing value in COMPUTE_RESOURCE_LIMITS.
     switch (settings.csSimdDestCntl)
     {
     case CsSimdDestCntlForce1:
-        m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 1;
+        m_regs.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 1;
         break;
     case CsSimdDestCntlForce0:
-        m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 0;
+        m_regs.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 0;
         break;
     default:
         PAL_ASSERT(settings.csSimdDestCntl == CsSimdDestCntlDefault);
         break;
     }
 
-    cmdUtil.BuildPipelinePrefetchPm4(*pUploader, &m_commands.prefetch);
+    cmdUtil.BuildPipelinePrefetchPm4(*pUploader, &m_prefetch);
 
     ComputePipeline::GetFunctionGpuVirtAddrs(abiProcessor, *pUploader, pIndirectFuncList, indirectFuncCount);
 }
@@ -407,29 +411,26 @@ uint32* PipelineChunkCs::WriteShCommands(
     // optimize these load packets because the register values are in GPU memory.  Additionally, any client requesting
     // PM4 optimization is trading CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
     // This gets disabled for compute command buffers because the MEC does not support any LOAD packets.
-    const bool useSetPath =
-        ((m_commands.loadIndex.loadShRegIndex.header.u32All == 0) ||
-         pCmdStream->Pm4OptimizerEnabled()                        ||
-         (pCmdStream->GetEngineType() == EngineType::EngineTypeCompute));
-
-    if (useSetPath)
+    if ((m_loadPath.count == 0)           ||
+        pCmdStream->Pm4OptimizerEnabled() ||
+        (pCmdStream->GetEngineType() == EngineType::EngineTypeCompute))
     {
-        pCmdSpace = pCmdStream->WritePm4Image(m_commands.set.spaceNeeded, &m_commands.set, pCmdSpace);
+        pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace);
     }
     else
     {
-        constexpr uint32 SpaceNeeded = sizeof(m_commands.loadIndex) / sizeof(uint32);
-        pCmdSpace = pCmdStream->WritePm4Image(SpaceNeeded, &m_commands.loadIndex, pCmdSpace);
+        const CmdUtil& cmdUtil = m_device.CmdUtil();
+        pCmdSpace += cmdUtil.BuildLoadShRegsIndex(m_loadPath.gpuVirtAddr, m_loadPath.count, ShaderCompute, pCmdSpace);
     }
 
-    auto dynamicCmds = m_commands.dynamic;
+    auto dynamic = m_regs.dynamic; // "Dynamic" bind-time register state
 
     // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
     constexpr uint32 Gfx9MaxTgPerCu = 15;
-    dynamicCmds.computeResourceLimits.bits.TG_PER_CU = Min(csInfo.maxThreadGroupsPerCu, Gfx9MaxTgPerCu);
+    dynamic.computeResourceLimits.bits.TG_PER_CU = Min(csInfo.maxThreadGroupsPerCu, Gfx9MaxTgPerCu);
     if (csInfo.maxWavesPerCu > 0)
     {
-        dynamicCmds.computeResourceLimits.bits.WAVES_PER_SH =
+        dynamic.computeResourceLimits.bits.WAVES_PER_SH =
             Gfx9::ComputePipeline::CalcMaxWavesPerSh(m_device.Parent()->ChipProperties(), csInfo.maxWavesPerCu);
     }
 
@@ -437,12 +438,16 @@ uint32* PipelineChunkCs::WriteShCommands(
     {
         // Round to nearest multiple of the LDS granularity, then convert to the register value.
         // NOTE: Granularity for the LDS_SIZE field is 128, range is 0->128 which allocates 0 to 16K DWORDs.
-        dynamicCmds.computePgmRsrc2.bits.LDS_SIZE =
+        dynamic.computePgmRsrc2.bits.LDS_SIZE =
             Pow2Align((csInfo.ldsBytesPerTg / sizeof(uint32)), Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
     }
 
-    constexpr uint32 SpaceNeededDynamic = sizeof(dynamicCmds) / sizeof(uint32);
-    pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededDynamic, &dynamicCmds, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2,
+                                                            dynamic.computePgmRsrc2.u32All,
+                                                            pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_RESOURCE_LIMITS,
+                                                            dynamic.computeResourceLimits.u32All,
+                                                            pCmdSpace);
 
     if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
     {
@@ -453,92 +458,175 @@ uint32* PipelineChunkCs::WriteShCommands(
 
     if (prefetch)
     {
-        memcpy(pCmdSpace, &m_commands.prefetch, m_commands.prefetch.spaceNeeded * sizeof(uint32));
-        pCmdSpace += m_commands.prefetch.spaceNeeded;
+        memcpy(pCmdSpace, &m_prefetch, m_prefetch.spaceNeeded * sizeof(uint32));
+        pCmdSpace += m_prefetch.spaceNeeded;
     }
 
     return pCmdSpace;
 }
 
 // =====================================================================================================================
-// Assembles the PM4 headers for the commands in this Pipeline chunk.
-template <typename CsPipelineUploader>
-void PipelineChunkCs::BuildPm4Headers(
-    const CsPipelineUploader& uploader)
+// Writes PM4 SET commands to the specified command stream.  This is only expected to be called when the LOAD path is
+// not in use and we need to use the SET path fallback.
+uint32* PipelineChunkCs::WriteShCommandsSetPath(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
 {
-    const auto&    chipProps = m_device.Parent()->ChipProperties();
-    const CmdUtil& cmdUtil   = m_device.CmdUtil();
-    const auto&    regInfo   = cmdUtil.GetRegInfo();
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    const RegisterInfo&      regInfo   = m_device.CmdUtil().GetRegInfo();
 
-    // PM4 image for compute command buffers:
-    m_commands.set.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmCOMPUTE_NUM_THREAD_X,
-                                                           mmCOMPUTE_NUM_THREAD_Z,
-                                                           ShaderCompute,
-                                                           &m_commands.set.hdrComputeNumThread);
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_NUM_THREAD_X,
+                                              mmCOMPUTE_NUM_THREAD_Z,
+                                              ShaderCompute,
+                                              &m_regs.computeNumThreadX,
+                                              pCmdSpace);
 
-    m_commands.set.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmCOMPUTE_PGM_LO,
-                                                            mmCOMPUTE_PGM_HI,
-                                                            ShaderCompute,
-                                                            &m_commands.set.hdrComputePgm);
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_PGM_LO,
+                                              mmCOMPUTE_PGM_HI,
+                                              ShaderCompute,
+                                              &m_regs.computePgmLo,
+                                              pCmdSpace);
 
-    m_commands.set.spaceNeeded += cmdUtil.BuildSetOneShReg(mmCOMPUTE_PGM_RSRC1,
-                                                           ShaderCompute,
-                                                           &m_commands.set.hdrComputePgmRsrc1);
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC1,
+                                                            m_regs.computePgmRsrc1.u32All,
+                                                            pCmdSpace);
 
-    m_commands.set.spaceNeeded += cmdUtil.BuildSetOneShReg(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
-                                                           ShaderCompute,
-                                                           &m_commands.set.hdrComputeUserData);
-    if (chipProps.gfx9.supportSpp == 1)
+    if (chipProps.gfx9.supportSpp != 0)
     {
-        m_commands.set.spaceNeeded += cmdUtil.BuildSetOneShReg(regInfo.mmComputeShaderChksum,
-                                                               ShaderCompute,
-                                                               &m_commands.set.hdrComputeShaderChksum);
-    }
-    else
-    {
-        m_commands.set.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
-                                                       &m_commands.set.hdrComputeShaderChksum);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(regInfo.mmComputeShaderChksum,
+                                                                m_regs.computeShaderChksum.u32All,
+                                                                pCmdSpace);
     }
 
     if (IsGfx10(chipProps.gfxLevel))
     {
-        // Sets the following compute register: COMPUTE_PGM_RSRC3.  Note that all GFX10 devices support SPP.
-        m_commands.set.spaceNeeded += cmdUtil.BuildSetOneShReg(Gfx10::mmCOMPUTE_PGM_RSRC3,
-                                                               ShaderCompute,
-                                                               &m_commands.set.hdrComputePgmRsrc3);
-    }
-    else
-    {
-        m_commands.set.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
-                                                       &m_commands.set.hdrComputePgmRsrc3);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10::mmCOMPUTE_PGM_RSRC3,
+                                                                m_regs.computePgmRsrc3.u32All,
+                                                                pCmdSpace);
+
+        if (chipProps.gfx9.supportSpiPrefPriority != 0)
+        {
+            pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10::mmCOMPUTE_USER_ACCUM_0,
+                                                      Gfx10::mmCOMPUTE_USER_ACCUM_3,
+                                                      ShaderCompute,
+                                                      &m_regs.computeUserAccum0,
+                                                      pCmdSpace);
+        }
     }
 
-    if (chipProps.gfx9.supportSpiPrefPriority)
-    {
-        m_commands.set.spaceNeeded += cmdUtil.BuildSetSeqShRegs(Gfx10::mmCOMPUTE_USER_ACCUM_0,
-                                                                Gfx10::mmCOMPUTE_USER_ACCUM_3,
-                                                                ShaderCompute,
-                                                                &m_commands.set.hdrComputeUserAccum);
-    }
-    else
-    {
-        m_commands.set.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 4,
-                                                       &m_commands.set.hdrComputeUserAccum);
-    }
-
-    // PM4 image for universal command buffers:
-    if (uploader.EnableLoadIndexPath())
-    {
-        cmdUtil.BuildLoadShRegsIndex(uploader.ShRegGpuVirtAddr(),
-                                     uploader.ShRegisterCount(),
-                                     ShaderCompute,
-                                     &m_commands.loadIndex.loadShRegIndex);
-    }
-
-    // PM4 image for dynamic (bind-time) state:
-    cmdUtil.BuildSetOneShReg(mmCOMPUTE_PGM_RSRC2,       ShaderCompute, &m_commands.dynamic.hdrComputePgmRsrc2);
-    cmdUtil.BuildSetOneShReg(mmCOMPUTE_RESOURCE_LIMITS, ShaderCompute, &m_commands.dynamic.hdrComputeResourceLimits);
+    return pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
+                                                       m_regs.userDataInternalTable.u32All,
+                                                       pCmdSpace);
 }
+
+// =====================================================================================================================
+void PipelineChunkCs::UpdateComputePgmRsrsAfterLibraryLink(
+    regCOMPUTE_PGM_RSRC1 rsrc1,
+    regCOMPUTE_PGM_RSRC2 rsrc2,
+    regCOMPUTE_PGM_RSRC3 rsrc3)
+{
+    // If this pipeline will be linked to ShaderLibrary,
+    // we need to delay the CP load packet path till the linking is done
+    //
+    // At this point, there is no longer valid to go down the buildloadshregsindex path in "BuildLoadShRegsIndex"
+    // This can be achieved by setting the m_loadPath.count to 0.
+    m_loadPath.count = 0;
+
+    m_regs.computePgmRsrc1         = rsrc1;
+    m_regs.dynamic.computePgmRsrc2 = rsrc2;
+    m_regs.computePgmRsrc3         = rsrc3;
+}
+
+// =====================================================================================================================
+LibraryChunkCs::LibraryChunkCs(
+    const Device&    device)
+    :
+    PipelineChunkCs(device, nullptr, nullptr),
+    m_device(device)
+{
+    memset(&m_regs, 0, sizeof(m_regs));
+}
+
+// =====================================================================================================================
+// Late initialization for this Compute Library chunk.
+// Responsible for fetching register values from the library binary and
+// determining the values of other registers.
+// Also uploads register state into GPU memory.
+template <typename ShaderLibraryUploader>
+void LibraryChunkCs::LateInit(
+    const AbiProcessor&              abiProcessor,
+    const RegisterVector&            registers,
+    uint32                           wavefrontSize,
+    ShaderLibraryFunctionInfo*       pFunctionList,
+    uint32                           funcCount,
+    ShaderLibraryUploader*           pUploader)
+{
+    const auto&              cmdUtil   = m_device.CmdUtil();
+    const auto&              regInfo   = cmdUtil.GetRegInfo();
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
+    m_regs.computePgmRsrc1.u32All         = registers.At(mmCOMPUTE_PGM_RSRC1);
+    m_regs.dynamic.computePgmRsrc2.u32All = registers.At(mmCOMPUTE_PGM_RSRC2);
+
+    if (IsGfx10(chipProps.gfxLevel))
+    {
+        m_regs.computePgmRsrc3.u32All = registers.At(Gfx10::mmCOMPUTE_PGM_RSRC3);
+    }
+
+    // Double check with Rob - Is this the correct way to calculate wavesPerGroup?
+    const uint32 threadsPerGroup = 0;
+    const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, wavefrontSize);
+
+    // SIMD_DEST_CNTL: Controls which SIMDs thread groups get scheduled on.  If the number of
+    // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.
+    m_regs.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
+
+    // Force even distribution on all SIMDs in CU for workgroup size is 64
+    // This has shown some good improvements if #CU per SE not a multiple of 4
+    if (((chipProps.gfx9.numShaderArrays * chipProps.gfx9.numCuPerSh) & 0x3) && (wavesPerGroup == 1))
+    {
+        m_regs.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST = 1;
+    }
+
+    if (m_device.Parent()->LegacyHwsTrapHandlerPresent() && (chipProps.gfxLevel == GfxIpLevel::GfxIp9))
+    {
+
+        // If the legacy HWS's trap handler is present, compute shaders must always set the TRAP_PRESENT
+        // flag.
+
+        // TODO: Handle the case where the client enabled a trap handler and the hardware scheduler's trap handler
+        // is already active!
+        PAL_ASSERT(m_regs.dynamic.computePgmRsrc2.bits.TRAP_PRESENT == 0);
+        m_regs.dynamic.computePgmRsrc2.bits.TRAP_PRESENT = 1;
+    }
+
+    const auto& settings = m_device.Settings();
+
+    // LOCK_THRESHOLD: Sets per-SH low threshold for locking.  Set in units of 4, 0 disables locking.
+    // LOCK_THRESHOLD's maximum value: (6 bits), in units of 4, so it is max of 252.
+    constexpr uint32 Gfx9MaxLockThreshold = 252;
+    PAL_ASSERT(settings.csLockThreshold <= Gfx9MaxLockThreshold);
+    m_regs.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD = Min((settings.csLockThreshold >> 2),
+                                                                   (Gfx9MaxLockThreshold >> 2));
+
+    // libraries probably don't need any prefetching,
+    // i.e., no need for " cmdUtil.BuildPipelinePrefetchPm4(*pUploader, &m_prefetch)" here.
+    //
+    // Might be nice to do so, but it adds up complexity, in that we would have to maintain a list
+    // of every linked library with each pipeline object and pretech the main pipeline with each library...
+
+    ShaderLibrary::GetFunctionGpuVirtAddrs(abiProcessor, *pUploader, pFunctionList, funcCount);
+}
+
+template
+void LibraryChunkCs::LateInit<ShaderLibraryUploader>(
+    const AbiProcessor&              abiProcessor,
+    const RegisterVector&            registers,
+    uint32                           wavefrontSize,
+    ShaderLibraryFunctionInfo*       pFunctionList,
+    uint32                           funcCount,
+    ShaderLibraryUploader*           pUploader);
 
 } // Gfx9
 } // Pal

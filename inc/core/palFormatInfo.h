@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -115,6 +115,14 @@ extern void ConvertColor(
     const float*   pColorIn,
     uint32*        pColorOut);
 
+/// Convert an unsigned integer representation of a color value in YUVA order to the appropriate bit representation for
+/// each channel based on the specified format.
+extern void ConvertYuvColor(
+    SwizzledFormat format,
+    ImageAspect    aspect,
+    const uint32*  pColorIn,
+    uint32*        pColorOut);
+
 /// Packs a clear color value in RGBA order to a single element of the provided format and stores it in the
 /// memory provided. Swizzling is enabled by default to maintain backwards compatability. There will be
 /// no swizzling functionality going forwards.
@@ -125,6 +133,19 @@ extern void PackRawClearColor(
 
 /// Swizzles the color according to the provided format swizzle.
 extern void SwizzleColor(SwizzledFormat format, const uint32* pColorIn, uint32* pColorOut);
+
+/// Compares two SwizzledFormats and checks for equality.
+///
+/// @param lhs [in] Left hand side of comparison
+/// @param rhs [in] Right hand side of comparison
+///
+/// @return True if the formats are equal, false otherwise.
+PAL_INLINE bool IsSameFormat(
+    const SwizzledFormat& lhs,
+    const SwizzledFormat& rhs)
+{
+    return ((lhs.format == rhs.format) && (lhs.swizzle.swizzleValue == rhs.swizzle.swizzleValue));
+}
 
 /// Queries the number of components for a particular channel format.
 ///

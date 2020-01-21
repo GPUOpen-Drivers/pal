@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -165,8 +165,9 @@ void Device::TransitionDepthStencil(
     uint32       srcCacheMask = transition.srcCacheMask;
     const uint32 dstCacheMask = transition.dstCacheMask;
 #endif
-    const bool   noCacheFlags = ((srcCacheMask == 0) && (dstCacheMask == 0));
-    bool         issuedBlt    = false;
+    const bool   noCacheFlags     = ((srcCacheMask == 0) && (dstCacheMask == 0));
+    bool         issuedBlt        = false;
+    bool         issuedComputeBlt = false;
 
     // The "earlyPhase" for decompress/resummarize BLTs is before any waits and/or cache flushes have been inserted.
     // It is safe to perform a depth expand or htile resummarize in the early phase if the client reports there is dirty
@@ -213,11 +214,11 @@ void Device::TransitionDepthStencil(
             {
                 FlushAndInvL2IfNeeded(pCmdBuf, pCmdStream, barrier, transitionId, pOperations);
 
-                RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
-                                                 image,
-                                                 pMsaaState,
-                                                 transition.imageInfo.pQuadSamplePattern,
-                                                 subresRange);
+                issuedComputeBlt = RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
+                                                                    image,
+                                                                    pMsaaState,
+                                                                    transition.imageInfo.pQuadSamplePattern,
+                                                                    subresRange);
 
                 pMsaaState->Destroy();
                 PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -299,10 +300,13 @@ void Device::TransitionDepthStencil(
         // Flush DB/TC caches to memory after decompressing/resummarizing.
         if (issuedBlt)
         {
-            // Issue ACQUIRE_MEM stalls on depth/stencil surface writes and flush DB caches
-            pSyncReqs->cpMeCoherCntl.bits.DB_DEST_BASE_ENA = 1;
-            pSyncReqs->cpMeCoherCntl.bits.DEST_BASE_0_ENA  = 1;
-            pSyncReqs->cacheFlags                         |= CacheSyncFlushAndInvDb;
+            if (issuedComputeBlt == false)
+            {
+                // Issue ACQUIRE_MEM stalls on depth/stencil surface writes and flush DB caches
+                pSyncReqs->cpMeCoherCntl.bits.DB_DEST_BASE_ENA = 1;
+                pSyncReqs->cpMeCoherCntl.bits.DEST_BASE_0_ENA  = 1;
+                pSyncReqs->cacheFlags                         |= CacheSyncFlushAndInvDb;
+            }
 
             // The decompress/resummarize blit that was just executed was effectively a PAL-initiated draw that wrote to
             // the image and/or htile as a DB destination.  In addition to flushing the data out of the DB cache, we
@@ -714,22 +718,35 @@ void Device::ExpandColor(
         // However, we are already doing an L2 Flush in our per-submit postamble, so it is safe to leave data in L2.
     }
 
-    // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function hardware.
-    constexpr uint32 MaybeFixedFunction = (CoherCopy | CoherColorTarget | CoherResolve | CoherClear);
-
-    // If applications use Vulkan's global memory barriers feature, PAL can end up with image transitions that
-    // have no cache flags because the cache actions for the image were performed in a different transition.
-    // In this case, we need to conservatively handle the L2 cache logic since we lack the information to make
-    // an optimal decision.
-    if ((earlyPhase == false) &&
-        (TestAnyFlagSet(srcCacheMask, MaybeFixedFunction) ||
-         TestAnyFlagSet(dstCacheMask, MaybeFixedFunction) ||
-         didGfxBlt                                        ||
-         noCacheFlags))
+    if (earlyPhase == false)
     {
-        if (gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
+        // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function hardware.
+        constexpr uint32 MaybeFixedFunction = (CoherCopy | CoherColorTarget | CoherResolve | CoherClear);
+
+        // If applications use Vulkan's global memory barriers feature, PAL can end up with image transitions that
+        // have no cache flags because the cache actions for the image were performed in a different transition.
+        // In this case, we need to conservatively handle the L2 cache logic since we lack the information to make
+        // an optimal decision.
+        if ((TestAnyFlagSet(srcCacheMask | dstCacheMask, MaybeFixedFunction) || didGfxBlt || noCacheFlags) &&
+            gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
         {
             pSyncReqs->cacheFlags |= (CacheSyncFlushTcc | CacheSyncInvTcc);
+        }
+
+        if (gfx9Image.HasDccStateMetaData())
+        {
+            // If the previous layout was not one which can write compressed DCC data, but the new layout is,
+            // then we need to update the Image's DCC state metadata to indicate that the image is (probably)
+            // now DCC re-compressed.
+            if ((ImageLayoutCanCompressColorData(layoutToState, transition.imageInfo.oldLayout) == false) &&
+                ImageLayoutCanCompressColorData(layoutToState, transition.imageInfo.newLayout))
+            {
+                // We should never be decompressing DCC during a barrier which enters a re-compressible state.  If
+                // this trips, there must be a logic error somewhere here or in Gfx9::Image::InitLayoutStateMasks().
+                PAL_ASSERT(dccDecompress == false);
+
+                gfx9Image.UpdateDccStateMetaData(pCmdStream, subresRange, true, engineType, PredDisable);
+            }
         }
     }
 }
@@ -1003,6 +1020,7 @@ void Device::Barrier(
 
             if (imageInfo.pImage != nullptr)
             {
+
                 // At least one usage must be specified for the old and new layouts.
                 PAL_ASSERT((imageInfo.oldLayout.usages != 0) && (imageInfo.newLayout.usages != 0));
 
@@ -1415,7 +1433,7 @@ void Device::Barrier(
                                         &barrier.pTransitions[i],
                                         &barrierOps);
 
-                        bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx9Image, subresRange);
+                        const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx9Image, subresRange);
 
                         // After initializing Mask RAM, we need some syncs to guarantee the initialization blts have
                         // finished, even if other Blts caused these operations to occur before any Blts were performed.
@@ -1427,6 +1445,24 @@ void Device::Barrier(
                             initSyncReqs.csPartialFlush = 1;
                             initSyncReqs.cacheFlags    |= CacheSyncInvTcp;
                             initSyncReqs.cacheFlags    |= CacheSyncInvTccMd;
+                        }
+
+                        if (gfx9Image.HasDccStateMetaData())
+                        {
+                            // We need to initialize the Image's DCC state metadata to indicate that the Image will
+                            // become DCC compressed (or not) in upcoming operations.
+                            const bool canCompress =
+                                ImageLayoutCanCompressColorData(gfx9Image.LayoutToColorCompressionState(),
+                                                                imageInfo.newLayout);
+
+                            // If the new layout is one which can write compressed DCC data,  then we need to update the
+                            // Image's DCC state metadata to indicate that the image will become DCC compressed in
+                            // upcoming operations.
+                            gfx9Image.UpdateDccStateMetaData(pCmdStream,
+                                                             subresRange,
+                                                             canCompress,
+                                                             engineType,
+                                                             PredDisable);
                         }
 
                         // F/I L2 since metadata init is a direct metadata write.  Refer to FlushAndInvL2IfNeeded for

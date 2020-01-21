@@ -2,7 +2,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -84,11 +84,16 @@ function(amd_target_options name)
         #
         # [GCC] Options That Control Optimization
         #   https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
+        #
+        # [GCC] Options That Control Visibility
+        #   https://gcc.gnu.org/wiki/Visibility
         target_compile_options(${name}
             PRIVATE
-                -fno-exceptions # Disable exception handling support.
-                -fno-rtti       # Disable run-time type information support.
-                -fno-math-errno # Single instruction math operations do not set ERRNO.
+                -fno-exceptions             # Disable exception handling support.
+                -fno-rtti                   # Disable run-time type information support.
+                -fno-math-errno             # Single instruction math operations do not set ERRNO.
+                -fvisibility=hidden         # Hide export symbols by default
+                -fvisibility-inlines-hidden # Also hide inline export symbols
         )
 
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -122,9 +127,6 @@ function(amd_target_warnings name)
         )
 
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-
-        # [MSVC] Warning Level
-        #   https://docs.microsoft.com/en-us/cpp/build/reference/compiler-option-warning-level
         target_compile_options(${name}
             PRIVATE
                 /W4 # Enable warning level 4.

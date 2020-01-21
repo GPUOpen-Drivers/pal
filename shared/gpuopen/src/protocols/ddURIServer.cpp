@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -388,8 +388,24 @@ namespace DevDriver
         URIServer::URIServer(IMsgChannel* pMsgChannel)
             : BaseProtocolServer(pMsgChannel, Protocol::URI, URI_SERVER_MIN_VERSION, URI_SERVER_MAX_VERSION)
             , m_registeredServices(pMsgChannel->GetAllocCb())
+            , m_internalService()
         {
             DD_ASSERT(m_pMsgChannel != nullptr);
+
+            InternalService::ServiceInfo info       = {};
+            info.pUserdata                          = this;
+            info.pfnQueryRegisteredServices         = URIServer::QueryRegisteredServices;
+
+            // These are unlikely to ever fail. If they do, it's because of
+            //      1) Programmer error on our part here
+            //      2) Low memory conditions
+            // #1 should show up before changes here are checked in
+            // #2 is an end-of-the-world scenario, so you have bigger problems.
+            //      But the URIServer will still start. Just without an "internal" service.
+            //
+            // We can't fail in a constructor anyway, so mark these as unhandled.
+            DD_UNHANDLED_RESULT(m_internalService.Init(info));
+            DD_UNHANDLED_RESULT(RegisterService(&m_internalService));
         }
 
         // =====================================================================================================================
@@ -453,24 +469,16 @@ namespace DevDriver
             {
                 FixedString<kMaxUriServiceNameLength> serviceName(pService->GetName());
 
-                if (strcmp(serviceName.AsCStr(), kInternalServiceName) == 0)
-                {
-                    // There is a reserved internal service name that cannot be used by other services
-                    result = Result::Rejected;
-                }
-                else
-                {
-                    const uint64 hash = MetroHash::HashCStr64(serviceName.AsCStr());
+                const uint64 hash = MetroHash::HashCStr64(serviceName.AsCStr());
 
-                    ServiceInfo info = {};
-                    info.pService = pService;
-                    info.name = serviceName;
-                    info.version = pService->GetVersion();
+                ServiceInfo info = {};
+                info.pService = pService;
+                info.name = serviceName;
+                info.version = pService->GetVersion();
 
-                    m_mutex.Lock();
-                    result = m_registeredServices.Create(hash, info);
-                    m_mutex.Unlock();
-                }
+                m_mutex.Lock();
+                result = m_registeredServices.Create(hash, info);
+                m_mutex.Unlock();
             }
 
             return result;
@@ -515,56 +523,15 @@ namespace DevDriver
         {
             Result result = Result::Unavailable;
 
-            // We handle internal service requests directly here
-            if (strcmp(pServiceName, kInternalServiceName) == 0)
+            // Lock the mutex
+            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+
+            IService* pService = FindService(pServiceName);
+
+            // Check if the requested service was successfully located.
+            if (pService != nullptr)
             {
-                // The only currently supported internal request is for the services list
-                if (strcmp(pRequestContext->GetRequestArguments(), "services") == 0)
-                {
-                    IStructuredWriter* pWriter;
-                    result = pRequestContext->BeginJsonResponse(&pWriter);
-
-                    if (result == Result::Success)
-                    {
-                        pWriter->BeginMap();
-                        pWriter->KeyAndBeginList("Services");
-
-                        // Lock the mutex
-                        Platform::LockGuard<Platform::Mutex> lock(m_mutex);
-
-                        for (auto iter = m_registeredServices.Begin(); iter != m_registeredServices.End(); ++iter)
-                        {
-                            pWriter->BeginMap();
-                            pWriter->KeyAndValue("Name", iter->value.name.AsCStr());
-                            pWriter->KeyAndValue("Version", iter->value.version);
-                            pWriter->EndMap();
-                        }
-
-                        pWriter->EndList();
-                        pWriter->EndMap();
-                        result = pWriter->End();
-                    }
-                }
-                else
-                {
-                    // No other internal service commands are handled
-                    DD_NOT_IMPLEMENTED();
-                }
-            }
-            else
-            {
-                // Otherwise forward the request to the specified service
-
-                // Lock the mutex
-                Platform::LockGuard<Platform::Mutex> lock(m_mutex);
-
-                IService* pService = FindService(pServiceName);
-
-                // Check if the requested service was successfully located.
-                if (pService != nullptr)
-                {
-                    result = pService->HandleRequest(pRequestContext);
-                }
+                result = pService->HandleRequest(pRequestContext);
             }
 
             return result;
@@ -596,6 +563,30 @@ namespace DevDriver
                 }
 
                 m_mutex.Unlock();
+            }
+
+            return result;
+        }
+
+        Result URIServer::QueryRegisteredServices(void* pUserdata, Vector<const IService*>* pServices)
+        {
+            Result result = Result::InvalidParameter;
+
+            if ((pUserdata != nullptr) && (pServices != nullptr))
+            {
+                result = Result::Success;
+
+                auto* pThis = reinterpret_cast<URIServer*>(pUserdata);
+
+                for (const auto& entry : pThis->m_registeredServices)
+                {
+                    if (pServices->PushBack(entry.value.pService) == false)
+                    {
+                        result = Result::InsufficientMemory;
+
+                        break;
+                    }
+                }
             }
 
             return result;

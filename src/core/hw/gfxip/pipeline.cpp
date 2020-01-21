@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -47,14 +47,14 @@ constexpr Abi::ApiShaderType PalToAbiShaderType[] =
 {
     Abi::ApiShaderType::Cs, // ShaderType::Cs
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 549
-    Abi::ApiShaderType::Count,
+    Abi::ApiShaderType::Reserved0,
 #endif
     Abi::ApiShaderType::Vs, // ShaderType::Vs
     Abi::ApiShaderType::Hs, // ShaderType::Hs
     Abi::ApiShaderType::Ds, // ShaderType::Ds
     Abi::ApiShaderType::Gs, // ShaderType::Gs
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 549
-    Abi::ApiShaderType::Count,
+    Abi::ApiShaderType::Reserved1,
 #endif
     Abi::ApiShaderType::Ps, // ShaderType::Ps
 };
@@ -269,7 +269,7 @@ Result Pipeline::QueryAllocationInfo(
 
 // =====================================================================================================================
 // Extracts the pipeline's code object ELF binary.
-Result Pipeline::GetPipelineElf(
+Result Pipeline::GetCodeObject(
     uint32*    pSize,
     void*      pBuffer
     ) const
@@ -397,6 +397,20 @@ Result Pipeline::GetPerformanceData(
 
     return result;
 }
+
+// =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+// If pipeline may make indirect function calls, perform any late linking steps required to valid execution
+// of the possible function calls.
+// (this could include adjusting hardware resources such as GPRs or LDS space for the pipeline).
+Result Pipeline::LinkWithLibraries(
+    const IShaderLibrary*const* ppLibraryList,
+    uint32                      libraryCount)
+{
+    // To be Implemented in needed Pipiline classes
+    return Result::Unsupported;
+}
+#endif
 
 // =====================================================================================================================
 // Helper method which extracts shader statistics from the pipeline ELF binary for a particular hardware stage.

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -141,7 +141,6 @@ namespace DevDriver
             // These filter levels are complicated.
             //      If the value is in [0, 31] (inclusive), represents the value as if it were bit shifted.
             //      Anything >= 32 represents the value as-is.
-            //      See: https://docs.microsoft.com/en-us/windows-hardware/drivers/devtest/reading-and-filtering-debugging-messages
             // Serious errors should be logged with DPFLTR_ERROR_LEVEL, and larger values represent less serious messages.
             // Anything > DPFLTR_INFO_LEVEL can be used by us however we see fit.
             static constexpr uint32 kLogLevelTable[static_cast<int>(LogLevel::Count)] =
@@ -201,7 +200,6 @@ namespace DevDriver
 
                     // This correctly shuts down a driver-spawned system thread.
                     //
-                    // SEE: https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/content/wdm/nf-wdm-pscreatesystemthread
                     // This thread will continue running until system shutdown or it calls this:
                     PsTerminateSystemThread(0);
                 };
@@ -422,6 +420,25 @@ namespace DevDriver
             // will cause the driver to BSOD on load.
             KeQuerySystemTime(&time);
             return (time.QuadPart / 10000);
+        }
+
+        uint64 QueryTimestampFrequency()
+        {
+            LARGE_INTEGER perfFrequency = {};
+            KeQueryPerformanceCounter(&perfFrequency);
+
+            const uint64 frequency = perfFrequency.QuadPart;
+
+            return frequency;
+        }
+
+        uint64 QueryTimestamp()
+        {
+            const LARGE_INTEGER perfTimestamp = KeQueryPerformanceCounter(nullptr);
+
+            const uint64 timestamp = perfTimestamp.QuadPart;
+
+            return timestamp;
         }
 
         void Sleep(uint32 millisecTimeout)

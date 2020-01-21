@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -77,14 +77,12 @@ union CmdStreamFlags
         uint32 dropIfSameContext :  1; // The KMD can drop this stream if the previous scheduler context is the same.
         uint32 prefetchCommands  :  1; // The command stream should be prefetched into the GPU cache.
         uint32 optimizeCommands  :  1; // The command stream contents should be optimized.
-        uint32 optModeImmediate  :  1; // Commands will be optimized when they are written to the reserve buffer.
-        uint32 optModeFinalized  :  1; // Commands will be optimized when chunks are finalized.
         uint32 buildInSysMem     :  1; // Command data will be allocated using system memory chunks instead of the
                                        // usual GPU memory chunks.
         uint32 enablePreemption  :  1; // This command stream can be preempted.
         uint32 addressDependent  :  1; // One or more commands are dependent on the command chunk's GPU address. This
                                        // disables optimizations that copy commands and execute them without patching.
-        uint32 reserved          : 24;
+        uint32 reserved          : 26;
     };
     uint32     value;
 };
@@ -238,8 +236,6 @@ public:
 
     // Returns whether PM4 optimizer is enabled or not
     bool Pm4OptimizerEnabled() const { return m_flags.optimizeCommands; }
-
-    bool Pm4ImmediateOptimizerEnabled() const { return m_flags.optModeImmediate; }
 
     uint32 GetUsedCmdMemorySize() const;
 

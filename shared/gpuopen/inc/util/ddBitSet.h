@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -32,35 +32,48 @@
 #pragma once
 
 #include <ddPlatform.h>
+#include <util/vector.h>
 
 namespace DevDriver
 {
 
-// Class that simplifies operations on a collection of bit values
-template <size_t NumBits>
+// Class that simplifies operations on a collection of bit values with configurable storage
+template <typename BitSetStorage>
 class BitSet
 {
 public:
-    BitSet() { ResetBits(); }
-    ~BitSet() {}
+    BitSet(const AllocCb& allocCb)
+        : m_bits(allocCb)
+    {
+        ResetAllBits();
+    }
+
+    ~BitSet()
+    {
+    }
 
     // Returns a pointer to the internal bit data
-    const void* GetBitData() const { return m_bitDwords; }
+    const void* Data() const { return m_bits.Dwords(); }
 
-    // Returns the size of the internal bit data in bytes
-    size_t GetBitDataSize() const { return sizeof(m_bitDwords); }
+    // Returns the size of the internal bit data in bytes.
+    // This is always a multiple of 4.
+    size_t SizeInBytes() const { return (m_bits.NumDwords() * sizeof(uint32)); }
+
+    // Returns the number of bits in the set
+    size_t SizeInBits() const { return m_bits.NumBits(); }
+
+    // Changes the number of bits in the set
+    // NOTE: This may or may not be available depending on the underlying storage type in use.
+    Result Resize(size_t numBits) { return m_bits.Resize(numBits); }
 
     // Updates the internal bit data using the data provided by the caller
     // This effectively just copies the caller's data over the internal data and discards all unnecessary data.
     void UpdateBitData(const void* pBitData, size_t bitDataSize)
     {
-        const size_t copySize = Platform::Min(sizeof(m_bitDwords), bitDataSize);
+        const size_t copySize = Platform::Min(SizeInBytes(), bitDataSize);
 
-        memcpy(m_bitDwords, pBitData, copySize);
+        memcpy(m_bits.Dwords(), pBitData, copySize);
     }
-
-    // Returns the number of bits in the set
-    size_t GetNumBits() const { return NumBits; }
 
     // Queries the value of a bit at the specified index
     // Returns false if the index is out of bounds
@@ -73,7 +86,7 @@ public:
 
         if (result == Result::Success)
         {
-            bitValue = (m_bitDwords[index.DwordIndex] & (1 << index.BitIndex));
+            bitValue = ((*GetBitDword(index.DwordIndex)) & (1 << index.BitIndex));
         }
 
         return bitValue;
@@ -94,7 +107,11 @@ public:
 
         if (result == Result::Success)
         {
-            m_bitDwords[index.DwordIndex] |= (1 << index.BitIndex);
+            (*GetBitDword(index.DwordIndex)) |= (1 << index.BitIndex);
+        }
+        else
+        {
+            DD_ASSERT_REASON("Invalid bit index");
         }
     }
 
@@ -107,20 +124,36 @@ public:
 
         if (result == Result::Success)
         {
-            m_bitDwords[index.DwordIndex] &= (~(1 << index.BitIndex));
+            (*GetBitDword(index.DwordIndex)) &= (~(1 << index.BitIndex));
+        }
+        else
+        {
+            DD_ASSERT_REASON("Invalid bit index");
         }
     }
 
     // Sets all bits to 1
-    void SetBits()
+    void SetAllBits()
     {
-        memset(m_bitDwords, 0xFFFFFFFF, sizeof(m_bitDwords));
+        // Un-used bits in our bytes may be used later
+        // We want to make sure they stay zeroed
+        uint8* pBytes = reinterpret_cast<uint8*>(m_bits.Dwords());
+
+        const size_t fullBytes = SizeInBits() / 8;
+        memset(pBytes, 0xFF, fullBytes);
+
+        const size_t bits = SizeInBits() % 8;
+        if (bits != 0)
+        {
+            pBytes[fullBytes] = (1 << bits) - 1;
+        }
     }
 
     // Sets all bits to 0
-    void ResetBits()
+    void ResetAllBits()
     {
-        memset(m_bitDwords, 0, sizeof(m_bitDwords));
+        // Un-used bits in our bytes may be used later - it's okay if we zero them redundantly here.
+        memset(m_bits.Dwords(), 0, SizeInBytes());
     }
 
 private:
@@ -143,7 +176,7 @@ private:
         const uint32 localBitIndex = (bitIndex & 31);
 
         // Make sure we're in bounds
-        if (dwordIndex < Platform::ArraySize(m_bitDwords))
+        if (dwordIndex < m_bits.NumDwords())
         {
             *pIndex = { dwordIndex, localBitIndex };
 
@@ -153,15 +186,128 @@ private:
         return result;
     }
 
-    uint32 m_bitDwords[(Platform::Pow2Align<size_t>(NumBits, 32) >> 5)];
+    uint32* GetBitDword(size_t dwordIndex)
+    {
+        return &m_bits.Dwords()[dwordIndex];
+    }
+
+    const uint32* GetBitDword(size_t dwordIndex) const
+    {
+        return &m_bits.Dwords()[dwordIndex];
+    }
+
+    BitSetStorage m_bits;
+};
+
+// Bit storage class that allows an application to manage a compile-time-sized collection of bit values.
+template <size_t NumStorageBits>
+class FixedBitStorage
+{
+public:
+    FixedBitStorage(const AllocCb& allocCb)
+    {
+        // We don't use this, but it has to be in the parameter list in order to support dynamic bit sets
+        DD_UNUSED(allocCb);
+    }
+
+    // Returns a pointer to the internal bit data
+    uint32* Dwords() { return m_bitDwords; }
+
+    // Returns a pointer to the internal bit data
+    const uint32* Dwords() const { return m_bitDwords; }
+
+    // Returns the size of the internal bit data in dwords
+    size_t NumDwords() const { return Platform::ArraySize(m_bitDwords); }
+
+    // Returns the number of bits in the set
+    size_t NumBits() const { return NumStorageBits; }
+
+    // Changes the number of bits in the set
+    Result Resize(size_t numBits)
+    {
+        DD_UNUSED(numBits);
+        DD_ASSERT_REASON("Resize called on a fixed-sized storage. If you need this, use DynamicBitSet instead");
+
+        // Fixed bitsets cannot change the number of bits at runtime
+        return Result::Unavailable;
+    }
+
+private:
+    uint32 m_bitDwords[(Platform::Pow2Align<size_t>(NumStorageBits, 32) / 32)];
 };
 
 // We purposely prevent people from building a bit set with zero bits in it.
 template <>
-class BitSet<0>
+class FixedBitStorage<0>
 {
 public:
-    BitSet() = delete;
+    FixedBitStorage(const AllocCb& allocCb) = delete;
 };
+
+// Bit storage class that allows an application to manage a runtime-sized collection of bit values.
+template <size_t NumStorageBits = 256>
+class DynamicBitStorage
+{
+public:
+    DynamicBitStorage(const AllocCb& allocCb)
+        : m_allocCb(allocCb)
+        , m_bitDwords(allocCb)
+        , m_numBits(NumStorageBits)
+    {
+        // Resize our storage to the requested number of bits
+        Resize(NumStorageBits);
+    }
+
+    ~DynamicBitStorage() {}
+
+    // Returns a pointer to the internal bit data
+    uint32* Dwords() { return m_bitDwords.Data(); }
+
+    // Returns a pointer to the internal bit data
+    const uint32* Dwords() const { return m_bitDwords.Data(); }
+
+    // Returns the size of the internal bit data in dwords
+    size_t NumDwords() const { return m_bitDwords.Size(); }
+
+    // Returns the number of bits in the set
+    size_t NumBits() const { return m_numBits; }
+
+    // Changes the number of bits in the set
+    Result Resize(size_t numBits)
+    {
+        const size_t numDwords = (Platform::Pow2Align<size_t>(numBits, 32) / 32);
+
+        m_bitDwords.ResizeAndZero(numDwords);
+        m_numBits = numBits;
+
+        // @TODO: Propagate the correct result from Vector::Resize() when it's updated to return results
+        return Result::Success;
+    }
+
+private:
+    DD_DISALLOW_COPY_AND_ASSIGN(DynamicBitStorage);
+
+    using DwordsVector = Vector<uint32, (Platform::Pow2Align<size_t>(NumStorageBits, 32) / 32)>;
+
+    AllocCb      m_allocCb;
+    DwordsVector m_bitDwords;
+    size_t       m_numBits;
+};
+
+// We purposely prevent people from building a bit set with zero bits in it.
+template <>
+class DynamicBitStorage<0>
+{
+public:
+    DynamicBitStorage(const AllocCb& allocCb) = delete;
+};
+
+// Bit set that allows an application to manage a compile-time-sized collection of bit values.
+template<size_t NumOfBits>
+using FixedBitSet = BitSet<FixedBitStorage<NumOfBits>>;
+
+// Bit set that allows an application to manage a runtime-sized collection of bit values.
+template <size_t InitBitCapacity = 256>
+using DynamicBitSet = BitSet<DynamicBitStorage<InitBitCapacity>>;
 
 } // DevDriver

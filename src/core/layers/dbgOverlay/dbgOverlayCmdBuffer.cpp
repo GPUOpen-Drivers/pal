@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -95,7 +95,11 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
 
             m_device.GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(srcImage),
                 this,
-                ExpectedPresentMode::Unknown);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
+                PresentMode::Unknown);
+#else
+                PresentMode::Count);
+#endif
 
             barrier.reason = Developer::BarrierReasonDebugOverlayText;
 
@@ -127,7 +131,8 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
 
 // =====================================================================================================================
 void CmdBuffer::DrawOverlay(
-    const IImage* pSrcImage)
+    const IImage* pSrcImage,
+    PresentMode   presentMode)
 {
     const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
 
@@ -148,11 +153,21 @@ void CmdBuffer::DrawOverlay(
 
     if (settings.debugOverlayConfig.visualConfirmEnabled == true)
     {
+        const PlatformProperties& properties   = static_cast<Platform*>(m_pDevice->GetPlatform())->Properties();
+        const PresentMode expectedMode         =
+            ((properties.explicitPresentModes == 0) ?
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
+             PresentMode::Unknown
+#else
+             PresentMode::Count
+#endif
+             : presentMode);
+
         // Draw the debug overlay using this command buffer. Note that the DX runtime controls whether the
         // present will be windowed or fullscreen. We have no reliable way to detect the chosen present mode.
         m_device.GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(*pSrcImage),
                                                     this,
-                                                    ExpectedPresentMode::Unknown);
+                                                    expectedMode);
 
         barrier.reason = Developer::BarrierReasonDebugOverlayText;
 
@@ -178,7 +193,11 @@ void CmdBuffer::CmdPostProcessFrame(
     // Only an Image supports visual confirm
     if ((postProcessInfo.flags.srcIsTypedBuffer == 0) && Device::DetermineDbgOverlaySupport(m_queueType))
     {
-        DrawOverlay(postProcessInfo.pSrcImage);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
+        DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.presentMode);
+#else
+        DrawOverlay(postProcessInfo.pSrcImage, PresentMode::Count);
+#endif
         if (pAddedGpuWork != nullptr)
         {
             *pAddedGpuWork = true;

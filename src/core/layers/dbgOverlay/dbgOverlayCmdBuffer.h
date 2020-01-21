@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -63,7 +63,7 @@ public:
         bool*                          pAddedGpuWork) override;
 
 private:
-    void DrawOverlay(const IImage* pSrcImage);
+    void DrawOverlay(const IImage* pSrcImage, PresentMode presentMode);
 
     const Device&   m_device;
     const QueueType m_queueType;

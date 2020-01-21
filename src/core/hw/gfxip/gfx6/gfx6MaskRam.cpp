@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1147,12 +1147,33 @@ bool Gfx6Dcc::UseDccForImage(
             useDcc = false;
             mustDisableDcc = true;
         }
-        else if (pParent->IsDepthStencil() || allMipsShaderWritable || (pParent->IsRenderTarget() == false))
+        else if (tileType == ADDR_THICK)
         {
-            // DCC only makes sense for renderable color buffers, or those color buffers such that some mips are
-            // not shader writable
+            // THICK micro-tiling does not support DCC. The reason for this is that the CB does not support doing a DCC
+            // decompress operation on THICK micro-tiled Images.
             useDcc = false;
             mustDisableDcc = true;
+        }
+        else if (image.IsMacroTiled(tileMode) == false)
+        {
+            // If the tile-mode is 1D or linear, then this surface has no chance of using DCC memory.  2D tiled surfaces
+            // get much more complicated...  allow DCC for whatever levels of the surface can support it.
+            useDcc = false;
+            mustDisableDcc = true;
+        }
+        else if (pParent->IsDepthStencil() || (pParent->IsRenderTarget() == false))
+        {
+            // DCC only makes sense for renderable color buffers
+            useDcc = false;
+            mustDisableDcc = true;
+        }
+        else if (allMipsShaderWritable)
+        {
+            // DCC does not make sense for UAVs or RT+UAVs (all mips are shader writeable).
+            useDcc = false;
+            // Give a chance for clients to force enabling DCC for RT+UAVs. i.e. App flags the resource as both render
+            // target and unordered access but never uses it as UAV.
+            mustDisableDcc = pParent->IsRenderTarget() ? false : true;
         }
         // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
         // preferred, the image will be readable by a shader.
@@ -1168,20 +1189,6 @@ bool Gfx6Dcc::UseDccForImage(
         else if (pParent->IsShared() || pParent->IsPresentable() || pParent->IsFlippable())
         {
             // DCC is never available for shared, presentable, or flippable images.
-            useDcc = false;
-            mustDisableDcc = true;
-        }
-        else if (tileType == ADDR_THICK)
-        {
-            // THICK micro-tiling does not support DCC. The reason for this is that the CB does not support doing a DCC
-            // decompress operation on THICK micro-tiled Images.
-            useDcc = false;
-            mustDisableDcc = true;
-        }
-        else if (image.IsMacroTiled(tileMode) == false)
-        {
-            // If the tile-mode is 1D or linear, then this surface has no chance of using DCC memory.  2D tiled surfaces
-            // get much more complicated...  allow DCC for whatever levels of the surface can support it.
             useDcc = false;
             mustDisableDcc = true;
         }

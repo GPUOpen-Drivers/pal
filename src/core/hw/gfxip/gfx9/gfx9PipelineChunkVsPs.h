@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -80,17 +80,15 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-    regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_commands.streamOut.vgtStrmoutConfig; }
-    regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_commands.streamOut.vgtStrmoutBufferConfig; }
+    regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_regs.context.vgtStrmoutConfig; }
+    regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_regs.context.vgtStrmoutBufferConfig; }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const
-        { return m_commands.streamOut.stride[idx].vgtStrmoutVtxStride; }
+        { return m_regs.context.vgtStrmoutVtxStride[idx]; }
 
-    regSPI_SHADER_Z_FORMAT SpiShaderZFormat() const { return m_commands.context.spiShaderZFormat; }
-    regDB_SHADER_CONTROL DbShaderControl() const { return m_commands.context.dbShaderControl; }
-    regPA_CL_VS_OUT_CNTL PaClVsOutCntl() const { return m_commands.context.paClVsOutCntl; }
-
-    regPA_SC_AA_CONFIG PaScAaConfig() const
-        { return *reinterpret_cast<const regPA_SC_AA_CONFIG*>(&m_commands.common.paScAaConfig.reg_data); }
+    regSPI_SHADER_Z_FORMAT SpiShaderZFormat() const { return m_regs.context.spiShaderZFormat; }
+    regDB_SHADER_CONTROL DbShaderControl() const { return m_regs.context.dbShaderControl; }
+    regPA_CL_VS_OUT_CNTL PaClVsOutCntl() const { return m_regs.context.paClVsOutCntl; }
+    regPA_SC_AA_CONFIG PaScAaConfig() const { return m_regs.context.paScAaConfig; }
 
     // Shortcut for checking if the shader has enabled INNER_COVERAGE mode.
     bool UsesInnerCoverage() const
@@ -98,187 +96,88 @@ public:
 
     gpusize VsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_commands.sh.vs.spiShaderPgmLoVs.bits.MEM_BASE,
-                                  m_commands.sh.vs.spiShaderPgmHiVs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoVs.bits.MEM_BASE,
+                                  m_regs.sh.spiShaderPgmHiVs.bits.MEM_BASE);
     }
 
     gpusize PsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_commands.sh.ps.spiShaderPgmLoPs.bits.MEM_BASE,
-                                  m_commands.sh.ps.spiShaderPgmHiPs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoPs.bits.MEM_BASE,
+                                  m_regs.sh.spiShaderPgmHiPs.bits.MEM_BASE);
     }
 
     const ShaderStageInfo& StageInfoVs() const { return m_stageInfoVs; }
     const ShaderStageInfo& StageInfoPs() const { return m_stageInfoPs; }
 
 private:
-    void BuildPm4Headers(
-        bool                            enableLoadIndexPath,
-        const GraphicsPipelineLoadInfo& loadInfo);
+    uint32* WriteShCommandsSetPathVs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteShCommandsSetPathPs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
-    struct Pm4Commands
+    const Device&  m_device;
+
+    struct
     {
         struct
         {
-            struct
-            {
-                PM4_ME_SET_SH_REG           hdrSpiShaderPgm;
-                regSPI_SHADER_PGM_LO_PS     spiShaderPgmLoPs;
-                regSPI_SHADER_PGM_HI_PS     spiShaderPgmHiPs;
-                regSPI_SHADER_PGM_RSRC1_PS  spiShaderPgmRsrc1Ps;
-                regSPI_SHADER_PGM_RSRC2_PS  spiShaderPgmRsrc2Ps;
+            regSPI_SHADER_PGM_LO_VS     spiShaderPgmLoVs;
+            regSPI_SHADER_PGM_HI_VS     spiShaderPgmHiVs;
+            regSPI_SHADER_PGM_RSRC1_VS  spiShaderPgmRsrc1Vs;
+            regSPI_SHADER_PGM_RSRC2_VS  spiShaderPgmRsrc2Vs;
+            regSPI_SHADER_PGM_LO_PS     spiShaderPgmLoPs;
+            regSPI_SHADER_PGM_HI_PS     spiShaderPgmHiPs;
+            regSPI_SHADER_PGM_RSRC1_PS  spiShaderPgmRsrc1Ps;
+            regSPI_SHADER_PGM_RSRC2_PS  spiShaderPgmRsrc2Ps;
 
-                PM4_ME_SET_SH_REG             hdrSpiShaderUserData;
-                regSPI_SHADER_USER_DATA_PS_1  spiShaderUserDataLoPs;
+            regSPI_SHADER_REQ_CTRL_PS  spiShaderReqCtrlPs;
+            regSPI_SHADER_REQ_CTRL_VS  spiShaderReqCtrlVs;
 
-                // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be used.
-                PM4_ME_SET_SH_REG             hdrSpishaderUserAccumPs;
-                regSPI_SHADER_USER_ACCUM_PS_0 shaderUserAccumPs0;
-                regSPI_SHADER_USER_ACCUM_PS_1 shaderUserAccumPs1;
-                regSPI_SHADER_USER_ACCUM_PS_2 shaderUserAccumPs2;
-                regSPI_SHADER_USER_ACCUM_PS_3 shaderUserAccumPs3;
+            regSPI_SHADER_PGM_CHKSUM_PS    spiShaderPgmChksumPs;
+            regSPI_SHADER_USER_ACCUM_PS_0  spiShaderUserAccumPs0;
+            regSPI_SHADER_USER_ACCUM_PS_1  spiShaderUserAccumPs1;
+            regSPI_SHADER_USER_ACCUM_PS_2  spiShaderUserAccumPs2;
+            regSPI_SHADER_USER_ACCUM_PS_3  spiShaderUserAccumPs3;
 
-                PM4_ME_SET_SH_REG             hdrShaderReqCtrlPs;
-                regSPI_SHADER_REQ_CTRL_PS     shaderReqCtrlPs;
+            regSPI_SHADER_PGM_CHKSUM_VS    spiShaderPgmChksumVs;
+            regSPI_SHADER_USER_ACCUM_VS_0  spiShaderUserAccumVs0;
+            regSPI_SHADER_USER_ACCUM_VS_1  spiShaderUserAccumVs1;
+            regSPI_SHADER_USER_ACCUM_VS_2  spiShaderUserAccumVs2;
+            regSPI_SHADER_USER_ACCUM_VS_3  spiShaderUserAccumVs3;
 
-                // Checksum register is optional, as not all GFX9+ hardware uses it.
-                // If we don't have it, NOP will be used.
-                PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
-                regSPI_SHADER_PGM_CHKSUM_PS  spiShaderPgmChksumPs;
-
-                // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-                // w/ the actual commands contained above.
-                size_t  spaceNeeded;
-            } ps;
-
-            struct
-            {
-                // If we don't set hdrSpiShaderPgm/ hdrSpiShaderUserData when NGG is disabled, we'll add NOP.
-                PM4_ME_SET_SH_REG           hdrSpiShaderPgm;
-                regSPI_SHADER_PGM_LO_VS     spiShaderPgmLoVs;
-                regSPI_SHADER_PGM_HI_VS     spiShaderPgmHiVs;
-                regSPI_SHADER_PGM_RSRC1_VS  spiShaderPgmRsrc1Vs;
-                regSPI_SHADER_PGM_RSRC2_VS  spiShaderPgmRsrc2Vs;
-
-                PM4_ME_SET_SH_REG             hdrSpiShaderUserData;
-                regSPI_SHADER_USER_DATA_VS_1  spiShaderUserDataLoVs;
-
-                // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be added.
-                PM4_ME_SET_SH_REG             hdrSpishaderUserAccumVs;
-                regSPI_SHADER_USER_ACCUM_VS_0 shaderUserAccumVs0;
-                regSPI_SHADER_USER_ACCUM_VS_1 shaderUserAccumVs1;
-                regSPI_SHADER_USER_ACCUM_VS_2 shaderUserAccumVs2;
-                regSPI_SHADER_USER_ACCUM_VS_3 shaderUserAccumVs3;
-
-                PM4_ME_SET_SH_REG             hdrShaderReqCtrlVs;
-                regSPI_SHADER_REQ_CTRL_VS     shaderReqCtrlVs;
-
-                // Checksum register is optional, as not all GFX9+ hardware uses it.
-                // If we don't have it, NOP will be added.
-                PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
-                regSPI_SHADER_PGM_CHKSUM_VS  spiShaderPgmChksumVs;
-
-                // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-                // w/ the actual commands contained above.
-                size_t  spaceNeeded;
-            } vs;
-        } sh; // Writes SH registers when using the SET path.
+            regSPI_SHADER_USER_DATA_VS_0  userDataInternalTableVs;
+            regSPI_SHADER_USER_DATA_PS_0  userDataInternalTablePs;
+        } sh;
 
         struct
         {
-            struct
-            {
-                PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc3Ps;
-                regSPI_SHADER_PGM_RSRC3_PS  spiShaderPgmRsrc3Ps;
+            regSPI_SHADER_POS_FORMAT  spiShaderPosFormat;
+            regSPI_SHADER_Z_FORMAT    spiShaderZFormat;
+            regSPI_SHADER_COL_FORMAT  spiShaderColFormat;
+            regSPI_BARYC_CNTL         spiBarycCntl;
+            regSPI_PS_INPUT_ENA       spiPsInputEna;
+            regSPI_PS_INPUT_ADDR      spiPsInputAddr;
+            regDB_SHADER_CONTROL      dbShaderControl;
+            regPA_SC_AA_CONFIG        paScAaConfig;
+            regPA_SC_SHADER_CONTROL   paScShaderControl;
+            regPA_SC_BINNER_CNTL_1    paScBinnerCntl1;
+            regPA_CL_VS_OUT_CNTL      paClVsOutCntl;
+            regVGT_PRIMITIVEID_EN     vgtPrimitiveIdEn;
 
-                PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc4Ps;
-                regSPI_SHADER_PGM_RSRC4_PS  spiShaderPgmRsrc4Ps;
-
-                // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-                // w/ the actual commands contained above.
-                size_t  spaceNeeded;
-            } ps;
-
-            struct
-            {
-                PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc3Vs;
-                regSPI_SHADER_PGM_RSRC3_VS  spiShaderPgmRsrc3Vs;
-
-                PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc4Vs;
-                regSPI_SHADER_PGM_RSRC4_VS  spiShaderPgmRsrc4Vs;
-
-                // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-                // w/ the actual commands contained above.
-                size_t  spaceNeeded;
-            } vs;
-        } dynamic; // Contains state which depends on bind-time parameters.
-
-        struct
-        {
-            PM4ME_CONTEXT_REG_RMW  paScAaConfig;
-        } common; // Packets which are common to both the SET and LOAD_INDEX paths (such as read-modify-writes).
-
-        struct
-        {
-            PM4_PFP_SET_CONTEXT_REG  hdrSpiShaderFormat;
-            regSPI_SHADER_POS_FORMAT spiShaderPosFormat;
-            regSPI_SHADER_Z_FORMAT   spiShaderZFormat;
-            regSPI_SHADER_COL_FORMAT spiShaderColFormat;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrSpiBarycCntl;
-            regSPI_BARYC_CNTL        spiBarycCntl;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrSpiPsInput;
-            regSPI_PS_INPUT_ENA      spiPsInputEna;
-            regSPI_PS_INPUT_ADDR     spiPsInputAddr;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrDbShaderControl;
-            regDB_SHADER_CONTROL     dbShaderControl;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrPaScShaderControl;
-            regPA_SC_SHADER_CONTROL  paScShaderControl;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrPaScBinnerCntl1;
-            regPA_SC_BINNER_CNTL_1   paScBinnerCntl1;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrPaClVsOutCntl;
-            regPA_CL_VS_OUT_CNTL     paClVsOutCntl;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrVgtPrimitiveIdEn;
-            regVGT_PRIMITIVEID_EN    vgtPrimitiveIdEn;
-
-            // SPI PS input control registers: between 0 and 32 of these will actually be written.  Note: Should always
-            // be the last bunch of registers in the PM4 image because the amount of regs which will actually be written
-            // varies between pipelines (based on SC output from compiling the shader.
-            PM4_PFP_SET_CONTEXT_REG  hdrSpiPsInputCntl;
-            regSPI_PS_INPUT_CNTL_0   spiPsInputCntl[MaxPsInputSemantics];
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
-        } context; // Writes context registers when using the SET path.
-
-        struct
-        {
-            PM4_PFP_SET_CONTEXT_REG       headerStrmoutCfg;
             regVGT_STRMOUT_CONFIG         vgtStrmoutConfig;
             regVGT_STRMOUT_BUFFER_CONFIG  vgtStrmoutBufferConfig;
+            regVGT_STRMOUT_VTX_STRIDE_0   vgtStrmoutVtxStride[MaxStreamOutTargets];
 
-            struct
-            {
-                PM4_PFP_SET_CONTEXT_REG      header;
-                regVGT_STRMOUT_VTX_STRIDE_0  vgtStrmoutVtxStride;
-            } stride[MaxStreamOutTargets];
+            uint32  interpolatorCount;
+            regSPI_PS_INPUT_CNTL_0   spiPsInputCntl[MaxPsInputSemantics];
+        } context;
 
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
-        } streamOut; //  Writes stream-out context registers when using the SET path.
-    };
-
-    const Device&  m_device;
-    Pm4Commands    m_commands;
+        struct
+        {
+            regSPI_SHADER_PGM_RSRC3_PS  spiShaderPgmRsrc3Ps;
+            regSPI_SHADER_PGM_RSRC4_PS  spiShaderPgmRsrc4Ps;
+            regSPI_SHADER_PGM_RSRC3_VS  spiShaderPgmRsrc3Vs;
+            regSPI_SHADER_PGM_RSRC4_VS  spiShaderPgmRsrc4Vs;
+        } dynamic;
+    }  m_regs;
 
     const PerfDataInfo*const  m_pVsPerfDataInfo;   // VS performance data information.
     const PerfDataInfo*const  m_pPsPerfDataInfo;   // PS performance data information.

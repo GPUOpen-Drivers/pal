@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -98,6 +98,9 @@ enum FastClearTcCompatSurfs : uint32
 // Information used to determine the color compression state for an Image layout.
 struct ColorLayoutToState
 {
+    ImageLayout compressedWrite;   // Mask of layouts compatible with the ColorCompressed state which also will
+                                   // write compressed data (e.g., making the Image data compressed even if it
+                                   // wasn't previously compressed).
     ImageLayout compressed;        // Mask of layouts compatible with the ColorCompressed state.
     ImageLayout fmaskDecompressed; // Mask of layouts compatible with the ColorFmaskDecompressed state.
 };
@@ -133,6 +136,17 @@ PAL_INLINE ColorCompressionState ImageLayoutToColorCompressionState(
     }
 
     return state;
+}
+
+// =====================================================================================================================
+// Determines if a particular set of allowed usages and queues is one which is not only compatible with the
+// ColorCompressed state, but also can write compressed data from the GPU back to the image.
+PAL_INLINE bool ImageLayoutCanCompressColorData(
+    const ColorLayoutToState& layoutToState,
+    ImageLayout               imageLayout)
+{
+    return ((Util::TestAnyFlagSet(imageLayout.usages, ~layoutToState.compressedWrite.usages) == false) &&
+            (Util::TestAnyFlagSet(imageLayout.engines, ~layoutToState.compressedWrite.engines) == false));
 }
 
 // Information used to determine the depth or stencil compression state for an Image layout.

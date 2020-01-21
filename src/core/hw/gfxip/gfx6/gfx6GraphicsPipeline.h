@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,6 @@ struct GraphicsPipelineLoadInfo
     bool    usesOnChipGs;       // Set if the pipeline has a GS and uses on-chip GS.
     uint16  esGsLdsSizeRegGs;   // User-SGPR where the ES/GS ring size in LDS is passed to the GS stage
     uint16  esGsLdsSizeRegVs;   // User-SGPR where the ES/GS ring size in LDS is passed to the VS stage
-    uint16  interpolatorCount;  // Number of PS interpolators
 
     uint32  loadedShRegCount;   // Number of SH registers to load using LOAD_SH_REG_INDEX.  If zero, the LOAD_INDEX
                                 // path for pipeline binds is not supported.
@@ -96,12 +95,12 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-    regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_paScModeCntl1; }
+    regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.context.paScModeCntl1; }
 
     regIA_MULTI_VGT_PARAM IaMultiVgtParam(bool forceWdSwitchOnEop) const
-        { return m_iaMultiVgtParam[IaRegIdx(forceWdSwitchOnEop)]; }
+        { return m_regs.context.iaMultiVgtParam[static_cast<uint32>(forceWdSwitchOnEop)]; }
 
-    regVGT_LS_HS_CONFIG VgtLsHsConfig() const { return m_vgtLsHsConfig; }
+    regVGT_LS_HS_CONFIG VgtLsHsConfig() const { return m_regs.context.vgtLsHsConfig; }
 
     bool CanDrawPrimsOutOfOrder(const DepthStencilView*  pDsView,
                                 const DepthStencilState* pDepthStencilState,
@@ -110,16 +109,16 @@ public:
                                 OutOfOrderPrimMode       gfx7EnableOutOfOrderPrimitives) const;
 
     bool IsOutOfOrderPrimsEnabled() const
-        { return m_paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE; }
+        { return m_regs.context.paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE; }
 
     regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_chunkVsPs.VgtStrmoutBufferConfig(); }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const { return m_chunkVsPs.VgtStrmoutVtxStride(idx); }
     regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_chunkVsPs.SpiVsOutConfig(); }
     regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_chunkVsPs.SpiPsInControl(); }
 
-    regSX_PS_DOWNCONVERT__VI SxPsDownconvert() const { return m_sxPsDownconvert; }
-    regSX_BLEND_OPT_EPSILON__VI SxBlendOptEpsilon() const { return m_sxBlendOptEpsilon; }
-    regSX_BLEND_OPT_CONTROL__VI SxBlendOptControl() const { return m_sxBlendOptControl; }
+    regSX_PS_DOWNCONVERT__VI SxPsDownconvert() const { return m_regs.context.sxPsDownconvert; }
+    regSX_BLEND_OPT_EPSILON__VI SxBlendOptEpsilon() const { return m_regs.context.sxBlendOptEpsilon; }
+    regSX_BLEND_OPT_CONTROL__VI SxBlendOptControl() const { return m_regs.context.sxBlendOptControl; }
 
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
@@ -169,6 +168,8 @@ private:
         const DynamicGraphicsShaderInfos& graphicsInfo,
         DynamicStageInfos*                pStageInfos) const;
 
+    uint32* WriteContextCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+
     void UpdateRingSizes(
         const CodeObjectMetadata& metadata);
     uint32 ComputeScratchMemorySize(
@@ -184,9 +185,6 @@ private:
         const RegisterVector&     registers,
         HwShaderStage             stage,
         uint16*                   pEsGsLdsSizeReg);
-
-    void BuildPm4Headers(
-        const GraphicsPipelineUploader& uploader);
 
     void SetupCommonRegisters(
         const GraphicsPipelineCreateInfo& createInfo,
@@ -215,118 +213,70 @@ private:
         regSX_BLEND_OPT_EPSILON__VI* pSxBlendOptEpsilon,
         regSX_BLEND_OPT_CONTROL__VI* pSxBlendOptControl) const;
 
-    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
-    struct Pm4Commands
-    {
-        struct
-        {
-            PM4CONTEXTREGRMW  dbAlphaToMask;
-            PM4CONTEXTREGRMW  dbRenderOverride;
-        } common; // Packets which are common to both the SET and LOAD_INDEX paths (such as read-modify-writes).
-
-        struct
-        {
-            struct
-            {
-                PM4CMDLOADDATAINDEX  loadShRegIndex;
-            } sh;
-
-            struct
-            {
-                PM4CMDLOADDATAINDEX  loadCtxRegIndex;
-            } context;
-        } loadIndex; // LOAD_INDEX path, used for GPU's which support the updated microcode.
-
-        PipelinePrefetchPm4 prefetch;
-
-        struct
-        {
-            struct
-            {
-                PM4CMDSETDATA                        hdrSpiShaderLateAllocVs;
-                regSPI_SHADER_LATE_ALLOC_VS__CI__VI  spiShaderLateAllocVs;
-            } sh;
-
-            struct
-            {
-                PM4CMDSETDATA            hdrVgtShaderStagesEn;
-                regVGT_SHADER_STAGES_EN  vgtShaderStagesEn;
-
-                PM4CMDSETDATA   hdrVgtGsMode;
-                regVGT_GS_MODE  vgtGsMode;
-
-                PM4CMDSETDATA     hdrVgtReuseOff;
-                regVGT_REUSE_OFF  vgtReuseOff;
-
-                PM4CMDSETDATA    hdrVgtTfParam;
-                regVGT_TF_PARAM  vgtTfParam;
-
-                PM4CMDSETDATA        hdrCbColorControl;
-                regCB_COLOR_CONTROL  cbColorControl;
-
-                PM4CMDSETDATA      hdrCbShaderTargetMask;
-                regCB_TARGET_MASK  cbTargetMask;
-                regCB_SHADER_MASK  cbShaderMask;
-
-                PM4CMDSETDATA       hdrPaClClipCntl;
-                regPA_CL_CLIP_CNTL  paClClipCntl;
-
-                PM4CMDSETDATA      hdrPaSuVtxCntl;
-                regPA_SU_VTX_CNTL  paSuVtxCntl;
-
-                PM4CMDSETDATA      hdrPaClVteCntl;
-                regPA_CL_VTE_CNTL  paClVteCntl;
-
-                PM4CMDSETDATA       hdrPaScLineCntl;
-                regPA_SC_LINE_CNTL  paScLineCntl;
-
-                PM4CMDSETDATA            hdrSpiInterpControl0;
-                regSPI_INTERP_CONTROL_0  spiInterpControl0;
-
-                PM4CMDSETDATA                   hdrVgtVertexReuseBlockCntl;
-                regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;
-
-                // This packet must be last because not all HW will write it.
-                PM4CMDSETDATA         hdrDbShaderControl;
-                regDB_SHADER_CONTROL  dbShaderControl;
-
-                // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-                // w/ the actual commands contained above.
-                size_t  spaceNeeded;
-            } context;
-        } set; // SET path, used for GPU's which are stuck with the legacy microcode.
-    };
-
     Device*const  m_pDevice;
     uint64        m_contextRegHash;
 
     // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
     // WD_SWITCH_ON_EOP is required.
     static constexpr uint32  NumIaMultiVgtParam = 2;
-    regIA_MULTI_VGT_PARAM  m_iaMultiVgtParam[NumIaMultiVgtParam];
-
-    regSX_PS_DOWNCONVERT__VI     m_sxPsDownconvert;
-    regSX_BLEND_OPT_EPSILON__VI  m_sxBlendOptEpsilon;
-    regSX_BLEND_OPT_CONTROL__VI  m_sxBlendOptControl;
-    regVGT_LS_HS_CONFIG          m_vgtLsHsConfig;
-    regPA_SC_MODE_CNTL_1         m_paScModeCntl1;
 
     PipelineChunkLsHs  m_chunkLsHs;
     PipelineChunkEsGs  m_chunkEsGs;
     PipelineChunkVsPs  m_chunkVsPs;
 
-    GraphicsPipelineSignature  m_signature;
-    Pm4Commands                m_commands;
+    struct
+    {
+        struct
+        {
+            regSPI_SHADER_LATE_ALLOC_VS__CI__VI  spiShaderLateAllocVs;
+        } sh;
 
-    // Used to index into the IA_MULTI_VGT_PARAM array based on dynamic state. This just constructs a flat index
-    // directly from the integer representations of the bool inputs (1/0).
-    static PAL_INLINE uint32 IaRegIdx(bool forceSwitchOnEop) { return static_cast<uint32>(forceSwitchOnEop); }
+        struct
+        {
+            regVGT_SHADER_STAGES_EN         vgtShaderStagesEn;
+            regVGT_GS_MODE                  vgtGsMode;
+            regVGT_REUSE_OFF                vgtReuseOff;
+            regVGT_TF_PARAM                 vgtTfParam;
+            regCB_COLOR_CONTROL             cbColorControl;
+            regCB_TARGET_MASK               cbTargetMask;
+            regCB_SHADER_MASK               cbShaderMask;
+            regPA_CL_CLIP_CNTL              paClClipCntl;
+            regPA_SU_VTX_CNTL               paSuVtxCntl;
+            regPA_CL_VTE_CNTL               paClVteCntl;
+            regPA_SC_LINE_CNTL              paScLineCntl;
+            regSPI_INTERP_CONTROL_0         spiInterpControl0;
+            regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;
+            regDB_SHADER_CONTROL            dbShaderControl;
+            regDB_ALPHA_TO_MASK             dbAlphaToMask;
+            regDB_RENDER_OVERRIDE           dbRenderOverride;
+
+            // The registers below are written by the command buffer during draw-time validation, so they are not
+            // written in WriteContextCommandsSetPath nor uploaded as part of the LOAD_INDEX path.
+            regSX_PS_DOWNCONVERT__VI     sxPsDownconvert;
+            regSX_BLEND_OPT_EPSILON__VI  sxBlendOptEpsilon;
+            regSX_BLEND_OPT_CONTROL__VI  sxBlendOptControl;
+            regVGT_LS_HS_CONFIG          vgtLsHsConfig;
+            regPA_SC_MODE_CNTL_1         paScModeCntl1;
+            regIA_MULTI_VGT_PARAM        iaMultiVgtParam[NumIaMultiVgtParam];
+        } context;
+    }  m_regs;
+
+    struct
+    {
+        gpusize  gpuVirtAddrCtx;
+        gpusize  gpuVirtAddrSh;
+        uint32   countCtx;
+        uint32   countSh;
+    }  m_loadPath;
+
+    PipelinePrefetchPm4        m_prefetch;
+    GraphicsPipelineSignature  m_signature;
 
     // Returns the target mask of the specified CB target.
     uint8 GetTargetMask(uint32 target) const
     {
         PAL_ASSERT(target < MaxColorTargets);
-        return ((m_commands.set.context.cbTargetMask.u32All >> (target * 4)) & 0xF);
+        return ((m_regs.context.cbTargetMask.u32All >> (target * 4)) & 0xF);
     }
 
     PAL_DISALLOW_DEFAULT_CTOR(GraphicsPipeline);

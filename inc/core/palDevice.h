@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -64,6 +64,9 @@ class  IPrivateScreen;
 class  IQueryPool;
 class  IQueue;
 class  IQueueSemaphore;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+class  IShaderLibrary;
+#endif
 class  ISwapChain;
 struct BorderColorPaletteCreateInfo;
 struct CmdAllocatorCreateInfo;
@@ -97,6 +100,9 @@ struct QueryPoolCreateInfo;
 struct QueueCreateInfo;
 struct QueueSemaphoreCreateInfo;
 struct QueueSemaphoreOpenInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+struct ShaderLibraryCreateInfo;
+#endif
 struct SwapChainCreateInfo;
 struct SwapChainProperties;
 struct SvmGpuMemoryCreateInfo;
@@ -271,6 +277,26 @@ enum class VcnIpLevel : uint32
     VcnIp1   = 0x1,
 };
 
+/// Specifies which SPU IP level this device has.
+enum class SpuIpLevel : uint32
+{
+    _None    = 0x0,   ///< @internal The device does not have an SPUIP block, or its level cannot be determined
+#ifndef None
+    None     = _None, ///< The device does not have an SPUIP block, or its level cannot be determined
+#endif
+    SpuIp    = 0x1,
+};
+
+/// Specifies which PSP IP level this device has.
+enum class PspIpLevel : uint32
+{
+    _None    = 0x0,   ///< @internal The device does not have an PSPIP block, or its level cannot be determined
+#ifndef None
+    None     = _None, ///< The device does not have an PSPIP block, or its level cannot be determined
+#endif
+    PspIp10  = 0x1,
+};
+
 /// Specified video decode type
 enum class VideoDecodeType : uint32
 {
@@ -314,6 +340,7 @@ enum class VaRange : uint32
     Svm,                    ///< Place the allocation in a VA range reserved by PAL for shared virtual memory(SVM).
                             ///  This is a GPU VA range that is reserved also on the CPU-side.
                             ///  The size of reserved VA is set by PAL client by calling CreatePlatform.
+    CaptureReplay,          ///< Place the allocation in a VA range reserved for capture and playback.
     Count,
 };
 
@@ -741,6 +768,8 @@ struct DeviceProperties
     VceIpLevel vceLevel;                     ///< IP level of this GPU's VCE block
     UvdIpLevel uvdLevel;                     ///< IP level of this GPU's UVD block
     VcnIpLevel vcnLevel;                     ///< IP level of this GPU's VCN block
+    SpuIpLevel spuLevel;                     ///< IP level of this GPU's SPU block
+    PspIpLevel pspLevel;                     ///< IP level of this GPU's PSP block
     uint32     gfxStepping;                  ///< Stepping level of this GPU's GFX block
     char       gpuName[MaxDeviceName];       ///< Null terminated string identifying the GPU.
     uint32     gpuIndex;                     ///< Device's index in a linked adapter chain.
@@ -979,6 +1008,7 @@ struct DeviceProperties
         gpusize busAddressableMemSize;      ///< SDI/DirectGMA GPU aperture size set in CCC
         gpusize maxLocalMemSize;            ///< Total VRAM available on the GPU (Local + Invisible heap sizes).
         LocalMemoryType localMemoryType;    ///< Type of local memory used by the GPU.
+        gpusize maxCaptureReplaySize;       ///< Total virtual GPU available for Capture/Replay
 
         struct
         {
@@ -1088,9 +1118,10 @@ struct DeviceProperties
                                                                  ///  tessellation distribution among VGTs.
                 uint64 supportTrapezoidTessDistribution    :  1; ///< Hardware supports trapezoid granularity of
                                                                  ///  tessellation distribution among VGTs.
+                uint64 supportSingleChannelMinMaxFilter    :  1; ///< Hardware supports min/max filtering that can
+                                                                 ///  return one channel at a time.
                 uint64 supportPerChannelMinMaxFilter       :  1; ///< Hardware returns min/max value on a per-channel
-                                                                 ///  basis. If not set, min/max filtering operates on
-                                                                 ///  only one channel at a time.
+                                                                 ///  basis.
                 uint64 supportRgpTraces                    :  1; ///< Hardware supports RGP traces.
 
                 uint64 supportMsaaCoverageOut              :  1; ///< Set if HW supports MSAA coverage feature
@@ -1141,10 +1172,15 @@ struct DeviceProperties
 #else
                 uint64 placeholder8                        :  1; ///< Placeholder, do not use
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
-                uint64 reserved                            : 31; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 560
+                uint64 supportCaptureReplay                :  1; ///< HW supports captureReplay
 #else
+                uint64 placeholder9                        :  1; ///< Placeholder, do not use
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 522
                 uint64 reserved                            : 30; ///< Reserved for future use.
+#else
+                uint64 reserved                            : 29; ///< Reserved for future use.
 #endif
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
@@ -1763,6 +1799,15 @@ struct BufferViewInfo
                                     ///  access.
     SwizzledFormat  swizzledFormat; ///< Format and channel swizzle for typed access. Must be Undefined for structured
                                     ///  or raw access.
+    union
+    {
+        struct
+        {
+            uint32 placeholder0    : 2;  ///< Reserved for future HW
+            uint32 reserved        : 30; ///< Reserved for future use
+        };
+        uint32 u32All;                  ///< Value of flags bitfield
+    } flags;
 };
 
 /// Specifies parameters for an image view descriptor controlling how a shader will view the specified image.
@@ -1960,7 +2005,6 @@ struct GpuTimestampCalibration
     {
         uint64   cpuWinPerfCounter;  ///< Current CPU performance counter value at the time of the corresponding GPU
                                      ///  timestamp.  This is a Windows-specific value as returned by
-                                     ///  [QueryPerformanceCounter](http://tinyurl.com/9a45puz).
     };
 };
 #endif
@@ -3800,6 +3844,40 @@ public:
         const ComputePipelineCreateInfo& createInfo,
         void*                            pPlacementAddr,
         IPipeline**                      ppPipeline) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+    /// Determines the amount of system memory required for a shader library object.  An allocation of this amount of
+    /// memory must be provided in the pPlacementAddr parameter of CreateShaderLibrary().
+    ///
+    /// @param [in]  createInfo Library creation parameters including ELF code object and other items.
+    /// @param [out] pResult    The validation result if pResult is non-null.  This argument can be null to avoid the
+    ///                         additonal validation.
+    ///
+    /// @returns Size, in bytes, of system memory required for an IShaderLibrary object with the specified properties.
+    ///          A return value of zero indicates the createInfo was invalid.
+    virtual size_t GetShaderLibrarySize(
+        const ShaderLibraryCreateInfo& createInfo,
+        Result*                        pResult) const = 0;
+
+    /// Creates a @ref IShaderLibrary object with the requested properties.
+    ///
+    /// @param [in]  createInfo     Library creation parameters including ELF code object and other items.
+    /// @param [in]  pPlacementAddr Pointer to the location where PAL should construct this object.  There must be as
+    ///                             much size available here as reported by calling GetShaderLibrarySize() with the
+    ///                             same createInfo parameter.
+    /// @param [out] ppLibrary      Constructed library object.  When successful, the returned address will be the same
+    ///                             as specified in pPlacementAddr.
+    ///
+    /// @returns Success if the library was successfully created.  Otherwise, one of the following errors may be
+    ///          returned:
+    ///          + ErrorInvalidPointer if:
+    ///              - pPlacementAddr or ppLibrary is null.
+    ///              - Required code object pointer is null.
+    virtual Result CreateShaderLibrary(
+        const ShaderLibraryCreateInfo& createInfo,
+        void*                          pPlacementAddr,
+        IShaderLibrary**               ppLibrary) = 0;
+#endif
 
     /// Determines the amount of system memory required for a graphics pipeline object.  An allocation of this amount of
     /// memory must be provided in the pPlacementAddr parameter of CreateGraphicsPipeline().

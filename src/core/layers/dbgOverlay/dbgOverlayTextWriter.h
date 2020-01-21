@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -41,14 +41,6 @@ static constexpr size_t MaxTextLength     = 61;                // Maximum charac
 static constexpr size_t MaxTextLengthComb = 48;                // Maximum characters per line for combined case
 static constexpr size_t BufSize           = MaxTextLength + 1; // String buffer length per line
 
-enum class ExpectedPresentMode : uint32
-{
-    Unknown = 0,
-    Windowed,
-    Fullscreen,
-    Count,
-};
-
 // =====================================================================================================================
 // Defines TextWriter objects, which are used to write text to presentable images before presents.
 class TextWriter
@@ -59,7 +51,7 @@ public:
 
     Result Init();
 
-    void WriteVisualConfirm(const Image& dstImage, ICmdBuffer* pCmdBuffer, ExpectedPresentMode presentMode) const;
+    void WriteVisualConfirm(const Image& dstImage, ICmdBuffer* pCmdBuffer, PresentMode presentMode) const;
 
 private:
     Device*const m_pDevice;

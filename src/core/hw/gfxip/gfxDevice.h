@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -355,6 +355,17 @@ public:
         const ComputePipelineCreateInfo& createInfo,
         ComputePipeline**                ppPipeline,
         Util::SystemAllocType            allocType);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+   virtual size_t GetShaderLibrarySize(
+        const ShaderLibraryCreateInfo&  createInfo,
+        Result*                         pResult) const = 0;
+    virtual Result CreateShaderLibrary(
+        const ShaderLibraryCreateInfo&  createInfo,
+        void*                           pPlacementAddr,
+        bool                            isInternal,
+        IShaderLibrary**                ppPipeline) = 0;
+#endif
 
     virtual size_t GetGraphicsPipelineSize(
         const GraphicsPipelineCreateInfo& createInfo,

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -106,11 +106,6 @@ public:
     void HandleLoadContextRegs(const PM4_PFP_LOAD_CONTEXT_REG& loadData)
         { HandlePm4LoadReg(loadData, &m_cntxRegs); }
     void HandleLoadContextRegsIndex(const PM4PFP_LOAD_CONTEXT_REG_INDEX& loadData);
-
-    // This generic function can be called by just about any step in the command stream building scheme. It can account
-    // for cond exec packets assuming that the cond exec block is contained within pSrcCmds.
-    // Returns true if a context roll was detected.
-    bool OptimizePm4Commands(const uint32* pSrcCmds, uint32* pDstCmds, uint32* pCmdSize);
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
     void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;

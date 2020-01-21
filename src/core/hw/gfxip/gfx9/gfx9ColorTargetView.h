@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,6 @@ namespace Gfx9
 {
 
 class CmdStream;
-class CmdUtil;
 class Device;
 
 // =====================================================================================================================
@@ -61,10 +60,6 @@ public:
         CmdStream*  pCmdStream,
         uint32*     pCmdSpace) const = 0;
 
-    void UpdateDccStateMetadata(
-        CmdStream*    pCmdStream,
-        ImageLayout   imageLayout) const;
-
     bool IsVaLocked() const { return m_flags.viewVaLocked; }
     bool WaitOnMetadataMipTail() const { return m_flags.waitOnMetadataMipTail; }
 
@@ -77,9 +72,7 @@ public:
         CmdStream*   pCmdStream,
         uint32*      pCmdSpace);
 
-    static uint32* HandleBoundTargetsChanged(
-        const Device& device,
-        uint32*       pCmdSpace);
+    static uint32* HandleBoundTargetsChanged(uint32* pCmdSpace);
 
     TargetExtent2d GetExtent() const { return m_extent; }
 
@@ -93,31 +86,37 @@ protected:
         PAL_NEVER_CALLED();
     }
 
-    template <typename Pm4ImgType>
-    void CommonBuildPm4Headers(Pm4ImgType* pPm4Img) const;
-
-    template <typename Pm4ImgType, typename CbColorViewType>
+    template <typename RegistersType, typename CbColorViewType>
     void InitCommonBufferView(
+        const Device&                    device,
         const ColorTargetViewCreateInfo& createInfo,
-        Pm4ImgType*                      pPm4Img,
+        RegistersType*                   pRegs,
         CbColorViewType*                 pCbColorView) const;
 
     template <typename FmtInfoType>
-    regCB_COLOR0_INFO InitCommonCbColorInfo(
-        const ColorTargetViewCreateInfo& createInfo,
-        const FmtInfoType*               pFmtInfo) const;
+    regCB_COLOR0_INFO InitCbColorInfo(
+        const Device&      device,
+        const FmtInfoType* pFmtInfo) const;
 
-    template <typename Pm4ImgType, typename CbColorViewType>
+    template <typename RegistersType, typename CbColorViewType>
     void InitCommonImageView(
+        const Device&                     device,
         const ColorTargetViewCreateInfo&  createInfo,
         ColorTargetViewInternalCreateInfo internalInfo,
         const Extent3d&                   baseExtent,
-        Pm4ImgType*                       pPm4Img,
-        regCB_COLOR0_INFO*                pCbColorInfo,
+        RegistersType*                    pRegs,
         CbColorViewType*                  pCbColorView) const;
 
-    template <typename Pm4ImgType>
-    void UpdateImageVa(Pm4ImgType* pPm4Img) const;
+    template <typename RegistersType>
+    void UpdateImageVa(RegistersType* pRegs) const;
+
+    template <typename RegistersType>
+    uint32* WriteCommandsCommon(
+        uint32         slot,
+        ImageLayout    imageLayout,
+        CmdStream*     pCmdStream,
+        uint32*        pCmdSpace,
+        RegistersType* pRegs) const;
 
     union
     {
@@ -129,71 +128,53 @@ protected:
                                                 // always be set for buffer views.
             uint32 hasCmaskFmask          :  1; // set if the associated image contains fMask and cMask meta data
             uint32 hasDcc                 :  1; // set if the associated image contains DCC meta data
-            uint32 hasDccStateMetaData    :  1; // set if the associated image contains DCC state metadata.
             uint32 isDccDecompress        :  1; // Indicates if dcc metadata need to be set to decompress state.
             uint32 waitOnMetadataMipTail  :  1; // Set if the CmdBindTargets should insert a stall when binding this
                                                 // view object.
             uint32 useSubresBaseAddr      :  1; // Indicates that this view's base address is subresource based.
             uint32 disableRotateSwizzleOC :  1; // Indicate that the for the assocaited image, whether the
                                                 // Overwrite Combiner (OC) needs to be disabled
-
-            uint32 reserved               : 23;
+            uint32 colorBigPage           :  1; // This view supports setting CB_RMI_GLC2_CACHE_CONTROL.COLOR_BIG_PAGE.
+                                                // Only valid for buffer views or image views with viewVaLocked set.
+            uint32 fmaskBigPage           :  1; // This view supports setting CB_RMI_GLC2_CACHE_CONTROL.FMASK_BIG_PAGE.
+                                                // Only valid if viewVaLocked is set.
+            uint32 placeholder1           :  1;
+            uint32 reserved               : 21;
         };
 
         uint32 u32All;
     } m_flags;
 
-    const Device*const  m_pDevice;
     const Image* const  m_pImage;
-
-    SubresId           m_subresource;
-    uint32             m_arraySize;
-    SwizzledFormat     m_swizzledFormat;
-    TargetExtent2d     m_extent;
-
+    SubresId            m_subresource;
+    uint32              m_arraySize;
+    SwizzledFormat      m_swizzledFormat;
+    TargetExtent2d      m_extent;
     ColorLayoutToState  m_layoutToState;
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(ColorTargetView);
 };
 
-// =====================================================================================================================
-// Represents an "image" of the PM4 commands necessary to write a GcnColorTargetView to GFX9 hardware. The required
-// register writes are grouped into sets based on sequential register addresses, so that we can minimize the amount
-// of PM4 space needed by setting several regs in each packet.
-struct Gfx9ColorTargetViewPm4Img
+// Set of context registers associated with a color-target view object.
+struct Gfx9ColorTargetViewRegs
 {
-    PM4PFP_SET_CONTEXT_REG        hdrCbColorBase;
-    regCB_COLOR0_BASE             cbColorBase;
-    regCB_COLOR0_BASE_EXT         cbColorBaseExt;
-    regCB_COLOR0_ATTRIB2          cbColorAttrib2;
-    regCB_COLOR0_VIEW             cbColorView;
+    regCB_COLOR0_BASE           cbColorBase;
+    regCB_COLOR0_BASE_EXT       cbColorBaseExt;
+    regCB_COLOR0_ATTRIB2        cbColorAttrib2;
+    regCB_COLOR0_VIEW           cbColorView;
+    regCB_COLOR0_INFO           cbColorInfo;
+    regCB_COLOR0_ATTRIB         cbColorAttrib;
+    regCB_COLOR0_DCC_CONTROL    cbColorDccControl;
+    regCB_COLOR0_CMASK          cbColorCmask;
+    regCB_COLOR0_CMASK_BASE_EXT cbColorCmaskBaseExt;
+    regCB_COLOR0_FMASK          cbColorFmask;
+    regCB_COLOR0_FMASK_BASE_EXT cbColorFmaskBaseExt;
+    regCB_COLOR0_DCC_BASE       cbColorDccBase;
+    regCB_COLOR0_DCC_BASE_EXT   cbColorDccBaseExt;
+    regCB_MRT0_EPITCH           cbMrtEpitch;
 
-    PM4ME_CONTEXT_REG_RMW         cbColorInfo;
-
-    PM4PFP_SET_CONTEXT_REG        hdrCbColorAttrib;
-    regCB_COLOR0_ATTRIB           cbColorAttrib;
-    regCB_COLOR0_DCC_CONTROL      cbColorDccControl;
-    regCB_COLOR0_CMASK            cbColorCmask;
-    regCB_COLOR0_CMASK_BASE_EXT   cbColorCmaskBaseExt;
-    regCB_COLOR0_FMASK            cbColorFmask;
-    regCB_COLOR0_FMASK_BASE_EXT   cbColorFmaskBaseExt;
-    regCB_COLOR0_CLEAR_WORD0      cbColorClearWord0;
-    regCB_COLOR0_CLEAR_WORD1      cbColorClearWord1;
-    regCB_COLOR0_DCC_BASE         cbColorDccBase;
-    regCB_COLOR0_DCC_BASE_EXT     cbColorDccBaseExt;
-
-    PM4PFP_SET_CONTEXT_REG        hdrCbMrtEpitch;
-    regCB_MRT0_EPITCH             cbMrtEpitch;
-
-    // PM4 load context regs packet to load the Image's fast-clear meta-data.  This must be the last packet in the
-    // image because it is either absent or present depending on compression state.
-    PM4PFP_LOAD_CONTEXT_REG_INDEX loadMetaDataIndex;
-
-    // Command space needed for compressed and decomrpessed rendering, in DWORDs.  These fields must always be last
-    // in the structure to not interfere w/ the actual commands contained within.
-    size_t  spaceNeeded;
-    size_t  spaceNeededDecompressed;
+    gpusize  fastClearMetadataGpuVa;
 };
 
 // =====================================================================================================================
@@ -221,56 +202,34 @@ protected:
     }
 
 private:
-    void BuildPm4Headers();
     void InitRegisters(
+        const Device&                     device,
         const ColorTargetViewCreateInfo&  createInfo,
         ColorTargetViewInternalCreateInfo internalInfo);
 
-    // Image of PM4 commands used to write this View to hardware for buffer views or for image views with full
-    // compression enabled.
-    Gfx9ColorTargetViewPm4Img  m_pm4Cmds;
+    Gfx9ColorTargetViewRegs  m_regs;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9ColorTargetView);
 };
 
-// =====================================================================================================================
-// Represents an "image" of the PM4 commands necessary to write a GcnColorTargetView to GFX10 hardware. The required
-// register writes are grouped into sets based on sequential register addresses, so that we can minimize the amount of
-// PM4 space needed by setting several regs in each packet.
-struct Gfx10ColorTargetViewPm4Img
+// Set of context registers associated with a color-target view object.
+struct Gfx10ColorTargetViewRegs
 {
-    PM4PFP_SET_CONTEXT_REG        hdrCbColorBase;
-    regCB_COLOR0_BASE             cbColorBase;
-    uint32                        cbColorPitch;  // meaningless register in GFX10 addressing mode
-    uint32                        cbColorSlice;  // meaningless register in GFX10 addressing mode
-    regCB_COLOR0_VIEW             cbColorView;
+    regCB_COLOR0_BASE         cbColorBase;
+    uint32                    cbColorPitch;  // meaningless register in GFX10 addressing mode
+    uint32                    cbColorSlice;  // meaningless register in GFX10 addressing mode
+    regCB_COLOR0_VIEW         cbColorView;
+    regCB_COLOR0_INFO         cbColorInfo;
+    regCB_COLOR0_ATTRIB       cbColorAttrib;
+    regCB_COLOR0_DCC_CONTROL  cbColorDccControl;
+    regCB_COLOR0_CMASK        cbColorCmask;
+    uint32                    cbColorCmaskSlice;  // meaningless register in GFX10 addressing mode
+    regCB_COLOR0_FMASK        cbColorFmask;
+    regCB_COLOR0_DCC_BASE     cbColorDccBase;
+    regCB_COLOR0_ATTRIB2      cbColorAttrib2;
+    regCB_COLOR0_ATTRIB3      cbColorAttrib3;
 
-    PM4ME_CONTEXT_REG_RMW         cbColorInfo;
-
-    PM4PFP_SET_CONTEXT_REG        hdrCbColorAttrib;
-    regCB_COLOR0_ATTRIB           cbColorAttrib;
-    regCB_COLOR0_DCC_CONTROL      cbColorDccControl;
-    regCB_COLOR0_CMASK            cbColorCmask;
-    uint32                        cbColorCmaskSlice;  // meaningless register in GFX10 addressing mode
-    regCB_COLOR0_FMASK            cbColorFmask;
-
-    PM4PFP_SET_CONTEXT_REG        hdrCbColorDccBase;
-    regCB_COLOR0_DCC_BASE         cbColorDccBase;
-
-    PM4PFP_SET_CONTEXT_REG        hdrCbColorAttrib2;
-    regCB_COLOR0_ATTRIB2          cbColorAttrib2;
-
-    PM4PFP_SET_CONTEXT_REG        hdrCbColorAttrib3;
-    regCB_COLOR0_ATTRIB3          cbColorAttrib3;
-
-    // PM4 load context regs packet to load the Image's fast-clear meta-data.  This must be the last packet in the
-    // image because it is either absent or present depending on compression state.
-    PM4PFP_LOAD_CONTEXT_REG_INDEX loadMetaDataIndex;
-
-    // Command space needed for compressed and decomrpessed rendering, in DWORDs.  These fields must always be last
-    // in the structure to not interfere w/ the actual commands contained within.
-    size_t  spaceNeeded;
-    size_t  spaceNeededDecompressed;
+    gpusize  fastClearMetadataGpuVa;
 };
 
 // =====================================================================================================================
@@ -292,7 +251,7 @@ public:
     bool IsColorBigPage() const;
     bool IsFmaskBigPage() const;
 
-    void GetImageSrd(void* pOut) const;
+    void GetImageSrd(const Device& device, void* pOut) const;
 
 protected:
     virtual ~Gfx10ColorTargetView()
@@ -302,34 +261,19 @@ protected:
         PAL_NEVER_CALLED();
     }
 
-    void UpdateImageSrd(void* pOut) const;
-
 private:
-    void BuildPm4Headers();
     void InitRegisters(
+        const Device&                     device,
         const ColorTargetViewCreateInfo&  createInfo,
         ColorTargetViewInternalCreateInfo internalInfo);
 
-    // Image of PM4 commands used to write this View to hardware for buffer views or for image views with full
-    // compression enabled.
-    Gfx10ColorTargetViewPm4Img  m_pm4Cmds;
-    // The view as a cached srd, for use with the UAV export opt. This must be generated on-the-fly if the VA is not
-    //  known in advance.
-    ImageSrd m_uavExportSrd;
+    void UpdateImageSrd(const Device& device, void* pOut) const;
 
-    union
-    {
-        struct
-        {
-            uint32 colorBigPage :  1; // This view supports setting CB_RMI_GLC2_CACHE_CONTROL.COLOR_BIG_PAGE.  Only
-                                      // valid for buffer views or image views with viewVaLocked set.
-            uint32 fmaskBigPage :  1; // This view supports setting CB_RMI_GLC2_CACHE_CONTROL.FMASK_BIG_PAGE.  Only
-                                      // valid if viewVaLocked is set.
-            uint32 placeholder1 :  1;
-            uint32 reserved     : 30;
-        };
-        uint32 u32All;
-    } m_gfx10Flags;
+    Gfx10ColorTargetViewRegs  m_regs;
+
+    // The view as a cached SRD, for use with the UAV export opt.  This must be generated on-the-fly if the VA is not
+    //  known in advance.
+    ImageSrd  m_uavExportSrd;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10ColorTargetView);
 };

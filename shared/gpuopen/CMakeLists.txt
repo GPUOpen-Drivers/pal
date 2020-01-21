@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,12 @@ endif()
 
 ### Create GpuOpen Library #############################################################################################
 devdriver_library(${GPUOPEN_LIB_NAME} STATIC)
+
+# Put the library in a folder
+set_target_properties(${GPUOPEN_LIB_NAME}
+    PROPERTIES
+        FOLDER "DevDriver Libs"
+)
 
 ### Cached Project Options #############################################################################################
 
@@ -111,11 +117,15 @@ target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     src/protocols/ddURIServer.cpp
     src/protocols/ddEventClient.cpp
     src/protocols/ddEventServer.cpp
+    src/protocols/ddEventProvider.cpp
     src/protocols/ddEventServerSession.cpp
+    src/protocols/ddInternalService.cpp
     ## Utility functions and classes
     src/util/ddTextWriter.cpp
     src/util/ddStructuredReader.cpp
     src/util/ddJsonWriter.cpp
+    src/util/rmtWriter.cpp
+    src/util/ddEventTimer.cpp
 )
 
 ### Local Transport ###

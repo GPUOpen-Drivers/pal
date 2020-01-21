@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -415,6 +415,9 @@ void BuildRawBufferViewInfo(
     const GpuMemory&  bufferMemory,
     gpusize           byteOffset)
 {
+    const Device* pDevice  = bufferMemory.GetDevice();
+    const auto&   settings = pDevice->Settings();
+
     pInfo->gpuAddr        = bufferMemory.Desc().gpuVirtAddr + byteOffset;
     pInfo->range          = bufferMemory.Desc().size - byteOffset;
     pInfo->stride         = 1;
@@ -429,6 +432,9 @@ void BuildRawBufferViewInfo(
     gpusize           byteOffset,
     gpusize           range)
 {
+    const Device* pDevice  = bufferMemory.GetDevice();
+    const auto&   settings = pDevice->Settings();
+
     pInfo->gpuAddr        = bufferMemory.Desc().gpuVirtAddr + byteOffset;
     pInfo->range          = range;
     pInfo->stride         = 1;
@@ -454,12 +460,15 @@ void BuildImageViewInfo(
                   "RPM assumes that ImageType::Tex3d == ImageViewType::Tex3d");
 
     const ImageType  imageType = image.GetGfxImage()->GetOverrideImageType();
+    const Device*    pDevice   = image.GetDevice();
+    const auto&      settings  = pDevice->Settings();
 
     pInfo->pImage               = &image;
     pInfo->viewType             = static_cast<ImageViewType>(imageType);
     pInfo->minLod               = 0;
     pInfo->subresRange          = subresRange;
     pInfo->swizzledFormat       = swizzledFormat;
+    pInfo->texOptLevel          = texOptLevel;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
     pInfo->possibleLayouts      = imgLayout;
@@ -467,7 +476,6 @@ void BuildImageViewInfo(
     pInfo->flags.shaderWritable = TestAnyFlagSet(imgLayout.usages, LayoutShaderWrite | LayoutCopyDst);
 #endif
 
-    pInfo->texOptLevel          = texOptLevel;
 }
 
 // =====================================================================================================================

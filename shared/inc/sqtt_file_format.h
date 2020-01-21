@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -582,7 +582,7 @@ typedef enum SqttEngineType
     SQTT_ENGINE_TYPE_EXCLUSIVE_COMPUTE       = 0x3,
     SQTT_ENGINE_TYPE_DMA                     = 0x4,
     SQTT_ENGINE_TYPE_HIGH_PRIORITY_UNIVERSAL = 0x7,
-    SQTT_ENGINE_TYPE_HIGH_PRIORITY_GRAPHICS  = 0x8
+    SQTT_ENGINE_TYPE_HIGH_PRIORITY_GRAPHICS  = 0x8,
 } SqttEngineType;
 
 /** A structure encapsulating hardware information about a queue.

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -553,6 +553,7 @@ Result Device::HwlEarlyInit()
 {
     void*const pGfxPlacementAddr     = VoidPtrInc(this, m_deviceSize);
     void*const pOssPlacementAddr     = VoidPtrInc(pGfxPlacementAddr, m_hwDeviceSizes.gfx);
+
     void*const pAddrMgrPlacementAddr = VoidPtrInc(pOssPlacementAddr, m_hwDeviceSizes.oss);
 
     Result result = Result::Success;
@@ -1040,15 +1041,16 @@ Result Device::FixupUsableGpuVirtualAddressRange(
      *  (To prevent us from using really high virtual addresses unless we run out of lower addresses, we'll carve out
      *   the non-Default partitions from the lowest possible addresses.)
      */
-    constexpr gpusize _1GB = (1uLL << 30u);
-    constexpr gpusize _4GB = (1ull << 32u);
+    constexpr gpusize _1GB  = (1uLL << 30u);
+    constexpr gpusize _4GB  = (1ull << 32u);
+    constexpr gpusize _16GB = (1ull << 34u);
 
     auto*const pVaRange = &m_memoryProperties.vaRange[0];
     if ((usableVaEnd - usableVaStart) >= (3ull * _4GB))
     {
         // Case #1
         // This is the ideal scenario: we have more than 12 GB of address space, so we can use the first two 4 GB
-        // sections for the ShadowDescriptorTable and DescriptorTable ranges, and the leftovers for Default.
+        // sections for the ShadowDescriptorTable and DescriptorTable ranges, and the leftovers for Capture Replay than Default.
         gpusize baseVirtAddr = usableVaStart;
 
         result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _4GB, _4GB);
@@ -1074,17 +1076,43 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         if (result == Result::Success)
         {
             pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr = baseVirtAddr;
-            pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (usableVaEnd - baseVirtAddr);
+            pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (usableVaEnd - baseVirtAddr - _16GB);
 
-            if (m_memoryProperties.vaStartPrt > 0)
+            if (result == Result::Success)
             {
-                // If a dedicated PRT VA range exists, adjust the default VA range to exclude it.
-                pVaRange[static_cast<uint32>(VaPartition::Default)].size     = (m_memoryProperties.vaStartPrt -
-                                                                                baseVirtAddr);
+                if (m_memoryProperties.vaStartPrt > 0)
+                {
+                    if (m_chipProperties.gfxip.supportCaptureReplay == 1)
+                    {
+                        // If a dedicated PRT VA range exists, adjust the default VA range to exclude it.
+                        pVaRange[static_cast<uint32>(VaPartition::Default)].size = (m_memoryProperties.vaStartPrt - baseVirtAddr - _16GB);
 
-                pVaRange[static_cast<uint32>(VaPartition::Prt)].baseVirtAddr = m_memoryProperties.vaStartPrt;
-                pVaRange[static_cast<uint32>(VaPartition::Prt)].size         = (usableVaEnd -
-                                                                                m_memoryProperties.vaStartPrt);
+                        baseVirtAddr += pVaRange[static_cast<uint32>(VaPartition::Default)].size;
+
+                        result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _16GB, _16GB);
+                        PAL_ASSERT(result == Result::Success);
+
+                        pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].baseVirtAddr = baseVirtAddr;
+                        pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].size         = _16GB;
+                    }
+                    else
+                    {
+                        // If a dedicated PRT VA range exists, adjust the default VA range to exclude it.
+                        pVaRange[static_cast<uint32>(VaPartition::Default)].size = (m_memoryProperties.vaStartPrt -
+                                                                                    baseVirtAddr);
+                    }
+
+                    pVaRange[static_cast<uint32>(VaPartition::Prt)].baseVirtAddr = m_memoryProperties.vaStartPrt;
+                    pVaRange[static_cast<uint32>(VaPartition::Prt)].size         = (usableVaEnd - m_memoryProperties.vaStartPrt);
+                }
+                else if (m_chipProperties.gfxip.supportCaptureReplay == 1)
+                {
+                    baseVirtAddr += pVaRange[static_cast<uint32>(VaPartition::Default)].size;
+                    result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _16GB, _16GB);
+
+                    pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].baseVirtAddr = baseVirtAddr;
+                    pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].size         = _16GB;
+                }
             }
         }
 
@@ -1737,6 +1765,8 @@ Result Device::GetProperties(
         pInfo->uvdLevel    = m_chipProperties.uvdLevel;
         pInfo->vceLevel    = m_chipProperties.vceLevel;
         pInfo->vcnLevel    = m_chipProperties.vcnLevel;
+        pInfo->spuLevel    = m_chipProperties.spuLevel;
+        pInfo->pspLevel    = m_chipProperties.pspLevel;
         Strncpy(&pInfo->gpuName[0], &m_gpuName[0], sizeof(pInfo->gpuName));
 
         pInfo->attachedScreenCount         = m_attachedScreenCount;
@@ -1835,6 +1865,8 @@ Result Device::GetProperties(
         pInfo->gpuMemoryProperties.virtualMemAllocGranularity = m_memoryProperties.virtualMemAllocGranularity;
         pInfo->gpuMemoryProperties.virtualMemPageSize         = m_memoryProperties.virtualMemPageSize;
         pInfo->gpuMemoryProperties.fragmentSize               = m_memoryProperties.fragmentSize;
+        pInfo->gpuMemoryProperties.maxCaptureReplaySize       =
+            m_memoryProperties.vaRange[static_cast<uint32>(VaPartition::CaptureReplay)].size;
 
         pInfo->gpuMemoryProperties.maxVirtualMemSize  =
             Util::Max(m_memoryProperties.vaRange[static_cast<uint32>(VaPartition::Prt)].size,
@@ -1920,9 +1952,12 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock     = gfx6Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock       = gfx6Props.supportShaderDeviceClock;
             pInfo->gfxipProperties.flags.supports2BitSignedValues       = gfx6Props.supports2BitSignedValues;
-            pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter  = 0; // GFX6-8 only support single channel
-                                                                             // min/max filter
             pInfo->gfxipProperties.flags.supportRgpTraces               = gfx6Props.supportRgpTraces;
+
+            pInfo->gfxipProperties.flags.supportSingleChannelMinMaxFilter = 1;
+            pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = 0; // GFX6-8 only support single channel
+                                                                               // min/max filter
+
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx6Props.numShaderEngines;
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx6Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx6Props.numCuPerSh;
@@ -2016,7 +2051,8 @@ Result Device::GetProperties(
                 gfx9Props.supportDoubleRate16BitInstructions;
             pInfo->gfxipProperties.flags.supportConservativeRasterization = gfx9Props.supportConservativeRasterization;
             pInfo->gfxipProperties.flags.supportPrtBlendZeroMode          = gfx9Props.supportPrtBlendZeroMode;
-            pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = 1; // "new normal" on GFX9, no chicken bit
+            pInfo->gfxipProperties.flags.supportSingleChannelMinMaxFilter = gfx9Props.supportSingleChannelMinMaxFilter;
+            pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = gfx9Props.supportSingleChannelMinMaxFilter;
             pInfo->gfxipProperties.flags.supportRgpTraces                 = 1;
             pInfo->gfxipProperties.flags.supports2BitSignedValues         = gfx9Props.supports2BitSignedValues;
             pInfo->gfxipProperties.flags.supportPrimitiveOrderedPs        = gfx9Props.supportPrimitiveOrderedPs;
@@ -2137,8 +2173,14 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.shaderCore.tccSizeInBytes         = m_chipProperties.gfxip.tccSizeInBytes;
         pInfo->gfxipProperties.shaderCore.tcpSizeInBytes         = m_chipProperties.gfxip.tcpSizeInBytes;
         pInfo->gfxipProperties.shaderCore.maxLateAllocVsLimit    = m_chipProperties.gfxip.maxLateAllocVsLimit;
-        pInfo->gfxipProperties.flags.supportGl2Uncached          = m_chipProperties.gfxip.supportGl2Uncached;
+
         pInfo->gfxipProperties.gl2UncachedCpuCoherency           = m_chipProperties.gfxip.gl2UncachedCpuCoherency;
+        pInfo->gfxipProperties.flags.supportGl2Uncached          = m_chipProperties.gfxip.supportGl2Uncached;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 560
+        // Only support capture replay on WDDM2 and Linux. There is an issue in KMD on WDDM1 with querying the number
+        // of entries to unmap.
+        pInfo->gfxipProperties.flags.supportCaptureReplay        = m_chipProperties.gfxip.supportCaptureReplay;
+#endif
 
         pInfo->gfxipProperties.srdSizes.bufferView = m_chipProperties.srdSizes.bufferView;
         pInfo->gfxipProperties.srdSizes.imageView  = m_chipProperties.srdSizes.imageView;
@@ -4296,6 +4338,7 @@ VaPartition Device::ChooseVaPartition(
         VaPartition::DescriptorTable,           // VaRange::DescriptorTable
         VaPartition::ShadowDescriptorTable,     // VaRange::ShadowDescriptorTable
         VaPartition::Svm,                       // VaRange::Svm
+        VaPartition::CaptureReplay,             // VaRange::CaptureReplay
     };
 
     // Use the VA partition associated with the VA range, unless the Device does not support multiple VA ranges. In
@@ -4365,7 +4408,6 @@ void Device::ApplyDevOverlay(
 
     // Increment after every write
     uint32 letterHeight = 0;
-
     // Write the Developer Mode text on screen
     static const char* DeveloperModeString = "Radeon Developer Mode";
     m_pTextWriter->DrawDebugText(dstImage,

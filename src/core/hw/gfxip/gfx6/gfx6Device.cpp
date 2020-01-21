@@ -2,7 +2,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -897,6 +897,29 @@ Result Device::CreateComputePipeline(
 
     return result;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+// =====================================================================================================================
+size_t Device::GetShaderLibrarySize(
+    const ShaderLibraryCreateInfo&  createInfo,
+    Result*                         pResult
+    ) const
+{
+    // Not supported in gfx6
+    return 0;
+}
+
+// =====================================================================================================================
+Result Device::CreateShaderLibrary(
+    const ShaderLibraryCreateInfo&  createInfo,
+    void*                           pPlacementAddr,
+    bool                            isInternal,
+    IShaderLibrary**                ppPipeline)
+{
+    // Not supported in gfx6
+    return Result::Unsupported;
+}
+#endif
 
 // =====================================================================================================================
 size_t Device::GetGraphicsPipelineSize(
@@ -2900,6 +2923,8 @@ void InitializeGpuChipProperties(
         pInfo->imageProperties.prtFeatures = Gfx7PrtFeatures;
         pInfo->gfxip.tcpSizeInBytes        = 16384;
 
+        pInfo->gfxip.supportCaptureReplay  = 0;
+
         if (ASICREV_IS_KALINDI(pInfo->eRevId) || ASICREV_IS_KALINDI_GODAVARI(pInfo->eRevId))
         {
             pInfo->gfx6.maxNumCuPerSh     = 2;
@@ -3107,6 +3132,7 @@ void InitializeGpuChipProperties(
 
         pInfo->gfxip.supportGl2Uncached      = 0;
         pInfo->gfxip.gl2UncachedCpuCoherency = 0;
+        pInfo->gfxip.supportCaptureReplay    = 0;
 
         pInfo->imageProperties.prtFeatures = Gfx8PrtFeatures;
         pInfo->gfx6.supportPatchTessDistribution = 1;

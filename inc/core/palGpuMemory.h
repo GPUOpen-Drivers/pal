@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -170,6 +170,9 @@ struct GpuMemoryCreateInfo
                                                       ///  DescriptorTable.  It doesn't need to be the base VA of the
                                                       ///  DescriptorTable allocation but must be aligned to
                                                       ///  "alignment".
+
+        gpusize                 replayVirtAddr;       ///< Must be zero unless vRange is CaptureReplay, in which case
+                                                      ///  it must specify the GPU VA of the corresponding memory object.
     };
     GpuMemPriority               priority;            ///< Hint to the OS paging process on how important it is to keep
                                                       ///  this allocation in its preferred heap.

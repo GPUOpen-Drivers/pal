@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -124,7 +124,7 @@ public:
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const;
 
-    virtual void ExpandDepthStencil(
+    virtual bool ExpandDepthStencil(
         GfxCmdBuffer*                pCmdBuffer,
         const Pal::Image&            image,
         const IMsaaState*            pMsaaState,
@@ -226,21 +226,14 @@ protected:
     // On gfx9/gfx10, we need to use single z range for single subresource view.
     virtual bool HwlNeedSinglezRangeAccess() const { return true; }
 
-    virtual void HwlUpdateDstImageFmaskMetaData(
+    virtual void HwlFixupCopyDstImageMetaData(
         GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      srcImage,
+        const Pal::Image*      pSrcImage,
         const Pal::Image&      dstImage,
-        uint32                 regionCount,
+        ImageLayout            dstImageLayout,
         const ImageCopyRegion* pRegions,
-        uint32                 flags) const override;
-
-    virtual bool HwlImageUsesCompressedWrites(
-        const uint32* pImageSrd) const override { return false; }
-
-    virtual void HwlUpdateDstImageStateMetaData(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      dstImage,
-        const SubresRange&     range) const override {}
+        uint32                 regionCount,
+        bool                   isFmaskCopyOptimized) const override;
 
     virtual void HwlFixupResolveDstImage(
         GfxCmdBuffer*             pCmdBuffer,
@@ -529,13 +522,14 @@ private:
         const ImageResolveRegion* pRegions,
         bool                      computeResolve) const override;
 
-    void HwlUpdateDstImageFmaskMetaData(
+    virtual void HwlFixupCopyDstImageMetaData(
         GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      srcImage,
+        const Pal::Image*      pSrcImage,
         const Pal::Image&      dstImage,
-        uint32                 regionCount,
+        ImageLayout            dstImageLayout,
         const ImageCopyRegion* pRegions,
-        uint32                 flags) const override;
+        uint32                 regionCount,
+        bool                   isFmaskCopyOptimized) const override;
 
     virtual uint32 HwlBeginGraphicsCopy(
         Pal::GfxCmdBuffer*           pCmdBuffer,
@@ -661,21 +655,14 @@ private:
         const ImageResolveRegion* pRegions,
         bool                      computeResolve) const override;
 
-    virtual void HwlUpdateDstImageFmaskMetaData(
+    virtual void HwlFixupCopyDstImageMetaData(
         GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      srcImage,
+        const Pal::Image*      pSrcImage,
         const Pal::Image&      dstImage,
-        uint32                 regionCount,
+        ImageLayout            dstImageLayout,
         const ImageCopyRegion* pRegions,
-        uint32                 flags) const override;
-
-    virtual void HwlUpdateDstImageStateMetaData(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      dstImage,
-        const SubresRange&     range) const override;
-
-    virtual bool HwlImageUsesCompressedWrites(
-        const uint32* pImageSrd) const override;
+        uint32                 regionCount,
+        bool                   isFmaskCopyOptimized) const override;
 
     virtual uint32 HwlBeginGraphicsCopy(
         Pal::GfxCmdBuffer*           pCmdBuffer,

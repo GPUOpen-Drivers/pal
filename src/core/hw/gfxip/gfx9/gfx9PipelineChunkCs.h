@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,48 @@ namespace Gfx9
 class  CmdStream;
 class  Device;
 struct GraphicsPipelineLoadInfo;
+
+// =====================================================================================================================
+// Describe HW Reg for a Computer Pipeline
+struct HwRegInfo
+{
+    regCOMPUTE_NUM_THREAD_X  computeNumThreadX;
+    regCOMPUTE_NUM_THREAD_Y  computeNumThreadY;
+    regCOMPUTE_NUM_THREAD_Z  computeNumThreadZ;
+    regCOMPUTE_PGM_LO        computePgmLo;
+    regCOMPUTE_PGM_HI        computePgmHi;
+    regCOMPUTE_PGM_RSRC1     computePgmRsrc1;
+    regCOMPUTE_PGM_RSRC3     computePgmRsrc3;
+    regCOMPUTE_USER_DATA_0   userDataInternalTable;
+    regCOMPUTE_SHADER_CHKSUM computeShaderChksum;
+    regCOMPUTE_USER_ACCUM_0  computeUserAccum0;
+    regCOMPUTE_USER_ACCUM_1  computeUserAccum1;
+    regCOMPUTE_USER_ACCUM_2  computeUserAccum2;
+    regCOMPUTE_USER_ACCUM_3  computeUserAccum3;
+
+    struct
+    {
+        regCOMPUTE_PGM_RSRC2        computePgmRsrc2;
+        regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
+    } dynamic; // Contains state which depends on bind-time parameters.
+};
+
+// =====================================================================================================================
+// Describe HW Reg for a Shader Library
+// Shader Library only need HW regs includes: computePgmRsrc1 / computePgmRsrc2 / computePgmRsrc3
+// The PGM_LO/PGM_HI are for programming the main shader address to the HW,
+// and the USER_ACCUM registers are specific to the main shader also.
+struct LibHwRegInfo
+{
+    regCOMPUTE_PGM_RSRC1     computePgmRsrc1;
+    regCOMPUTE_PGM_RSRC3     computePgmRsrc3;
+
+    struct
+    {
+        regCOMPUTE_PGM_RSRC2        computePgmRsrc2;
+        regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
+    } dynamic; // Contains state which depends on bind-time parameters.
+};
 
 // =====================================================================================================================
 // Represents the chunk of a pipeline object which contains all of the registers which setup the hardware CS stage.
@@ -84,81 +126,69 @@ public:
         bool                            prefetch) const;
 
     gpusize CsProgramGpuVa() const
-    {
-        return GetOriginalAddress(m_commands.set.computePgmLo.bits.DATA,
-                                  m_commands.set.computePgmHi.bits.DATA);
-    }
+        { return GetOriginalAddress(m_regs.computePgmLo.bits.DATA, m_regs.computePgmHi.bits.DATA); }
+
+    const HwRegInfo HWInfo() const { return m_regs; }
+
+    void UpdateComputePgmRsrsAfterLibraryLink(
+        regCOMPUTE_PGM_RSRC1 Rsrc1,
+        regCOMPUTE_PGM_RSRC2 Rsrc2,
+        regCOMPUTE_PGM_RSRC3 Rsrc3);
 
 private:
-    template <typename CsPipelineUploader>
-    void BuildPm4Headers(const CsPipelineUploader& uploader);
-
-    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
-    struct Pm4Commands
-    {
-        struct
-        {
-            PM4_ME_LOAD_SH_REG_INDEX  loadShRegIndex;
-        } loadIndex; // LOAD_INDEX path, used for universal command buffers.
-
-        struct
-        {
-            PM4_ME_SET_SH_REG  hdrComputePgm;
-            regCOMPUTE_PGM_LO  computePgmLo;
-            regCOMPUTE_PGM_HI  computePgmHi;
-
-            PM4_ME_SET_SH_REG       hdrComputeUserData;
-            regCOMPUTE_USER_DATA_0  computeUserDataLo;
-
-            PM4_ME_SET_SH_REG     hdrComputePgmRsrc1;
-            regCOMPUTE_PGM_RSRC1  computePgmRsrc1;
-
-            PM4_ME_SET_SH_REG        hdrComputeNumThread;
-            regCOMPUTE_NUM_THREAD_X  computeNumThreadX;
-            regCOMPUTE_NUM_THREAD_Y  computeNumThreadY;
-            regCOMPUTE_NUM_THREAD_Z  computeNumThreadZ;
-
-            // Checksum register is optional, as not all GFX9+ hardware uses it. If we don't use it, NOP will be added.
-            PM4_ME_SET_SH_REG         hdrComputeShaderChksum;
-            regCOMPUTE_SHADER_CHKSUM  computeShaderChksum;
-
-            // All GFX10 devices support the checksum register. If we don't have it, NOP will be added.
-            PM4_ME_SET_SH_REG        hdrComputePgmRsrc3;
-            regCOMPUTE_PGM_RSRC3     computePgmRsrc3;
-
-            // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be added.
-            PM4_ME_SET_SH_REG        hdrComputeUserAccum;
-            regCOMPUTE_USER_ACCUM_0  regComputeUserAccum0;
-            regCOMPUTE_USER_ACCUM_1  regComputeUserAccum1;
-            regCOMPUTE_USER_ACCUM_2  regComputeUserAccum2;
-            regCOMPUTE_USER_ACCUM_3  regComputeUserAccum3;
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
-        } set; // SET path, used for compute command buffers.  The MEC doesn't support LOAD_SH_REG_INDEX.
-
-        struct
-        {
-            PM4_ME_SET_SH_REG     hdrComputePgmRsrc2;
-            regCOMPUTE_PGM_RSRC2  computePgmRsrc2;
-
-            PM4_ME_SET_SH_REG           hdrComputeResourceLimits;
-            regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
-        } dynamic; // Contains state which depends on bind-time parameters.
-
-        PipelinePrefetchPm4 prefetch;
-    };
+    uint32* WriteShCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     const Device&  m_device;
-    Pm4Commands    m_commands;
+
+    HwRegInfo m_regs;
+
+    struct
+    {
+        gpusize  gpuVirtAddr;
+        uint32   count;
+    }  m_loadPath;
+
+    PipelinePrefetchPm4  m_prefetch;
 
     PerfDataInfo*const m_pCsPerfDataInfo;   // CS performance data information.
-
-    ShaderStageInfo*  m_pStageInfo;
+    ShaderStageInfo*   m_pStageInfo;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkCs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkCs);
+};
+
+// =====================================================================================================================
+// Represents the chunk of a compute library object which contains all of the registers
+// which setup the hardware library stage.
+// This is sort of a PM4 "image" of the commands which write these registers, but with some intelligence so that the
+// code used to setup the commands can be reused.
+class LibraryChunkCs : PipelineChunkCs
+{
+public:
+    LibraryChunkCs(
+        const Device&    device);
+
+    ~LibraryChunkCs() { }
+
+    // Compute Library use only
+    template <typename ShaderLibraryUploader>
+    void LateInit(
+        const AbiProcessor&              abiProcessor,
+        const RegisterVector&            registers,
+        uint32                           wavefrontSize,
+        ShaderLibraryFunctionInfo*       pFunctionList,
+        uint32                           funcCount,
+        ShaderLibraryUploader*           pUploader);
+
+    const LibHwRegInfo LibHWInfo() const { return m_regs; }
+
+private:
+    const Device&  m_device;
+
+    LibHwRegInfo m_regs;
+
+    PAL_DISALLOW_DEFAULT_CTOR(LibraryChunkCs);
+    PAL_DISALLOW_COPY_AND_ASSIGN(LibraryChunkCs);
 };
 
 } // Gfx9

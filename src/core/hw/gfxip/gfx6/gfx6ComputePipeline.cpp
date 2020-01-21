@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -68,7 +68,9 @@ ComputePipeline::ComputePipeline(
     Pal::ComputePipeline(pDevice->Parent(), isInternal),
     m_pDevice(pDevice)
 {
-    memset(&m_commands, 0, sizeof(m_commands));
+    memset(&m_regs, 0, sizeof(m_regs));
+    memset(&m_loadPath, 0, sizeof(m_loadPath));
+    memset(&m_prefetch, 0, sizeof(m_prefetch));
     memcpy(&m_signature, &NullCsSignature, sizeof(m_signature));
 }
 
@@ -195,7 +197,6 @@ Result ComputePipeline::HwlInit(
 
     if (result == Result::Success)
     {
-        BuildPm4Headers(uploader);
         UpdateRingSizes(metadata);
 
         // Next, update our PM4 image with the now-known GPU virtual addresses for the shader entrypoints and
@@ -209,58 +210,61 @@ Result ComputePipeline::HwlInit(
             PAL_ASSERT(csProgramVa == Pow2Align(csProgramVa, 256));
             PAL_ASSERT(Get256BAddrHi(csProgramVa) == 0);
 
-            m_commands.set.computePgmLo.bits.DATA = Get256BAddrLo(csProgramVa);
-            m_commands.set.computePgmHi.bits.DATA = 0;
+            m_regs.computePgmLo.bits.DATA = Get256BAddrLo(csProgramVa);
+            m_regs.computePgmHi.bits.DATA = 0;
         }
 
         Abi::PipelineSymbolEntry csSrdTable = { };
         if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &csSrdTable))
         {
             const gpusize csSrdTableVa = (csSrdTable.value + uploader.DataGpuVirtAddr());
-            m_commands.set.computeUserDataLo.bits.DATA = LowPart(csSrdTableVa);
+            m_regs.computeUserDataLo.bits.DATA = LowPart(csSrdTableVa);
         }
 
         // Initialize the rest of the PM4 image initialization with register data contained in the ELF:
 
-        m_commands.set.computePgmRsrc1.u32All     = registers.At(mmCOMPUTE_PGM_RSRC1);
-        m_commands.dynamic.computePgmRsrc2.u32All = registers.At(mmCOMPUTE_PGM_RSRC2);
-        m_commands.set.computeNumThreadX.u32All   = registers.At(mmCOMPUTE_NUM_THREAD_X);
-        m_commands.set.computeNumThreadY.u32All   = registers.At(mmCOMPUTE_NUM_THREAD_Y);
-        m_commands.set.computeNumThreadZ.u32All   = registers.At(mmCOMPUTE_NUM_THREAD_Z);
+        m_regs.computePgmRsrc1.u32All         = registers.At(mmCOMPUTE_PGM_RSRC1);
+        m_regs.dynamic.computePgmRsrc2.u32All = registers.At(mmCOMPUTE_PGM_RSRC2);
+        m_regs.computeNumThreadX.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_X);
+        m_regs.computeNumThreadY.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_Y);
+        m_regs.computeNumThreadZ.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_Z);
 
-        m_threadsPerTgX = m_commands.set.computeNumThreadX.bits.NUM_THREAD_FULL;
-        m_threadsPerTgY = m_commands.set.computeNumThreadY.bits.NUM_THREAD_FULL;
-        m_threadsPerTgZ = m_commands.set.computeNumThreadZ.bits.NUM_THREAD_FULL;
+        m_threadsPerTgX = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
+        m_threadsPerTgY = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
+        m_threadsPerTgZ = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
         if (uploader.EnableLoadIndexPath())
         {
-            uploader.AddShReg(mmCOMPUTE_PGM_LO, m_commands.set.computePgmLo);
-            uploader.AddShReg(mmCOMPUTE_PGM_HI, m_commands.set.computePgmHi);
+            m_loadPath.gpuVirtAddr = uploader.ShRegGpuVirtAddr();
+            m_loadPath.count       = uploader.ShRegisterCount();
 
-            uploader.AddShReg((mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg), m_commands.set.computeUserDataLo);
+            uploader.AddShReg(mmCOMPUTE_PGM_LO, m_regs.computePgmLo);
+            uploader.AddShReg(mmCOMPUTE_PGM_HI, m_regs.computePgmHi);
 
-            uploader.AddShReg(mmCOMPUTE_PGM_RSRC1,    m_commands.set.computePgmRsrc1);
-            uploader.AddShReg(mmCOMPUTE_NUM_THREAD_X, m_commands.set.computeNumThreadX);
-            uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_commands.set.computeNumThreadY);
-            uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_commands.set.computeNumThreadZ);
+            uploader.AddShReg((mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg), m_regs.computeUserDataLo);
+
+            uploader.AddShReg(mmCOMPUTE_PGM_RSRC1,    m_regs.computePgmRsrc1);
+            uploader.AddShReg(mmCOMPUTE_NUM_THREAD_X, m_regs.computeNumThreadX);
+            uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_regs.computeNumThreadY);
+            uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_regs.computeNumThreadZ);
         }
         result = uploader.End();
 
         if (result == Result::Success)
         {
-            registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_commands.dynamic.computeResourceLimits.u32All);
+            registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_regs.dynamic.computeResourceLimits.u32All);
             const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
             const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx6.nativeWavefrontSize);
 
             // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If the number of
             // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.
-            m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
+            m_regs.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
 
             // Force even distribution on all SIMDs in CU for workgroup size is 64
             // This has shown some good improvements if #CU per SE not a multiple of 4
             if (((chipProps.gfx6.numShaderArrays * chipProps.gfx6.numCuPerSh) & 0x3) && (wavesPerGroup == 1))
             {
-                m_commands.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST__CI__VI = 1;
+                m_regs.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST__CI__VI = 1;
             }
 
             if (m_pDevice->Parent()->LegacyHwsTrapHandlerPresent())
@@ -270,15 +274,15 @@ Result ComputePipeline::HwlInit(
 
                 // TODO: Handle the case where the client enabled a trap handler and the hardware scheduler's trap handler
                 // is already active!
-                PAL_ASSERT(m_commands.dynamic.computePgmRsrc2.bits.TRAP_PRESENT == 0);
-                m_commands.dynamic.computePgmRsrc2.bits.TRAP_PRESENT = 1;
+                PAL_ASSERT(m_regs.dynamic.computePgmRsrc2.bits.TRAP_PRESENT == 0);
+                m_regs.dynamic.computePgmRsrc2.bits.TRAP_PRESENT = 1;
             }
 
             // LOCK_THRESHOLD: Sets per-SH low threshold for locking.  Set in units of 4, 0 disables locking.
             // LOCK_THRESHOLD's maximum value: (6 bits), in units of 4, so it is max of 252.
             constexpr uint32 Gfx6MaxLockThreshold = 252;
             PAL_ASSERT(settings.csLockThreshold <= Gfx6MaxLockThreshold);
-            m_commands.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD =
+            m_regs.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD =
                 Min((settings.csLockThreshold >> 2), Gfx6MaxLockThreshold >> 2);
 
             // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If no override is set, just keep
@@ -286,22 +290,24 @@ Result ComputePipeline::HwlInit(
             switch (settings.csSimdDestCntl)
             {
             case CsSimdDestCntlForce1:
-                m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 1;
+                m_regs.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 1;
                 break;
             case CsSimdDestCntlForce0:
-                m_commands.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 0;
+                m_regs.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = 0;
                 break;
             default:
                 PAL_ASSERT(settings.csSimdDestCntl == CsSimdDestCntlDefault);
                 break;
             }
 
-            m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
+            m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_prefetch);
 
             // Finally, update the pipeline signature with user-mapping data contained in the ELF:
             SetupSignatureFromElf(metadata, registers);
 
-            GetFunctionGpuVirtAddrs(abiProcessor, uploader, createInfo.pIndirectFuncList, createInfo.indirectFuncCount);
+ #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
+           GetFunctionGpuVirtAddrs(abiProcessor, uploader, createInfo.pIndirectFuncList, createInfo.indirectFuncCount);
+#endif
         }
     }
 
@@ -336,7 +342,7 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
 {
     // The maximum number of waves per SH in "register units".
     // By default leave the WAVES_PER_SH field unchanged (either 0 or populated from ELF).
-    uint32 wavesPerSh = m_commands.dynamic.computeResourceLimits.bits.WAVES_PER_SH;
+    uint32 wavesPerSh = m_regs.dynamic.computeResourceLimits.bits.WAVES_PER_SH;
 
     if (maxWavesPerCu > 0)
     {
@@ -372,42 +378,36 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
 // =====================================================================================================================
 // Writes the PM4 commands required to bind this pipeline. Returns a pointer to the next unused DWORD in pCmdSpace.
 uint32* ComputePipeline::WriteCommands(
-    Pal::CmdStream*                 pCmdStream,
+    CmdStream*                      pCmdStream,
     uint32*                         pCmdSpace,
     const DynamicComputeShaderInfo& csInfo,
     bool                            prefetch
     ) const
 {
-    auto*const pGfx6CmdStream = static_cast<CmdStream*>(pCmdStream);
-
     // Disable the LOAD_INDEX path if the PM4 optimizer is enabled or for compute command buffers.  The optimizer cannot
     // optimize these load packets because the register values are in GPU memory.  Additionally, any client requesting
     // PM4 optimization is trading CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
     // This gets disabled for compute command buffers because the MEC does not support any LOAD packets.
-    const bool useSetPath =
-        ((m_commands.loadIndex.loadShRegIndex.header.u32All == 0) ||
-         pGfx6CmdStream->Pm4OptimizerEnabled()                    ||
-         (pGfx6CmdStream->GetEngineType() == EngineType::EngineTypeCompute));
-
-    if (useSetPath)
+    if ((m_loadPath.count == 0)           ||
+        pCmdStream->Pm4OptimizerEnabled() ||
+        (pCmdStream->GetEngineType() == EngineType::EngineTypeCompute))
     {
-        constexpr uint32 SpaceNeededSet = sizeof(m_commands.set) / sizeof(uint32);
-        pCmdSpace = pGfx6CmdStream->WritePm4Image(SpaceNeededSet, &m_commands.set, pCmdSpace);
+        pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace);
     }
     else
     {
-        constexpr uint32 SpaceNeededLoad = sizeof(m_commands.loadIndex) / sizeof(uint32);
-        pCmdSpace = pGfx6CmdStream->WritePm4Image(SpaceNeededLoad, &m_commands.loadIndex, pCmdSpace);
+        const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+        pCmdSpace += cmdUtil.BuildLoadShRegsIndex(m_loadPath.gpuVirtAddr, m_loadPath.count, ShaderCompute, pCmdSpace);
     }
 
-    auto dynamicCmds = m_commands.dynamic;
+    auto dynamic = m_regs.dynamic; // "Dynamic" bind-time register state
 
     // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
     constexpr uint32 Gfx6MaxTgPerCu = 15;
-    dynamicCmds.computeResourceLimits.bits.TG_PER_CU = Min(csInfo.maxThreadGroupsPerCu, Gfx6MaxTgPerCu);
+    dynamic.computeResourceLimits.bits.TG_PER_CU = Min(csInfo.maxThreadGroupsPerCu, Gfx6MaxTgPerCu);
     if (csInfo.maxWavesPerCu > 0)
     {
-        dynamicCmds.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
+        dynamic.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
     }
 
     if (csInfo.ldsBytesPerTg > 0)
@@ -418,32 +418,34 @@ uint32* ComputePipeline::WriteCommands(
         if (m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp6)
         {
             // NOTE: Gfx6: Granularity for the LDS_SIZE field is 64, range is 0->128 which allocates 0 to 8K DWORDs.
-            dynamicCmds.computePgmRsrc2.bits.LDS_SIZE =
+            dynamic.computePgmRsrc2.bits.LDS_SIZE =
                 Pow2Align(ldsSizeDwords, Gfx6LdsDwGranularity) >> Gfx6LdsDwGranularityShift;
         }
         else
         {
             // NOTE: Gfx7+: Granularity for the LDS_SIZE field is 128, range is 0->128 which allocates 0 to 16K DWORDs.
-            dynamicCmds.computePgmRsrc2.bits.LDS_SIZE =
+            dynamic.computePgmRsrc2.bits.LDS_SIZE =
                 Pow2Align(ldsSizeDwords, Gfx7LdsDwGranularity) >> Gfx7LdsDwGranularityShift;
         }
     }
 
-    constexpr uint32 SpaceNeededDynamic = sizeof(m_commands.dynamic) / sizeof(uint32);
-    pCmdSpace = pGfx6CmdStream->WritePm4Image(SpaceNeededDynamic, &dynamicCmds, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2,
+                                                            dynamic.computePgmRsrc2.u32All,
+                                                            pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_RESOURCE_LIMITS,
+                                                            dynamic.computeResourceLimits.u32All,
+                                                            pCmdSpace);
 
     const auto& perfData = m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Cs)];
     if (perfData.regOffset != UserDataNotMapped)
     {
-        pCmdSpace = pGfx6CmdStream->WriteSetOneShReg<ShaderCompute>(perfData.regOffset,
-                                                                    perfData.gpuVirtAddr,
-                                                                    pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(perfData.regOffset, perfData.gpuVirtAddr, pCmdSpace);
     }
 
     if (prefetch)
     {
-        memcpy(pCmdSpace, &m_commands.prefetch, m_commands.prefetch.spaceNeeded * sizeof(uint32));
-        pCmdSpace += m_commands.prefetch.spaceNeeded;
+        memcpy(pCmdSpace, &m_prefetch, m_prefetch.spaceNeeded * sizeof(uint32));
+        pCmdSpace += m_prefetch.spaceNeeded;
     }
 
     return pCmdSpace;
@@ -472,8 +474,8 @@ Result ComputePipeline::GetShaderStats(
             pShaderStats->cs.numThreadsPerGroupX = m_threadsPerTgX;
             pShaderStats->cs.numThreadsPerGroupY = m_threadsPerTgY;
             pShaderStats->cs.numThreadsPerGroupZ = m_threadsPerTgZ;
-            pShaderStats->common.gpuVirtAddress  = GetOriginalAddress(m_commands.set.computePgmLo.bits.DATA,
-                                                                      m_commands.set.computePgmHi.bits.DATA);
+            pShaderStats->common.gpuVirtAddress  = GetOriginalAddress(m_regs.computePgmLo.bits.DATA,
+                                                                      m_regs.computePgmHi.bits.DATA);
 
             pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
         }
@@ -483,45 +485,32 @@ Result ComputePipeline::GetShaderStats(
 }
 
 // =====================================================================================================================
-// Builds the packet headers for the various PM4 images associated with this pipeline.  Register values and packet
-// payloads are computed elsewhere.
-void ComputePipeline::BuildPm4Headers(
-    const ComputePipelineUploader& uploader)
+// Writes PM4 SET commands to the specified command stream.  This is only expected to be called when the LOAD path is
+// not in use and we need to use the SET path fallback.
+uint32* ComputePipeline::WriteShCommandsSetPath(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
 {
-    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_NUM_THREAD_X,
+                                              mmCOMPUTE_NUM_THREAD_Z,
+                                              ShaderCompute,
+                                              &m_regs.computeNumThreadX,
+                                              pCmdSpace);
 
-    // PM4 image for the SET path:
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_PGM_LO,
+                                              mmCOMPUTE_PGM_HI,
+                                              ShaderCompute,
+                                              &m_regs.computePgmLo,
+                                              pCmdSpace);
 
-    cmdUtil.BuildSetSeqShRegs(mmCOMPUTE_NUM_THREAD_X,
-                              mmCOMPUTE_NUM_THREAD_Z,
-                              ShaderCompute,
-                              &m_commands.set.hdrComputeNumThread);
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC1,
+                                                            m_regs.computePgmRsrc1.u32All,
+                                                            pCmdSpace);
 
-    cmdUtil.BuildSetSeqShRegs(mmCOMPUTE_PGM_LO,
-                              mmCOMPUTE_PGM_HI,
-                              ShaderCompute,
-                              &m_commands.set.hdrComputePgm);
-
-    cmdUtil.BuildSetOneShReg(mmCOMPUTE_PGM_RSRC1, ShaderCompute, &m_commands.set.hdrComputePgmRsrc1);
-
-    cmdUtil.BuildSetOneShReg(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
-                             ShaderCompute,
-                             &m_commands.set.hdrComputeUserData);
-
-    // PM4 image for the LOAD_INDEX path:
-
-    if (uploader.EnableLoadIndexPath())
-    {
-        cmdUtil.BuildLoadShRegsIndex(uploader.ShRegGpuVirtAddr(),
-                                     uploader.ShRegisterCount(),
-                                     ShaderCompute,
-                                     &m_commands.loadIndex.loadShRegIndex);
-    }
-
-    // PM4 image for dynamic (bind-time) state:
-
-    cmdUtil.BuildSetOneShReg(mmCOMPUTE_PGM_RSRC2,       ShaderCompute, &m_commands.dynamic.hdrComputePgmRsrc2);
-    cmdUtil.BuildSetOneShReg(mmCOMPUTE_RESOURCE_LIMITS, ShaderCompute, &m_commands.dynamic.hdrComputeResourceLimits);
+    return pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
+                                                       m_regs.computeUserDataLo.u32All,
+                                                       pCmdSpace);
 }
 
 // =====================================================================================================================

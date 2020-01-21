@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1490,6 +1490,17 @@ Result Queue::LateInit()
 {
     Result result = Result::Success;
 
+    if (result == Result::Success)
+    {
+        result = m_pDevice->AddQueue(this);
+    }
+
+    if ((result == Result::Success) && (m_pEngine != nullptr))
+    {
+        m_pEngine->AddQueue(&m_engineMembershipNode);
+    }
+
+    // Dummy submission must be called after m_pDevice->AddQueue to add internal memory reference.
     // We won't have a dummy command buffer available if we're on a timer queue so we need to check first.
     if (m_pDummyCmdBuffer != nullptr)
     {
@@ -1513,16 +1524,6 @@ Result Queue::LateInit()
                 result = OsSubmit(submitInfo, internalSubmitInfo);
             }
         }
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_pDevice->AddQueue(this);
-    }
-
-    if ((result == Result::Success) && (m_pEngine != nullptr))
-    {
-        m_pEngine->AddQueue(&m_engineMembershipNode);
     }
 
     return result;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -372,9 +372,6 @@ void RsrcProcMgr::CmdCopyImage(
     // MSAA source and destination images must have the same number of samples.
     PAL_ASSERT(srcInfo.samples == dstInfo.samples);
 
-    const bool bothDepth    = ((srcImage.IsDepthStencil() && dstImage.IsDepthStencil()) ||
-                               (Formats::IsDepthStencilOnly(srcInfo.swizzledFormat.format) &&
-                                Formats::IsDepthStencilOnly(dstInfo.swizzledFormat.format)));
     const bool bothColor    = ((srcImage.IsDepthStencil() == false) && (dstImage.IsDepthStencil() == false) &&
                                (Formats::IsDepthStencilOnly(srcInfo.swizzledFormat.format) == false) &&
                                (Formats::IsDepthStencilOnly(dstInfo.swizzledFormat.format) == false));
@@ -389,20 +386,19 @@ void RsrcProcMgr::CmdCopyImage(
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
     // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
     const bool useGraphicsCopy = ((Image::PreferGraphicsCopy && pCmdBuffer->IsGraphicsSupported()) &&
-                                  ((bothDepth && (srcInfo.samples > 1)) ||
+                                  (dstImage.IsDepthStencil() ||
                                    ((srcImageType != ImageType::Tex1d) &&
                                     (dstImageType != ImageType::Tex1d) &&
                                     (dstInfo.samples == 1)             &&
                                     (isCompressed == false)            &&
                                     (isYuv == false)                   &&
-                                    (bothDepth == false)               &&
                                     (bothColor == true)                &&
                                     (isSrgb == false)                  &&
                                     (p2pBltWa == false))));
 
     if (useGraphicsCopy)
     {
-        if (bothDepth)
+        if (dstImage.IsDepthStencil())
         {
             CopyDepthStencilImageGraphics(pCmdBuffer,
                                           srcImage,
@@ -775,11 +771,6 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
 
-    // This path only works on depth-stencil images.
-    PAL_ASSERT((srcCreateInfo.usageFlags.depthStencil && dstCreateInfo.usageFlags.depthStencil) ||
-               (Formats::IsDepthStencilOnly(srcCreateInfo.swizzledFormat.format) &&
-                Formats::IsDepthStencilOnly(dstCreateInfo.swizzledFormat.format)));
-
     const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
     const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
     const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
@@ -872,7 +863,9 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
 
             BindTargetParams bindTargetsInfo = {};
 
-            const ChNumFormat depthFormat = srcImage.GetImageCreateInfo().swizzledFormat.format;
+            // It's possible that SRC may be not a depth/stencil resource and it's created with X32_UINT from
+            // R32_TYPELESS, use DST's format to setup SRC format correctly.
+            const ChNumFormat depthFormat = dstImage.GetImageCreateInfo().swizzledFormat.format;
 
             bindTargetsInfo.depthTarget.depthLayout = dstImageLayout;
 
@@ -907,14 +900,14 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
             }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 471
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
-                                          GetCopyDepthStencilMsaaPipeline(
+                                          GetCopyDepthStencilPipeline(
                                               isDepth,
                                               isDepthStencil,
                                               srcImage.GetImageCreateInfo().samples),
                                           InternalApiPsoHash, });
 #else
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
-                                          GetCopyDepthStencilMsaaPipeline(
+                                          GetCopyDepthStencilPipeline(
                                               isDepth,
                                               isDepthStencil,
                                               srcImage.GetImageCreateInfo().samples), });
@@ -960,7 +953,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                 pCmdBuffer->CmdBindDepthStencilState(m_pStencilResolveState);
             }
 
-            for (uint32 slice = 0; slice < pRegions[0].numSlices; ++slice)
+            for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
             {
                 LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 
@@ -978,6 +971,8 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                     ImageViewInfo imageView[2] = {};
                     SubresRange viewRange      = { pRegions[idx].srcSubres, 1, 1 };
 
+                    viewRange.startSubres.arraySlice += slice;
+
                     RpmUtil::BuildImageViewInfo(&imageView[0],
                                                 srcImage,
                                                 viewRange,
@@ -987,6 +982,8 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
 
                     srcFormat.format = ChNumFormat::X8_Uint;
                     viewRange        = { pRegions[secondSurface].srcSubres, 1, 1 };
+
+                    viewRange.startSubres.arraySlice += slice;
 
                     RpmUtil::BuildImageViewInfo(&imageView[1],
                                                 srcImage,
@@ -999,8 +996,10 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                 else
                 {
                     // Populate the table with an image view of the source image.
-                    ImageViewInfo     imageView = {};
-                    const SubresRange viewRange = { pRegions[idx].srcSubres, 1, 1 };
+                    ImageViewInfo imageView = {};
+                    SubresRange   viewRange = { pRegions[idx].srcSubres, 1, 1 };
+
+                    viewRange.startSubres.arraySlice += slice;
 
                     RpmUtil::BuildImageViewInfo(&imageView,
                                                 srcImage,
@@ -1012,8 +1011,8 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                 }
 
                 // Create and bind a depth stencil view of the destination region.
-                depthViewInfo.baseArraySlice = pRegions[0].dstSubres.arraySlice;
-                depthViewInfo.mipLevel       = pRegions[0].dstSubres.mipLevel;
+                depthViewInfo.baseArraySlice = pRegions[idx].dstSubres.arraySlice + slice;
+                depthViewInfo.mipLevel       = pRegions[idx].dstSubres.mipLevel;
 
                 void* pDepthStencilViewMem = PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr),
                                                         &sliceAlloc,
@@ -1091,7 +1090,7 @@ void RsrcProcMgr::CopyImageCompute(
             PAL_NOT_IMPLEMENTED();
         }
 
-        // Optimized image copies require a call to HwlUpdateDstImageFmaskMetaData...
+        // Optimized image copies require a call to HwlFixupCopyDstImageMetaData...
         // Verify that any "update" operation performed is legal for the source and dest images.
         if (HwlUseOptimizedImageCopy(srcImage, dstImage))
         {
@@ -1323,17 +1322,6 @@ void RsrcProcMgr::CopyImageCompute(
 
         // Turn our image views into HW SRDs here
         device.CreateImageViewSrds(2, &imageView[0], pUserData);
-
-        // Destination image is at the beginning of pUserData.
-        if (HwlImageUsesCompressedWrites(pUserData))
-        {
-            SubresRange range = {};
-            range.startSubres = copyRegion.dstSubres;
-            range.numMips     = 1;
-            range.numSlices   = copyRegion.numSlices;
-            HwlUpdateDstImageStateMetaData(pCmdBuffer, dstImage, range);
-        }
-
         pUserData += SrdDwordAlignment() * 2;
 
         if (isFmaskCopy)
@@ -1364,10 +1352,18 @@ void RsrcProcMgr::CopyImageCompute(
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 
-    if (isFmaskCopyOptimized)
+    if (isFmaskCopyOptimized
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
+        || (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0)
+#endif
+        )
     {
-        // If this is MSAA copy optimized we might have to update destination image meta data
-        HwlUpdateDstImageFmaskMetaData(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
+        // If this is MSAA copy optimized we might have to update destination image meta data.
+        // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
+        // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
+        const Pal::Image* pSrcImage = isFmaskCopyOptimized ? &srcImage : nullptr;
+        HwlFixupCopyDstImageMetaData(pCmdBuffer, pSrcImage, dstImage, dstImageLayout,
+                                     pRegions, regionCount, isFmaskCopyOptimized);
     }
 }
 
@@ -1597,6 +1593,21 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
                               regionCount,
                               pRegions,
                               includePadding);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
+    // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
+    // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
+    if (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0)
+    {
+        AutoBuffer<ImageCopyRegion, 32, Platform> newRegions(regionCount, m_pDevice->GetPlatform());
+        for (uint32 i = 0; i < regionCount; i++)
+        {
+            newRegions[i].dstSubres = pRegions[i].imageSubres;
+            newRegions[i].numSlices = pRegions[i].numSlices;
+        }
+        HwlFixupCopyDstImageMetaData(pCmdBuffer, nullptr, dstImage, dstImageLayout, &newRegions[0], regionCount, false);
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -1676,6 +1687,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
 {
     const auto& imgCreateInfo = image.GetImageCreateInfo();
     const auto& device        = *m_pDevice->Parent();
+    const auto& settings      = device.Settings();
     const bool  is3d          = (imgCreateInfo.imageType == ImageType::Tex3d);
 
     // Get number of threads per groups in each dimension, we will need this data later.
@@ -1885,18 +1897,15 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
         {
             copyRegion.imageSubres.mipLevel = firstMipLevel;
 
-            RpmUtil::BuildImageViewInfo(&imageView, image, viewRange, viewFormat, imageLayout, device.TexOptLevel());
+            RpmUtil::BuildImageViewInfo(&imageView,
+                                        image,
+                                        viewRange,
+                                        viewFormat,
+                                        imageLayout,
+                                        device.TexOptLevel());
             imageView.flags.includePadding = includePadding;
 
             device.CreateImageViewSrds(1, &imageView, pUserData);
-
-            // Destination image is at the beginning of pUserData.
-            if (isImageDst && HwlImageUsesCompressedWrites(pUserData))
-            {
-                const SubresRange range = { copyRegion.imageSubres, 1, copyRegion.numSlices, };
-                HwlUpdateDstImageStateMetaData(pCmdBuffer, image, range);
-            }
-
             pUserData += SrdDwordAlignment();
 
             // Copy the copy data into the embedded user data memory.
@@ -1928,7 +1937,8 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
     const TypedBufferCopyRegion* pRegions
     ) const
 {
-    const auto& device = *m_pDevice->Parent();
+    const auto& device   = *m_pDevice->Parent();
+    const auto& settings = device.Settings();
 
     // Save current command buffer state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -2109,6 +2119,22 @@ void RsrcProcMgr::CmdScaledCopyImage(
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
         ScaledCopyImageCompute(pCmdBuffer, copyInfo);
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
+        // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
+        // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
+        if (copyInfo.pDstImage->GetImageCreateInfo().flags.fullCopyDstOnly != 0)
+        {
+            AutoBuffer<ImageCopyRegion, 32, Platform> newRegions(copyInfo.regionCount, m_pDevice->GetPlatform());
+            for (uint32 i = 0; i < copyInfo.regionCount; i++)
+            {
+                newRegions[i].dstSubres = copyInfo.pRegions[i].dstSubres;
+                newRegions[i].numSlices = copyInfo.pRegions[i].numSlices;
+            }
+            HwlFixupCopyDstImageMetaData(pCmdBuffer, nullptr, *static_cast<const Image*>(copyInfo.pDstImage),
+                                         copyInfo.dstImageLayout, &newRegions[0], copyInfo.regionCount, false);
+        }
+#endif
     }
 }
 
@@ -2141,6 +2167,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
     ) const
 {
     const auto& device    = *m_pDevice->Parent();
+    const auto& settings  = device.Settings();
     const auto& image     = *static_cast<const Image*>(genInfo.pImage);
     const auto& imageInfo = image.GetImageCreateInfo();
 
@@ -2284,14 +2311,6 @@ void RsrcProcMgr::GenerateMipmapsFast(
             }
 
             device.CreateImageViewSrds(MaxNumMips, &dstImageView[0], pUserData);
-
-            if (HwlImageUsesCompressedWrites(pUserData))
-            {
-                SubresRange dstRange = { srcSubres, numMipsToGenerate, 1 };
-                ++dstRange.startSubres.mipLevel;
-
-                HwlUpdateDstImageStateMetaData(pCmdBuffer, image, dstRange);
-            }
             pUserData += (SrdDwordAlignment() * MaxNumMips);
 
             // Allocate scratch memory for the global atomic counter and initialize it to 0.
@@ -2763,13 +2782,21 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         ImageViewInfo imageView[2] = {};
         SubresRange   viewRange    = { copyRegion.srcSubres, 1, copyRegion.numSlices };
 
-        RpmUtil::BuildImageViewInfo(
-            &imageView[0], *pSrcImage, viewRange, srcFormat, srcImageLayout, device.TexOptLevel());
+        RpmUtil::BuildImageViewInfo(&imageView[0],
+                                    *pSrcImage,
+                                    viewRange,
+                                    srcFormat,
+                                    srcImageLayout,
+                                    device.TexOptLevel());
 
         // Note that this is a read-only view of the destination.
         viewRange.startSubres = copyRegion.dstSubres;
-        RpmUtil::BuildImageViewInfo(
-            &imageView[1], *pDstImage, viewRange, dstFormat, dstImageLayout, device.TexOptLevel());
+        RpmUtil::BuildImageViewInfo(&imageView[1],
+                                    *pDstImage,
+                                    viewRange,
+                                    dstFormat,
+                                    dstImageLayout,
+                                    device.TexOptLevel());
 
         if (isTex3d == false)
         {
@@ -3202,14 +3229,6 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             }
 
             device.CreateImageViewSrds(2, &imageView[0], pUserData);
-
-            // Destination image is at the beginning of pUserData.
-            if (HwlImageUsesCompressedWrites(pUserData))
-            {
-                const SubresRange range = { copyRegion.dstSubres, 1, copyRegion.numSlices };
-                HwlUpdateDstImageStateMetaData(pCmdBuffer, *pDstImage, range);
-            }
-
             pUserData += SrdDwordAlignment() * 2;
 
             if (isFmaskCopy)
@@ -3425,14 +3444,6 @@ void RsrcProcMgr::ConvertYuvToRgb(
                                                                    0);
 
         device.CreateImageViewSrds(viewCount, &viewInfo[0], pUserData);
-
-        // Destination image is at the beginning of pUserData.
-        if (HwlImageUsesCompressedWrites(pUserData))
-        {
-            const SubresRange range = { region.rgbSubres, 1, region.sliceCount };
-            HwlUpdateDstImageStateMetaData(pCmdBuffer, dstImage, range);
-        }
-
         pUserData += (SrdDwordAlignment() * MaxImageSrds);
 
         device.CreateSamplerSrds(1, &sampler, pUserData);
@@ -3514,8 +3525,12 @@ void RsrcProcMgr::ConvertRgbToYuv(
         }
 
         const SubresRange srcRange = { region.rgbSubres, 1, region.sliceCount };
-        RpmUtil::BuildImageViewInfo(
-            &viewInfo[0], srcImage, srcRange, srcFormat, RpmUtil::DefaultRpmLayoutRead, device.TexOptLevel());
+        RpmUtil::BuildImageViewInfo(&viewInfo[0],
+                                    srcImage,
+                                    srcRange,
+                                    srcFormat,
+                                    RpmUtil::DefaultRpmLayoutRead,
+                                    device.TexOptLevel());
 
         RpmUtil::RgbYuvConversionInfo copyInfo = { };
 
@@ -3646,6 +3661,7 @@ void RsrcProcMgr::CmdFillMemory(
     PAL_ASSERT(IsPow2Aligned(dstOffset, sizeof(uint32)));
     PAL_ASSERT(IsPow2Aligned(fillSize,  sizeof(uint32)));
 
+    const auto&  settings      = m_pDevice->Parent()->Settings();
     const uint32 numDwords     = static_cast<uint32>(fillSize / sizeof(uint32));
     const bool   is4xOptimized = ((numDwords % 4) == 0);
 
@@ -4228,17 +4244,23 @@ void RsrcProcMgr::SlowClearGraphics(
 
     // Query the format of the image and determine which format to use for the color target view. If rawFmtOk is
     // set the caller has allowed us to use a slightly more efficient raw format.
-    const SwizzledFormat baseFormat = dstImage.SubresourceInfo(clearRange.startSubres)->format;
-    SwizzledFormat       viewFormat = (rawFmtOk ?
-                                        RpmUtil::GetRawFormat(baseFormat.format, nullptr, nullptr) :
-                                        baseFormat);
-
+    const SwizzledFormat baseFormat   = dstImage.SubresourceInfo(clearRange.startSubres)->format;
+    SwizzledFormat       viewFormat   = (rawFmtOk ? RpmUtil::GetRawFormat(baseFormat.format, nullptr, nullptr)
+                                                  : baseFormat);
+    uint32               xRightShift  = 0;
+    uint32               vpRightShift = 0;
     // For packed YUV image use X32_Uint instead of X16_Uint to fill with YUYV.
-    if (viewFormat.format == ChNumFormat::X16_Uint && Formats::IsYuvPacked(baseFormat.format))
+    if ((viewFormat.format == ChNumFormat::X16_Uint) && Formats::IsYuvPacked(baseFormat.format))
     {
         viewFormat.format  = ChNumFormat::X32_Uint;
         viewFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
         rawFmtOk           = false;
+        // If clear color type isn't Yuv then the client is responsible for offset/extent adjustments.
+        xRightShift        = (pColor->type == ClearColorType::Yuv) ? 1 : 0;
+        // The viewport should always be adjusted regardless the clear color type, (however, since this is just clear,
+        // all pixels are the same and the scissor rect will clamp the rendering area, the result is still correct
+        // without this adjustment).
+        vpRightShift       = 1;
     }
 
     const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
@@ -4300,32 +4322,46 @@ void RsrcProcMgr::SlowClearGraphics(
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
-    uint32 convertedColor[4] = {0};
-
-    if (pColor->type == ClearColorType::Float)
-    {
-        Formats::ConvertColor(baseFormat, &pColor->f32Color[0], &convertedColor[0]);
-    }
-    else
-    {
-        memcpy(&convertedColor[0], &pColor->u32Color[0], sizeof(convertedColor));
-    }
-
-    RpmUtil::ConvertClearColorToNativeFormat(baseFormat, viewFormat, &convertedColor[0]);
-
     uint32 packedColor[4] = {0};
 
-    // If we can clear with raw format replacement which is more efficient, swizzle it into the order
-    // required and then pack it.
-    if (rawFmtOk)
+    if (pColor->type == ClearColorType::Yuv)
     {
-        uint32 swizzledColor[4] = {0};
-        Formats::SwizzleColor(baseFormat, &convertedColor[0], &swizzledColor[0]);
-        Formats::PackRawClearColor(baseFormat, &swizzledColor[0], &packedColor[0]);
+        // If clear color type is Yuv, the image format should used to determine the clear color swizzling and packing
+        // for planar YUV formats since the baseFormat is subresource's format which is not a YUV format.
+        // NOTE: if clear color type is Uint, the client is responsible for:
+        //       1. packing and swizzling clear color for packed YUV formats (e.g. packing in YUYV order for YUY2).
+        //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
+        //          current plane is CbCr).
+        const SwizzledFormat imgFormat = createInfo.swizzledFormat;
+        Formats::ConvertYuvColor(imgFormat, clearRange.startSubres.aspect, &pColor->u32Color[0], &packedColor[0]);
     }
     else
     {
-        memcpy(&packedColor[0], &convertedColor[0], sizeof(packedColor));
+        uint32 convertedColor[4] = {0};
+
+        if (pColor->type == ClearColorType::Float)
+        {
+            Formats::ConvertColor(baseFormat, &pColor->f32Color[0], &convertedColor[0]);
+        }
+        else
+        {
+            memcpy(&convertedColor[0], &pColor->u32Color[0], sizeof(convertedColor));
+        }
+
+        RpmUtil::ConvertClearColorToNativeFormat(baseFormat, viewFormat, &convertedColor[0]);
+
+        // If we can clear with raw format replacement which is more efficient, swizzle it into the order
+        // required and then pack it.
+        if (rawFmtOk)
+        {
+            uint32 swizzledColor[4] = {0};
+            Formats::SwizzleColor(baseFormat, &convertedColor[0], &swizzledColor[0]);
+            Formats::PackRawClearColor(baseFormat, &swizzledColor[0], &packedColor[0]);
+        }
+        else
+        {
+            memcpy(&packedColor[0], &convertedColor[0], sizeof(packedColor));
+        }
     }
 
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, RpmPsClearFirstUserData, 4, &packedColor[0]);
@@ -4342,7 +4378,7 @@ void RsrcProcMgr::SlowClearGraphics(
         const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
 
         // All slices of the same mipmap level can re-use the same viewport state.
-        viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width);
+        viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width >> vpRightShift);
         viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
 
         pCmdBuffer->CmdSetViewports(viewportInfo);
@@ -4355,7 +4391,8 @@ void RsrcProcMgr::SlowClearGraphics(
                                 pBoxes,
                                 mip,
                                 &colorViewInfo,
-                                &bindTargetsInfo);
+                                &bindTargetsInfo,
+                                xRightShift);
     }
 
     // Restore original command buffer state.
@@ -4372,7 +4409,9 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
     const Box*                 pBoxes,
     uint32                     mip,
     ColorTargetViewCreateInfo* pColorViewInfo,
-    BindTargetParams*          pBindTargetsInfo) const
+    BindTargetParams*          pBindTargetsInfo,
+    uint32                     xRightShift
+    ) const
 {
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
@@ -4429,7 +4468,7 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
 
                 for (uint32 i = 0; i < scissorCount; i++)
                 {
-                    ClearImageOneBox(pCmdBuffer, subResInfo, &pBoxes[i], hasBoxes);
+                    ClearImageOneBox(pCmdBuffer, subResInfo, &pBoxes[i], hasBoxes, xRightShift);
                 }
 
                 // Unbind the color-target view and destroy it.
@@ -4483,7 +4522,7 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
                     pBindTargetsInfo->colorTargetCount = 1;
                     pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
 
-                    ClearImageOneBox(pCmdBuffer, subResInfo, pBox, hasBoxes);
+                    ClearImageOneBox(pCmdBuffer, subResInfo, pBox, hasBoxes, xRightShift);
                 }
 
                 // Unbind the color-target view and destroy it.
@@ -4502,7 +4541,9 @@ void RsrcProcMgr::ClearImageOneBox(
     GfxCmdBuffer*          pCmdBuffer,
     const SubResourceInfo& subResInfo,
     const Box*             pBox,
-    bool                   hasBoxes) const
+    bool                   hasBoxes,
+    uint32                 xRightShift
+    ) const
 {
     // Create a scissor state for this mipmap level, slice, and current scissor.
     ScissorRectParams scissorInfo = {};
@@ -4510,14 +4551,14 @@ void RsrcProcMgr::ClearImageOneBox(
 
     if (hasBoxes)
     {
-        scissorInfo.scissors[0].offset.x      = pBox->offset.x;
+        scissorInfo.scissors[0].offset.x      = pBox->offset.x >> xRightShift;
         scissorInfo.scissors[0].offset.y      = pBox->offset.y;
-        scissorInfo.scissors[0].extent.width  = pBox->extent.width;
+        scissorInfo.scissors[0].extent.width  = pBox->extent.width >> xRightShift;
         scissorInfo.scissors[0].extent.height = pBox->extent.height;
     }
     else
     {
-        scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
+        scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width >> xRightShift;
         scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
     }
 
@@ -4544,11 +4585,28 @@ void RsrcProcMgr::SlowClearCompute(
     PAL_ASSERT(dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true));
 
     // Get some useful information about the image.
-    const auto&          createInfo   = dstImage.GetImageCreateInfo();
-    const ImageType      imageType    = dstImage.GetGfxImage()->GetOverrideImageType();
-    uint32               texelScale   = 1;
-    bool                 singleSubRes = false;
-    const SwizzledFormat rawFormat    = RpmUtil::GetRawFormat(dstFormat.format, &texelScale, &singleSubRes);
+    const auto&     createInfo   = dstImage.GetImageCreateInfo();
+    const ImageType imageType    = dstImage.GetGfxImage()->GetOverrideImageType();
+    uint32          texelScale   = 1;
+    uint32          texelShift   = 0;
+    bool            singleSubRes = false;
+    bool            rawFmtOk     = dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres,
+                                                                               dstImageLayout,
+                                                                               true);
+    const auto&          subresInfo = *dstImage.SubresourceInfo(clearRange.startSubres);
+    const SwizzledFormat baseFormat = subresInfo.format;
+    SwizzledFormat       viewFormat = rawFmtOk ? RpmUtil::GetRawFormat(dstFormat.format, &texelScale, &singleSubRes)
+                                               : baseFormat;
+
+    // For packed YUV image use X32_Uint instead of X16_Uint to fill with YUYV.
+    if ((viewFormat.format == ChNumFormat::X16_Uint) && Formats::IsYuvPacked(dstFormat.format))
+    {
+        viewFormat.format  = ChNumFormat::X32_Uint;
+        viewFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+        rawFmtOk           = false;
+        // The extent and offset need to be adjusted to 1/2 size.
+        texelShift         = (pColor->type == ClearColorType::Yuv) ? 1 : 0;
+    }
 
     // These are the only two supported texel scales
     PAL_ASSERT((texelScale == 1) || (texelScale == 3));
@@ -4590,23 +4648,36 @@ void RsrcProcMgr::SlowClearCompute(
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
 #endif
 
-    uint32 convertedColor[4] = {0};
+    // Pack the clear color into the raw format and write it to user data 2-5.
+    uint32 packedColor[4] = {0};
 
-    if (pColor->type == ClearColorType::Float)
+    uint32 convertedColor[4] = {0};
+    if (pColor->type == ClearColorType::Yuv)
     {
-        Formats::ConvertColor(dstFormat, &pColor->f32Color[0], &convertedColor[0]);
+        // If clear color type is Yuv, the image format should used to determine the clear color swizzling and packing
+        // for planar YUV formats since the baseFormat is subresource's format which is not a YUV format.
+        // NOTE: if clear color type is Uint, the client is responsible for:
+        //       1. packing and swizzling clear color for packed YUV formats (e.g. packing in YUYV order for YUY2)
+        //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
+        //          current plane is CbCr).
+        const SwizzledFormat imgFormat = createInfo.swizzledFormat;
+        Formats::ConvertYuvColor(imgFormat, clearRange.startSubres.aspect, &pColor->u32Color[0], &packedColor[0]);
     }
     else
     {
-        memcpy(&convertedColor[0], &pColor->u32Color[0], sizeof(convertedColor));
+        if (pColor->type == ClearColorType::Float)
+        {
+            Formats::ConvertColor(dstFormat, &pColor->f32Color[0], &convertedColor[0]);
+        }
+        else
+        {
+            memcpy(&convertedColor[0], &pColor->u32Color[0], sizeof(convertedColor));
+        }
+
+        uint32 swizzledColor[4] = {0};
+        Formats::SwizzleColor(dstFormat, &convertedColor[0], &swizzledColor[0]);
+        Formats::PackRawClearColor(dstFormat, &swizzledColor[0], &packedColor[0]);
     }
-
-    uint32 swizzledColor[4] = {0};
-    Formats::SwizzleColor(dstFormat, &convertedColor[0], &swizzledColor[0]);
-
-    // Pack the clear color into the raw format and write it to user data 2-5.
-    uint32 packedColor[4] = {0};
-    Formats::PackRawClearColor(dstFormat, &swizzledColor[0], &packedColor[0]);
 
     // Split the clear range into sections with constant mip/array levels and loop over them.
     SubresRange  singleMipRange = { clearRange.startSubres, 1, clearRange.numSlices };
@@ -4659,7 +4730,7 @@ void RsrcProcMgr::SlowClearCompute(
             RpmUtil::BuildImageViewInfo(&imageView,
                                         dstImage,
                                         singleMipRange,
-                                        rawFormat,
+                                        viewFormat,
                                         dstImageLayout,
                                         device.TexOptLevel());
 
@@ -4683,6 +4754,12 @@ void RsrcProcMgr::SlowClearCompute(
                 {
                     clearExtent = pBoxes[i].extent;
                     clearOffset = pBoxes[i].offset;
+                }
+
+                if (texelShift != 0)
+                {
+                    clearExtent.width >>= texelShift;
+                    clearOffset.x     >>= texelShift;
                 }
 
                 // Compute the minimum number of threads to dispatch. Note that only 2D images can have multiple samples and
@@ -4782,6 +4859,8 @@ void RsrcProcMgr::CmdClearColorBuffer(
     const Range*      pRanges
     ) const
 {
+    const auto& settings  = m_pDevice->Parent()->Settings();
+
     ClearColor clearColor = color;
 
     uint32 convertedColor[4] = {0};
@@ -5107,6 +5186,8 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     uint32                      maximumCount
     ) const
 {
+    const auto& settings = m_pDevice->Parent()->Settings();
+
     const ComputePipeline* pGenerationPipeline = GetCmdGenerationPipeline(generator, *pCmdBuffer);
 
     uint32 threadsPerGroup[3] = { };
@@ -5173,10 +5254,11 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     memcpy(pTableMem, &countGpuAddr, sizeof(countGpuAddr));
     pTableMem += 2;
 
-    const auto& settings = m_pDevice->Parent()->GetPlatform()->PlatformSettings();
+    const auto& platformSettings = m_pDevice->Parent()->GetPlatform()->PlatformSettings();
 
-    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
-                             (Util::TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
+    const bool sqttEnabled = ((platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
+                              Util::TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask,
+                                                   GpuProfilerTraceSqtt));
     const bool issueSqttMarkerEvent = (sqttEnabled | m_pDevice->Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 
     // Flag to decide whether to issue THREAD_TRACE_MARKER following generated draw/dispatch commands.
@@ -5500,7 +5582,7 @@ void RsrcProcMgr::ResolveImageCompute(
     ResolveMethod             method
     ) const
 {
-    const auto& device = *m_pDevice->Parent();
+    const auto& device   = *m_pDevice->Parent();
 
     LateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, method);
 
@@ -5620,11 +5702,6 @@ void RsrcProcMgr::ResolveImageCompute(
                                     dstFormat,
                                     dstLayoutCompute,
                                     device.TexOptLevel());
-
-        if (HwlImageUsesCompressedWrites(pUserData))
-        {
-            HwlUpdateDstImageStateMetaData(pCmdBuffer, dstImage, viewRange);
-        }
 
         viewRange.startSubres = srcSubres;
         RpmUtil::BuildImageViewInfo(&imageView[1],
@@ -5937,7 +6014,7 @@ const ComputePipeline* RsrcProcMgr::GetCsResolvePipeline(
 
 // =====================================================================================================================
 // Performs a depth/stencil expand (decompress) on the provided image.
-void RsrcProcMgr::ExpandDepthStencil(
+bool RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*        pCmdBuffer,
     const Image&         image,
     const IMsaaState*    pMsaaState,
@@ -6097,6 +6174,9 @@ void RsrcProcMgr::ExpandDepthStencil(
 
     // Restore command buffer state.
     pCmdBuffer->PopGraphicsState();
+
+    // Compute path was not used
+    return false;
 }
 
 // =====================================================================================================================
@@ -6930,7 +7010,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
 
 // =====================================================================================================================
 // Selects the appropriate Depth Stencil copy pipeline based on usage and samples
-const GraphicsPipeline* RsrcProcMgr::GetCopyDepthStencilMsaaPipeline(
+const GraphicsPipeline* RsrcProcMgr::GetCopyDepthStencilPipeline(
     bool   isDepth,
     bool   isDepthStencil,
     uint32 numSamples
@@ -6941,6 +7021,9 @@ const GraphicsPipeline* RsrcProcMgr::GetCopyDepthStencilMsaaPipeline(
     {
         switch (numSamples)
         {
+        case 1:
+            pGraphicsPipeline = GetGfxPipeline(CopyDepthStencil);
+            break;
         case 2:
             pGraphicsPipeline = GetGfxPipeline(Copy2xMsaaDepthStencil);
             break;
@@ -6963,6 +7046,9 @@ const GraphicsPipeline* RsrcProcMgr::GetCopyDepthStencilMsaaPipeline(
         {
             switch (numSamples)
             {
+            case 1:
+                pGraphicsPipeline = GetGfxPipeline(CopyDepth);
+                break;
             case 2:
                 pGraphicsPipeline = GetGfxPipeline(Copy2xMsaaDepth);
                 break;
@@ -6982,6 +7068,9 @@ const GraphicsPipeline* RsrcProcMgr::GetCopyDepthStencilMsaaPipeline(
         {
             switch (numSamples)
             {
+            case 1:
+                pGraphicsPipeline = GetGfxPipeline(CopyStencil);
+                break;
             case 2:
                 pGraphicsPipeline = GetGfxPipeline(Copy2xMsaaStencil);
                 break;

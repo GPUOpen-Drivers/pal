@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -549,8 +549,8 @@ constexpr Result CollapseResults(Result lhs, Result rhs)
  * ### Files
  * The File class provides an OS-abstracted interface for opening files and reading/writing data in those files.
  * Further, the ElfReadContext and ElfWriteContext classes provide functionality for reading and writing buffers in the
- * [Executable and Linkable Format (ELF)](http://tinyurl.com/2toj8) format.  The ELF utilities can be used in
- * conjunction with File in order to read/write ELF files on disk.
+ * [Executable and Linkable Format (ELF)]
+ * The ELF utilities can be used in conjunction with File in order to read/write ELF files on disk.
  *
  * ### Inline Functions
  * palInlineFuncs.h defines a bunch of simple inline functions that are used throughout PAL and might be useful to

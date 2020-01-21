@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -428,9 +428,9 @@ uint32* UniversalRingSet::WriteNonRlcRestoredRegs(
 {
     const uint32 srdTableBaseLo = LowPart(m_srdTableMem.GpuVirtAddr());
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmCOMPUTE_USER_DATA_0 + InternalTblStartReg,
-                                                             srdTableBaseLo,
-                                                             pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + InternalTblStartReg,
+                                                            srdTableBaseLo,
+                                                            pCmdSpace);
 
     pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_TMPRING_SIZE,
                                                             m_regs.computeScratchRingSize.u32All,

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -57,71 +57,106 @@ Result SvmMgr::Init(
 {
     Result result = Result::Success;
 
+    Platform* pPlatform = m_pDevice->GetPlatform();
     const GpuMemoryProperties& memProps = m_pDevice->MemoryProperties();
-    const gpusize svmVaSize = m_pDevice->GetPlatform()->GetMaxSizeOfSvm();
-    // Create and initialize the suballocator
-    m_pSubAllocator = PAL_NEW(BestFitAllocator<Platform>, m_pDevice->GetPlatform(), AllocInternal)
-                               (m_pDevice->GetPlatform(), svmVaSize, memProps.fragmentSize);
-
-    if (m_pSubAllocator == nullptr)
-    {
-        result = Result::ErrorOutOfMemory;
-    }
-    if (result == Result::Success)
-    {
-        result = m_pSubAllocator->Init();
-    }
+    const VaRangeInfo& defaultRange = memProps.vaRange[static_cast<uint32>(VaPartition::Default)];
+    m_vaStart = defaultRange.baseVirtAddr;
+    gpusize vaEnd = m_vaStart + defaultRange.size;
+    m_vaSize = pPlatform->GetMaxSizeOfSvm();
 
     if (result == Result::Success)
     {
-        if (m_pDevice->GetPlatform()->GetSvmRangeStart() == 0)
+        gpusize reservedVaEnd = 0u;
+        // Loop through all the devices and skip any VA ranges that were already reserved for SVM
+        // This is to guarantee that the SVM space of each device doesn't overlap with those of other devices
+        for (uint32 i = 0; i < pPlatform->GetDeviceCount(); i++)
         {
-            const gpusize vaStart = memProps.vaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr;
-            const gpusize vaEnd   = memProps.vaRange[static_cast<uint32>(VaPartition::Default)].size;
-            const gpusize vaAlignment = (1ull << 32u);
+            const Device* pDevice = pPlatform->GetDevice(i);
+            const VaRangeInfo& svmRange = pDevice->MemoryProperties().vaRange[static_cast<uint32>(VaPartition::Svm)];
 
-            for (gpusize vaAddr = vaStart; vaAddr <= (vaEnd - svmVaSize); vaAddr += vaAlignment)
+            const gpusize svmVaStart = svmRange.baseVirtAddr;
+            const gpusize svmVaEnd = svmVaStart + svmRange.size;
+
+            if (svmRange.size != 0)
             {
-                gpusize vaAllocated = 0u;
-                result = VirtualReserve(static_cast<size_t>(svmVaSize),
-                                        reinterpret_cast<void**>(&vaAllocated),
-                                        reinterpret_cast<void*>(vaAddr));
+                reservedVaEnd = Util::Max(reservedVaEnd, svmVaEnd);
+            }
+        }
+
+        constexpr gpusize SvmVaAlignment = (1ull << 32u);
+        m_vaStart = Util::Pow2Align(Util::Max(m_vaStart, reservedVaEnd), SvmVaAlignment);
+        PAL_ASSERT((vaEnd - m_vaStart) >= m_vaSize);
+        for (; m_vaStart <= (vaEnd - m_vaSize); m_vaStart += SvmVaAlignment)
+        {
+            gpusize cpuVaAllocated = 0u;
+            gpusize gpuVaAllocated = 0u;
+
+            // Try to reserve the range on the CPU side
+            result = VirtualReserve(static_cast<size_t>(m_vaSize),
+                                    reinterpret_cast<void**>(&cpuVaAllocated),
+                                    reinterpret_cast<void*>(m_vaStart));
+
+            // Make sure we get the address that we requested
+            if ((result == Result::Success) &&
+                (cpuVaAllocated != m_vaStart))
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+
+            if (result == Result::Success)
+            {
+                // Try to reserve the range on the GPU side
+                result = m_pDevice->ReserveGpuVirtualAddress(VaPartition::Svm, m_vaStart, m_vaSize, false,
+                                                             VirtualGpuMemAccessMode::Undefined, &gpuVaAllocated);
 
                 // Make sure we get the address that we requested
-                if (vaAllocated != vaAddr)
+                if ((result == Result::Success) &&
+                    (gpuVaAllocated != m_vaStart))
                 {
-                    result = Result::ErrorOutOfMemory;
-                }
-
-                if (result == Result::Success)
-                {
-                    gpusize gpuVaAllocated = 0u;
-                    result = m_pDevice->ReserveGpuVirtualAddress(VaPartition::Svm, vaAddr, svmVaSize, false,
-                                                                 VirtualGpuMemAccessMode::Undefined, &gpuVaAllocated);
-                    if (result == Result::Success)
-                    {
-                        pSvmVaInfo->baseVirtAddr = vaAddr;
-                        pSvmVaInfo->size         = svmVaSize;
-                        m_pDevice->GetPlatform()->SetSvmRangeStart(vaAddr);
-                        break;
-                    }
-                    else
-                    {
-                        result = VirtualRelease(reinterpret_cast<void*>(vaAddr),
-                                                static_cast<size_t>(svmVaSize));
-                    }
+                    result = Result::ErrorOutOfGpuMemory;
                 }
             }
+
+            if (result == Result::Success)
+            {
+                pSvmVaInfo->baseVirtAddr = m_vaStart;
+                pSvmVaInfo->size         = m_vaSize;
+                break;
+            }
+            // If we weren't able to reserve the specified VA range on the CPU and GPU
+            // Release any reserved VA ranges and try again with a different one
+            else
+            {
+                if (cpuVaAllocated != 0)
+                {
+                    result = VirtualRelease(reinterpret_cast<void*>(cpuVaAllocated),
+                                            static_cast<size_t>(m_vaSize));
+                    PAL_ALERT(result != Result::Success);
+                }
+
+                if (gpuVaAllocated != 0)
+                {
+                    result = m_pDevice->FreeGpuVirtualAddress(gpuVaAllocated, m_vaSize);
+                    PAL_ALERT(result != Result::Success);
+                }
+
+                result = Result::Success;
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        // Create and initialize the suballocator
+        m_pSubAllocator = PAL_NEW(BestFitAllocator<Platform>, pPlatform, AllocInternal)
+                                (pPlatform, m_vaSize, memProps.fragmentSize);
+        if (m_pSubAllocator != nullptr)
+        {
+            result = m_pSubAllocator->Init();
         }
         else
         {
-            pSvmVaInfo->baseVirtAddr = m_pDevice->GetPlatform()->GetSvmRangeStart();
-            pSvmVaInfo->size         = svmVaSize;
-        }
-        if (result == Result::Success)
-        {
-            m_vaStart = pSvmVaInfo->baseVirtAddr;
-            m_vaSize  = pSvmVaInfo->size;
+            result = Result::ErrorOutOfMemory;
         }
     }
 
@@ -140,7 +175,7 @@ Result SvmMgr::Cleanup()
 {
     Result result = Result::Success;
 
-    if (m_pDevice->GetPlatform()->GetSvmRangeStart() != 0)
+    if (m_vaStart != 0)
     {
         result = m_pDevice->FreeGpuVirtualAddress(m_vaStart, m_vaSize);
     }

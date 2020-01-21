@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -116,7 +116,7 @@ namespace DevDriver
             }
 
             size_t GetEventDataOffset() const { return sizeof(ProviderDescriptionHeader); }
-            size_t GetEventDataSize() const { return ((Platform::Pow2Align<size_t>(numEvents, 32) >> 5) * sizeof(uint32)); }
+            size_t GetEventDataSize() const { return ((Platform::Pow2Align<size_t>(numEvents, 32) / 32) * sizeof(uint32)); }
             size_t GetEventDescriptionOffset() const
             {
                 return (GetEventDataOffset() + GetEventDataSize());
@@ -271,6 +271,8 @@ namespace DevDriver
             EventDataUpdatePayload(const void* pEventData, size_t eventDataSize)
                 : header(EventMessage::EventDataUpdate)
             {
+                DD_ASSERT(eventDataSize <= kMaxEventDataSize);
+
                 const size_t clampedEventDataSize = Platform::Min(eventDataSize, kMaxEventDataSize);
                 memcpy(eventData, pEventData, clampedEventDataSize);
 
@@ -305,5 +307,207 @@ namespace DevDriver
         };
 
         DD_CHECK_SIZE(EventDataUpdatePayload, kMaxEventDataSize + sizeof(EventHeader));
+
+        enum class EventTokenType : uint8
+        {
+            Provider  = 0,
+            Data      = 1,
+            Timestamp = 2,
+            TimeDelta = 3,
+
+            Count
+        };
+
+        // We have to be able to fit the token type in the first 4 bits of an event header
+        static_assert(static_cast<uint8>(EventTokenType::Count) < 16, "Event token type no longer fits in 4 bits!");
+
+        struct EventTokenHeader
+        {
+            struct
+            {
+                uint8 id    : 4;
+                uint8 delta : 4;
+            };
+        };
+
+        DD_CHECK_SIZE(EventTokenHeader, 1);
+
+        // @TODO: This struct has some extra padding that could be removed
+        // Token used to mark the beginning of a new event stream from an event provider
+        struct EventProviderToken
+        {
+            EventProviderId id;        // Identifier for the event provider
+            uint32          padding;   // Padding bytes
+            uint64          frequency; // Frequency of "timestamp"
+            uint64          timestamp; // Timestamp associated with the start of the event stream
+        };
+
+        DD_CHECK_SIZE(EventProviderToken, 24);
+
+        // Token used to wrap event data for the event specified by "id"
+        struct EventDataToken
+        {
+            uint32 id;   /// Event identifier
+            uint32 size; /// Size in bytes of the event data that follows this token
+        };
+
+        DD_CHECK_SIZE(EventDataToken, 8);
+
+        // Token that contains complete timestamp information, including the frequency
+        struct EventTimestampToken
+        {
+            uint64 frequency;
+            uint64 timestamp;
+        };
+
+        DD_CHECK_SIZE(EventTimestampToken, 16);
+
+        // Token that contains a variable size delta from the last timestamp value in the stream
+        struct EventTimeDeltaToken
+        {
+            uint8 numBytes; // Number of bytes used to encode the time delta (Maximum of 6)
+        };
+
+        DD_CHECK_SIZE(EventTimeDeltaToken, 1);
+
+        // Maximum number of bytes contained within an event chunk
+        DD_STATIC_CONST size_t kEventChunkMaxDataSize = (4 * 1024 * 1024);
+
+        struct EventChunk
+        {
+            size_t dataSize;
+            uint8  data[kEventChunkMaxDataSize];
+
+            // Writes the provided event data into the event chunk
+            // Returns InsufficientMemory if the data won't fit
+            Result WriteEventDataRaw(const void* pEventData, size_t eventDataSize)
+            {
+                Result result = Result::Success;
+
+                const size_t bytesRemaining = (sizeof(data) - dataSize);
+                if (eventDataSize <= bytesRemaining)
+                {
+                    memcpy(data + dataSize, pEventData, eventDataSize);
+                    dataSize += eventDataSize;
+                }
+                else
+                {
+                    result = Result::InsufficientMemory;
+                }
+
+                return result;
+            }
+
+            // Writes the provided event provider token information into the event chunk
+            // Returns InsufficientMemory if the data won't fit
+            Result WriteEventProviderToken(
+                EventProviderId providerId,
+                uint64          frequency,
+                uint64          timestamp)
+            {
+                EventTokenHeader header = {};
+                header.id               = static_cast<uint8>(EventTokenType::Provider);
+                header.delta            = 0;
+
+                Result result = WriteEventDataRaw(&header, sizeof(header));
+
+                if (result == Result::Success)
+                {
+                    EventProviderToken token = {};
+                    token.id             = providerId;
+                    token.frequency      = frequency;
+                    token.timestamp      = timestamp;
+
+                    result = WriteEventDataRaw(&token, sizeof(token));
+                }
+
+                return result;
+            }
+
+            // Writes the provided event data token information into the event chunk
+            // Returns InsufficientMemory if the data won't fit
+            Result WriteEventDataToken(
+                uint8          delta,
+                uint32         eventId,
+                const void*    pEventData,
+                size_t         eventDataSize)
+            {
+                EventTokenHeader header = {};
+                header.id               = static_cast<uint8>(EventTokenType::Data);
+                header.delta            = delta;
+
+                Result result = WriteEventDataRaw(&header, sizeof(header));
+
+                if (result == Result::Success)
+                {
+                    EventDataToken token = {};
+                    token.id             = eventId;
+                    token.size           = static_cast<uint32>(eventDataSize);
+
+                    result = WriteEventDataRaw(&token, sizeof(token));
+                }
+
+                if ((result == Result::Success) && (eventDataSize > 0))
+                {
+                    result = WriteEventDataRaw(pEventData, eventDataSize);
+                }
+
+                return result;
+            }
+
+            // Writes a timestamp token into the event chunk
+            // Returns InsufficientMemory if the data won't fit
+            Result WriteEventTimestampToken(
+                uint64 frequency,
+                uint64 timestamp)
+            {
+                EventTokenHeader header = {};
+                header.id               = static_cast<uint8>(EventTokenType::Timestamp);
+                header.delta            = 0;
+
+                Result result = WriteEventDataRaw(&header, sizeof(header));
+
+                if (result == Result::Success)
+                {
+                    EventTimestampToken token = {};
+                    token.frequency           = frequency;
+                    token.timestamp           = timestamp;
+
+                    result = WriteEventDataRaw(&token, sizeof(token));
+                }
+
+                return result;
+            }
+
+            // Writes a time delta token into the event chunk
+            // Returns InsufficientMemory if the data won't fit
+            Result WriteEventTimeDeltaToken(
+                uint8  numBytes,
+                uint64 timeDelta)
+            {
+                DD_ASSERT(numBytes > 0);
+
+                EventTokenHeader header = {};
+                header.id               = static_cast<uint8>(EventTokenType::TimeDelta);
+                header.delta            = 0;
+
+                Result result = WriteEventDataRaw(&header, sizeof(header));
+
+                if (result == Result::Success)
+                {
+                    EventTimeDeltaToken token = {};
+                    token.numBytes            = numBytes;
+
+                    result = WriteEventDataRaw(&token, sizeof(token));
+                }
+
+                if (result == Result::Success)
+                {
+                    result = WriteEventDataRaw(&timeDelta, numBytes);
+                }
+
+                return result;
+            }
+        };
     }
 }

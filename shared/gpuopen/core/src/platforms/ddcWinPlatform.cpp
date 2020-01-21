@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -197,7 +197,6 @@ namespace DevDriver
             Result result = Result::Unavailable;
 
             // SetThreadDescription is only available on Windows 10 and above.
-            // See: https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreaddescription
 
             // We load the thread naming function dynamically to avoid issues when the current OS doesn't have
             // support for the function.
@@ -271,7 +270,6 @@ namespace DevDriver
 
         // Loads a DLL with the specified name into this process.  The system will search for the DLL according to the
         // documentation available here:
-        // https://docs.microsoft.com/en-us/windows/desktop/api/libloaderapi/nf-libloaderapi-loadlibrarya
         Result Library::Load(
             const char* pLibraryName)
         {
@@ -281,7 +279,6 @@ namespace DevDriver
             // friendly to UWP applications).
             // Note: GetModuleHandleEx is used instead of GetModuleHandle because that allows us to avoid a race condition, as
             // well as increment the DLL's reference count.  See the documentation here:
-            // https://docs.microsoft.com/en-us/windows/desktop/api/libloaderapi/nf-libloaderapi-getmodulehandleexa
 
             constexpr uint32 Flags = 0;
             if (GetModuleHandleExA(Flags, pLibraryName, &m_hLib) == FALSE)
@@ -454,6 +451,40 @@ namespace DevDriver
         uint64 GetCurrentTimeInMs()
         {
             return GetTickCount64();
+        }
+
+        uint64 QueryTimestampFrequency()
+        {
+            uint64 frequency = 0;
+            LARGE_INTEGER perfFrequency = {};
+            const BOOL result = QueryPerformanceFrequency(&perfFrequency);
+            if (result)
+            {
+                frequency = perfFrequency.QuadPart;
+            }
+            else
+            {
+                DD_ASSERT_REASON("Failed to query performance counter frequency!");
+            }
+
+            return frequency;
+        }
+
+        uint64 QueryTimestamp()
+        {
+            uint64 timestamp = 0;
+            LARGE_INTEGER perfTimestamp = {};
+            const BOOL result = QueryPerformanceCounter(&perfTimestamp);
+            if (result)
+            {
+                timestamp = perfTimestamp.QuadPart;
+            }
+            else
+            {
+                DD_ASSERT_REASON("Failed to query performance counter timestamp!");
+            }
+
+            return timestamp;
         }
 
         void Sleep(uint32 millisecTimeout)

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -78,28 +78,28 @@ public:
         const DynamicStageInfo& psStageInfo) const;
 
     template <bool UseLoadIndexPath>
-    uint32* WriteContextCommands(CmdStream* pCmdStream, uint32*  pCmdSpace) const;
+    uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_commands.streamOut.vgtStrmoutConfig; }
-    regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_commands.streamOut.vgtStrmoutBufferConfig; }
+    regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_regs.context.vgtStrmoutConfig; }
+    regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_regs.context.vgtStrmoutBufferConfig; }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const
-        { return m_commands.streamOut.stride[idx].vgtStrmoutVtxStride; }
+        { return m_regs.context.vgtStrmoutVtxStride[idx]; }
 
-    regSPI_SHADER_Z_FORMAT SpiShaderZFormat() const { return m_commands.context.spiShaderZFormat; }
-    regPA_CL_VS_OUT_CNTL PaClVsOutCntl() const { return m_commands.context.paClVsOutCntl; }
-    regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_spiVsOutConfig; }
-    regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_spiPsInControl; }
+    regSPI_SHADER_Z_FORMAT SpiShaderZFormat() const { return m_regs.context.spiShaderZFormat; }
+    regPA_CL_VS_OUT_CNTL PaClVsOutCntl() const { return m_regs.context.paClVsOutCntl; }
+    regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_regs.context.spiVsOutConfig; }
+    regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_regs.context.spiPsInControl; }
 
     gpusize PsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_commands.sh.spiShaderPgmLoPs.bits.MEM_BASE,
-                                  m_commands.sh.spiShaderPgmHiPs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoPs.bits.MEM_BASE,
+                                  m_regs.sh.spiShaderPgmHiPs.bits.MEM_BASE);
     }
 
     gpusize VsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_commands.sh.spiShaderPgmLoVs.bits.MEM_BASE,
-                                  m_commands.sh.spiShaderPgmHiVs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoVs.bits.MEM_BASE,
+                                  m_regs.sh.spiShaderPgmHiVs.bits.MEM_BASE);
     }
 
     const ShaderStageInfo& StageInfoVs() const { return m_stageInfoVs; }
@@ -108,97 +108,58 @@ public:
     bool UsesStreamOut() const { return (VgtStrmoutConfig().u32All != 0); }
 
 private:
-    void BuildPm4Headers(bool enableLoadIndexPath, uint32 interpolatorCount);
+    const Device&  m_device;
 
-    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
-    struct Pm4Commands
+    struct
     {
         struct
         {
-            PM4CMDSETDATA               hdrSpiShaderPgmVs;
             regSPI_SHADER_PGM_LO_VS     spiShaderPgmLoVs;
             regSPI_SHADER_PGM_HI_VS     spiShaderPgmHiVs;
             regSPI_SHADER_PGM_RSRC1_VS  spiShaderPgmRsrc1Vs;
             regSPI_SHADER_PGM_RSRC2_VS  spiShaderPgmRsrc2Vs;
 
-            PM4CMDSETDATA                 hdrSpiShaderUserDataVs;
-            regSPI_SHADER_USER_DATA_VS_1  spiShaderUserDataLoVs;
-
-            PM4CMDSETDATA               hdrSpiSHaderPgmPs;
             regSPI_SHADER_PGM_LO_PS     spiShaderPgmLoPs;
             regSPI_SHADER_PGM_HI_PS     spiShaderPgmHiPs;
             regSPI_SHADER_PGM_RSRC1_PS  spiShaderPgmRsrc1Ps;
             regSPI_SHADER_PGM_RSRC2_PS  spiShaderPgmRsrc2Ps;
 
-            PM4CMDSETDATA                 hdrSpiShaderUserDataPs;
-            regSPI_SHADER_USER_DATA_PS_1  spiShaderUserDataLoPs;
+            regSPI_SHADER_USER_DATA_VS_0  userDataInternalTableVs;
+            regSPI_SHADER_USER_DATA_PS_0  userDataInternalTablePs;
         } sh;
 
         struct
         {
-            PM4CMDSETDATA                hdrOutFormat;
-            regSPI_SHADER_POS_FORMAT     spiShaderPosFormat;
-            regSPI_SHADER_Z_FORMAT       spiShaderZFormat;
-            regSPI_SHADER_COL_FORMAT     spiShaderColFormat;
+            regSPI_SHADER_POS_FORMAT  spiShaderPosFormat;
+            regSPI_SHADER_Z_FORMAT    spiShaderZFormat;
+            regSPI_SHADER_COL_FORMAT  spiShaderColFormat;
+            regPA_CL_VS_OUT_CNTL      paClVsOutCntl;
+            regVGT_PRIMITIVEID_EN     vgtPrimitiveIdEn;
+            regSPI_BARYC_CNTL         spiBarycCntl;
+            regSPI_PS_INPUT_ENA       spiPsInputEna;
+            regSPI_PS_INPUT_ADDR      spiPsInputAddr;
 
-            PM4CMDSETDATA                hdrVsOutCntl;
-            regPA_CL_VS_OUT_CNTL         paClVsOutCntl;
+            regVGT_STRMOUT_CONFIG         vgtStrmoutConfig;
+            regVGT_STRMOUT_BUFFER_CONFIG  vgtStrmoutBufferConfig;
+            regVGT_STRMOUT_VTX_STRIDE_0   vgtStrmoutVtxStride[MaxStreamOutTargets];
 
-            PM4CMDSETDATA                hdrPrimId;
-            regVGT_PRIMITIVEID_EN        vgtPrimitiveIdEn;
+            uint32  interpolatorCount;
+            regSPI_PS_INPUT_CNTL_0  spiPsInputCntl[MaxPsInputSemantics];
 
-            PM4CMDSETDATA                hdrBarycCntl;
-            regSPI_BARYC_CNTL            spiBarycCntl;
-
-            PM4CMDSETDATA                hdrPsIn;
-            regSPI_PS_INPUT_ENA          spiPsInputEna;
-            regSPI_PS_INPUT_ADDR         spiPsInputAddr;
-
-            // SPI PS input control registers: between 0 and 32 of these will actually be written.
-            // NOTE: Should always be the last bunch of registers in the PM4 image because the amount of regs which
-            // will actually be written varies between pipelines (based on SC output from compiling the shader.
-            PM4CMDSETDATA                hdrPsInputs;
-            regSPI_PS_INPUT_CNTL_0       spiPsInputCntl[MaxPsInputSemantics];
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
+            // Note that SPI_VS_OUT_CONFIG and SPI_PS_IN_CONTROL are not written in WriteContextCommands nor
+            // uploaded as part of the LOAD_INDEX path.  The reason for this is that the command buffer performs
+            // an optimization to avoid context rolls by sometimes sacrificing param-cache space to avoid cases
+            // where these two registers' values change at a high frequency between draws.
+            regSPI_VS_OUT_CONFIG  spiVsOutConfig;
+            regSPI_PS_IN_CONTROL  spiPsInControl;
         } context;
 
         struct
         {
-            PM4CMDSETDATA                 hdrStrmoutCfg;
-            regVGT_STRMOUT_CONFIG         vgtStrmoutConfig;
-            regVGT_STRMOUT_BUFFER_CONFIG  vgtStrmoutBufferConfig;
-
-            struct
-            {
-                PM4CMDSETDATA                hdrVgtStrmoutVtxStride;
-                regVGT_STRMOUT_VTX_STRIDE_0  vgtStrmoutVtxStride;
-            } stride[MaxStreamOutTargets];
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
-        } streamOut;
-
-        struct
-        {
-            PM4CMDSETDATA                       hdrPgmRsrc3Vs;
             regSPI_SHADER_PGM_RSRC3_VS__CI__VI  spiShaderPgmRsrc3Vs;
-
-            PM4CMDSETDATA                       hdrPgmRsrc3Ps;
             regSPI_SHADER_PGM_RSRC3_PS__CI__VI  spiShaderPgmRsrc3Ps;
         } dynamic;
-    };
-
-    const Device&  m_device;
-    Pm4Commands    m_commands;
-
-    // As an optimization to avoid context rolls by sacrificing parameter cache, these registers are values are forced
-    // to current maximum and written at SwitchGraphicsPipeline.
-    regSPI_VS_OUT_CONFIG  m_spiVsOutConfig;
-    regSPI_PS_IN_CONTROL  m_spiPsInControl;
+    }  m_regs;
 
     const PerfDataInfo*const  m_pVsPerfDataInfo; // VS performance data information.
     const PerfDataInfo*const  m_pPsPerfDataInfo; // PS performance data information.

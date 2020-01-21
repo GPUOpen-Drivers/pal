@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1949,28 +1949,15 @@ BOOL_32 Gfx10Lib::IsValidDisplaySwizzleMode(
 
     if (m_settings.isDcn2)
     {
-        switch (pIn->swizzleMode)
+        const UINT_32 swizzleMask = 1 << pIn->swizzleMode;
+
+        if (pIn->bpp < 64)
         {
-            case ADDR_SW_4KB_D:
-            case ADDR_SW_4KB_D_X:
-            case ADDR_SW_64KB_D:
-            case ADDR_SW_64KB_D_T:
-            case ADDR_SW_64KB_D_X:
-                support = (pIn->bpp == 64);
-                break;
-
-            case ADDR_SW_LINEAR:
-            case ADDR_SW_4KB_S:
-            case ADDR_SW_4KB_S_X:
-            case ADDR_SW_64KB_S:
-            case ADDR_SW_64KB_S_T:
-            case ADDR_SW_64KB_S_X:
-            case ADDR_SW_64KB_R_X:
-                support = (pIn->bpp <= 64);
-                break;
-
-            default:
-                break;
+            support = (Dcn2NonBpp64SwModeMask & swizzleMask) ? TRUE : FALSE;
+        }
+        else if (pIn->bpp == 64)
+        {
+            support = (Dcn2Bpp64SwModeMask & swizzleMask) ? TRUE : FALSE;
         }
     }
     else

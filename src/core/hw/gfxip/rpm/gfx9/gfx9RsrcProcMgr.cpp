@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1200,7 +1200,7 @@ ImageAspect RsrcProcMgr::DecodeImageViewSrdAspect(
 // Function to expand (decompress) hTile data associated with the given image / range.  Supports use of a compute
 // queue expand for ASICs that support texture compatability of depth surfaces.  Falls back to the independent layer
 // implementation for other ASICs
-void RsrcProcMgr::ExpandDepthStencil(
+bool RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*                pCmdBuffer,
     const Pal::Image&            image,
     const IMsaaState*            pMsaaState,
@@ -1213,6 +1213,8 @@ void RsrcProcMgr::ExpandDepthStencil(
     const auto*  pGfxImage           = reinterpret_cast<const Image*>(image.GetGfxImage());
     const bool   supportsComputePath = pCmdBuffer->IsComputeSupported() &&
                                        pGfxImage->SupportsComputeDecompress(range.startSubres);
+
+    bool usedCompute = false;
 
     // To do a compute expand, we need to either
     //   a) Be on the compute queue.  In this case we can't do a gfx decompress because it'll hang.
@@ -1321,6 +1323,8 @@ void RsrcProcMgr::ExpandDepthStencil(
                                                           pCmdBuffer->TimestampGpuVirtAddr(),
                                                           pComputeCmdSpace);
             pComputeCmdStream->CommitCommands(pComputeCmdSpace);
+
+            usedCompute = true;
         }
     }
     else
@@ -1328,6 +1332,8 @@ void RsrcProcMgr::ExpandDepthStencil(
         // Do the expand the legacy way.
         Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pQuadSamplePattern, range);
     }
+
+    return usedCompute;
 }
 
 // =====================================================================================================================
@@ -1425,7 +1431,7 @@ void RsrcProcMgr::HwlFastColorClear(
 
 // =====================================================================================================================
 // An optimized copy does a memcpy of the source fmask and cmask data to the destination image after it is finished.
-// See the HwlUpdateDstImageFmaskMetaData function.  For this to work, the layout needs to be exactly the same between
+// See the HwlFixupCopyDstImageMetaData function.  For this to work, the layout needs to be exactly the same between
 // the two -- including the swizzle modes and pipe-bank XOR values associated with the fmask data.
 bool RsrcProcMgr::HwlUseOptimizedImageCopy(
     const Pal::Image&  srcImage,
@@ -1466,52 +1472,89 @@ bool RsrcProcMgr::HwlUseOptimizedImageCopy(
 }
 
 // =====================================================================================================================
-// On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation while copying
-// the data from src to dest, which means dst needs to have fmask of src.  Note that updates to this function need to
-// be reflected in HwlUseOptimizedImageCopy as well.
-void RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
+// This function fixes up Cmask/Fmask metadata state: either copy from src image or fix up to uncompressed state.
+// - For Fmask optimized MSAA copy where we we preserve fmask fragmentation, copy Cmask/Fmask from source image to dst.
+// - For image is created with fullCopyDstOnly=1, fix up Cmask/Fmask to uncompressed state.
+void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     GfxCmdBuffer*          pCmdBuffer,
-    const Pal::Image&      srcImage,
+    const Pal::Image*      pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
     const Pal::Image&      dstImage,
-    uint32                 regionCount,
+    ImageLayout            dstImageLayout,
     const ImageCopyRegion* pRegions,
-    uint32                 flags
+    uint32                 regionCount,
+    bool                   isFmaskCopyOptimized
     ) const
 {
-    auto*const   pStream      = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
     const auto&  gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
-    const auto*  pDstFmask    = gfx9DstImage.GetFmask();
 
-    // Copy the src fmask and cmask data to destination
-    if (pDstFmask != nullptr)
+    if (gfx9DstImage.HasFmaskData())
     {
-        const auto&       gfx9SrcImage = static_cast<const Gfx9::Image&>(*srcImage.GetGfxImage());
-        const auto*       pSrcFmask    = gfx9SrcImage.GetFmask();
-        const auto&       srcBoundMem  = srcImage.GetBoundGpuMemory();
-        const IGpuMemory* pSrcMemory   = reinterpret_cast<const IGpuMemory*>(srcBoundMem.Memory());
+        if (isFmaskCopyOptimized)
+        {
+            PAL_ASSERT(pSrcImage != nullptr);
 
-        const auto&       dstBoundMem  = dstImage.GetBoundGpuMemory();
-        const IGpuMemory* pDstMemory   = reinterpret_cast<const IGpuMemory*>(dstBoundMem.Memory());
+            // On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation
+            // while copying the data from src to dest, which means dst needs to have fmask of src.  Note that updates
+            // to this function need to be reflected in HwlUseOptimizedImageCopy as well.
 
-        // Our calculation of "srcCopySize" below assumes that fmask memory comes before the cmask memory in
-        // our orginzation of the image data.
-        PAL_ASSERT(pSrcFmask->MemoryOffset() < gfx9SrcImage.GetCmask()->MemoryOffset());
-        PAL_ASSERT(pDstFmask->MemoryOffset() < gfx9DstImage.GetCmask()->MemoryOffset());
+            // Copy the src fmask and cmask data to destination
+            const auto&       gfx9SrcImage = static_cast<const Gfx9::Image&>(*pSrcImage->GetGfxImage());
+            const auto*       pSrcFmask    = gfx9SrcImage.GetFmask();
+            const auto&       srcBoundMem  = pSrcImage->GetBoundGpuMemory();
+            const IGpuMemory* pSrcMemory   = reinterpret_cast<const IGpuMemory*>(srcBoundMem.Memory());
 
-        // dstImgMemLayout metadata size comparison to srcImgMemLayout is checked by caller.
-        const ImageMemoryLayout& srcImgMemLayout = srcImage.GetMemoryLayout();
+            const auto*       pDstFmask    = gfx9DstImage.GetFmask();
+            const auto&       dstBoundMem  = dstImage.GetBoundGpuMemory();
+            const IGpuMemory* pDstMemory   = reinterpret_cast<const IGpuMemory*>(dstBoundMem.Memory());
 
-        const gpusize srcCopySize =
-            (srcImgMemLayout.metadataSize - (pSrcFmask->MemoryOffset() - srcImgMemLayout.metadataOffset)) +
-            srcImgMemLayout.metadataHeaderSize;
+            // Our calculation of "srcCopySize" below assumes that fmask memory comes before the cmask memory in
+            // our orginzation of the image data.
+            PAL_ASSERT(pSrcFmask->MemoryOffset() < gfx9SrcImage.GetCmask()->MemoryOffset());
+            PAL_ASSERT(pDstFmask->MemoryOffset() < gfx9DstImage.GetCmask()->MemoryOffset());
 
-        MemoryCopyRegion memcpyRegion = {};
-        memcpyRegion.srcOffset = srcBoundMem.Offset() + pSrcFmask->MemoryOffset();
-        memcpyRegion.dstOffset = dstBoundMem.Offset() + pDstFmask->MemoryOffset();
-        memcpyRegion.copySize  = srcCopySize;
+            // dstImgMemLayout metadata size comparison to srcImgMemLayout is checked by caller.
+            const ImageMemoryLayout& srcImgMemLayout = pSrcImage->GetMemoryLayout();
 
-        // Do the copy
-        pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
+            const gpusize srcCopySize =
+                (srcImgMemLayout.metadataSize - (pSrcFmask->MemoryOffset() - srcImgMemLayout.metadataOffset)) +
+                srcImgMemLayout.metadataHeaderSize;
+
+            MemoryCopyRegion memcpyRegion = {};
+            memcpyRegion.srcOffset = srcBoundMem.Offset() + pSrcFmask->MemoryOffset();
+            memcpyRegion.dstOffset = dstBoundMem.Offset() + pDstFmask->MemoryOffset();
+            memcpyRegion.copySize  = srcCopySize;
+
+            // Do the copy
+            pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
+        }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
+        else
+        {
+            auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+
+            PAL_ASSERT(dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0);
+
+            // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst";
+            // if the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
+            for (uint32 idx = 0; idx < regionCount; ++idx)
+            {
+                const auto& copyRegion  = pRegions[idx];
+                const auto* pSubResInfo = dstImage.SubresourceInfo(copyRegion.dstSubres);
+
+                SubresRange range = {};
+
+                range.startSubres.aspect     = copyRegion.dstSubres.aspect;
+                range.startSubres.mipLevel   = copyRegion.dstSubres.mipLevel;
+                range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
+                range.numMips                = 1;
+                range.numSlices              = copyRegion.numSlices;
+
+                // Since color data is no longer compressed set CMask and FMask to fully uncompressed.
+                InitCmask(pCmdBuffer, pStream, gfx9DstImage, range);
+                ClearFmask(pCmdBuffer, gfx9DstImage, range, Gfx9Fmask::GetPackedExpandedValue(gfx9DstImage));
+            }
+        }
+#endif
     }
 }
 
@@ -1616,8 +1659,7 @@ void RsrcProcMgr::UpdateBoundFastClearDepthStencil(
             // Re-write the ZRANGE_PRECISION value for the waTcCompatZRange workaround. Does not require a COND_EXEC
             // checking the metadata because we know the fast clear value here. And we only need to Re-write for the
             // case that clear Z to 0.0f
-            if ((pView->GetImage()->HasWaTcCompatZRangeMetaData()) && ((metaDataClearFlags & HtileAspectDepth) != 0) &&
-                (depth == 0.0f))
+            if ((depth == 0.0f) && ((metaDataClearFlags & HtileAspectDepth) != 0))
             {
                 pCmdSpace = pView->UpdateZRangePrecision(false, pStream, pCmdSpace);
             }
@@ -2699,9 +2741,6 @@ void RsrcProcMgr::DccDecompressOnCompute(
         } // end loop through all the slices
     }
 
-    // We have to mark this mip level as actually being DCC decompressed
-    image.UpdateDccStateMetaData(pCmdStream, range, false, engineType, PredDisable);
-
     // Make sure that the decompressed image data has been written before we start fixing up DCC memory.
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
     pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
@@ -2765,7 +2804,7 @@ void RsrcProcMgr::DccDecompress(
 
             if (metaDataOffset)
             {
-                pGpuMem = image.Parent()->GetBoundGpuMemory().Memory();
+                pGpuMem         = image.Parent()->GetBoundGpuMemory().Memory();
                 metaDataOffset += image.Parent()->GetBoundGpuMemory().Offset();
             }
 
@@ -2779,6 +2818,9 @@ void RsrcProcMgr::DccDecompress(
                              pGpuMem,
                              metaDataOffset);
         }
+
+        // We have to mark this mip level as actually being DCC decompressed
+        image.UpdateDccStateMetaData(pCmdStream, range, false, pCmdBuffer->GetEngineType(), PredDisable);
 
         // Clear the FCE meta data over the given range because a DCC decompress implies a FCE. Note that it doesn't
         // matter that we're using the truncated range here because we mips that don't use DCC shouldn't need a FCE
@@ -3527,16 +3569,6 @@ void Gfx9RsrcProcMgr::ClearDccCompute(
     {
         dstImage.CpuProcessDccEq(clearRange, clearCode, clearPurpose);
     }
-
-    const Pm4Predicate packetPredicate =
-        static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
-
-    // Since we're using a compute shader we have to update the DCC state metadata manually.
-    dstImage.UpdateDccStateMetaData(pCmdStream,
-                                    clearRange,
-                                    (clearPurpose == DccClearPurpose::FastClear),
-                                    pCmdBuffer->GetEngineType(),
-                                    packetPredicate);
 
     // Restore the command buffer's state.
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -5263,31 +5295,36 @@ void Gfx9RsrcProcMgr::InitHtile(
 }
 
 // =====================================================================================================================
-// On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation while copying
-// the data from src to dest, which means dst needs to have fmask of src and dcc needs to be set to uncompressed since
-// dest color data is no longer dcc compressed after copy.
-void Gfx9RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
+void Gfx9RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     GfxCmdBuffer*          pCmdBuffer,
-    const Pal::Image&      srcImage,
+    const Pal::Image*      pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
     const Pal::Image&      dstImage,
-    uint32                 regionCount,
+    ImageLayout            dstImageLayout,
     const ImageCopyRegion* pRegions,
-    uint32                 flags
+    uint32                 regionCount,
+    bool                   isFmaskCopyOptimized
     ) const
 {
-    auto*const   pStream      = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
-    const auto&  gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
+    PAL_ASSERT((pSrcImage == nullptr) || isFmaskCopyOptimized);
 
-    for (uint32 idx = 0; (idx < regionCount) && gfx9DstImage.HasDccData(); ++idx)
+    // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
+    // this is not a compressed compute copy, need fix up dst metadata to uncompressed state. Otherwise if image is
+    // created with fullCopyDstOnly=0, there will be expand when transition to "LayoutCopyDst"; metadata is
+    // in uncompressed state and no need fixup here.
+    const auto& gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
+
+    // Copy to depth should go through gfx path and not to here.
+    PAL_ASSERT(gfx9DstImage.Parent()->IsDepthStencil() == false);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
+    if (gfx9DstImage.HasDccData() && (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0))
     {
-        const auto&  copyRegion  = pRegions[idx];
-        const auto*  pSubResInfo = dstImage.SubresourceInfo(copyRegion.dstSubres);
+        auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
 
-        // If the image is not meta-fetchable, then it should have been decompressed on the transition to
-        // "LayoutCopyDst", at which point there's nothing to do here.
-        if (pSubResInfo->flags.supportMetaDataTexFetch)
+        for (uint32 idx = 0; idx < regionCount; ++idx)
         {
-            // Since color data is no longer dcc compressed set it to fully uncompressed.
+            const auto& copyRegion = pRegions[idx];
+
             SubresRange range = {};
 
             range.startSubres.aspect     = copyRegion.dstSubres.aspect;
@@ -5296,12 +5333,14 @@ void Gfx9RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
             range.numMips                = 1;
             range.numSlices              = copyRegion.numSlices;
 
+            // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
             ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
         }
     }
+#endif
 
-    // Fmask and cmask data still need fixing as well.
-    RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
+    RsrcProcMgr::HwlFixupCopyDstImageMetaData(pCmdBuffer, pSrcImage, dstImage, dstImageLayout,
+                                              pRegions, regionCount, isFmaskCopyOptimized);
 }
 
 // =====================================================================================================================
@@ -5396,16 +5435,6 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
             PAL_ASSERT(clearPurpose == DccClearPurpose::Init);
         }
     }
-
-    const Pm4Predicate packetPredicate =
-        static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
-
-    // Since we're using a compute shader we have to update the DCC state metadata manually.
-    dstImage.UpdateDccStateMetaData(pCmdStream,
-                                    clearRange,
-                                    (clearPurpose == DccClearPurpose::FastClear),
-                                    pCmdBuffer->GetEngineType(),
-                                    packetPredicate);
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
@@ -5618,6 +5647,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
     const auto*        pHtile        = dstImage.GetHtile();
     const auto&        hTileAddrOut  = pHtile->GetAddrOutput();
     const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile);
+    const auto&        settings      = m_pDevice->Parent()->Settings();
 
     PAL_ASSERT(pCmdBuffer->IsComputeSupported());
 
@@ -5712,6 +5742,7 @@ void Gfx10RsrcProcMgr::WriteHtileData(
     const auto*        pHtile        = dstImage.GetHtile();
     const auto&        hTileAddrOut  = pHtile->GetAddrOutput();
     const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile);
+    const auto&        settings      = m_pDevice->Parent()->Settings();
 
     PAL_ASSERT(pCmdBuffer->IsComputeSupported());
 
@@ -6266,17 +6297,18 @@ void Gfx10RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
 #endif
 
 // =====================================================================================================================
-// On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation while copying
-// the data from src to dest, which means dst needs to have fmask of src.
-void Gfx10RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
+void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     GfxCmdBuffer*          pCmdBuffer,
-    const Pal::Image&      srcImage,
+    const Pal::Image*      pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
     const Pal::Image&      dstImage,
-    uint32                 regionCount,
+    ImageLayout            dstImageLayout,
     const ImageCopyRegion* pRegions,
-    uint32                 flags
+    uint32                 regionCount,
+    bool                   isFmaskCopyOptimized
     ) const
 {
+    PAL_ASSERT((pSrcImage == nullptr) || isFmaskCopyOptimized);
+
     // On GFX9, the HW will not update the DCC memory on a shader-write.  GFX10 changes the rules.  There are a couple
     // possibilities:
     //   1) If the dst image was marked as shader-writeable, then the HW compressed the copied image data as the shader
@@ -6284,42 +6316,44 @@ void Gfx10RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
     //   2) If the dst image was marked as shader-readable (but not writeable), then the HW wrote 0xFF (the DCC
     //      "decompressed" code) into the DCC memory as the image data was being copied, so there's no need to do it
     //      again here.
-    //   3) If the dst image is not meta-fetchable at all, then it should have been decompressed on the transition to
-    //      "LayoutCopyDst", at which point there's nothing to do in regards to fixing DCC.
-
-    // However, fmask and cmask data still need fixing.
-    RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
-}
-
-// =====================================================================================================================
-// Returns true if the image SRD indicates that writes to the surface from the shader are DCC compressed writes.
-bool Gfx10RsrcProcMgr::HwlImageUsesCompressedWrites(
-    const uint32* pImageSrd
-    ) const
-{
-    const auto*  pSrd = reinterpret_cast<const sq_img_rsrc_t*>(pImageSrd);
-
-    const uint64  writeCompressBit = pSrd->most.write_compress_enable;
-
-    PAL_ASSERT((writeCompressBit == 0) || (pSrd->compression_en == 1));
-    const bool   usesCompressedWrites = (writeCompressBit != 0);
-    return usesCompressedWrites;
-}
-
-// =====================================================================================================================
-// In Gfx10 it is possible that internal blits can write compressed DCC data to the surface. If this occurs, we need
-// to update PAL's internal state metadata for DCC to indicate that the specific subresource is now (at least partially)
-// compressed.
-// NOTE: It is expected that this function *only* be called if updating DCC state metadata to compressed is expected.
-void Gfx10RsrcProcMgr::HwlUpdateDstImageStateMetaData(
-    GfxCmdBuffer*          pCmdBuffer,
-    const Pal::Image&      dstImage,
-    const SubresRange&     range
-    ) const
-{
-    auto*const   pStream      = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+    //   3) If the dst image is not meta-fetchable at all and with fullColorMsaaCopyDstOnly=0, then it should have been
+    //      decompressed on the transition to"LayoutCopyDst", at which point there's no need to fix up DCC.
+    //   4) If the dst image is not meta-fetchable at all and with fullColorMsaaCopyDstOnly=1, then it will not be
+    //      expanded on the transition to"LayoutCopyDst", at which point there's need to fix up DCC.
     const auto&  gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
-    gfx9DstImage.UpdateDccStateMetaData(pStream, range, true, pCmdBuffer->GetEngineType(), PredDisable);
+
+    // Copy to depth should go through gfx path and not to here.
+    PAL_ASSERT(gfx9DstImage.Parent()->IsDepthStencil() == false);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
+    if (gfx9DstImage.HasDccData() && (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0))
+    {
+        auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+
+        for (uint32 idx = 0; idx < regionCount; ++idx)
+        {
+            const auto& copyRegion = pRegions[idx];
+            const auto* pSubResInfo = dstImage.SubresourceInfo(copyRegion.dstSubres);
+
+            if (pSubResInfo->flags.supportMetaDataTexFetch == 0)
+            {
+                SubresRange range = {};
+
+                range.startSubres.aspect     = copyRegion.dstSubres.aspect;
+                range.startSubres.mipLevel   = copyRegion.dstSubres.mipLevel;
+                range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
+                range.numMips                = 1;
+                range.numSlices              = copyRegion.numSlices;
+
+                // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
+                ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
+            }
+        }
+    }
+#endif
+
+    RsrcProcMgr::HwlFixupCopyDstImageMetaData(pCmdBuffer, pSrcImage, dstImage, dstImageLayout,
+                                              pRegions, regionCount, isFmaskCopyOptimized);
 }
 
 // =====================================================================================================================

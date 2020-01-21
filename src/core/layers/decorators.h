@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -50,6 +50,7 @@
 #include "palQueue.h"
 #include "palQueueSemaphore.h"
 #include "palScreen.h"
+#include "palShaderLibrary.h"
 #include "palSwapChain.h"
 #include "palSysMemory.h"
 
@@ -798,6 +799,24 @@ public:
         const ComputePipelineCreateInfo& createInfo,
         void*                            pPlacementAddr,
         IPipeline**                      ppPipeline) override;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+    // NOTE: Part of the public IDevice interface.
+    virtual size_t GetShaderLibrarySize(
+        const ShaderLibraryCreateInfo& createInfo,
+        Result*                        pResult) const override
+    {
+        return 0;       /// TODO TODO
+    }
+
+    virtual Result CreateShaderLibrary(
+        const ShaderLibraryCreateInfo& createInfo,
+        void*                          pPlacementAddr,
+        IShaderLibrary**               ppLibrary) override
+    {
+        return Result::Unsupported;     /// TODO TODO
+    }
+#endif
 
     virtual size_t GetGraphicsPipelineSize(
         const GraphicsPipelineCreateInfo& createInfo,
@@ -2596,11 +2615,18 @@ public:
     virtual Result GetShaderCode(ShaderType shaderType, size_t* pSize, void* pBuffer) const override
         { return m_pNextLayer->GetShaderCode(shaderType, pSize, pBuffer); }
 
-    virtual Result GetPipelineElf(uint32* pSize, void* pBuffer) const override
-        { return m_pNextLayer->GetPipelineElf(pSize, pBuffer); }
+    virtual Result GetCodeObject(uint32* pSize, void* pBuffer) const override
+        { return m_pNextLayer->GetCodeObject(pSize, pBuffer); }
 
     virtual Result GetPerformanceData(Util::Abi::HardwareStage hardwareStage, size_t* pSize, void* pBuffer) override
         { return m_pNextLayer->GetPerformanceData(hardwareStage, pSize, pBuffer); }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+    virtual Result LinkWithLibraries(
+        const IShaderLibrary*const* ppLibraryList,
+        uint32                      libraryCount) override
+     { return m_pNextLayer->LinkWithLibraries(ppLibraryList, libraryCount); }
+#endif
 
     virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) const override
         { return m_pNextLayer->QueryAllocationInfo(pNumEntries, pAllocInfoList); }
@@ -2697,6 +2723,47 @@ private:
     PAL_DISALLOW_DEFAULT_CTOR(QueryPoolDecorator);
     PAL_DISALLOW_COPY_AND_ASSIGN(QueryPoolDecorator);
 };
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+class ShaderLibraryDecorator : public IShaderLibrary
+{
+public:
+    ShaderLibraryDecorator(IShaderLibrary* pNextShaderLibrary, const DeviceDecorator* pNextDevice)
+        :
+        m_pNextLayer(pNextShaderLibrary), m_pDevice(pNextDevice)
+    {}
+
+    virtual const LibraryInfo& GetInfo() const override
+        { return m_pNextLayer->GetInfo(); }
+
+    virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) const override
+        { return m_pNextLayer->QueryAllocationInfo(pNumEntries, pAllocInfoList); }
+
+    virtual Result GetCodeObject(uint32* pSize, void* pBuffer) const override
+        { return m_pNextLayer->GetCodeObject(pSize, pBuffer); }
+
+    // Part of the IDestroyable public interface.
+    virtual void Destroy() override
+    {
+        IShaderLibrary* pNextLayer = m_pNextLayer;
+        this->~ShaderLibraryDecorator();
+        pNextLayer->Destroy();
+    }
+
+    const IDevice*  GetDevice() const { return m_pDevice; }
+    IShaderLibrary* GetNextLayer() const { return m_pNextLayer; }
+
+protected:
+    virtual ~ShaderLibraryDecorator() {}
+
+    IShaderLibrary*const        m_pNextLayer;
+    const DeviceDecorator*const m_pDevice;
+
+private:
+    PAL_DISALLOW_DEFAULT_CTOR(ShaderLibraryDecorator);
+    PAL_DISALLOW_COPY_AND_ASSIGN(ShaderLibraryDecorator);
+};
+#endif
 
 // =====================================================================================================================
 class QueueDecorator : public IQueue

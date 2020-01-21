@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -103,6 +103,10 @@ constexpr VGT_DI_PRIM_TYPE TopologyToPrimTypeTable[] =
     DI_PT_TRISTRIP_ADJ,     // TriangleStripAdj
     DI_PT_PATCH,            // Patch
     DI_PT_TRIFAN,           // TriangleFan
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
+    DI_PT_LINELOOP,         // LineLoop
+    DI_PT_POLYGON,          // Polygon
+#endif
 };
 
 // =====================================================================================================================
@@ -266,7 +270,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_log2NumSes(Log2(m_device.Parent()->ChipProperties().gfx9.numShaderEngines)),
     m_log2NumRbPerSe(Log2(m_device.Parent()->ChipProperties().gfx9.maxNumRbPerSe)),
     m_log2NumSamples(0),
-    m_binningMode(FORCE_BINNING_ON), // use a value that we would never actually use
     m_pbbStateOverride(BinningOverride::Default),
     m_enabledPbb(false),
     m_customBinSizeX(0),
@@ -283,7 +286,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     memset(&m_streamOut,       0, sizeof(m_streamOut));
     memset(&m_nggTable,        0, sizeof(m_nggTable));
     memset(&m_state,           0, sizeof(m_state));
-    memset(&m_paScBinnerCntl0, 0, sizeof(m_paScBinnerCntl0));
     memset(&m_cachedSettings,  0, sizeof(m_cachedSettings));
     memset(&m_drawTimeHwState, 0, sizeof(m_drawTimeHwState));
     memset(&m_nggState,        0, sizeof(m_nggState));
@@ -326,6 +328,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.prefetchIndexBufferForNgg = settings.waEnableIndexBufferPrefetchForNgg;
     m_cachedSettings.waCeDisableIb2            = settings.waCeDisableIb2;
     m_cachedSettings.rbPlusSupported           = m_device.Parent()->ChipProperties().gfx9.rbPlus;
+
+    m_cachedSettings.waUtcL0InconsistentBigPage = settings.waUtcL0InconsistentBigPage;
 
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
@@ -395,20 +399,28 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
 #endif
 
-    m_paScBinnerCntl0.u32All = 0;
     // Initialize defaults for some of the fields in PA_SC_BINNER_CNTL_0.
-    m_savedPaScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN    = settings.binningContextStatesPerBin - 1;
-    m_savedPaScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = settings.binningPersistentStatesPerBin - 1;
-    m_savedPaScBinnerCntl0.bits.FPOVS_PER_BATCH           = settings.binningFpovsPerBatch;
-    m_savedPaScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION     = settings.binningOptimalBinSelection;
+    m_paScBinnerCntl0.u32All                         = 0;
+    m_paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN    = (settings.binningContextStatesPerBin - 1);
+    m_paScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = (settings.binningPersistentStatesPerBin - 1);
+    m_paScBinnerCntl0.bits.FPOVS_PER_BATCH           = settings.binningFpovsPerBatch;
+    m_paScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION     = settings.binningOptimalBinSelection;
+
+    // Hardware detects binning transitions when this is set so SW can hardcode it.
+    // This has no effect unless the KMD has also set PA_SC_ENHANCE_1.FLUSH_ON_BINNING_TRANSITION=1
+    if (IsGfx091xPlus(*(m_device.Parent())))
+    {
+        m_paScBinnerCntl0.gfx09_1xPlus.FLUSH_ON_BINNING_TRANSITION = 1;
+    }
 
     // Initialize to the common value for most pipelines (no conservative rast).
     m_paScConsRastCntl.u32All                         = 0;
     m_paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE = 1;
 
-    m_sxPsDownconvert.u32All   = 0;
-    m_sxBlendOptEpsilon.u32All = 0;
-    m_sxBlendOptControl.u32All = 0;
+    m_sxPsDownconvert.u32All      = 0;
+    m_sxBlendOptEpsilon.u32All    = 0;
+    m_sxBlendOptControl.u32All    = 0;
+    m_cbRmiGl2CacheControl.u32All = 0;
 
     SwitchDrawFunctions(false, false);
 }
@@ -620,8 +632,35 @@ void UniversalCmdBuffer::ResetState()
 
     m_spiVsOutConfig.u32All    = 0;
     m_spiPsInControl.u32All    = 0;
-    m_binningMode              = FORCE_BINNING_ON; // set a value that we would never use
     m_dbDfsmControl.u32All     = m_device.GetDbDfsmControl();
+
+    // Disable PBB at the start of each command buffer unconditionally. Each draw can set the appropriate
+    // PBB state at validate time.
+    m_enabledPbb = false;
+
+    Extent2d binSize = {};
+    m_paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting(&binSize);
+    if ((binSize.width != 0) && (binSize.height != 0))
+    {
+        if (binSize.width == 16)
+        {
+            m_paScBinnerCntl0.bits.BIN_SIZE_X = 1;
+        }
+        else
+        {
+            m_paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = Device::GetBinSizeEnum(binSize.width);
+        }
+
+        if (binSize.height == 16)
+        {
+            m_paScBinnerCntl0.bits.BIN_SIZE_Y = 1;
+        }
+        else
+        {
+            m_paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(binSize.height);
+        }
+    }
+    m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = (m_cachedSettings.disableDfsm) ? 1 : 0;
 
     // Reset the command buffer's HWL state tracking
     m_state.flags.u32All                            = 0;
@@ -1424,6 +1463,9 @@ void UniversalCmdBuffer::CmdBindTargets(
     bool   colorBigPage  = true;
     bool   fmaskBigPage  = true;
 
+    bool validCbViewFound   = false;
+    bool validAaCbViewFound = false;
+
     TargetExtent2d surfaceExtent = { MaxScissorExtent, MaxScissorExtent }; // Default to fully open
 
     // Bind all color targets.
@@ -1436,7 +1478,6 @@ void UniversalCmdBuffer::CmdBindTargets(
         const auto*const pNewView = (slot < params.colorTargetCount)
                                     ? static_cast<const ColorTargetView*>(params.colorTargets[slot].pColorTargetView)
                                     : nullptr;
-        bool             validViewFound = false;
 
         if (pNewView != nullptr)
         {
@@ -1447,13 +1488,11 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                   pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
 
-            if (validViewFound == false)
+            if (validCbViewFound == false)
             {
                 // For MRT case, extents must match across all MRTs.
                 surfaceExtent = pNewView->GetExtent();
             }
-
-            pNewView->UpdateDccStateMetadata(&m_deCmdStream, params.colorTargets[slot].imageLayout);
 
             // Set the bit means this color target slot is not bound to a NULL target.
             newColorTargetMask |= (1 << slot);
@@ -1470,7 +1509,8 @@ void UniversalCmdBuffer::CmdBindTargets(
                 // do have fmask can still get the optimization.
                 if (pImage->HasFmaskData())
                 {
-                    fmaskBigPage &= pGfx10NewView->IsFmaskBigPage();
+                    fmaskBigPage      &= pGfx10NewView->IsFmaskBigPage();
+                    validAaCbViewFound = true;
                 }
             }
             else
@@ -1479,7 +1519,7 @@ void UniversalCmdBuffer::CmdBindTargets(
                 fmaskBigPage = false;
             }
 
-            validViewFound = true;
+            validCbViewFound = true;
         }
 
         if ((pCurrentView != nullptr) && (pCurrentView != pNewView))  // view1->view2 or view->null
@@ -1503,7 +1543,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     if (colorTargetsChanged)
     {
         // Handle the case where at least one color target view is changing.
-        pDeCmdSpace = ColorTargetView::HandleBoundTargetsChanged(m_device, pDeCmdSpace);
+        pDeCmdSpace = ColorTargetView::HandleBoundTargetsChanged(pDeCmdSpace);
     }
 
     // Check for DepthStencilView changes
@@ -1523,12 +1563,9 @@ void UniversalCmdBuffer::CmdBindTargets(
         surfaceExtent.width  = Min(surfaceExtent.width,  depthViewExtent.width);
         surfaceExtent.height = Min(surfaceExtent.height, depthViewExtent.height);
 
-        if (pNewDepthView->GetImage()->HasWaTcCompatZRangeMetaData())
-        {
-            // Re-write the ZRANGE_PRECISION value for the waTcCompatZRange workaround. We must include the
-            // COND_EXEC which checks the metadata because we don't know the last fast clear value here.
-            pDeCmdSpace = pNewDepthView->UpdateZRangePrecision(true, &m_deCmdStream, pDeCmdSpace);
-        }
+        // Re-write the ZRANGE_PRECISION value for the waTcCompatZRange workaround. We must include the
+        // COND_EXEC which checks the metadata because we don't know the last fast clear value here.
+        pDeCmdSpace = pNewDepthView->UpdateZRangePrecision(true, &m_deCmdStream, pDeCmdSpace);
     }
     else
     {
@@ -1541,7 +1578,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     if (depthTargetChanged)
     {
         // Handle the case where the depth view is changing.
-        pDeCmdSpace = DepthStencilView::HandleBoundTargetChanged(m_cmdUtil, pDeCmdSpace);
+        pDeCmdSpace = DepthStencilView::HandleBoundTargetChanged(pDeCmdSpace);
 
         // Record if this depth view we are switching from should trigger a Release_Mem due to being in the MetaData
         // tail region.
@@ -1577,10 +1614,52 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                             pDeCmdSpace);
     }
 
-    if (IsGfx10(m_gfxIpLevel))
+    // If next draw(s) that only change D/S targets, don't program CB_RMI_GL2_CACHE_CONTROL and let the state remains.
+    // This is especially necessary for following HW bug WA. If client driver disable big page feature completely, then
+    // the sync will still be issued for following case without this tweaking:
+    // 1. Client draw to RT[0] (color big_page disable)
+    // 2. Client clear DS surf (color big_page enable because no MRT is actually bound)
+    // 3. Client draw to RT[0] (color big_page disable)
+    // By old logic, the sync will be added between both #1/#2 and #2/#3. The sync added for #1/#2 is unnecessary and it
+    // will cause minor CPU and CP performance drop; sync added for #2/#3 will do more than that by draining the whole
+    // 3D pipeline, and is completely wrong behavior.
+    if (IsGfx10(m_gfxIpLevel) && validCbViewFound)
     {
+        if (m_cachedSettings.waUtcL0InconsistentBigPage &&
+            ((static_cast<bool>(m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE) != colorBigPage) ||
+             ((static_cast<bool>(m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE) != fmaskBigPage) && validAaCbViewFound)))
+        {
+            // For following case, BIG_PAGE bit polarity changes between #A/#B and #C/#D, and we will need to add sync
+            // A. Draw to RT[0] (big_page enable)
+            // B. Draw to RT[0] + RT[1] (big_page disable due to RT[1] is not big page compatible)
+            // C. Draw to RT[0] + RT[1] (big_page disable due to RT[1] is not big page compatible)
+            // D. Draw to RT[0] (big_page enable)
+            // For simplicity, we don't track big page setting polarity change based on MRT usage, but simply adding the
+            // sync whenever a different big page setting value is going to be written into command buffer.
+            AcquireMemInfo acquireInfo = {};
+            acquireInfo.baseAddress          = FullSyncBaseAddr;
+            acquireInfo.sizeBytes            = FullSyncSize;
+            acquireInfo.engineType           = EngineTypeUniversal;
+            acquireInfo.cpMeCoherCntl.u32All = CpMeCoherCntlStallMask;
+            acquireInfo.flags.wbInvCbData    = 1;
+
+            // This alert shouldn't be triggered frequently, or otherwise performance penalty will be there.
+            // Consider either of following solutions to avoid the performance penalty:
+            // - Enable "big page" for RT/MSAA resource, as many as possible
+            // - Disable "big page" for RT/MSAA resource, as many as possible
+            // Check IsColorBigPage()/IsFmaskBigPage() for the details about how to enable/disable big page
+            PAL_ALERT_ALWAYS();
+
+            pDeCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pDeCmdSpace);
+        }
+
         m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE = colorBigPage;
-        m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE = fmaskBigPage;
+
+        // Similar to "validCbViewFound" check, only update fmaskBigPage setting if next draw(s) really use fmask
+        if (validAaCbViewFound)
+        {
+            m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE = fmaskBigPage;
+        }
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10::mmCB_RMI_GL2_CACHE_CONTROL,
                                                           m_cbRmiGl2CacheControl.u32All,
@@ -3103,7 +3182,7 @@ Result UniversalCmdBuffer::AddPreamble()
         regValue.bits.BLEND_OPT_DONT_RD_DST   = dontRdDst;
         regValue.bits.BLEND_OPT_DISCARD_PIXEL = discardPixel;
 
-        if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
+        if (m_deCmdStream.Pm4OptimizerEnabled())
         {
             pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<true>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
                                                                  BlendOptRegMask,
@@ -3160,33 +3239,6 @@ Result UniversalCmdBuffer::AddPreamble()
         }
     }
 
-    // Disable PBB at the start of each command buffer unconditionally. Each draw can set the appropriate
-    // PBB state at validate time.
-    m_enabledPbb = false;
-    m_paScBinnerCntl0.u32All = 0;
-    Extent2d binSize = {};
-    m_paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting(&binSize);
-    if ((binSize.width != 0) && (binSize.height != 0))
-    {
-        if (binSize.width == 16)
-        {
-            m_paScBinnerCntl0.bits.BIN_SIZE_X = 1;
-        }
-        else
-        {
-            m_paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = Device::GetBinSizeEnum(binSize.width);
-        }
-
-        if (binSize.height == 16)
-        {
-            m_paScBinnerCntl0.bits.BIN_SIZE_Y = 1;
-        }
-        else
-        {
-            m_paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(binSize.height);
-        }
-    }
-    m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = (m_cachedSettings.disableDfsm) ? 1 : 0;
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_BINNER_CNTL_0, m_paScBinnerCntl0.u32All, pDeCmdSpace);
 
     if (isNested == false)
@@ -3905,7 +3957,7 @@ void UniversalCmdBuffer::UpdateUavExportTable()
         {
             PAL_ASSERT(IsGfx10(m_gfxIpLevel));
             const Gfx10ColorTargetView* pGfx10TargetView = static_cast<const Gfx10ColorTargetView*>(pTargetView);
-            pGfx10TargetView->GetImageSrd(&m_uavExportTable.srd[idx]);
+            pGfx10TargetView->GetImageSrd(m_device, &m_uavExportTable.srd[idx]);
         }
         else
         {
@@ -4496,7 +4548,7 @@ template <bool Indexed, bool Indirect>
 void UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo)      // Draw info
 {
-    if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
+    if (m_deCmdStream.Pm4OptimizerEnabled())
     {
         ValidateDraw<Indexed, Indirect, true>(drawInfo);
     }
@@ -5669,8 +5721,6 @@ void UniversalCmdBuffer::SetPaScBinnerCntl0(
     Extent2d*                pBinSize,
     bool                     disableDfsm)
 {
-    m_paScBinnerCntl0.u32All = 0;
-
     // If the reported bin sizes are zero, then disable binning
     if ((pBinSize->width == 0) || (pBinSize->height == 0))
     {
@@ -5679,11 +5729,7 @@ void UniversalCmdBuffer::SetPaScBinnerCntl0(
     }
     else
     {
-        m_paScBinnerCntl0.bits.BINNING_MODE              = BINNING_ALLOWED;
-        m_paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN    = m_savedPaScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN;
-        m_paScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = m_savedPaScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN;
-        m_paScBinnerCntl0.bits.FPOVS_PER_BATCH           = m_savedPaScBinnerCntl0.bits.FPOVS_PER_BATCH;
-        m_paScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION     = m_savedPaScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION;
+        m_paScBinnerCntl0.bits.BINNING_MODE = BINNING_ALLOWED;
     }
 
     // If bin size is non-zero, then set the size properties
@@ -5725,16 +5771,6 @@ void UniversalCmdBuffer::SetPaScBinnerCntl0(
         {
             m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = 0;
         }
-    }
-
-    // Only really need to set this bit if we're transitioning from mode 0 or 1 to mode 2 or 3.
-    // PAL only ever uses modes 0 and 3.
-    if (IsGfx091xPlus(*(m_device.Parent())) &&
-        (static_cast<uint32>(m_binningMode) != m_paScBinnerCntl0.bits.BINNING_MODE))
-    {
-        m_paScBinnerCntl0.gfx09_1xPlus.FLUSH_ON_BINNING_TRANSITION = 1;
-
-        m_binningMode = static_cast<BinningMode>(m_paScBinnerCntl0.bits.BINNING_MODE);
     }
 }
 
@@ -5990,7 +6026,7 @@ uint32* UniversalCmdBuffer::ValidateViewports(
 uint32* UniversalCmdBuffer::ValidateViewports(
     uint32*    pDeCmdSpace)
 {
-    if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
+    if (m_deCmdStream.Pm4OptimizerEnabled())
     {
         pDeCmdSpace = ValidateViewports<true>(pDeCmdSpace);
     }
@@ -6007,7 +6043,7 @@ uint32* UniversalCmdBuffer::ValidateViewports(
 // optimizer is enabled.
 bool UniversalCmdBuffer::NeedsToValidateScissorRects() const
 {
-    return NeedsToValidateScissorRects(m_deCmdStream.Pm4ImmediateOptimizerEnabled());
+    return NeedsToValidateScissorRects(m_deCmdStream.Pm4OptimizerEnabled());
 }
 
 // =====================================================================================================================
@@ -6159,7 +6195,7 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
 uint32* UniversalCmdBuffer::ValidateScissorRects(
     uint32* pDeCmdSpace)
 {
-    if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
+    if (m_deCmdStream.Pm4OptimizerEnabled())
     {
         pDeCmdSpace = ValidateScissorRects<true>(pDeCmdSpace);
     }
@@ -6736,13 +6772,38 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
     regDB_COUNT_CONTROL* pDbCountControl,
     uint32*              pDeCmdSpace)
 {
-    if (IsQueryActive(QueryPoolType::Occlusion) && (NumActiveQueries(QueryPoolType::Occlusion) != 0))
+    const bool HasActiveQuery = IsQueryActive(QueryPoolType::Occlusion) &&
+                                (NumActiveQueries(QueryPoolType::Occlusion) != 0);
+
+    if (HasActiveQuery)
     {
         // Only update the value of DB_COUNT_CONTROL if there are active queries. If no queries are active,
         // the new SAMPLE_RATE value is ignored by the HW and the register will be written the next time a query
         // is activated.
         pDbCountControl->bits.SAMPLE_RATE = log2SampleRate;
+    }
+    else if (IsNested())
+    {
+        // Only update DB_COUNT_CONTROL if necessary
+        if (pDbCountControl->bits.SAMPLE_RATE != log2SampleRate)
+        {
+            // MSAA sample rates are associated with the MSAA state object, but the sample rate affects how queries are
+            // processed (via DB_COUNT_CONTROL). We need to update the value of this register.
+            pDbCountControl->bits.SAMPLE_RATE = log2SampleRate;
 
+            // In a nested command buffer, the number of active queries is unknown because the caller may have some
+            // number of active queries when executing the nested command buffer. In this case, the only safe thing
+            // to do is to issue a register RMW operation to update the SAMPLE_RATE field of DB_COUNT_CONTROL.
+            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<pm4OptImmediate>(mmDB_COUNT_CONTROL,
+                                                                            DB_COUNT_CONTROL__SAMPLE_RATE_MASK,
+                                                                            pDbCountControl->u32All,
+                                                                            pDeCmdSpace);
+        }
+    }
+
+    if (HasActiveQuery ||
+        (IsNested() && m_graphicsState.inheritedState.stateFlags.occlusionQuery))
+    {
         //   Since 8xx, the ZPass count controls have moved to a separate register call DB_COUNT_CONTROL.
         //   PERFECT_ZPASS_COUNTS forces all partially covered tiles to be detail walked, and not setting it will count
         //   all HiZ passed tiles as 8x#samples worth of zpasses.  Therefore in order for vis queries to get the right
@@ -6762,24 +6823,6 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
         if (IsGfx10(m_gfxIpLevel))
         {
             pDbCountControl->gfx10.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
-        }
-    }
-    else if (IsNested())
-    {
-        // Only update DB_COUNT_CONTROL if necessary
-        if (pDbCountControl->bits.SAMPLE_RATE != log2SampleRate)
-        {
-            // MSAA sample rates are associated with the MSAA state object, but the sample rate affects how queries are
-            // processed (via DB_COUNT_CONTROL). We need to update the value of this register.
-            pDbCountControl->bits.SAMPLE_RATE = log2SampleRate;
-
-            // In a nested command buffer, the number of active queries is unknown because the caller may have some
-            // number of active queries when executing the nested command buffer. In this case, the only safe thing
-            // to do is to issue a register RMW operation to update the SAMPLE_RATE field of DB_COUNT_CONTROL.
-            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<pm4OptImmediate>(mmDB_COUNT_CONTROL,
-                                                                            DB_COUNT_CONTROL__SAMPLE_RATE_MASK,
-                                                                            pDbCountControl->u32All,
-                                                                            pDeCmdSpace);
         }
     }
     else
@@ -6827,6 +6870,10 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
 
     bool switchOnEop = ((primTopology == PrimitiveTopology::TriangleStripAdj) ||
                         (primTopology == PrimitiveTopology::TriangleFan) ||
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
+                        (primTopology == PrimitiveTopology::LineLoop) ||
+                        (primTopology == PrimitiveTopology::Polygon) ||
+#endif
                         (primitiveRestartEnabled && restartPrimsCheck) ||
                         drawInfo.useOpaque);
 
@@ -7846,6 +7893,14 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         (cmdBuffer.m_graphicsState.leakFlags.validationBits.msaaState))
     {
         m_paScConsRastCntl.u32All = cmdBuffer.m_paScConsRastCntl.u32All;
+    }
+
+    // If the nested command buffer updated color target view (and implicitly big_page settings), leak the state back to
+    // caller as the state tracking is needed for correctly making the WA.
+    if (cmdBuffer.m_graphicsState.leakFlags.validationBits.colorTargetView)
+    {
+        m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE = cmdBuffer.m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE;
+        m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE = cmdBuffer.m_cbRmiGl2CacheControl.bits.FMASK_BIG_PAGE;
     }
 
     // DB_DFSM_CONTROL is written at AddPreamble time for all CmdBuffer states and potentially turned off

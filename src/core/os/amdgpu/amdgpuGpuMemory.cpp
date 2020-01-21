@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -434,7 +434,6 @@ Result GpuMemory::ImportMemory(
 {
     amdgpu_bo_import_result importResult    = {};
     Device* pDevice                         = static_cast<Device*>(m_pDevice);
-    gpusize baseVirtAddr                    = 0;
 
     Result result = pDevice->ImportBuffer(handleType, handle, &importResult);
 
@@ -442,13 +441,7 @@ Result GpuMemory::ImportMemory(
     {
         m_hSurface  = importResult.buf_handle;
 
-        if (IsGpuVaPreReserved())
-        {
-            // It's not expected to get here. Implement later if this feature is desired for Linux.
-            PAL_NOT_IMPLEMENTED();
-            result = Result::Unsupported;
-        }
-        else
+        if (IsGpuVaPreReserved() == false)
         {
             // if we allocate from external memory handle, the size/alignment of original memory is unknown.
             // we have to query the kernel to get those information and fill the desc struct.
@@ -466,15 +459,13 @@ Result GpuMemory::ImportMemory(
 
             if (result == Result::Success)
             {
-                result = pDevice->AssignVirtualAddress(this, &baseVirtAddr);
+                result = pDevice->AssignVirtualAddress(this, &m_desc.gpuVirtAddr);
             }
         }
     }
 
     if (result == Result::Success)
     {
-        m_desc.gpuVirtAddr = baseVirtAddr;
-
         result = pDevice->MapVirtualAddress(m_hSurface, 0, m_desc.size, m_desc.gpuVirtAddr, m_mtype);
 
         if (result != Result::Success)

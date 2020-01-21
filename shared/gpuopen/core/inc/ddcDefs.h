@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -53,6 +53,14 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
     #else
         #define DD_STATIC_CONST static const
     #endif
+#endif
+
+#if DD_CPLUSPLUS_SUPPORTS(CPP14)
+    #define DD_CPP14_CONSTEXPR_FN constexpr
+    #define DD_CPP14_STATIC_ASSERT(a, b) static_assert(a, b)
+#else
+    #define DD_CPP14_CONSTEXPR_FN inline
+    #define DD_CPP14_STATIC_ASSERT(a, b)
 #endif
 
 #if !defined(DD_ALIGNAS)

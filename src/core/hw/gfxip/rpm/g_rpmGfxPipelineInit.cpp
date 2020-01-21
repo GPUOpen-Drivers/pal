@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -320,6 +320,74 @@ Result CreateRpmGraphicsPipelines(
             pipeInfo,
             NullInternalInfo,
             &pPipelineMem[Copy8xMsaaStencil],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[CopyDepth].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[CopyDepth].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[CopyDepth],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[CopyDepthStencil].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[CopyDepthStencil].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[CopyDepthStencil],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[CopyStencil].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[CopyStencil].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampDisable = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[CopyStencil],
             AllocInternal);
     }
 

@@ -2,7 +2,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -66,8 +66,6 @@ macro(apply_gpuopen_warnings _target)
 
             elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 
-                # [MSVC] Specify Language Standard Version
-                #   https://docs.microsoft.com/en-us/cpp/build/reference/std-specify-language-standard-version
                 target_compile_options(${_target} PRIVATE /std:c++17) # Enable C++17 features.
 
             else()
@@ -114,7 +112,6 @@ macro(apply_gpuopen_warnings _target)
                 # The requirements for "trivial type" are hard - e.g. some user supplied constructors are enough to make
                 #   it not count.
                 #   Properly fixing this would require embracing more C++14 than we currently do. (e.g. `= default` ctors)
-                #   Read more here: https://msdn.microsoft.com/en-us/library/mt767760.aspx
                 #   This warning is new in gcc 8.x
                 -Wno-class-memaccess
             )

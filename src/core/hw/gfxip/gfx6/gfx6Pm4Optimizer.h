@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -78,10 +78,6 @@ public:
     void HandleLoadContextRegs(const PM4CMDLOADDATA& loadData) { HandlePm4LoadReg(loadData, &m_cntxRegs[0]); }
     void HandleLoadContextRegsIndex(const PM4CMDLOADDATAINDEX& loadDataIndex)
          { HandlePm4LoadRegIndex(loadDataIndex, &m_cntxRegs[0]); }
-
-    // This generic function can be called by just about any step in the command stream building scheme. It can account
-    // for cond exec packets assuming that the cond exec block is contained within pSrcCmds.
-    void OptimizePm4Commands(const uint32* pSrcCmds, uint32* pDstCmds, uint32* pCmdSize);
 
 private:
     uint32* OptimizePm4SetReg(

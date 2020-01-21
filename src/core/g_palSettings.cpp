@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -127,7 +127,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.cmdBufChunkEnableStagingBuffer = false;
     m_settings.cmdAllocatorFreeOnReset = false;
     m_settings.cmdBufOptimizePm4 = Pm4OptDefaultEnable;
-    m_settings.cmdBufOptimizePm4Mode = Pm4OptModeImmediate;
     m_settings.cmdBufForceCpuUpdatePath = CmdBufForceCpuUpdatePathOn;
     m_settings.cmdBufForceOneTimeSubmit = CmdBufForceOneTimeSubmitDefault;
     m_settings.cmdBufPreemptionMode = CmdBufPreemptModeEnable;
@@ -424,11 +423,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufOptimizePm4Str,
                            Util::ValueType::Uint,
                            &m_settings.cmdBufOptimizePm4,
-                           InternalSettingScope::PrivatePalKey);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufOptimizePm4ModeStr,
-                           Util::ValueType::Uint,
-                           &m_settings.cmdBufOptimizePm4Mode,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufForceCpuUpdatePathStr,
@@ -905,11 +899,6 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(1018895288, info);
 
     info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.cmdBufOptimizePm4Mode;
-    info.valueSize = sizeof(m_settings.cmdBufOptimizePm4Mode);
-    m_settingsInfoMap.Insert(2490816619, info);
-
-    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdBufForceCpuUpdatePath;
     info.valueSize = sizeof(m_settings.cmdBufForceCpuUpdatePath);
     m_settingsInfoMap.Insert(3282911281, info);
@@ -1065,7 +1054,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 3355690354;
+            component.settingsDataHash = 1035641927;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

@@ -628,6 +628,11 @@
             "Name": "Gfx10UseDccNonRenderTargetUav",
             "Value": 1024,
             "Description": "Shader writable surfaces(UAV) that are not render targets"
+          },
+          {
+            "Name": "Gfx9UseDccAllowForceEnable",
+            "Value": 2048,
+            "Description": "Allows the client driver to force-enable DCC on particular images"
           }
         ],
         "Name": "Gfx9UseDcc"
@@ -642,7 +647,7 @@
         "IsHex": true
       },
       "Defaults": {
-        "Default": 511
+        "Default": 2559
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
@@ -1982,6 +1987,9 @@
       ],
       "Defaults": {
         "Default": true
+      },
+      "Flags": {
+        "RereadSetting": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",

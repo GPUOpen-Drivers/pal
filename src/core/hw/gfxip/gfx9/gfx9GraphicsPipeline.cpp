@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -210,18 +210,10 @@ GraphicsPipeline::GraphicsPipeline(
                 &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Vs)],
                 &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ps)])
 {
-    memset(&m_iaMultiVgtParam[0], 0, sizeof(m_iaMultiVgtParam));
-
-    memset(&m_commands, 0, sizeof(m_commands));
+    memset(&m_regs, 0, sizeof(m_regs));
+    memset(&m_loadPath, 0, sizeof(m_loadPath));
+    memset(&m_prefetch, 0, sizeof(m_prefetch));
     memcpy(&m_signature, &NullGfxSignature, sizeof(m_signature));
-
-    m_sxPsDownconvert.u32All   = 0;
-    m_sxBlendOptEpsilon.u32All = 0;
-    m_sxBlendOptControl.u32All = 0;
-    m_vgtLsHsConfig.u32All     = 0;
-    m_spiVsOutConfig.u32All    = 0;
-    m_spiPsInControl.u32All    = 0;
-    m_paScModeCntl1.u32All     = 0;
 }
 
 // =====================================================================================================================
@@ -236,15 +228,15 @@ void GraphicsPipeline::EarlyInit(
     const RegisterInfo& regInfo = m_pDevice->CmdUtil().GetRegInfo();
 
     // VGT_SHADER_STAGES_EN and must be read first, since it determines which HW stages are active!
-    m_commands.set.context.vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
+    m_regs.context.vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
 
     m_isNggFastLaunch = (IsGfx091xPlus(*(m_pDevice->Parent())) ?
-                         (m_commands.set.context.vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH != 0) :
-                         (m_commands.set.context.vgtShaderStagesEn.gfx09_0.GS_FAST_LAUNCH != 0));
+                         (m_regs.context.vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH != 0) :
+                         (m_regs.context.vgtShaderStagesEn.gfx09_0.GS_FAST_LAUNCH != 0));
 
     // Similarly, VGT_GS_MODE should also be read early, since it determines if on-chip GS is enabled.
-    registers.HasEntry(mmVGT_GS_MODE, &m_commands.set.context.vgtGsMode.u32All);
-    if (IsGsEnabled() && (m_commands.set.context.vgtGsMode.bits.ONCHIP == VgtGsModeOnchip))
+    registers.HasEntry(mmVGT_GS_MODE, &m_regs.context.vgtGsMode.u32All);
+    if (IsGsEnabled() && (m_regs.context.vgtGsMode.bits.ONCHIP == VgtGsModeOnchip))
     {
         SetIsGsOnChip(true);
     }
@@ -328,7 +320,6 @@ Result GraphicsPipeline::HwlInit(
         if (result == Result::Success)
         {
             MetroHash64 hasher;
-            BuildPm4Headers(uploader);
 
             if (IsTessEnabled())
             {
@@ -344,15 +335,23 @@ Result GraphicsPipeline::HwlInit(
             SetupNonShaderRegisters(createInfo, registers, &uploader);
             SetupStereoRegisters();
 
+            if (uploader.EnableLoadIndexPath())
+            {
+                m_loadPath.gpuVirtAddrCtx = uploader.CtxRegGpuVirtAddr();
+                m_loadPath.countCtx       = uploader.CtxRegisterCount();
+                m_loadPath.gpuVirtAddrSh  = uploader.ShRegGpuVirtAddr();
+                m_loadPath.countSh        = uploader.ShRegisterCount();
+            }
+
             result = uploader.End();
 
             if (result == Result::Success)
             {
-                hasher.Update(m_commands.set.context);
-                hasher.Update(m_commands.common);
+                hasher.Update(m_regs.context);
+                hasher.Update(m_regs.uconfig);
                 hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextRegHash));
 
-                m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
+                m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_prefetch);
 
                 UpdateRingSizes(metadata);
             }
@@ -567,15 +566,13 @@ uint32* GraphicsPipeline::WriteShCommands(
     // Disable the LOAD_INDEX path if the PM4 optimizer is enabled.  The optimizer cannot optimize these load packets
     // because the register values are in GPU memory.  Additionally, any client requesting PM4 optimization is trading
     // CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
-    const bool useSetPath =
-        ((m_commands.loadIndex.sh.loadShRegIndex.header.u32All == 0) || pCmdStream->Pm4OptimizerEnabled());
-
-    if (useSetPath)
+    if ((m_loadPath.countSh == 0) || pCmdStream->Pm4OptimizerEnabled())
     {
-        if (m_commands.set.sh.hdrSpiShaderLateAllocVs.header.u32All != 0)
+        if (IsGfx10(m_gfxLevel) == false)
         {
-            constexpr uint32 SpaceNeededSet = sizeof(m_commands.set.sh) / sizeof(uint32);
-            pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededSet, &m_commands.set.sh, pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_LATE_ALLOC_VS,
+                                                                     m_regs.sh.spiShaderLateAllocVs.u32All,
+                                                                     pCmdSpace);
         }
 
         if (IsTessEnabled())
@@ -590,11 +587,13 @@ uint32* GraphicsPipeline::WriteShCommands(
     }
     else
     {
-        PAL_ASSERT(m_commands.loadIndex.sh.loadShRegIndex.header.u32All != 0);
+        // This will load SH register state for this object and all pipeline chunks!
+        pCmdSpace += m_pDevice->CmdUtil().BuildLoadShRegsIndex(m_loadPath.gpuVirtAddrSh,
+                                                               m_loadPath.countSh,
+                                                               ShaderGraphics,
+                                                               pCmdSpace);
 
-        constexpr uint32 SpaceNeededLoad = sizeof(m_commands.loadIndex.sh) / sizeof(uint32);
-        pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededLoad, &m_commands.loadIndex.sh, pCmdSpace);
-
+        // The below calls will end up only writing SET packets for "dynamic" state.
         if (IsTessEnabled())
         {
             pCmdSpace = m_chunkHs.WriteShCommands<true>(pCmdStream, pCmdSpace, stageInfos.hs);
@@ -622,12 +621,9 @@ uint32* GraphicsPipeline::WriteContextCommands(
     // Disable the LOAD_INDEX path if the PM4 optimizer is enabled.  The optimizer cannot optimize these load packets
     // because the register values are in GPU memory.  Additionally, any client requesting PM4 optimization is trading
     // CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
-    const bool useSetPath =
-        ((m_commands.loadIndex.context.loadCtxRegIndex.header.u32All == 0) || pCmdStream->Pm4OptimizerEnabled());
-
-    if (useSetPath)
+    if ((m_loadPath.countCtx == 0) || pCmdStream->Pm4OptimizerEnabled())
     {
-        pCmdSpace = pCmdStream->WritePm4Image(m_commands.set.context.spaceNeeded, &m_commands.set.context, pCmdSpace);
+        pCmdSpace = WriteContextCommandsSetPath(pCmdStream, pCmdSpace);
 
         if (IsTessEnabled())
         {
@@ -642,17 +638,40 @@ uint32* GraphicsPipeline::WriteContextCommands(
     }
     else
     {
-        PAL_ASSERT(m_commands.loadIndex.context.loadCtxRegIndex.header.u32All != 0);
-
-        constexpr uint32 SpaceNeededLoad = sizeof(m_commands.loadIndex.context) / sizeof(uint32);
-        pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededLoad, &m_commands.loadIndex.context, pCmdSpace);
+        // This will load context register state for this object and all pipeline chunks!
+        pCmdSpace += CmdUtil::BuildLoadContextRegsIndex(m_loadPath.gpuVirtAddrCtx, m_loadPath.countCtx, pCmdSpace);
 
         // NOTE: The Hs and Gs chunks don't expect us to call WriteContextCommands() when using the LOAD_INDEX path.
-
         pCmdSpace = m_chunkVsPs.WriteContextCommands<true>(pCmdStream, pCmdSpace);
     }
 
-    return pCmdStream->WritePm4Image(m_commands.common.spaceNeeded, &m_commands.common, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
+                                               (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
+                                                DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK   |
+                                                DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK),
+                                               m_regs.context.dbRenderOverride.u32All,
+                                               pCmdSpace);
+
+    if (m_pDevice->Settings().disableDfsm == false)
+    {
+        // - Driver must insert FLUSH_DFSM event whenever the ... channel mask changes (ARGB to RGB)
+        //
+        // Channel-mask changes refer to the CB_TARGET_MASK register
+        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(FLUSH_DFSM, EngineTypeUniversal, pCmdSpace);
+    }
+
+    if (IsGfx10(m_gfxLevel))
+    {
+        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10::mmGE_STEREO_CNTL,
+                                                      Gfx10::mmGE_PC_ALLOC,
+                                                      &m_regs.uconfig.geStereoCntl,
+                                                      pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10::mmGE_USER_VGPR_EN,
+                                                     m_regs.uconfig.geUserVgprEn.u32All,
+                                                     pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -661,144 +680,75 @@ uint32* GraphicsPipeline::Prefetch(
     uint32* pCmdSpace
     ) const
 {
-    memcpy(pCmdSpace, &m_commands.prefetch, m_commands.prefetch.spaceNeeded * sizeof(uint32));
-
-    return pCmdSpace + m_commands.prefetch.spaceNeeded;
+    memcpy(pCmdSpace, &m_prefetch, m_prefetch.spaceNeeded * sizeof(uint32));
+    return (pCmdSpace + m_prefetch.spaceNeeded);
 }
 
 // =====================================================================================================================
-// Builds the packet headers for the various PM4 images associated with this pipeline.  Register values and packet
-// payloads are computed elsewhere.
-void GraphicsPipeline::BuildPm4Headers(
-    const GraphicsPipelineUploader& uploader)
+// Writes PM4 SET commands to the specified command stream.  This is only expected to be called when the LOAD path is
+// not in use and we need to use the SET path fallback.
+uint32* GraphicsPipeline::WriteContextCommandsSetPath(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
 {
-    const CmdUtil&         cmdUtil  = m_pDevice->CmdUtil();
-    const RegisterInfo&    regInfo  = cmdUtil.GetRegInfo();
-    const Gfx9PalSettings& settings = m_pDevice->Settings();
+    const CmdUtil&      cmdUtil = m_pDevice->CmdUtil();
+    const RegisterInfo& regInfo = cmdUtil.GetRegInfo();
 
-    m_commands.common.spaceNeeded = cmdUtil.BuildContextRegRmw(mmDB_RENDER_OVERRIDE,
-                                                               (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
-                                                                DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK |
-                                                                DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK),
-                                                               0,
-                                                               &m_commands.common.dbRenderOverride);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_SHADER_STAGES_EN,
+                                                  m_regs.context.vgtShaderStagesEn.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_DRAW_PAYLOAD_CNTL,
+                                                  m_regs.context.vgtDrawPayloadCntl.u32All,
+                                                  pCmdSpace);
 
-    if (settings.disableDfsm == false)
-    {
-        // - Driver must insert FLUSH_DFSM event whenever the ... channel mask changes (ARGB to RGB)
-        //
-        // Channel-mask changes refer to the CB_TARGET_MASK register
-        m_commands.common.spaceNeeded +=
-            cmdUtil.BuildNonSampleEventWrite(FLUSH_DFSM, EngineTypeUniversal, &m_commands.common.flushDfsm);
-    }
-    else
-    {
-        m_commands.common.spaceNeeded +=
-            CmdUtil::BuildNop(CmdUtil::WriteNonSampleEventDwords, &m_commands.common.flushDfsm);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_SHADER_STAGES_EN,
+                                                  m_regs.context.vgtShaderStagesEn.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_GS_MODE, m_regs.context.vgtGsMode.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_REUSE_OFF, m_regs.context.vgtReuseOff.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_TF_PARAM, m_regs.context.vgtTfParam.u32All, pCmdSpace);
 
-    if (IsGfx10(m_gfxLevel))
-    {
-        m_commands.common.spaceNeeded += cmdUtil.BuildSetSeqConfigRegs(Gfx10::mmGE_STEREO_CNTL,
-                                                                       Gfx10::mmGE_PC_ALLOC,
-                                                                       &m_commands.common.hdrGeStereoCntlGePcAlloc);
-        m_commands.common.spaceNeeded += cmdUtil.BuildSetOneConfigReg(Gfx10::mmGE_USER_VGPR_EN,
-                                                                      &m_commands.common.hdrGeUserVgprEn);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmCB_COLOR_CONTROL, m_regs.context.cbColorControl.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_TARGET_MASK, mmCB_SHADER_MASK,
+                                                   &m_regs.context.cbTargetMask,
+                                                   pCmdSpace);
 
-    if (uploader.EnableLoadIndexPath())
-    {
-        PAL_ASSERT((uploader.CtxRegGpuVirtAddr() != 0) && (uploader.ShRegGpuVirtAddr() != 0));
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_CLIP_CNTL, m_regs.context.paClClipCntl.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SU_VTX_CNTL, m_regs.context.paSuVtxCntl.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_VTE_CNTL, m_regs.context.paClVteCntl.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_LINE_CNTL, m_regs.context.paScLineCntl.u32All, pCmdSpace);
 
-        cmdUtil.BuildLoadShRegsIndex(uploader.ShRegGpuVirtAddr(),
-                                     uploader.ShRegisterCount(),
-                                     ShaderGraphics,
-                                     &m_commands.loadIndex.sh.loadShRegIndex);
-        cmdUtil.BuildLoadContextRegsIndex(uploader.CtxRegGpuVirtAddr(),
-                                          uploader.CtxRegisterCount(),
-                                          &m_commands.loadIndex.context.loadCtxRegIndex);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmSPI_INTERP_CONTROL_0,
+                                                  m_regs.context.spiInterpControl0.u32All,
+                                                  pCmdSpace);
 
-    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_LATE_ALLOC_VS,
-                             ShaderGraphics,
-                             &m_commands.set.sh.hdrSpiShaderLateAllocVs);
-
-    m_commands.set.context.spaceNeeded =
-        cmdUtil.BuildSetOneContextReg(mmVGT_SHADER_STAGES_EN, &m_commands.set.context.hdrVgtShaderStagesEn);
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmVGT_DRAW_PAYLOAD_CNTL, &m_commands.set.context.hdrVgtDrawPayloadCntl);
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmVGT_GS_MODE, &m_commands.set.context.hdrVgtGsMode);
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmVGT_REUSE_OFF, &m_commands.set.context.hdrVgtReuseOff);
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmVGT_TF_PARAM, &m_commands.set.context.hdrVgtTfParam);
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmCB_COLOR_CONTROL, &m_commands.set.context.hdrCbColorControl);
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetSeqContextRegs(mmCB_TARGET_MASK, mmCB_SHADER_MASK,
-                                       &m_commands.set.context.hdrCbShaderTargetMask);
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmPA_CL_CLIP_CNTL, &m_commands.set.context.hdrPaClClipCntl);
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmPA_SU_VTX_CNTL, &m_commands.set.context.hdrPaSuVtxCntl);
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmPA_CL_VTE_CNTL, &m_commands.set.context.hdrPaClVteCntl);
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmPA_SC_LINE_CNTL, &m_commands.set.context.hdrPaScLineCntl);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_VERTEX_REUSE_BLOCK_CNTL,
+                                                  m_regs.context.vgtVertexReuseBlockCntl.u32All,
+                                                  pCmdSpace);
 
     if (regInfo.mmPaStereoCntl != 0)
     {
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(regInfo.mmPaStereoCntl, &m_commands.set.context.hdrPaStereoCntl);
-    }
-    else
-    {
-        // Use a NOP to fill the gap for hardware which doesn't have mmPA_STEREO_CNTL.
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildNop(CmdUtil::ContextRegSizeDwords + 1, &m_commands.set.context.hdrPaStereoCntl);
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(regInfo.mmPaStereoCntl,
+                                                      m_regs.context.paStereoCntl.u32All,
+                                                      pCmdSpace);
     }
 
     if (IsGfx10(m_gfxLevel))
     {
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(Gfx10::mmCB_COVERAGE_OUT_CONTROL,
-                                          &m_commands.set.context.hdrCbCoverageOutCntl);
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10::mmCB_COVERAGE_OUT_CONTROL,
+                                                      m_regs.context.cbCoverageOutCntl.u32All,
+                                                      pCmdSpace);
     }
-    else
-    {
-        // Use a NOP to fill the gap for hardware which doesn't have mmCB_COVERAGE_OUT_CONTROL/ mmGE_USER_VGPR_EN.
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildNop(CmdUtil::ContextRegSizeDwords + 1, &m_commands.set.context.hdrCbCoverageOutCntl);
-    }
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmSPI_INTERP_CONTROL_0, &m_commands.set.context.hdrSpiInterpControl0);
-
-    m_commands.set.context.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmVGT_VERTEX_REUSE_BLOCK_CNTL,
-                                      &m_commands.set.context.hdrVgtVertexReuseBlockCntl);
 
     if (IsGsEnabled() || IsNgg() || IsTessEnabled())
     {
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmVGT_GS_ONCHIP_CNTL,
-                                          &m_commands.set.context.hdrVgtGsOnchipCntl);
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_GS_ONCHIP_CNTL,
+                                                      m_regs.context.vgtGsOnchipCntl.u32All,
+                                                      pCmdSpace);
     }
-    else
-    {
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildNop(CmdUtil::ContextRegSizeDwords + 1, &m_commands.set.context.hdrVgtGsOnchipCntl);
-    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -844,39 +794,39 @@ void GraphicsPipeline::SetupCommonRegisters(
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
     const PalPublicSettings* pPalSettings = m_pDevice->Parent()->GetPublicSettings();
 
-    m_commands.set.context.paClClipCntl.u32All    = registers.At(mmPA_CL_CLIP_CNTL);
-    m_commands.set.context.paClVteCntl.u32All     = registers.At(mmPA_CL_VTE_CNTL);
-    m_commands.set.context.paSuVtxCntl.u32All     = registers.At(mmPA_SU_VTX_CNTL);
-    m_paScModeCntl1.u32All                        = registers.At(mmPA_SC_MODE_CNTL_1);
+    m_regs.context.paClClipCntl.u32All  = registers.At(mmPA_CL_CLIP_CNTL);
+    m_regs.context.paClVteCntl.u32All   = registers.At(mmPA_CL_VTE_CNTL);
+    m_regs.context.paSuVtxCntl.u32All   = registers.At(mmPA_SU_VTX_CNTL);
+    m_regs.context.paScModeCntl1.u32All = registers.At(mmPA_SC_MODE_CNTL_1);
 
-    registers.HasEntry(mmVGT_GS_ONCHIP_CNTL, &m_commands.set.context.vgtGsOnchipCntl.u32All);
+    registers.HasEntry(mmVGT_GS_ONCHIP_CNTL, &m_regs.context.vgtGsOnchipCntl.u32All);
 
     // Overrides some of the fields in PA_SC_MODE_CNTL1 to account for GPU pipe config and features like out-of-order
     // rasterization.
 
     // The maximum value for OUT_OF_ORDER_WATER_MARK is 7
     constexpr uint32 MaxOutOfOrderWatermark = 7;
-    m_paScModeCntl1.bits.OUT_OF_ORDER_WATER_MARK = Min(MaxOutOfOrderWatermark, settings.outOfOrderWatermark);
+    m_regs.context.paScModeCntl1.bits.OUT_OF_ORDER_WATER_MARK = Min(MaxOutOfOrderWatermark,
+                                                                    settings.outOfOrderWatermark);
 
     if (createInfo.rsState.outOfOrderPrimsEnable &&
         (settings.enableOutOfOrderPrimitives != OutOfOrderPrimDisable))
     {
-        m_paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE = 1;
+        m_regs.context.paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE = 1;
     }
 
     // Hardware team recommendation is to set WALK_FENCE_SIZE to 512 pixels for 4/8/16 pipes and 256 pixels
     // for 2 pipes.
-    m_paScModeCntl1.bits.WALK_FENCE_SIZE = ((m_pDevice->GetNumPipesLog2() <= 1) ? 2 : 3);
+    m_regs.context.paScModeCntl1.bits.WALK_FENCE_SIZE = ((m_pDevice->GetNumPipesLog2() <= 1) ? 2 : 3);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
-    m_paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
+    m_regs.context.paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
 #endif
 
-    m_info.ps.flags.perSampleShading = m_paScModeCntl1.bits.PS_ITER_SAMPLE;
+    m_info.ps.flags.perSampleShading = m_regs.context.paScModeCntl1.bits.PS_ITER_SAMPLE;
 
     // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
-    regDB_RENDER_OVERRIDE dbRenderOverride = { };
-    dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_chunkVsPs.DbShaderControl().bits.Z_ORDER == RE_Z);
+    m_regs.context.dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_chunkVsPs.DbShaderControl().bits.Z_ORDER == RE_Z);
 
     // Configure depth clamping
     // Register specification does not specify dependence of DISABLE_VIEWPORT_CLAMP on Z_EXPORT_ENABLE, but
@@ -888,65 +838,64 @@ void GraphicsPipeline::SetupCommonRegisters(
 
     if (pPalSettings->depthClampBasedOnZExport == true)
     {
-        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable != false) &&
-                                                        (m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
+        m_regs.context.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
+            ((createInfo.rsState.depthClampDisable != false) &&
+             (m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
     }
     else
     {
         // Vulkan (only) will take this path by default, unless an app-detect forces the other way.
-        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable != false);
+        m_regs.context.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable != false);
     }
-
-    m_commands.common.dbRenderOverride.reg_data = dbRenderOverride.u32All;
 
     if (regInfo.mmPaStereoCntl != 0)
     {
-        registers.HasEntry(regInfo.mmPaStereoCntl, &m_commands.set.context.paStereoCntl.u32All);
+        registers.HasEntry(regInfo.mmPaStereoCntl, &m_regs.context.paStereoCntl.u32All);
     }
 
     if (IsGfx10(m_gfxLevel))
     {
-        registers.HasEntry(Gfx10::mmGE_STEREO_CNTL,  &m_commands.common.geStereoCntl.u32All);
-        registers.HasEntry(Gfx10::mmGE_USER_VGPR_EN, &m_commands.common.geUserVgprEn.u32All);
+        registers.HasEntry(Gfx10::mmGE_STEREO_CNTL,  &m_regs.uconfig.geStereoCntl.u32All);
+        registers.HasEntry(Gfx10::mmGE_USER_VGPR_EN, &m_regs.uconfig.geUserVgprEn.u32All);
 
-        if ((IsNgg() == false) || (m_commands.set.context.vgtShaderStagesEn.gfx10.PRIMGEN_PASSTHRU_EN == 1))
+        if ((IsNgg() == false) || (m_regs.context.vgtShaderStagesEn.gfx10.PRIMGEN_PASSTHRU_EN == 1))
         {
             if (settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru > 0)
             {
-                m_commands.common.gePcAlloc.bits.OVERSUB_EN   = 1;
-                m_commands.common.gePcAlloc.bits.NUM_PC_LINES =
+                m_regs.uconfig.gePcAlloc.bits.OVERSUB_EN   = 1;
+                m_regs.uconfig.gePcAlloc.bits.NUM_PC_LINES =
                     ((settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru * chipProps.gfx9.numShaderEngines) - 1);
             }
         }
         else
         {
-            PAL_ASSERT(m_commands.set.context.vgtShaderStagesEn.bits.PRIMGEN_EN == 1);
+            PAL_ASSERT(m_regs.context.vgtShaderStagesEn.bits.PRIMGEN_EN == 1);
             if (settings.gfx10GePcAllocNumLinesPerSeNggCulling > 0)
             {
-                m_commands.common.gePcAlloc.bits.OVERSUB_EN   = 1;
-                m_commands.common.gePcAlloc.bits.NUM_PC_LINES =
+                m_regs.uconfig.gePcAlloc.bits.OVERSUB_EN   = 1;
+                m_regs.uconfig.gePcAlloc.bits.NUM_PC_LINES =
                     ((settings.gfx10GePcAllocNumLinesPerSeNggCulling * chipProps.gfx9.numShaderEngines) - 1);
             }
         }
     }
 
-    m_commands.set.context.vgtReuseOff.u32All = registers.At(mmVGT_REUSE_OFF);
-    m_spiPsInControl.u32All                   = registers.At(mmSPI_PS_IN_CONTROL);
-    m_spiVsOutConfig.u32All                   = registers.At(mmSPI_VS_OUT_CONFIG);
+    m_regs.context.vgtReuseOff.u32All    = registers.At(mmVGT_REUSE_OFF);
+    m_regs.context.spiPsInControl.u32All = registers.At(mmSPI_PS_IN_CONTROL);
+    m_regs.context.spiVsOutConfig.u32All = registers.At(mmSPI_VS_OUT_CONFIG);
 
     // NOTE: The following registers are assumed to have the value zero if the pipeline ELF does not specify values.
-    registers.HasEntry(mmVGT_TF_PARAM,     &m_commands.set.context.vgtTfParam.u32All);
-    registers.HasEntry(mmVGT_LS_HS_CONFIG, &m_vgtLsHsConfig.u32All);
+    registers.HasEntry(mmVGT_TF_PARAM,     &m_regs.context.vgtTfParam.u32All);
+    registers.HasEntry(mmVGT_LS_HS_CONFIG, &m_regs.context.vgtLsHsConfig.u32All);
 
     // If the number of VS output semantics exceeds the half-pack threshold, then enable VS half-pack mode.  Keep in
     // mind that the number of VS exports are represented by a -1 field in the HW register!
-    if ((m_spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u) > settings.vsHalfPackThreshold)
+    if ((m_regs.context.spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u) > settings.vsHalfPackThreshold)
     {
-        m_spiVsOutConfig.bits.VS_HALF_PACK = 1;
+        m_regs.context.spiVsOutConfig.bits.VS_HALF_PACK = 1;
     }
 
     // For Gfx9+, default VTX_REUSE_DEPTH to 14
-    m_commands.set.context.vgtVertexReuseBlockCntl.bits.VTX_REUSE_DEPTH = 14;
+    m_regs.context.vgtVertexReuseBlockCntl.bits.VTX_REUSE_DEPTH = 14;
 
     if ((settings.vsHalfPackThreshold >= MaxVsExportSemantics) &&
         (m_gfxLevel == GfxIpLevel::GfxIp9))
@@ -957,45 +906,44 @@ void GraphicsPipeline::SetupCommonRegisters(
         // VGT_TF_PARAM depends solely on the compiled HS when on-chip GS is disabled, in the future when Tess with
         // on-chip GS is supported, the 2nd condition may need to be revisited.
         if ((m_pDevice->DegeneratePrimFilter() == false) ||
-            (IsTessEnabled() && (m_commands.set.context.vgtTfParam.bits.PARTITIONING != PART_FRAC_ODD)))
+            (IsTessEnabled() && (m_regs.context.vgtTfParam.bits.PARTITIONING != PART_FRAC_ODD)))
         {
-            m_commands.set.context.vgtVertexReuseBlockCntl.bits.VTX_REUSE_DEPTH = 30;
+            m_regs.context.vgtVertexReuseBlockCntl.bits.VTX_REUSE_DEPTH = 30;
         }
     }
 
-    m_commands.set.context.spiInterpControl0.u32All = 0;
-    registers.HasEntry(mmSPI_INTERP_CONTROL_0, &m_commands.set.context.spiInterpControl0.u32All);
+    registers.HasEntry(mmSPI_INTERP_CONTROL_0, &m_regs.context.spiInterpControl0.u32All);
 
-    m_commands.set.context.spiInterpControl0.bits.FLAT_SHADE_ENA = (createInfo.rsState.shadeMode == ShadeMode::Flat);
-    if (m_commands.set.context.spiInterpControl0.bits.PNT_SPRITE_ENA != 0) // Point sprite mode is enabled.
+    m_regs.context.spiInterpControl0.bits.FLAT_SHADE_ENA = (createInfo.rsState.shadeMode == ShadeMode::Flat);
+    if (m_regs.context.spiInterpControl0.bits.PNT_SPRITE_ENA != 0) // Point sprite mode is enabled.
     {
-        m_commands.set.context.spiInterpControl0.bits.PNT_SPRITE_TOP_1  =
+        m_regs.context.spiInterpControl0.bits.PNT_SPRITE_TOP_1  =
             (createInfo.rsState.pointCoordOrigin != PointOrigin::UpperLeft);
     }
 
     // Default to nothing enabled
-    m_commands.set.context.vgtDrawPayloadCntl.u32All = 0;
+    m_regs.context.vgtDrawPayloadCntl.u32All = 0;
 
     if (pUploader->EnableLoadIndexPath())
     {
-        pUploader->AddCtxReg(mmVGT_SHADER_STAGES_EN,        m_commands.set.context.vgtShaderStagesEn);
-        pUploader->AddCtxReg(mmVGT_GS_MODE,                 m_commands.set.context.vgtGsMode);
-        pUploader->AddCtxReg(mmVGT_REUSE_OFF,               m_commands.set.context.vgtReuseOff);
-        pUploader->AddCtxReg(mmVGT_TF_PARAM,                m_commands.set.context.vgtTfParam);
-        pUploader->AddCtxReg(mmPA_CL_CLIP_CNTL,             m_commands.set.context.paClClipCntl);
-        pUploader->AddCtxReg(mmPA_SU_VTX_CNTL,              m_commands.set.context.paSuVtxCntl);
-        pUploader->AddCtxReg(mmPA_CL_VTE_CNTL,              m_commands.set.context.paClVteCntl);
-        pUploader->AddCtxReg(mmSPI_INTERP_CONTROL_0,        m_commands.set.context.spiInterpControl0);
-        pUploader->AddCtxReg(mmVGT_VERTEX_REUSE_BLOCK_CNTL, m_commands.set.context.vgtVertexReuseBlockCntl);
+        pUploader->AddCtxReg(mmVGT_SHADER_STAGES_EN,        m_regs.context.vgtShaderStagesEn);
+        pUploader->AddCtxReg(mmVGT_GS_MODE,                 m_regs.context.vgtGsMode);
+        pUploader->AddCtxReg(mmVGT_REUSE_OFF,               m_regs.context.vgtReuseOff);
+        pUploader->AddCtxReg(mmVGT_TF_PARAM,                m_regs.context.vgtTfParam);
+        pUploader->AddCtxReg(mmPA_CL_CLIP_CNTL,             m_regs.context.paClClipCntl);
+        pUploader->AddCtxReg(mmPA_SU_VTX_CNTL,              m_regs.context.paSuVtxCntl);
+        pUploader->AddCtxReg(mmPA_CL_VTE_CNTL,              m_regs.context.paClVteCntl);
+        pUploader->AddCtxReg(mmSPI_INTERP_CONTROL_0,        m_regs.context.spiInterpControl0);
+        pUploader->AddCtxReg(mmVGT_VERTEX_REUSE_BLOCK_CNTL, m_regs.context.vgtVertexReuseBlockCntl);
 
         if (regInfo.mmPaStereoCntl != 0)
         {
-            pUploader->AddCtxReg(regInfo.mmPaStereoCntl, m_commands.set.context.paStereoCntl);
+            pUploader->AddCtxReg(regInfo.mmPaStereoCntl, m_regs.context.paStereoCntl);
         }
 
         if (IsGfx10(m_gfxLevel))
         {
-            pUploader->AddCtxReg(mmVGT_DRAW_PAYLOAD_CNTL, m_commands.set.context.vgtDrawPayloadCntl);
+            pUploader->AddCtxReg(mmVGT_DRAW_PAYLOAD_CNTL, m_regs.context.vgtDrawPayloadCntl);
         }
     }
 
@@ -1023,7 +971,7 @@ void GraphicsPipeline::SetupCommonRegisters(
 
         if (m_gfxLevel == GfxIpLevel::GfxIp9)
         {
-            m_commands.set.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
+            m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
         }
         else if (IsGfx10(m_gfxLevel))
         {
@@ -1031,16 +979,16 @@ void GraphicsPipeline::SetupCommonRegisters(
             // enabled, otherwise check the VS/PS resource usage to compute the limit.
             if (settings.gfx10SpiShaderLateAllocVsNumLines < 64)
             {
-                m_commands.set.sh.spiShaderLateAllocVs.bits.LIMIT = settings.gfx10SpiShaderLateAllocVsNumLines;
+                m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = settings.gfx10SpiShaderLateAllocVsNumLines;
             }
             else
             {
-                m_commands.set.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
+                m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
             }
         }
         if (pUploader->EnableLoadIndexPath())
         {
-            pUploader->AddShReg(mmSPI_SHADER_LATE_ALLOC_VS, m_commands.set.sh.spiShaderLateAllocVs);
+            pUploader->AddShReg(mmSPI_SHADER_LATE_ALLOC_VS, m_regs.sh.spiShaderLateAllocVs);
         }
     }
     SetupIaMultiVgtParam(registers);
@@ -1061,14 +1009,15 @@ void GraphicsPipeline::SetupIaMultiVgtParam(
     {
         // The hardware requires that the primgroup size matches the number of HS patches-per-thread-group when
         // tessellation is enabled.
-        iaMultiVgtParam.bits.PRIMGROUP_SIZE = m_pDevice->ComputeTessPrimGroupSize(m_vgtLsHsConfig.bits.NUM_PATCHES);
+        iaMultiVgtParam.bits.PRIMGROUP_SIZE =
+            m_pDevice->ComputeTessPrimGroupSize(m_regs.context.vgtLsHsConfig.bits.NUM_PATCHES);
     }
-    else if (IsGsEnabled() && (m_vgtLsHsConfig.bits.HS_NUM_INPUT_CP != 0))
+    else if (IsGsEnabled() && (m_regs.context.vgtLsHsConfig.bits.HS_NUM_INPUT_CP != 0))
     {
         // The hardware requires that the primgroup size must not exceed (256/ number of HS input control points) when
         // a GS shader accepts patch primitives as input.
         iaMultiVgtParam.bits.PRIMGROUP_SIZE =
-                m_pDevice->ComputeNoTessPatchPrimGroupSize(m_vgtLsHsConfig.bits.HS_NUM_INPUT_CP);
+                m_pDevice->ComputeNoTessPatchPrimGroupSize(m_regs.context.vgtLsHsConfig.bits.HS_NUM_INPUT_CP);
     }
     else
     {
@@ -1085,26 +1034,26 @@ void GraphicsPipeline::SetupIaMultiVgtParam(
 
     for (uint32 idx = 0; idx < NumIaMultiVgtParam; ++idx)
     {
-        m_iaMultiVgtParam[idx] = iaMultiVgtParam;
+        m_regs.context.iaMultiVgtParam[idx] = iaMultiVgtParam;
 
         // Additional setup for this register is required based on whether or not WD_SWITCH_ON_EOP is forced to 1.
-        FixupIaMultiVgtParam((idx != 0), &m_iaMultiVgtParam[idx]);
+        FixupIaMultiVgtParam((idx != 0), &m_regs.context.iaMultiVgtParam[idx]);
 
         // NOTE: The PRIMGROUP_SIZE field IA_MULTI_VGT_PARAM must be less than 256 if stream output and
         // PARTIAL_ES_WAVE_ON are both enabled on 2-SE hardware.
         if ((VgtStrmoutConfig().u32All != 0) && (chipProps.gfx9.numShaderEngines == 2))
         {
-            if (m_iaMultiVgtParam[idx].bits.PARTIAL_ES_WAVE_ON == 0)
+            if (m_regs.context.iaMultiVgtParam[idx].bits.PARTIAL_ES_WAVE_ON == 0)
             {
-                PAL_ASSERT(m_iaMultiVgtParam[idx].bits.PRIMGROUP_SIZE < 256);
+                PAL_ASSERT(m_regs.context.iaMultiVgtParam[idx].bits.PRIMGROUP_SIZE < 256);
             }
 
-            if ((m_iaMultiVgtParam[idx].gfx09.EN_INST_OPT_BASIC == 1) ||
-                (m_iaMultiVgtParam[idx].gfx09.EN_INST_OPT_ADV   == 1))
+            if ((m_regs.context.iaMultiVgtParam[idx].gfx09.EN_INST_OPT_BASIC == 1) ||
+                (m_regs.context.iaMultiVgtParam[idx].gfx09.EN_INST_OPT_ADV   == 1))
             {
                 // The maximum supported setting for IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE with the instancing optimization
                 // flowchart enabled is 253.
-                PAL_ASSERT(m_iaMultiVgtParam[idx].bits.PRIMGROUP_SIZE < 253);
+                PAL_ASSERT(m_regs.context.iaMultiVgtParam[idx].bits.PRIMGROUP_SIZE < 253);
             }
         }
     }
@@ -1140,7 +1089,7 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
         }
     }
 
-    if (m_commands.set.context.vgtTfParam.bits.DISTRIBUTION_MODE != NO_DIST)
+    if (m_regs.context.vgtTfParam.bits.DISTRIBUTION_MODE != NO_DIST)
     {
         // Verify a few assumptions given that distributed tessellation is enabled:
         //     - Tessellation itself is enabled;
@@ -1289,12 +1238,12 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
 
-    m_commands.set.context.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
-    m_commands.set.context.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = 1;
-    m_commands.set.context.paScLineCntl.bits.LAST_PIXEL               = createInfo.rsState.rasterizeLastLinePixel;
-    m_commands.set.context.paScLineCntl.bits.PERPENDICULAR_ENDCAP_ENA = createInfo.rsState.perpLineEndCapsEnable;
+    m_regs.context.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
+    m_regs.context.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = 1;
+    m_regs.context.paScLineCntl.bits.LAST_PIXEL               = createInfo.rsState.rasterizeLastLinePixel;
+    m_regs.context.paScLineCntl.bits.PERPENDICULAR_ENDCAP_ENA = createInfo.rsState.perpLineEndCapsEnable;
 
-    m_commands.set.context.cbShaderMask.u32All = registers.At(mmCB_SHADER_MASK);
+    m_regs.context.cbShaderMask.u32All = registers.At(mmCB_SHADER_MASK);
 
     // CB_TARGET_MASK comes from the RT write masks in the pipeline CB state structure.
     for (uint32 rt = 0; rt < MaxColorTargets; ++rt)
@@ -1302,16 +1251,14 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         const auto&  cbTarget = createInfo.cbState.target[rt];
         const uint32 rtShift  = (rt * 4); // Each RT uses four bits of CB_TARGET_MASK.
 
-        m_commands.set.context.cbTargetMask.u32All |=
-                ((cbTarget.channelWriteMask & 0xF) << rtShift);
+        m_regs.context.cbTargetMask.u32All |= ((cbTarget.channelWriteMask & 0xF) << rtShift);
 
     }
 
     //      The bug manifests itself when an MRT is not enabled in the shader mask but is enabled in the target
     //      mask. It will work fine if the target mask is always a subset of the shader mask
     if (settings.waOverwriteCombinerTargetMaskOnly &&
-        (TestAllFlagsSet(m_commands.set.context.cbShaderMask.u32All,
-                         m_commands.set.context.cbTargetMask.u32All) == false))
+        (TestAllFlagsSet(m_regs.context.cbShaderMask.u32All, m_regs.context.cbTargetMask.u32All) == false))
     {
         //     What would happen if there was a case like:
         //         Target #    : 3 2 1 0
@@ -1343,105 +1290,105 @@ void GraphicsPipeline::SetupNonShaderRegisters(
 
     if (IsFastClearEliminate())
     {
-        m_commands.set.context.cbColorControl.bits.MODE = CB_ELIMINATE_FAST_CLEAR;
-        m_commands.set.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
+        m_regs.context.cbColorControl.bits.MODE = CB_ELIMINATE_FAST_CLEAR;
+        m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         // NOTE: the CB spec states that for fast-clear eliminate, these registers should be set to enable writes to all
         // four channels of RT #0.
-        m_commands.set.context.cbShaderMask.u32All = 0xF;
-        m_commands.set.context.cbTargetMask.u32All = 0xF;
+        m_regs.context.cbShaderMask.u32All = 0xF;
+        m_regs.context.cbTargetMask.u32All = 0xF;
     }
     else if (IsFmaskDecompress())
     {
-        m_commands.set.context.cbColorControl.bits.MODE = CB_FMASK_DECOMPRESS;
-        m_commands.set.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
+        m_regs.context.cbColorControl.bits.MODE = CB_FMASK_DECOMPRESS;
+        m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         // NOTE: the CB spec states that for fmask-decompress, these registers should be set to enable writes to all
         // four channels of RT #0.
-        m_commands.set.context.cbShaderMask.u32All = 0xF;
-        m_commands.set.context.cbTargetMask.u32All = 0xF;
+        m_regs.context.cbShaderMask.u32All = 0xF;
+        m_regs.context.cbTargetMask.u32All = 0xF;
     }
     else if (IsDccDecompress())
     {
-        m_commands.set.context.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS;
-        m_commands.set.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
+        m_regs.context.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS;
+        m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         // According to the reg-spec, DCC decompress ops imply fmask decompress and fast-clear eliminate operations as
         // well, so set these registers as they would be set above.
-        m_commands.set.context.cbShaderMask.u32All = 0xF;
-        m_commands.set.context.cbTargetMask.u32All = 0xF;
+        m_regs.context.cbShaderMask.u32All = 0xF;
+        m_regs.context.cbTargetMask.u32All = 0xF;
     }
     else if (IsResolveFixedFunc())
     {
-        m_commands.set.context.cbColorControl.bits.MODE = CB_RESOLVE;
-        m_commands.set.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
+        m_regs.context.cbColorControl.bits.MODE = CB_RESOLVE;
+        m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
-        m_commands.set.context.cbShaderMask.u32All = 0xF;
-        m_commands.set.context.cbTargetMask.u32All = 0xF;
+        m_regs.context.cbShaderMask.u32All = 0xF;
+        m_regs.context.cbTargetMask.u32All = 0xF;
     }
-    else if ((m_commands.set.context.cbShaderMask.u32All == 0) || (m_commands.set.context.cbTargetMask.u32All == 0))
+    else if ((m_regs.context.cbShaderMask.u32All == 0) || (m_regs.context.cbTargetMask.u32All == 0))
     {
-        m_commands.set.context.cbColorControl.bits.MODE = CB_DISABLE;
+        m_regs.context.cbColorControl.bits.MODE = CB_DISABLE;
     }
     else
     {
-        m_commands.set.context.cbColorControl.bits.MODE = CB_NORMAL;
-        m_commands.set.context.cbColorControl.bits.ROP3 = Rop3(createInfo.cbState.logicOp);
+        m_regs.context.cbColorControl.bits.MODE = CB_NORMAL;
+        m_regs.context.cbColorControl.bits.ROP3 = Rop3(createInfo.cbState.logicOp);
     }
 
     if (createInfo.cbState.dualSourceBlendEnable)
     {
         // If dual-source blending is enabled and the PS doesn't export to both RT0 and RT1, the hardware might hang.
         // To avoid the hang, just disable CB writes.
-        if (((m_commands.set.context.cbShaderMask.u32All & 0x0F) == 0) ||
-            ((m_commands.set.context.cbShaderMask.u32All & 0xF0) == 0))
+        if (((m_regs.context.cbShaderMask.u32All & 0x0F) == 0) ||
+            ((m_regs.context.cbShaderMask.u32All & 0xF0) == 0))
         {
             PAL_ALERT_ALWAYS();
-            m_commands.set.context.cbColorControl.bits.MODE = CB_DISABLE;
+            m_regs.context.cbColorControl.bits.MODE = CB_DISABLE;
         }
     }
 
     // Initialize RB+ registers for pipelines which are able to use the feature.
     if (settings.gfx9RbPlusEnable &&
         (createInfo.cbState.dualSourceBlendEnable == false) &&
-        (m_commands.set.context.cbColorControl.bits.MODE != CB_RESOLVE))
+        (m_regs.context.cbColorControl.bits.MODE != CB_RESOLVE))
     {
         PAL_ASSERT(chipProps.gfx9.rbPlus);
 
-        m_commands.set.context.cbColorControl.bits.DISABLE_DUAL_QUAD = 0;
+        m_regs.context.cbColorControl.bits.DISABLE_DUAL_QUAD = 0;
 
         for (uint32 slot = 0; slot < MaxColorTargets; ++slot)
         {
             SetupRbPlusRegistersForSlot(slot,
                                         createInfo.cbState.target[slot].channelWriteMask,
                                         createInfo.cbState.target[slot].swizzledFormat,
-                                        &m_sxPsDownconvert,
-                                        &m_sxBlendOptEpsilon,
-                                        &m_sxBlendOptControl);
+                                        &m_regs.context.sxPsDownconvert,
+                                        &m_regs.context.sxBlendOptEpsilon,
+                                        &m_regs.context.sxBlendOptControl);
         }
     }
     else if (chipProps.gfx9.rbPlus != 0)
     {
         // If RB+ is supported but not enabled, we need to set DISABLE_DUAL_QUAD.
-        m_commands.set.context.cbColorControl.bits.DISABLE_DUAL_QUAD = 1;
+        m_regs.context.cbColorControl.bits.DISABLE_DUAL_QUAD = 1;
     }
 
     if (chipProps.gfx9.supportMsaaCoverageOut && createInfo.coverageOutDesc.flags.enable)
     {
         const auto& coverageInfo = createInfo.coverageOutDesc;
 
-        m_commands.set.context.cbCoverageOutCntl.bits.COVERAGE_OUT_ENABLE  = 1;
-        m_commands.set.context.cbCoverageOutCntl.bits.COVERAGE_OUT_MRT     = coverageInfo.flags.mrt;
-        m_commands.set.context.cbCoverageOutCntl.bits.COVERAGE_OUT_SAMPLES = Log2(coverageInfo.flags.numSamples);
-        m_commands.set.context.cbCoverageOutCntl.bits.COVERAGE_OUT_CHANNEL = coverageInfo.flags.channel;
+        m_regs.context.cbCoverageOutCntl.bits.COVERAGE_OUT_ENABLE  = 1;
+        m_regs.context.cbCoverageOutCntl.bits.COVERAGE_OUT_MRT     = coverageInfo.flags.mrt;
+        m_regs.context.cbCoverageOutCntl.bits.COVERAGE_OUT_SAMPLES = Log2(coverageInfo.flags.numSamples);
+        m_regs.context.cbCoverageOutCntl.bits.COVERAGE_OUT_CHANNEL = coverageInfo.flags.channel;
 
         // The target and the shader mask need to be modified to ensure the coverage-out channel / MRT
         // combination is enabled.
         const uint32 mask = 1 << (coverageInfo.flags.channel +
                                   CB_SHADER_MASK__OUTPUT1_ENABLE__SHIFT * coverageInfo.flags.mrt);
 
-        m_commands.set.context.cbShaderMask.u32All |= mask;
-        m_commands.set.context.cbTargetMask.u32All |= mask;
+        m_regs.context.cbShaderMask.u32All |= mask;
+        m_regs.context.cbTargetMask.u32All |= mask;
     }
 
     if (m_signature.uavExportTableAddr != UserDataNotMapped)
@@ -1458,23 +1405,23 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     if ((IsInternal() == false) && (m_pDevice->Parent()->Settings().tossPointMode == TossPointAfterPs))
     {
         // This toss point is used to disable all color buffer writes.
-        m_commands.set.context.cbTargetMask.u32All = 0;
+        m_regs.context.cbTargetMask.u32All = 0;
     }
 
     if (pUploader->EnableLoadIndexPath())
     {
-        pUploader->AddCtxReg(mmPA_SC_LINE_CNTL,  m_commands.set.context.paScLineCntl);
-        pUploader->AddCtxReg(mmCB_COLOR_CONTROL, m_commands.set.context.cbColorControl);
-        pUploader->AddCtxReg(mmCB_SHADER_MASK,   m_commands.set.context.cbShaderMask);
-        pUploader->AddCtxReg(mmCB_TARGET_MASK,   m_commands.set.context.cbTargetMask);
+        pUploader->AddCtxReg(mmPA_SC_LINE_CNTL,  m_regs.context.paScLineCntl);
+        pUploader->AddCtxReg(mmCB_COLOR_CONTROL, m_regs.context.cbColorControl);
+        pUploader->AddCtxReg(mmCB_SHADER_MASK,   m_regs.context.cbShaderMask);
+        pUploader->AddCtxReg(mmCB_TARGET_MASK,   m_regs.context.cbTargetMask);
         if (IsGsEnabled() || IsNgg() || IsTessEnabled())
         {
-            pUploader->AddCtxReg(mmVGT_GS_ONCHIP_CNTL, m_commands.set.context.vgtGsOnchipCntl);
+            pUploader->AddCtxReg(mmVGT_GS_ONCHIP_CNTL, m_regs.context.vgtGsOnchipCntl);
         }
 
         if (IsGfx10(m_gfxLevel))
         {
-            pUploader->AddCtxReg(Gfx10::mmCB_COVERAGE_OUT_CONTROL, m_commands.set.context.cbCoverageOutCntl);
+            pUploader->AddCtxReg(Gfx10::mmCB_COVERAGE_OUT_CONTROL, m_regs.context.cbCoverageOutCntl);
         }
     }
 }
@@ -2160,10 +2107,10 @@ bool GraphicsPipeline::PsAllowsPunchout() const
 {
     const auto& dbShaderControl = m_chunkVsPs.DbShaderControl();
 
-    return (m_commands.set.context.cbShaderMask.u32All != 0) &&
-           (dbShaderControl.bits.KILL_ENABLE == 0)           &&
-           (dbShaderControl.bits.EXEC_ON_HIER_FAIL == 0)     &&
-           (dbShaderControl.bits.EXEC_ON_NOOP == 0)          &&
+    return (m_regs.context.cbShaderMask.u32All != 0)     &&
+           (dbShaderControl.bits.KILL_ENABLE == 0)       &&
+           (dbShaderControl.bits.EXEC_ON_HIER_FAIL == 0) &&
+           (dbShaderControl.bits.EXEC_ON_NOOP == 0)      &&
            (dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_LATE_Z);
 }
 
@@ -2173,9 +2120,9 @@ void GraphicsPipeline::UpdateNggPrimCb(
     Abi::PrimShaderPsoCb* pPrimShaderCb
     ) const
 {
-    pPrimShaderCb->paClVteCntl  = m_commands.set.context.paClVteCntl.u32All;
-    pPrimShaderCb->paSuVtxCntl  = m_commands.set.context.paSuVtxCntl.u32All;
-    pPrimShaderCb->paClClipCntl = m_commands.set.context.paClClipCntl.u32All;
+    pPrimShaderCb->paClVteCntl  = m_regs.context.paClVteCntl.u32All;
+    pPrimShaderCb->paSuVtxCntl  = m_regs.context.paSuVtxCntl.u32All;
+    pPrimShaderCb->paClClipCntl = m_regs.context.paClClipCntl.u32All;
 }
 
 // =====================================================================================================================
@@ -2194,7 +2141,7 @@ void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
     const SwizzledFormat*const pTargetFormats = TargetFormats();
 
     if ((pTargetFormats[slot].format != swizzledFormat.format) &&
-        (m_commands.set.context.cbColorControl.bits.DISABLE_DUAL_QUAD == 0))
+        (m_regs.context.cbColorControl.bits.DISABLE_DUAL_QUAD == 0))
     {
         regSX_PS_DOWNCONVERT    sxPsDownconvert   = { };
         regSX_BLEND_OPT_EPSILON sxBlendOptEpsilon = { };
@@ -2223,17 +2170,17 @@ bool GraphicsPipeline::HwStereoRenderingEnabled() const
     {
         if (IsVega12(device))
         {
-            enStereo = m_commands.set.context.paStereoCntl.vg12.EN_STEREO;
+            enStereo = m_regs.context.paStereoCntl.vg12.EN_STEREO;
         }
         else if (IsVega20(device))
         {
-            enStereo = m_commands.set.context.paStereoCntl.vg20.EN_STEREO;
+            enStereo = m_regs.context.paStereoCntl.vg20.EN_STEREO;
         }
     }
     else
     {
 
-        enStereo = m_commands.common.geStereoCntl.bits.EN_STEREO;
+        enStereo = m_regs.uconfig.geStereoCntl.bits.EN_STEREO;
 
     }
 
@@ -2249,17 +2196,17 @@ bool GraphicsPipeline::HwStereoRenderingUsesMultipleViewports() const
 
     if (IsGfx10(m_gfxLevel))
     {
-        vpIdOffset = m_commands.set.context.paStereoCntl.gfx10.VP_ID_OFFSET;
+        vpIdOffset = m_regs.context.paStereoCntl.gfx10.VP_ID_OFFSET;
     }
     else
     {
         if (IsVega12(palDevice))
         {
-            vpIdOffset = m_commands.set.context.paStereoCntl.vg12.VP_ID_OFFSET;
+            vpIdOffset = m_regs.context.paStereoCntl.vg12.VP_ID_OFFSET;
         }
         else if (IsVega20(palDevice))
         {
-            vpIdOffset = m_commands.set.context.paStereoCntl.vg20.VP_ID_OFFSET;
+            vpIdOffset = m_regs.context.paStereoCntl.vg20.VP_ID_OFFSET;
         }
     }
 
@@ -2316,11 +2263,11 @@ void GraphicsPipeline::SetupStereoRegisters()
 
                 if (IsVega12(device))
                 {
-                    SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_commands.set.context.paStereoCntl.vg12);
+                    SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_regs.context.paStereoCntl.vg12);
                 }
                 else if (IsVega20(device))
                 {
-                    SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_commands.set.context.paStereoCntl.vg20);
+                    SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_regs.context.paStereoCntl.vg20);
                 }
             }
             else
@@ -2330,25 +2277,25 @@ void GraphicsPipeline::SetupStereoRegisters()
                 const uint32  rtSliceOffset = viewInstancingDesc.renderTargetArrayIdx[1] -
                                               viewInstancingDesc.renderTargetArrayIdx[0];
 
-                m_commands.set.context.paStereoCntl.gfx10.VP_ID_OFFSET    = vpIdOffset;
-                m_commands.set.context.paStereoCntl.gfx10.RT_SLICE_OFFSET = rtSliceOffset;
+                m_regs.context.paStereoCntl.gfx10.VP_ID_OFFSET    = vpIdOffset;
+                m_regs.context.paStereoCntl.gfx10.RT_SLICE_OFFSET = rtSliceOffset;
 
                 if ((vpIdOffset != 0) || (rtSliceOffset != 0))
                 {
-                    m_commands.common.geStereoCntl.bits.EN_STEREO = 1;
+                    m_regs.uconfig.geStereoCntl.bits.EN_STEREO = 1;
                 }
 
-                m_commands.common.geStereoCntl.bits.VIEWPORT = viewInstancingDesc.viewportArrayIdx[0];
-                m_commands.common.geStereoCntl.bits.RT_SLICE = viewInstancingDesc.renderTargetArrayIdx[0];
+                m_regs.uconfig.geStereoCntl.bits.VIEWPORT = viewInstancingDesc.viewportArrayIdx[0];
+                m_regs.uconfig.geStereoCntl.bits.RT_SLICE = viewInstancingDesc.renderTargetArrayIdx[0];
 
-                if (m_commands.common.geStereoCntl.bits.VIEWPORT != 0)
+                if (m_regs.uconfig.geStereoCntl.bits.VIEWPORT != 0)
                 {
-                    m_commands.set.context.vgtDrawPayloadCntl.gfx10.EN_DRAW_VP = 1;
+                    m_regs.context.vgtDrawPayloadCntl.gfx10.EN_DRAW_VP = 1;
                 }
 
-                if (m_commands.common.geStereoCntl.bits.RT_SLICE != 0)
+                if (m_regs.uconfig.geStereoCntl.bits.RT_SLICE != 0)
                 {
-                    m_commands.set.context.vgtDrawPayloadCntl.bits.EN_REG_RT_INDEX = 1;
+                    m_regs.context.vgtDrawPayloadCntl.bits.EN_REG_RT_INDEX = 1;
                 }
             }
         }

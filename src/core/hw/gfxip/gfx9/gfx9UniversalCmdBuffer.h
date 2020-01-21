@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -983,11 +983,9 @@ private:
     regCB_RMI_GL2_CACHE_CONTROL m_cbRmiGl2CacheControl; // Control CB cache policy and big page
 
     regPA_SC_BINNER_CNTL_0  m_paScBinnerCntl0;
-    regPA_SC_BINNER_CNTL_0  m_savedPaScBinnerCntl0; // Value of PA_SC_BINNER_CNTL0 selected by settings
     uint32                  m_log2NumSamples;       // Last written value of PA_SC_AA_CONFIG.MSAA_NUM_SAMPLES.
     regDB_DFSM_CONTROL      m_dbDfsmControl;
 
-    BinningMode      m_binningMode;      // Last value programmed into paScBinnerCntl0.BINNING_MODE
     BinningOverride  m_pbbStateOverride; // Sets PBB on/off as per dictated by the new bound pipeline.
     bool             m_enabledPbb;       // PBB is currently enabled or disabled.
     uint16           m_customBinSizeX;   // Custom bin sizes for PBB.  Zero indicates PBB is not using
@@ -1032,7 +1030,7 @@ private:
             uint32 reserved2                  :  1;
             uint32 reserved3                  :  1;
             uint32 pbbMoreThanOneCtxState     :  1;
-            uint32 reserved                   :  1;
+            uint32 waUtcL0InconsistentBigPage :  1;
         };
         uint32 u32All;
     } m_cachedSettings;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -659,9 +659,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         {
             pOut->swizzleMode = imageInfo.internalCreateInfo.gfx9.sharedSwizzleMode;
         }
-        else if (pImage->IsFlippable())
-        {
-        }
         else if (pImage->GetGfxImage()->IsRestrictedTiledMultiMediaSurface() &&
                  (createInfo.tiling == ImageTiling::Optimal))
         {
@@ -698,6 +695,10 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                 }
             }
         }
+        else if (pImage->IsFlippable())
+        {
+        }
+
         else if ((pBaseSubRes->subresId.aspect == ImageAspect::Stencil) &&
                  pImage->IsAspectValid(ImageAspect::Depth))
         {

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -78,74 +78,45 @@ public:
 
     gpusize LsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_commands.sh.spiShaderPgmLoLs.bits.MEM_BASE,
-                                  m_commands.sh.spiShaderPgmHiLs.bits.MEM_BASE);
+        return GetOriginalAddress(m_regs.sh.spiShaderPgmLoLs.bits.MEM_BASE,
+                                  m_regs.sh.spiShaderPgmHiLs.bits.MEM_BASE);
     }
 
     const ShaderStageInfo& StageInfo() const { return m_stageInfo; }
 
 private:
-    void BuildPm4Headers(bool enableLoadIndexPath);
+    const Device&  m_device;
 
-    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
-    struct Pm4Commands
+    struct
     {
         struct
         {
-            PM4_ME_SET_SH_REG        hdrSpiShaderPgmHs;
-            regSPI_SHADER_PGM_LO_LS  spiShaderPgmLoLs;
-            regSPI_SHADER_PGM_HI_LS  spiShaderPgmHiLs;
-
-            PM4_ME_SET_SH_REG           hdrSpiShaderPgmRsrcHs;
+            regSPI_SHADER_PGM_LO_LS     spiShaderPgmLoLs;
+            regSPI_SHADER_PGM_HI_LS     spiShaderPgmHiLs;
             regSPI_SHADER_PGM_RSRC1_HS  spiShaderPgmRsrc1Hs;
             regSPI_SHADER_PGM_RSRC2_HS  spiShaderPgmRsrc2Hs;
+            uint32                      userDataInternalTable;
 
-            PM4_ME_SET_SH_REG             hdrSpiShaderUserDataHs;
-            uint32                        spiShaderUserDataLoHs;
-
-            // Not all gfx10 devices support user accum registers. If we don't have it, NOP will be added.
-            PM4_ME_SET_SH_REG               hdrSpishaderUserAccumLshs;
-            regSPI_SHADER_USER_ACCUM_LSHS_0 shaderUserAccumLshs0;
-            regSPI_SHADER_USER_ACCUM_LSHS_1 shaderUserAccumLshs1;
-            regSPI_SHADER_USER_ACCUM_LSHS_2 shaderUserAccumLshs2;
-            regSPI_SHADER_USER_ACCUM_LSHS_3 shaderUserAccumLshs3;
-
-            // Checksum register is optional, as not all GFX9+ hardware uses it. If we don't have it, NOP will be added.
-            PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
-            regSPI_SHADER_PGM_CHKSUM_HS  spiShaderPgmChksumHs;
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
-        } sh; // Writes SH registers when using the SET path.
-
+            regSPI_SHADER_PGM_CHKSUM_HS      spiShaderPgmChksumHs;
+            regSPI_SHADER_USER_ACCUM_LSHS_0  spiShaderUserAccumLsHs0;
+            regSPI_SHADER_USER_ACCUM_LSHS_1  spiShaderUserAccumLsHs1;
+            regSPI_SHADER_USER_ACCUM_LSHS_2  spiShaderUserAccumLsHs2;
+            regSPI_SHADER_USER_ACCUM_LSHS_3  spiShaderUserAccumLsHs3;
+        } sh;
         struct
         {
-            PM4_PFP_SET_CONTEXT_REG    hdrvVgtHosTessLevel;
             regVGT_HOS_MAX_TESS_LEVEL  vgtHosMaxTessLevel;
             regVGT_HOS_MIN_TESS_LEVEL  vgtHosMinTessLevel;
-        } context; // Writes context registers when using the SET path.
-
+        } context;
         struct
         {
-            PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc3Hs;
             regSPI_SHADER_PGM_RSRC3_HS  spiShaderPgmRsrc3Hs;
-
-            PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc4Hs;
             regSPI_SHADER_PGM_RSRC4_HS  spiShaderPgmRsrc4Hs;
-
-            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
-            // w/ the actual commands contained above.
-            size_t  spaceNeeded;
-        } dynamic; // Contains state which depends on bind-time parameters.
-    };
-
-    const Device&  m_device;
-    Pm4Commands    m_commands;
+        } dynamic;
+    }  m_regs;
 
     const PerfDataInfo*const  m_pHsPerfDataInfo;   // HS performance data information.
-
-    ShaderStageInfo  m_stageInfo;
+    ShaderStageInfo           m_stageInfo;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkHs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkHs);

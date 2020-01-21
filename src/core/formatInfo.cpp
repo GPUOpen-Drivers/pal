@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -97,7 +97,6 @@ float GammaToLinear(
 
 // =====================================================================================================================
 // Converts a color in RGB_ order into a shared exponent format, X9Y9Z9E5.
-// SEE: https://tinyurl.com/gs7wv3u
 void ConvertColorToX9Y9Z9E5(
     const float*   pColorIn,
     uint32*        pColorOut)
@@ -240,6 +239,101 @@ void ConvertColor(
     else
     {
         ConvertColorToX9Y9Z9E5(pColorIn, &pColorOut[0]);
+    }
+}
+
+// =====================================================================================================================
+// Converts an unsigned integer representation of a color value YUVA order to the appropriate bit representation for
+// each channel based on the specified format.
+void ConvertYuvColor(
+    SwizzledFormat format,
+    ImageAspect    aspect,
+    const uint32*  pColorIn,
+    uint32*        pColorOut)
+{
+    switch (format.format)
+    {
+    case ChNumFormat::AYUV:
+        // The order of AYUV is actually VUYA
+        pColorOut[0] = (pColorIn[2] | (pColorIn[1] << 8) | (pColorIn[0] << 16) | (pColorIn[3] << 24));
+        break;
+    case ChNumFormat::UYVY:
+        pColorOut[0] = (pColorIn[1] | (pColorIn[0] << 8) | (pColorIn[2] << 16) | (pColorIn[0] << 24));
+        break;
+    case ChNumFormat::VYUY:
+        pColorOut[0] = (pColorIn[2] | (pColorIn[0] << 8) | (pColorIn[1] << 16) | (pColorIn[0] << 24));
+        break;
+    case ChNumFormat::YUY2:
+        pColorOut[0] = (pColorIn[0] | (pColorIn[1] << 8) | (pColorIn[0] << 16) | (pColorIn[2] << 24));
+        break;
+    case ChNumFormat::YVY2:
+        pColorOut[0] = (pColorIn[0] | (pColorIn[2] << 8) | (pColorIn[0] << 16) | (pColorIn[1] << 24));
+        break;
+    case ChNumFormat::YV12:
+        if (aspect == ImageAspect::Y)
+        {
+            pColorOut[0] = pColorIn[0];
+        }
+        else if (aspect == ImageAspect::Cb)
+        {
+            pColorOut[0] = pColorIn[1];
+        }
+        else if (aspect == ImageAspect::Cr)
+        {
+            pColorOut[0] = pColorIn[2];
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+        break;
+    case ChNumFormat::NV11:
+    case ChNumFormat::NV12:
+        if (aspect == ImageAspect::Y)
+        {
+            pColorOut[0] = pColorIn[0];
+        }
+        else if (aspect == ImageAspect::CbCr)
+        {
+            pColorOut[0] = (pColorIn[1] | (pColorIn[2] << 8));
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+        break;
+    case ChNumFormat::NV21:
+        if (aspect == ImageAspect::Y)
+        {
+            pColorOut[0] = pColorIn[0];
+        }
+        else if (aspect == ImageAspect::CbCr)
+        {
+            pColorOut[0] = (pColorIn[2] | (pColorIn[1] << 8));
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+        break;
+    case ChNumFormat::P016:
+    case ChNumFormat::P010:
+        if (aspect == ImageAspect::Y)
+        {
+            pColorOut[0] = pColorIn[0];
+        }
+        else if (aspect == ImageAspect::CbCr)
+        {
+            pColorOut[0] = (pColorIn[1] | (pColorIn[2] << 16));
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+        break;
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
     }
 }
 

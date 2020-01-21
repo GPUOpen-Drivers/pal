@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -97,7 +97,7 @@ static void PrintMemoryInfo(
 void TextWriter::WriteVisualConfirm(
     const Image&        dstImage,    // Image to write visual confirm into.
     ICmdBuffer*         pCmdBuffer,  // Command buffer to write commands into.
-    ExpectedPresentMode presentMode  // How this visual confirm will be presented.
+    PresentMode presentMode  // How this visual confirm will be presented.
     ) const
 {
     auto*const  pFpsMgr   = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr();
@@ -173,21 +173,17 @@ void TextWriter::WriteVisualConfirm(
 
     switch (presentMode)
     {
-    case ExpectedPresentMode::Unknown:
-        // If we don't know what mode will be used, don't write a mode at all.
-        Util::Snprintf(&overlayText[textLines++][0], BufSize, "CPU Frame Rate:    %7.2f FPS", framerate);
-        break;
-
-    case ExpectedPresentMode::Windowed:
+    case PresentMode::Windowed:
         Util::Snprintf(&overlayText[textLines++][0], BufSize, "CPU Frame Rate:    %7.2f FPS (Windowed)", framerate);
         break;
 
-    case ExpectedPresentMode::Fullscreen:
+    case PresentMode::Fullscreen:
         Util::Snprintf(&overlayText[textLines++][0], BufSize, "CPU Frame Rate:    %7.2f FPS (Fullscreen)", framerate);
         break;
 
     default:
-        PAL_ASSERT_ALWAYS();
+        // If we don't know what mode will be used, don't write a mode at all.
+        Util::Snprintf(&overlayText[textLines++][0], BufSize, "CPU Frame Rate:    %7.2f FPS", framerate);
         break;
     }
 

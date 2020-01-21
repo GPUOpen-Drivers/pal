@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -371,72 +371,72 @@ enum class ChNumFormat : uint32
                                         ///  bit, 10-bit mantissa, and 5-bit biased (15) exponent). There is no sign
                                         ///  bit, and there is a shared 5-bit biased (15) exponent and a 9-bit mantissa
                                         ///  for each channelShared exponent format.
-    Bc1_Unorm                = 0x57,    ///< [BC1](http://tinyurl.com/kejao56) compressed texture format.
-    Bc1_Srgb                 = 0x58,    ///< [BC1](http://tinyurl.com/kejao56) compressed texture format.
-    Bc2_Unorm                = 0x59,    ///< [BC2](http://tinyurl.com/kxtubtj) compressed texture format.
-    Bc2_Srgb                 = 0x5A,    ///< [BC2](http://tinyurl.com/kxtubtj) compressed texture format.
-    Bc3_Unorm                = 0x5B,    ///< [BC3](http://tinyurl.com/kwa65u3) compressed texture format.
-    Bc3_Srgb                 = 0x5C,    ///< [BC3](http://tinyurl.com/kwa65u3) compressed texture format.
-    Bc4_Unorm                = 0x5D,    ///< [BC4](http://tinyurl.com/lvouv7q) compressed texture format.
-    Bc4_Snorm                = 0x5E,    ///< [BC4](http://tinyurl.com/lvouv7q) compressed texture format.
-    Bc5_Unorm                = 0x5F,    ///< [BC5](http://tinyurl.com/l59bu2s) compressed texture format.
-    Bc5_Snorm                = 0x60,    ///< [BC5](http://tinyurl.com/l59bu2s) compressed texture format.
-    Bc6_Ufloat               = 0x61,    ///< [BC6](http://tinyurl.com/nxxjhlq) unsigned compressed texture format.
-    Bc6_Sfloat               = 0x62,    ///< [BC6](http://tinyurl.com/nxxjhlq) signed compressed texture format.
-    Bc7_Unorm                = 0x63,    ///< [BC7](http://tinyurl.com/l6qhpgr) compressed texture format.
-    Bc7_Srgb                 = 0x64,    ///< [BC7](http://tinyurl.com/l6qhpgr) compressed texture format.
-    Etc2X8Y8Z8_Unorm         = 0x65,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X8Y8Z8_Srgb          = 0x66,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X8Y8Z8W1_Unorm       = 0x67,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X8Y8Z8W1_Srgb        = 0x68,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X8Y8Z8W8_Unorm       = 0x69,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X8Y8Z8W8_Srgb        = 0x6A,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X11_Unorm            = 0x6B,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X11_Snorm            = 0x6C,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X11Y11_Unorm         = 0x6D,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X11Y11_Snorm         = 0x6E,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    AstcLdr4x4_Unorm         = 0x6F,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr4x4_Srgb          = 0x70,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr5x4_Unorm         = 0x71,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr5x4_Srgb          = 0x72,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr5x5_Unorm         = 0x73,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr5x5_Srgb          = 0x74,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr6x5_Unorm         = 0x75,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr6x5_Srgb          = 0x76,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr6x6_Unorm         = 0x77,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr6x6_Srgb          = 0x78,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x5_Unorm         = 0x79,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x5_Srgb          = 0x7A,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x6_Unorm         = 0x7B,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x6_Srgb          = 0x7C,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x8_Unorm         = 0x7D,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x8_Srgb          = 0x7E,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x5_Unorm        = 0x7F,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x5_Srgb         = 0x80,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x6_Unorm        = 0x81,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x6_Srgb         = 0x82,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x8_Unorm        = 0x83,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x8_Srgb         = 0x84,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x10_Unorm       = 0x85,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x10_Srgb        = 0x86,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr12x10_Unorm       = 0x87,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr12x10_Srgb        = 0x88,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr12x12_Unorm       = 0x89,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr12x12_Srgb        = 0x8A,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr4x4_Float         = 0x8B,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr5x4_Float         = 0x8C,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr5x5_Float         = 0x8D,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr6x5_Float         = 0x8E,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr6x6_Float         = 0x8F,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr8x5_Float         = 0x90,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr8x6_Float         = 0x91,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr8x8_Float         = 0x92,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr10x5_Float        = 0x93,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr10x6_Float        = 0x94,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr10x8_Float        = 0x95,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr10x10_Float       = 0x96,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr12x10_Float       = 0x97,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr12x12_Float       = 0x98,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    Bc1_Unorm                = 0x57,
+    Bc1_Srgb                 = 0x58,
+    Bc2_Unorm                = 0x59,
+    Bc2_Srgb                 = 0x5A,
+    Bc3_Unorm                = 0x5B,
+    Bc3_Srgb                 = 0x5C,
+    Bc4_Unorm                = 0x5D,
+    Bc4_Snorm                = 0x5E,
+    Bc5_Unorm                = 0x5F,
+    Bc5_Snorm                = 0x60,
+    Bc6_Ufloat               = 0x61,
+    Bc6_Sfloat               = 0x62,
+    Bc7_Unorm                = 0x63,
+    Bc7_Srgb                 = 0x64,
+    Etc2X8Y8Z8_Unorm         = 0x65,
+    Etc2X8Y8Z8_Srgb          = 0x66,
+    Etc2X8Y8Z8W1_Unorm       = 0x67,
+    Etc2X8Y8Z8W1_Srgb        = 0x68,
+    Etc2X8Y8Z8W8_Unorm       = 0x69,
+    Etc2X8Y8Z8W8_Srgb        = 0x6A,
+    Etc2X11_Unorm            = 0x6B,
+    Etc2X11_Snorm            = 0x6C,
+    Etc2X11Y11_Unorm         = 0x6D,
+    Etc2X11Y11_Snorm         = 0x6E,
+    AstcLdr4x4_Unorm         = 0x6F,
+    AstcLdr4x4_Srgb          = 0x70,
+    AstcLdr5x4_Unorm         = 0x71,
+    AstcLdr5x4_Srgb          = 0x72,
+    AstcLdr5x5_Unorm         = 0x73,
+    AstcLdr5x5_Srgb          = 0x74,
+    AstcLdr6x5_Unorm         = 0x75,
+    AstcLdr6x5_Srgb          = 0x76,
+    AstcLdr6x6_Unorm         = 0x77,
+    AstcLdr6x6_Srgb          = 0x78,
+    AstcLdr8x5_Unorm         = 0x79,
+    AstcLdr8x5_Srgb          = 0x7A,
+    AstcLdr8x6_Unorm         = 0x7B,
+    AstcLdr8x6_Srgb          = 0x7C,
+    AstcLdr8x8_Unorm         = 0x7D,
+    AstcLdr8x8_Srgb          = 0x7E,
+    AstcLdr10x5_Unorm        = 0x7F,
+    AstcLdr10x5_Srgb         = 0x80,
+    AstcLdr10x6_Unorm        = 0x81,
+    AstcLdr10x6_Srgb         = 0x82,
+    AstcLdr10x8_Unorm        = 0x83,
+    AstcLdr10x8_Srgb         = 0x84,
+    AstcLdr10x10_Unorm       = 0x85,
+    AstcLdr10x10_Srgb        = 0x86,
+    AstcLdr12x10_Unorm       = 0x87,
+    AstcLdr12x10_Srgb        = 0x88,
+    AstcLdr12x12_Unorm       = 0x89,
+    AstcLdr12x12_Srgb        = 0x8A,
+    AstcHdr4x4_Float         = 0x8B,
+    AstcHdr5x4_Float         = 0x8C,
+    AstcHdr5x5_Float         = 0x8D,
+    AstcHdr6x5_Float         = 0x8E,
+    AstcHdr6x6_Float         = 0x8F,
+    AstcHdr8x5_Float         = 0x90,
+    AstcHdr8x6_Float         = 0x91,
+    AstcHdr8x8_Float         = 0x92,
+    AstcHdr10x5_Float        = 0x93,
+    AstcHdr10x6_Float        = 0x94,
+    AstcHdr10x8_Float        = 0x95,
+    AstcHdr10x10_Float       = 0x96,
+    AstcHdr12x10_Float       = 0x97,
+    AstcHdr12x12_Float       = 0x98,
     X8Y8_Z8Y8_Unorm          = 0x99,    ///< _Untested._
     X8Y8_Z8Y8_Uscaled        = 0x9A,    ///< _Untested._
     Y8X8_Y8Z8_Unorm          = 0x9B,    ///< _Untested._
@@ -628,6 +628,43 @@ struct Box
     Offset3d offset;  ///< Top left front corner.
     Extent3d extent;  ///< Box width, height and depth.
 };
+
+/// ShaderHash represents a 128-bit shader hash.
+struct ShaderHash
+{
+    uint64 lower;   ///< Lower 64-bits of hash
+    uint64 upper;   ///< Upper 64-bits of hash
+};
+
+/// PipelineHash represents a concatenated pair of 64-bit hashes.
+struct PipelineHash
+{
+    uint64 stable;   ///< Lower 64-bits of hash.  "Stable" portion, suitable for e.g. shader replacement use cases.
+    uint64 unique;   ///< Upper 64-bits of hash.  "Unique" portion, suitable for e.g. pipeline cache use cases.
+};
+
+///@{
+/// Determines whether two ShaderHashes or PipelineHashes are equal.
+///
+/// @param  [in]    hash1    The first 128-bit shader hash or pipeline hash
+/// @param  [in]    hash2    The second 128-bit shader hash or pipeline hash
+///
+/// @returns True if the hashes are equal.
+PAL_INLINE bool ShaderHashesEqual(const ShaderHash hash1, const ShaderHash hash2)
+    { return ((hash1.lower  == hash2.lower)  && (hash1.upper  == hash2.upper)); }
+PAL_INLINE bool PipelineHashesEqual(const PipelineHash hash1, const PipelineHash hash2)
+    { return ((hash1.stable == hash2.stable) && (hash1.unique == hash2.unique)); }
+///@}
+
+///@{
+/// Determines whether the given ShaderHash or PipelineHash is non-zero.
+///
+/// @param  [in]    hash    A 128-bit shader hash or pipeline hash
+///
+/// @returns True if the hash is non-zero.
+PAL_INLINE bool ShaderHashIsNonzero(const ShaderHash hash)     { return ((hash.upper  | hash.lower)  != 0); }
+PAL_INLINE bool PipelineHashIsNonzero(const PipelineHash hash) { return ((hash.stable | hash.unique) != 0); }
+///@}
 
 /// Specifies the Display Output Post-Processing (DOPP) desktop texture information, which are provided by OpenGL via
 /// interop.  The DOPP is an OpenGL extension to allow its client to access the desktop texture directly without the

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -152,6 +152,32 @@ enum class MetadataSharingLevel : uint32
     FullOptimal = 2,    ///< The metadata can remain as-is if possible at ownership transition time.
 };
 
+/// Specifies how to interpret a clear color.
+enum class ClearColorType : uint32
+{
+    Uint  = 0, ///< The color is stored as an unsigned integer in RGBA order in u32Color. It will be swizzled and
+               ///  compacted before it is written to memory.
+    Sint  = 1, ///< The color is stored as a signed integer in RGBA order in i32Color. It will be swizzled and
+               ///  compacted before it is written to memory.
+    Float = 2, ///< The color is stored as floating point in RGBA order. It will be swizzled and converted to the
+               ///  appropriate numeric format before it is written to memory.
+    Yuv   = 3, ///< The color is stored as an unsigned integer in YUVA order in u32Color. It will be swizzled and
+               ///  compacted before it is written to memory. The client must clamp the clear color within the
+               ///  valid range, e.g. [0, 255] for 8-bit.
+};
+
+/// Contains everything necessary to store and interpret a clear color.
+struct ClearColor
+{
+    ClearColorType type;    ///< How to interpret this clear color.
+
+    union
+    {
+        uint32 u32Color[4]; ///< The clear color, interpreted as four unsigned integers.
+        float  f32Color[4]; ///< The clear color, interpreted as four floating point values.
+    };
+};
+
 /// Specifies a set of image creation flags.
 union ImageCreateFlags
 {
@@ -198,7 +224,15 @@ union ImageCreateFlags
         uint32 fullResolveDstOnly      :  1; ///< Indicates any ICmdBuffer::CmdResolveImage using this image as a
                                              ///  desination will overwrite the entire image (width and height of
                                              ///  resolve region is same as width and height of resolve dst).
-        uint32 reserved                : 13; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
+        uint32 fullCopyDstOnly         :  1; ///< Indicates any copy to this image will overwrite the entire image.
+                                             ///  A perf optimization of using post-copy metadata fixup to replace heavy
+                                             ///  expand at barrier to LayoutCopyDst. Unsafe to enable it if there is
+                                             ///  potential partial copy to the image.
+#else
+        uint32 reserved562             :  1;
+#endif
+        uint32 reserved                : 12; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };

@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -393,6 +393,7 @@ if(PAL_BUILD_CORE)
             core/hw/gfxip/indirectCmdGenerator.cpp
             core/hw/gfxip/pipeline.cpp
             core/hw/gfxip/queryPool.cpp
+            core/hw/gfxip/shaderLibrary.cpp
             core/hw/gfxip/universalCmdBuffer.cpp
         )
 
@@ -505,6 +506,7 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx9/gfx9Pm4Optimizer.cpp
                 core/hw/gfxip/gfx9/gfx9QueueContexts.cpp
                 core/hw/gfxip/gfx9/gfx9SettingsLoader.cpp
+                core/hw/gfxip/gfx9/gfx9ShaderLibrary.cpp
                 core/hw/gfxip/gfx9/gfx9ShaderRing.cpp
                 core/hw/gfxip/gfx9/gfx9ShaderRingSet.cpp
                 core/hw/gfxip/gfx9/gfx9StreamoutStatsQueryPool.cpp

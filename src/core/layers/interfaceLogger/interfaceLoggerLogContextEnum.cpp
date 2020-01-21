@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1102,8 +1102,14 @@ void LogContext::Enum(
 {
     const char*const StringTable[] =
     {
-        "Windowed",   // 0x0,
-        "Fullscreen", // 0x1,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
+        "Unknown",   // 0x0,
+        "Windowed",  // 0x1,
+        "Fullscreen" // 0x2,
+#else
+        "Windowed",  // 0x0,
+        "Fullscreen" // 0x1,
+#endif
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(PresentMode::Count),
@@ -1155,6 +1161,10 @@ void LogContext::Enum(
         "TriangleStripAdj", // 0xB,
         "Patch",            // 0xC,
         "TriangleFan",      // 0xD,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 557
+        "LineLoop",         // 0xE,
+        "Polygon",          // 0xF,
+#endif
     };
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1657,6 +1667,7 @@ void LogContext::Enum(
         "DescriptorTable",       // 0x1,
         "ShadowDescriptorTable", // 0x2,
         "Svm",                   // 0x3,
+        "CaptureReplay",         // 0x4,
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(VaRange::Count),

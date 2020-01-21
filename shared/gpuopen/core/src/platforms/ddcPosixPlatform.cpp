@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,9 @@ namespace DevDriver
 {
     namespace Platform
     {
+        // Constant value used to convert between seconds and nanoseconds
+        DD_STATIC_CONST uint64 kNanosecsPerSec = (1000 * 1000 * 1000);
+
         static Result GetAbsTime(uint32 offsetInMs, timespec *pOutput)
         {
             Result result = Result::Error;
@@ -465,6 +468,29 @@ namespace DevDriver
             DD_ASSERT(result == 0);
 
             return static_cast<uint64>(timeValue.tv_sec * 1000 + timeValue.tv_nsec / 1000000);
+        }
+
+        uint64 QueryTimestampFrequency()
+        {
+            // Posix platforms always have a 1 nanosecond timestamp frequency
+            return kNanosecsPerSec;
+        }
+
+        uint64 QueryTimestamp()
+        {
+            uint64 timestamp = 0;
+
+            timespec timeSpec = {};
+            if (clock_gettime(CLOCK_MONOTONIC, &timeSpec) == 0)
+            {
+                timestamp = ((timeSpec.tv_sec * kNanosecsPerSec) + timeSpec.tv_nsec);
+            }
+            else
+            {
+                DD_ASSERT_REASON("Failed to query monotonic clock for timestamp!");
+            }
+
+            return timestamp;
         }
 
         void Sleep(uint32 millisecTimeout)

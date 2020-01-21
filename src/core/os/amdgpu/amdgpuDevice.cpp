@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -220,6 +220,7 @@ Result Device::Create(
 
             if (result != Result::Success)
             {
+                (*ppDeviceOut)->Cleanup(); // Ignore result; we've already failed.
                 (*ppDeviceOut)->~Device();
                 PAL_SAFE_FREE((*ppDeviceOut), pPlatform);
             }
@@ -753,6 +754,9 @@ Result Device::InitGpuProperties()
 
     m_chipProperties.imageProperties.minPitchAlignPixel = 0;
 
+    // ceRamSize must be set before InitializeGpuEngineProperties which reference it
+    m_chipProperties.gfxip.ceRamSize = m_gpuInfo.ce_ram_size;
+
     // The unit of amdgpu is KHz but PAL is Hz
     m_chipProperties.gpuCounterFrequency = m_gpuInfo.gpu_counter_freq * 1000;
 
@@ -868,7 +872,6 @@ Result Device::InitGpuProperties()
 
     if (result == Result::Success)
     {
-        m_chipProperties.gfxip.ceRamSize = m_gpuInfo.ce_ram_size;
         m_engineProperties.perEngine[EngineTypeUniversal].availableCeRamSize =
             m_gpuInfo.ce_ram_size - m_engineProperties.perEngine[EngineTypeUniversal].reservedCeRamSize;
 
@@ -974,6 +977,8 @@ void Device::InitGfx6ChipProperties()
         (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION) ? 1 : 0;
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaSize                     = 0;
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaAlignment                = 0;
+
+    m_chipProperties.gfxip.supportCaptureReplay = false;
 }
 
 // =====================================================================================================================
@@ -1097,6 +1102,8 @@ void Device::InitGfx9ChipProperties()
         (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION) ? 1 : 0;
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaSize                     = 0;
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaAlignment                = 0;
+
+    m_chipProperties.gfxip.supportCaptureReplay = false;
 }
 
 // =====================================================================================================================
@@ -4119,7 +4126,8 @@ Result Device::AssignVirtualAddress(
         }
     }
     else if ((vaPart == VaPartition::DescriptorTable) ||
-             (vaPart == VaPartition::ShadowDescriptorTable))
+             (vaPart == VaPartition::ShadowDescriptorTable) ||
+             (vaPart == VaPartition::CaptureReplay))
     {
         VirtAddrAssignInfo vaInfo = { };
         vaInfo.size      = pGpuMemory->Desc().size;
@@ -4150,7 +4158,8 @@ void Device::FreeVirtualAddress(
         m_drmProcs.pfnAmdgpuVaRangeFree(pMemory->VaRangeHandle());
     }
     else if ((vaPart == VaPartition::DescriptorTable) ||
-             (vaPart == VaPartition::ShadowDescriptorTable))
+             (vaPart == VaPartition::ShadowDescriptorTable) ||
+             (vaPart == VaPartition::CaptureReplay))
     {
         PAL_ASSERT(pMemory->VaRangeHandle() == nullptr);
         VamMgrSingleton::FreeVirtualAddress(this, *pGpuMemory);

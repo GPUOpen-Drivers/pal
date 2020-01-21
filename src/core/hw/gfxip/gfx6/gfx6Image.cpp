@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -969,6 +969,15 @@ void Image::InitLayoutStateMasksOneMip(
             // Postpone all decompresses for the ResolveSrc state from Barrier-time to Resolve-time.
             m_layoutToState[mip].color.compressed.usages |= LayoutResolveSrc;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
+            // If copy to the image is always fully copy, fix up metadata to uncompressed state instead of heavy expand
+            // at barrier to "LayoutCopyDst" if this isn't a compressed copy.
+            if (m_createInfo.flags.fullCopyDstOnly != 0)
+            {
+                m_layoutToState[mip].color.compressed.usages |= LayoutCopyDst;
+            }
+#endif
+
             if (HasFmaskData())
             {
                 // Our copy path has been designed to allow color compressed MSAA copy sources.
@@ -1042,6 +1051,9 @@ void Image::InitLayoutStateMasksOneMip(
 
         compressedLayouts.usages  = DbUsages;
         compressedLayouts.engines = LayoutUniversalEngine;
+
+        // Copy to depth always goes through gfx path with compression enabled.
+        compressedLayouts.usages |= LayoutCopyDst;
 
         if (isMsaa)
         {

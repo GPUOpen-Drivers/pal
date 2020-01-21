@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
+#include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
 #include "palPipelineAbiProcessorImpl.h"
 #include "palFile.h"
 
@@ -114,8 +115,13 @@ Result ComputePipeline::HwlInit(
         m_chunkCs.LateInit<ComputePipelineUploader>(abiProcessor,
                                                     registers,
                                                     wavefrontSize,
+ #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
                                                     createInfo.pIndirectFuncList,
                                                     createInfo.indirectFuncCount,
+#else
+                                                    nullptr,
+                                                    0,
+#endif
                                                     &m_threadsPerTgX,
                                                     &m_threadsPerTgY,
                                                     &m_threadsPerTgZ,
@@ -176,17 +182,95 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+// If pipeline may make indirect function calls, perform any late linking steps required to valid execution
+// of the possible function calls.
+// (this could include adjusting hardware resources such as GPRs or LDS space for the pipeline).
+// This function should be called by clients prior to CmdDispatch.
+Result ComputePipeline::LinkWithLibraries(
+    const IShaderLibrary*const* ppLibraryList,
+    uint32                      libraryCount)
+{
+    Result result = Result::Success;
+    const auto&  gpuInfo       = m_pDevice->Parent()->ChipProperties();
+
+    // When linking this pipeline with any shader function library,
+    // the compute resource registers we write into the ELF binary must
+    // account for the worst-case of any hardware resource used by either the main shader,
+    // or any of the function library.
+    const HwRegInfo& mainCsRegInfo = m_chunkCs.HWInfo();
+
+    const bool isWave32 = IsWave32();
+
+    regCOMPUTE_PGM_RSRC1 computePgmRsrc1 = mainCsRegInfo.computePgmRsrc1;
+    regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = mainCsRegInfo.dynamic.computePgmRsrc2;
+    regCOMPUTE_PGM_RSRC3 computePgmRsrc3 = mainCsRegInfo.computePgmRsrc3;
+
+    for (uint32 idx = 0; idx < libraryCount; idx++)
+    {
+        const auto*const pLibObj = static_cast<const Pal::Gfx9::ShaderLibrary*const>(ppLibraryList[idx]);
+        const LibraryHwInfo& libObjRegInfo = pLibObj->HwInfo();
+
+        if (pLibObj->IsWave32() != isWave32)
+        {
+            // If the main pipeline and the shader library has a different wavefront size,
+            // LinkWithLibraries should fail.
+            result = Result::ErrorIncompatibleLibrary;
+            break;
+        }
+
+        computePgmRsrc1.bits.SGPRS = Max(computePgmRsrc1.bits.SGPRS, libObjRegInfo.libRegs.computePgmRsrc1.bits.SGPRS);
+        computePgmRsrc1.bits.VGPRS = Max(computePgmRsrc1.bits.VGPRS, libObjRegInfo.libRegs.computePgmRsrc1.bits.VGPRS);
+
+        computePgmRsrc2.bits.USER_SGPR =
+            Max(computePgmRsrc2.bits.USER_SGPR, libObjRegInfo.libRegs.computePgmRsrc2.bits.USER_SGPR);
+        computePgmRsrc2.bits.LDS_SIZE =
+            Max(computePgmRsrc2.bits.LDS_SIZE, libObjRegInfo.libRegs.computePgmRsrc2.bits.LDS_SIZE);
+        computePgmRsrc2.bits.TIDIG_COMP_CNT =
+            Max(computePgmRsrc2.bits.TIDIG_COMP_CNT, libObjRegInfo.libRegs.computePgmRsrc2.bits.TIDIG_COMP_CNT);
+        computePgmRsrc2.bits.SCRATCH_EN |= libObjRegInfo.libRegs.computePgmRsrc2.bits.SCRATCH_EN;
+        computePgmRsrc2.bits.TGID_X_EN  |= libObjRegInfo.libRegs.computePgmRsrc2.bits.TGID_X_EN;
+        computePgmRsrc2.bits.TGID_Y_EN  |= libObjRegInfo.libRegs.computePgmRsrc2.bits.TGID_Y_EN;
+        computePgmRsrc2.bits.TGID_Z_EN  |= libObjRegInfo.libRegs.computePgmRsrc2.bits.TGID_Z_EN;
+        computePgmRsrc2.bits.TG_SIZE_EN |= libObjRegInfo.libRegs.computePgmRsrc2.bits.TG_SIZE_EN;
+
+        if (IsGfx10(gpuInfo.gfxLevel))
+        {
+            // FWD_PROGRESS and WGP_MODE should match across all the shader functions and the main shader.
+            //
+            /// @note Currently we do not support null main shader, but OR the FWD_PROGRESS and WGP_MODE registers from
+            ///       the shader functions anyway to make it work with null main shader in the future.
+            PAL_ASSERT((computePgmRsrc1.gfx10.FWD_PROGRESS ==
+                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10.FWD_PROGRESS) &&
+                       (computePgmRsrc1.gfx10.WGP_MODE     ==
+                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10.WGP_MODE));
+
+            computePgmRsrc1.gfx10.MEM_ORDERED  |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10.MEM_ORDERED;
+            computePgmRsrc1.gfx10.FWD_PROGRESS |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10.FWD_PROGRESS;
+            computePgmRsrc1.gfx10.WGP_MODE     |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10.WGP_MODE;
+
+            computePgmRsrc3.bits.SHARED_VGPR_CNT =
+                Max(computePgmRsrc3.bits.SHARED_VGPR_CNT, libObjRegInfo.libRegs.computePgmRsrc3.bits.SHARED_VGPR_CNT);
+        }
+    }
+
+    // Update m_chunCs with updated register values
+    m_chunkCs.UpdateComputePgmRsrsAfterLibraryLink(computePgmRsrc1, computePgmRsrc2, computePgmRsrc3);
+
+    return result;
+}
+#endif
+
+// =====================================================================================================================
 // Writes the PM4 commands required to bind this pipeline. Returns a pointer to the next unused DWORD in pCmdSpace.
 uint32* ComputePipeline::WriteCommands(
-    Pal::CmdStream*                 pCmdStream,
+    CmdStream*                      pCmdStream,
     uint32*                         pCmdSpace,
     const DynamicComputeShaderInfo& csInfo,
     bool                            prefetch
     ) const
 {
-    auto* pGfx9CmdStream = static_cast<CmdStream*>(pCmdStream);
-    pCmdSpace = m_chunkCs.WriteShCommands(pGfx9CmdStream, pCmdSpace, csInfo, prefetch);
-    return pCmdSpace;
+    return m_chunkCs.WriteShCommands(pCmdStream, pCmdSpace, csInfo, prefetch);
 }
 
 // =====================================================================================================================

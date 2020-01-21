@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -131,7 +131,6 @@ private:
 * @brief This class owns a view (mapped virtual memory pointer) into a memory mapped file.
 *
 * @note WARNING ABOUT READING/WRITING TO MEMORY CONTROLLED BY FileView -
-* From MSDN (http://tinyurl.com/jtcex8r):
 *
 *   Reading from or writing to a file view of a file other than the page file can cause an
 *   EXCEPTION_IN_PAGE_ERROR exception. For example, accessing a mapped file that resides on a

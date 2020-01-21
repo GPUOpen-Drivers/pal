@@ -2,7 +2,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -124,7 +124,7 @@ public:
         size_t*    pSize,
         void*      pBuffer) const override;
 
-    virtual Result GetPipelineElf(
+    virtual Result GetCodeObject(
         uint32*  pSize,
         void*    pBuffer) const override;
 
@@ -132,6 +132,12 @@ public:
         Util::Abi::HardwareStage hardwareStage,
         size_t*                  pSize,
         void*                    pBuffer) override;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+    virtual Result LinkWithLibraries(
+        const IShaderLibrary*const* ppLibraryList,
+        uint32                      libraryCount) override;
+#endif
 
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_apiHwMapping; }

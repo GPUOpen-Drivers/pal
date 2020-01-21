@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -58,9 +58,6 @@ Result URIClient::TransactURIRequest(
     Vector<uint8>*  pResponseBuffer,        /// [in/out] Buffer to write the response data into
                                             ///          Can be set to nullptr if there's no output data expected
                                             ///          for the provided request
-    URIDataFormat   expectedResponseFormat, /// The expected format of the response data
-                                            /// The function will return an error if the response data format
-                                            /// doesn't match the format provided
     const char*     pFormatString,          /// A format string used to generate the request string
     ...)                                    /// Variable length argument list associated with pFormatString
 {
@@ -106,13 +103,6 @@ Result URIClient::TransactURIRequest(
     {
         URIProtocol::ResponseHeader responseHeader = {};
         result = RequestURI(m_requestStringBuffer.Data(), &responseHeader, pPostDataBuffer, postDataSize);
-
-        if (result == Result::Success)
-        {
-            // Verify the response format
-            result = (responseHeader.responseDataFormat == expectedResponseFormat) ? Result::Success
-                : Result::Error;
-        }
 
         // Receive a response if necessary
         if ((result == Result::Success) && (pResponseBuffer != nullptr))

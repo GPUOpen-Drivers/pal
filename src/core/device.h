@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,9 @@
 #endif
 #include "palSysMemory.h"
 #include "palTextWriter.h"
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+#include "palShaderLibrary.h"
+#endif
 
 #include "core/hw/amdgpu_asic.h"
 
@@ -109,6 +112,7 @@ enum class VaPartition : uint32
     DescriptorTable,        // SEE: VaRange::DescriptorTable
     ShadowDescriptorTable,  // SEE: VaRange::ShadowDescriptorTable
     Svm,                    // SEE: VaRange::Svm
+    CaptureReplay,          // SEE: VaRange::CaptureReplay
     Prt,                    // Some platforms require a specific VA range in order to properly setup HW for PRTs.
                             // To simplify client support, no corresponding VA range exists and this partition
                             // will be chosen instead of the default when required.
@@ -164,6 +168,8 @@ struct HwIpLevels
     VceIpLevel vce;
     UvdIpLevel uvd;
     VcnIpLevel vcn;
+    SpuIpLevel spu;
+    PspIpLevel psp;
 };
 
 // Bundles the sizes of the HW IP specific device classes.
@@ -559,6 +565,8 @@ struct GpuChipProperties
     VceIpLevel   vceLevel;
     UvdIpLevel   uvdLevel;
     VcnIpLevel   vcnLevel;
+    SpuIpLevel   spuLevel;
+    PspIpLevel   pspLevel;
     uint32       gfxStepping; // Stepping level of this GPU's GFX block.
 
     uint32   vceUcodeVersion;                   // VCE Video encode firmware version
@@ -650,6 +658,7 @@ struct GpuChipProperties
             uint32 supportGl2Uncached          :  1; // Indicates support for the allocation of GPU L2
                                                      // un-cached memory. See gl2UncachedCpuCoherency
             uint32 reserved1                   :  1;
+            uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
             uint32 reserved                    : 30;
         };
     } gfxip;
@@ -850,7 +859,8 @@ struct GpuChipProperties
                 uint64 supportShaderSubgroupClock               :  1; // HW supports clock functions across subgroup.
                 uint64 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
                 uint64 supportAlphaToOne                        :  1; // HW supports forcing alpha channel to one
-                uint64 reserved                                 : 28;
+                uint64 supportSingleChannelMinMaxFilter         :  1; // HW supports any min/max filter.
+                uint64 reserved                                 : 27;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
@@ -914,7 +924,8 @@ struct GpuChipProperties
             uint32 p2pSupportDecode     : 1; // whether decoding HW can access FB memory of remote GPU in chain
             uint32 p2pSupportTmz        : 1; // whether protected content can be transferred over P2P
             uint32 p2pCrossGPUCoherency : 1; // whether remote FB memory can be accessed without need for cache flush
-            uint32 reserved             : 28;
+            uint32 xgmiEnabled          : 1; // Whether XGMI is enabled
+            uint32 reserved             : 27;
         };
         uint32 u32All;
     } p2pSupport;
@@ -1239,6 +1250,26 @@ public:
                 m_pGfxDevice->CreateComputePipeline(createInfo, pPlacementAddr,
                                                     createInfo.flags.clientInternal, ppPipeline);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+    // NOTE: Part of the public IDevice interface.
+    virtual size_t GetShaderLibrarySize(
+        const ShaderLibraryCreateInfo& createInfo,
+        Result*                        pResult) const override
+    {
+        return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetShaderLibrarySize(createInfo, pResult);
+    }
+
+    virtual Result CreateShaderLibrary(
+        const ShaderLibraryCreateInfo& createInfo,
+        void*                          pPlacementAddr,
+        IShaderLibrary**               ppLibrary) override
+    {
+        return (m_pGfxDevice == nullptr) ? Result::ErrorUnavailable :
+                m_pGfxDevice->CreateShaderLibrary(createInfo, pPlacementAddr,
+                                                  createInfo.flags.clientInternal, ppLibrary);
+    }
+#endif
 
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetGraphicsPipelineSize(

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -49,6 +49,9 @@
 #include "core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.h"
 #include "core/hw/gfxip/gfx9/gfx9QueueContexts.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+#include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
+#endif
 #include "core/hw/gfxip/gfx9/gfx9ShadowedRegisters.h"
 #include "core/hw/gfxip/gfx9/gfx9StreamoutStatsQueryPool.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
@@ -816,6 +819,43 @@ Result Device::CreateComputePipeline(
 
     return result;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+// =====================================================================================================================
+size_t Device::GetShaderLibrarySize(
+    const ShaderLibraryCreateInfo&  createInfo,
+    Result*                         pResult
+    ) const
+{
+    if (pResult != nullptr)
+    {
+        (*pResult) = Result::Success;
+    }
+
+    return sizeof(ShaderLibrary);
+}
+
+// =====================================================================================================================
+Result Device::CreateShaderLibrary(
+    const ShaderLibraryCreateInfo&  createInfo,
+    void*                           pPlacementAddr,
+    bool                            isInternal,
+    IShaderLibrary**                ppPipeline)
+{
+    auto* pShaderLib = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderLibrary(this);
+
+    Result result = pShaderLib->Initialize(createInfo);
+    if (result != Result::Success)
+    {
+        pShaderLib->Destroy();
+        pShaderLib = nullptr;
+    }
+
+    *ppPipeline = pShaderLib;
+
+    return result;
+}
+#endif
 
 // =====================================================================================================================
 size_t Device::GetGraphicsPipelineSize(
@@ -1947,7 +1987,8 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
     void*                 pOut)
 {
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
-    const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
+    const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
+    const auto*const pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
 
     for (uint32 idx = 0; idx < count; ++idx)
     {
@@ -3206,17 +3247,13 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                         // Additionally, HW will encode the DCC key in a manner that is incompatible with the app's
                         // understanding of the surface if the format for the SRD differs from the surface's format.
                         // If the format differs, we need to disable compressed writes.
+                    if (Formats::IsSameFormat(viewInfo.swizzledFormat, imageCreateInfo.swizzledFormat) &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
-                        if ((TestAnyFlagSet(viewInfo.possibleLayouts.usages,
-                                            LayoutShaderWrite | LayoutCopyDst | LayoutResolveDst)) &&
-                            (ImageLayoutToColorCompressionState(image.LayoutToColorCompressionState(),
-                                                                viewInfo.possibleLayouts) != ColorDecompressed) &&
+                        ImageLayoutCanCompressColorData(image.LayoutToColorCompressionState(),
+                                                        viewInfo.possibleLayouts))
 #else
-                        if ((viewInfo.flags.shaderWritable) &&
+                        (viewInfo.flags.shaderWritable != 0))
 #endif
-                            (memcmp(&viewInfo.swizzledFormat,
-                                    &imageCreateInfo.swizzledFormat,
-                                    sizeof(viewInfo.swizzledFormat)) == 0))
                         {
                             srd.color_transform            = dccControl.bits.COLOR_TRANSFORM;
                             srd.most.write_compress_enable = 1;
@@ -3948,12 +3985,18 @@ void InitializeGpuChipProperties(
                                             CoherQueueAtomic | CoherTimestamp | CoherCeLoad | CoherCeDump |
                                             CoherStreamOut | CoherMemory);
 
+    pInfo->gfxip.supportCaptureReplay    = 1;
+
     pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
 
     {
         pInfo->imageProperties.prtFeatures = Gfx9PrtFeatures;
         pInfo->imageProperties.prtTileSize = PrtTileSize;
     }
+
+    // When per-channel min/max filter operations are supported, make it clear that single channel always are as well.
+    pInfo->gfx9.supportSingleChannelMinMaxFilter =
+        1;
 
     pInfo->gfx9.supports2BitSignedValues           = 1;
     pInfo->gfx9.supportConservativeRasterization   = 1;
@@ -4043,6 +4086,7 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numSdpInterfaces               = 2;
         pInfo->gfx9.supportReleaseAcquireInterface = 1;
         pInfo->gfx9.supportSplitReleaseAcquire     = 0;
+        pInfo->gfxip.supportCaptureReplay          = 0;
 
         if (ASICREV_IS_RAVEN(pInfo->eRevId))
         {

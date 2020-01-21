@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -152,7 +152,15 @@ private:
     VamMgrSingleton();
     ~VamMgrSingleton();
 
-    typedef Util::HashMap<amdgpu_device_handle, ReservedVaRangeInfo, GenericAllocatorAuto> ReservedVaMap;
+    typedef Util::HashMap<
+        amdgpu_device_handle,
+        ReservedVaRangeInfo,
+        GenericAllocatorAuto,
+        DefaultHashFunc,
+        DefaultEqualFunc,
+        HashAllocator<GenericAllocatorAuto>,
+        (PAL_CACHE_LINE_BYTES * 4)> ReservedVaMap;
+
     typedef Util::HashMap<amdgpu_device_handle, VamMgrInfo, GenericAllocatorAuto> VamMgrMap;
 
     GenericAllocatorAuto m_mapAllocator;

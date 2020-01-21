@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -36,6 +36,12 @@ include(DevDriver)
 
 ### Create ddCore Library #############################################################################################
 devdriver_library(ddCore STATIC)
+
+# Put the library in a folder
+set_target_properties(ddCore
+    PROPERTIES
+        FOLDER "DevDriver Libs"
+)
 
 ### Cached Project Options #############################################################################################
 option(DEVDRIVER_SHOW_DEBUG_LABELS "Show debug labels in various log outputs?" ON)

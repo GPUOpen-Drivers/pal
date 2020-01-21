@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -94,7 +94,6 @@ static_assert(false, "This header is for user mode windows, and it does not work
 // do that validation in a Debug build and behave like DD_ASSUME() in Release build.
 //
 // [MSVC] __assume()
-//  ~ https://docs.microsoft.com/en-us/cpp/intrinsics/assume
 //
 // [C++] Contracts: expects, ensures, assert, axiom
 //  ~ https://en.cppreference.com/w/cpp/language/attributes/contract

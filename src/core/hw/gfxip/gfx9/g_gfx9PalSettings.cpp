@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -81,7 +81,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.fmaskCompressDisable = false;
     m_settings.fmaskAllowPipeBankXor = false;
     m_settings.dccOnComputeEnable = 0x3;
-    m_settings.useDcc = 0x1ff;
+    m_settings.useDcc = 0x9ff;
     m_settings.cbDbCachePolicy = 0x0;
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
@@ -985,6 +985,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSupportedStr,
                            Util::ValueType::Boolean,
                            &m_settings.nggSupported,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningPsKillStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.disableBinningPsKill,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningContextStatesPerBinStr,
@@ -1941,7 +1946,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3910758869;
+            component.settingsDataHash = 1568050949;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

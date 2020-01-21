@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -80,6 +80,7 @@ void Gfx9MaskRam::BuildEqBufferView(
     ) const
 {
     PAL_ASSERT (m_eqGpuAccess.size != 0);
+    const auto& settings = m_pGfxDevice->Parent()->Settings();
 
     pBufferView->swizzledFormat = UndefinedSwizzledFormat;
     pBufferView->stride         = MetaDataAddrCompNumTypes * sizeof(uint32);
@@ -95,6 +96,8 @@ void Gfx9MaskRam::BuildSurfBufferView(
     BufferViewInfo*  pViewInfo    // [out] The buffer view
     ) const
 {
+    const auto& settings = m_pGfxDevice->Parent()->Settings();
+
     pViewInfo->gpuAddr        = m_image.Parent()->GetBoundGpuMemory().GpuVirtAddr() + MemoryOffset();
     pViewInfo->range          = TotalSize();
     pViewInfo->stride         = 1;
@@ -3336,6 +3339,10 @@ bool Gfx9Dcc::UseDccForImage(
     const bool isDepthStencil     = pParent->IsDepthStencil();
     const bool isGfx9             = (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9);
 
+    // GFX9+ resources have the same swizzle mode for all mip-levels and slices, so just look at the base level.
+    const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(pParent->GetBaseSubResource());
+    const AddrSwizzleMode       swizzleMode = image.GetAddrSettings(pSubResInfo).swizzleMode;
+
     if (pParent->IsMetadataDisabledByClient())
     {
         // Don't use DCC if the caller asked that we allocate no metadata.
@@ -3348,12 +3355,43 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
-    else if (isDepthStencil || ((isNotARenderTarget || allMipsShaderWritable) && isGfx9))
+    else if (AddrMgr2::IsLinearSwizzleMode(swizzleMode))
     {
-        // DCC does not make sense for non-render targets or for UAVs (all mips are shader writeable) in
-        // gfx9. It also does not make sense for any depth/stencil image because they have Htile data.
+        // If the tile-mode is linear, then this surface has no chance of using DCC memory.
         useDcc = false;
         mustDisableDcc = true;
+    }
+    else if (IsGfx10(*pDevice) &&
+             (AddrMgr2::IsStandardSwzzle(swizzleMode) || AddrMgr2::IsDisplayableSwizzle(swizzleMode)))
+    {
+        //   1) SW_D does not support DCC.
+        //   2) The restriction [on SW_S] is that you can't bind it to all CBs for a single draw.  If you want
+        //      SW_S + DCC to be bound to the CB, it would have to go through a single CB (that is, change
+        //      raster_config to route all traffic to 1 CB).  You could also use a SW compressor, and bind it
+        //      to texture (say for static image)
+        useDcc = false;
+        mustDisableDcc = true;
+
+        // The above check for "standard swizzle" is a bit of a misnomer; it's really a check for "S"
+        // swizzle modes.  On GFX10, the "R" modes (render targets, not rotated) are expected to be the
+        // most commonly used.  Still, throw an indication if we're faling into this code path with any
+        // sort of frequency
+        PAL_ALERT_ALWAYS();
+    }
+    else if (isDepthStencil || (isNotARenderTarget && isGfx9))
+    {
+        // DCC does not make sense for non-render targets in gfx9. It also does not make sense for any
+        // depth/stencil image because they have Htile data.
+        useDcc = false;
+        mustDisableDcc = true;
+    }
+    else if (allMipsShaderWritable && isGfx9)
+    {
+        // DCC does not make sense for UAVs or RT+UAVs (all mips are shader writeable) in gfx9.
+        useDcc = false;
+        // Give a chance for clients to force enabling DCC for RT+UAVs. i.e. App flags the resource as both render
+        // target and unordered access but never uses it as UAV.
+        mustDisableDcc = isNotARenderTarget;
     }
     else if (isNotARenderTarget && (allMipsShaderWritable == false))
     {
@@ -3393,113 +3431,81 @@ bool Gfx9Dcc::UseDccForImage(
     }
     else
     {
-        // Here we are either a color image or a UAV resource, so determine the swizzle mode. GFX9+ resources have
-        // the same swizzle mode for all mip-levels and slices, so just look at the base level.
-        const SubresId              subResId     = pParent->GetBaseSubResource();
-        const SubResourceInfo*const pSubResInfo  = pParent->SubresourceInfo(subResId);
-        const auto&                 surfSettings = image.GetAddrSettings(pSubResInfo);
-        const AddrSwizzleMode       swizzleMode  = surfSettings.swizzleMode;
-
-        if (IsGfx10(*pDevice))
+        if (IsGfx10(*pDevice) && allMipsShaderWritable)
         {
-            //   1) SW_D does not support DCC.
-            //   2) The restriction [on SW_S] is that you can't bind it to all CBs for a single draw.  If you want
-            //      SW_S + DCC to be bound to the CB, it would have to go through a single CB (that is, change
-            //      raster_config to route all traffic to 1 CB).  You could also use a SW compressor, and bind it
-            //      to texture (say for static image)
-            if (AddrMgr2::IsStandardSwzzle(swizzleMode) || AddrMgr2::IsDisplayableSwizzle(swizzleMode))
+            if (isNotARenderTarget)
             {
-                useDcc = false;
-                mustDisableDcc = true;
-                // The above check for "standard swizzle" is a bit of a misnomer; it's really a check for "S"
-                // swizzle modes.  On GFX10, the "R" modes (render targets, not rotated) are expected to be the
-                // most commonly used.  Still, throw an indication if we're faling into this code path with any
-                // sort of frequency
-                PAL_ALERT_ALWAYS();
-            }
-            else if (allMipsShaderWritable)
-            {
-                if (isNotARenderTarget)
-                {
-                    // If we are a UAV and not a render target, check our setting
-                    useDcc = TestAnyFlagSet(settings.useDcc, Gfx10UseDccNonRenderTargetUav);
-                }
-                else
-                {
-                    // If we are a UAV and a render target, check our other setting.
-                    useDcc = TestAnyFlagSet(settings.useDcc, Gfx10UseDccRenderTargetUav);
-                }
-            }
-        }
-
-        if (AddrMgr2::IsLinearSwizzleMode(swizzleMode))
-        {
-            // If the tile-mode is linear, then this surface has no chance of using DCC memory.
-            useDcc = false;
-            mustDisableDcc = true;
-        }
-        else
-        {
-            // Make sure the settings allow use of DCC surfaces for sRGB Images.
-            if (Formats::IsSrgb(createInfo.swizzledFormat.format) &&
-                (TestAnyFlagSet(settings.useDcc, Gfx9UseDccSrgb) == false))
-            {
-                useDcc = false;
-            }
-            else if (Formats::IsYuv(createInfo.swizzledFormat.format))
-            {
-                // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
-                useDcc = false;
-                mustDisableDcc = true;
-            }
-            else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccPrt) == false))
-            {
-                // Make sure the settings allow use of DCC surfaces for PRT.
-                useDcc = false;
-            }
-            else if (createInfo.samples > 1)
-            {
-                // Make sure the settings allow use of DCC surfaces for MSAA.
-                if (createInfo.samples == 2)
-                {
-                    useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample2x);
-                }
-                else if (createInfo.samples == 4)
-                {
-                    useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample4x);
-                }
-                else if (createInfo.samples == 8)
-                {
-                    useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample8x);
-                }
-
-                if (createInfo.samples != createInfo.fragments)
-                {
-                    useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccEqaa);
-                }
+                // If we are a UAV and not a render target, check our setting
+                useDcc = TestAnyFlagSet(settings.useDcc, Gfx10UseDccNonRenderTargetUav);
             }
             else
             {
-                // Make sure the settings allow use of DCC surfaces for single-sampled surfaces
-                useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccSingleSample);
+                // If we are a UAV and a render target, check our other setting.
+                useDcc = TestAnyFlagSet(settings.useDcc, Gfx10UseDccRenderTargetUav);
             }
-
-            if (useDcc && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccForNonReadableFormats) == false))
-            {
-                // Ok, if we have a format that's renderable (or shader-writeable), but it's not readable, then this
-                // will trigger a format replacement with RPM-based copy operations which in turn cause big headaches
-                // with partial rectangles that paritally cover DCC tiles.  The exception is SRGB formats  as those
-                // are copied via UINT format anyway.
-                useDcc = image.ImageSupportsShaderReadsAndWrites();
-            }
-
-            // TODO: Re-evaulate the performance of DCC with multi-mip / multi-slice images on GFX9.  Clearing
-            //       these is not a problem on GFX9 (it was on GFX8).
         }
+
+        // Make sure the settings allow use of DCC surfaces for sRGB Images.
+        if (Formats::IsSrgb(createInfo.swizzledFormat.format) &&
+            (TestAnyFlagSet(settings.useDcc, Gfx9UseDccSrgb) == false))
+        {
+            useDcc = false;
+        }
+        else if (Formats::IsYuv(createInfo.swizzledFormat.format))
+        {
+            // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
+            useDcc = false;
+            mustDisableDcc = true;
+        }
+        else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccPrt) == false))
+        {
+            // Make sure the settings allow use of DCC surfaces for PRT.
+            useDcc = false;
+        }
+        else if (createInfo.samples > 1)
+        {
+            // Make sure the settings allow use of DCC surfaces for MSAA.
+            if (createInfo.samples == 2)
+            {
+                useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample2x);
+            }
+            else if (createInfo.samples == 4)
+            {
+                useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample4x);
+            }
+            else if (createInfo.samples == 8)
+            {
+                useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccMultiSample8x);
+            }
+
+            if (createInfo.samples != createInfo.fragments)
+            {
+                useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccEqaa);
+            }
+        }
+        else
+        {
+            // Make sure the settings allow use of DCC surfaces for single-sampled surfaces
+            useDcc &= TestAnyFlagSet(settings.useDcc, Gfx9UseDccSingleSample);
+        }
+
+        if (useDcc && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccForNonReadableFormats) == false))
+        {
+            // Ok, if we have a format that's renderable (or shader-writeable), but it's not readable, then this
+            // will trigger a format replacement with RPM-based copy operations which in turn cause big headaches
+            // with partial rectangles that paritally cover DCC tiles.  The exception is SRGB formats  as those
+            // are copied via UINT format anyway.
+            useDcc = image.ImageSupportsShaderReadsAndWrites();
+        }
+
+        // TODO: Re-evaulate the performance of DCC with multi-mip / multi-slice images on GFX9.  Clearing
+        //       these is not a problem on GFX9 (it was on GFX8).
     }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
-    if ((mustDisableDcc == false) && (createInfo.metadataMode == MetadataMode::ForceEnabled))
+    if ((mustDisableDcc == false) &&
+        (TestAnyFlagSet(settings.useDcc, Gfx9UseDccAllowForceEnable)) &&
+        (createInfo.metadataMode == MetadataMode::ForceEnabled))
     {
         useDcc = true;
     }

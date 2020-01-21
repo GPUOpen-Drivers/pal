@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -382,12 +382,13 @@ bool Device::AcqRelInitMaskRam(
     // If the LayoutUninitializedTarget usage is set, no other usages should be set.
     PAL_ASSERT(TestAnyFlagSet(imgBarrier.oldLayout.usages, ~LayoutUninitializedTarget) == false);
 
-    const auto& image       = static_cast<const Pal::Image&>(*imgBarrier.pImage);
-    const auto& gfx9Image   = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
-    const auto& subresRange = imgBarrier.subresRange;
+    const EngineType engineType  = pCmdStream->GetEngineType();
+    const auto&      image       = static_cast<const Pal::Image&>(*imgBarrier.pImage);
+    const auto&      gfx9Image   = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
+    const auto&      subresRange = imgBarrier.subresRange;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    const auto& engineProps  = Parent()->EngineProperties().perEngine[pCmdBuf->GetEngineType()];
+    const auto& engineProps  = Parent()->EngineProperties().perEngine[engineType];
     const auto& createInfo   = image.GetImageCreateInfo();
     const bool  isWholeImage = image.IsFullSubResRange(subresRange);
 
@@ -402,7 +403,22 @@ bool Device::AcqRelInitMaskRam(
 
     PAL_ASSERT(gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData());
 
-    return RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx9Image, subresRange);
+    const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx9Image, subresRange);
+
+    if (gfx9Image.HasDccStateMetaData())
+    {
+        // We need to initialize the Image's DCC state metadata to indicate that the Image will
+        // become DCC compressed (or not) in upcoming operations.
+        const bool canCompress =
+            ImageLayoutCanCompressColorData(gfx9Image.LayoutToColorCompressionState(), imgBarrier.newLayout);
+
+        // If the new layout is one which can write compressed DCC data,  then we need to update the
+        // Image's DCC state metadata to indicate that the image will become DCC compressed in
+        // upcoming operations.
+        gfx9Image.UpdateDccStateMetaData(pCmdStream, subresRange, canCompress, engineType, PredDisable);
+    }
+
+    return usedCompute;
 }
 
 // =====================================================================================================================

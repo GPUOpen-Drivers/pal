@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -124,8 +124,7 @@ struct SectionMap
 
 /**
  ***********************************************************************************************************************
- * @brief Context for writing data to an [Executable and Linkable Format (ELF)](http://tinyurl.com/2toj8) buffer.
- *
+ * @brief Context for writing data to an [Executable and Linkable Format (ELF)] buffer.
  * The client should call AddBinarySection() as necessary to add one or more named sections to the ELF.  After all
  * sections are added, the client should call GetRequiredBufferSizeBytes(), allocate the specified amount of memory,
  * then call WriteToBuffer() to get the final ELF binary.
@@ -186,8 +185,7 @@ private:
 
 /**
  ***********************************************************************************************************************
- * @brief Context for reading data from an [Executable and Linkable Format (ELF)](http://tinyurl.com/2toj8) buffer.
- *
+ * @brief Context for reading data from an [Executable and Linkable Format (ELF)] buffer.
  * The client should call ReadFromBuffer() to initialize the context with the contents of an ELF, then GetSectionData()
  * to retrieve the contents of a particular named section.
  ***********************************************************************************************************************

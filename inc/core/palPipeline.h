@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@
 
 #include "pal.h"
 #include "palGpuMemoryBindable.h"
+#include "palDestroyable.h"
 #include "palImage.h"
 
 namespace Util
@@ -46,47 +47,12 @@ enum class HardwareStage : uint32;
 
 namespace Pal
 {
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+class  IShaderLibrary;
+#endif
 // Forward declarations.
 struct GpuMemSubAllocInfo;
 enum class PrimitiveTopology : uint32;
-
-/// ShaderHash represents a 128-bit shader hash.
-struct ShaderHash
-{
-    uint64 lower;   ///< Lower 64-bits of hash
-    uint64 upper;   ///< Upper 64-bits of hash
-};
-
-/// PipelineHash represents a concatenated pair of 64-bit hashes.
-struct PipelineHash
-{
-    uint64 stable;   ///< Lower 64-bits of hash.  "Stable" portion, suitable for e.g. shader replacement use cases.
-    uint64 unique;   ///< Upper 64-bits of hash.  "Unique" portion, suitable for e.g. pipeline cache use cases.
-};
-
-///@{
-/// Determines whether two ShaderHashes or PipelineHashes are equal.
-///
-/// @param  [in]    hash1    The first 128-bit shader hash or pipeline hash
-/// @param  [in]    hash2    The second 128-bit shader hash or pipeline hash
-///
-/// @returns True if the hashes are equal.
-PAL_INLINE bool ShaderHashesEqual(const ShaderHash hash1, const ShaderHash hash2)
-    { return ((hash1.lower  == hash2.lower)  && (hash1.upper  == hash2.upper)); }
-PAL_INLINE bool PipelineHashesEqual(const PipelineHash hash1, const PipelineHash hash2)
-    { return ((hash1.stable == hash2.stable) && (hash1.unique == hash2.unique)); }
-///@}
-
-///@{
-/// Determines whether the given ShaderHash or PipelineHash is non-zero.
-///
-/// @param  [in]    hash    A 128-bit shader hash or pipeline hash
-///
-/// @returns True if the hash is non-zero.
-PAL_INLINE bool ShaderHashIsNonzero(const ShaderHash hash)     { return ((hash.upper  | hash.lower)  != 0); }
-PAL_INLINE bool PipelineHashIsNonzero(const PipelineHash hash) { return ((hash.stable | hash.unique) != 0); }
-///@}
 
 /// Specifies a shader type (i.e., what stage of the pipeline this shader was written for).
 enum class ShaderType : uint32
@@ -241,7 +207,7 @@ struct MsaaCoverageOutDescriptor
 struct ComputePipelineIndirectFuncInfo
 {
     const char*  pSymbolName; ///< ELF Symbol name for the associated function.  Must not be null.
-    gpusize      gpuVirtAddr; ///< [out] GPU virtual address of the function.  This is compute by PAL during
+    gpusize      gpuVirtAddr; ///< [out] GPU virtual address of the function.  This is computed by PAL during
                               ///  pipeline creation.
 };
 
@@ -260,13 +226,15 @@ struct ComputePipelineCreateInfo
                                                ///  overrideGpuHeap flag is not set. The device will fallback to using
                                                ///  the local visible heap if the requested heap type is unsupported.
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
     /// Optional.  Specifies a set of indirect functions for PAL to compute virtual addresses for during pipeline
     /// creation.  These GPU addresses can then be passed as shader arguments for a later dispatch operation to
     /// allow the pipeline's shaders to jump to that function.  Similar to a function pointer on the GPU.
     ComputePipelineIndirectFuncInfo*  pIndirectFuncList;
     uint32                            indirectFuncCount; ///< Number of entries in the pIndirectFuncList array.  Must
                                                          ///  be zero if pIndirectFuncList is null.
-
+#endif
 };
 
 /// Specifies properties for creation of a graphics @ref IPipeline object.  Input structure to
@@ -535,9 +503,14 @@ public:
     ///
     /// @returns Success if the pipeline binary was fetched successfully.
     ///          +ErrorUnavailable if the pipeline binary was not fetched successfully.
-    virtual Result GetPipelineElf(
+    virtual Result GetCodeObject(
         uint32*  pSize,
         void*    pBuffer) const = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 556
+    PAL_INLINE Result GetPipelineElf(uint32* pSize, void* pBuffer) const
+        { return GetCodeObject(pSize, pBuffer); }
+#endif
 
     /// Obtains the shader pre and post compilation stats/params for the specified shader stage.
     ///
@@ -585,6 +558,34 @@ public:
         size_t*                  pSize,
         void*                    pBuffer) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
+    /// Notifies PAL that this pipeline may make indirect function calls to any function contained within any of the
+    /// specified @ref IShaderLibrary objects.  This gives PAL a chance to perform any late linking steps required to
+    /// valid execution of the possible function calls (this could include adjusting hardware resources such as GPRs
+    /// or LDS space for the pipeline).
+    ///
+    /// This may be called multiple times on the same pipeline object.  Subsequent calls do not invalidate the result
+    /// of previous calls.
+    ///
+    /// This must be called prior to binding this pipeline to a command buffer which will make function calls into any
+    /// shader function contained within any of the specified libraries.  Failure to comply is an error and will result
+    /// in undefined behavior.
+    ///
+    /// Currently only supported on compute pipelines.
+    ///
+    /// @param [in] ppLibraryList  List of @ref IShaderLibrary object to link with.
+    /// @param [in] libraryCount   Number of valid library objects in the ppLibraryList array.
+    ///
+    /// @returns Success if the operation is successful.  Other return codes may include:
+    ///          + ErrorUnavailable if called on a graphics pipeline.
+    ///          + ErrorBadPipelineData if any of the libraries in ppLibraryList are not compatible with this pipeline.
+    ///            Reasons for incompatibility include (but are not limited to) different user-data mappings, different
+    ///            wavefront sizes, and other reasons.
+    virtual Result LinkWithLibraries(
+        const IShaderLibrary*const* ppLibraryList,
+        uint32                      libraryCount) = 0;
+#endif
+
     /// Returns the API shader type to hardware stage mapping for the pipeline.
     ///
     /// @returns The appropriate mapping for this pipeline.
@@ -621,6 +622,9 @@ private:
     /// and set via SetClientData().
     /// For non-top-layer objects, this will point to the layer above the current object.
     void* m_pClientData;
+
+    IPipeline(const IPipeline&) = delete;
+    IPipeline& operator=(const IPipeline&) = delete;
 };
 
 } // Pal

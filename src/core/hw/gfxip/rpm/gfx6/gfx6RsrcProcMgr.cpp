@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -836,7 +836,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 // Function to expand (decompress) hTile data associated with the given image / range.  Supports use of a compute
 // queue expand for ASICs that support texture compatability of depth surfaces.  Falls back to the independent layer
 // implementation for other ASICs
-void RsrcProcMgr::ExpandDepthStencil(
+bool RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*                pCmdBuffer,
     const Pal::Image&            image,
     const IMsaaState*            pMsaaState,
@@ -848,6 +848,8 @@ void RsrcProcMgr::ExpandDepthStencil(
     const auto&  settings            = m_pDevice->Settings();
     const auto*  pGfxImage           = reinterpret_cast<const Image*>(image.GetGfxImage());
     const bool   supportsComputePath = pGfxImage->SupportsComputeDecompress(range.startSubres);
+
+    bool  usedCompute = false;
 
     // Make sure we support compute decompress if we're here on a compute queue.
     PAL_ASSERT(supportsComputePath || (pCmdBuffer->GetEngineType() == EngineTypeUniversal));
@@ -950,12 +952,16 @@ void RsrcProcMgr::ExpandDepthStencil(
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+
+        usedCompute = true;
     }
     else
     {
         // Do the expand the legacy way.
         Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pQuadSamplePattern, range);
     }
+
+    return usedCompute;
 }
 
 // =====================================================================================================================
@@ -1042,29 +1048,40 @@ void RsrcProcMgr::HwlFastColorClear(
 }
 
 // =====================================================================================================================
-// On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation while copying
-// the data from src to dest, which means dst needs to have fmask of src and dcc needs to be set to uncompressed since
-// dest color data is no longer dcc compressed after copy.
-void RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
+void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     GfxCmdBuffer*          pCmdBuffer,
-    const Pal::Image&      srcImage,
+    const Pal::Image*      pSrcImage,
     const Pal::Image&      dstImage,
-    uint32                 regionCount,
+    ImageLayout            dstImageLayout,
     const ImageCopyRegion* pRegions,
-    uint32                 flags) const
+    uint32                 regionCount,
+    bool                   isFmaskCopyOptimized
+    ) const
 {
-    // This code doesn't work correctly. Needs to be re-worked.
-    PAL_ASSERT_ALWAYS();
-    auto* const pStream      = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
-    const auto& gfx6SrcImage = static_cast<const Gfx6::Image&>(*srcImage.GetGfxImage());
-    const auto& gfx6DstImage = static_cast<const Gfx6::Image&>(*dstImage.GetGfxImage());
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
+    const auto&  gfx6DstImage = static_cast<const Gfx6::Image&>(*dstImage.GetGfxImage());
 
-    for (uint32 idx = 0; idx < regionCount; ++idx)
+    // FMASK optimized MSAA copy isn't supported on gfx6/7/8.
+    PAL_ASSERT((pSrcImage == nullptr) && (isFmaskCopyOptimized == false));
+
+    // Currently only copy dst image with fullCopyDstOnly flag set will go here
+    PAL_ASSERT(dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0);
+
+    // Copy to depth should go through gfx path but not here.
+    PAL_ASSERT(gfx6DstImage.Parent()->IsDepthStencil() == false);
+
+    // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; since
+    // gfx6/7/8 doesn't support compressed compute copy, need fix up dst metadata to uncompressed state. Otherwise if
+    // image is created with fullCopyDstOnly=0, there will be expand when transition to "LayoutCopyDst"; metadata is
+    // in uncompressed state and no need fixup here.
+    if (gfx6DstImage.HasDccData())
     {
-        ImageCopyRegion copyRegion = pRegions[idx];
-        // Since color data is no longer dcc compressed set it to fully uncompressed.
-        if (gfx6DstImage.HasDccData())
+        auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+
+        for (uint32 idx = 0; idx < regionCount; ++idx)
         {
+            const auto& copyRegion = pRegions[idx];
+
             SubresRange range = {};
 
             range.startSubres.aspect     = copyRegion.dstSubres.aspect;
@@ -1072,39 +1089,33 @@ void RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
             range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
             range.numMips                = 1;
             range.numSlices              = copyRegion.numSlices;
+
+            // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
             ClearDcc(pCmdBuffer, pStream, gfx6DstImage, range, Gfx6Dcc::InitialValue, DccClearPurpose::FastClear);
         }
+    }
 
-        // Copy the src fmask and cmask data to destination
-        if (gfx6DstImage.HasFmaskData())
+    if (gfx6DstImage.HasFmaskData())
+    {
+        for (uint32 idx = 0; (idx < regionCount); ++idx)
         {
-            const auto*   pSrcCmask = gfx6SrcImage.GetCmask(copyRegion.srcSubres);
-            const auto*   pSrcFmask = gfx6SrcImage.GetFmask(copyRegion.srcSubres);
-            const auto*   pDstCmask = gfx6DstImage.GetCmask(copyRegion.dstSubres);
-            const auto*   pDstFmask = gfx6DstImage.GetFmask(copyRegion.dstSubres);
+            const auto& copyRegion  = pRegions[idx];
+            const auto* pSubResInfo = dstImage.SubresourceInfo(copyRegion.dstSubres);
 
-            // Memory
-            const IGpuMemory* pSrcMemory = reinterpret_cast<const IGpuMemory*>(srcImage.GetBoundGpuMemory().Memory());
-            const IGpuMemory* pDstMemory = reinterpret_cast<const IGpuMemory*>(dstImage.GetBoundGpuMemory().Memory());
+            SubresRange range = {};
 
-            MemoryCopyRegion memcpyRegion;
+            range.startSubres.aspect     = copyRegion.dstSubres.aspect;
+            range.startSubres.mipLevel   = copyRegion.dstSubres.mipLevel;
+            range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
+            range.numMips                = 1;
+            range.numSlices              = copyRegion.numSlices;
 
-            memcpyRegion.srcOffset = pSrcFmask->MemoryOffset();
-            memcpyRegion.dstOffset = pDstFmask->MemoryOffset();
-            memcpyRegion.copySize  = pSrcFmask->TotalSize();
-
-            // Do the copy
-            pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
-
-            // cmask copy
-            memcpyRegion.srcOffset = pSrcCmask->MemoryOffset();
-            memcpyRegion.dstOffset = pDstCmask->MemoryOffset();
-            memcpyRegion.copySize  = pSrcCmask->TotalSize();
-
-            // Do the copy
-            pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
+            // Since color data is no longer compressed set Cmask and Fmask to fully uncompressed.
+            ClearCmask(pCmdBuffer, gfx6DstImage, range, Gfx6Cmask::GetInitialValue(gfx6DstImage));
+            ClearFmask(pCmdBuffer, gfx6DstImage, range, Gfx6Fmask::GetPackedExpandedValue(gfx6DstImage));
         }
     }
+#endif
 }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478

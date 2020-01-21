@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -61,7 +61,7 @@ PipelineChunkHs::PipelineChunkHs(
     m_device(device),
     m_pHsPerfDataInfo(pPerfDataInfo)
 {
-    memset(&m_commands, 0, sizeof(m_commands));
+    memset(&m_regs, 0, sizeof(m_regs));
     memset(&m_stageInfo, 0, sizeof(m_stageInfo));
     m_stageInfo.stageId = Abi::HardwareStage::Hs;
 }
@@ -99,14 +99,11 @@ void PipelineChunkHs::LateInit(
     GraphicsPipelineUploader* pUploader,
     MetroHash64*              pHasher)
 {
-    const bool useLoadIndexPath = pUploader->EnableLoadIndexPath();
+    const GpuChipProperties& chipProps    = m_device.Parent()->ChipProperties();
+    const RegisterInfo&      registerInfo = m_device.CmdUtil().GetRegInfo();
 
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
-    const uint16 baseUserDataHs     = m_device.GetBaseUserDataReg(HwShaderStage::Hs);
-    const uint16 mmSpiShaderPgmLoLs = m_device.CmdUtil().GetRegInfo().mmSpiShaderPgmLoLs;
-
-    BuildPm4Headers(useLoadIndexPath);
+    const uint16 mmSpiShaderUserDataHs0 = registerInfo.mmUserDataStartHsShaderStage;
+    const uint16 mmSpiShaderPgmLoLs     = registerInfo.mmSpiShaderPgmLoLs;
 
     Abi::PipelineSymbolEntry symbol = { };
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::HsMainEntry, &symbol))
@@ -115,15 +112,15 @@ void PipelineChunkHs::LateInit(
         const gpusize programGpuVa = (pUploader->CodeGpuVirtAddr() + symbol.value);
         PAL_ASSERT(IsPow2Aligned(programGpuVa, 256));
 
-        m_commands.sh.spiShaderPgmLoLs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
-        m_commands.sh.spiShaderPgmHiLs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
+        m_regs.sh.spiShaderPgmLoLs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
+        m_regs.sh.spiShaderPgmHiLs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
     }
 
     regSPI_SHADER_USER_DATA_LS_0 spiShaderUserDataLoHs = { };
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::HsShdrIntrlTblPtr, &symbol))
     {
         const gpusize srdTableGpuVa = (pUploader->DataGpuVirtAddr() + symbol.value);
-        m_commands.sh.spiShaderUserDataLoHs = LowPart(srdTableGpuVa);
+        m_regs.sh.userDataInternalTable = LowPart(srdTableGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::HsDisassembly, &symbol))
@@ -131,61 +128,61 @@ void PipelineChunkHs::LateInit(
         m_stageInfo.disassemblyLength = static_cast<size_t>(symbol.size);
     }
 
-    m_commands.sh.spiShaderPgmRsrc1Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_HS);
-    m_commands.sh.spiShaderPgmRsrc2Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_HS);
-    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_HS, &m_commands.dynamic.spiShaderPgmRsrc3Hs.u32All);
+    m_regs.sh.spiShaderPgmRsrc1Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_HS);
+    m_regs.sh.spiShaderPgmRsrc2Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_HS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_HS, &m_regs.dynamic.spiShaderPgmRsrc3Hs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU enable masks for each shader stage, so it should be safe to
     // always use the ones PAL prefers.
-    m_commands.dynamic.spiShaderPgmRsrc3Hs.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
+    m_regs.dynamic.spiShaderPgmRsrc3Hs.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
 
     if (IsGfx10(chipProps.gfxLevel))
     {
-        m_commands.dynamic.spiShaderPgmRsrc4Hs.gfx10.CU_EN = m_device.GetCuEnableMaskHi(0, UINT_MAX);
+        m_regs.dynamic.spiShaderPgmRsrc4Hs.gfx10.CU_EN = m_device.GetCuEnableMaskHi(0, UINT_MAX);
 
-        if (chipProps.gfx9.supportSpiPrefPriority)
+        if (chipProps.gfx9.supportSpiPrefPriority != 0)
         {
-            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0, &m_commands.sh.shaderUserAccumLshs0.u32All);
-            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_1, &m_commands.sh.shaderUserAccumLshs1.u32All);
-            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_2, &m_commands.sh.shaderUserAccumLshs2.u32All);
-            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_3, &m_commands.sh.shaderUserAccumLshs3.u32All);
+            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0, &m_regs.sh.spiShaderUserAccumLsHs0.u32All);
+            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_1, &m_regs.sh.spiShaderUserAccumLsHs1.u32All);
+            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_2, &m_regs.sh.spiShaderUserAccumLsHs2.u32All);
+            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_3, &m_regs.sh.spiShaderUserAccumLsHs3.u32All);
         }
     }
 
     if (chipProps.gfx9.supportSpp != 0)
     {
-        registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS, &m_commands.sh.spiShaderPgmChksumHs.u32All);
+        registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS, &m_regs.sh.spiShaderPgmChksumHs.u32All);
     }
 
-    m_commands.context.vgtHosMinTessLevel.u32All = registers.At(mmVGT_HOS_MIN_TESS_LEVEL);
-    m_commands.context.vgtHosMaxTessLevel.u32All = registers.At(mmVGT_HOS_MAX_TESS_LEVEL);
+    m_regs.context.vgtHosMinTessLevel.u32All = registers.At(mmVGT_HOS_MIN_TESS_LEVEL);
+    m_regs.context.vgtHosMaxTessLevel.u32All = registers.At(mmVGT_HOS_MAX_TESS_LEVEL);
 
-    pHasher->Update(m_commands.context);
+    pHasher->Update(m_regs.context);
 
-    if (useLoadIndexPath)
+    if (pUploader->EnableLoadIndexPath())
     {
-        pUploader->AddShReg(mmSpiShaderPgmLoLs,        m_commands.sh.spiShaderPgmLoLs);
-        pUploader->AddShReg(mmSpiShaderPgmLoLs + 1,    m_commands.sh.spiShaderPgmHiLs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_HS, m_commands.sh.spiShaderPgmRsrc1Hs);
-        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_HS, m_commands.sh.spiShaderPgmRsrc2Hs);
+        pUploader->AddShReg(mmSpiShaderPgmLoLs,        m_regs.sh.spiShaderPgmLoLs);
+        pUploader->AddShReg(mmSpiShaderPgmLoLs + 1,    m_regs.sh.spiShaderPgmHiLs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_HS, m_regs.sh.spiShaderPgmRsrc1Hs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_HS, m_regs.sh.spiShaderPgmRsrc2Hs);
 
-        pUploader->AddShReg(baseUserDataHs + ConstBufTblStartReg, m_commands.sh.spiShaderUserDataLoHs);
+        pUploader->AddShReg(mmSpiShaderUserDataHs0 + ConstBufTblStartReg, m_regs.sh.userDataInternalTable);
 
         if (chipProps.gfx9.supportSpp != 0)
         {
-            pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS, m_commands.sh.spiShaderPgmChksumHs);
+            pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS, m_regs.sh.spiShaderPgmChksumHs);
         }
 
-        if (chipProps.gfx9.supportSpiPrefPriority)
+        if (chipProps.gfx9.supportSpiPrefPriority != 0)
         {
-            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0, m_commands.sh.shaderUserAccumLshs0);
-            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_1, m_commands.sh.shaderUserAccumLshs1);
-            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_2, m_commands.sh.shaderUserAccumLshs2);
-            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_3, m_commands.sh.shaderUserAccumLshs3);
+            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0, m_regs.sh.spiShaderUserAccumLsHs0);
+            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_1, m_regs.sh.spiShaderUserAccumLsHs1);
+            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_2, m_regs.sh.spiShaderUserAccumLsHs2);
+            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_3, m_regs.sh.spiShaderUserAccumLsHs3);
         }
 
-        pUploader->AddCtxReg(mmVGT_HOS_MIN_TESS_LEVEL, m_commands.context.vgtHosMinTessLevel);
-        pUploader->AddCtxReg(mmVGT_HOS_MAX_TESS_LEVEL, m_commands.context.vgtHosMaxTessLevel);
+        pUploader->AddCtxReg(mmVGT_HOS_MIN_TESS_LEVEL, m_regs.context.vgtHosMinTessLevel);
+        pUploader->AddCtxReg(mmVGT_HOS_MAX_TESS_LEVEL, m_regs.context.vgtHosMaxTessLevel);
     }
 }
 
@@ -199,30 +196,75 @@ uint32* PipelineChunkHs::WriteShCommands(
     const DynamicStageInfo& hsStageInfo
     ) const
 {
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
     if (UseLoadIndexPath == false)
     {
-        pCmdSpace = pCmdStream->WritePm4Image(m_commands.sh.spaceNeeded, &m_commands.sh, pCmdSpace);
+        const RegisterInfo& registerInfo = m_device.CmdUtil().GetRegInfo();
+
+        const uint16 mmSpiShaderUserDataHs0 = registerInfo.mmUserDataStartHsShaderStage;
+        const uint16 mmSpiShaderPgmLoLs     = registerInfo.mmSpiShaderPgmLoLs;
+
+        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSpiShaderPgmLoLs,
+                                                  mmSpiShaderPgmLoLs + 1,
+                                                  ShaderGraphics,
+                                                  &m_regs.sh.spiShaderPgmLoLs,
+                                                  pCmdSpace);
+       pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
+                                                 mmSPI_SHADER_PGM_RSRC2_HS,
+                                                 ShaderGraphics,
+                                                 &m_regs.sh.spiShaderPgmRsrc1Hs,
+                                                 pCmdSpace);
+
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
+                                                                 m_regs.sh.userDataInternalTable,
+                                                                 pCmdSpace);
+
+        if (chipProps.gfx9.supportSpp != 0)
+        {
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS,
+                                                                     m_regs.sh.spiShaderPgmChksumHs.u32All,
+                                                                     pCmdSpace);
+        }
+
+        if (chipProps.gfx9.supportSpiPrefPriority != 0)
+        {
+            pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0,
+                                                      Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_3,
+                                                      ShaderGraphics,
+                                                      &m_regs.sh.spiShaderUserAccumLsHs0,
+                                                      pCmdSpace);
+        }
     }
 
-    auto dynamicCmds = m_commands.dynamic;
+    auto dynamic = m_regs.dynamic;
 
     if (hsStageInfo.wavesPerSh > 0)
     {
-        dynamicCmds.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
+        dynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
     }
 
     if (hsStageInfo.cuEnableMask != 0)
     {
-        dynamicCmds.spiShaderPgmRsrc3Hs.bits.CU_EN &= hsStageInfo.cuEnableMask;
-        if (dynamicCmds.hdrPgmRsrc4Hs.header.u32All != 0)
-        {
-            dynamicCmds.spiShaderPgmRsrc4Hs.gfx10.CU_EN =
-                Device::AdjustCuEnHi(dynamicCmds.spiShaderPgmRsrc4Hs.gfx10.CU_EN, hsStageInfo.cuEnableMask);
-        }
+        dynamic.spiShaderPgmRsrc3Hs.bits.CU_EN &= hsStageInfo.cuEnableMask;
+        dynamic.spiShaderPgmRsrc4Hs.gfx10.CU_EN =
+            Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Hs.gfx10.CU_EN, hsStageInfo.cuEnableMask);
     }
 
-    PAL_ASSERT(m_commands.dynamic.spaceNeeded != 0);
-    pCmdSpace = pCmdStream->WritePm4Image(m_commands.dynamic.spaceNeeded, &dynamicCmds, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_HS,
+                                                  dynamic.spiShaderPgmRsrc3Hs.u32All,
+                                                  ShaderGraphics,
+                                                  index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                  pCmdSpace);
+
+    if (IsGfx10(chipProps.gfxLevel))
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC4_HS,
+                                                      dynamic.spiShaderPgmRsrc4Hs.u32All,
+                                                      ShaderGraphics,
+                                                      index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                      pCmdSpace);
+    }
 
     if (m_pHsPerfDataInfo->regOffset != UserDataNotMapped)
     {
@@ -260,8 +302,10 @@ uint32* PipelineChunkHs::WriteContextCommands(
     // NOTE: It is expected that this function will only ever be called when the set path is in use.
     PAL_ASSERT(UseLoadIndexPath == false);
 
-    constexpr uint32 SpaceNeeded = sizeof(m_commands.context) / sizeof(uint32);
-    return pCmdStream->WritePm4Image(SpaceNeeded, &m_commands.context, pCmdSpace);
+    return pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
+                                              mmVGT_HOS_MIN_TESS_LEVEL,
+                                              &m_regs.context.vgtHosMaxTessLevel,
+                                              pCmdSpace);
 }
 
 // Instantiate template versions for the linker.
@@ -275,75 +319,6 @@ uint32* PipelineChunkHs::WriteContextCommands<true>(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const;
-
-// =====================================================================================================================
-// Assembles the PM4 headers for the commands in this Pipeline chunk.
-void PipelineChunkHs::BuildPm4Headers(
-    bool enableLoadIndexPath)
-{
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-    const CmdUtil&           cmdUtil   = m_device.CmdUtil();
-
-    const uint16 baseUserDataHs     = m_device.GetBaseUserDataReg(HwShaderStage::Hs);
-    const uint32 mmSpiShaderPgmLoLs = cmdUtil.GetRegInfo().mmSpiShaderPgmLoLs;
-
-    m_commands.sh.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmSpiShaderPgmLoLs,
-                                                          mmSpiShaderPgmLoLs + 1,
-                                                          ShaderGraphics,
-                                                          &m_commands.sh.hdrSpiShaderPgmHs);
-
-    m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(baseUserDataHs + ConstBufTblStartReg,
-                                                          ShaderGraphics,
-                                                          &m_commands.sh.hdrSpiShaderUserDataHs);
-
-    m_commands.sh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
-                                                           mmSPI_SHADER_PGM_RSRC2_HS,
-                                                           ShaderGraphics,
-                                                           &m_commands.sh.hdrSpiShaderPgmRsrcHs);
-
-    if (chipProps.gfx9.supportSpp != 0)
-    {
-        m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS,
-                                                              ShaderGraphics,
-                                                              &m_commands.sh.hdrSpiShaderPgmChksum);
-    }
-    else
-    {
-        m_commands.sh.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
-                                                      &m_commands.sh.hdrSpiShaderPgmChksum);
-    }
-
-    if (chipProps.gfx9.supportSpiPrefPriority)
-    {
-        m_commands.sh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0,
-                                                               Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_3,
-                                                               ShaderGraphics,
-                                                               &m_commands.sh.hdrSpishaderUserAccumLshs);
-    }
-    else
-    {
-        m_commands.sh.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 4,
-                                                      &m_commands.sh.hdrSpishaderUserAccumLshs);
-    }
-    cmdUtil.BuildSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
-                                   mmVGT_HOS_MIN_TESS_LEVEL,
-                                   &m_commands.context.hdrvVgtHosTessLevel);
-
-    // NOTE: Supporting real-time compute requires use of SET_SH_REG_INDEX for this register.
-    m_commands.dynamic.spaceNeeded = cmdUtil.BuildSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_HS,
-                                                                   ShaderGraphics,
-                                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                                   &m_commands.dynamic.hdrPgmRsrc3Hs);
-
-    if (IsGfx10(chipProps.gfxLevel))
-    {
-        m_commands.dynamic.spaceNeeded += cmdUtil.BuildSetOneShRegIndex(
-                                                        mmSPI_SHADER_PGM_RSRC4_HS,
-                                                        ShaderGraphics,
-                                                        index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                        &m_commands.dynamic.hdrPgmRsrc4Hs);
-    }
-}
 
 } // Gfx9
 } // Pal

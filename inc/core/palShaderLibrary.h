@@ -1,0 +1,182 @@
+/*
+ ***********************************************************************************************************************
+ *
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
+/**
+ ***********************************************************************************************************************
+ * @file  palShaderLibrary.h
+ * @brief Defines the Platform Abstraction Library (PAL) IShaderLibrary interface and related types.
+ ***********************************************************************************************************************
+ */
+
+#pragma once
+
+#include "pal.h"
+#include "palDestroyable.h"
+
+namespace Pal
+{
+
+struct GpuMemSubAllocInfo;
+
+/// Common flags controlling creation of shader libraries.
+union LibraryCreateFlags
+{
+    struct
+    {
+        uint32 clientInternal  : 1;  ///< Internal library not created by the application.
+        uint32 overrideGpuHeap : 1;  ///< Override the default GPU heap (local invisible) the library resides in.
+        uint32 reserved        : 30; ///< Reserved for future use.
+    };
+    uint32 u32All;                  ///< Flags packed as 32-bit uint.
+};
+
+/// Specifies properties about an indirect function belonging to a @ref IShaderLibrary object.  Part of the input
+/// structure to IDevice::CreateShaderLibrary().
+struct ShaderLibraryFunctionInfo
+{
+    const char*  pSymbolName; ///< ELF Symbol name for the associated function.  Must not be null.
+    gpusize      gpuVirtAddr; ///< [out] GPU virtual address of the function.  This is computed by PAL during
+                              ///  library creation.
+};
+
+/// Specifies properties for creation of a compute @ref IShaderLibrary object.  Input structure to
+/// IDevice::CreateShaderLibrary().
+struct ShaderLibraryCreateInfo
+{
+    LibraryCreateFlags  flags;      ///< Library creation flags
+
+    const void*  pCodeObject;       ///< Pointer to code-object ELF binary implementing the Pipeline ABI interface.
+                                    ///  The code-object ELF contains pre-compiled shaders, register values, and
+                                    ///  additional metadata.
+    size_t       codeObjectSize;    ///< Size of code object in bytes.
+
+    GpuHeap      preferredHeap;     ///< Upload this pipeline to this heap.  This is ignored if
+                                    ///  @ref LibraryCreateFlags::overrideGpuHeap is not set.
+
+    /// List of functions for PAL to compute virtual addresses for during library creation.  These GPU addresses can
+    /// then be passed as shader arguments to a later dispatch operation to allow a compute pipeline's shaders to jump
+    /// to the corresponding function(s).  This behaves similarly to a function pointer, but on the GPU.  PAL will
+    /// guarantee that these GPU virtual addresses remain valid for the lifetime of the @ref IShaderLibrary object and
+    /// that the backing GPU memory will remain resident.
+    ShaderLibraryFunctionInfo*  pFuncList;
+    uint32                      funcCount;  ///< Number of entries in the pFuncList array.  Must be zero if pFuncList
+                                            ///  is nullptr.
+};
+
+/// Reports properties of a compiled library.
+struct LibraryInfo
+{
+    PipelineHash internalLibraryHash;  ///< 128-bit identifier extracted from this library's ELF binary, composed of
+                                       ///  the state the compiler decided was appropriate to identify the compiled
+                                       ///  library.  The lower 64 bits are "stable"; the upper 64 bits are "unique".
+};
+
+/**
+ ***********************************************************************************************************************
+ * @interface IShaderLibrary
+ * @brief     Object containing one or more shader functions stored in GPU memory.  These shader functions are callable
+ *            from the shaders contained within IPipeline objects.
+ *
+ * Before a pipeline which calls into this library is bound to a command buffer (using @ref ICmdBuffer::BindPipeline),
+ * the client must call @ref IPipeline::LinkWithLibraries() and specify this library in the list of linked libraries.
+ * Failure to comply with this requirement is an error and will result in undefined behavior.
+ *
+ * @see IDevice::CreateShaderLibrary()
+ * @see IPipeline::LinkWithLibraries()
+ ***********************************************************************************************************************
+ */
+class IShaderLibrary : public IDestroyable
+{
+public:
+    /// Returns properties of this library and its corresponding shader functions.
+    ///
+    /// @returns Property structure describing this library.
+    virtual const LibraryInfo& GetInfo() const = 0;
+
+    /// Returns a list of GPU memory allocations used by this library.
+    ///
+    /// @param [in,out] pNumEntries    Input value specifies the available size in pAllocInfoList; output value
+    ///                                reports the number of GPU memory allocations.
+    /// @param [out]    pAllocInfoList If pAllocInfoList=nullptr, then pNumEntries is ignored on input.  On output it
+    ///                                will reflect the number of allocations that make up this pipeline.  If
+    ///                                pAllocInfoList!=nullptr, then on input pNumEntries is assumed to be the number
+    ///                                of entries in the pAllocInfoList array.  On output, pNumEntries reflects the
+    ///                                number of entries in pAllocInfoList that are valid.
+    /// @returns Success if the allocation info was successfully written to the buffer.
+    ///          + ErrorInvalidValue if the caller provides a buffer size that is different from the size needed.
+    ///          + ErrorInvalidPointer if pNumEntries is nullptr.
+    virtual Result QueryAllocationInfo(
+        size_t*                    pNumEntries,
+        GpuMemSubAllocInfo* const  pAllocInfoList) const = 0;
+
+    /// Obtains the binary code object for this library.
+    ///
+    /// @param [in, out] pSize  Represents the size of the shader ISA code.
+    ///
+    /// @param [out] pBuffer    If non-null, the library ELF is written in the buffer. If null, the size required
+    ///                         for the library ELF is given out in the location pSize.
+    ///
+    /// @returns Success if the library binary was fetched successfully.
+    ///          +ErrorUnavailable if the library binary was not fetched successfully.
+    virtual Result GetCodeObject(
+        uint32*  pSize,
+        void*    pBuffer) const = 0;
+
+    /// Returns the value of the associated arbitrary client data pointer.
+    /// Can be used to associate arbitrary data with a particular PAL object.
+    ///
+    /// @returns Pointer to client data.
+    PAL_INLINE void* GetClientData() const { return m_pClientData; }
+
+    /// Sets the value of the associated arbitrary client data pointer.
+    /// Can be used to associate arbitrary data with a particular PAL object.
+    ///
+    /// @param  [in]    pClientData     A pointer to arbitrary client data.
+    PAL_INLINE void SetClientData(
+        void* pClientData)
+    {
+        m_pClientData = pClientData;
+    }
+
+protected:
+    /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly
+    /// called the proper create method.
+    IShaderLibrary() : m_pClientData(nullptr) { }
+
+    /// @internal Destructor.  Prevent use of delete operator on this interface.  Client must destroy objects by
+    /// explicitly calling IDestroyable::Destroy() and is responsible for freeing the system memory allocated for the
+    /// object on their own.
+    virtual ~IShaderLibrary() { }
+
+private:
+    /// @internal Client data pointer. This can have an arbitrary value and can be returned by calling GetClientData()
+    /// and set via SetClientData().
+    /// For non-top-layer objects, this will point to the layer above the current object.
+    void*  m_pClientData;
+
+    IShaderLibrary(const IShaderLibrary&) = delete;
+    IShaderLibrary& operator=(const IShaderLibrary&) = delete;
+};
+
+} // Pal

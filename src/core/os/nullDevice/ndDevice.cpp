@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -210,6 +210,7 @@ Result Device::Create(
             result = (*ppDeviceOut)->EarlyInit(ipLevels);
             if (result != Result::Success)
             {
+                (*ppDeviceOut)->Cleanup(); // Ignore result; we've already failed.
                 (*ppDeviceOut)->~Device();
                 PAL_SAFE_FREE(pMemory, pPlatform);
             }

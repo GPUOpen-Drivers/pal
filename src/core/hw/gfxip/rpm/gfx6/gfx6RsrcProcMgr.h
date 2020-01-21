@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -118,7 +118,7 @@ public:
         const GfxImage&    image,
         const SubresRange& range) const override;
 
-    virtual void ExpandDepthStencil(
+    virtual bool ExpandDepthStencil(
         GfxCmdBuffer*                pCmdBuffer,
         const Pal::Image&            image,
         const IMsaaState*            pMsaaState,
@@ -142,16 +142,14 @@ private:
         const uint32*      pConvertedColor,
         const SubresRange& clearRange) const override;
 
-    virtual void HwlUpdateDstImageFmaskMetaData(
+    virtual void HwlFixupCopyDstImageMetaData(
         GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      srcImage,
+        const Pal::Image*      pSrcImage,
         const Pal::Image&      dstImage,
-        uint32                 regionCount,
+        ImageLayout            dstImageLayout,
         const ImageCopyRegion* pRegions,
-        uint32                 flags) const override;
-
-    virtual bool HwlImageUsesCompressedWrites(
-        const uint32* pImageSrd) const override { return false; }
+        uint32                 regionCount,
+        bool                   isFmaskCopyOptimized) const override;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
     virtual void HwlCreateDecompressResolveSafeImageViewSrds(
@@ -159,11 +157,6 @@ private:
         const ImageViewInfo*  pImageView,
         void*                 pSrdTable) const override;
 #endif
-
-    virtual void HwlUpdateDstImageStateMetaData(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      dstImage,
-        const SubresRange&     range) const override {}
 
     virtual void HwlHtileCopyAndFixUp(
         GfxCmdBuffer*             pCmdBuffer,

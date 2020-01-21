@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -288,12 +288,15 @@ namespace DevDriver
             m_curBlock(-1),
             m_buckets()
         {
-            // We need to make sure the caller has passed an acceptable type for the key.
-            // The point of the key is to provide some data we can use to calculate a hash. Empty types don't have data that
-            // uniquely identifies them when compared to another copy of that type. Unions are combinations of multiple types
-            // so we can't be sure that the data inside them will be enough to uniquely identify one variant versus another.
-            static_assert((std::is_empty<Key>::value == false), "The hash key type must not be an empty class or structure");
-            static_assert((std::is_union<Key>::value == false), "The hash key type must not be a union");
+
+                // The Windows kernel platform does not have access to std::is_empty or std::is_union
+
+                // We need to make sure the caller has passed an acceptable type for the key.
+                // The point of the key is to provide some data we can use to calculate a hash. Empty types don't have data that
+                // uniquely identifies them when compared to another copy of that type. Unions are combinations of multiple types
+                // so we can't be sure that the data inside them will be enough to uniquely identify one variant versus another.
+                static_assert((std::is_empty<Key>::value == false), "The hash key type must not be an empty class or structure");
+                static_assert((std::is_union<Key>::value == false), "The hash key type must not be a union");
         }
 
         ///// @internal Constructor

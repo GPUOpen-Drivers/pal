@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,8 @@
 
 #include <baseProtocolServer.h>
 #include <util/hashMap.h>
-#include <util/ddBitSet.h>
+#include <util/vector.h>
+#include <util/queue.h>
 #include <protocols/ddEventProtocol.h>
 
 namespace DevDriver
@@ -42,145 +43,48 @@ namespace DevDriver
 namespace EventProtocol
 {
 
-class IEventProvider;
+class BaseEventProvider;
+struct EventChunk;
 class EventServerSession;
+
+struct EventChunkInfo
+{
+    EventChunk* pChunk;
+    size_t      bytesSent;
+};
 
 class EventServer final : public BaseProtocolServer
 {
-    friend class IEventProvider;
+    friend class BaseEventProvider;
     friend class EventServerSession;
 
 public:
     explicit EventServer(IMsgChannel* pMsgChannel);
-    ~EventServer() = default;
+    ~EventServer();
 
     bool AcceptSession(const SharedPointer<ISession>& pSession) override;
     void SessionEstablished(const SharedPointer<ISession>& pSession) override;
     void UpdateSession(const SharedPointer<ISession>& pSession) override;
     void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override;
 
-    Result RegisterProvider(IEventProvider* pProvider);
-    Result UnregisterProvider(IEventProvider* pProvider);
+    Result RegisterProvider(BaseEventProvider* pProvider);
+    Result UnregisterProvider(BaseEventProvider* pProvider);
 
 private:
-    Result LogEvent(const void* pEventData, size_t eventDataSize);
+    Result AllocateEventChunk(EventChunk** ppChunk);
+    void FreeEventChunk(EventChunk* pChunk);
+    Result EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks);
     Result BuildQueryProvidersResponse(BlockId* pBlockId);
     Result ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate);
 
-    HashMap<EventProviderId, IEventProvider*, 16u> m_eventProviders;
-    Platform::Mutex                                m_eventProvidersMutex;
-    Platform::Mutex                                m_activeSessionMutex;
-    EventServerSession*                            m_pActiveSession = nullptr;
-};
-
-class IEventProvider
-{
-    friend class EventServer;
-
-protected:
-    IEventProvider() {}
-    virtual ~IEventProvider() {}
-
-    Result LogEvent(EventServer* pServer, const void* pEventData, size_t eventDataSize)
-    {
-        DD_ASSERT(pServer != nullptr);
-        DD_ASSUME(pServer != nullptr);
-
-        return pServer->LogEvent(pEventData, eventDataSize);
-    }
-
-    virtual EventProviderId GetId() const = 0;
-
-    virtual ProviderDescriptionHeader GetHeader() const = 0;
-
-    virtual uint32 GetNumEvents() const = 0;
-    virtual const void* GetEventDescriptionData() const = 0;
-    virtual uint32 GetEventDescriptionDataSize() const = 0;
-    virtual const void* GetEventData() const = 0;
-    virtual size_t GetEventDataSize() const = 0;
-
-private:
-    virtual void UpdateEventData(const void* pEventData, size_t eventDataSize) = 0;
-
-    virtual void Enable() = 0;
-    virtual void Disable() = 0;
-
-    virtual void EnableEvent(uint32 eventId) = 0;
-    virtual void DisableEvent(uint32 eventId) = 0;
-
-    virtual void SetEventServer(EventServer* pServer) = 0;
-};
-
-template <uint32 NumEvents>
-class EventProvider : public IEventProvider
-{
-public:
-    uint32 GetNumEvents() const override { return NumEvents; }
-    const void* GetEventData() const override { return m_eventState.GetBitData(); }
-    size_t GetEventDataSize() const override { return m_eventState.GetBitDataSize(); }
-
-    bool IsProviderEnabled() const { return m_isEnabled; }
-    bool IsEventEnabled(uint32 eventId) const { return m_eventState[eventId]; }
-    bool IsProviderRegistered() const { return (m_pServer != nullptr); }
-
-protected:
-    EventProvider() = default;
-    virtual ~EventProvider() = default;
-
-    // Returns Success if the write would have made it through to the event server
-    // Returns Unavailable if the event provider has no way to forward events to a server
-    // Returns Rejected if the write would have been rejected due to event filtering settings
-    Result QueryEventWriteStatus(uint32 eventId) const
-    {
-        Result result = IsProviderRegistered() ? Result::Success
-                                               : Result::Unavailable;
-
-        if (result == Result::Success)
-        {
-            result = (IsProviderEnabled() && IsEventEnabled(eventId)) ? Result::Success
-                                                                      : Result::Rejected;
-        }
-
-        return result;
-    }
-
-    Result WriteEvent(uint32 eventId, const void* pEventData, size_t eventDataSize)
-    {
-        Result result = QueryEventWriteStatus(eventId);
-
-        if (result == Result::Success)
-        {
-            result = LogEvent(m_pServer, pEventData, eventDataSize);
-        }
-
-        return result;
-    }
-
-    ProviderDescriptionHeader GetHeader() const override
-    {
-        return ProviderDescriptionHeader(GetId(),
-                                         NumEvents,
-                                         GetEventDescriptionDataSize(),
-                                         m_isEnabled);
-    }
-
-private:
-    void Enable() override { m_isEnabled = true; }
-    void Disable() override { m_isEnabled = false; }
-
-    void UpdateEventData(const void* pEventData, size_t eventDataSize) override
-    {
-        m_eventState.UpdateBitData(pEventData, eventDataSize);
-    }
-
-    void EnableEvent(uint32 eventId) override { m_eventState.SetBit(eventId); }
-    void DisableEvent(uint32 eventId) override { m_eventState.ResetBit(eventId); }
-
-    void SetEventServer(EventServer* pServer) override { m_pServer = pServer; }
-
-    EventServer*          m_pServer = nullptr;
-    BitSet<NumEvents>     m_eventState;
-    bool                  m_isEnabled = false;
+    HashMap<EventProviderId, BaseEventProvider*, 16u> m_eventProviders;
+    Platform::Mutex                                   m_eventProvidersMutex;
+    Platform::Mutex                                   m_eventPoolMutex;
+    Vector<EventChunk*>                               m_eventChunkPool;
+    Vector<EventChunk*>                               m_eventChunkAllocList;
+    Platform::Mutex                                   m_eventQueueMutex;
+    Queue<EventChunkInfo>                             m_eventChunkQueue;
+    EventServerSession*                               m_pActiveSession;
 };
 
 } // EventProtocol

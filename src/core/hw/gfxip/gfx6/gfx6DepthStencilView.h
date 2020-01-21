@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -41,12 +41,9 @@ class Image;
 namespace Gfx6
 {
 
-// Represents an "image" of the PM4 commands necessary to write a GcnDepthStencilView to hardware. The required
-// register writes are grouped into sets based on sequential register addresses, to minimize the amount of PM4 space
-// needed by setting several registers at once.
-struct DepthStencilViewPm4Img
+// Set of context registers associated with a depth/stencil view object.
+struct DepthStencilViewRegs
 {
-    PM4CMDSETDATA                    hdrDbDepthInfo;
     regDB_DEPTH_INFO                 dbDepthInfo;
     regDB_Z_INFO                     dbZInfo;
     regDB_STENCIL_INFO               dbStencilInfo;
@@ -56,43 +53,18 @@ struct DepthStencilViewPm4Img
     regDB_STENCIL_WRITE_BASE         dbStencilWriteBase;
     regDB_DEPTH_SIZE                 dbDepthSize;
     regDB_DEPTH_SLICE                dbDepthSlice;
-
-    PM4CMDSETDATA                    hdrDbDepthView;
     regDB_DEPTH_VIEW                 dbDepthView;
-
-    PM4CMDSETDATA                    hdrDbRenderOverride2;
     regDB_RENDER_OVERRIDE2           dbRenderOverride2;
     regDB_HTILE_DATA_BASE            dbHtileDataBase;
-
-    PM4CMDSETDATA                    hdrDbHtileSurface;
     regDB_HTILE_SURFACE              dbHtileSurface;
-
-    PM4CMDSETDATA                    hdrDbPreloadControl;
     regDB_PRELOAD_CONTROL            dbPreloadControl;
-
-    PM4CMDSETDATA                    hdrDbRenderControl;
     regDB_RENDER_CONTROL             dbRenderControl;
-
-    PM4CMDSETDATA                    hdrPaSuPolyOffsetDbFmtCntl;
     regPA_SU_POLY_OFFSET_DB_FMT_CNTL paSuPolyOffsetDbFmtCntl;
-
-    PM4CMDSETDATA                    hdrCoherDestBase0;
     regCOHER_DEST_BASE_0             coherDestBase0;
+    regDB_RENDER_OVERRIDE            dbRenderOverride;
 
-    PM4CONTEXTREGRMW                 dbRenderOverrideRmw;
-
-    // PM4 load context regs packet to load the Image's fast-clear meta-data.  This must be the last packet in the
-    // image because it is either absent or present depending on compression state.
-    union
-    {
-        PM4CMDLOADDATA               loadMetaData;
-        PM4CMDLOADDATAINDEX          loadMetaDataIndex;
-    };
-
-    // Command space needed for compressed and decomrpessed rendering, in DWORDs.  These fields must always be last
-    // in the structure to not interfere w/ the actual commands contained within.
-    size_t  spaceNeeded;
-    size_t  spaceNeededDecompressed;    // Used when nether depth nor stencil is compressed.
+    gpusize  fastClearMetadataGpuVa;
+    gpusize  hiSPretestMetadataGpuVa;
 };
 
 // =====================================================================================================================
@@ -113,7 +85,6 @@ public:
         const DepthStencilViewCreateInfo&         createInfo,
         const DepthStencilViewInternalCreateInfo& internalInfo);
 
-    static size_t Pm4ImageSize() { return sizeof(DepthStencilViewPm4Img); }
     uint32* WriteCommands(
         ImageLayout depthLayout,
         ImageLayout stencilLayout,
@@ -150,17 +121,14 @@ public:
 private:
     virtual ~DepthStencilView()
     {
-        // This destructor, and the destructors of all member and base classes, must always be empty: PAL color target
+        // This destructor, and the destructors of all member and base classes, must always be empty: PAL depth stencil
         // views guarantee to the client that they do not have to be explicitly destroyed.
         PAL_NEVER_CALLED();
     }
 
-    void BuildPm4Headers();
-    void InitRegisters(
-        const DepthStencilViewCreateInfo&         createInfo,
-        const DepthStencilViewInternalCreateInfo& internalInfo);
-
-    void UpdateImageVa(DepthStencilViewPm4Img* pPm4Img) const;
+    void InitRegisters(const DepthStencilViewCreateInfo&         createInfo,
+                       const DepthStencilViewInternalCreateInfo& internalInfo);
+    void UpdateImageVa(DepthStencilViewRegs* pRegs) const;
 
     uint32 CalcDecompressOnZPlanesValue(bool depthCompressDisable) const;
 
@@ -180,11 +148,12 @@ private:
             uint32 usesLoadRegIndexPkt     :  1; // Set if LOAD_CONTEXT_REG_INDEX is used instead of LOAD_CONTEXT_REG.
             uint32 viewVaLocked            :  1; // Whether the view's VA range is locked and won't change.
             uint32 isExpand                :  1; // Set if this view is for an expand blit.
+            uint32 hiSPretests             :  1; // Set if the image has HiS pretest metadata
             uint32 dbRenderOverrideLocked  :  1; // Set if DB_RENDER_OVERRIDE cannot change due to bind-time
                                                  // compression state.
             uint32 dbRenderControlLocked   :  1; // Set if DB_RENDER_CONTROL cannot change due to bind-time
                                                  // compression state.
-            uint32 reserved                : 18;
+            uint32 reserved                : 17;
         };
 
         uint32 u32All;
@@ -199,9 +168,7 @@ private:
 
     DepthStencilLayoutToState  m_depthLayoutToState;
     DepthStencilLayoutToState  m_stencilLayoutToState;
-
-    // Image of PM4 commands used to write this View to hardware for with full compression enabled.
-    DepthStencilViewPm4Img  m_pm4Cmds;
+    DepthStencilViewRegs       m_regs;
 
     PAL_DISALLOW_DEFAULT_CTOR(DepthStencilView);
     PAL_DISALLOW_COPY_AND_ASSIGN(DepthStencilView);

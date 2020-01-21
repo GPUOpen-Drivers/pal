@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -57,9 +57,16 @@ enum class VirtualGpuMemAccessMode : uint32;
 /// BLT or flip.
 enum class PresentMode : uint32
 {
-    Windowed   = 0x0,
-    Fullscreen = 0x1,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 561
+    Unknown,
+    Windowed,
+    Fullscreen,
     Count
+#else
+    Windowed,
+    Fullscreen,
+    Count
+#endif
 };
 
 /// Defines flags for describing which types of present modes are supported on a given queue.
