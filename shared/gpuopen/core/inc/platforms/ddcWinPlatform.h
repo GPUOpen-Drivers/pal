@@ -37,15 +37,15 @@ static_assert(false, "This header is for user mode windows, and it does not work
 // Our code expects these defined before including Windows.h.
 // However, we need to guard against clients defining them too.
 #ifndef _CRT_RAND_S
-#define _CRT_RAND_S
+    #define _CRT_RAND_S
 #endif
 
 #ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
 #endif
 
 #ifndef NOMINMAX
-#define NOMINMAX
+    #define NOMINMAX
 #endif
 
 #include <Windows.h>
@@ -96,7 +96,6 @@ static_assert(false, "This header is for user mode windows, and it does not work
 // [MSVC] __assume()
 //
 // [C++] Contracts: expects, ensures, assert, axiom
-//  ~ https://en.cppreference.com/w/cpp/language/attributes/contract
 #define DD_ASSUME(expression) __assume((expression))
 
 namespace DevDriver

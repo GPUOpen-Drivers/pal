@@ -113,6 +113,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Werror
         -Wno-unused
         -Wno-unused-parameter
+        -Wno-unused-command-line-argument
         -Wno-ignored-qualifiers
         -Wno-missing-field-initializers)
 

@@ -69,7 +69,10 @@ PipelineChunkCs::PipelineChunkCs(
     memset(&m_regs, 0, sizeof(m_regs));
     memset(&m_loadPath, 0, sizeof(m_loadPath));
     memset(&m_prefetch, 0, sizeof(m_prefetch));
-    m_pStageInfo->stageId = Abi::HardwareStage::Cs;
+    if(m_pStageInfo != nullptr)
+    {
+        m_pStageInfo->stageId = Abi::HardwareStage::Cs;
+    }
 }
 
 // =====================================================================================================================

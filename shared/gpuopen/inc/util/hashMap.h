@@ -206,7 +206,7 @@ namespace DevDriver
         /// @param [in] key   Key of the new entry to insert.
         /// @param [in] value Value of the new entry to insert.
         ///
-        /// @returns @ref Success if the operation completed successfully, @ref Error if the operation failed
+        /// @returns @ref Success if the operation completed successfully, @ref EntryExists if the operation failed
         ///          because the object already exists, or @ref InsufficientMemory if an internal memory allocation
         ///          failed.
         template <class... Args>
@@ -226,7 +226,7 @@ namespace DevDriver
                 }
                 else
                 {
-                    result = Result::Error;
+                    result = Result::EntryExists;
                 }
             }
             return result;

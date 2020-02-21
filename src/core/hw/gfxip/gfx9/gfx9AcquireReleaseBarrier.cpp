@@ -554,7 +554,6 @@ void Device::AcqRelColorTransition(
             GetBltStageAccessInfo(layoutTransInfo, &stageMask, &accessMask);
 
             const IGpuEvent* pEvent = pCmdBuf->GetInternalEvent();
-            pCmdBuf->CmdResetEvent(*pEvent, HwPipePostIndexFetch);
 
             // Release from first pass.
             IssueReleaseSync(pCmdBuf, pCmdStream, stageMask, accessMask, false, pEvent, pBarrierOps);
@@ -606,8 +605,6 @@ void Device::IssueReleaseSync(
     PAL_ASSERT(pBarrierOps != nullptr);
 
     const EngineType engineType      = pCmdBuf->GetEngineType();
-    const GpuEvent*  pEvent          = static_cast<const GpuEvent*>(pGpuEvent);
-    const gpusize    gpuEventStartVa = pEvent->GetBoundGpuMemory().GpuVirtAddr();
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -644,7 +641,7 @@ void Device::IssueReleaseSync(
                                          stageMask,
                                          accessMask,
                                          flushLlc,
-                                         gpuEventStartVa,
+                                         pGpuEvent,
                                          pCmdSpace,
                                          pBarrierOps);
 
@@ -697,16 +694,28 @@ void Device::IssueAcquireSync(
             const GpuEvent* pGpuEvent       = static_cast<const GpuEvent*>(ppGpuEvents[i]);
             const gpusize   gpuEventStartVa = pGpuEvent->GetBoundGpuMemory().GpuVirtAddr();
 
-            for (uint32 slotIdx = 0; slotIdx < numEventSlots; slotIdx++)
+            if (numEventSlots == 1)
             {
                 pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
                                                        mem_space__me_wait_reg_mem__memory_space,
                                                        function__me_wait_reg_mem__equal_to_the_reference_value,
                                                        engine_sel__me_wait_reg_mem__micro_engine,
-                                                       gpuEventStartVa + (sizeof(uint32) * slotIdx),
+                                                       gpuEventStartVa,
                                                        GpuEvent::SetValue,
                                                        0xFFFFFFFF,
                                                        pCmdSpace);
+            }
+            else
+            {
+                PAL_ASSERT(numEventSlots == 2);
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem64(engineType,
+                                                         mem_space__me_wait_reg_mem__memory_space,
+                                                         function__me_wait_reg_mem__equal_to_the_reference_value,
+                                                         engine_sel__me_wait_reg_mem__micro_engine,
+                                                         gpuEventStartVa,
+                                                         GpuEvent::SetValue64,
+                                                         0xFFFFFFFFFFFFFFFF,
+                                                         pCmdSpace);
             }
         }
     }
@@ -1081,6 +1090,7 @@ void Device::BarrierRelease(
     {
         PAL_ASSERT(barrierReleaseInfo.pImageBarriers[i].dstAccessMask == 0);
     }
+    PAL_ASSERT(pClientEvent != nullptr);
 
     const uint32 preBltStageMask   = barrierReleaseInfo.srcStageMask;
     uint32       preBltAccessMask  = barrierReleaseInfo.srcGlobalAccessMask;
@@ -1153,11 +1163,6 @@ void Device::BarrierRelease(
         // Initialize an IGpuEvent* pEvent pointing at the client provided event.
         // If we have internal BLT(s), use internal event to signal/wait.
         const IGpuEvent* pActiveEvent = (bltTransitionCount > 0) ? pCmdBuf->GetInternalEvent() : pClientEvent;
-
-        if (pActiveEvent != nullptr)
-        {
-            pCmdBuf->CmdResetEvent(*pActiveEvent, HwPipePostIndexFetch);
-        }
 
         // Perform an all-in-one release prior to the potential BLT(s): IssueReleaseSync() on pActiveEvent.
         IssueReleaseSync(pCmdBuf,
@@ -1237,11 +1242,6 @@ void Device::BarrierRelease(
 
             // Get back the client provided event and signal it when the whole barrier-release is done.
             pActiveEvent = pClientEvent;
-
-            if (pActiveEvent != nullptr)
-            {
-                pCmdBuf->CmdResetEvent(*pActiveEvent, HwPipePostIndexFetch);
-            }
 
             // Release from BLTs.
             IssueReleaseSync(pCmdBuf,
@@ -1403,7 +1403,6 @@ void Device::BarrierAcquire(
 
             // We have internal BLT(s), enable internal event to signal/wait.
             const IGpuEvent* pEvent = pCmdBuf->GetInternalEvent();
-            pCmdBuf->CmdResetEvent(*pEvent, HwPipePostIndexFetch);
 
             // Release from BLTs.
             IssueReleaseSync(pCmdBuf,
@@ -1631,26 +1630,31 @@ size_t Device::BuildReleaseSyncPackets(
     uint32                        stageMask,
     uint32                        accessMask,
     bool                          flushLlc,
-    gpusize                       gpuEventStartVa,
+    const IGpuEvent*              pGpuEventToSignal,
     void*                         pBuffer,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
     // OptimizeBltCacheAccess() should've been called to convert these BLT coherency flags to more specific ones.
     PAL_ASSERT(TestAnyFlagSet(accessMask, CoherCopy | CoherResolve | CoherClear) == false);
-
+    PAL_ASSERT(pGpuEventToSignal != nullptr);
     PAL_ASSERT(pBarrierOps != nullptr);
 
     // Issue RELEASE_MEM packets to flush caches (optional) and signal gpuEvent.
-    const uint32   numEventSlots = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
-    VGT_EVENT_TYPE vgtEvents[MaxSlotsPerEvent] = {}; // Always create the max size.
-    uint32         vgtEventCount = 0;
+    const uint32          numEventSlots       = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
+    const GpuEvent*       pGpuEvent           = static_cast<const GpuEvent*>(pGpuEventToSignal);
+    const BoundGpuMemory& gpuEventBoundMemObj = pGpuEvent->GetBoundGpuMemory();
+    PAL_ASSERT(gpuEventBoundMemObj.IsBound());
+    const gpusize         gpuEventStartVa     = gpuEventBoundMemObj.GpuVirtAddr();
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 500
     // If it reaches here, we know the Release-Acquire barrier is enabled, so each event should have MaxSlotsPerEvent
     // number of slots.
     PAL_ASSERT(numEventSlots == MaxSlotsPerEvent);
 #endif
+
+    VGT_EVENT_TYPE vgtEvents[MaxSlotsPerEvent] = {}; // Always create the max size.
+    uint32         vgtEventCount = 0;
 
     // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
     // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
@@ -1676,8 +1680,6 @@ size_t Device::BuildReleaseSyncPackets(
         pBarrierOps->caches.flushDbMetadata = 1;
         pBarrierOps->caches.invalDbMetadata = 1;
     }
-    // Unfortunately, there is no VS_DONE event with which to implement PipelineStageVs/Hs/Ds/Gs, so it has to
-    // conservatively use BottomOfPipe.
     else if (TestAnyFlagSet(stageMask, PipelineStageEarlyDsTarget |
                                        PipelineStageLateDsTarget  |
                                        PipelineStageColorTarget   |
@@ -1692,6 +1694,8 @@ size_t Device::BuildReleaseSyncPackets(
     else if (TestAnyFlagSet(stageMask, PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs) &&
              (TestAnyFlagSet(stageMask, PipelineStagePs) == false))
     {
+        // Unfortunately, there is no VS_DONE event with which to implement PipelineStageVs/Hs/Ds/Gs, so it has to
+        // conservatively use BottomOfPipe.
         vgtEvents[vgtEventCount++] = BOTTOM_OF_PIPE_TS;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 504
         pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
@@ -1752,7 +1756,7 @@ size_t Device::BuildReleaseSyncPackets(
         releaseMemInfo.gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
     }
 
-    // If we have cache sync request yet don't issue any VGT event, we need to issue a dummy one.
+    // If we have cache sync request yet don't assign any VGT event, we need to issue a dummy one.
     if (((releaseMemInfo.coherCntl != 0) || (releaseMemInfo.gcrCntl != 0)) && (vgtEventCount == 0))
     {
         // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
@@ -1762,37 +1766,59 @@ size_t Device::BuildReleaseSyncPackets(
 
     PAL_ASSERT(vgtEventCount <= numEventSlots);
 
-    // Build the release packets.
     size_t dwordsWritten = 0;
 
-    for (uint32 i = 0; i < vgtEventCount; i++)
+    // Issue releases with the requested eop/eos
+    if (vgtEventCount > 0)
     {
-        // Issue release with requested eop/eos event on ME engine.
-        releaseMemInfo.vgtEvent = vgtEvents[i];
-        releaseMemInfo.dstAddr  = gpuEventStartVa + (i * sizeof(uint32));
-        releaseMemInfo.dataSel  = data_sel__me_release_mem__send_32_bit_low;
-        releaseMemInfo.data     = GpuEvent::SetValue;
+        // Build a WRITE_DATA command to first RESET event slots that will be set by event later on.
+        WriteDataInfo writeData = {};
+        writeData.engineType = engineType;
+        writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+        writeData.dstSel     = dst_sel__me_write_data__memory;
+        writeData.dstAddr    = gpuEventStartVa;
 
-        dwordsWritten += m_cmdUtil.ExplicitBuildReleaseMem(releaseMemInfo,
-                                                           VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten),
-                                                           0,
-                                                           0);
+        const uint32 dword = GpuEvent::ResetValue;
+
+        dwordsWritten += CmdUtil::BuildWriteDataPeriodic(writeData,
+                                                         1,
+                                                         vgtEventCount,
+                                                         &dword,
+                                                         VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
+
+        // Build release packets with requested eop/eos events on ME engine.
+        for (uint32 i = 0; i < vgtEventCount; i++)
+        {
+            const gpusize gpuEventSlotVa = gpuEventStartVa + (i * sizeof(uint32));
+
+            releaseMemInfo.vgtEvent = vgtEvents[i];
+            releaseMemInfo.dstAddr  = gpuEventSlotVa;
+            releaseMemInfo.dataSel  = data_sel__me_release_mem__send_32_bit_low;
+            releaseMemInfo.data     = GpuEvent::SetValue;
+
+            dwordsWritten += m_cmdUtil.ExplicitBuildReleaseMem(releaseMemInfo,
+                                                               VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten),
+                                                               0,
+                                                               0);
+        }
     }
 
-    // Set remaining (unused) event slots as early as possible. Implement set/reset event with a WRITE_DATA command
-    // using the CP.
-    WriteDataInfo writeData = {};
-    writeData.engineType = engineType;
-    writeData.engineSel  = engine_sel__me_write_data__micro_engine;
-    writeData.dstSel     = dst_sel__me_write_data__memory;
-
-    for (uint32 slotIdx = vgtEventCount; slotIdx < numEventSlots; slotIdx++)
+    // Issue a WRITE_DATA command to SET the remaining (unused) event slots as early as possible.
+    if (vgtEventCount < numEventSlots)
     {
-        writeData.dstAddr = gpuEventStartVa + (sizeof(uint32) * slotIdx);
+        WriteDataInfo writeData = {};
+        writeData.engineType = engineType;
+        writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+        writeData.dstSel     = dst_sel__me_write_data__memory;
+        writeData.dstAddr    = gpuEventStartVa + (sizeof(uint32) * vgtEventCount);
 
-        dwordsWritten += m_cmdUtil.BuildWriteData(writeData,
-                                                  GpuEvent::SetValue,
-                                                  VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
+        const uint32 dword = GpuEvent::SetValue;
+
+        dwordsWritten += CmdUtil::BuildWriteDataPeriodic(writeData,
+                                                         1,
+                                                         numEventSlots - vgtEventCount,
+                                                         &dword,
+                                                         VoidPtrInc(pBuffer, sizeof(uint32) * dwordsWritten));
     }
 
     return dwordsWritten;

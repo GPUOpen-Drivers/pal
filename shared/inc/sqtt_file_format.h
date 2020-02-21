@@ -34,6 +34,7 @@
  */
 #define SQTT_FILE_MAGIC_NUMBER            0x50303042
 
+
 /// The major version number of the RGP file format specification that this header corresponds to.
 #define RGP_FILE_FORMAT_SPEC_MAJOR_VER 1
 
@@ -121,7 +122,7 @@ static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
     {1, 1}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CPU_INFO,
-    {1, 1}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
+    {1, 2}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
     {1, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION
@@ -725,6 +726,7 @@ typedef struct SpmCounterInfo
     SpmGpuBlock   block;
     uint32_t      instance;
     uint32_t      dataOffset;                   /*!<  Offset of counter data from the beginning of the chunk. */
+    uint32_t      eventIndex;                   /*!<  Index of the perf counter event within the block.       */
 } SpmCounterInfo;
 
 typedef struct SqttFileSpmInfoFlags

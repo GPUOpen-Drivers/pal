@@ -430,6 +430,9 @@ enum class Result : int32
 
     /// A semaphore was used in WaitForSemaphores() without being signaled.
     ErrorSemaphoreNeverSignaled             = -(0x00000063),
+
+    /// Invalid image create info: specified metadataMode is invalid for the Image.
+    ErrorInvalidImageMetadataMode           = -(0x00000064),
 };
 
 /// Length of date field used in BuildUniqueId

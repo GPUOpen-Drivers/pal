@@ -103,6 +103,25 @@ namespace DevDriver
         AllocCb                  allocCb;
     };
 
+    // Data structure that contains information about a client that has been discovered
+    struct DiscoveredClientInfo
+    {
+        ClientId       id;       /// Id of the client
+        ClientMetadata metadata; /// Metadata for the client
+    };
+
+    // Callback function used to handle client discovery
+    typedef bool (*PFN_ClientDiscoveredCallback)(void* pUserdata, const DiscoveredClientInfo& clientInfo);
+
+    // Data structure that describes how a client discovery operation should be performed
+    struct DiscoverClientsInfo
+    {
+        PFN_ClientDiscoveredCallback pfnCallback; /// Callback function pointer
+        void*                        pUserdata;   /// Userdata for callback
+        ClientMetadata               filter;      /// Filters out incoming clients from the callback
+        uint32                       timeoutInMs; /// Timeout in milliseconds
+    };
+
     // Create a new message channel object
     Result CreateMessageChannel(const MessageChannelCreateInfo2& createInfo, IMsgChannel** ppMessageChannel);
 
@@ -145,6 +164,9 @@ namespace DevDriver
 
         // Get the allocator used to create this message channel
         virtual const AllocCb& GetAllocCb() const = 0;
+
+        // Attempts to discover clients on the message bus
+        virtual Result DiscoverClients(const DiscoverClientsInfo& info) = 0;
 
         // Returns client information for the first client to respond that matches the specified filter
         virtual Result FindFirstClient(const ClientMetadata& filter,

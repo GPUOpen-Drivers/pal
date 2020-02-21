@@ -49,7 +49,7 @@ constexpr const char* EngineTypeStrings[] =
 #endif
     "Dma",
     "Timer",
-#if   PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530 // NOT PAL_BUILD_VIDEO
+#if   PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
     "HpUniversal",
 #endif
 
@@ -235,6 +235,11 @@ void Queue::OpenSqttFile(
                 crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x-%.16I64x",
                                    logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable,
                                    logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.unique);
+            }
+            else if (settings.gpuProfilerSqttConfig.pipelineHashAsApiPsoHash)
+            {
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x",
+                                   logItem.cmdBufCall.draw.apiPsoHash);
             }
             else
             {

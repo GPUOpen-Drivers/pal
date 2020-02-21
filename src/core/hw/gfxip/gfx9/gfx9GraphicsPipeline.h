@@ -84,20 +84,21 @@ public:
 
     uint32* Prefetch(uint32* pCmdSpace) const;
 
-    regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.context.paScModeCntl1; }
+    regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.other.paScModeCntl1; }
 
     void UpdateNggPrimCb(Util::Abi::PrimShaderPsoCb* pPrimShaderCb) const;
 
     regIA_MULTI_VGT_PARAM IaMultiVgtParam(bool forceWdSwitchOnEop) const
-        { return m_regs.context.iaMultiVgtParam[static_cast<uint32>(forceWdSwitchOnEop)]; }
+        { return m_regs.other.iaMultiVgtParam[static_cast<uint32>(forceWdSwitchOnEop)]; }
 
-    regVGT_LS_HS_CONFIG VgtLsHsConfig()   const { return m_regs.context.vgtLsHsConfig;  }
-    regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_regs.context.spiVsOutConfig; }
-    regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_regs.context.spiPsInControl; }
-    regSX_PS_DOWNCONVERT SxPsDownconvert() const { return m_regs.context.sxPsDownconvert; }
-    regSX_BLEND_OPT_EPSILON SxBlendOptEpsilon() const { return m_regs.context.sxBlendOptEpsilon; }
-    regSX_BLEND_OPT_CONTROL SxBlendOptControl() const { return m_regs.context.sxBlendOptControl; }
+    regVGT_LS_HS_CONFIG VgtLsHsConfig()   const { return m_regs.other.vgtLsHsConfig;  }
+    regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_regs.other.spiVsOutConfig; }
+    regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_regs.other.spiPsInControl; }
+    regSX_PS_DOWNCONVERT SxPsDownconvert() const { return m_regs.other.sxPsDownconvert; }
+    regSX_BLEND_OPT_EPSILON SxBlendOptEpsilon() const { return m_regs.other.sxBlendOptEpsilon; }
+    regSX_BLEND_OPT_CONTROL SxBlendOptControl() const { return m_regs.other.sxBlendOptControl; }
     regCB_TARGET_MASK CbTargetMask() const { return m_regs.context.cbTargetMask; }
+    regDB_RENDER_OVERRIDE DbRenderOverride() const { return m_regs.other.dbRenderOverride; }
 
     bool CanDrawPrimsOutOfOrder(const DepthStencilView*  pDsView,
                                 const DepthStencilState* pDepthStencilState,
@@ -110,7 +111,7 @@ public:
     bool PsAllowsPunchout() const;
 
     bool IsOutOfOrderPrimsEnabled() const
-        { return m_regs.context.paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE; }
+        { return m_regs.other.paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE; }
 
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
@@ -124,7 +125,7 @@ public:
     bool IsNggFastLaunch() const { return m_isNggFastLaunch; }
 
     bool UsesInnerCoverage() const { return m_chunkVsPs.UsesInnerCoverage(); }
-    bool UsesOffchipParamCache() const { return (m_regs.context.spiPsInControl.bits.OFFCHIP_PARAM_EN != 0); }
+    bool UsesOffchipParamCache() const { return (m_regs.other.spiPsInControl.bits.OFFCHIP_PARAM_EN != 0); }
     bool HwStereoRenderingEnabled() const;
     bool HwStereoRenderingUsesMultipleViewports() const;
     bool UsesMultipleViewports() const { return UsesViewportArrayIndex() || HwStereoRenderingUsesMultipleViewports(); }
@@ -278,8 +279,10 @@ private:
             regCB_COVERAGE_OUT_CONTROL      cbCoverageOutCntl;
             regVGT_GS_ONCHIP_CNTL           vgtGsOnchipCntl;
             regVGT_DRAW_PAYLOAD_CNTL        vgtDrawPayloadCntl;
-            regDB_RENDER_OVERRIDE           dbRenderOverride;
+        } context;
 
+        struct
+        {
             // The registers below are written by the command buffer during draw-time validation, so they are not
             // written in WriteContextCommandsSetPath nor uploaded as part of the LOAD_INDEX path.
             regSX_PS_DOWNCONVERT     sxPsDownconvert;
@@ -289,13 +292,16 @@ private:
             regPA_SC_MODE_CNTL_1     paScModeCntl1;
             regIA_MULTI_VGT_PARAM    iaMultiVgtParam[NumIaMultiVgtParam];
 
+            // This register is written by the command buffer at draw-time validation. Only some fields are used.
+            regDB_RENDER_OVERRIDE    dbRenderOverride;
+
             // Note that SPI_VS_OUT_CONFIG and SPI_PS_IN_CONTROL are not written in WriteContextCommands nor
             // uploaded as part of the LOAD_INDEX path.  The reason for this is that the command buffer performs
             // an optimization to avoid context rolls by sometimes sacrificing param-cache space to avoid cases
             // where these two registers' values change at a high frequency between draws.
             regSPI_VS_OUT_CONFIG  spiVsOutConfig;
             regSPI_PS_IN_CONTROL  spiPsInControl;
-        } context;
+        } other;
 
         struct
         {

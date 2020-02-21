@@ -48,7 +48,7 @@ public:
 
     // Public IQueue interface methods:
     virtual Result Submit(
-        const SubmitInfo& submitInfo) override;
+        const MultiSubmitInfo& submitInfo) override;
     virtual void Destroy() override;
 
 private:

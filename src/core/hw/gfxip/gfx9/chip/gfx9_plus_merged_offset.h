@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,8 @@
  **********************************************************************************************************************/
 
 #pragma once
+
+
 
 constexpr unsigned int mmCB_BLEND0_CONTROL                                = 0xA1E0;
 constexpr unsigned int mmCB_BLEND1_CONTROL                                = 0xA1E1;
@@ -311,7 +313,6 @@ constexpr unsigned int mmDB_PRELOAD_CONTROL                               = 0xA2
 constexpr unsigned int mmDB_RENDER_CONTROL                                = 0xA000;
 constexpr unsigned int mmDB_RENDER_OVERRIDE                               = 0xA003;
 constexpr unsigned int mmDB_RENDER_OVERRIDE2                              = 0xA004;
-constexpr unsigned int mmDB_RING_CONTROL                                  = 0x261B;
 constexpr unsigned int mmDB_SHADER_CONTROL                                = 0xA203;
 constexpr unsigned int mmDB_SRESULTS_COMPARE_STATE0                       = 0xA2B0;
 constexpr unsigned int mmDB_SRESULTS_COMPARE_STATE1                       = 0xA2B1;
@@ -1027,8 +1028,6 @@ constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_0                       = 0xC3
 constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_1                       = 0xC341;
 constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_2                       = 0xC342;
 constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_3                       = 0xC343;
-constexpr unsigned int mmSQ_TIME_HI                                       = 0x237C;
-constexpr unsigned int mmSQ_TIME_LO                                       = 0x237D;
 constexpr unsigned int mmSQ_WREXEC_EXEC_HI                                = 0x23B1;
 constexpr unsigned int mmSQ_WREXEC_EXEC_LO                                = 0x23B1;
 constexpr unsigned int mmSX_BLEND_OPT_CONTROL                             = 0xA1D7;
@@ -1219,6 +1218,7 @@ namespace Core
     constexpr unsigned int mmDB_DFSM_PRIMS_IN_FLIGHT                          = 0x2633;
     constexpr unsigned int mmDB_DFSM_TILES_IN_FLIGHT                          = 0x2632;
     constexpr unsigned int mmDB_DFSM_WATCHDOG                                 = 0x2634;
+    constexpr unsigned int mmDB_RING_CONTROL                                  = 0x261B;
     constexpr unsigned int mmGDS_PERFCOUNTER0_HI                              = 0xD281;
     constexpr unsigned int mmGDS_PERFCOUNTER0_LO                              = 0xD280;
     constexpr unsigned int mmGDS_PERFCOUNTER0_SELECT                          = 0xDA80;
@@ -1240,6 +1240,8 @@ namespace Core
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_3                          = 0x24AE;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_4                          = 0x24AF;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_5                          = 0x24B0;
+    constexpr unsigned int mmSQ_TIME_HI                                       = 0x237C;
+    constexpr unsigned int mmSQ_TIME_LO                                       = 0x237D;
     constexpr unsigned int mmUMCCH0_PerfMonCtl1                               = 0x14341;
     constexpr unsigned int mmUMCCH0_PerfMonCtl2                               = 0x14342;
     constexpr unsigned int mmUMCCH0_PerfMonCtl3                               = 0x14343;
@@ -1887,11 +1889,6 @@ namespace Gfx10
     constexpr unsigned int mmDB_Z_READ_BASE                                   = 0xA012;
     constexpr unsigned int mmDB_Z_READ_BASE_HI                                = 0xA01A;
     constexpr unsigned int mmDB_Z_WRITE_BASE_HI                               = 0xA01C;
-    constexpr unsigned int mmGCEA_PERFCOUNTER2_HI                             = 0xD261;
-    constexpr unsigned int mmGCEA_PERFCOUNTER2_LO                             = 0xD260;
-    constexpr unsigned int mmGCEA_PERFCOUNTER2_MODE                           = 0xDA02;
-    constexpr unsigned int mmGCEA_PERFCOUNTER2_SELECT                         = 0xDA00;
-    constexpr unsigned int mmGCEA_PERFCOUNTER2_SELECT1                        = 0xDA01;
     constexpr unsigned int mmGCMC_VM_L2_PERFCOUNTER0_CFG                      = 0xDD2C;
     constexpr unsigned int mmGCMC_VM_L2_PERFCOUNTER1_CFG                      = 0xDD2D;
     constexpr unsigned int mmGCMC_VM_L2_PERFCOUNTER2_CFG                      = 0xDD2E;
@@ -2070,13 +2067,6 @@ namespace Gfx10
     constexpr unsigned int mmRLC_SPM_THREAD_TRACE_CTRL                        = 0xEDE6;
     constexpr unsigned int mmRLC_SPM_VIRT_CTRL                                = 0xDCA1;
     constexpr unsigned int mmRLC_SPM_VIRT_STATUS                              = 0xDCA3;
-    constexpr unsigned int mmRPB_PERFCOUNTER0_CFG                             = 0x0CEB;
-    constexpr unsigned int mmRPB_PERFCOUNTER1_CFG                             = 0x0CEC;
-    constexpr unsigned int mmRPB_PERFCOUNTER2_CFG                             = 0x0CED;
-    constexpr unsigned int mmRPB_PERFCOUNTER3_CFG                             = 0x0CEE;
-    constexpr unsigned int mmRPB_PERFCOUNTER_HI                               = 0x0CEA;
-    constexpr unsigned int mmRPB_PERFCOUNTER_LO                               = 0x0CE9;
-    constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0CEF;
     constexpr unsigned int mmSPI_FEATURE_CTRL                                 = 0x31FE;
     constexpr unsigned int mmSPI_LB_DATA_PERWGP_WAVE_CS                       = 0x24E7;
     constexpr unsigned int mmSPI_LB_DATA_PERWGP_WAVE_HSGS                     = 0x24E5;
@@ -2184,24 +2174,10 @@ namespace Gfx10
     constexpr unsigned int mmSQ_ARB_CONFIG                                    = 0x230C;
     constexpr unsigned int mmSQ_LB_CTR_SEL0                                   = 0x239D;
     constexpr unsigned int mmSQ_LB_CTR_SEL1                                   = 0x239E;
-    constexpr unsigned int mmSQ_THREAD_TRACE_BUF0_BASE                        = 0x2340;
-    constexpr unsigned int mmSQ_THREAD_TRACE_BUF0_SIZE                        = 0x2341;
-    constexpr unsigned int mmSQ_THREAD_TRACE_BUF1_BASE                        = 0x2342;
-    constexpr unsigned int mmSQ_THREAD_TRACE_BUF1_SIZE                        = 0x2343;
-    constexpr unsigned int mmSQ_THREAD_TRACE_CTRL                             = 0x2347;
-    constexpr unsigned int mmSQ_THREAD_TRACE_DROPPED_CNTR                     = 0x2349;
-    constexpr unsigned int mmSQ_THREAD_TRACE_GFX_DRAW_CNTR                    = 0x234B;
-    constexpr unsigned int mmSQ_THREAD_TRACE_GFX_MARKER_CNTR                  = 0x234C;
-    constexpr unsigned int mmSQ_THREAD_TRACE_HP3D_DRAW_CNTR                   = 0x234D;
-    constexpr unsigned int mmSQ_THREAD_TRACE_HP3D_MARKER_CNTR                 = 0x234E;
-    constexpr unsigned int mmSQ_THREAD_TRACE_MASK                             = 0x2345;
-    constexpr unsigned int mmSQ_THREAD_TRACE_STATUS                           = 0x2348;
-    constexpr unsigned int mmSQ_THREAD_TRACE_TOKEN_MASK                       = 0x2346;
     constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_4                       = 0xC344;
     constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_5                       = 0xC345;
     constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_6                       = 0xC346;
     constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_7                       = 0xC347;
-    constexpr unsigned int mmSQ_THREAD_TRACE_WPTR                             = 0x2344;
     constexpr unsigned int mmSQ_WATCH0_ADDR_H                                 = 0x2330;
     constexpr unsigned int mmSQ_WATCH0_ADDR_L                                 = 0x2331;
     constexpr unsigned int mmSQ_WATCH0_CNTL                                   = 0x2332;
@@ -2610,7 +2586,33 @@ namespace Gfx10Core
     constexpr unsigned int mmCB_RMI_BC_GL2_CACHE_CONTROL                      = 0x268A;
     constexpr unsigned int mmDB_DFSM_CONTROL                                  = 0xA00E;
     constexpr unsigned int mmDB_RMI_BC_GL2_CACHE_CONTROL                      = 0x261E;
+    constexpr unsigned int mmGCEA_PERFCOUNTER2_HI                             = 0xD261;
+    constexpr unsigned int mmGCEA_PERFCOUNTER2_LO                             = 0xD260;
+    constexpr unsigned int mmGCEA_PERFCOUNTER2_MODE                           = 0xDA02;
+    constexpr unsigned int mmGCEA_PERFCOUNTER2_SELECT                         = 0xDA00;
+    constexpr unsigned int mmGCEA_PERFCOUNTER2_SELECT1                        = 0xDA01;
     constexpr unsigned int mmPA_SC_ENHANCE_INTERNAL                           = 0x22DD;
+    constexpr unsigned int mmRPB_PERFCOUNTER0_CFG                             = 0x0CEB;
+    constexpr unsigned int mmRPB_PERFCOUNTER1_CFG                             = 0x0CEC;
+    constexpr unsigned int mmRPB_PERFCOUNTER2_CFG                             = 0x0CED;
+    constexpr unsigned int mmRPB_PERFCOUNTER3_CFG                             = 0x0CEE;
+    constexpr unsigned int mmRPB_PERFCOUNTER_HI                               = 0x0CEA;
+    constexpr unsigned int mmRPB_PERFCOUNTER_LO                               = 0x0CE9;
+    constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0CEF;
+    constexpr unsigned int mmSQ_THREAD_TRACE_BUF0_BASE                        = 0x2340;
+    constexpr unsigned int mmSQ_THREAD_TRACE_BUF0_SIZE                        = 0x2341;
+    constexpr unsigned int mmSQ_THREAD_TRACE_BUF1_BASE                        = 0x2342;
+    constexpr unsigned int mmSQ_THREAD_TRACE_BUF1_SIZE                        = 0x2343;
+    constexpr unsigned int mmSQ_THREAD_TRACE_CTRL                             = 0x2347;
+    constexpr unsigned int mmSQ_THREAD_TRACE_DROPPED_CNTR                     = 0x2349;
+    constexpr unsigned int mmSQ_THREAD_TRACE_GFX_DRAW_CNTR                    = 0x234B;
+    constexpr unsigned int mmSQ_THREAD_TRACE_GFX_MARKER_CNTR                  = 0x234C;
+    constexpr unsigned int mmSQ_THREAD_TRACE_HP3D_DRAW_CNTR                   = 0x234D;
+    constexpr unsigned int mmSQ_THREAD_TRACE_HP3D_MARKER_CNTR                 = 0x234E;
+    constexpr unsigned int mmSQ_THREAD_TRACE_MASK                             = 0x2345;
+    constexpr unsigned int mmSQ_THREAD_TRACE_STATUS                           = 0x2348;
+    constexpr unsigned int mmSQ_THREAD_TRACE_TOKEN_MASK                       = 0x2346;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WPTR                             = 0x2344;
     constexpr unsigned int mmUMCCH2_PerfMonCtl1                               = 0x54341;
     constexpr unsigned int mmUMCCH2_PerfMonCtl2                               = 0x54342;
     constexpr unsigned int mmUMCCH2_PerfMonCtl3                               = 0x54343;

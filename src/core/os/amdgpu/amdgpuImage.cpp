@@ -54,6 +54,10 @@ Image::Image(
     m_framebufferId(0),
     m_idle(true)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 567
+    // Pip swap-chain is only supported on Windows platforms.
+    PAL_ASSERT(createInfo.flags.pipSwapChain == 0);
+#endif
 }
 
 // =====================================================================================================================

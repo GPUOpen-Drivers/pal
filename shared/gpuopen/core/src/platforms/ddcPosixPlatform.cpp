@@ -32,12 +32,19 @@
 #include "ddPlatform.h"
 
 #include <unistd.h>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cstdarg>
+
 #include <time.h>
+
 #include <dlfcn.h>
+
+#if defined(DD_PLATFORM_LINUX_UM)
+    #include <sys/utsname.h>
+#endif
 
 namespace DevDriver
 {
@@ -73,10 +80,11 @@ namespace DevDriver
             va_list args;
             va_start(args, pFormat);
             char buffer[1024];
-            Platform::Vsnprintf(buffer, sizeof(buffer), pFormat, args);
+            Platform::Vsnprintf(buffer, ArraySize(buffer), pFormat, args);
             va_end(args);
 
-            printf("%s\n", buffer);
+            // Append a newline
+            Platform::Snprintf(buffer, "%s\n", buffer);
 
         }
 
@@ -148,7 +156,7 @@ namespace DevDriver
             }
 #else
             DD_UNUSED(pThreadName);
-            DD_PRINT(LogLevel::Warn, "SetName() called, but not implemented for this platform");
+            DD_PRINT(LogLevel::Verbose, "SetName() called, but not implemented for this platform");
 #endif
             return result;
         }
@@ -440,7 +448,6 @@ namespace DevDriver
             return result;
         }
 
-#if defined(DD_PLATFORM_LINUX_UM)
         Random::Random()
         {
             timespec timeValue = {};
@@ -452,7 +459,6 @@ namespace DevDriver
             // unsigned short seed[3] as a parameter.
             m_prevState = static_cast<uint64>(timeValue.tv_sec * 1000000000 + timeValue.tv_nsec);
         }
-#endif
 
         ProcessId GetProcessId()
         {
@@ -539,6 +545,14 @@ namespace DevDriver
             strcat(pDst, pSrc);
         }
 
+        int32 Strcmpi(const char* pSrc1, const char* pSrc2)
+        {
+            DD_ASSERT(pSrc1 != nullptr);
+            DD_ASSERT(pSrc2 != nullptr);
+
+            return strcasecmp(pSrc1, pSrc2);
+        }
+
         int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args)
         {
             int32 ret = vsnprintf(pDst, dstSize, format, args);
@@ -557,5 +571,37 @@ namespace DevDriver
             return ret;
         }
 
+        Result QueryOsInfo(OsInfo* pInfo)
+        {
+            Result result = Result::Success;
+
+            DD_ASSERT(pInfo != nullptr);
+            memset(pInfo, 0, sizeof(*pInfo));
+
+#if defined(DD_PLATFORM_LINUX_UM)
+            {
+                utsname info = {};
+                uname(&info);
+
+                // Show this info in any order. We just need to see it.
+                // This produces output like this:
+                //      Linux 4.9.184-linuxkit x86_64     #1 SMP Tue Jul 2 22:58:16 UTC 2019
+                Snprintf(pInfo->description, ArraySize(pInfo->description),
+                         "%s %s %s     %s",
+                         info.sysname, info.release, info.machine, info.version);
+            }
+#else
+            static_assert(false, "Building on an unknown platform: " DD_PLATFORM_STRING ". Add an implementation to QueryOsInfo().");
+#endif
+
+            if (result == Result::Success)
+            {
+                result = (gethostname(pInfo->hostname, sizeof(pInfo->hostname)) == 0)
+                    ? Result::Success
+                    : Result::Error;
+            }
+
+            return result;
+        }
     }
 }

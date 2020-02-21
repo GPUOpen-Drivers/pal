@@ -40,14 +40,6 @@ namespace DevDriver
 
     namespace ETWProtocol
     {
-        enum class SessionState
-        {
-            Idle = 0,
-            Tracing,
-            Waiting,
-            Receiving,
-        };
-
         class ETWClient : public BaseProtocolClient
         {
         public:
@@ -58,6 +50,14 @@ namespace DevDriver
             Result GetTraceData(GpuEvent *buffer, size_t numEvents);
         private:
             void ResetState() override;
+
+            enum class SessionState
+            {
+                Idle = 0,
+                Tracing,
+                Waiting,
+                Receiving,
+            };
 
             SessionState m_sessionState;
         };

@@ -51,14 +51,13 @@ public:
     uint32 BlendEnableMask() const { return m_flags.blendEnable; }
     uint32 BlendReadsDestMask() const { return m_flags.blendReadsDst; }
 
-    template <bool Pm4OptImmediate>
-    uint32* WriteBlendOptimizations(
+    uint8 WriteBlendOptimizations(
         CmdStream*                     pCmdStream,
         const SwizzledFormat*          pTargetFormats,
         const uint8*                   pTargetWriteMasks,
         bool                           enableOpts,
         GfxBlendOptimizer::BlendOpts*  pBlendOpts,
-        uint32*                        pCmdSpace) const;
+        regCB_COLOR0_INFO*             pCbColorInfoRegs) const;
 
     bool IsBlendCommutative(uint32 slot) const
     {

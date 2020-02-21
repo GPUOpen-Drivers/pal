@@ -292,8 +292,16 @@ Result PresentScheduler::SignalOnAcquire(
     {
         InternalSubmitInfo internalSubmitInfo = {};
 
-        SubmitInfo submitInfo = {};
-        submitInfo.pFence     = pFence;
+        constexpr PerSubQueueSubmitInfo perSubQueueInfo = {};
+        MultiSubmitInfo submitInfo      = {};
+        submitInfo.perSubQueueInfoCount = 1;
+        submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        submitInfo.ppFences             = &pFence;
+        submitInfo.fenceCount           = (pFence != nullptr) ? 1 : 0;
+#else
+        submitInfo.pFence               = pFence;
+#endif
 
         if ((result == Result::Success) && (pPresentComplete != nullptr))
         {
@@ -314,7 +322,7 @@ Result PresentScheduler::SignalOnAcquire(
                 static_cast<Queue*>(m_pSignalQueue)->AssociateFenceWithContext(pFence);
             }
 
-            result = static_cast<Queue*>(m_pSignalQueue)->OsSubmit(submitInfo, internalSubmitInfo);
+            result = static_cast<Queue*>(m_pSignalQueue)->OsSubmit(submitInfo, &internalSubmitInfo);
             PAL_ASSERT(result == Result::Success);
         }
     }

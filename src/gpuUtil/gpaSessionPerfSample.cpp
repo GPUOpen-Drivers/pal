@@ -400,6 +400,7 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
         pCounterInfo[counter].block      = static_cast<SpmGpuBlock>(m_pSpmTraceLayout->counterData[counter].gpuBlock);
         pCounterInfo[counter].instance   = m_pSpmTraceLayout->counterData[counter].instance;
         pCounterInfo[counter].dataOffset = static_cast<uint32>(curCounterDataOffset);
+        pCounterInfo[counter].eventIndex = m_pSpmTraceLayout->counterData[counter].eventId;
 
         curCounterDataOffset += CounterDataSizeInBytes;
     }

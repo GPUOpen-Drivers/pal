@@ -140,6 +140,38 @@ struct HwsContextInfo
     } bits;
 };
 
+// Indicates the number of available pipes for each engine type.
+struct HwsPipesPerEngine
+{
+    union
+    {
+        struct
+        {
+            uint32 graphics  : 4;
+            uint32 compute   : 6;
+            uint32 dma       : 4;
+            uint32 reserved  : 18;
+        };
+        uint32 u32All;
+    };
+};
+
+// Indicates whether this engine instance can be used for gang submission workloads via a multi-queue.
+struct GangSubmitEngineSupportFlags
+{
+    union
+    {
+        struct
+        {
+            uint32 graphics  : 1;
+            uint32 compute   : 1;
+            uint32 dma       : 1;
+            uint32 reserved : 29;
+        };
+        uint32 u32All;
+    };
+};
+
 // Supported scheduler modes.  Note that software scheduling is generally still available when
 // hardware scheduling (HWS) is supported, but using a mix of both software and hardware scheduling
 // simultaneously on the same engine may not work.
@@ -152,12 +184,16 @@ enum class SchedulerMode : uint32
 
 struct HwsInfo
 {
-    SchedulerMode  mode;             // Indicates which scheduler mode is active
-    HwsContextInfo gfx;              // Graphics HWS context info
-    HwsContextInfo compute;          // Compute HWS context info
-    HwsContextInfo sdma;             // SDMA HWS context info
-    uint32         gdsSaveAreaSize;  // GDS save area size in bytes
-    uint32         engineMask;       // Indicates which engines support HWS
+    SchedulerMode                             mode;            // Indicates which scheduler mode is active
+    HwsContextInfo                            gfx;             // Graphics HWS context info
+    HwsContextInfo                            compute;         // Compute HWS context info
+    HwsContextInfo                            sdma;            // SDMA HWS context info
+    uint32                                    gdsSaveAreaSize; // GDS save area size in bytes
+    uint64                                    engineMask;      // Indicates which engines support HWS
+    // Indicates whether this engine instance can be used for gang submission workloads via a multi-queue.
+    GangSubmitEngineSupportFlags              gangSubmitEngineFlags;
+    // Indicates the number of available pipes for each engine type.
+    HwsPipesPerEngine                         numOfPipesPerEngine;
 };
 
 // Bundles the IP levels for all kinds of HW IP.
@@ -364,7 +400,8 @@ struct GpuEngineProperties
                 {
                     uint32 exclusive                :  1;
                     uint32 mustUseDispatchTunneling :  1;
-                    uint32 reserved                 : 30;
+                    uint32 supportsMultiQueue       :  1;
+                    uint32 reserved                 : 29;
                 };
                 uint32 u32All;
             } flags;
@@ -373,6 +410,10 @@ struct GpuEngineProperties
                                                       // priority levels are supported.
             uint32 dispatchTunnelingPrioritySupport;  // Mask of QueuePrioritySupport flags indicating which queue
                                                       // priority levels support dispatch tunneling.
+            uint32 maxFrontEndPipes;                  // Up to this number of IQueue objects can be consumed in
+                                                      //  parallel by the front-end of this engine instance. It will
+                                                      //  only be greater than 1 on hardware scheduled engine backed
+                                                      //  by multiple hardware pipes/threads.
         } capabilities[MaxAvailableEngines];
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
@@ -1062,9 +1103,25 @@ public:
         const QueueCreateInfo& createInfo,
         Result*                pResult) const override;
 
+    // Helper method for determining the size of a Queue context object, in bytes.
+    size_t QueueContextSize(const QueueCreateInfo& createInfo) const;
+
     // NOTE: Part of the public IDevice interface.
     virtual Result CreateQueue(
         const QueueCreateInfo& createInfo,
+        void*                  pPlacementAddr,
+        IQueue**               ppQueue) override;
+
+    // NOTE: Part of the public IDevice interface.
+    virtual size_t GetMultiQueueSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        Result*                pResult) const override;
+
+    // NOTE: Part of the public IDevice interface.
+    virtual Result CreateMultiQueue(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
         void*                  pPlacementAddr,
         IQueue**               ppQueue) override;
 
@@ -1251,7 +1308,6 @@ public:
                                                     createInfo.flags.clientInternal, ppPipeline);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetShaderLibrarySize(
         const ShaderLibraryCreateInfo& createInfo,
@@ -1269,7 +1325,6 @@ public:
                 m_pGfxDevice->CreateShaderLibrary(createInfo, pPlacementAddr,
                                                   createInfo.flags.clientInternal, ppLibrary);
     }
-#endif
 
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetGraphicsPipelineSize(
@@ -1770,7 +1825,7 @@ public:
         { return static_cast<const PalPublicSettings*>(&m_publicSettings); }
 
     virtual bool ValidatePipelineUploadHeap(const GpuHeap& preferredHeap) const;
-    Result InternalDmaSubmit(const SubmitInfo& submitInfo);
+    Result InternalDmaSubmit(const MultiSubmitInfo& submitInfo);
     Result CopyUsingEmbeddedData(const void* pSrcData, gpusize copySize, gpusize dstOffset, GpuMemory* pDstGpuMem);
 
     // Add or subtract some memory from our per-heap totals. We refcount each added GPU memory object so it's safe
@@ -1837,18 +1892,33 @@ protected:
     virtual size_t QueueObjectSize(
         const QueueCreateInfo& createInfo) const = 0;
 
+    // Queries the size of a MultiQueue object, in bytes. This can return zero if a Queue type is unsupported.
+    virtual size_t MultiQueueObjectSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo) const
+    {
+        return 0;
+    }
+
     // Constructs a new Queue object in preallocated memory.
     virtual Queue* ConstructQueueObject(
         const QueueCreateInfo& createInfo,
         void*                  pPlacementAddr) = 0;
+
+    // Constructs a new MutltiQueue object in preallocated memory.
+    virtual Queue* ConstructMultiQueueObject(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        void*                  pPlacementAddr)
+    {
+        return nullptr;
+    }
 
     // Constructs a new CmdBuffer object in preallocated memory.
     Result ConstructCmdBuffer(
         const CmdBufferCreateInfo& createInfo,
         void*                      pPlacementAddr,
         CmdBuffer**                ppCmdBuffer) const;
-
-    size_t QueueContextSize(const QueueCreateInfo& createInfo) const;
 
     // Constructs a new GpuMemory object in preallocated memory.
     virtual GpuMemory* ConstructGpuMemoryObject(

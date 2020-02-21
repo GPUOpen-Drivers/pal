@@ -60,6 +60,15 @@ public:
         uint32*  pSize,
         void*    pBuffer) const;
 
+    virtual Result GetShaderFunctionCode(
+        const char*  pShaderExportName,
+        size_t*      pSize,
+        void*        pBuffer) const;
+
+    virtual Result GetShaderFunctionStats(
+        const char*      pShaderExportName,
+        ShaderLibStats*  pShaderStats) const;
+
     static void GetFunctionGpuVirtAddrs(
         const AbiProcessor&             abiProcessor,
         const PipelineUploader&         uploader,
@@ -68,7 +77,7 @@ public:
 
 protected:
     // internal Constructor.
-    ShaderLibrary(Device* pDevice);
+    explicit ShaderLibrary(Device* pDevice);
 
     // internal Destructor.
     virtual ~ShaderLibrary() { };

@@ -34,7 +34,7 @@
 #include "msgChannel.h"
 #include "msgTransport.h"
 #include "sessionManager.h"
-#include "util/queue.h"
+#include "util/vector.h"
 #include "ddPlatform.h"
 #include "protocols/systemProtocols.h"
 #include "ddTransferManager.h"
@@ -47,6 +47,14 @@ namespace DevDriver
     class MessageChannel : public IMsgChannel
     {
         static void MsgChannelReceiveFunc(void* pThreadParam);
+
+        struct FindFirstClientContext
+        {
+            ClientId*       pClientId;
+            ClientMetadata* pClientMetadata;
+        };
+        static bool FindFirstClientDiscoverFunc(void* pUserdata, const DiscoveredClientInfo& info);
+
         DD_STATIC_CONST uint32 kMaxBufferedMessages = 64;
 
     public:
@@ -95,6 +103,8 @@ namespace DevDriver
             return m_msgTransport.GetTransportName();
         }
 
+        Result DiscoverClients(const DiscoverClientsInfo& info) override final;
+
         Result FindFirstClient(const ClientMetadata& filter,
                                ClientId*             pClientId,
                                uint32                timeoutInMs,
@@ -132,22 +142,25 @@ namespace DevDriver
             volatile bool active;
         };
 
-        struct ReceiveQueue
+        struct DiscoveredClientsQueue
         {
-            Queue<MessageBuffer, kMaxBufferedMessages>  queue;
-            Platform::Semaphore                         semaphore;
-            Platform::AtomicLock                        lock;
+            Vector<DiscoveredClientInfo>                      clients;
+            Platform::Event                                   hasDataEvent;
+            Platform::AtomicLock                              lock;
+            bool                                              active;
+            ClientMetadata                                    filter;
 
-            explicit ReceiveQueue(const AllocCb& allocCb)
-                : queue(allocCb)
-                , semaphore(0, kMaxBufferedMessages) {}
+            explicit DiscoveredClientsQueue(const AllocCb& allocCb)
+                : clients(allocCb)
+                , hasDataEvent(false)
+                , active(false) {}
         };
 
         Result CreateMsgThread();
         void DestroyMsgThread();
 
         void Disconnect();
-        bool HandleMessageReceived(const MessageBuffer& messageBuffer);
+        void HandleMessageReceived(const MessageBuffer& messageBuffer);
 
         Result SendSystem(ClientId dstClientId, SystemProtocol::SystemMessage message, const ClientMetadata& metadata);
 
@@ -211,7 +224,7 @@ namespace DevDriver
         DD_STATIC_CONST uint64            kRetransmitTimeoutInMs = 50;
 
         MsgTransport                      m_msgTransport;
-        ReceiveQueue                      m_receiveQueue;
+        DiscoveredClientsQueue            m_discoveredClientsQueue;
         ClientId                          m_clientId;
 
         AllocCb                           m_allocCb;
@@ -228,7 +241,6 @@ namespace DevDriver
 
         Platform::Thread                  m_msgThread;
         MsgThreadInfo                     m_msgThreadParams;
-        Platform::Semaphore               m_updateSemaphore;
         SessionManager                    m_sessionManager;
         TransferProtocol::TransferManager m_transferManager;
         URIProtocol::URIServer*           m_pURIServer;

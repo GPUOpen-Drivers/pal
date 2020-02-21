@@ -37,7 +37,6 @@ namespace Gfx9
 {
 class Device;
 class MsgPackWriter;
-// class ShaderLibraryUploader;
 
 // Structure describing the HW-specific information about a compute shader library.
 struct LibraryHwInfo
@@ -66,7 +65,7 @@ struct LibraryHwInfo
 class ShaderLibrary : public Pal::ShaderLibrary
 {
 public:
-    ShaderLibrary(Device* pDevice);
+    explicit ShaderLibrary(Device* pDevice);
 
     virtual ~ShaderLibrary() { }
 
@@ -74,6 +73,15 @@ public:
     bool IsWave32() const { return m_hwInfo.flags.isWave32; }
 
     const LibraryHwInfo& HwInfo() const {  return m_hwInfo; };
+
+     virtual Result GetShaderFunctionCode(
+        const char*  pShaderExportName,
+        size_t*      pSize,
+        void*        pBuffer) const override;
+
+     virtual Result GetShaderFunctionStats(
+        const char*      pShaderExportName,
+        ShaderLibStats*  pShaderStats) const override;
 
 protected:
 

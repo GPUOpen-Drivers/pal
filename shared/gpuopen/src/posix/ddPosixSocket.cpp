@@ -276,6 +276,7 @@ namespace DevDriver
                 Platform::Strncpy(pAddr->sun_path, kUnixSocketTemplate, sizeof(pAddr->sun_path) - 1);
                 const char* pPath = mktemp(pAddr->sun_path);
                 DD_ASSERT(pPath != nullptr);
+                DD_UNUSED(pPath);
             }
             m_addressSize = SUN_LEN(pAddr);
 #endif

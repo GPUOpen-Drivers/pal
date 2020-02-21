@@ -148,8 +148,10 @@ typedef void (*ThreadFunction)(void* pThreadParameter);
     #define DEVDRIVER_LOG_LEVEL_VALUE static_cast<LogLevel>(DEVDRIVER_LOG_LEVEL)
 #else
     #if defined(NDEBUG)
-        #define DEVDRIVER_LOG_LEVEL_VALUE LogLevel::Always
+        // In non-debug builds, default to printing asserts, Error, and Always log messages
+        #define DEVDRIVER_LOG_LEVEL_VALUE LogLevel::Error
     #else
+        // In debug builds, default to more messages
         #define DEVDRIVER_LOG_LEVEL_VALUE LogLevel::Verbose
     #endif
 #endif
@@ -531,12 +533,38 @@ void GetProcessName(char* buffer, size_t bufferSize);
 
 void Strncpy(char* pDst, const char* pSrc, size_t dstSize);
 
+template <size_t DstSize>
+void Strncpy(char(&dst)[DstSize], const char* pSrc)
+{
+    Strncpy(dst, pSrc, DstSize);
+}
+
 char* Strtok(char* pDst, const char* pDelimiter, char** ppContext);
 
 void Strcat(char* pDst, const char* pSrc, size_t dstSize);
 
-int32 Snprintf(char* pDst, size_t dstSize, const char* format, ...);
-int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args);
+int32 Strcmpi(const char* pSrc1, const char* pSrc2);
+
+int32 Snprintf(char* pDst, size_t dstSize, const char* pFormat, ...);
+int32 Vsnprintf(char* pDst, size_t dstSize, const char* pFormat, va_list args);
+
+template <size_t DstSize, typename... Args>
+int32 Snprintf(char(&dst)[DstSize], const char* pFormat, Args&&... args)
+{
+    return Snprintf(dst, DstSize, pFormat, args...);
+}
+
+struct OsInfo
+{
+    char name[32];         /// A human-readable string to identify the version of the OS running
+    char description[256]; /// A human-readable string to identify the detailed version of the OS running
+    char hostname[128];    /// The hostname for the machine
+
+    uint64 physMemory; /// Total amount of memory available on host in bytes
+    uint64 swapMemory; /// Total amount of swap memory available on host in bytes
+};
+
+Result QueryOsInfo(OsInfo* pInfo);
 
 } // Platform
 
@@ -670,41 +698,6 @@ static inline uint32 CRC32(const void *pData, size_t length, uint32 lastCRC = 0)
     return ~crc;
 }
 
-// Use this macro to mark Result values that have not been handled correctly.
-// !! New code should NOT use this. Instead, handle the result and/or use DD_ASSERT. !!
-#define DD_UNHANDLED_RESULT(x) DevDriver::MarkUnhandledResultImpl((x), DD_STRINGIFY(x), __FILE__, __LINE__, __func__)
-
-// Implementation for DD_UNHANDLED_RESULT.
-// This is a specialized assert that should be used through the macro, and not called directly.
-// This is implemented in ddPlatform.h, so that it has access to DD_ASSERT.
-static inline void MarkUnhandledResultImpl(
-    Result      result,
-    const char* pExpr,
-    const char* pFile,
-    int         lineNumber,
-    const char* pFunc)
-{
-#if defined(DEVDRIVER_ASSERTS_ENABLE)
-    if (result != Result::Success)
-    {
-        DD_PRINT(DevDriver::LogLevel::Error,
-                 "%s (%d): Unchecked Result in %s: \"%s\" == 0x%X\n",
-                 pFile,
-                 lineNumber,
-                 pFunc,
-                 pExpr,
-                 result);
-        DD_ASSERT_DEBUG_BREAK();
-    }
-#else
-    DD_UNUSED(result);
-    DD_UNUSED(pExpr);
-    DD_UNUSED(pFile);
-    DD_UNUSED(lineNumber);
-    DD_UNUSED(pFunc);
-#endif
-}
-
 /// Convert a `DevDriver::Result` into a human recognizable string.
 static inline const char* ResultToString(Result result)
 {
@@ -726,6 +719,7 @@ static inline const char* ResultToString(Result result)
         case Result::FileNotFound:       return "FileNotFound";
         case Result::FunctionNotFound:   return "FunctionNotFound";
         case Result::InterfaceNotFound:  return "InterfaceNotFound";
+        case Result::EntryExists:        return "EntryExists";
 
         //// URI PROTOCOL  ////
         case Result::UriServiceRegistrationError:  return "UriServiceRegistrationError";
@@ -755,6 +749,48 @@ static inline const char* ResultToString(Result result)
 
     DD_PRINT(LogLevel::Warn, "Result code %u is not handled", static_cast<uint32>(result));
     return "Unrecognized DevDriver::Result";
+}
+
+// Helper function for converting bool values into Result enums
+// Useful for cases where Results and bools are interleaved in logic
+static inline Result BoolToResult(bool value)
+{
+    return (value ? Result::Success : Result::Error);
+}
+
+// Use this macro to mark Result values that have not been or cannot be handled correctly.
+#define DD_UNHANDLED_RESULT(x) DevDriver::MarkUnhandledResultImpl((x), DD_STRINGIFY(x), __FILE__, __LINE__, __func__)
+
+// Implementation for DD_UNHANDLED_RESULT.
+// This is a specialized assert that should be used through the macro, and not called directly.
+// This is implemented in ddPlatform.h, so that it has access to DD_ASSERT.
+static inline void MarkUnhandledResultImpl(
+    Result      result,
+    const char* pExpr,
+    const char* pFile,
+    int         lineNumber,
+    const char* pFunc)
+{
+#if defined(DEVDRIVER_ASSERTS_ENABLE)
+    if (result != Result::Success)
+    {
+        DD_PRINT(DevDriver::LogLevel::Error,
+            "%s (%d): Unchecked Result in %s: \"%s\" == \"%s\" (0x%X)\n",
+            pFile,
+            lineNumber,
+            pFunc,
+            pExpr,
+            ResultToString(result),
+            result);
+        DD_ASSERT_DEBUG_BREAK();
+    }
+#else
+    DD_UNUSED(result);
+    DD_UNUSED(pExpr);
+    DD_UNUSED(pFile);
+    DD_UNUSED(lineNumber);
+    DD_UNUSED(pFunc);
+#endif
 }
 
 } // DevDriver

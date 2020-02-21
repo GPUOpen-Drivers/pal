@@ -151,6 +151,32 @@ namespace DevDriver
         virtual void Value(bool   value) = 0;
         virtual void Value(char   value) = 0;
 
+        /// Writes an enum value as a String or hex value
+        /// If DevDriver::ToString(Enum) returns NULL or an empty string, it will hex-encode the integer value.
+        /// Otherwise, it will write that string
+        template <typename Enum>
+        void ValueEnumOrHex(Enum value)
+        {
+            const char* pString = ToString(value);
+            if ((pString == nullptr) || (strcmp(pString, "") != 0))
+            {
+                Value(pString);
+            }
+            else
+            {
+                Valuef("0x%x", value);
+            }
+        }
+
+        // Write a formatted string
+        template <typename... Args>
+        void Valuef(const char* pFmt, Args&&... args)
+        {
+            char buffer[1024];
+            Platform::Snprintf(buffer, pFmt, args...);
+            Value(buffer);
+        }
+
         // ===== Key + Value Writers ===================================================================================
 
         // Write a key-value pair where the value will be a list.
@@ -169,8 +195,15 @@ namespace DevDriver
         void KeyAndValue(const char* pKey, float       value)  { Key(pKey); Value(value); }
         void KeyAndValue(const char* pKey, bool        value)  { Key(pKey); Value(value); }
 
+        template <typename Enum>
+        void KeyAndValueEnumOrHex(const char* pKey, Enum value) { Key(pKey); ValueEnumOrHex(value); }
+
         // Write a key-value pair where the value will be a "null" value.
         void KeyAndValueNull(const char* pKey) { Key(pKey); ValueNull(); }
+
+        // Write a key-value pair with a formatted value
+        template <typename... Args>
+        void KeyAndValuef(const char* pKey, const char* pFmt, Args&&... args) { Key(pKey); Valuef(pFmt, args...); }
     };
 
     // An aggregate of the POST metadata for a request.

@@ -29,7 +29,8 @@
 #include "core/platform.h"
 #include "core/queue.h"
 #include "core/queueContext.h"
-#include "palIntrusiveList.h"
+#include "palList.h"
+#include "palListImpl.h"
 
 namespace Pal
 {
@@ -46,22 +47,22 @@ public:
 
     virtual Result Init();
 
-    void AddQueue(Util::IntrusiveListNode<Queue>* pQueueNode);
-    void RemoveQueue(Util::IntrusiveListNode<Queue>* pQueueNode);
+    Result AddQueue(Queue* pQueue);
+    void RemoveQueue(Queue* pQueue);
 
     Result WaitIdleAllQueues();
 
     EngineType Type() const { return m_type; }
 
 protected:
-    const Device&              m_device;
-    EngineType                 m_type;
-    uint32                     m_index;
+    const Device&                m_device;
+    EngineType                   m_type;
+    uint32                       m_index;
 
-    Util::IntrusiveList<Queue> m_queues;
-    Util::Mutex                m_queueLock;
+    Util::List<Queue*, Platform> m_queues;
+    Util::Mutex                  m_queueLock;
 
-    QueueContext*              m_pContext;
+    QueueContext*                m_pContext;
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Engine);

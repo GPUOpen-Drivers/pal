@@ -963,7 +963,9 @@ bool RsrcProcMgr::InitMaskRam(
 
             // It's possible that this image will be resolved with fMask pipeline later, so the fMask must be cleared
             // here.
+            pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
             ClearFmask(pCmdBuffer, dstImage, range, Gfx9Fmask::GetPackedExpandedValue(dstImage));
+            pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
         }
     }
 
@@ -1329,6 +1331,19 @@ bool RsrcProcMgr::ExpandDepthStencil(
     }
     else
     {
+#if PAL_AMDGPU_BUILD
+        // After expand, Htile SMEM bit is wrong for partially covered Htile, a DB cache flush and invalidation here can
+        // make sure Htile result is correct.
+        if (IsGfx9(device) && (range.startSubres.aspect == ImageAspect::Stencil))
+        {
+            auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+            PAL_ASSERT(pCmdStream != nullptr);
+            const EngineType engineType = pCmdBuffer->GetEngineType();
+            uint32* pCmdSpace = pCmdStream->ReserveCommands();
+            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(DB_CACHE_FLUSH_AND_INV, engineType, pCmdSpace);
+            pCmdStream->CommitCommands(pCmdSpace);
+        }
+#endif
         // Do the expand the legacy way.
         Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pQuadSamplePattern, range);
     }
@@ -1551,7 +1566,10 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
 
                 // Since color data is no longer compressed set CMask and FMask to fully uncompressed.
                 InitCmask(pCmdBuffer, pStream, gfx9DstImage, range);
+
+                pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
                 ClearFmask(pCmdBuffer, gfx9DstImage, range, Gfx9Fmask::GetPackedExpandedValue(gfx9DstImage));
+                pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
             }
         }
 #endif
@@ -2444,6 +2462,12 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
     pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
+    if (clearDepth && ((depth >= 0.0f) && (depth <= 1.0f)))
+    {
+        // Enable viewport clamping if depth values are in the [0, 1] range. This avoids writing expanded depth
+        // when using a float depth format. DepthExpand pipeline disables clamping by default.
+        pCmdBuffer->CmdOverwriteDisableViewportClampForBlits(false);
+    }
 
     // Select a depth/stencil state object for this clear:
     if (clearDepth && clearStencil)
@@ -5182,7 +5206,13 @@ void Gfx9RsrcProcMgr::InitCmask(
 
     if (canDoCmaskOptimizedClear)
     {
+        // Save the command buffer's state.
+        pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+
         DoOptimizedCmaskInit(pCmdBuffer, pCmdStream, image, initRange, Gfx9Cmask::InitialValue);
+
+        // Restore the command buffer's state.
+        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
     }
     else if (settings.processMetaEquationViaCpu == false)
     {
@@ -6001,6 +6031,7 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
     SubresRange*          pSubresRange
     ) const
 {
+    const ImageCreateInfo&  createInfo = dstImage.GetImageCreateInfo();
 
     const auto*    pSrd  = static_cast<const sq_img_rsrc_t*>(pImageViewSrd);
     const IMG_FMT  hwFmt = static_cast<IMG_FMT>(pSrd->most.format);
@@ -6027,7 +6058,7 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
 
     // The PAL interface can not individually address the slices of a 3D resource.  "numSlices==1" is assumed to
     // mean all of them and we have to start from the first slice.
-    if (dstImage.GetImageCreateInfo().imageType == ImageType::Tex3d)
+    if (createInfo.imageType == ImageType::Tex3d)
     {
         pSubresRange->numSlices              = 1;
         pSubresRange->startSubres.arraySlice = 0;
@@ -6049,6 +6080,7 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
         pSubresRange->startSubres.mipLevel = LowPart(pSrd->base_level);
         pSubresRange->numMips              = LowPart(pSrd->last_level - pSrd->base_level + 1);
     }
+
 }
 
 // =====================================================================================================================
@@ -6288,10 +6320,8 @@ void Gfx10RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
 
         device.CreateImageViewSrds(1, pImageView, pSrd);
 
-        {
-            // Leave "compression_en=1" so that the HW will update DCC memory with the "DCC is decompressed" code.
-            pSrd->most.write_compress_enable = 0;
-        }
+        // Leave "compression_en=1" so that the HW will update DCC memory with the "DCC is decompressed" code.
+        pSrd->write_compress_enable = 0;
     }
 }
 #endif

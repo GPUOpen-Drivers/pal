@@ -127,7 +127,8 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
         PUBLIC
             "DD_PLATFORM_LINUX_UM=1"
             "DD_PLATFORM_IS_UM=1"
-            "DD_PLATFORM_IS_GNU=1")
+            "DD_PLATFORM_IS_GNU=1"
+            "DD_PLATFORM_IS_POSIX=1")
     target_sources(ddCore
         PRIVATE
             src/platforms/ddcPosixPlatform.cpp

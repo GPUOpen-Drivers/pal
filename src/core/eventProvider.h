@@ -34,6 +34,7 @@
 #include "palMutex.h"
 #include "palPlatform.h"
 #include "core/eventDefs.h"
+#include "core/devDriverEventService.h"
 
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
 #include "protocols/ddEventServer.h"
@@ -93,17 +94,7 @@ class EventProvider
 #endif
 {
 public:
-    EventProvider(Platform* pPlatform)
-        :
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        DevDriver::EventProtocol::EventProvider(),
-#endif
-        m_pPlatform(pPlatform),
-        m_isFileLoggingActive(false),
-        m_eventStream(pPlatform),
-        m_jsonWriter(&m_eventStream)
-        {}
-
+    EventProvider(Platform* pPlatform);
     virtual ~EventProvider() {}
 
     Result Init();
@@ -114,12 +105,14 @@ public:
     void DisableFileLogging();
     Result OpenLogFile(const char* pFilePath);
 
+    bool IsMemoryProfilingEnabled() const { return m_eventService.IsMemoryProfilingEnabled(); }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Log Functions
     // These functions will result in an event being sent through the DevDriver EventProtocol or to the event log file
     // if the provider and event are enabled.
 
-    void LogCreateGpuMemoryEvent(const GpuMemory* pGpuMemory, Result result, bool isInternal);
+    void LogCreateGpuMemoryEvent(const GpuMemory* pGpuMemory);
 
     void LogDestroyGpuMemoryEvent(const GpuMemory* pGpuMemory);
 
@@ -163,6 +156,7 @@ private:
     EventLogStream   m_eventStream;
     Util::Mutex      m_jsonWriterMutex;
     Util::JsonWriter m_jsonWriter;
+    EventService     m_eventService;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(EventProvider);
 };

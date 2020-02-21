@@ -468,28 +468,6 @@
       "Description": "Pipelines are uploaded for GPU access to the heap type preferred."
     },
     {
-      "Name": "InsertGuardPageBetweenWddm2VAs",
-      "Tags": [
-        "General",
-        "Debug"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "DependsOn": {
-        "OS": [
-          "Win10"
-        ],
-        "BuildType": [
-          "dev"
-        ]
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "insertGuardPageBetweenWddm2VAs",
-      "Description": "If set we will attempt to insert empty va space in between every allocation mapping in order to force page faults when writing outside of allocations. This helps debug random corruptions when we write past one allocation into another. Must build with PAL_DEVELOPER_BUILD flag for this to work."
-    },
-    {
       "Name": "ForceHeapPerfToFixedValues",
       "Tags": [
         "Performance",
@@ -789,6 +767,19 @@
       "Type": "bool",
       "VariableName": "disableSyncobjFence",
       "Description": "Disable Fence based on Sync Object. Force use Timestamp Fence. By default Fence type is selected according to the system configuration."
+    },
+    {
+      "Name": "DisableSdmaEngine",
+      "Tags": [
+        "Performance"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "disableSdmaEngine",
+      "Description": "Disable SDMA engine in UMD driver."
     },
     {
       "ValidValues": {

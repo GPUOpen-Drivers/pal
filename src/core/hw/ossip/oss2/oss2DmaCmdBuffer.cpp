@@ -26,7 +26,6 @@
 #include "core/cmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/ossip/oss2/oss2DmaCmdBuffer.h"
-#include "core/hw/ossip/oss2/sdma20_pkt_struct.h"
 #include "palFormatInfo.h"
 
 using namespace Util;
@@ -35,6 +34,8 @@ namespace Pal
 {
 namespace Oss2
 {
+
+#include "core/hw/ossip/oss2/sdma20_pkt_struct.h"
 
 // =====================================================================================================================
 DmaCmdBuffer::DmaCmdBuffer(

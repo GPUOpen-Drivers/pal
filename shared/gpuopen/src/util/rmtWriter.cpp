@@ -51,10 +51,17 @@ void RmtWriter::Init()
     DD_ASSERT((m_state == RmtWriterState::Uninitialized) || (m_state == RmtWriterState::Finalized));
 
     // Make sure we start with an empty file buffer
+    m_dataChunkHeaderOffset = 0;
     m_rmtFileData.Resize(0);
     m_eventTimer.Reset();
 
     m_state = RmtWriterState::Initialized;
+}
+
+//=====================================================================================================================
+void RmtWriter::Reset()
+{
+    m_state = RmtWriterState::Uninitialized;
 }
 
 //=====================================================================================================================
@@ -116,11 +123,74 @@ void RmtWriter::WriteSystemInfo(
     systemInfo.header.chunkIdentifier.chunkIndex = 0;
     systemInfo.header.versionMinor               = 1;
     systemInfo.header.versionMajor               = 0;
-    systemInfo.header.sizeInBytes                = sizeof(RmtFileChunkSystemInfo);
+    systemInfo.header.sizeInBytes                = sizeof(systemInfo);
     systemInfo.header.padding                    = 0;
 
     // Then write the data
-    WriteBytes(&systemInfo, sizeof(RmtFileChunkSystemInfo));
+    WriteBytes(&systemInfo, sizeof(systemInfo));
+}
+
+//=====================================================================================================================
+void RmtWriter::WriteSegmentInfo(RmtFileChunkSegmentInfo segmentInfo)
+{
+    DD_ASSERT(m_state == RmtWriterState::Initialized);
+
+    // Fill out the chunk header
+    segmentInfo.header.chunkIdentifier.chunkType  = RMT_FILE_CHUNK_TYPE_SEGMENT_INFO;
+    segmentInfo.header.chunkIdentifier.chunkIndex = 0;
+    segmentInfo.header.versionMinor               = 1;
+    segmentInfo.header.versionMajor               = 0;
+    segmentInfo.header.sizeInBytes                = sizeof(segmentInfo);
+    segmentInfo.header.padding                    = 0;
+
+    // Then write the data
+    WriteBytes(&segmentInfo, sizeof(segmentInfo));
+}
+
+//=====================================================================================================================
+void RmtWriter::WriteAdapterInfo(RmtFileChunkAdapterInfo adapterInfo)
+{
+    DD_ASSERT(m_state == RmtWriterState::Initialized);
+
+    // Fill out the chunk header
+    adapterInfo.header.chunkIdentifier.chunkType  = RMT_FILE_CHUNK_TYPE_ADAPTER_INFO;
+    adapterInfo.header.chunkIdentifier.chunkIndex = 0;
+    adapterInfo.header.versionMinor               = 1;
+    adapterInfo.header.versionMajor               = 0;
+    adapterInfo.header.sizeInBytes                = sizeof(adapterInfo);
+    adapterInfo.header.padding                    = 0;
+
+    // Then write the data
+    WriteBytes(&adapterInfo, sizeof(adapterInfo));
+}
+
+//=====================================================================================================================
+void RmtWriter::WriteSnapshot(
+    const char* pSnapshotName)
+{
+    DD_ASSERT(pSnapshotName != nullptr);
+
+    const uint32 snapshotNameLength = static_cast<uint32>(strlen(pSnapshotName));
+
+    RmtFileChunkSnapshotData snapshotData = {};
+
+    // Fill out the chunk header
+    snapshotData.header.chunkIdentifier.chunkType  = RMT_FILE_CHUNK_TYPE_SNAPSHOT_INFO;
+    snapshotData.header.chunkIdentifier.chunkIndex = 0;
+    snapshotData.header.versionMinor               = 1;
+    snapshotData.header.versionMajor               = 0;
+    snapshotData.header.sizeInBytes                = sizeof(snapshotData) + snapshotNameLength;
+    snapshotData.header.padding                    = 0;
+
+    // Fill out the chunk fields
+    snapshotData.snapshotPoint = Platform::QueryTimestamp();
+    snapshotData.nameLength    = snapshotNameLength;
+
+    // Write the chunk data
+    WriteBytes(&snapshotData, sizeof(snapshotData));
+
+    // Write the snapshot name data
+    WriteBytes(pSnapshotName, snapshotNameLength);
 }
 
 //=====================================================================================================================
@@ -146,7 +216,7 @@ void RmtWriter::BeginDataChunk(
     // bytes of token data has been written.
     m_dataChunkHeaderOffset = m_rmtFileData.Size();
 
-    WriteBytes(&chunkHeader, sizeof(RmtFileChunkRmtData));
+    WriteBytes(&chunkHeader, sizeof(chunkHeader));
 
     m_state = RmtWriterState::WritingDataChunk;
 }

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -76,16 +76,19 @@ Result CreateRpmGraphicsPipelines(
     case AsicRevision::Carrizo:
     case AsicRevision::Bristol:
     case AsicRevision::Stoney:
-    case AsicRevision::Fiji:
     case AsicRevision::Polaris10:
-    case AsicRevision::Polaris11:
-    case AsicRevision::Polaris12:
         pTable = rpmGfxBinaryTableCarrizo;
         break;
 
     case AsicRevision::Iceland:
     case AsicRevision::Tonga:
         pTable = rpmGfxBinaryTableIceland;
+        break;
+
+    case AsicRevision::Fiji:
+    case AsicRevision::Polaris11:
+    case AsicRevision::Polaris12:
+        pTable = rpmGfxBinaryTableFiji;
         break;
 
     case AsicRevision::Vega10:

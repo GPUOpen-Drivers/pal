@@ -68,8 +68,9 @@ public:
     virtual Result Set() override;
     virtual Result Reset() override;
 
-    static constexpr uint32  SetValue   = 0xDEADBEEF;
-    static constexpr uint32  ResetValue = 0xCAFEBABE;
+    static constexpr uint32  SetValue     = 0xDEADBEEF;
+    static constexpr uint32  ResetValue   = 0xCAFEBABE;
+    static constexpr uint64  SetValue64   = 0xDEADBEEFDEADBEEF;
 
     const BoundGpuMemory& GetBoundGpuMemory() const { return m_gpuMemory; }
 

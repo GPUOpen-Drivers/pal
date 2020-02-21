@@ -91,6 +91,13 @@ Result GfxDevice::Cleanup()
     {
         result = m_pParent->MemMgr()->FreeGpuMem(m_debugStallGpuMem.Memory(), m_debugStallGpuMem.Offset());
         m_debugStallGpuMem.Update(nullptr, 0);
+
+        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+        {
+            ResourceDestroyEventData destroyData = {};
+            destroyData.pObj = &m_debugStallGpuMem;
+            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+        }
     }
 #endif
 
@@ -207,6 +214,27 @@ Result GfxDevice::Finalize()
         if (result == Result::Success)
         {
             m_debugStallGpuMem.Update(pMemObj, memOffset);
+
+            if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+            {
+                ResourceDescriptionMiscInternal desc;
+                desc.type = MiscInternalAllocType::DummyChunk;
+
+                ResourceCreateEventData createData = {};
+                createData.type = ResourceType::MiscInternal;
+                createData.pObj = &m_debugStallGpuMem;
+                createData.pResourceDescData = &desc;
+                createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
+
+                m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+
+                GpuMemoryResourceBindEventData bindData = {};
+                bindData.pGpuMemory = pMemObj;
+                bindData.pObj = &m_debugStallGpuMem;
+                bindData.offset = memOffset;
+                bindData.requiredGpuMemSize = memCreateInfo.size;
+                m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+            }
         }
     }
 #endif

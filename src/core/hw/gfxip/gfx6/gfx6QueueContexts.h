@@ -49,19 +49,18 @@ class UniversalEngine;
 class ComputeQueueContext : public QueueContext
 {
 public:
-    ComputeQueueContext(Device* pDevice, Queue* pQueue, Engine* pEngine, uint32 queueId);
+    ComputeQueueContext(Device* pDevice, Engine* pEngine, uint32 queueId);
     virtual ~ComputeQueueContext() {}
 
     Result Init();
 
-    virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, const SubmitInfo& submitInfo) override;
+    virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount) override;
     virtual void PostProcessSubmit() override;
 
 private:
     Result RebuildCommandStream();
 
     Device*const        m_pDevice;
-    Queue*const         m_pQueue;
     ComputeEngine*const m_pEngine;
     uint32              m_queueId;
 
@@ -90,12 +89,18 @@ private:
 class UniversalQueueContext : public QueueContext
 {
 public:
-    UniversalQueueContext(Device* pDevice, Queue* pQueue, Engine* pEngine, uint32 queueId);
+    UniversalQueueContext(
+        Device* pDevice,
+        bool    isPreemptionSupported,
+        uint32  persistentCeRamOffset,
+        uint32  persistentCeRamSize,
+        Engine* pEngine,
+        uint32  queueId);
     virtual ~UniversalQueueContext();
 
     Result Init();
 
-    virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, const SubmitInfo& submitInfo) override;
+    virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount) override;
     virtual void PostProcessSubmit() override;
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
@@ -110,9 +115,10 @@ private:
     uint32* WriteUniversalPreamble(uint32* pCmdSpace);
 
     Device*const          m_pDevice;
-    Queue*const           m_pQueue;
     UniversalEngine*const m_pEngine;
     uint32                m_queueId;
+    const uint32          m_persistentCeRamOffset;
+    const uint32          m_persistentCeRamSize;
 
     // Current watermark for the device-initiated context updates which have been processed by this queue context.
     uint32  m_currentUpdateCounter;

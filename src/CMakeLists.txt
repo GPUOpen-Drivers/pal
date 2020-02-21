@@ -74,34 +74,18 @@ if(PAL_ENABLE_DEVDRIVER_USAGE)
     target_compile_definitions(pal PRIVATE PAL_ENABLE_DEVDRIVER_USAGE=1)
 endif()
 
+target_compile_definitions(pal PUBLIC $<$<CONFIG:DEBUG>:PAL_DEBUG_BUILD>)
+
 # CMAKE-TODO: Where are PAL_ENABLE_DEBUG_PRINTS and PAL_ENABLE_ASSERTS used?
-if(PAL_ENABLE_PRINTS_ASSERTS)
-    # CMAKE-TODO: To support multiple configurations for Visual Studio we can't use CMAKE_BUILD_TYPE
-    #target_compile_definitions(pal PRIVATE
-    #    PAL_ENABLE_PRINTS_ASSERTS=$<OR:?$<CONFIG:Debug$<BOOL:${PAL_ENABLE_PRINTS_ASSERTS}>>
-    #)
-
-    # Public because it is used in the interface.
-    target_compile_definitions(pal PUBLIC PAL_ENABLE_PRINTS_ASSERTS)
-endif()
-
-if(PAL_DEVELOPER_BUILD)
-    target_compile_definitions(pal PRIVATE PAL_DEVELOPER_BUILD)
-endif()
+# Public because it is used in the interface.
+target_compile_definitions(pal PUBLIC PAL_ENABLE_PRINTS_ASSERTS=$<OR:$<CONFIG:DEBUG>,$<BOOL:${PAL_ENABLE_PRINTS_ASSERTS}>>)
 
 if(PAL_DBG_COMMAND_COMMENTS)
     target_compile_definitions(pal PRIVATE PAL_DBG_COMMAND_COMMENTS)
 endif()
 
-if(PAL_MEMTRACK)
-    # CMAKE-TODO: To support multiple configurations for Visual Studio we can't use CMAKE_BUILD_TYPE
-    #target_compile_definitions(pal PRIVATE
-    #    PAL_MEMTRACK=$<OR:?$<CONFIG:Debug$<BOOL:${PAL_MEMTRACK}>>
-    #)
-
-    # Public because it is used in the interface.
-    target_compile_definitions(pal PUBLIC PAL_MEMTRACK)
-endif()
+# Public because it is used in the interface.
+target_compile_definitions(pal PUBLIC PAL_MEMTRACK=$<OR:$<CONFIG:DEBUG>,$<BOOL:${PAL_MEMTRACK}>>)
 
 set(PAL_CLIENT_${PAL_CLIENT} 1)
 if(PAL_CLIENT_VULKAN)
@@ -132,9 +116,6 @@ target_include_directories(pal
         ${PROJECT_SOURCE_DIR}/res
         ${PROJECT_SOURCE_DIR}/src
 )
-
-# Include UVD IP interface file.  It's public as the file is in the PAL interface.
-target_include_directories(pal PUBLIC ${GLOBAL_ROOT_SRC_DIR}/drivers/uvdfwlib/uvdfw_inc)
 
 # CMAKE-TODO: Check this for correctness.  Why does xgl set this and not PAL?
 if(UNIX)
@@ -266,7 +247,11 @@ if(PAL_BUILD_CORE)
     )
 
     if(PAL_BUILD_GPUOPEN)
-        target_sources(pal PRIVATE core/devDriverUtil.cpp)
+        target_sources(pal
+            PRIVATE
+                core/devDriverUtil.cpp
+                core/devDriverEventService.cpp
+        )
     endif()
 
 ### PAL core/addrMgr ###########################################################
@@ -311,10 +296,18 @@ if(PAL_BUILD_CORE)
             core/os/amdgpu/amdgpuWindowSystem.cpp
             core/os/amdgpu/amdgpuVamMgr.cpp
             core/os/amdgpu/display/displayWindowSystem.cpp
-            core/os/amdgpu/dri3/dri3WindowSystem.cpp
-            core/os/amdgpu/dri3/g_dri3Loader.cpp
             core/os/amdgpu/g_drmLoader.cpp
         )
+
+        if(PAL_BUILD_DRI3)
+            message(STATUS "PAL build with DRI3 enabled")
+            target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/amdgpu/dri3)
+            target_sources(pal PRIVATE
+               core/os/amdgpu/dri3/dri3WindowSystem.cpp
+               core/os/amdgpu/dri3/g_dri3Loader.cpp
+            )
+            target_compile_definitions(pal PRIVATE PAL_HAVE_DRI3_PLATFORM)
+        endif()
 
         if(PAL_BUILD_WAYLAND)
             message(STATUS "PAL build with Wayland enabled")
@@ -330,50 +323,7 @@ if(PAL_BUILD_CORE)
             target_include_directories(pal PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIR})
         endif()
 
-#if PAL_DX_BUILD or PAL_KMT_BUILD
-    elseif(PAL_DX_BUILD OR PAL_KMT_BUILD)
-        if(PAL_DX_BUILD)
-            message(STATUS "PAL build with WDDM DX back-end enabled")
-            target_sources(pal PRIVATE core/os/wddm/dxPlatform.cpp)
-        elseif(PAL_KMT_BUILD)
-            message(STATUS "PAL build with WDDM KMT back-end enabled")
-            target_sources(pal PRIVATE
-                core/os/wddm/kmtPlatform.cpp
-                core/os/wddm/wddmOglPresent.cpp
-            )
-        endif()
-
-        target_sources(pal PRIVATE
-            core/os/wddm/wddmDevice.cpp
-            core/os/wddm/wddmFence.cpp
-            core/os/wddm/wddmFlgl.cpp
-            core/os/wddm/wddmGpuMemory.cpp
-            core/os/wddm/wddmImage.cpp
-            core/os/wddm/wddmLdaChain.cpp
-            core/os/wddm/wddmPlatform.cpp
-            core/os/wddm/wddmPresentScheduler.cpp
-            core/os/wddm/wddmPresentTechniqueBlit.cpp
-            core/os/wddm/wddmPresentTechniqueEmu.cpp
-            core/os/wddm/wddmPresentTechniqueFlip.cpp
-            core/os/wddm/wddmPresentTechniqueGdi.cpp
-            core/os/wddm/wddmPrivateScreen.cpp
-            core/os/wddm/wddmQueue.cpp
-            core/os/wddm/wddmQueueSemaphore.cpp
-            core/os/wddm/wddmRegistry.cpp
-            core/os/wddm/wddmScreen.cpp
-            core/os/wddm/wddmSwapChain.cpp
-            core/os/wddm/wddmTimerQueue.cpp
-            core/os/wddm/wddm1/wddm1Device.cpp
-            core/os/wddm/wddm1/wddm1GpuMemory.cpp
-            core/os/wddm/wddm1/wddm1Queue.cpp
-            core/os/wddm/wddm1/wddm1VamMgr.cpp
-            core/os/wddm/wddm2/wddm2Device.cpp
-            core/os/wddm/wddm2/wddm2GpuMemory.cpp
-            core/os/wddm/wddm2/wddm2HwsQueue.cpp
-            core/os/wddm/wddm2/wddm2Queue.cpp
-        )
     endif()
-#endif
 
 ### PAL core/hw ################################################################
     if(PAL_BUILD_GFX)
@@ -463,11 +413,9 @@ if(PAL_BUILD_CORE)
                 target_compile_definitions(pal PRIVATE PAL_BUILD_RAVEN2)
                 target_compile_definitions(pal PRIVATE CHIP_HDR_RAVEN2)
             endif()
-            if(PAL_BUILD_GFX10)
-                target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10)
-                target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10)
-                target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10)
-            endif()
+            target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10)
+            target_compile_definitions(pal PRIVATE CHIP_HDR_GFX10)
+            target_compile_definitions(pal PRIVATE CHIP_HDR__GFX10)
             if(PAL_BUILD_NAVI14)
                 target_compile_definitions(pal PUBLIC PAL_BUILD_NAVI14)
                 target_compile_definitions(pal PRIVATE CHIP_HDR_NAVI14)
@@ -519,11 +467,7 @@ if(PAL_BUILD_CORE)
             # Resource Processing Manager(RPM) GFXIP 9 files.
             target_sources(pal PRIVATE core/hw/gfxip/rpm/gfx9/gfx9RsrcProcMgr.cpp)
 
-            if(PAL_BUILD_GFX10)
-                target_sources(pal PRIVATE
-                    core/hw/gfxip/gfx9/gfx10DmaCmdBuffer.cpp
-                )
-            endif()
+            target_sources(pal PRIVATE core/hw/gfxip/gfx9/gfx10DmaCmdBuffer.cpp)
 
         endif()
     endif()

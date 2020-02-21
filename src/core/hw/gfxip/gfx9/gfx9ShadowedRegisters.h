@@ -164,6 +164,10 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (mmVGT_STRMOUT_VTX_STRIDE_3 - mmVGT_STRMOUT_BUFFER_SIZE_3 + 1),
     },
     {
+        (mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET - CONTEXT_SPACE_START),               // 0xA2CA - 0xA2CC
+        (mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE - mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET + 1),
+    },
+    {
         (mmVGT_GS_MAX_VERT_OUT - CONTEXT_SPACE_START),                          // 0xA2CE - 0xA2E6
         (mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_GS_MAX_VERT_OUT + 1),
     },
@@ -365,10 +369,6 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         1
     },
     {
-        mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET,
-        mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE - mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET + 1
-    },
-    {
         mmVGT_DMA_NUM_INSTANCES,
         1
     },
@@ -503,10 +503,6 @@ const RegisterRange Gfx91NonShadowedRanges[] =
     {
         mmVGT_STRMOUT_BUFFER_OFFSET_3,
         1
-    },
-    {
-        mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET,
-        mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE - mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET + 1
     },
     {
         mmVGT_DMA_NUM_INSTANCES,

@@ -128,7 +128,9 @@ union GpuMemoryCreateFlags
                                        ///< flag is set, calls to IGpuMemory::Map() on this object will fail.
         uint32 gl2Uncached       :  1; ///< Specifies the GPU Memory is un-cached on GPU L2 cache. But the memory still
                                        ///  would be cached by other cache hierarchy like L0, RB caches, L1, and L3.
-        uint32 reserved          :  8; ///< Reserved for future use.
+        uint32 placeholder1      :  1; ///< Reserved for future HW.
+
+        uint32 reserved          :  7; ///< Reserved for future use.
     };
     uint32     u32All;                 ///< Flags packed as 32-bit uint.
 };

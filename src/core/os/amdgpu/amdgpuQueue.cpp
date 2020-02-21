@@ -175,14 +175,15 @@ bool SubmissionContext::IsTimestampRetired(
 
 // =====================================================================================================================
 Queue::Queue(
+    uint32                 qCount,
     Device*                pDevice,
-    const QueueCreateInfo& createInfo)
+    const QueueCreateInfo* pCreateInfo)
     :
-    Pal::Queue(pDevice, createInfo),
+    Pal::Queue(qCount, pDevice, pCreateInfo),
     m_device(*pDevice),
     m_pResourceList(reinterpret_cast<amdgpu_bo_handle*>(this + 1)),
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
-    m_pResourcePriorityList(createInfo.enableGpuMemoryPriorities ?
+    m_pResourcePriorityList(pCreateInfo[0].enableGpuMemoryPriorities ?
         reinterpret_cast<uint8*>(m_pResourceList + Pal::Device::CmdBufMemReferenceLimit) : nullptr),
 #else
     m_pResourcePriorityList(nullptr),
@@ -239,15 +240,16 @@ Queue::~Queue()
 // =====================================================================================================================
 // Initializes this Queue object.
 Result Queue::Init(
-    void* pContextPlacementAddr)
+    const QueueCreateInfo* pCreateInfo,
+    void*                  pContextPlacementAddr)
 {
-    Result result = Pal::Queue::Init(pContextPlacementAddr);
+    Result result = Pal::Queue::Init(pCreateInfo, pContextPlacementAddr);
 
     if (result == Result::Success)
     {
         result = SubmissionContext::Create(static_cast<Device&>(*m_pDevice),
-                                           m_engineType,
-                                           m_engineId,
+                                           GetEngineType(),
+                                           EngineId(),
                                            Priority(),
                                            &m_pSubmissionContext);
     }
@@ -265,17 +267,18 @@ Result Queue::Init(
     // Note that the presence of the command upload ring will be used later to determine if these conditions are true.
     if ((result == Result::Success)                               &&
         (m_device.ChipProperties().ossLevel != OssIpLevel::_None) &&
-        (m_submitOptMode != SubmitOptMode::Disabled))
+        (m_pQueueInfos[0].createInfo.submitOptMode != SubmitOptMode::Disabled))
     {
-        const bool supportsGraphics = Pal::Device::EngineSupportsGraphics(m_engineType);
-        const bool supportsCompute  = Pal::Device::EngineSupportsCompute(m_engineType);
+        const bool supportsGraphics = Pal::Device::EngineSupportsGraphics(GetEngineType());
+        const bool supportsCompute  = Pal::Device::EngineSupportsCompute(GetEngineType());
 
         // By default we only enable the command upload ring for graphics queues but we can also support compute queues
         // if the client asks for it.
-        if (supportsGraphics || (supportsCompute && (m_submitOptMode != SubmitOptMode::Default)))
+        if (supportsGraphics ||
+            (supportsCompute && (m_pQueueInfos[0].createInfo.submitOptMode != SubmitOptMode::Default)))
         {
             CmdUploadRingCreateInfo createInfo = {};
-            createInfo.engineType    = m_engineType;
+            createInfo.engineType    = GetEngineType();
             createInfo.numCmdStreams = supportsGraphics ? UniversalCmdBuffer::NumCmdStreamsVal : 1;
 
             result = m_pDevice->GetGfxDevice()->CreateCmdUploadRingInternal(createInfo, &m_pCmdUploadRing);
@@ -288,7 +291,7 @@ Result Queue::Init(
 
         Vector<amdgpu_bo_handle, 1, Platform> dummyResourceList(pDevice->GetPlatform());
 
-        m_pDummyCmdStream = m_pDevice->GetDummyCommandStream(m_engineType);
+        m_pDummyCmdStream = m_pDevice->GetDummyCommandStream(GetEngineType());
 
         if (m_pDummyCmdStream != nullptr)
         {
@@ -562,17 +565,18 @@ Result Queue::OsDelay(
 // =====================================================================================================================
 // Submits one or more command buffers to the hardware using command submission context.
 Result Queue::OsSubmit(
-    const SubmitInfo&         submitInfo,
-    const InternalSubmitInfo& internalSubmitInfo)
+    const MultiSubmitInfo&    submitInfo,
+    const InternalSubmitInfo* pInternalSubmitInfos)
 {
     // If this triggers we forgot to flush one or more IBs to the GPU during the previous submit.
     PAL_ASSERT(m_numIbs == 0);
+    PAL_ASSERT(submitInfo.perSubQueueInfoCount <= 1);
 
     Result result = Result::Success;
 
     bool isDummySubmission = false;
 
-    if (submitInfo.cmdBufferCount == 0)
+    if ((submitInfo.pPerSubQueueInfo == nullptr) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0))
     {
         // Dummy submission doesn't need to update resource list since dummy resource list will be used.
         isDummySubmission = true;
@@ -584,15 +588,22 @@ Result Queue::OsSubmit(
 
     if (result == Result::Success)
     {
-        SubmitInfo localSubmitInfo = submitInfo;
+        MultiSubmitInfo       localSubmitInfo       = submitInfo;
+        PerSubQueueSubmitInfo perSubQueueSubmitInfo = {};
+        if (isDummySubmission == false)
+        {
+            perSubQueueSubmitInfo            = submitInfo.pPerSubQueueInfo[0];
+        }
+        localSubmitInfo.pPerSubQueueInfo     = &perSubQueueSubmitInfo;
+        localSubmitInfo.perSubQueueInfoCount = 1;
 
         // amdgpu won't give us a new fence value unless the submission has at least one command buffer.
-        if ((localSubmitInfo.cmdBufferCount == 0) || (m_ifhMode == IfhModePal))
+        if (isDummySubmission || (m_ifhMode == IfhModePal))
         {
-            localSubmitInfo.ppCmdBuffers   = reinterpret_cast<Pal::ICmdBuffer* const*>(&m_pDummyCmdBuffer);
-            localSubmitInfo.cmdBufferCount = 1;
-
-            if ((m_ifhMode == IfhModeDisabled) && (!isDummySubmission))
+            perSubQueueSubmitInfo.ppCmdBuffers =
+                reinterpret_cast<Pal::ICmdBuffer* const*>(&m_pDummyCmdBuffer);
+            perSubQueueSubmitInfo.cmdBufferCount  = 1;
+            if ((m_ifhMode == IfhModeDisabled) && (isDummySubmission == false))
             {
                 m_pDummyCmdBuffer->IncrementSubmitCount();
             }
@@ -601,14 +612,14 @@ Result Queue::OsSubmit(
         // Clear pending wait flag.
         m_pendingWait = false;
 
-        if ((m_type == QueueTypeUniversal) || (m_type == QueueTypeCompute))
+        if ((Type() == QueueTypeUniversal) || (Type() == QueueTypeCompute))
         {
-            result = SubmitPm4(localSubmitInfo, internalSubmitInfo, isDummySubmission);
+            result = SubmitPm4(localSubmitInfo, pInternalSubmitInfos[0], isDummySubmission);
         }
-        else if ((m_type == QueueTypeDma)
+        else if ((Type() == QueueTypeDma)
                 )
         {
-            result = SubmitNonGfxIp(localSubmitInfo, internalSubmitInfo, isDummySubmission);
+            result = SubmitNonGfxIp(localSubmitInfo, pInternalSubmitInfos[0], isDummySubmission);
         }
     }
 
@@ -626,10 +637,21 @@ Result Queue::OsSubmit(
     }
 
     // Update the fence
-    if ((result == Result::Success) && (submitInfo.pFence != nullptr))
+    if ((result == Result::Success) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        (submitInfo.fenceCount > 0))
+    {
+        for (uint32 i = 0; i < submitInfo.fenceCount; i++)
+        {
+            DoAssociateFenceWithLastSubmit(static_cast<Pal::Fence*>(submitInfo.ppFences[i]));
+        }
+    }
+#else
+        (submitInfo.pFence != nullptr))
     {
         DoAssociateFenceWithLastSubmit(static_cast<Pal::Fence*>(submitInfo.pFence));
     }
+#endif
 
     return result;
 }
@@ -645,15 +667,15 @@ Result Queue::OsPresentDirect(
 // =====================================================================================================================
 // Submits one or more PM4 command buffers.
 Result Queue::SubmitPm4(
-    const SubmitInfo&         submitInfo,
+    const MultiSubmitInfo&    submitInfo,
     const InternalSubmitInfo& internalSubmitInfo,
     bool                      isDummySubmission)
 {
     Result result = Result::Success;
 
     // The OsSubmit function should guarantee that we have at least one universal or compute command buffer.
-    PAL_ASSERT(submitInfo.cmdBufferCount > 0);
-    PAL_ASSERT((m_type == QueueTypeUniversal) || (m_type == QueueTypeCompute));
+    PAL_ASSERT(submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
+    PAL_ASSERT((Type() == QueueTypeUniversal) || (Type() == QueueTypeCompute));
 
     // For linux platforms, there will exist at most 3 preamble + 2 postamble:
     // Preamble  CE IB (always)
@@ -664,7 +686,7 @@ Result Queue::SubmitPm4(
     PAL_ASSERT((internalSubmitInfo.numPreambleCmdStreams + internalSubmitInfo.numPostambleCmdStreams) <= 5);
 
     // Determine which optimization modes should be enabled for this submit.
-    const bool minGpuCmdOverhead     = (m_submitOptMode == SubmitOptMode::MinGpuCmdOverhead);
+    const bool minGpuCmdOverhead     = (m_pQueueInfos[0].createInfo.submitOptMode == SubmitOptMode::MinGpuCmdOverhead);
     bool       tryToUploadCmdBuffers = false;
 
     if (m_pCmdUploadRing != nullptr)
@@ -674,15 +696,17 @@ Result Queue::SubmitPm4(
             // We should upload all command buffers because the command ring is in the local heap.
             tryToUploadCmdBuffers = true;
         }
-        else if (submitInfo.cmdBufferCount > 1)
+        else if (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 1)
         {
             // Otherwise we're doing the MinKernelSubmits or Default paths which only want to upload command buffers
             // if it will save us kernel submits. This means we shouldn't upload if we only have one command buffer
             // or if all of the command buffers can be chained together.
-            for (uint32 idx = 0; idx < submitInfo.cmdBufferCount - 1; ++idx)
+            for (uint32 idx = 0; idx < submitInfo.pPerSubQueueInfo[0].cmdBufferCount - 1; ++idx)
             {
-                if (static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idx])->IsExclusiveSubmit() == false)
+                if (static_cast<CmdBuffer*>(
+                    submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[idx])->IsExclusiveSubmit() == false)
                 {
+
                     tryToUploadCmdBuffers = true;
                     break;
                 }
@@ -691,8 +715,8 @@ Result Queue::SubmitPm4(
     }
 
     // Iteratively build batches of command buffers and launch their command streams.
-    uint32            numNextCmdBuffers = submitInfo.cmdBufferCount;
-    ICmdBuffer*const* ppNextCmdBuffers  = submitInfo.ppCmdBuffers;
+    uint32            numNextCmdBuffers = submitInfo.pPerSubQueueInfo[0].cmdBufferCount;
+    ICmdBuffer*const* ppNextCmdBuffers  = submitInfo.pPerSubQueueInfo[0].ppCmdBuffers;
 
     while ((result == Result::Success) && (numNextCmdBuffers > 0))
     {
@@ -933,17 +957,17 @@ Result Queue::PrepareUploadedCommandBuffers(
 // command buffer is submitted as a separate command buffer. It is not expected for the context command streams to be
 // present for Non GFX IP Queues.
 Result Queue::SubmitNonGfxIp(
-    const SubmitInfo&         submitInfo,
+    const MultiSubmitInfo&    submitInfo,
     const InternalSubmitInfo& internalSubmitInfo,
     bool                      isDummySubmission)
 {
     PAL_ASSERT((internalSubmitInfo.numPreambleCmdStreams == 0) && (internalSubmitInfo.numPostambleCmdStreams == 0));
 
     // The OsSubmit function should guarantee that we have at least one DMA, VCE, or UVD command buffer.
-    PAL_ASSERT(submitInfo.cmdBufferCount > 0);
+    PAL_ASSERT(submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
 
     uint32 maxChunkCount = 0;
-    switch(m_type)
+    switch(Type())
     {
     case QueueTypeDma:
         maxChunkCount = MaxIbsPerSubmit;
@@ -956,9 +980,9 @@ Result Queue::SubmitNonGfxIp(
 
     Result result = Result::Success;
 
-    for (uint32 idx = 0; (idx < submitInfo.cmdBufferCount) && (result == Result::Success); ++idx)
+    for (uint32 idx = 0; (idx < submitInfo.pPerSubQueueInfo[0].cmdBufferCount) && (result == Result::Success); ++idx)
     {
-        const CmdBuffer*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idx]);
+        const CmdBuffer*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[idx]);
 
         // Non GFX IP command buffers are expected to only have a single command stream.
         PAL_ASSERT(pCmdBuffer->NumCmdStreams() == 1);

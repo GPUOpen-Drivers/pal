@@ -1222,13 +1222,18 @@ Result PerfExperiment::AddThreadTrace(
             static_assert((static_cast<uint32>(PerfShaderMaskPs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_PS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskVs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_VS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskGs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_GS_BIT) &&
-                           static_cast<uint32>(PerfShaderMaskEs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_ES_BIT) &&
                            static_cast<uint32>(PerfShaderMaskHs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_HS_BIT) &&
-                           static_cast<uint32>(PerfShaderMaskLs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_LS_BIT) &&
-                           static_cast<uint32>(PerfShaderMaskCs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_CS_BIT)),
+                           static_cast<uint32>(PerfShaderMaskCs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_CS_BIT) &&
+                           static_cast<uint32>(PerfShaderMaskEs) ==
+                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_ES_BIT__GFX10CORE) &&
+                           static_cast<uint32>(PerfShaderMaskLs) ==
+                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_LS_BIT__GFX10CORE)),
                            "We assume that the SQ_TT_WTYPE enum matches PerfExperimentShaderFlags.");
 
-            m_sqtt[traceInfo.instance].mask.gfx10.WTYPE_INCLUDE = shaderMask;
+            {
+                m_sqtt[traceInfo.instance].mask.gfx10.WTYPE_INCLUDE = shaderMask;
+            }
+
             m_sqtt[traceInfo.instance].mask.gfx10.SA_SEL        = shIndex;
 
             if (traceInfo.optionFlags.threadTraceTargetCu != 0)
@@ -1810,10 +1815,12 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.PS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskPs) != 0);
                 sqPerfCounterCtrl.bits.VS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskVs) != 0);
                 sqPerfCounterCtrl.bits.GS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskGs) != 0);
-                sqPerfCounterCtrl.bits.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
                 sqPerfCounterCtrl.bits.HS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskHs) != 0);
-                sqPerfCounterCtrl.bits.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
                 sqPerfCounterCtrl.bits.CS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
+                {
+                    sqPerfCounterCtrl.core.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
+                    sqPerfCounterCtrl.core.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
+                }
             }
             else
             {
@@ -1821,10 +1828,12 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.PS_EN = 1;
                 sqPerfCounterCtrl.bits.VS_EN = 1;
                 sqPerfCounterCtrl.bits.GS_EN = 1;
-                sqPerfCounterCtrl.bits.ES_EN = 1;
                 sqPerfCounterCtrl.bits.HS_EN = 1;
-                sqPerfCounterCtrl.bits.LS_EN = 1;
                 sqPerfCounterCtrl.bits.CS_EN = 1;
+                {
+                    sqPerfCounterCtrl.core.LS_EN = 1;
+                    sqPerfCounterCtrl.core.ES_EN = 1;
+                }
             }
 
             // Note that we must write this after CP_PERFMON_CNTRL because the CP ties ownership of this state to it.
@@ -2118,9 +2127,11 @@ void PerfExperiment::UpdateSqttTokenMask(
                     tokenMask.gfx10.INST_EXCLUDE   = m_sqtt[idx].tokenMask.gfx10.INST_EXCLUDE;
                     tokenMask.gfx10.REG_DETAIL_ALL = m_sqtt[idx].tokenMask.gfx10.REG_DETAIL_ALL;
 
-                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_TOKEN_MASK,
-                                                                  tokenMask.u32All,
-                                                                  pCmdSpace);
+                    {
+                        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10Core::mmSQ_THREAD_TRACE_TOKEN_MASK,
+                                                                      tokenMask.u32All,
+                                                                      pCmdSpace);
+                    }
                 }
             }
         }
@@ -2163,7 +2174,7 @@ void PerfExperiment::UpdateSqttTokenMaskStatic(
 
         // Note that we will lose the current value of the INST_EXCLUDE and REG_DETAIL_ALL fields. They default
         // to zero so hopefully the default value is fine.
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_TOKEN_MASK,
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10Core::mmSQ_THREAD_TRACE_TOKEN_MASK,
                                                       tokenMask.u32All,
                                                       pCmdSpace);
     }
@@ -2634,24 +2645,24 @@ uint32* PerfExperiment::WriteStartThreadTraces(
 
                 // All of these registers were moved to privileged space in gfx10 which is pretty silly.
                 // We need to write the thread trace buffer size register before the base address register.
-                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_BUF0_SIZE,
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10Core::mmSQ_THREAD_TRACE_BUF0_SIZE,
                                                               sqttBuf0Size.u32All,
                                                               pCmdSpace);
 
-                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE,
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10Core::mmSQ_THREAD_TRACE_BUF0_BASE,
                                                               sqttBuf0Base.u32All,
                                                               pCmdSpace);
 
-                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_MASK,
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10Core::mmSQ_THREAD_TRACE_MASK,
                                                               m_sqtt[idx].mask.u32All,
                                                               pCmdSpace);
 
-                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_TOKEN_MASK,
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10Core::mmSQ_THREAD_TRACE_TOKEN_MASK,
                                                               m_sqtt[idx].tokenMask.u32All,
                                                               pCmdSpace);
 
                 // We must write this register last because it turns on thread traces.
-                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_CTRL,
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10Core::mmSQ_THREAD_TRACE_CTRL,
                                                               m_sqtt[idx].ctrl.u32All,
                                                               pCmdSpace);
             }
@@ -2780,7 +2791,7 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                                                        mem_space__me_wait_reg_mem__register_space,
                                                        function__me_wait_reg_mem__not_equal_reference_value,
                                                        engine_sel__me_wait_reg_mem__micro_engine,
-                                                       Gfx10::mmSQ_THREAD_TRACE_STATUS,
+                                                       Gfx10Core::mmSQ_THREAD_TRACE_STATUS,
                                                        0,
                                                        Gfx10::SQ_THREAD_TRACE_STATUS__FINISH_DONE_MASK,
                                                        pCmdSpace);
@@ -2789,7 +2800,7 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                 regSQ_THREAD_TRACE_CTRL sqttCtrl = m_sqtt[idx].ctrl;
                 sqttCtrl.gfx10.MODE = SQ_TT_MODE_OFF;
 
-                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10::mmSQ_THREAD_TRACE_CTRL,
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx10Core::mmSQ_THREAD_TRACE_CTRL,
                                                               sqttCtrl.u32All,
                                                               pCmdSpace);
 
@@ -2798,7 +2809,7 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                                                        mem_space__me_wait_reg_mem__register_space,
                                                        function__me_wait_reg_mem__equal_to_the_reference_value,
                                                        engine_sel__me_wait_reg_mem__micro_engine,
-                                                       Gfx10::mmSQ_THREAD_TRACE_STATUS,
+                                                       Gfx10Core::mmSQ_THREAD_TRACE_STATUS,
                                                        0,
                                                        Gfx10::SQ_THREAD_TRACE_STATUS__BUSY_MASK,
                                                        pCmdSpace);
@@ -2811,12 +2822,12 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                 static_assert(offsetof(ThreadTraceInfoData, traceStatus)  == sizeof(uint32),     "");
                 static_assert(offsetof(ThreadTraceInfoData, writeCounter) == sizeof(uint32) * 2, "");
 
-                // Gfx10 doesn't have SQ_THREAD_TRACE_CNTR but SQ_THREAD_TRACE_DROPPED_CNTR seems good enough.
+                // Gfx10Core doesn't have SQ_THREAD_TRACE_CNTR but SQ_THREAD_TRACE_DROPPED_CNTR seems good enough.
                 constexpr uint32 InfoRegisters[] =
                 {
-                    Gfx10::mmSQ_THREAD_TRACE_WPTR,
-                    Gfx10::mmSQ_THREAD_TRACE_STATUS,
-                    Gfx10::mmSQ_THREAD_TRACE_DROPPED_CNTR
+                    Gfx10Core::mmSQ_THREAD_TRACE_WPTR,
+                    Gfx10Core::mmSQ_THREAD_TRACE_STATUS,
+                    Gfx10Core::mmSQ_THREAD_TRACE_DROPPED_CNTR
                 };
 
                 for (uint32 regIdx = 0; regIdx < ArrayLen(InfoRegisters); regIdx++)

@@ -44,9 +44,8 @@ namespace InfoURIService
 static const char* kInfoServiceName = "info";
 
 // String constants used within info responses.
-static const char* kSourceNameLabel     = "Name";
-static const char* kSourceVersionLabel  = "Version";
-static const char* kSourceValueLabel    = "Value";
+static const char* kSourceVersionLabel = "version";
+static const char* kSourceValueLabel   = "value";
 
 // =====================================================================================================================
 InfoService::InfoService(
@@ -186,8 +185,8 @@ Result InfoService::HandleGetAllInfoSources(
     Result result = pContext->BeginJsonResponse(&pWriter);
     if (result == Result::Success)
     {
-        // Start the response as a list containing all info sources.
-        pWriter->BeginList();
+        // Start the response as a map containing all info sources.
+        pWriter->BeginMap();
 
         // Lock access to the registered sources map.
         Platform::LockGuard<Platform::Mutex> infoSourcesLock(m_infoSourceMutex);
@@ -195,12 +194,15 @@ Result InfoService::HandleGetAllInfoSources(
         // Iterate over each registered info source and invoke the info writer callback.
         for (const auto currentSourceIter : m_registeredInfoSources)
         {
-            // Write the info source.
+            // Write the source's name as the key and the info source map as the value.
+            pWriter->Key(currentSourceIter.value.name.AsCStr());
+
+            // Write the info source map.
             WriteInfoSource(currentSourceIter.value, pWriter);
         }
 
-        // End the list of info source responses.
-        pWriter->EndList();
+        // End the map of info source responses.
+        pWriter->EndMap();
 
         // End the response.
         result = pWriter->End();
@@ -281,8 +283,7 @@ void InfoService::WriteInfoSource(
     // Begin writing the info.
     pWriter->BeginMap();
 
-    // Write the source name and version number.
-    pWriter->KeyAndValue(kSourceNameLabel, source.name.AsCStr());
+    // Write the source version number.
     pWriter->KeyAndValue(kSourceVersionLabel, source.version);
 
     // Begin a "value" map where the info will be written.

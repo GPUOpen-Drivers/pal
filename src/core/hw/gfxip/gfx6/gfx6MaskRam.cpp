@@ -1140,6 +1140,16 @@ bool Gfx6Dcc::UseDccForImage(
             useDcc = false;
             mustDisableDcc = true;
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 564
+        else if ((createInfo.metadataMode == MetadataMode::FmaskOnly) &&
+                 (createInfo.samples > 1) &&
+                 (pParent->IsRenderTarget() == true))
+        {
+            // Don't use DCC if the caller asked that we allocate color msaa image with Fmask metadata only.
+            useDcc = false;
+            mustDisableDcc = true;
+        }
+#endif
         else if (pParent->GetDccFormatEncoding() == DccFormatEncoding::Incompatible)
         {
             // Don't use DCC if the caller can switch between color target formats.
@@ -1167,6 +1177,27 @@ bool Gfx6Dcc::UseDccForImage(
             useDcc = false;
             mustDisableDcc = true;
         }
+        else if (pParent->IsShared() || pParent->IsPresentable() || pParent->IsFlippable())
+        {
+            // DCC is never available for shared, presentable, or flippable images.
+            useDcc = false;
+            mustDisableDcc = true;
+        }
+        else if (IsYuv(createInfo.swizzledFormat.format))
+        {
+            // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
+            useDcc = false;
+            mustDisableDcc = true;
+        }
+        else if ((Pal::Gfx6::Device::WaEnableDcc8bppWithMsaa == false) &
+                 (createInfo.samples > 1) &
+                 (BitsPerPixel(createInfo.swizzledFormat.format) == 8))
+        {
+            // There is known issue that CB can only partially decompress DCC KEY for 4x+ 8bpp MSAA resource
+            // (even with sample_split = 4).
+            useDcc = false;
+            mustDisableDcc = true;
+        }
         else if (allMipsShaderWritable)
         {
             // DCC does not make sense for UAVs or RT+UAVs (all mips are shader writeable).
@@ -1185,12 +1216,6 @@ bool Gfx6Dcc::UseDccForImage(
             // Disable DCC for shader read resource that cannot be made TC compat, this avoids DCC decompress
             // for RT->SR barrier.
             useDcc = false;
-        }
-        else if (pParent->IsShared() || pParent->IsPresentable() || pParent->IsFlippable())
-        {
-            // DCC is never available for shared, presentable, or flippable images.
-            useDcc = false;
-            mustDisableDcc = true;
         }
         else if ((createInfo.extent.width * createInfo.extent.height) <=
                 (pPalSettings->hintDisableSmallSurfColorCompressionSize *
@@ -1213,12 +1238,6 @@ bool Gfx6Dcc::UseDccForImage(
             if (IsSrgb(format) && (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccSrgb) == false))
             {
                 useDcc = false;
-            }
-            else if (IsYuv(format))
-            {
-                // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
-                useDcc = false;
-                mustDisableDcc = true;
             }
             else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccPrt) == false))
             {
@@ -1245,20 +1264,6 @@ bool Gfx6Dcc::UseDccForImage(
                 {
                     useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccEqaa);
                 }
-
-                if (useDcc)
-                {
-                    // There is known issue that CB can only partially decompress DCC KEY for 4x+ 8bpp MSAA resource
-                    // (even with sample_split = 4).
-                    if (BitsPerPixel(format) == 8)
-                    {
-                        useDcc = Pal::Gfx6::Device::WaEnableDcc8bppWithMsaa;
-                        if (useDcc == false)
-                        {
-                            mustDisableDcc = true;
-                        }
-                    }
-                }
             }
             else
             {
@@ -1266,13 +1271,10 @@ bool Gfx6Dcc::UseDccForImage(
                 useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccSingleSample);
             }
 
-            if (useDcc)
+            // According to DXX engineers, using DCC for mipmapped arrays has worse performance, so just disable it.
+            if (useDcc && (createInfo.arraySize > 1) && (createInfo.mipLevels > 1))
             {
-                // According to DXX engineers, using DCC for mipmapped arrays has worse performance, so just disable it.
-                if ((createInfo.arraySize > 1) && (createInfo.mipLevels > 1))
-                {
-                    useDcc = false;
-                }
+                useDcc = false;
             }
         }
     }

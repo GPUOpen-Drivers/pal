@@ -133,11 +133,9 @@ public:
         size_t*                  pSize,
         void*                    pBuffer) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) override;
-#endif
 
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_apiHwMapping; }

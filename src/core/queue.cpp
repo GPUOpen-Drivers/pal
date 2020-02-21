@@ -226,36 +226,23 @@ void SubmissionContext::ReleaseReference()
 
 // =====================================================================================================================
 Queue::Queue(
+    uint32                 queueCount,
     Device*                pDevice,
-    const QueueCreateInfo& createInfo)
+    const QueueCreateInfo* pCreateInfo)
     :
     m_pDevice(pDevice),
-    m_type(createInfo.queueType),
-    m_engineType(createInfo.engineType),
-    m_engineId(createInfo.engineIndex),
-    m_submitOptMode((pDevice->Settings().submitOptModeOverride == 0)
-        ? createInfo.submitOptMode : static_cast<SubmitOptMode>(pDevice->Settings().submitOptModeOverride - 1)),
-    m_pEngine(pDevice->GetEngine(createInfo.engineType, createInfo.engineIndex)),
     m_pSubmissionContext(nullptr),
     m_pDummyCmdBuffer(nullptr),
     m_ifhMode(IfhModeDisabled),
-    m_numReservedCu(0),
-    m_pQueueContext(nullptr),
+    m_pQueueInfos(nullptr),
+    m_queueCount(queueCount),
     m_stalled(false),
     m_pWaitingSemaphore(nullptr),
     m_batchedSubmissionCount(0),
     m_batchedCmds(pDevice->GetPlatform()),
     m_deviceMembershipNode(this),
-    m_engineMembershipNode(this),
     m_lastFrameCnt(0),
-    m_submitIdPerFrame(0),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
-    m_queuePriority(QueuePriority::Normal),
-#else
-    m_queuePriority(QueuePriority::Low),
-#endif
-    m_persistentCeRamOffset(0),
-    m_persistentCeRamSize(0)
+    m_submitIdPerFrame(0)
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     ,m_pTrackedCmdBufferDeque(nullptr)
 #endif
@@ -264,75 +251,14 @@ Queue::Queue(
     {
         m_ifhMode = m_pDevice->GetIfhMode();
     }
+}
 
-    m_flags.u32All = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
-    m_queuePriority = createInfo.priority;
-#else
-    const Pal::EngineSubType engineSubType = m_pDevice->EngineProperties().perEngine[m_engineType].engineSubType[m_engineId];
-
-    // Override the priority here.
-    // RtCuHighCompute and Exclusive Compute are only supported on Windows for now.
-    m_queuePriority = (engineSubType == EngineSubType::RtCuHighCompute) ? QueuePriority::Realtime :
-                      (engineSubType == EngineSubType::RtCuMedCompute)  ? QueuePriority::Medium   :
-                      (m_engineType  == EngineTypeExclusiveCompute)     ? QueuePriority::High     :
-                                                                          createInfo.priority;
-#endif
-
-    if (m_queuePriority == QueuePriority::Realtime)
+// =====================================================================================================================
+Queue::~Queue()
+{
+    if (m_pQueueInfos != nullptr)
     {
-        m_numReservedCu = createInfo.numReservedCu;
-    }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 530
-    if (createInfo.dispatchTunneling != 0)
-#else
-    if (engineSubType == EngineSubType::VrHighPriority)
-#endif
-    {
-        m_flags.dispatchTunneling = 1;
-    }
-
-    if (createInfo.windowedPriorBlit != false)
-    {
-        m_flags.windowedPriorBlit = 1;
-    }
-
-    if (pDevice->EngineProperties().perEngine[m_engineType].flags.physicalAddressingMode != 0)
-    {
-        m_flags.physicalModeSubmission = 1;
-    }
-
-    if (pDevice->IsPreemptionSupported(m_engineType))
-    {
-        m_flags.midCmdBufPreemption = 1;
-    }
-
-    if (pDevice->EngineProperties().perEngine[m_engineType].flags.supportPersistentCeRam == 0)
-    {
-        PAL_ASSERT((createInfo.persistentCeRamOffset == 0) && (createInfo.persistentCeRamSize == 0));
-
-        m_persistentCeRamOffset = 0;
-        m_persistentCeRamSize   = 0;
-    }
-    else
-    {
-        constexpr uint32 CeRamAlignBytes = 32;
-
-        // Align the offset and size of persistent CE RAM to 32 bytes (8 DWORDs).
-        m_persistentCeRamOffset = Pow2AlignDown(createInfo.persistentCeRamOffset, CeRamAlignBytes);
-        const uint32 difference = (createInfo.persistentCeRamOffset - m_persistentCeRamOffset);
-        m_persistentCeRamSize   =
-            static_cast<uint32>(Pow2Align(((sizeof(uint32) * createInfo.persistentCeRamSize) + difference),
-                                          CeRamAlignBytes) / sizeof(uint32));
-
-        PAL_ASSERT((m_persistentCeRamOffset == createInfo.persistentCeRamOffset) &&
-                   (m_persistentCeRamSize   == createInfo.persistentCeRamSize));
-
-        // The client can request some part of the CE ram to be persistent through consecutive submissions, and the
-        // whole CE ram used must be at least as big as that.
-        PAL_ASSERT(pDevice->CeRamDwordsUsed(EngineTypeUniversal) >= m_persistentCeRamOffset + m_persistentCeRamSize);
+        PAL_SAFE_DELETE_ARRAY(m_pQueueInfos, m_pDevice->GetPlatform());
     }
 }
 
@@ -371,15 +297,23 @@ void Queue::Destroy()
         m_pDummyCmdBuffer = nullptr;
     }
 
-    if (m_pQueueContext != nullptr)
+    if (m_pQueueInfos != nullptr)
     {
-        m_pQueueContext->Destroy();
-        m_pQueueContext = nullptr;
-    }
+        for (uint32 qIndex = 0; qIndex < m_queueCount; qIndex++)
+        {
+            if (m_pQueueInfos[qIndex].pQueueContext != nullptr)
+            {
+                m_pQueueInfos[qIndex].pQueueContext->Destroy();
+                m_pQueueInfos[qIndex].pQueueContext = nullptr;
+            }
 
-    if (m_engineMembershipNode.InList())
-    {
-        m_pEngine->RemoveQueue(&m_engineMembershipNode);
+            // When m_pInternalCopyQueue is created, m_pEngines has not been initilized.
+            // Therefore, any of m_pQueueInfos[qIndex].pEngine of m_pInternalCopyQueue is nullptr.
+            if (m_pQueueInfos[qIndex].pEngine != nullptr)
+            {
+                m_pQueueInfos[qIndex].pEngine->RemoveQueue(this);
+            }
+        }
     }
 
     if (m_deviceMembershipNode.InList())
@@ -399,29 +333,128 @@ void Queue::Destroy()
 // =====================================================================================================================
 // Initializes this Queue object's QueueContext and batched-command Mutex objects.
 Result Queue::Init(
-    void* pContextPlacementAddr)
+    const QueueCreateInfo* pCreateInfo,
+    void*                  pContextPlacementAddr)
 {
-    Result      result     = m_batchedCmdsLock.Init();
-    GfxDevice*  pGfxDevice = m_pDevice->GetGfxDevice();
+    Result result = Result::Success;
+    m_pQueueInfos = PAL_NEW_ARRAY(SubQueueInfo, m_queueCount, m_pDevice->GetPlatform(), AllocInternal);
+    if (m_pQueueInfos == nullptr)
+    {
+        result = Result::ErrorOutOfMemory;
+    }
 
     if (result == Result::Success)
     {
-        // NOTE: OSSIP hardware is used for DMA Queues, GFXIP hardware is used for Compute & Universal Queues, and
-        // no hardware block is used for Timer Queues since those are software-only.
-        switch (m_type)
+        for (uint32 qIndex = 0; qIndex < m_queueCount; qIndex++)
         {
-        case QueueTypeCompute:
-        case QueueTypeUniversal:
-            if (pGfxDevice != nullptr)
+            memset(&m_pQueueInfos[qIndex], 0, sizeof(SubQueueInfo));
+            m_pQueueInfos[qIndex].createInfo = pCreateInfo[qIndex];
+
+            const EngineType curEngineType = m_pQueueInfos[qIndex].createInfo.engineType;
+            const uint32 curEngineId       = m_pQueueInfos[qIndex].createInfo.engineIndex;
+
+            m_pQueueInfos[qIndex].createInfo.submitOptMode =
+                                 ((m_pDevice->Settings().submitOptModeOverride == 0) ?
+                                   pCreateInfo[qIndex].submitOptMode                 :
+                                   static_cast<SubmitOptMode>(m_pDevice->Settings().submitOptModeOverride - 1));
+
+            m_pQueueInfos[qIndex].pEngine = m_pDevice->GetEngine(curEngineType, curEngineId);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
+            const Pal::EngineSubType engineSubType =
+                m_pDevice->EngineProperties().perEngine[curEngineType].engineSubType[curEngineId];
+
+            // Override the priority here.
+            // RtCuHighCompute and Exclusive Compute are only supported on Windows for now.
+            m_pQueueInfos[qIndex].createInfo.priority =
+                (engineSubType == EngineSubType::RtCuHighCompute) ? QueuePriority::Realtime :
+                (engineSubType == EngineSubType::RtCuMedCompute) ? QueuePriority::Medium :
+                (curEngineType == EngineTypeExclusiveCompute) ? QueuePriority::High :
+                pCreateInfo[qIndex].priority;
+#endif
+
+            if (m_pQueueInfos[qIndex].createInfo.priority != QueuePriority::Realtime)
             {
-                result = pGfxDevice->CreateQueueContext(this, m_pEngine, pContextPlacementAddr, &m_pQueueContext);
+                // CU reservation is only supported on queues with realtime priority.
+                m_pQueueInfos[qIndex].createInfo.numReservedCu = 0;
+            }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
+            if (engineSubType == EngineSubType::VrHighPriority)
+            {
+                m_pQueueInfos[qIndex].createInfo.dispatchTunneling = 1;
+            }
+#endif
+
+            if (m_pDevice->EngineProperties().perEngine[curEngineType].flags.supportPersistentCeRam == 0)
+            {
+                PAL_ASSERT((pCreateInfo[qIndex].persistentCeRamOffset == 0) &&
+                           (pCreateInfo[qIndex].persistentCeRamSize == 0));
+
+                m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset = 0;
+                m_pQueueInfos[qIndex].createInfo.persistentCeRamSize = 0;
             }
             else
             {
-                result = Result::ErrorIncompatibleDevice;
+                constexpr uint32 CeRamAlignBytes = 32;
+
+                // Align the offset and size of persistent CE RAM to 32 bytes (8 DWORDs).
+                m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset =
+                    Pow2AlignDown(pCreateInfo[qIndex].persistentCeRamOffset, CeRamAlignBytes);
+                const uint32 difference =
+                    (pCreateInfo[qIndex].persistentCeRamOffset -
+                     m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset);
+                m_pQueueInfos[qIndex].createInfo.persistentCeRamSize =
+                    static_cast<uint32>(
+                        Pow2Align(((sizeof(uint32) * pCreateInfo[qIndex].persistentCeRamSize) + difference),
+                            CeRamAlignBytes) / sizeof(uint32));
+
+                PAL_ASSERT((m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset ==
+                            pCreateInfo[qIndex].persistentCeRamOffset) &&
+                           (m_pQueueInfos[qIndex].createInfo.persistentCeRamSize == pCreateInfo[qIndex].persistentCeRamSize));
+
+                // The client can request some part of the CE ram to be persistent through consecutive submissions,
+                // and the whole CE ram used must be at least as big as that.
+                PAL_ASSERT(m_pDevice->CeRamDwordsUsed(EngineTypeUniversal) >=
+                           m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset +
+                           m_pQueueInfos[qIndex].createInfo.persistentCeRamSize);
             }
-            break;
-        case QueueTypeDma:
+
+            m_pQueueInfos[qIndex].pQueueContext = nullptr;
+        } // end of for loop
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_batchedCmdsLock.Init();
+    }
+
+    if (result == Result::Success)
+    {
+        GfxDevice*  pGfxDevice = m_pDevice->GetGfxDevice();
+        void* pNextQueueContextPlacementAddr = pContextPlacementAddr;
+        // NOTE: OSSIP hardware is used for DMA Queues, GFXIP hardware is used for Compute & Universal Queues, and
+        // no hardware block is used for Timer Queues since those are software-only.
+        for (uint32 qIndex = 0; ((qIndex < m_queueCount) && (result == Result::Success)); qIndex++)
+        {
+            switch (m_pQueueInfos[qIndex].createInfo.queueType)
+            {
+            case QueueTypeCompute:
+            case QueueTypeUniversal:
+                if (pGfxDevice != nullptr)
+                {
+                    result = pGfxDevice->CreateQueueContext(
+                                m_pQueueInfos[qIndex].createInfo,
+                                m_pQueueInfos[qIndex].pEngine,
+                                pNextQueueContextPlacementAddr,
+                                &m_pQueueInfos[qIndex].pQueueContext);
+                }
+                else
+                {
+                    result = Result::ErrorIncompatibleDevice;
+                }
+                break;
+            case QueueTypeDma:
             {
                 if (m_pDevice->EngineProperties().perEngine[EngineTypeDma].numAvailable > 0)
                 {
@@ -429,12 +462,18 @@ Result Queue::Init(
 
                     if (pOssDevice != nullptr)
                     {
-                        result = pOssDevice->CreateQueueContext(this, pContextPlacementAddr, &m_pQueueContext);
+                        result = pOssDevice->CreateQueueContext(
+                                    m_pQueueInfos[qIndex].createInfo.queueType,
+                                    pNextQueueContextPlacementAddr,
+                                    &m_pQueueInfos[qIndex].pQueueContext);
                     }
                     else if ((pGfxDevice != nullptr) && IsGfx10(*m_pDevice))
                     {
-                        result = pGfxDevice->CreateQueueContext(this, m_pEngine,
-                                                                pContextPlacementAddr, &m_pQueueContext);
+                        result = pGfxDevice->CreateQueueContext(
+                                    m_pQueueInfos[qIndex].createInfo,
+                                    m_pQueueInfos[qIndex].pEngine,
+                                    pNextQueueContextPlacementAddr,
+                                    &m_pQueueInfos[qIndex].pQueueContext);
                     }
                     else
                     {
@@ -447,25 +486,33 @@ Result Queue::Init(
                 }
             }
             break;
-        case QueueTypeTimer:
-            m_pQueueContext = PAL_PLACEMENT_NEW(pContextPlacementAddr) QueueContext(m_pDevice);
-            break;
+            case QueueTypeTimer:
+                // For gang submit, we expect the queue type of any subQueue can be universalQueue,
+                // ComputeQueue or SDMAQueue. In case the queue type is not any of the three, it indicates
+                // that gang submit is disabled.
+                m_pQueueInfos[qIndex].pQueueContext =
+                    PAL_PLACEMENT_NEW(pNextQueueContextPlacementAddr) QueueContext(m_pDevice);
+                break;
+            default:
+                // We shouldn't get here. It means someone tried to create a queue type we don't support.
+                PAL_ASSERT_ALWAYS();
+                result = Result::ErrorUnknown;
+                break;
+            } // end of switch
 
-        default:
-            // We shouldn't get here. It means someone tried to create a queue type we don't support.
-            PAL_ASSERT_ALWAYS();
-            result = Result::ErrorUnknown;
-            break;
-        }
+            pNextQueueContextPlacementAddr = VoidPtrInc(
+                                             pNextQueueContextPlacementAddr,
+                                             m_pDevice->QueueContextSize(m_pQueueInfos[qIndex].createInfo));
+        } // end of for loop
     }
 
     // Skip the dummy command buffer on timer engines because there is no timer engine command buffer.
-    if ((result == Result::Success) && (m_engineType != EngineTypeTimer))
+    if ((result == Result::Success) && (GetEngineType() != EngineTypeTimer))
     {
         CmdBufferCreateInfo createInfo = {};
-        createInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator(m_engineType);
-        createInfo.queueType     = m_type;
-        createInfo.engineType    = m_engineType;
+        createInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator(GetEngineType());
+        createInfo.queueType     = Type();
+        createInfo.engineType    = GetEngineType();
 
         CmdBufferInternalCreateInfo internalInfo = {};
         internalInfo.flags.isInternal = 1;
@@ -506,102 +553,145 @@ Result Queue::Init(
 // =====================================================================================================================
 // Submits a set of command buffers for execution on this Queue.
 Result Queue::SubmitInternal(
-    const SubmitInfo& submitInfo,
-    bool              postBatching)
+    const MultiSubmitInfo& submitInfo,
+    bool                   postBatching)
 {
     Result result = Result::Success;
 
-    InternalSubmitInfo internalSubmitInfo = {};
-
-    for (uint32 idx = 0; (idx < submitInfo.cmdBufferCount) && (result == Result::Success); ++idx)
+    if (submitInfo.pPerSubQueueInfo == nullptr)
     {
-        // Pre-process the command buffers before submission.
-        // Command buffers that require building the commands at submission time should build them here.
-        auto*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idx]);
-        result = pCmdBuffer->PreSubmit();
+        PAL_ASSERT(submitInfo.perSubQueueInfoCount == 0);
+        result = Result::ErrorInvalidPointer;
     }
 
     if (result == Result::Success)
     {
-        result = ValidateSubmit(submitInfo);
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_pQueueContext->PreProcessSubmit(&internalSubmitInfo, submitInfo);
-    }
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    if (result == Result::Success)
-    {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
-        if (IsCmdDumpEnabled())
+        PAL_ASSERT(submitInfo.perSubQueueInfoCount <= m_queueCount);
+        AutoBuffer<InternalSubmitInfo, 8, Platform> internalSubmitInfos(
+            submitInfo.perSubQueueInfoCount, m_pDevice->GetPlatform());
+        for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success); qIndex++)
         {
-            Util::File logFile;
-            // Open file for write depending on the settings
-            const Result openResult = OpenCommandDumpFile(submitInfo, internalSubmitInfo, &logFile);
-
-            if (openResult == Result::Success) // file opened correctly
+            for (uint32 idx = 0; idx < submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount; ++idx)
             {
-                SubmitInfo submitInfoCopy = submitInfo;
-
-                CmdDumpToFilePayload payload = {};
-                payload.pLogFile  = &logFile;
-                payload.pSettings = &m_pDevice->Settings();
-
-                submitInfoCopy.pfnCmdDumpCb = WriteCmdDumpToFile;
-                submitInfoCopy.pUserData    = &payload;
-
-                DumpCmdBuffers(submitInfoCopy, internalSubmitInfo);
+                // Pre-process the command buffers before submission.
+                // Command buffers that require building the commands at submission time should build them here.
+                auto*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers[idx]);
+                result = pCmdBuffer->PreSubmit();
             }
         }
+
+        if (result == Result::Success)
+        {
+            result = ValidateSubmit(submitInfo);
+        }
+
+        if (result == Result::Success)
+        {
+            if (submitInfo.perSubQueueInfoCount > 0)
+            {
+                for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success); qIndex++)
+                {
+                    uint32 cmdBufferCount = submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount;
+                    QueueContext* pQueueContext = m_pQueueInfos[qIndex].pQueueContext;
+                    InternalSubmitInfo curInternalSubmitInfo = {};
+
+                    result = pQueueContext->PreProcessSubmit(&curInternalSubmitInfo, cmdBufferCount);
+                    internalSubmitInfos[qIndex] = curInternalSubmitInfo;
+                }
+            }
+            else
+            {
+                result = m_pQueueInfos[0].pQueueContext->PreProcessSubmit(&internalSubmitInfos[0], 0);
+            }
+        }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+        if (result == Result::Success)
+        {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+            if (IsCmdDumpEnabled())
+            {
+                Util::File logFile;
+                // Open file for write depending on the settings
+                const Result openResult = OpenCommandDumpFile(submitInfo, internalSubmitInfos[0], &logFile);
+
+                if (openResult == Result::Success) // file opened correctly
+                {
+                    MultiSubmitInfo submitInfoCopy = submitInfo;
+
+                    CmdDumpToFilePayload payload = {};
+                    payload.pLogFile = &logFile;
+                    payload.pSettings = &m_pDevice->Settings();
+
+                    submitInfoCopy.pfnCmdDumpCb = WriteCmdDumpToFile;
+                    submitInfoCopy.pUserData = &payload;
+
+                    DumpCmdBuffers(submitInfoCopy, internalSubmitInfos[0]);
+                }
+            }
 #else // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 555
-        // Dump command buffer
-        DumpCmdToFile(submitInfo, internalSubmitInfo);
+            // Dump command buffer
+            DumpCmdToFile(submitInfo, internalSubmitInfos[0]);
 #endif
-    }
+        }
 #endif // PAL_ENABLE_PRINTS_ASSERTS
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
-    if ((submitInfo.pfnCmdDumpCb != nullptr) && (result == Result::Success))
-    {
-        DumpCmdBuffers(submitInfo, internalSubmitInfo);
-    }
+        if ((submitInfo.pfnCmdDumpCb != nullptr) && (result == Result::Success))
+        {
+            DumpCmdBuffers(submitInfo, internalSubmitInfos[0]);
+        }
 #endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
 
-    if (result == Result::Success)
-    {
-        if (m_ifhMode == IfhModeDisabled)
+        if (result == Result::Success)
         {
-            for (uint32 idx = 0; idx < submitInfo.cmdBufferCount; ++idx)
+            if (m_ifhMode == IfhModeDisabled)
             {
-                // Each command buffer being submitted needs to be notified about it, so the command stream(s) can
-                // manage their GPU-completion tracking.
-                auto*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idx]);
-                pCmdBuffer->IncrementSubmitCount();
+                for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount); qIndex++)
+                {
+                    for (uint32 idx = 0; idx < submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount; ++idx)
+                    {
+                        // Each command buffer being submitted needs to be notified about it, so
+                        // the command stream(s) can manage their GPU-completion tracking.
+                        auto*const pCmdBuffer = static_cast<CmdBuffer*>(
+                            submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers[idx]);
+                        pCmdBuffer->IncrementSubmitCount();
+                    }
+                }
+            }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+            for (uint32 idx = 0; idx < submitInfo.fenceCount; idx++)
+            {
+                PAL_ASSERT(submitInfo.ppFences[idx] != nullptr);
+                static_cast<Fence*>(submitInfo.ppFences[idx])->AssociateWithContext(m_pSubmissionContext);
+            }
+#else
+            if (submitInfo.pFence != nullptr)
+            {
+                static_cast<Fence*>(submitInfo.pFence)->AssociateWithContext(m_pSubmissionContext);
+            }
+#endif
+
+            // Either execute the submission immediately, or enqueue it for later, depending on whether or not we are
+            // stalled and/or the caller is a function after the batching logic and thus must execute immediately.
+            if (postBatching || (m_stalled == false))
+            {
+                result = OsSubmit(submitInfo, &internalSubmitInfos[0]);
+            }
+            else
+            {
+                result = EnqueueSubmit(submitInfo, &internalSubmitInfos[0]);
             }
         }
 
-        if (submitInfo.pFence != nullptr)
+        if (result == Result::Success)
         {
-            static_cast<Fence*>(submitInfo.pFence)->AssociateWithContext(m_pSubmissionContext);
+            for (uint32 qIndex = 0; qIndex < submitInfo.perSubQueueInfoCount; qIndex++)
+            {
+                m_pQueueInfos[qIndex].pQueueContext->PostProcessSubmit();
+            }
         }
-
-        // Either execute the submission immediately, or enqueue it for later, depending on whether or not we are
-        // stalled and/or the caller is a function after the batching logic and thus must execute immediately.
-        if (postBatching || (m_stalled == false))
-        {
-            result = OsSubmit(submitInfo, internalSubmitInfo);
-        }
-        else
-        {
-            result = EnqueueSubmit(submitInfo, internalSubmitInfo);
-        }
-    }
-
-    if (result == Result::Success)
-    {
-        m_pQueueContext->PostProcessSubmit();
     }
 
     return result;
@@ -611,61 +701,65 @@ Result Queue::SubmitInternal(
 // =====================================================================================================================
 // Calls DumpCmdStream on the preamble, postamble, and all the command streams in the submitInfo.
 void Queue::DumpCmdBuffers(
-    const SubmitInfo&           submitInfo,
+    const MultiSubmitInfo&      submitInfo,
     const InternalSubmitInfo&   internalSubmitInfo
     ) const
 {
-    for (uint32 idx = 0; idx < internalSubmitInfo.numPreambleCmdStreams; ++idx)
+    if (submitInfo.perSubQueueInfoCount > 0)
     {
-        const CmdStream* const pCmdStream = internalSubmitInfo.pPreambleCmdStream[idx];
-        PAL_ASSERT(pCmdStream != nullptr);
-
-        CmdBufferDumpDesc cmdBufferDesc = {};
-
-        cmdBufferDesc.engineType       = GetEngineType();
-        cmdBufferDesc.queueType        = m_type;
-        cmdBufferDesc.subEngineType    = pCmdStream->GetSubEngineType();
-        cmdBufferDesc.flags.isPreamble = 1;
-        cmdBufferDesc.cmdBufferIdx     = UINT32_MAX;
-
-        DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
-    }
-
-    for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.cmdBufferCount; ++idxCmdBuf)
-    {
-        const CmdBuffer* const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idxCmdBuf]);
-        PAL_ASSERT(pCmdBuffer != nullptr);
-
-        for (uint32 idx = 0; idx < pCmdBuffer->NumCmdStreams(); ++idx)
+        for (uint32 idx = 0; idx < internalSubmitInfo.numPreambleCmdStreams; ++idx)
         {
-            const CmdStream* const pCmdStream = pCmdBuffer->GetCmdStream(idx);
+            const CmdStream* const pCmdStream = internalSubmitInfo.pPreambleCmdStream[idx];
             PAL_ASSERT(pCmdStream != nullptr);
 
             CmdBufferDumpDesc cmdBufferDesc = {};
 
-            cmdBufferDesc.engineType      = GetEngineType();
-            cmdBufferDesc.queueType       = m_type;
-            cmdBufferDesc.subEngineType   = pCmdStream->GetSubEngineType();
-            cmdBufferDesc.cmdBufferIdx    = idxCmdBuf;
+            cmdBufferDesc.engineType = GetEngineType();
+            cmdBufferDesc.queueType = Type();
+            cmdBufferDesc.subEngineType = pCmdStream->GetSubEngineType();
+            cmdBufferDesc.flags.isPreamble = 1;
+            cmdBufferDesc.cmdBufferIdx = UINT32_MAX;
 
             DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
         }
-    }
 
-    for (uint32 idx = 0; idx < internalSubmitInfo.numPostambleCmdStreams; ++idx)
-    {
-        const CmdStream* const pCmdStream = internalSubmitInfo.pPostambleCmdStream[idx];
-        PAL_ASSERT(pCmdStream != nullptr);
+        for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.pPerSubQueueInfo[0].cmdBufferCount; ++idxCmdBuf)
+        {
+            const CmdBuffer* const pCmdBuffer = static_cast<CmdBuffer*>(
+                submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[idxCmdBuf]);
+            PAL_ASSERT(pCmdBuffer != nullptr);
 
-        CmdBufferDumpDesc cmdBufferDesc = {};
+            for (uint32 idx = 0; idx < pCmdBuffer->NumCmdStreams(); ++idx)
+            {
+                const CmdStream* const pCmdStream = pCmdBuffer->GetCmdStream(idx);
+                PAL_ASSERT(pCmdStream != nullptr);
 
-        cmdBufferDesc.engineType        = GetEngineType();
-        cmdBufferDesc.queueType         = m_type;
-        cmdBufferDesc.subEngineType     = pCmdStream->GetSubEngineType();
-        cmdBufferDesc.flags.isPostamble = 1;
-        cmdBufferDesc.cmdBufferIdx   = UINT32_MAX;
+                CmdBufferDumpDesc cmdBufferDesc = {};
 
-        DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
+                cmdBufferDesc.engineType = GetEngineType();
+                cmdBufferDesc.queueType = Type();
+                cmdBufferDesc.subEngineType = pCmdStream->GetSubEngineType();
+                cmdBufferDesc.cmdBufferIdx = idxCmdBuf;
+
+                DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
+            }
+        }
+
+        for (uint32 idx = 0; idx < internalSubmitInfo.numPostambleCmdStreams; ++idx)
+        {
+            const CmdStream* const pCmdStream = internalSubmitInfo.pPostambleCmdStream[idx];
+            PAL_ASSERT(pCmdStream != nullptr);
+
+            CmdBufferDumpDesc cmdBufferDesc = {};
+
+            cmdBufferDesc.engineType = GetEngineType();
+            cmdBufferDesc.queueType = Type();
+            cmdBufferDesc.subEngineType = pCmdStream->GetSubEngineType();
+            cmdBufferDesc.flags.isPostamble = 1;
+            cmdBufferDesc.cmdBufferIdx = UINT32_MAX;
+
+            DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
+        }
     }
 }
 
@@ -718,119 +812,127 @@ bool Queue::IsCmdDumpEnabled() const
 // =====================================================================================================================
 // Opens the command buffer dump file and writes out the header according to settings.
 Result Queue::OpenCommandDumpFile(
-    const SubmitInfo&           submitInfo,
+    const MultiSubmitInfo&      submitInfo,
     const InternalSubmitInfo&   internalSubmitInfo,
     Util::File*                 pLogFile)
 {
-    // To dump the command buffer upon submission for the specified frames
-    const auto& settings              = m_pDevice->Settings();
-    const CmdBufDumpFormat dumpFormat = settings.cmdBufDumpFormat;
-
-    static const char* const pSuffix[] =
+    if (submitInfo.perSubQueueInfoCount > 0)
     {
-        ".txt",     // CmdBufDumpFormat::CmdBufDumpFormatText
-        ".bin",     // CmdBufDumpFormat::CmdBufDumpFormatBinary
-        ".pm4"      // CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders
-    };
+        // To dump the command buffer upon submission for the specified frames
+        const auto& settings = m_pDevice->Settings();
+        const CmdBufDumpFormat dumpFormat = settings.cmdBufDumpFormat;
 
-    const uint32 frameCnt = m_pDevice->GetFrameCount();
-    const char* pLogDir   = &settings.cmdBufDumpDirectory[0];
-
-    // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
-    MkDir(pLogDir);
-
-    // Maximum length of a filename allowed for command buffer dumps, seems more reasonable than 32
-    constexpr uint32 MaxFilenameLength = 512;
-    char filename[MaxFilenameLength]   = {};
-
-    // Multiple submissions of one frame
-    if (m_lastFrameCnt == frameCnt)
-    {
-        m_submitIdPerFrame++;
-    }
-    else
-    {
-        // First submission of one frame
-        m_submitIdPerFrame = 0;
-    }
-
-    // Add queue type and this pointer to file name to make name unique since there could be multiple queues/engines
-    // and/or multiple vitual queues (on the same engine on) which command buffers are submitted
-    Snprintf(filename, MaxFilenameLength, "%s/Frame_%u_%p_%u_%04u%s",
-        pLogDir,
-        m_type,
-        this,
-        frameCnt,
-        m_submitIdPerFrame,
-        pSuffix[dumpFormat]);
-
-    m_lastFrameCnt = frameCnt;
-
-    if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText)
-    {
-        PAL_ALERT_MSG(pLogFile->Open(&filename[0], FileAccessMode::FileAccessWrite) != Result::Success,
-            "Failed to open CmdBuf dump file '%s'", filename);
-    }
-    else if ((dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
-        (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
-    {
-        const uint32 fileMode = FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary;
-        PAL_ALERT_MSG(pLogFile->Open(&filename[0], fileMode) != Result::Success,
-            "Failed to open CmdBuf dump file '%s'", filename);
-
-        if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders)
+        static const char* const pSuffix[] =
         {
-            const CmdBufferDumpFileHeader fileHeader =
-            {
-                static_cast<uint32>(sizeof(CmdBufferDumpFileHeader)), // Structure size
-                1,                                                    // Header version
-                m_pDevice->ChipProperties().familyId,                 // ASIC family
-                m_pDevice->ChipProperties().eRevId,                   // ASIC revision
-                0                                                     // Reserved
-            };
-            pLogFile->Write(&fileHeader, sizeof(fileHeader));
-        }
-
-        CmdBufferListHeader listHeader =
-        {
-            static_cast<uint32>(sizeof(CmdBufferListHeader)),   // Structure size
-            EngineId(),                                         // Engine index
-            0                                                   // Number of command buffer chunks
+            ".txt",     // CmdBufDumpFormat::CmdBufDumpFormatText
+            ".bin",     // CmdBufDumpFormat::CmdBufDumpFormatBinary
+            ".pm4"      // CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders
         };
 
-        for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.cmdBufferCount; ++idxCmdBuf)
-        {
-            PAL_ASSERT(submitInfo.ppCmdBuffers[idxCmdBuf] != nullptr);
-            const CmdBuffer* const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idxCmdBuf]);
+        const uint32 frameCnt = m_pDevice->GetFrameCount();
+        const char* pLogDir = &settings.cmdBufDumpDirectory[0];
 
-            for (uint32 idxStream = 0; idxStream < pCmdBuffer->NumCmdStreams(); ++idxStream)
+        // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
+        MkDir(pLogDir);
+
+        // Maximum length of a filename allowed for command buffer dumps, seems more reasonable than 32
+        constexpr uint32 MaxFilenameLength = 512;
+        char filename[MaxFilenameLength] = {};
+
+        // Multiple submissions of one frame
+        if (m_lastFrameCnt == frameCnt)
+        {
+            m_submitIdPerFrame++;
+        }
+        else
+        {
+            // First submission of one frame
+            m_submitIdPerFrame = 0;
+        }
+
+        // Add queue type and this pointer to file name to make name unique since there could be multiple queues/engines
+        // and/or multiple vitual queues (on the same engine on) which command buffers are submitted
+        Snprintf(filename, MaxFilenameLength, "%s/Frame_%u_%p_%u_%04u%s",
+            pLogDir,
+            Type(),
+            this,
+            frameCnt,
+            m_submitIdPerFrame,
+            pSuffix[dumpFormat]);
+
+        m_lastFrameCnt = frameCnt;
+
+        if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText)
+        {
+            PAL_ALERT_MSG(pLogFile->Open(&filename[0], FileAccessMode::FileAccessWrite) != Result::Success,
+                "Failed to open CmdBuf dump file '%s'", filename);
+        }
+        else if ((dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
+            (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
+        {
+            const uint32 fileMode = FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary;
+            PAL_ALERT_MSG(pLogFile->Open(&filename[0], fileMode) != Result::Success,
+                "Failed to open CmdBuf dump file '%s'", filename);
+
+            if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders)
             {
-                listHeader.count += pCmdBuffer->GetCmdStream(idxStream)->GetNumChunks();
+                const CmdBufferDumpFileHeader fileHeader =
+                {
+                    static_cast<uint32>(sizeof(CmdBufferDumpFileHeader)), // Structure size
+                    1,                                                    // Header version
+                    m_pDevice->ChipProperties().familyId,                 // ASIC family
+                    m_pDevice->ChipProperties().eRevId,                   // ASIC revision
+                    0                                                     // Reserved
+                };
+                pLogFile->Write(&fileHeader, sizeof(fileHeader));
             }
-        }
 
-        for (uint32 idx = 0; idx < internalSubmitInfo.numPreambleCmdStreams; ++idx)
+            CmdBufferListHeader listHeader =
+            {
+                static_cast<uint32>(sizeof(CmdBufferListHeader)),   // Structure size
+                EngineId(),                                         // Engine index
+                0                                                   // Number of command buffer chunks
+            };
+
+            for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.pPerSubQueueInfo[0].cmdBufferCount; ++idxCmdBuf)
+            {
+                PAL_ASSERT(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[idxCmdBuf] != nullptr);
+                const CmdBuffer* const pCmdBuffer = static_cast<CmdBuffer*>(
+                    submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[idxCmdBuf]);
+
+                for (uint32 idxStream = 0; idxStream < pCmdBuffer->NumCmdStreams(); ++idxStream)
+                {
+                    listHeader.count += pCmdBuffer->GetCmdStream(idxStream)->GetNumChunks();
+                }
+            }
+
+            for (uint32 idx = 0; idx < internalSubmitInfo.numPreambleCmdStreams; ++idx)
+            {
+                PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
+                listHeader.count += internalSubmitInfo.pPreambleCmdStream[idx]->GetNumChunks();
+            }
+
+            for (uint32 idx = 0; idx < internalSubmitInfo.numPostambleCmdStreams; ++idx)
+            {
+                PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
+                listHeader.count += internalSubmitInfo.pPostambleCmdStream[idx]->GetNumChunks();
+            }
+
+            pLogFile->Write(&listHeader, sizeof(listHeader));
+        }
+        else
         {
-            PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
-            listHeader.count += internalSubmitInfo.pPreambleCmdStream[idx]->GetNumChunks();
+            // If we get here, dumping is enabled, but it's not one of the modes listed above.
+            // Perhaps someone added a new mode?
+            PAL_ASSERT_ALWAYS();
         }
 
-        for (uint32 idx = 0; idx < internalSubmitInfo.numPostambleCmdStreams; ++idx)
-        {
-            PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
-            listHeader.count += internalSubmitInfo.pPostambleCmdStream[idx]->GetNumChunks();
-        }
-
-        pLogFile->Write(&listHeader, sizeof(listHeader));
+        return (pLogFile->IsOpen()) ? Result::Success : Result::ErrorInitializationFailed;
     }
     else
     {
-        // If we get here, dumping is enabled, but it's not one of the modes listed above.
-        // Perhaps someone added a new mode?
-        PAL_ASSERT_ALWAYS();
+        return Result::ErrorInitializationFailed;
     }
-
-    return (pLogFile->IsOpen()) ? Result::Success : Result::ErrorInitializationFailed;
 }
 
 #endif // PAL_ENABLE_PRINTS_ASSERTS
@@ -840,7 +942,7 @@ Result Queue::OpenCommandDumpFile(
 // =====================================================================================================================
 // Dumps a set of command buffers submitted on this Queue.
 void Queue::DumpCmdToFile(
-    const SubmitInfo&         submitInfo,
+    const MultiSubmitInfo&    submitInfo,
     const InternalSubmitInfo& internalSubmitInfo)
 {
     // To dump the command buffer upon submission for the specified frames
@@ -860,6 +962,7 @@ void Queue::DumpCmdToFile(
                                      (frameCnt <= settings.submitTimeCmdBufDumpEndFrame)));
 
     if ((settings.cmdBufDumpMode == CmdBufDumpModeSubmitTime) &&
+        (submitInfo.perSubQueueInfoCount > 0)                 &&
         (cmdBufDumpEnabled))
     {
         const char* pLogDir = &settings.cmdBufDumpDirectory[0];
@@ -887,7 +990,7 @@ void Queue::DumpCmdToFile(
         // and/or multiple vitual queues (on the same engine on) which command buffers are submitted
         Snprintf(filename, MaxFilenameLength, "%s/Frame_%u_%p_%u_%04u%s",
                  pLogDir,
-                 m_type,
+                 Type(),
                  this,
                  frameCnt,
                  m_submitIdPerFrame,
@@ -927,9 +1030,11 @@ void Queue::DumpCmdToFile(
                 0                                                   // Number of command buffer chunks
             };
 
-            for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.cmdBufferCount; ++idxCmdBuf)
+            // As a prototype, we don't dump cmdbuffers of other subQueus besides the master queue.
+            for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.pPerSubQueueInfo[0].cmdBufferCount; ++idxCmdBuf)
             {
-                const auto*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idxCmdBuf]);
+                const auto*const pCmdBuffer =
+                    static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[idxCmdBuf]);
 
                 for (uint32 idxStream = 0; idxStream < pCmdBuffer->NumCmdStreams(); ++idxStream)
                 {
@@ -972,23 +1077,27 @@ void Queue::DumpCmdToFile(
         for (uint32 idx = 0; idx < internalSubmitInfo.numPreambleCmdStreams; ++idx)
         {
             PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
-            internalSubmitInfo.pPreambleCmdStream[idx]->DumpCommands(&logFile,
-                                                                     QueueTypeStrings[m_type],
-                                                                     dumpFormat);
+            internalSubmitInfo.pPreambleCmdStream[idx]->DumpCommands(
+                               &logFile,
+                               QueueTypeStrings[Type()],
+                               dumpFormat);
         }
 
-        for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.cmdBufferCount; ++idxCmdBuf)
+        // As a prototype, we don't dump cmdbuffers of other subQueus besides the master queue.
+        for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.pPerSubQueueInfo[0].cmdBufferCount; ++idxCmdBuf)
         {
-            const auto*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idxCmdBuf]);
+            const auto*const pCmdBuffer =
+                static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[idxCmdBuf]);
             pCmdBuffer->DumpCmdStreamsToFile(&logFile, dumpFormat);
         }
 
         for (uint32 idx = 0; idx < internalSubmitInfo.numPostambleCmdStreams; ++idx)
         {
             PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
-            internalSubmitInfo.pPostambleCmdStream[idx]->DumpCommands(&logFile,
-                                                                      QueueTypeStrings[m_type],
-                                                                      dumpFormat);
+            internalSubmitInfo.pPostambleCmdStream[idx]->DumpCommands(
+                                                         &logFile,
+                                                         QueueTypeStrings[Type()],
+                                                         dumpFormat);
         }
     }
 }
@@ -1024,10 +1133,11 @@ Result Queue::CreateTrackedCmdBuffer(
         if (result == Result::Success)
         {
             CmdBufferCreateInfo createInfo = {};
-            createInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator(m_engineType);
-            createInfo.queueType     = m_type;
-            createInfo.engineType    = m_engineType;
-            createInfo.engineSubType = m_pDevice->EngineProperties().perEngine[m_engineType].engineSubType[m_engineId];
+            createInfo.pCmdAllocator = m_pDevice->InternalCmdAllocator(GetEngineType());
+            createInfo.queueType     = Type();
+            createInfo.engineType    = GetEngineType();
+            createInfo.engineSubType =
+                m_pDevice->EngineProperties().perEngine[GetEngineType()].engineSubType[EngineId()];
 
             CmdBufferInternalCreateInfo internalInfo = {};
             internalInfo.flags.isInternal            = 1;
@@ -1083,11 +1193,19 @@ Result Queue::SubmitTrackedCmdBuffer(
 
     if (result == Result::Success)
     {
-        SubmitInfo submitInfo     = {};
-        submitInfo.cmdBufferCount = 1;
-        submitInfo.ppCmdBuffers   = reinterpret_cast<ICmdBuffer**>(&pTrackedCmdBuffer->pCmdBuffer);
-        submitInfo.pFence         = pTrackedCmdBuffer->pFence;
+        PerSubQueueSubmitInfo perSubQueueInfo = {};
+        perSubQueueInfo.cmdBufferCount        = 1;
+        perSubQueueInfo.ppCmdBuffers          = reinterpret_cast<ICmdBuffer**>(&pTrackedCmdBuffer->pCmdBuffer);
 
+        MultiSubmitInfo submitInfo      = {};
+        submitInfo.perSubQueueInfoCount = 1;
+        submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        submitInfo.ppFences             = &pTrackedCmdBuffer->pFence;
+        submitInfo.fenceCount           = 1;
+#else
+        submitInfo.pFence               = pTrackedCmdBuffer->pFence;
+#endif
         if ((m_pDevice->GetPlatform()->GetProperties().supportBlockIfFlipping == 1) &&
             (pWrittenPrimary != nullptr) && (pWrittenPrimary->IsFlippable()))
         {
@@ -1367,7 +1485,7 @@ Result Queue::Delay(
 {
     Result result = Result::ErrorUnavailable;
 
-    if (m_type == QueueTypeTimer)
+    if (Type() == QueueTypeTimer)
     {
         // Either execute the delay immediately, or enqueue it for later, depending on whether or not we are stalled.
         if (m_stalled == false)
@@ -1407,7 +1525,7 @@ Result Queue::DelayAfterVsync(
 {
     Result result = Result::ErrorUnavailable;
 
-    if (m_type == QueueTypeTimer)
+    if (Type() == QueueTypeTimer)
     {
         // Either execute the delay immediately, or enqueue it for later, depending on whether or not we are stalled.
         if (m_stalled == false)
@@ -1490,39 +1608,55 @@ Result Queue::LateInit()
 {
     Result result = Result::Success;
 
-    if (result == Result::Success)
-    {
-        result = m_pDevice->AddQueue(this);
-    }
+    result = m_pDevice->AddQueue(this);
 
-    if ((result == Result::Success) && (m_pEngine != nullptr))
+    // It's possible that we add this queue to the same engine instance more than once.
+    for (uint32 i = 0; ((i < m_queueCount) && (result == Result::Success)); i++)
     {
-        m_pEngine->AddQueue(&m_engineMembershipNode);
+        if (m_pQueueInfos[i].pEngine != nullptr)
+        {
+            result = m_pQueueInfos[i].pEngine->AddQueue(this);
+        }
     }
 
     // Dummy submission must be called after m_pDevice->AddQueue to add internal memory reference.
     // We won't have a dummy command buffer available if we're on a timer queue so we need to check first.
-    if (m_pDummyCmdBuffer != nullptr)
+    if ((result == Result::Success) && (m_pDummyCmdBuffer != nullptr))
     {
         // If ProcessInitialSubmit returns Success, we need to perform a dummy submit with special preambles
         // to initialize the queue. Otherwise, it's not required for this queue.
-        InternalSubmitInfo internalSubmitInfo = {};
-        if (m_pQueueContext->ProcessInitialSubmit(&internalSubmitInfo) == Result::Success)
-        {
-            ICmdBuffer*const pCmdBuffer = m_pDummyCmdBuffer;
-            SubmitInfo submitInfo       = {};
-            submitInfo.cmdBufferCount   = 1;
-            submitInfo.ppCmdBuffers     = &pCmdBuffer;
+        uint32 initialSubmitCount = 0;
+        Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
+        AutoBuffer<InternalSubmitInfo, 8, Platform> internalSubmitInfos(m_queueCount, pPlatform);
+        AutoBuffer<PerSubQueueSubmitInfo, 8, Platform> subQueueInfos(m_queueCount, pPlatform);
 
+        for (uint32 qIndex = 0; qIndex < m_queueCount; qIndex++)
+        {
+            InternalSubmitInfo internalSubmitInfo = {};
+            PerSubQueueSubmitInfo perSubQueueInfo = {};
+            if (m_pQueueInfos[qIndex].pQueueContext->ProcessInitialSubmit(&internalSubmitInfo) == Result::Success)
+            {
+                initialSubmitCount++;
+                perSubQueueInfo.cmdBufferCount = 1;
+                // Do I need to create a independant DummyCmdBuffer for each universal subQueue?
+                perSubQueueInfo.ppCmdBuffers = reinterpret_cast<Pal::ICmdBuffer* const*>(&m_pDummyCmdBuffer);
+                PAL_ASSERT(perSubQueueInfo.pCmdBufInfoList == nullptr);
+
+            }
+            internalSubmitInfos[qIndex] = internalSubmitInfo;
+            subQueueInfos[qIndex]       = perSubQueueInfo;
+        }
+
+        if (initialSubmitCount > 0)
+        {
+            MultiSubmitInfo submitInfo      = {};
+            submitInfo.perSubQueueInfoCount = m_queueCount;
+            submitInfo.pPerSubQueueInfo     = &subQueueInfos[0];
             if (m_ifhMode == IfhModeDisabled)
             {
                 m_pDummyCmdBuffer->IncrementSubmitCount();
             }
-
-            if (result == Result::Success)
-            {
-                result = OsSubmit(submitInfo, internalSubmitInfo);
-            }
+            result = OsSubmit(submitInfo, &internalSubmitInfos[0]);
         }
     }
 
@@ -1557,7 +1691,7 @@ Result Queue::ReleaseFromStalledState()
         switch (cmdData.command)
         {
         case BatchedQueueCmd::Submit:
-            result = OsSubmit(cmdData.submit.submitInfo, cmdData.submit.internalSubmitInfo);
+            result = OsSubmit(cmdData.submit.submitInfo, cmdData.submit.pInternalSubmitInfo);
 
             // Once we've executed the submission, we need to free the submission's dynamic arrays. They are all stored
             // in the same memory allocation which was saved in pDynamicMem for convenience.
@@ -1582,7 +1716,7 @@ Result Queue::ReleaseFromStalledState()
             break;
 
         case BatchedQueueCmd::Delay:
-            PAL_ASSERT(m_type == QueueTypeTimer);
+            PAL_ASSERT(Type() == QueueTypeTimer);
             result = OsDelay(cmdData.delay.time, nullptr);
             break;
 
@@ -1603,51 +1737,71 @@ Result Queue::ReleaseFromStalledState()
 // =====================================================================================================================
 // Validates that the inputs to a Submit() call are legal according to the conditions defined in palQueue.h.
 Result Queue::ValidateSubmit(
-    const SubmitInfo& submitInfo
+    const MultiSubmitInfo& submitInfo
     ) const
 {
     Result result = Result::Success;
 
-    if (m_type == QueueTypeTimer)
+    if (Type() == QueueTypeTimer)
     {
         result = Result::ErrorUnavailable;
     }
-    else if (((submitInfo.cmdBufferCount > 0)       && (submitInfo.ppCmdBuffers      == nullptr)) ||
-             ((submitInfo.gpuMemRefCount > 0)       && (submitInfo.pGpuMemoryRefs    == nullptr)) ||
-             ((submitInfo.doppRefCount > 0)         && (submitInfo.pDoppRefs         == nullptr)) ||
-             ((submitInfo.blockIfFlippingCount > 0) && (submitInfo.ppBlockIfFlipping == nullptr)))
+    else if (((submitInfo.gpuMemRefCount > 0) && (submitInfo.pGpuMemoryRefs == nullptr)) ||
+             ((submitInfo.doppRefCount > 0)   && (submitInfo.pDoppRefs == nullptr))      ||
+             ((submitInfo.blockIfFlippingCount > 0) && (submitInfo.ppBlockIfFlipping == nullptr))
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+             ||
+             ((submitInfo.fenceCount > 0)           && (submitInfo.ppFences         == nullptr))
+#endif
+            )
     {
         result = Result::ErrorInvalidPointer;
     }
     else if ((submitInfo.blockIfFlippingCount > MaxBlockIfFlippingCount) ||
-             ((submitInfo.blockIfFlippingCount > 0) &&
-              (m_pDevice->GetPlatform()->GetProperties().supportBlockIfFlipping == 0)))
+        ((submitInfo.blockIfFlippingCount > 0) &&
+        (m_pDevice->GetPlatform()->GetProperties().supportBlockIfFlipping == 0)))
     {
         result = Result::ErrorInvalidValue;
     }
+    else if ((submitInfo.perSubQueueInfoCount > 0) && (submitInfo.pPerSubQueueInfo == nullptr))
+    {
+        result = Result::ErrorInvalidPointer;
+    }
     else
     {
-        for (uint32 idx = 0; idx < submitInfo.cmdBufferCount; ++idx)
+        for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success); qIndex++)
         {
-            const auto*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idx]);
-
-            if (pCmdBuffer == nullptr)
+            PAL_ASSERT(submitInfo.perSubQueueInfoCount <= m_queueCount);
+            if ((submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount > 0) &&
+                (submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers == nullptr))
             {
                 result = Result::ErrorInvalidPointer;
-                break;
             }
-            else if (pCmdBuffer->RecordState() != CmdBufferRecordState::Executable)
+            else
             {
-                result = Result::ErrorIncompleteCommandBuffer;
-                break;
-            }
-            else if (pCmdBuffer->GetQueueType() != m_type)
-            {
-                result = Result::ErrorIncompatibleQueue;
-                break;
-            }
+                for (uint32 idx = 0; idx < submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount; ++idx)
+                {
+                    const auto*const pCmdBuffer =
+                        static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers[idx]);
+                    if (pCmdBuffer == nullptr)
+                    {
+                        result = Result::ErrorInvalidPointer;
+                        break;
+                    }
+                    else if (pCmdBuffer->RecordState() != CmdBufferRecordState::Executable)
+                    {
+                        result = Result::ErrorIncompleteCommandBuffer;
+                        break;
+                    }
+                    else if (pCmdBuffer->GetQueueType() != Type())
+                    {
+                        result = Result::ErrorIncompatibleQueue;
+                        break;
+                    }
 
-            PAL_ASSERT(pCmdBuffer->IsNested() == false);
+                    PAL_ASSERT(pCmdBuffer->IsNested() == false);
+                }
+            }
         }
     }
 
@@ -1687,14 +1841,28 @@ Result Queue::ValidateSubmit(
         }
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+    if (result == Result::Success)
+    {
+        for (uint32 idx = 0; idx < submitInfo.fenceCount; ++idx)
+        {
+            if (submitInfo.ppFences[idx] == nullptr)
+            {
+                result = Result::ErrorInvalidPointer;
+                break;
+            }
+        }
+    }
+#endif
+
     return result;
 }
 
 // =====================================================================================================================
 // Enqueues a command buffer submission for later execution, once this Queue is no longer blocked by any Semaphores.
 Result Queue::EnqueueSubmit(
-    const SubmitInfo&         submitInfo,
-    const InternalSubmitInfo& internalSubmitInfo)
+    const MultiSubmitInfo&    submitInfo,
+    const InternalSubmitInfo* pInternalSubmitInfo)
 {
     Result result = Result::Success;
 
@@ -1705,21 +1873,56 @@ Result Queue::EnqueueSubmit(
     if (m_stalled)
     {
         BatchedQueueCmdData cmdData;
-        cmdData.command                   = BatchedQueueCmd::Submit;
-        cmdData.submit.submitInfo         = submitInfo;
-        cmdData.submit.internalSubmitInfo = internalSubmitInfo;
-        cmdData.submit.pDynamicMem        = nullptr;
+        cmdData.command                    = BatchedQueueCmd::Submit;
+        cmdData.submit.submitInfo          = submitInfo;
+        cmdData.submit.pInternalSubmitInfo = pInternalSubmitInfo;
+        cmdData.submit.pDynamicMem         = nullptr;
 
         // The submitInfo structure we are batching-up needs to have its own copies of the command buffer and memory
         // reference lists, because there's no guarantee those user arrays will remain valid once we become unstalled.
-        const bool   hasCmdBufInfo       = ((submitInfo.pCmdBufInfoList != nullptr) && (submitInfo.cmdBufferCount > 0));
-        const size_t cmdBufListBytes     = (sizeof(ICmdBuffer*)  * submitInfo.cmdBufferCount);
-        const size_t memRefListBytes     = (sizeof(GpuMemoryRef) * submitInfo.gpuMemRefCount);
-        const size_t blkIfFlipBytes      = (sizeof(IGpuMemory*)  * submitInfo.blockIfFlippingCount);
-        const size_t cmdBufInfoListBytes = hasCmdBufInfo ? (sizeof(CmdBufInfo) * submitInfo.cmdBufferCount) : 0;
-        const size_t doppRefListBytes    = (sizeof(DoppRef) * submitInfo.doppRefCount);
-        const size_t totalBytes          = cmdBufListBytes + memRefListBytes + doppRefListBytes +
-                                            blkIfFlipBytes + cmdBufInfoListBytes;
+        size_t totalCmdBufBytes     = 0;
+        size_t totalCmdBufInfoBytes = 0;
+        const size_t totalPerSubQueueInfoBytes = sizeof(PerSubQueueSubmitInfo) * submitInfo.perSubQueueInfoCount;
+        // The submitInfo structure we are batching-up needs to have its own copies of the command buffer and memory
+        // reference lists, because there's no guarantee those user arrays will remain valid once we become unstalled.
+
+        AutoBuffer<size_t, 8, Platform> cmdBufListBytes(submitInfo.perSubQueueInfoCount, m_pDevice->GetPlatform());
+        AutoBuffer<size_t, 8, Platform> cmdBufInfoListBytes(submitInfo.perSubQueueInfoCount, m_pDevice->GetPlatform());
+
+        for (uint32 qIndex = 0; qIndex < submitInfo.perSubQueueInfoCount; qIndex++)
+        {
+            cmdBufListBytes[qIndex] = (sizeof(ICmdBuffer*) * submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount);
+            totalCmdBufBytes += cmdBufListBytes[qIndex];
+
+            cmdBufInfoListBytes[qIndex] = 0;
+            if ((submitInfo.pPerSubQueueInfo[qIndex].pCmdBufInfoList != nullptr) &&
+                (submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount > 0))
+            {
+                cmdBufInfoListBytes[qIndex] =
+                    (sizeof(CmdBufInfo) * submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount);
+            }
+            totalCmdBufInfoBytes += cmdBufInfoListBytes[qIndex];
+        }
+        const size_t memRefListBytes  = (sizeof(GpuMemoryRef) * submitInfo.gpuMemRefCount);
+        const size_t blkIfFlipBytes   = (sizeof(IGpuMemory*)  * submitInfo.blockIfFlippingCount);
+        const size_t doppRefListBytes = (sizeof(DoppRef) * submitInfo.doppRefCount);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        const size_t fenceListBytes   = (sizeof(IFence*) * submitInfo.fenceCount);
+#endif
+        const size_t internalSubmitInfoListBytes = (sizeof(InternalSubmitInfo) * submitInfo.perSubQueueInfoCount);
+
+        const size_t totalBytes = (
+                            totalPerSubQueueInfoBytes +
+                            totalCmdBufBytes +
+                            memRefListBytes +
+                            doppRefListBytes +
+                            blkIfFlipBytes +
+                            totalCmdBufInfoBytes
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+                            +fenceListBytes
+#endif
+                            + internalSubmitInfoListBytes
+                            );
 
         if (totalBytes > 0)
         {
@@ -1733,13 +1936,27 @@ Result Queue::EnqueueSubmit(
             {
                 void* pNextBuffer = cmdData.submit.pDynamicMem;
 
-                if (submitInfo.cmdBufferCount > 0)
-                {
-                    auto**const ppBatchedCmdBuffers = reinterpret_cast<ICmdBuffer**>(pNextBuffer);
-                    memcpy(ppBatchedCmdBuffers, submitInfo.ppCmdBuffers, cmdBufListBytes);
+                PerSubQueueSubmitInfo* pPerSubQueueInfoList = static_cast<PerSubQueueSubmitInfo*>(pNextBuffer);
+                cmdData.submit.submitInfo.pPerSubQueueInfo = pPerSubQueueInfoList;
+                pNextBuffer = VoidPtrInc(pNextBuffer, totalPerSubQueueInfoBytes);
 
-                    cmdData.submit.submitInfo.ppCmdBuffers = ppBatchedCmdBuffers;
-                    pNextBuffer                            = VoidPtrInc(pNextBuffer, cmdBufListBytes);
+                for (uint32 qIndex = 0; qIndex < submitInfo.perSubQueueInfoCount; qIndex++)
+                {
+                    pPerSubQueueInfoList[qIndex].cmdBufferCount = submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount;
+
+                    if (pPerSubQueueInfoList[qIndex].cmdBufferCount > 0)
+                    {
+                        auto**const ppBatchedCmdBuffers = reinterpret_cast<ICmdBuffer**>(pNextBuffer);
+                        memcpy(ppBatchedCmdBuffers,
+                               submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers,
+                               cmdBufListBytes[qIndex]);
+                        pPerSubQueueInfoList[qIndex].ppCmdBuffers = ppBatchedCmdBuffers;
+                        pNextBuffer = VoidPtrInc(pNextBuffer, cmdBufListBytes[qIndex]);
+                    }
+                    else
+                    {
+                        pPerSubQueueInfoList[qIndex].ppCmdBuffers = submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers;
+                    }
                 }
 
                 if (submitInfo.gpuMemRefCount > 0)
@@ -1769,14 +1986,44 @@ Result Queue::EnqueueSubmit(
                     pNextBuffer                                 = VoidPtrInc(pNextBuffer, blkIfFlipBytes);
                 }
 
-                if (hasCmdBufInfo)
+                for (uint32 qIndex = 0; qIndex < submitInfo.perSubQueueInfoCount; qIndex++)
                 {
-                    auto*const pBatchedCmdBufInfoList = static_cast<CmdBufInfo*>(pNextBuffer);
-                    memcpy(pBatchedCmdBufInfoList, submitInfo.pCmdBufInfoList, cmdBufInfoListBytes);
-
-                    cmdData.submit.submitInfo.pCmdBufInfoList = pBatchedCmdBufInfoList;
+                    // It's possible that pCmdBufInfoList is nullptr, while cmdBufferCount is larger than 0.
+                    if ((submitInfo.pPerSubQueueInfo[qIndex].pCmdBufInfoList != nullptr) &&
+                        (pPerSubQueueInfoList[qIndex].cmdBufferCount > 0))
+                    {
+                        auto*const pBatchedCmdBufInfoList = static_cast<CmdBufInfo*>(pNextBuffer);
+                        memcpy(pBatchedCmdBufInfoList,
+                               submitInfo.pPerSubQueueInfo[qIndex].pCmdBufInfoList,
+                               cmdBufInfoListBytes[qIndex]);
+                        pPerSubQueueInfoList[qIndex].pCmdBufInfoList = pBatchedCmdBufInfoList;
+                        pNextBuffer = VoidPtrInc(pNextBuffer, cmdBufInfoListBytes[qIndex]);
+                    }
+                    else
+                    {
+                        pPerSubQueueInfoList[qIndex].pCmdBufInfoList =
+                            submitInfo.pPerSubQueueInfo[qIndex].pCmdBufInfoList;
+                    }
                 }
-            }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+                if (submitInfo.fenceCount > 0)
+                {
+                    auto**const ppBatchedFences = static_cast<IFence**>(pNextBuffer);
+                    memcpy(ppBatchedFences, submitInfo.ppFences, fenceListBytes);
+
+                    cmdData.submit.submitInfo.ppFences = ppBatchedFences;
+                    pNextBuffer = VoidPtrInc(pNextBuffer, fenceListBytes);
+                }
+#endif
+
+                PAL_ASSERT(submitInfo.perSubQueueInfoCount > 0);
+                auto*const pBatchedInternalSubmitInfos = static_cast<InternalSubmitInfo*>(pNextBuffer);
+                memcpy(pBatchedInternalSubmitInfos, pInternalSubmitInfo, internalSubmitInfoListBytes);
+                cmdData.submit.pInternalSubmitInfo = pBatchedInternalSubmitInfos;
+                pNextBuffer = VoidPtrInc(pNextBuffer, internalSubmitInfoListBytes);
+
+            } // Space of cmdData.submit.pDynamicMem is allocated successfully.
         }
 
         if (result == Result::Success)
@@ -1798,7 +2045,7 @@ Result Queue::EnqueueSubmit(
     else
     {
         // We had a false-positive and aren't really stalled. Submit immediately.
-        result = OsSubmit(submitInfo, internalSubmitInfo);
+        result = OsSubmit(submitInfo, pInternalSubmitInfo);
     }
 
     return result;
@@ -1828,9 +2075,18 @@ Result Queue::QueryAllocationInfo(
 Result Queue::SubmitFence(
     IFence* pFence)
 {
-    SubmitInfo submitInfo = {};
-    submitInfo.pFence = pFence;
+    PerSubQueueSubmitInfo perSubQueueInfo = {};
+    perSubQueueInfo.cmdBufferCount = 0;
 
+    MultiSubmitInfo submitInfo      = {};
+    submitInfo.perSubQueueInfoCount = 1;
+    submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+    submitInfo.ppFences             = &pFence;
+    submitInfo.fenceCount           = 1;
+#else
+    submitInfo.pFence               = pFence;
+#endif
     return SubmitInternal(submitInfo, false);
 }
 
@@ -1850,7 +2106,7 @@ Result Queue::SubmitPostprocessCmdBuffer(
     Result result = Result::Success;
 
     const bool shouldPostprocess =
-        (Queue::SupportsComputeShader(m_type) &&
+        (Queue::SupportsComputeShader(Type()) &&
          (
           m_pDevice->GetPlatform()->ShowDevDriverOverlay()));
 
@@ -1885,10 +2141,11 @@ bool Queue::IsPresentModeSupported(
     PresentMode presentMode
     ) const
 {
-    const uint32 supportedPresentModes = m_pDevice->QueueProperties().perQueue[m_type].supportedDirectPresentModes;
-    const uint32 presentModeFlag       = (presentMode == PresentMode::Fullscreen) ? SupportFullscreenPresent :
-                                         (m_flags.windowedPriorBlit == 1)         ? SupportWindowedPriorBlitPresent :
-                                                                                    SupportWindowedPresent;
+    const uint32 supportedPresentModes = m_pDevice->QueueProperties().perQueue[Type()].supportedDirectPresentModes;
+    const uint32 presentModeFlag       =
+        (presentMode == PresentMode::Fullscreen) ? SupportFullscreenPresent :
+        (m_pQueueInfos[0].createInfo.windowedPriorBlit == 1) ? SupportWindowedPriorBlitPresent :
+                                                               SupportWindowedPresent;
     return TestAnyFlagSet(supportedPresentModes, presentModeFlag);
 }
 
@@ -1898,9 +2155,27 @@ Result Queue::DummySubmit(
     bool  postBatching)
 {
     ICmdBuffer*const pCmdBuffer = DummyCmdBuffer();
-    SubmitInfo submitInfo       = {};
-    submitInfo.cmdBufferCount   = 1;
-    submitInfo.ppCmdBuffers     = &pCmdBuffer;
+
+    PerSubQueueSubmitInfo perSubQueueInfo = {};
+    perSubQueueInfo.cmdBufferCount = 1;
+    perSubQueueInfo.ppCmdBuffers = &pCmdBuffer;
+
+    MultiSubmitInfo submitInfo      = {};
+    submitInfo.perSubQueueInfoCount = 1;
+    submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
+
     return SubmitInternal(submitInfo, postBatching);
+}
+
+// =====================================================================================================================
+bool Queue::UsesPhysicalModeSubmission() const
+{
+    return (m_pDevice->EngineProperties().perEngine[GetEngineType()].flags.physicalAddressingMode!= 0);
+}
+
+// =====================================================================================================================
+bool Queue::IsPreemptionSupported() const
+{
+    return (m_pDevice->IsPreemptionSupported(GetEngineType()) != 0);
 }
 } // Pal

@@ -55,6 +55,12 @@ Result SettingsFileMgr<Allocator>::Init(
 {
     Result ret = Result::Success;
 
+    const char* pEnvOverridenPath = getenv("AMD_CONFIG_DIR");
+    if (pEnvOverridenPath != nullptr)
+    {
+        pSettingsPath = pEnvOverridenPath;
+    }
+
     // Open the settings file, if it exists
     char fileName[512];
     Snprintf(&fileName[0], sizeof(fileName), "%s/%s", pSettingsPath, m_pSettingsFileName);

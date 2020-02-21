@@ -192,9 +192,11 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
     # [MSVC] Whole Program Optimization
+    #    https://msdn.microsoft.com/en-us/library/0zza0de8.aspx
     target_compile_options(addrlib PRIVATE /GL)
 
     # [MSVC] Link-time Code Generation
+    #    https://msdn.microsoft.com/en-us/library/xbf3tbeh.aspx
     set_target_properties(addrlib PROPERTIES STATIC_LIBRARY_FLAGS /LTCG)
 
 else()
@@ -226,6 +228,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Werror
         -Wno-unused
         -Wno-unused-parameter
+        -Wno-unused-command-line-argument
         -Wno-ignored-qualifiers
         -Wno-missing-field-initializers
         -Wno-self-assign
@@ -233,6 +236,20 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
+    # [MSVC] Code Analysis
+    #    https://msdn.microsoft.com/en-us/library/ms173498.aspx
+    #
+    # [MSVC] Exception Handling Model
+    #    https://msdn.microsoft.com/en-us/library/1deeycx5.aspx
+    #
+    # [MSVC] Enable Run-Time Type Information
+    #    https://msdn.microsoft.com/en-us/library/we6hfdy0.aspx
+    #
+    # [MSVC] Buffer Security Check
+    #    https://msdn.microsoft.com/en-us/library/8dbf701c.aspx
+    #
+    # [MSVC] Whole Program Optimization
+    #    https://msdn.microsoft.com/en-us/library/0zza0de8.aspx
     target_compile_options(addrlib PRIVATE
         $<$<CONFIG:Debug>:/analyze>
               # Turns on static analysis for debug build.
@@ -241,6 +258,16 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         /GR-  # Disables run-time type information.
         /GS-) # Disables detection of buffer overruns.
 
+    # [MSVC] Warning Level
+    #    https://msdn.microsoft.com/en-us/library/thxezb7y.aspx
+    #
+    # [MSVC] Compiler Warnings
+    #    https://msdn.microsoft.com/en-us/library/ysb0wexw.aspx
+    #    https://msdn.microsoft.com/en-us/library/t460hcc3.aspx
+    #    https://msdn.microsoft.com/en-us/library/cfahxw6k.aspx
+    #
+    # [MSVC] Code Analysis for C/C++ Warnings
+    #    https://msdn.microsoft.com/en-us/library/9t02bbsx.aspx
     target_compile_options(addrlib PRIVATE
         /W4      # Enable warning level 4.
         /WX      # Treat warnings as errors.

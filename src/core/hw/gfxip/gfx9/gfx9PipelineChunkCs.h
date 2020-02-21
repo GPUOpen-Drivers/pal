@@ -165,8 +165,7 @@ private:
 class LibraryChunkCs : PipelineChunkCs
 {
 public:
-    LibraryChunkCs(
-        const Device&    device);
+    explicit LibraryChunkCs(const Device& device);
 
     ~LibraryChunkCs() { }
 

@@ -109,9 +109,9 @@ Result ShaderLibrary::InitFromCodeObjectBinary(
         ExtractLibraryInfo(metadata);
 
         result = HwlInit(createInfo,
-                         abiProcessor,
-                         metadata,
-                         &metadataReader);
+                abiProcessor,
+                metadata,
+                &metadataReader);
     }
 
     return result;
@@ -192,6 +192,27 @@ Result ShaderLibrary::GetCodeObject(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Obtains the compiled shader ISA code for the shader specified.
+Result ShaderLibrary::GetShaderFunctionCode(
+    const char*  pShaderExportName,
+    size_t*      pSize,
+    void*        pBuffer) const
+{
+    // This function should be implemented in gfx6 / gfx9 if needed.
+    return Result::ErrorUnavailable;;
+}
+
+// =====================================================================================================================
+// Obtains the shader pre and post compilation stats/params for the specified shader.
+Result ShaderLibrary::GetShaderFunctionStats(
+    const char*      pShaderExportName,
+    ShaderLibStats*  pStats) const
+{
+    // This function should be implemented in gfx6 / gfx9 if needed.
+    return Result::ErrorUnavailable;;
 }
 
 // =====================================================================================================================

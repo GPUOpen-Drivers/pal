@@ -171,8 +171,8 @@ struct RMT_TOKEN_HEADER
 enum RMT_PAGE_TABLE_UPDATE_TYPE
 {
     RMT_PAGE_TABLE_UPDATE_TYPE_DISCARD          = 0,
-    RMT_PAGE_TABLE_UPDATE_TYPE_TRANSFER         = 1,
-    RMT_PAGE_TABLE_UPDATE_TYPE_TRANSFER_VIRTUAL = 2,
+    RMT_PAGE_TABLE_UPDATE_TYPE_UPDATE           = 1,
+    RMT_PAGE_TABLE_UPDATE_TYPE_TRANSFER         = 2,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -327,8 +327,7 @@ struct RMT_MSG_PAGE_TABLE_UPDATE : RMT_TOKEN_DATA
         SetBits((physicalAddress >> 12), 79, 44);
 
         // SIZE [99:80] The size of the allocation specified in pages.
-        uint32_t tmp = (size == 0) ? size : (size / pageSize);
-        SetBits(tmp, 99, 80);
+        SetBits(size, 99, 80);
 
         // PAGE_SIZE [102:100] The size of the page expressed as a RMT_PAGE_SIZE enum
         SetBits(pageSize, 102, 100);
@@ -457,8 +456,8 @@ struct RMT_MSG_RESOURCE_REFERENCE : RMT_TOKEN_DATA
         SetBits(header.byteVal, 7, 0);
 
         // ADD_OR_REMOVE [8] A bit denoting if this was an add reference or remove reference
-        //                     0 – Add reference (MakeResident in Windows/DirectX12 lexicon).
-        //                     1 – Remove reference (Evict in Windows/DirectX12 lexicon).
+        //                     0 - Add reference (MakeResident in Windows/DirectX12 lexicon).
+        //                     1 - Remove reference (Evict in Windows/DirectX12 lexicon).
         SetBits((isRemove ? 1 : 0), 8, 8);
 
         // VIRTUAL_ADDRESS [56:9] The 48bit virtual address of the memory that is being made resident/evicted.
@@ -496,8 +495,8 @@ struct RMT_MSG_RESOURCE_BIND : RMT_TOKEN_DATA
         SetBits(size, 99, 56);
 
         // FLAGS [103:100]
-        //   Bit 0 – When set indicates that CPU system memory is being bound to the resource
-        //   Bits 1-3 – Reserved for future expansion. Should be set to 0.
+        //   Bit 0 When set indicates that CPU system memory is being bound to the resource
+        //   Bits 1-3 Reserved for future expansion. Should be set to 0.
         SetBits(isSystemMemory, 100, 100);
         SetBits(0, 103, 101);
 
@@ -509,7 +508,7 @@ struct RMT_MSG_RESOURCE_BIND : RMT_TOKEN_DATA
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RMT_MSG_CPU_MAP
-static const size_t RMT_MSG_CPU_MAP_TOKEN_BYTES_SIZE = 48 / 8; // 48-bits
+static const size_t RMT_MSG_CPU_MAP_TOKEN_BYTES_SIZE = 64 / 8; // 64-bits
 struct RMT_MSG_CPU_MAP : RMT_TOKEN_DATA
 {
     uint8 bytes[RMT_MSG_CPU_MAP_TOKEN_BYTES_SIZE];
@@ -525,21 +524,21 @@ struct RMT_MSG_CPU_MAP : RMT_TOKEN_DATA
         RMT_TOKEN_HEADER header(RMT_TOKEN_CPU_MAP, delta);
         SetBits(header.byteVal, 7, 0);
 
-        // VIRTUAL_ADDRESS [43:8] Bits [47:12] of the 48bit virtual address of the memory that is being mapped/unmapped.
-        SetBits((virtualAddress >> 12), 43, 8);
+        // VIRTUAL_ADDRESS [55:8] The 48bit virtual address of the memory that is being mapped/unmapped.
+        SetBits(virtualAddress, 55, 8);
 
-        // IS_UNMAP [44] 0 - Indicates that this is an MAP operation.
+        // IS_UNMAP [56] 0 - Indicates that this is an MAP operation.
         //               1 - Indicates that this is an UNMAP operation.
-        SetBits((isUnmap ? 1 : 0), 44, 44);
+        SetBits((isUnmap ? 1 : 0), 56, 56);
 
-        // RESERVED [47:45] Reserved for future expansion. Should be set to 0.
-        SetBits(0, 47, 45);
+        // RESERVED [63:57] Reserved for future expansion. Should be set to 0.
+        SetBits(0, 63, 57);
     }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RMT_MSG_FREE_VIRTUAL
-static const size_t RMT_MSG_FREE_VIRTUAL_TOKEN_BYTES_SIZE = 48 / 8; // 40-bits
+static const size_t RMT_MSG_FREE_VIRTUAL_TOKEN_BYTES_SIZE = 56 / 8; // 56-bits
 struct RMT_MSG_FREE_VIRTUAL : RMT_TOKEN_DATA
 {
     uint8 bytes[RMT_MSG_FREE_VIRTUAL_TOKEN_BYTES_SIZE];
@@ -555,17 +554,15 @@ struct RMT_MSG_FREE_VIRTUAL : RMT_TOKEN_DATA
         RMT_TOKEN_HEADER header(RMT_TOKEN_FREE_VIRTUAL, delta);
         SetBits(header.byteVal, 7, 0);
 
-        // VIRTUAL_ADDRESS [43:8] Bits [47:12] of the 48bit virtual address of the allocation that was freed.
-        SetBits((virtualAddress >> 12), 43, 8);
+        // VIRTUAL_ADDRESS [55:8] The 48bit virtual address of the allocation that was freed.
+        SetBits(virtualAddress, 55, 8);
 
-        // RESERVED [47:44] Reserved for future expansion. Should be set to 0.
-        SetBits(0, 47, 44);
     }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RMT_MSG_VIRTUAL_ALLOCATE
-static const size_t RMT_MSG_VIRTUAL_ALLOCATE_TOKEN_BYTES_SIZE = 80 / 8; // 80-bits
+static const size_t RMT_MSG_VIRTUAL_ALLOCATE_TOKEN_BYTES_SIZE = 96 / 8; // 96-bits
 struct RMT_MSG_VIRTUAL_ALLOCATE : RMT_TOKEN_DATA
 {
     uint8 bytes[RMT_MSG_VIRTUAL_ALLOCATE_TOKEN_BYTES_SIZE];
@@ -589,27 +586,30 @@ struct RMT_MSG_VIRTUAL_ALLOCATE : RMT_TOKEN_DATA
         RMT_TOKEN_HEADER header(RMT_TOKEN_VIRTUAL_ALLOCATE, delta);
         SetBits(header.byteVal, 7, 0);
 
-        // SIZE [21:8] The size of the allocation specified in 4KiB chunks - 1.
+        // SIZE [31:8] The size of the allocation specified in 4KiB chunks - 1.
         const uint32 rmtSize = static_cast<uint32>(size / RMT_4KB) - 1;
-        SetBits(rmtSize, 21, 8);
+        SetBits(rmtSize, 31, 8);
 
-        // OWNER [23:22] Which part of the software stack is making the request for allocation, encoded as RMT_OWNER
-        SetBits(owner, 23, 22);
+        // OWNER [33:32] Which part of the software stack is making the request for allocation, encoded as RMT_OWNER
+        SetBits(owner, 33, 32);
 
-        // VIRTUAL_ADDRESS [71:24] The 48bit virtual address of the allocation.
-        SetBits(virtualAddress, 71, 24);
+        // VIRTUAL_ADDRESS [81:34] The 48bit virtual address of the allocation.
+        SetBits(virtualAddress, 81, 34);
 
-        // HEAP_IMPORTANCE_0 [73:72] The highest priority heap for this allocation, encoded as RMT_HEAP_TYPE.
-        SetBits(heapImportance0, 73, 72);
+        // HEAP_IMPORTANCE_0 [83:82] The highest priority heap for this allocation, encoded as RMT_HEAP_TYPE.
+        SetBits(heapImportance0, 83, 82);
 
-        // HEAP_IMPORTANCE_1 [75:74] The second priority heap for this allocation, encoded as RMT_HEAP_TYPE.
-        SetBits(heapImportance1, 75, 74);
+        // HEAP_IMPORTANCE_1 [85:84] The second priority heap for this allocation, encoded as RMT_HEAP_TYPE.
+        SetBits(heapImportance1, 85, 84);
 
-        // HEAP_IMPORTANCE_2 [76:76] The third priority heap for this allocation, encoded as RMT_HEAP_TYPE.
-        SetBits(heapImportance2, 77, 76);
+        // HEAP_IMPORTANCE_2 [87:86] The third priority heap for this allocation, encoded as RMT_HEAP_TYPE.
+        SetBits(heapImportance2, 87, 86);
 
-        // HEAP_IMPORTANCE_3 [79:78] The lowest priority heap for this allocation, encoded as RMT_HEAP_TYPE.
-        SetBits(heapImportance3, 79, 78);
+        // HEAP_IMPORTANCE_3 [89:88] The lowest priority heap for this allocation, encoded as RMT_HEAP_TYPE.
+        SetBits(heapImportance3, 89, 88);
+
+        // RESERVED [95:90] Reserved for future expansion. Should be set to 0.
+        SetBits(0, 95, 90);
     }
 };
 

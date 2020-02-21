@@ -29,13 +29,13 @@
 #include "core/hw/ossip/oss2_4/oss2_4Device.h"
 #include "core/addrMgr/addrMgr1/addrMgr1.h"
 
-// Forward decl's
-struct SDMA_PKT_COPY_TILED_SUBWIN_TAG;
-
 namespace Pal
 {
 namespace Oss2_4
 {
+
+// Forward decl's
+struct SDMA_PKT_COPY_TILED_SUBWIN_TAG;
 
 // =====================================================================================================================
 // OSS2.4 hardware-specific functionality for DMA command buffer execution.

@@ -248,21 +248,24 @@ Result Queue::PresentSwapChain(
 
 // =====================================================================================================================
 Result Queue::Submit(
-    const SubmitInfo& submitInfo)
+    const MultiSubmitInfo& submitInfo)
 {
+    PAL_ASSERT(submitInfo.perSubQueueInfoCount == 1);
     const auto& gpuProps = m_pDevice->GpuProps();
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
     pPlatform->SetGpuWork(gpuProps.gpuIndex, true);
 
     // Determine if we should add timestamps to this submission.
-    bool addTimestamps = m_supportTimestamps && (submitInfo.cmdBufferCount > 0);
-
+    bool addTimestamps = m_supportTimestamps                     &&
+                        (submitInfo.pPerSubQueueInfo != nullptr) &&
+                        (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
     if (addTimestamps)
     {
         // Other PAL layers assume that CmdPresent can only be in the last command buffer in a submission.
         // If we were to timestamp submissions with presents we would break those layers.
         // We don't timestamp IQueue's present calls either so this should be OK.
-        auto*const pLastCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[submitInfo.cmdBufferCount - 1]);
+        auto*const pLastCmdBuffer = static_cast<CmdBuffer*>(
+            submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[submitInfo.pPerSubQueueInfo[0].cmdBufferCount - 1]);
 
         addTimestamps = (pLastCmdBuffer->ContainsPresent() == false);
     }
@@ -425,10 +428,18 @@ Result Queue::SubmitOverlayCmdBuffer(
     if (result == Result::Success)
     {
         // We don't need to pass any memory references because everything is already resident.
-        SubmitInfo submitInfo     = {};
-        submitInfo.cmdBufferCount = 1;
-        submitInfo.ppCmdBuffers   = &pTrackedCmdBuffer->pCmdBuffer;
-        submitInfo.pFence         = pTrackedCmdBuffer->pFence;
+        PerSubQueueSubmitInfo perSubQueueInfo = {};
+        perSubQueueInfo.cmdBufferCount        = 1;
+        perSubQueueInfo.ppCmdBuffers          = &pTrackedCmdBuffer->pCmdBuffer;
+        MultiSubmitInfo submitInfo            = {};
+        submitInfo.perSubQueueInfoCount       = 1;
+        submitInfo.pPerSubQueueInfo           = &perSubQueueInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        submitInfo.ppFences                   = &pTrackedCmdBuffer->pFence;
+        submitInfo.fenceCount                 = 1;
+#else
+        submitInfo.pFence                     = pTrackedCmdBuffer->pFence;
+#endif
 
         result = Submit(submitInfo);
     }
@@ -439,25 +450,27 @@ Result Queue::SubmitOverlayCmdBuffer(
 
 // =====================================================================================================================
 Result Queue::SubmitWithGpuTimestampPair(
-    const SubmitInfo& submitInfo,
-    GpuTimestampPair* pTimestamp)
+    const MultiSubmitInfo& submitInfo,
+    GpuTimestampPair*      pTimestamp)
 {
+    // Caller should have made sure that there was at least one command buffer in here.
+    PAL_ASSERT((submitInfo.pPerSubQueueInfo != nullptr) && (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0));
     Result result = Result::Success;
 
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
 
-   // Capacity increased by two to accommodate the two Command Buffers needed to time the submission
-    const uint32 cmdBufferCapacity = submitInfo.cmdBufferCount + 2;
+    // For a multi-queue submit, we only need to add our timestamps around the primary queue's command buffers.
+    // Capacity increased by two to accommodate the two Command Buffers needed to time the submission
+    const uint32 cmdBufferCapacity = submitInfo.pPerSubQueueInfo[0].cmdBufferCount + 2;
 
-    AutoBuffer<ICmdBuffer*,  256, PlatformDecorator> nextCmdBuffers(cmdBufferCapacity, pPlatform);
-    AutoBuffer<CmdBufInfo,   256, PlatformDecorator> nextCmdBufInfoList(cmdBufferCapacity, pPlatform);
-    AutoBuffer<GpuMemoryRef,  64, PlatformDecorator> nextGpuMemoryRefs(submitInfo.gpuMemRefCount, pPlatform);
-    AutoBuffer<DoppRef,       64, PlatformDecorator> nextDoppRefs(submitInfo.doppRefCount, pPlatform);
+    AutoBuffer<PerSubQueueSubmitInfo, 16, PlatformDecorator>
+        perSubQueueInfo(submitInfo.perSubQueueInfoCount, pPlatform);
+    AutoBuffer<ICmdBuffer*,  256, PlatformDecorator> cmdBuffers(cmdBufferCapacity, pPlatform);
+    AutoBuffer<CmdBufInfo,   256, PlatformDecorator> cmdBufInfoList(cmdBufferCapacity, pPlatform);
 
-    if ((nextCmdBuffers.Capacity()     < cmdBufferCapacity) ||
-        (nextCmdBufInfoList.Capacity() < cmdBufferCapacity) ||
-        (nextDoppRefs.Capacity()       < submitInfo.doppRefCount) ||
-        (nextGpuMemoryRefs.Capacity()  < submitInfo.gpuMemRefCount))
+    if ((perSubQueueInfo.Capacity() < submitInfo.perSubQueueInfoCount) ||
+        (cmdBuffers.Capacity()      < cmdBufferCapacity)               ||
+        (cmdBufInfoList.Capacity()  < cmdBufferCapacity))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -466,64 +479,43 @@ Result Queue::SubmitWithGpuTimestampPair(
         const IGpuMemory* pNextBlockIfFlipping[MaxBlockIfFlippingCount] = {};
         PAL_ASSERT(submitInfo.blockIfFlippingCount <= MaxBlockIfFlippingCount);
 
-        SubmitInfo nextSubmitInfo           = {};
-        nextSubmitInfo.cmdBufferCount       = cmdBufferCapacity;
-        nextSubmitInfo.ppCmdBuffers         = &nextCmdBuffers[0];
-        nextSubmitInfo.gpuMemRefCount       = submitInfo.gpuMemRefCount;
-        nextSubmitInfo.pGpuMemoryRefs       = &nextGpuMemoryRefs[0];
-        nextSubmitInfo.doppRefCount         = submitInfo.doppRefCount;
-        nextSubmitInfo.pDoppRefs            = &nextDoppRefs[0];
-        nextSubmitInfo.blockIfFlippingCount = submitInfo.blockIfFlippingCount;
-        nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
-        nextSubmitInfo.pFence               = NextFence(submitInfo.pFence);
-
-        nextCmdBuffers[0] = NextCmdBuffer(pTimestamp->pBeginCmdBuffer);
-
-        for (uint32 i = 0; i < submitInfo.cmdBufferCount; i++)
+        for (uint32 queueIdx = 0; queueIdx < submitInfo.perSubQueueInfoCount; queueIdx++)
         {
-            nextCmdBuffers[i + 1] = NextCmdBuffer(submitInfo.ppCmdBuffers[i]);
+            perSubQueueInfo[queueIdx] = submitInfo.pPerSubQueueInfo[queueIdx];
         }
 
-        nextCmdBuffers[submitInfo.cmdBufferCount + 1] = NextCmdBuffer(pTimestamp->pEndCmdBuffer);
+        PerSubQueueSubmitInfo* pPrimarySubQueue = &perSubQueueInfo[0];
+        pPrimarySubQueue->cmdBufferCount        = cmdBufferCapacity;
+        pPrimarySubQueue->ppCmdBuffers          = &cmdBuffers[0];
+        cmdBuffers[0]                           = pTimestamp->pBeginCmdBuffer;
+        for (uint32 i = 0; i < submitInfo.pPerSubQueueInfo[0].cmdBufferCount; i++)
+        {
+            cmdBuffers[i + 1] = submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[i];
+        }
+        cmdBuffers[submitInfo.pPerSubQueueInfo[0].cmdBufferCount + 1] = pTimestamp->pEndCmdBuffer;
 
-        if (submitInfo.pCmdBufInfoList != nullptr)
+        if (pPrimarySubQueue->pCmdBufInfoList != nullptr)
         {
             // Note that we must leave pCmdBufInfoList null if it was null in submitInfo.
-            nextSubmitInfo.pCmdBufInfoList = &nextCmdBufInfoList[0];
-
-            nextCmdBufInfoList[0].u32All = 0;
-
-            for (uint32 i = 0; i < submitInfo.cmdBufferCount; i++)
+            pPrimarySubQueue->pCmdBufInfoList = &cmdBufInfoList[0];
+            cmdBufInfoList[0].u32All = 0;
+            for (uint32 i = 0; i < submitInfo.pPerSubQueueInfo[0].cmdBufferCount; i++)
             {
-                nextCmdBufInfoList[i + 1].u32All = submitInfo.pCmdBufInfoList[i].u32All;
+                const auto& cmdBufInfo = submitInfo.pPerSubQueueInfo[0].pCmdBufInfoList[i];
+                cmdBufInfoList[i + 1].u32All = cmdBufInfo.u32All;
 
-                if (submitInfo.pCmdBufInfoList[i].isValid)
+                if (cmdBufInfoList[i + 1].isValid)
                 {
-                    nextCmdBufInfoList[i + 1].pPrimaryMemory =
-                        NextGpuMemory(submitInfo.pCmdBufInfoList[i].pPrimaryMemory);
+                    cmdBufInfoList[i + 1].pPrimaryMemory = cmdBufInfo.pPrimaryMemory;
                 }
             }
-            nextCmdBufInfoList[submitInfo.cmdBufferCount + 1].u32All = 0;
+            cmdBufInfoList[submitInfo.pPerSubQueueInfo[0].cmdBufferCount + 1].u32All = 0;
         }
 
-        for (uint32 i = 0; i < submitInfo.gpuMemRefCount; i++)
-        {
-            nextGpuMemoryRefs[i].pGpuMemory = NextGpuMemory(submitInfo.pGpuMemoryRefs[i].pGpuMemory);
-            nextGpuMemoryRefs[i].flags.u32All = submitInfo.pGpuMemoryRefs[i].flags.u32All;
-        }
+        MultiSubmitInfo finalSubmitInfo  = submitInfo;
+        finalSubmitInfo.pPerSubQueueInfo = perSubQueueInfo.Data();
 
-        for (uint32 i = 0; i < submitInfo.doppRefCount; i++)
-        {
-            nextDoppRefs[i].pGpuMemory   = NextGpuMemory(submitInfo.pDoppRefs[i].pGpuMemory);
-            nextDoppRefs[i].flags.u32All = submitInfo.pDoppRefs[i].flags.u32All;
-        }
-
-        for (uint32 i = 0; i < submitInfo.blockIfFlippingCount; i++)
-        {
-            pNextBlockIfFlipping[i] = NextGpuMemory(submitInfo.ppBlockIfFlipping[i]);
-        }
-
-        result = m_pNextLayer->Submit(nextSubmitInfo);
+        result = QueueDecorator::Submit(finalSubmitInfo);
 
         if (result == Result::Success)
         {

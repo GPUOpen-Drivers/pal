@@ -59,7 +59,8 @@ union GraphicsStateFlags
                 uint16 colorTargetView        : 1; // Gfx9 only
                 uint16 depthStencilView       : 1; // Gfx9 only
                 uint16 reservedForFutureHw1   : 2;
-                uint16 reservedValidationBits : 2;
+                uint16 depthClampOverride     : 1; // All Gfx
+                uint16 reservedValidationBits : 1;
             };
 
             uint16 u16All;
@@ -171,6 +172,13 @@ struct GraphicsState
         Rect   rectList[MaxClipRects];
     } clipRectsState; // (CmdSetClipRects)
 
+    // Overrides the value of DB_RENDER_OVERRIDE.DISABLE_VIEWPORT_CLAMP at draw-time validation.
+    struct
+    {
+        uint32 enabled              : 1; // Are we going to use the override?
+        uint32 disableViewportClamp : 1; // The value to write, if used.
+    } depthClampOverride;
+
     GraphicsStateFlags   dirtyFlags;
     GraphicsStateFlags   leakFlags;      // Graphics state which a nested command buffer "leaks" back to its caller.
 };
@@ -206,6 +214,9 @@ public:
 
     virtual void CmdSetLineStippleState(
         const LineStippleStateParams& params) override;
+
+    virtual void CmdOverwriteDisableViewportClampForBlits(
+        bool disableViewportClamp) override;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.

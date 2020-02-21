@@ -500,6 +500,7 @@ private:
         const Image&                 image,
         ImageLayout                  imageLayout,
         bool                         isImageDst,
+        bool                         isFmaskCopy,
         uint32                       regionCount,
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const;
@@ -591,6 +592,21 @@ private:
         const ImageResolveRegion* pRegions,
         uint32                    regionCount,
         ResolveMethod             method) const;
+
+    void FixupLateExpandResolveSrc(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Image&              srcImage,
+        ImageLayout               srcImageLayout,
+        const ImageResolveRegion* pRegions,
+        uint32                    regionCount,
+        ResolveMethod             method) const;
+
+    void LateExpandResolveSrcHelper(
+        GfxCmdBuffer*             pCmdBuffer,
+        const ImageResolveRegion* pRegions,
+        uint32                    regionCount,
+        const BarrierTransition&  transition,
+        HwPipePoint               waitPoint) const;
 
     bool ScaledCopyImageUseGraphics(
         GfxCmdBuffer*           pCmdBuffer,

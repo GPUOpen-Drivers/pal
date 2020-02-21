@@ -83,15 +83,6 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmVGT_VERTEX_REUSE_BLOCK_CNTL
     1;  // mmDB_SHADER_CONTROL (only Gfx7+ write it at bind-time, but only Gfx8+ supports LOAD_INDEX)
 
-// Mask of DB_RENDER_OVERRIDE fields written during pipeline bind.
-static constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
-                                                   DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK   |
-                                                   DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK);
-
-static_assert((DbRenderOverrideRmwMask & DepthStencilView::DbRenderOverrideRmwMask) == 0,
-              "GraphicsPipeline and DepthStencilView DB_RENDER_OVERRIDE fields intersect.  This would require"
-              "delayed validation");
-
 // =====================================================================================================================
 // The workaround for the "DB Over-Rasterization" hardware bug requires us to write the DB_SHADER_CONTROL register at
 // draw-time. This function writes the PM4 commands necessary and returns the next unused DWORD in pCmdSpace.
@@ -696,10 +687,7 @@ uint32* GraphicsPipeline::WriteContextCommands(
                                                DB_ALPHA_TO_MASK__ALPHA_TO_MASK_ENABLE_MASK,
                                                m_regs.context.dbAlphaToMask.u32All,
                                                pCmdSpace);
-    return pCmdStream->WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
-                                          DbRenderOverrideRmwMask,
-                                          m_regs.context.dbRenderOverride.u32All,
-                                          pCmdSpace);
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -887,9 +875,9 @@ void GraphicsPipeline::SetupNonShaderRegisters(
             SetupRbPlusRegistersForSlot(slot,
                                         createInfo.cbState.target[slot].channelWriteMask,
                                         createInfo.cbState.target[slot].swizzledFormat,
-                                        &m_regs.context.sxPsDownconvert,
-                                        &m_regs.context.sxBlendOptEpsilon,
-                                        &m_regs.context.sxBlendOptControl);
+                                        &m_regs.other.sxPsDownconvert,
+                                        &m_regs.other.sxBlendOptEpsilon,
+                                        &m_regs.other.sxBlendOptControl);
         }
     }
     else if (chipProps.gfx6.rbPlus != 0)
@@ -926,23 +914,23 @@ void GraphicsPipeline::SetupCommonRegisters(
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
     const PalPublicSettings* pPalSettings = m_pDevice->Parent()->GetPublicSettings();
 
-    m_regs.context.paClClipCntl.u32All  = registers.At(mmPA_CL_CLIP_CNTL);
-    m_regs.context.paClVteCntl.u32All   = registers.At(mmPA_CL_VTE_CNTL);
-    m_regs.context.paSuVtxCntl.u32All   = registers.At(mmPA_SU_VTX_CNTL);
-    m_regs.context.paScModeCntl1.u32All = registers.At(mmPA_SC_MODE_CNTL_1);
+    m_regs.context.paClClipCntl.u32All = registers.At(mmPA_CL_CLIP_CNTL);
+    m_regs.context.paClVteCntl.u32All  = registers.At(mmPA_CL_VTE_CNTL);
+    m_regs.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
+    m_regs.other.paScModeCntl1.u32All  = registers.At(mmPA_SC_MODE_CNTL_1);
 
     // Overrides some of the fields in PA_SC_MODE_CNTL1 to account for GPU pipe config and features like out-of-order
     // rasterization.
 
     // The maximum value for OUT_OF_ORDER_WATER_MARK is 7.
     constexpr uint32 MaxOutOfOrderWatermark = 7;
-    m_regs.context.paScModeCntl1.bits.OUT_OF_ORDER_WATER_MARK = Min(MaxOutOfOrderWatermark,
-                                                                    settings.gfx7OutOfOrderWatermark);
+    m_regs.other.paScModeCntl1.bits.OUT_OF_ORDER_WATER_MARK = Min(MaxOutOfOrderWatermark,
+                                                                  settings.gfx7OutOfOrderWatermark);
 
     if (createInfo.rsState.outOfOrderPrimsEnable &&
         (settings.gfx7EnableOutOfOrderPrimitives != OutOfOrderPrimDisable))
     {
-        m_regs.context.paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE = 1;
+        m_regs.other.paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE = 1;
     }
 
     // Hardware team recommendation is to set WALK_FENCE_SIZE to 512 pixels for 4/8/16 pipes and 256 pixels for 2 pipes.
@@ -958,7 +946,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     case ADDR_SURF_P2_RESERVED1:
     case ADDR_SURF_P2_RESERVED2:
         // NOTE: a register field value of 2 means "256 pixels".
-        m_regs.context.paScModeCntl1.bits.WALK_FENCE_SIZE = 2;
+        m_regs.other.paScModeCntl1.bits.WALK_FENCE_SIZE = 2;
         break;
         // 4 Pipes (fall-throughs intentional):
     case ADDR_SURF_P4_8x16:
@@ -977,7 +965,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     case ADDR_SURF_P16_32x32_8x16__CI__VI:
     case ADDR_SURF_P16_32x32_16x16__CI__VI:
         // NOTE: a register field value of 3 means "512 pixels".
-        m_regs.context.paScModeCntl1.bits.WALK_FENCE_SIZE = 3;
+        m_regs.other.paScModeCntl1.bits.WALK_FENCE_SIZE = 3;
         break;
     default:
         PAL_ASSERT_ALWAYS();
@@ -985,10 +973,10 @@ void GraphicsPipeline::SetupCommonRegisters(
     }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 524
-    m_regs.context.paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
+    m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE |= createInfo.rsState.forceSampleRateShading;
 #endif
 
-    m_info.ps.flags.perSampleShading = m_regs.context.paScModeCntl1.bits.PS_ITER_SAMPLE;
+    m_info.ps.flags.perSampleShading = m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE;
 
     m_regs.context.dbShaderControl.u32All = registers.At(mmDB_SHADER_CONTROL);
 
@@ -1002,17 +990,17 @@ void GraphicsPipeline::SetupCommonRegisters(
 
     if (pPalSettings->depthClampBasedOnZExport == true)
     {
-        m_regs.context.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable == true) &&
+        m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable == true) &&
                                                             (m_regs.context.dbShaderControl.bits.Z_EXPORT_ENABLE != 0));
     }
     else
     {
         // Vulkan (only) will take this path by default, unless an app-detect forces the other way.
-        m_regs.context.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable == true);
+        m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable == true);
     }
 
     // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
-    m_regs.context.dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_regs.context.dbShaderControl.bits.Z_ORDER == RE_Z);
+    m_regs.other.dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_regs.context.dbShaderControl.bits.Z_ORDER == RE_Z);
 
     // NOTE: The Re-Z Stencil corruption bug workaround requires setting FORCE_STENCIL_READ in DB_RENDER_OVERRIDE
     // whenever Re-Z is active.
@@ -1020,14 +1008,14 @@ void GraphicsPipeline::SetupCommonRegisters(
         ((m_regs.context.dbShaderControl.bits.Z_ORDER == RE_Z) ||
          (m_regs.context.dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_RE_Z)))
     {
-        m_regs.context.dbRenderOverride.bits.FORCE_STENCIL_READ = 1;
+        m_regs.other.dbRenderOverride.bits.FORCE_STENCIL_READ = 1;
     }
 
     m_regs.context.vgtReuseOff.u32All = registers.At(mmVGT_REUSE_OFF);
 
     // NOTE: The following registers are assumed to have the value zero if the pipeline ELF does not specify values.
     registers.HasEntry(mmVGT_TF_PARAM,     &m_regs.context.vgtTfParam.u32All);
-    registers.HasEntry(mmVGT_LS_HS_CONFIG, &m_regs.context.vgtLsHsConfig.u32All);
+    registers.HasEntry(mmVGT_LS_HS_CONFIG, &m_regs.other.vgtLsHsConfig.u32All);
 
     // If dynamic tessellation mode is enabled (where the shader chooses whether each patch goes to off-chip or to
     // on-chip memory), we should override DS_WAVES_PER_SIMD according to the panel setting.
@@ -1101,13 +1089,13 @@ void GraphicsPipeline::SetupIaMultiVgtParam(
     {
         // The hardware requires that the primgroup size matches the number of HS patches-per-thread-group when
         // tessellation is enabled.
-        iaMultiVgtParam.bits.PRIMGROUP_SIZE = (m_regs.context.vgtLsHsConfig.bits.NUM_PATCHES - 1);
+        iaMultiVgtParam.bits.PRIMGROUP_SIZE = (m_regs.other.vgtLsHsConfig.bits.NUM_PATCHES - 1);
     }
-    else if (IsGsEnabled() && (m_regs.context.vgtLsHsConfig.bits.HS_NUM_INPUT_CP != 0))
+    else if (IsGsEnabled() && (m_regs.other.vgtLsHsConfig.bits.HS_NUM_INPUT_CP != 0))
     {
         // The hardware requires that the primgroup size must not exceed (256/ number of HS input control points) when
         // a GS shader accepts patch primitives as input.
-        iaMultiVgtParam.bits.PRIMGROUP_SIZE = ((256 / m_regs.context.vgtLsHsConfig.bits.HS_NUM_INPUT_CP) - 1);
+        iaMultiVgtParam.bits.PRIMGROUP_SIZE = ((256 / m_regs.other.vgtLsHsConfig.bits.HS_NUM_INPUT_CP) - 1);
     }
     else
     {
@@ -1132,21 +1120,21 @@ void GraphicsPipeline::SetupIaMultiVgtParam(
 
     for (uint32 idx = 0; idx < NumIaMultiVgtParam; ++idx)
     {
-        m_regs.context.iaMultiVgtParam[idx] = iaMultiVgtParam;
+        m_regs.other.iaMultiVgtParam[idx] = iaMultiVgtParam;
 
         // Additional setup for this register is required on Gfx7+ hardware.
         if (chipProps.gfxLevel > GfxIpLevel::GfxIp6)
         {
-            FixupIaMultiVgtParamOnGfx7Plus((idx != 0), &m_regs.context.iaMultiVgtParam[idx]);
+            FixupIaMultiVgtParamOnGfx7Plus((idx != 0), &m_regs.other.iaMultiVgtParam[idx]);
         }
 
         // NOTE: The PRIMGROUP_SIZE field IA_MULTI_VGT_PARAM must be less than 256 if stream output and
         // PARTIAL_ES_WAVE_ON are both enabled on 2-SE hardware.
         if ((vgtStrmoutConfig.u32All != 0)         &&
             (chipProps.gfx6.numShaderEngines == 2) &&
-            (m_regs.context.iaMultiVgtParam[idx].bits.PARTIAL_ES_WAVE_ON == 0))
+            (m_regs.other.iaMultiVgtParam[idx].bits.PARTIAL_ES_WAVE_ON == 0))
         {
-            PAL_ASSERT(m_regs.context.iaMultiVgtParam[idx].bits.PRIMGROUP_SIZE < 256);
+            PAL_ASSERT(m_regs.other.iaMultiVgtParam[idx].bits.PRIMGROUP_SIZE < 256);
         }
     }
 }

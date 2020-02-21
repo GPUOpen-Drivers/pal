@@ -295,6 +295,7 @@ const DrmLoader& Platform::GetDrmLoader()
     return m_drmLoader;
 }
 
+#if PAL_HAVE_DRI3_PLATFORM
 // =====================================================================================================================
 const Dri3Loader& Platform::GetDri3Loader()
 {
@@ -316,6 +317,7 @@ const Dri3Loader& Platform::GetDri3Loader()
 
     return m_dri3Loader;
 }
+#endif
 
 #if PAL_HAVE_WAYLAND_PLATFORM
 // =====================================================================================================================

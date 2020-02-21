@@ -65,6 +65,15 @@ GpuEvent::GpuEvent(
     m_pEventData(nullptr),
     m_numSlotsPerEvent(pDevice->ChipProperties().gfxip.numSlotsPerEvent)
 {
+    ResourceDescriptionGpuEvent desc = {};
+    desc.pCreateInfo = &m_createInfo;
+
+    ResourceCreateEventData data = {};
+    data.type = ResourceType::GpuEvent;
+    data.pResourceDescData = static_cast<void*>(&desc);
+    data.resourceDescSize = sizeof(ResourceDescriptionGpuEvent);
+    data.pObj = this;
+    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 }
 
 // =====================================================================================================================
@@ -139,19 +148,6 @@ Result GpuEvent::Init()
                 result       = Reset();
             }
         }
-    }
-
-    if (result == Result::Success)
-    {
-        ResourceDescriptionGpuEvent desc = {};
-        desc.pCreateInfo = &m_createInfo;
-
-        ResourceCreateEventData data = {};
-        data.type = ResourceType::GpuEvent;
-        data.pResourceDescData = static_cast<void*>(&desc);
-        data.resourceDescSize = sizeof(ResourceDescriptionGpuEvent);
-        data.pObj = this;
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
     }
 
     return result;

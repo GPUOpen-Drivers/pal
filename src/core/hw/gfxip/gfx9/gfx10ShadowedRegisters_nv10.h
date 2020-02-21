@@ -214,8 +214,8 @@ const RegisterRange Navi10NonShadowedRanges[] =
     },
     // SQ thread trace registers are always not shadowed.
     {
-        Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE,
-        Gfx10::mmSQ_THREAD_TRACE_HP3D_MARKER_CNTR - Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE + 1
+        Gfx10Core::mmSQ_THREAD_TRACE_BUF0_BASE,
+        Gfx10Core::mmSQ_THREAD_TRACE_HP3D_MARKER_CNTR - Gfx10Core::mmSQ_THREAD_TRACE_BUF0_BASE + 1
     },
     {
         mmSQ_THREAD_TRACE_USERDATA_0,
@@ -232,8 +232,8 @@ const RegisterRange Navi10NonShadowedRanges[] =
         Gfx101::mmATC_PERFCOUNTER_HI - Gfx101::mmATC_PERFCOUNTER0_CFG + 1
     },
     {
-        Gfx10::mmRPB_PERFCOUNTER_LO,
-        Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10::mmRPB_PERFCOUNTER_LO + 1
+        Gfx10Core::mmRPB_PERFCOUNTER_LO,
+        Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10Core::mmRPB_PERFCOUNTER_LO + 1
     },
     {
         Oss50::mmSDMA0_PERFCOUNTER0_SELECT,

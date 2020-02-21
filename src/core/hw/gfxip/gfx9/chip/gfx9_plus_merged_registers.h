@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,8 @@
  **********************************************************************************************************************/
 
 #pragma once
+
+
 
 //
 // Make sure the necessary endian defines are there.
@@ -3081,11 +3083,15 @@ union CB_HW_CONTROL_1 {
 
 union CB_HW_CONTROL_2 {
     struct {
-        unsigned int CC_EVEN_ODD_FIFO_DEPTH                                       :  8;
+        unsigned int                                                              :  8;
         unsigned int FC_RDLAT_TILE_FIFO_DEPTH                                     :  7;
         unsigned int FC_RDLAT_QUAD_FIFO_DEPTH                                     :  8;
         unsigned int                                                              :  9;
     } bits, bitfields;
+    struct {
+        unsigned int CC_EVEN_ODD_FIFO_DEPTH                                       :  8;
+        unsigned int                                                              : 24;
+    } core;
     struct {
         unsigned int                                                              : 24;
         unsigned int DRR_ASSUMED_FIFO_DEPTH_DIV8                                  :  4;
@@ -18165,13 +18171,18 @@ union SPI_CONFIG_CNTL_1 {
         unsigned int INTERP_ONE_PRIM_PER_ROW                                      :  1;
         unsigned int                                                              :  2;
         unsigned int PC_LIMIT_STRICT                                              :  1;
-        unsigned int CRC_SIMD_ID_WADDR_DISABLE                                    :  1;
+        unsigned int                                                              :  1;
         unsigned int LBPW_CU_CHK_MODE                                             :  1;
         unsigned int LBPW_CU_CHK_CNT                                              :  4;
         unsigned int CSC_PWR_SAVE_DISABLE                                         :  1;
         unsigned int CSG_PWR_SAVE_DISABLE                                         :  1;
         unsigned int                                                              : 16;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              :  8;
+        unsigned int CRC_SIMD_ID_WADDR_DISABLE                                    :  1;
+        unsigned int                                                              : 23;
+    } core;
     struct {
         unsigned int                                                              :  5;
         unsigned int BATON_RESET_DISABLE                                          :  1;
@@ -26571,14 +26582,21 @@ union SQ_PERFCOUNTER_CTRL {
         unsigned int PS_EN                                                        :  1;
         unsigned int VS_EN                                                        :  1;
         unsigned int GS_EN                                                        :  1;
-        unsigned int ES_EN                                                        :  1;
+        unsigned int                                                              :  1;
         unsigned int HS_EN                                                        :  1;
-        unsigned int LS_EN                                                        :  1;
+        unsigned int                                                              :  1;
         unsigned int CS_EN                                                        :  1;
         unsigned int                                                              :  6;
         unsigned int DISABLE_FLUSH                                                :  1;
         unsigned int                                                              : 18;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              :  3;
+        unsigned int ES_EN                                                        :  1;
+        unsigned int                                                              :  1;
+        unsigned int LS_EN                                                        :  1;
+        unsigned int                                                              : 26;
+    } core;
     struct {
         unsigned int                                                              :  8;
         unsigned int CNTR_RATE                                                    :  5;
@@ -27155,10 +27173,14 @@ union SQ_THREAD_TRACE_STATUS {
         unsigned int FINISH_DONE                                                  : 12;
         unsigned int UTC_ERR                                                      :  1;
         unsigned int BUSY                                                         :  1;
+        unsigned int                                                              :  6;
+    } gfx10;
+    struct {
+        unsigned int                                                              : 26;
         unsigned int EVENT_CNTR_OVERFLOW                                          :  1;
         unsigned int EVENT_CNTR_STALL                                             :  1;
         unsigned int                                                              :  4;
-    } gfx10;
+    } gfx10Core;
 
     unsigned int u32All;
     signed int   i32All;

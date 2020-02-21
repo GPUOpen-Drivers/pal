@@ -145,8 +145,10 @@ PAL_INLINE bool ImageLayoutCanCompressColorData(
     const ColorLayoutToState& layoutToState,
     ImageLayout               imageLayout)
 {
-    return ((Util::TestAnyFlagSet(imageLayout.usages, ~layoutToState.compressedWrite.usages) == false) &&
-            (Util::TestAnyFlagSet(imageLayout.engines, ~layoutToState.compressedWrite.engines) == false));
+    return ((Util::TestAnyFlagSet(imageLayout.usages, ~layoutToState.compressed.usages)   == false) &&
+            (Util::TestAnyFlagSet(imageLayout.engines, ~layoutToState.compressed.engines) == false) &&
+            Util::TestAnyFlagSet(imageLayout.usages, layoutToState.compressedWrite.usages)          &&
+            Util::TestAnyFlagSet(imageLayout.engines, layoutToState.compressedWrite.engines));
 }
 
 // Information used to determine the depth or stencil compression state for an Image layout.

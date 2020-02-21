@@ -68,7 +68,7 @@ public:
 
     // This function will playback the commands recorded by this command buffer into the specified target command
     // buffer while instrumenting it with additional commands to gather timing, perf counters, etc.
-    void Replay(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuf, uint32 curFrame);
+    Result Replay(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuf, uint32 curFrame);
 
     bool ContainsPresent() const { return m_flags.containsPresent; }
 
@@ -824,6 +824,9 @@ public:
     Result EndGpaSession(LogItem* pLogItem);
     GpuUtil::GpaSession* GetGpaSession() { return m_pGpaSession; }
 
+    Result GetLastResult() const { return m_result; }
+    void SetLastResult(Result result);
+
 protected:
     virtual ~TargetCmdBuffer() {}
 
@@ -840,6 +843,8 @@ private:
     bool                         m_supportTimestamps; // This command buffer (based on engine type) supports timestamps.
 
     GpuUtil::GpaSession*         m_pGpaSession;
+
+    Result                       m_result; // Result from attempted operations.
 
     PAL_DISALLOW_DEFAULT_CTOR(TargetCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(TargetCmdBuffer);

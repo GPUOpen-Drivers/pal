@@ -111,6 +111,8 @@ struct GpuMemoryResourceBindEventData
     gpusize             requiredGpuMemSize; ///< GPU memory size required by pObj.
     const IGpuMemory*   pGpuMemory;         ///< IGpuMemory object being bound to the resource.
     gpusize             offset;             ///< Offset within pGpuMemory where the resource is being bound.
+    bool                isSystemMemory;     ///< If true then system memory is being bound to the object. In this case,
+                                            ///  pGpuMemory and offset should be set to zero.
 };
 
 /// Describes the creation of an object relevant to GpuMemory event logging
@@ -352,6 +354,7 @@ enum class MiscInternalAllocType : uint32
     TileGridMemory            = 12,
     Fmaskmemory               = 13,
     VideoDecoderHeap          = 14,
+    Unknown                   = 15,
 };
 
 /// Describes a miscellaneous internal GPU memory allocation

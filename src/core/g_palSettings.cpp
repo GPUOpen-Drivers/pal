@@ -75,7 +75,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.addr2DisableSModes8BppColor = false;
     m_settings.overlayReportHDR = true;
     m_settings.preferredPipelineUploadHeap = PipelineHeapDeferToClient;
-    m_settings.insertGuardPageBetweenWddm2VAs = false;
+
     m_settings.forceHeapPerfToFixedValues = false;
     m_settings.cpuReadPerfForLocal = 1;
     m_settings.cpuWritePerfForLocal = 1;
@@ -98,6 +98,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.updateOneGpuVirtualAddress = false;
     m_settings.alwaysResident = false;
     m_settings.disableSyncobjFence = false;
+    m_settings.disableSdmaEngine = false;
     m_settings.enableVmAlwaysValid = VmAlwaysValidDefaultEnable;
     m_settings.disableSyncObject = false;
     m_settings.cmdBufDumpMode = CmdBufDumpModeDisabled;
@@ -263,11 +264,6 @@ void SettingsLoader::ReadSettings()
                            &m_settings.preferredPipelineUploadHeap,
                            InternalSettingScope::PrivatePalKey);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pInsertGuardPageBetweenWddm2VAsStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.insertGuardPageBetweenWddm2VAs,
-                           InternalSettingScope::PrivatePalKey);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceHeapPerfToFixedValuesStr,
                            Util::ValueType::Boolean,
                            &m_settings.forceHeapPerfToFixedValues,
@@ -306,6 +302,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableSyncobjFenceStr,
                            Util::ValueType::Boolean,
                            &m_settings.disableSyncobjFence,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableSdmaEngineStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.disableSdmaEngine,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pEnableVmAlwaysValidStr,
@@ -563,6 +564,15 @@ void SettingsLoader::ReadSettings()
 }
 
 // =====================================================================================================================
+// Reads the setting from the OS adapter and sets the structure value when the setting values are found.
+// This is expected to be done after the component has perform overrides of any defaults.
+void SettingsLoader::RereadSettings()
+{
+    // read from the OS adapter for each individual setting
+
+}
+
+// =====================================================================================================================
 // Initializes the SettingInfo hash map and array of setting hashes.
 void SettingsLoader::InitSettingsInfo()
 {
@@ -667,11 +677,6 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.preferredPipelineUploadHeap;
     info.valueSize = sizeof(m_settings.preferredPipelineUploadHeap);
     m_settingsInfoMap.Insert(1170638299, info);
-
-    info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.insertGuardPageBetweenWddm2VAs;
-    info.valueSize = sizeof(m_settings.insertGuardPageBetweenWddm2VAs);
-    m_settingsInfoMap.Insert(3303637006, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.forceHeapPerfToFixedValues;
@@ -782,6 +787,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.disableSyncobjFence;
     info.valueSize = sizeof(m_settings.disableSyncobjFence);
     m_settingsInfoMap.Insert(1287715858, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.disableSdmaEngine;
+    info.valueSize = sizeof(m_settings.disableSdmaEngine);
+    m_settingsInfoMap.Insert(2254617940, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.enableVmAlwaysValid;
@@ -1054,7 +1064,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 1035641927;
+            component.settingsDataHash = 3147251323;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

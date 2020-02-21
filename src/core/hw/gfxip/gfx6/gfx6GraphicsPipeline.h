@@ -95,12 +95,13 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-    regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.context.paScModeCntl1; }
+    regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.other.paScModeCntl1; }
+    regDB_RENDER_OVERRIDE DbRenderOverride() const { return m_regs.other.dbRenderOverride; }
 
     regIA_MULTI_VGT_PARAM IaMultiVgtParam(bool forceWdSwitchOnEop) const
-        { return m_regs.context.iaMultiVgtParam[static_cast<uint32>(forceWdSwitchOnEop)]; }
+        { return m_regs.other.iaMultiVgtParam[static_cast<uint32>(forceWdSwitchOnEop)]; }
 
-    regVGT_LS_HS_CONFIG VgtLsHsConfig() const { return m_regs.context.vgtLsHsConfig; }
+    regVGT_LS_HS_CONFIG VgtLsHsConfig() const { return m_regs.other.vgtLsHsConfig; }
 
     bool CanDrawPrimsOutOfOrder(const DepthStencilView*  pDsView,
                                 const DepthStencilState* pDepthStencilState,
@@ -109,16 +110,16 @@ public:
                                 OutOfOrderPrimMode       gfx7EnableOutOfOrderPrimitives) const;
 
     bool IsOutOfOrderPrimsEnabled() const
-        { return m_regs.context.paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE; }
+        { return m_regs.other.paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE; }
 
     regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_chunkVsPs.VgtStrmoutBufferConfig(); }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const { return m_chunkVsPs.VgtStrmoutVtxStride(idx); }
     regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_chunkVsPs.SpiVsOutConfig(); }
     regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_chunkVsPs.SpiPsInControl(); }
 
-    regSX_PS_DOWNCONVERT__VI SxPsDownconvert() const { return m_regs.context.sxPsDownconvert; }
-    regSX_BLEND_OPT_EPSILON__VI SxBlendOptEpsilon() const { return m_regs.context.sxBlendOptEpsilon; }
-    regSX_BLEND_OPT_CONTROL__VI SxBlendOptControl() const { return m_regs.context.sxBlendOptControl; }
+    regSX_PS_DOWNCONVERT__VI SxPsDownconvert() const { return m_regs.other.sxPsDownconvert; }
+    regSX_BLEND_OPT_EPSILON__VI SxBlendOptEpsilon() const { return m_regs.other.sxBlendOptEpsilon; }
+    regSX_BLEND_OPT_CONTROL__VI SxBlendOptControl() const { return m_regs.other.sxBlendOptControl; }
 
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
@@ -248,8 +249,10 @@ private:
             regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;
             regDB_SHADER_CONTROL            dbShaderControl;
             regDB_ALPHA_TO_MASK             dbAlphaToMask;
-            regDB_RENDER_OVERRIDE           dbRenderOverride;
+        } context;
 
+        struct
+        {
             // The registers below are written by the command buffer during draw-time validation, so they are not
             // written in WriteContextCommandsSetPath nor uploaded as part of the LOAD_INDEX path.
             regSX_PS_DOWNCONVERT__VI     sxPsDownconvert;
@@ -258,7 +261,10 @@ private:
             regVGT_LS_HS_CONFIG          vgtLsHsConfig;
             regPA_SC_MODE_CNTL_1         paScModeCntl1;
             regIA_MULTI_VGT_PARAM        iaMultiVgtParam[NumIaMultiVgtParam];
-        } context;
+
+            // This register is written by the command buffer at draw-time validation. Only some fields are used.
+            regDB_RENDER_OVERRIDE        dbRenderOverride;
+        } other;
     }  m_regs;
 
     struct

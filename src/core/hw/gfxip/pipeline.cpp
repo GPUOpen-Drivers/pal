@@ -234,10 +234,14 @@ void Pipeline::ExtractPipelineInfo(
     {
         Abi::ApiShaderType shaderType = PalToAbiShaderType[s];
 
-        const auto& shaderMetadata = metadata.pipeline.shader[static_cast<uint32>(shaderType)];
+        if (shaderType != Abi::ApiShaderType::Count)
+        {
+            const uint32 shaderTypeIdx  = static_cast<uint32>(shaderType);
+            const auto&  shaderMetadata = metadata.pipeline.shader[shaderTypeIdx];
 
-        m_info.shader[s].hash = { shaderMetadata.apiShaderHash[0], shaderMetadata.apiShaderHash[1] };
-        m_apiHwMapping.apiShaders[static_cast<uint32>(shaderType)] = static_cast<uint8>(shaderMetadata.hardwareMapping);
+            m_info.shader[s].hash = { shaderMetadata.apiShaderHash[0], shaderMetadata.apiShaderHash[1] };
+            m_apiHwMapping.apiShaders[shaderTypeIdx] = static_cast<uint8>(shaderMetadata.hardwareMapping);
+        }
     }
 }
 
@@ -399,7 +403,6 @@ Result Pipeline::GetPerformanceData(
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
 // If pipeline may make indirect function calls, perform any late linking steps required to valid execution
 // of the possible function calls.
 // (this could include adjusting hardware resources such as GPRs or LDS space for the pipeline).
@@ -410,7 +413,6 @@ Result Pipeline::LinkWithLibraries(
     // To be Implemented in needed Pipiline classes
     return Result::Unsupported;
 }
-#endif
 
 // =====================================================================================================================
 // Helper method which extracts shader statistics from the pipeline ELF binary for a particular hardware stage.
@@ -448,8 +450,6 @@ Result Pipeline::GetShaderStatsForStage(
         {
             pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
                                                                                 : gpuInfo.gfx6.numShaderVisibleSgprs;
-            pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
-                                                                                : gpuInfo.gfx6.numPhysicalVgprsPerSimd;
         }
 #endif
 
@@ -457,9 +457,9 @@ Result Pipeline::GetShaderStatsForStage(
         {
             pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
                                                                                 : gpuInfo.gfx9.numShaderVisibleSgprs;
-            pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
-                                                                                : gpuInfo.gfx9.numPhysicalVgprsPerSimd;
         }
+        pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
+                                                                            : MaxVgprPerShader;
 
         pStats->common.ldsUsageSizeInBytes    = stageMetadata.ldsSize;
         pStats->common.scratchMemUsageInBytes = stageMetadata.scratchMemorySize;

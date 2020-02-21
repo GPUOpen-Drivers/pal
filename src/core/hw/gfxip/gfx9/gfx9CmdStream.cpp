@@ -1070,7 +1070,7 @@ void CmdStream::SetContextRollDetected()
     // is due to an ACQUIRE_MEM, it should not be affected by the PM4 optimizer.
     if ((m_flags.optimizeCommands == 1) && canBeOptimized)
     {
-        m_contextRollDetected = m_pPm4Optimizer->GetContextRollState();
+        m_contextRollDetected |= m_pPm4Optimizer->GetContextRollState();
     }
     else
     {

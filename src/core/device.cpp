@@ -396,6 +396,13 @@ Result Device::Cleanup()
 
         Result freeVaResult = FreeGpuVirtualAddress(virtAddr, virtSize);
 
+        if (m_pPlatform->GetEventProvider() != nullptr)
+        {
+            ResourceDestroyEventData destroyData = {};
+            destroyData.pObj = &m_pageFaultDebugSrdMem;
+            m_pPlatform->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+        }
+
         // An error here is not fatal, but it will likely prevent new debug SRDs from being allocated in new devices.
         PAL_ALERT(freeVaResult != Result::Success);
     }
@@ -404,6 +411,13 @@ Result Device::Cleanup()
     {
         result = m_memMgr.FreeGpuMem(m_dummyChunkMem.Memory(), m_dummyChunkMem.Offset());
         m_dummyChunkMem.Update(nullptr, 0);
+
+        if ((m_pPlatform != nullptr) && (m_pPlatform->GetEventProvider() != nullptr))
+        {
+            ResourceDestroyEventData destroyData = {};
+            destroyData.pObj = &m_dummyChunkMem;
+            m_pPlatform->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+        }
     }
 
     for (uint32 engineType = 0; engineType < EngineTypeCount; engineType++)
@@ -1311,6 +1325,27 @@ void Device::InitPageFaultDebugSrd()
         void* pData = nullptr;
         if (result == Result::Success)
         {
+            if ((m_pPlatform != nullptr) && (m_pPlatform->GetEventProvider() != nullptr))
+            {
+                ResourceDescriptionMiscInternal desc;
+                desc.type = MiscInternalAllocType::PageFaultSRD;
+
+                ResourceCreateEventData createData = {};
+                createData.type = ResourceType::MiscInternal;
+                createData.pObj = &m_pageFaultDebugSrdMem;
+                createData.pResourceDescData = &desc;
+                createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
+
+                m_pPlatform->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+
+                GpuMemoryResourceBindEventData bindData = {};
+                bindData.pGpuMemory = pGpuMem;
+                bindData.pObj = &m_pageFaultDebugSrdMem;
+                bindData.offset = memOffset;
+                bindData.requiredGpuMemSize = createInfo.size;
+                m_pPlatform->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+            }
+
             m_pageFaultDebugSrdMem.Update(pGpuMem, memOffset);
 
             result = m_pageFaultDebugSrdMem.Map(reinterpret_cast<void**>(&pData));
@@ -1370,6 +1405,27 @@ Result Device::InitDummyChunkMem()
 
     if (result == Result::Success)
     {
+        if ((m_pPlatform != nullptr) && (m_pPlatform->GetEventProvider() != nullptr))
+        {
+            ResourceDescriptionMiscInternal desc;
+            desc.type = MiscInternalAllocType::DummyChunk;
+
+            ResourceCreateEventData createData = {};
+            createData.type = ResourceType::MiscInternal;
+            createData.pObj = &m_dummyChunkMem;
+            createData.pResourceDescData = &desc;
+            createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
+
+            m_pPlatform->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+
+            GpuMemoryResourceBindEventData bindData = {};
+            bindData.pGpuMemory = pGpuMem;
+            bindData.pObj = &m_dummyChunkMem;
+            bindData.offset = memOffset;
+            bindData.requiredGpuMemSize = createInfo.size;
+            m_pPlatform->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+        }
+
         m_dummyChunkMem.Update(pGpuMem, memOffset);
     }
 
@@ -1831,6 +1887,8 @@ Result Device::GetProperties(
                 pCapabilitiesInfo->flags.mustUseDispatchTunneling   = capabilitiesInfo.flags.mustUseDispatchTunneling;
                 pCapabilitiesInfo->queuePrioritySupport             = capabilitiesInfo.queuePrioritySupport;
                 pCapabilitiesInfo->dispatchTunnelingPrioritySupport = capabilitiesInfo.dispatchTunnelingPrioritySupport;
+                pCapabilitiesInfo->flags.supportsMultiQueue         = capabilitiesInfo.flags.supportsMultiQueue;
+                pCapabilitiesInfo->maxFrontEndPipes                 = capabilitiesInfo.maxFrontEndPipes;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
                 pEngineInfo->engineSubType[engineIdx]        = engineInfo.engineSubType[engineIdx];
@@ -2305,7 +2363,7 @@ Result Device::CreateQueue(
     Queue* pQueue = ConstructQueueObject(createInfo, pPlacementAddr);
 
     PAL_ASSERT(pQueue != nullptr);
-    Result result = pQueue->Init(VoidPtrInc(pPlacementAddr, QueueObjectSize(createInfo)));
+    Result result = pQueue->Init(&createInfo, VoidPtrInc(pPlacementAddr, QueueObjectSize(createInfo)));
 
     if (result == Result::Success)
     {
@@ -2319,6 +2377,86 @@ Result Device::CreateQueue(
     else
     {
         pQueue->Destroy();
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Determines the size, in bytes, needed to create an IQueue.
+// NOTE: Part of the public IDevice interface.
+size_t Device::GetMultiQueueSize(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    Result*                pResult
+    ) const
+{
+    PAL_ASSERT(queueCount > 0);
+
+    if (pResult != nullptr)
+    {
+        Result result = Result::Success;
+        for (uint32 qIndex = 0; (qIndex < queueCount) && (result == Result::Success); qIndex++)
+        {
+            const EngineType engineType = pCreateInfo[qIndex].engineType;
+            const uint32 numAvailable   = EngineProperties().perEngine[engineType].numAvailable;
+
+            if ((pCreateInfo[qIndex].queueType >= QueueTypeCount) ||
+                (engineType >= EngineTypeCount) ||
+                (pCreateInfo[qIndex].engineIndex >= numAvailable))
+            {
+                result = Result::ErrorInvalidValue;
+            }
+        }
+        *pResult = result;
+    }
+
+    size_t multiQueueSize  = 0;
+    size_t masterQueueSize = MultiQueueObjectSize(queueCount, pCreateInfo);
+    // multiQueue is used for gang submission only for now. gang submission is only supported on WDDM2.5+.
+    // Therefore, if client tries to create a multiQueue on other OS, the function returns 0 to indicate a failure.
+    if (masterQueueSize > 0)
+    {
+        multiQueueSize += masterQueueSize;
+        for (uint32 qIndex = 0; qIndex < queueCount; qIndex++)
+        {
+            multiQueueSize += QueueContextSize(pCreateInfo[qIndex]);
+        }
+    }
+
+    return multiQueueSize;
+}
+
+// =====================================================================================================================
+// Creates a new IQueue object in preallocated memory provided by the caller.
+// NOTE: Part of the public IDevice interface.
+Result Device::CreateMultiQueue(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    void*                  pPlacementAddr,
+    IQueue**               ppQueue)
+{
+    Result result = Result::Unsupported;
+
+    Queue* pQueue = ConstructMultiQueueObject(queueCount, pCreateInfo, pPlacementAddr);
+
+    if (pQueue != nullptr)
+    {
+        result = pQueue->Init(pCreateInfo, VoidPtrInc(pPlacementAddr, MultiQueueObjectSize(queueCount, pCreateInfo)));
+
+        if (result == Result::Success)
+        {
+            result = pQueue->LateInit();
+        }
+
+        if (result == Result::Success)
+        {
+            (*ppQueue) = pQueue;
+        }
+        else
+        {
+            pQueue->Destroy();
+        }
     }
 
     return result;
@@ -3079,13 +3217,12 @@ Result Device::CreateGpuMemory(
             pGpuMemory->Destroy();
             pGpuMemory = nullptr;
         }
+        else
+        {
+            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
+        }
 
         (*ppGpuMemory) = pGpuMemory;
-
-        m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(
-            pGpuMemory,
-            result,
-            false);
     }
 
     return result;
@@ -3139,11 +3276,10 @@ Result Device::CreateInternalGpuMemory(
             (*ppGpuMemory)->Destroy();
             (*ppGpuMemory) = nullptr;
         }
-
-        m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(
-            (*ppGpuMemory),
-            result,
-            (internalInfo.flags.isClient == false));
+        else if (m_pPlatform->GetEventProvider() != nullptr)
+        {
+            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent((*ppGpuMemory));
+        }
     }
 
     return result;
@@ -3190,12 +3326,12 @@ Result Device::CreatePinnedGpuMemory(
             pGpuMemory->Destroy();
             pGpuMemory = nullptr;
         }
+        else
+        {
+            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
+        }
 
         (*ppGpuMemory) = pGpuMemory;
-        m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(
-            pGpuMemory,
-            result,
-            false);
     }
 
     return result;
@@ -3244,12 +3380,12 @@ Result Device::CreateSvmGpuMemory(
             pGpuMemory->Destroy();
             pGpuMemory = nullptr;
         }
+        else
+        {
+            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
+        }
 
         (*ppGpuMemory) = pGpuMemory;
-        m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(
-            pGpuMemory,
-            result,
-            false);
     }
 
     return result;
@@ -3296,6 +3432,10 @@ Result Device::OpenSharedGpuMemory(
             pGpuMemory->Destroy();
             pGpuMemory = nullptr;
         }
+        else
+        {
+            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
+        }
 
         (*ppGpuMemory) = pGpuMemory;
     }
@@ -3341,6 +3481,10 @@ Result Device::OpenPeerGpuMemory(
         {
             pGpuMemory->Destroy();
             pGpuMemory = nullptr;
+        }
+        else
+        {
+            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
         }
 
         (*ppGpuMemory) = pGpuMemory;
@@ -4436,8 +4580,23 @@ void Device::ApplyDevOverlay(
 
         // Print the profiling status string
         Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize, "Profiling: %s",
+                       OverlayTextBufferSize, "RGP Profiling: %s",
                        pTraceStatusString);
+        m_pTextWriter->DrawDebugText(dstImage,
+                                     pCmdBuffer,
+                                     overlayTextBuffer,
+                                     0,
+                                     letterHeight);
+        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+
+        // Check the RMV trace status
+        const char* pRmvTraceStatusString = m_pPlatform->GetEventProvider()->IsMemoryProfilingEnabled() ?
+            "Active": "Inactive";
+
+        // Print the RMV trace status string
+        Util::Snprintf(overlayTextBuffer,
+                       OverlayTextBufferSize, "RMV Tracing: %s",
+                       pRmvTraceStatusString);
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,
                                      overlayTextBuffer,
@@ -4906,10 +5065,13 @@ Result Device::CopyUsingEmbeddedData(
         {
             ICmdBuffer*const pSubmitCmdBuffer = m_pInternalCopyCmdBuffer;
 
-            SubmitInfo submitInfo     = { };
-            submitInfo.cmdBufferCount = 1;
-            submitInfo.ppCmdBuffers   = &pSubmitCmdBuffer;
+            PerSubQueueSubmitInfo perSubQueueInfo = {};
+            perSubQueueInfo.cmdBufferCount = 1;
+            perSubQueueInfo.ppCmdBuffers = &pSubmitCmdBuffer;
 
+            MultiSubmitInfo submitInfo      = {};
+            submitInfo.perSubQueueInfoCount = 1;
+            submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
             result = InternalDmaSubmit(submitInfo);
         }
 
@@ -4926,7 +5088,7 @@ Result Device::CopyUsingEmbeddedData(
 // Performs a DMA queue submit and waits for its completion. Assumes the command buffers in the SubmitInfo are DMA
 // command buffers.
 Result Device::InternalDmaSubmit(
-    const SubmitInfo& submitInfo)
+    const MultiSubmitInfo& submitInfo)
 {
     Result result = Result::Success;
 

@@ -116,10 +116,10 @@ private:
 class Queue : public Pal::Queue
 {
 public:
-    Queue(Device* pDevice, const QueueCreateInfo& createInfo);
+    Queue(uint32 qCount, Device* pDevice, const QueueCreateInfo* pCreateInfo);
     virtual ~Queue();
 
-    virtual Result Init(void* pContextPlacementAddr) override;
+    virtual Result Init(const QueueCreateInfo* pCreateInfo, void* pContextPlacementAddr) override;
 
     // NOTE: Part of the public IQueue interface.
     virtual Result RemapVirtualMemoryPages(
@@ -144,8 +144,8 @@ public:
         uint64                  value);
 
     virtual Result OsSubmit(
-        const SubmitInfo&         submitInfo,
-        const InternalSubmitInfo& internalSubmitInfo) override;
+        const MultiSubmitInfo&    submitInfo,
+        const InternalSubmitInfo* pInternalSubmitInfos) override;
 
     void  AssociateFenceWithContext(
         IFence* pFence);
@@ -205,7 +205,7 @@ private:
         bool                      isDummySubmission);
 
     Result SubmitPm4(
-        const SubmitInfo&         submitInfo,
+        const MultiSubmitInfo&    submitInfo,
         const InternalSubmitInfo& internalSubmitInfo,
         bool                      isDummySubmission);
 
@@ -226,7 +226,7 @@ private:
         bool                      isDummySubmission);
 
     Result SubmitNonGfxIp(
-        const SubmitInfo&         submitInfo,
+        const MultiSubmitInfo&    submitInfo,
         const InternalSubmitInfo& internalSubmitInfo,
         bool                      isDummySubmission);
 

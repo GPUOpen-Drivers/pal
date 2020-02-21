@@ -64,9 +64,7 @@ class  IPrivateScreen;
 class  IQueryPool;
 class  IQueue;
 class  IQueueSemaphore;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
 class  IShaderLibrary;
-#endif
 class  ISwapChain;
 struct BorderColorPaletteCreateInfo;
 struct CmdAllocatorCreateInfo;
@@ -100,9 +98,7 @@ struct QueryPoolCreateInfo;
 struct QueueCreateInfo;
 struct QueueSemaphoreCreateInfo;
 struct QueueSemaphoreOpenInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
 struct ShaderLibraryCreateInfo;
-#endif
 struct SwapChainCreateInfo;
 struct SwapChainProperties;
 struct SvmGpuMemoryCreateInfo;
@@ -275,6 +271,9 @@ enum class VcnIpLevel : uint32
 #endif
 
     VcnIp1   = 0x1,
+#if PAL_BUILD_VCN3
+    VcnIp3 = 0x4
+#endif
 };
 
 /// Specifies which SPU IP level this device has.
@@ -866,7 +865,11 @@ struct DeviceProperties
                     uint32 exclusive                :  1;  ///< Engine is exclusively owned by one client at a time.
                     uint32 mustUseDispatchTunneling :  1;  ///< Queues created on this engine must use dispatch
                                                            ///  tunneling.
-                    uint32 reserved                 : 30;  ///< Reserved for future use.
+                    /// Indicates whether this engine instance can be used for gang submission workloads via
+                    /// a multi-queue.
+                    /// @see IDevice::CreateMultiQueue.
+                    uint32 supportsMultiQueue       :  1;
+                    uint32 reserved                 : 29;  ///< Reserved for future use.
                 };
                 uint32 u32All;                        ///< Flags packed as 32-bit uint.
             } flags;                                  ///< Capabilities property flags.
@@ -875,6 +878,10 @@ struct DeviceProperties
                                                       ///  priority levels are supported by this engine.
             uint32 dispatchTunnelingPrioritySupport;  ///< Mask of QueuePrioritySupport flags indicating which queue
                                                       ///  priority levels support dispatch tunneling on this engine.
+            uint32 maxFrontEndPipes;                  ///< Up to this number of IQueue objects can be consumed in
+                                                      ///  parallel by the front-end of this engine instance. It will
+                                                      ///  only be greater than 1 on hardware scheduled engine backed
+                                                      ///  by multiple hardware pipes/threads.
         } capabilities[MaxAvailableEngines];          ///< Lists each engine of this type (up to engineCount) and their
                                                       ///  properties.
 
@@ -3048,6 +3055,51 @@ public:
         void*                  pPlacementAddr,
         IQueue**               ppQueue) = 0;
 
+    /// Determines the amount of system memory required for a multi-queue object.  An allocation of this amount of
+    /// memory must be provided in the pPlacementAddr parameter of CreateMultiQueue().
+    ///
+    /// @param [in]  queueCount  Number of queues in the gang; matches number of entries in pCreateInfo.
+    /// @param [in]  pCreateInfo Properties of each queue to create for this gang (engine type, etc.).  The first
+    ///                          entry in this array describes the master queue which will be used to execute all
+    ///                          IQueue interfaces except for MultiSubmit().
+    /// @param [out] pResult     The validation result if pResult is non-null. This argument can be null to avoid the
+    ///                          additional validation.
+    ///
+    /// @returns Size, in bytes, of system memory required for an multi-queue IQueue object with the specified
+    ///          properties.  A return value of 0 indicates the createInfo was invalid.
+    virtual size_t GetMultiQueueSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        Result*                pResult) const = 0;
+
+    /// Creates a multi-queue (i.e., gang submission queue) object.  The resulting version of the IQueue interface
+    /// is composed of multiple hardware queues which can be atomically submitted to as a group.  When this is done,
+    /// it is safe to use IGpuEvent objects to tightly synchronize work done across queues in a single call to Submit().
+    /// This can allow the client to tightly schedule asynchronous workloads for maximum efficiency that isn't possible
+    /// across queues using IQueueSemaphore objects.
+    ///
+    /// @param [in]  queueCount     Number of queues in the gang; matches number of entries in the pCreateInfo array.
+    /// @param [in]  pCreateInfo    Properties of each queue to create for this gang (engine type, etc.).  The first
+    ///                             entry in this array describes the master queue which will be used to execute all
+    ///                             IQueue interfaces except for the ganged-portion of a Submit() (e.g., Present()).
+    /// @param [in]  pPlacementAddr Pointer to the location where PAL should construct this object.  There must be as
+    ///                             much size available here as reported by calling GetMultiQueueSize() with the same
+    ///                             arguments.
+    /// @param [out] ppQueue        Constructed multi queue object.
+    ///
+    /// @returns Success if the multi queue was successfully created.  Otherwise, one of the following errors may be
+    ///          returned:
+    ///          + ErrorInvalidValue if queueCount is less than 2.
+    ///          + ErrorInvalidQueueType if any of the created sub-queues are not multi-queue compatible.  This is
+    ///            indicated by the supportsMultiQueue engineProperties flag in @ref DeviceProperties.
+    ///          + ErrorInvalidPointer if pCreateInfo, pPlacementAddr or ppQueue is null.
+    ///          + ErrorInvalidValue if any create info's configuration is invalid.
+    virtual Result CreateMultiQueue(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        void*                  pPlacementAddr,
+        IQueue**               ppQueue) = 0;
+
     /// Determines the amount of system memory required for a GPU memory object.
     ///
     /// An allocation of this amount of memory must be provided in the pPlacementAddr parameter of CreateGpuMemory().
@@ -3845,7 +3897,6 @@ public:
         void*                            pPlacementAddr,
         IPipeline**                      ppPipeline) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     /// Determines the amount of system memory required for a shader library object.  An allocation of this amount of
     /// memory must be provided in the pPlacementAddr parameter of CreateShaderLibrary().
     ///
@@ -3877,7 +3928,6 @@ public:
         const ShaderLibraryCreateInfo& createInfo,
         void*                          pPlacementAddr,
         IShaderLibrary**               ppLibrary) = 0;
-#endif
 
     /// Determines the amount of system memory required for a graphics pipeline object.  An allocation of this amount of
     /// memory must be provided in the pPlacementAddr parameter of CreateGraphicsPipeline().

@@ -160,7 +160,7 @@ size_t Device::GetQueueContextSize(
 // =====================================================================================================================
 // Creates the QueueContext object for the specified Queue in preallocated memory. Only supported on DMA Queues.
 Result Device::CreateQueueContext(
-    Queue*         pQueue,
+    QueueType      qType,
     void*          pPlacementAddr,
     QueueContext** ppQueueContext)
 {
@@ -168,7 +168,7 @@ Result Device::CreateQueueContext(
 
     Result result = Result::Success;
 
-    switch (pQueue->Type())
+    switch (qType)
     {
     case QueueTypeDma:
         (*ppQueueContext) = PAL_PLACEMENT_NEW(pPlacementAddr) QueueContext(Parent());

@@ -99,7 +99,7 @@ public:
     Result Init();
 
     virtual Result Submit(
-        const SubmitInfo& submitInfo) override;
+        const MultiSubmitInfo& submitInfo) override;
 
 private:
     virtual ~Queue();

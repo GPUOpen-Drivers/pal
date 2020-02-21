@@ -982,6 +982,11 @@ void SettingsLoader::RereadSettings()
                            &m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx10GePcAllocNumLinesPerSeNggCullingStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gfx10GePcAllocNumLinesPerSeNggCulling,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSupportedStr,
                            Util::ValueType::Boolean,
                            &m_settings.nggSupported,
@@ -1946,7 +1951,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 1568050949;
+            component.settingsDataHash = 764522785;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

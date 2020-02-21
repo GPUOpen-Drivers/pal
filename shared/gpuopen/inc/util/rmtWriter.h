@@ -50,6 +50,9 @@ public:
     // Initializes the RMT file writer.
     void Init();
 
+    // Resets the internal state of the RMT file writer
+    void Reset();
+
     // Writes a file header chunk to the Rmt file. This is only necessary if the caller is writing an entire file with
     // this writer instance.
     // pFileCreateTime can be provided to set the create time in the RMT file header, if it is null then the current
@@ -59,6 +62,17 @@ public:
     // Writes a SystemInfo chunk to the Rmt file.  Callers may zero initialize the header field, as it will be
     // filled out this function before writing.
     void WriteSystemInfo(RmtFileChunkSystemInfo systemInfo);
+
+    // Writes a SegmentInfo chunk to the Rmt file.  Callers may zero initialize the header field, as it will be
+    // filled out this function before writing.
+    void WriteSegmentInfo(RmtFileChunkSegmentInfo segmentInfo);
+
+    // Writes an AdapterInfo chunk to the Rmt file.  Callers may zero initialize the header field, as it will be
+    // filled out this function before writing.
+    void WriteAdapterInfo(RmtFileChunkAdapterInfo adapterInfo);
+
+    // Writes a snapshot chunk to the Rmt file.
+    void WriteSnapshot(const char* pSnapshotName);
 
     // These functions are used to create and add token data to an RMT data chunk.
     void BeginDataChunk(uint64 processId, uint64 threadId);

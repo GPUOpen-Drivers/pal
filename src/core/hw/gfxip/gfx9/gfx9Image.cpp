@@ -960,6 +960,13 @@ void Image::InitLayoutStateMasks()
                 // conclusion:- We can keep it compressed in all cases.
                 compressedLayout.usages |= LayoutResolveSrc;
 
+                // Both CmdCopyImage and CmdCopyImageToMemory support Fmask based non-eqaa msaa access to CopySrc. So
+                // can keep colorCompressed for non-eqaa color msaa image if it supports supportMetaDataTexFetch.
+                if (DoesImageSupportCopySrcCompression() && (m_createInfo.samples == m_createInfo.fragments))
+                {
+                    compressedLayout.usages |= LayoutCopySrc;
+                }
+
                 // As stated above we only land up here if dcc is allocated and we are tc-compatible and also in
                 // this case on gfxip8 we will have fmask surface tc-compatible, which means we can keep colorcompressed
                 // for fmaskbasedmsaaread
@@ -1070,7 +1077,7 @@ void Image::InitLayoutStateMasks()
         // b. Pixel shader resolve :- There is no need to issue DccExpand at barrier time.
         if (m_createInfo.flags.fullResolveDstOnly == 1)
         {
-            compressedWriteLayout.usages |= LayoutResolveDst;
+            compressedLayout.usages |= LayoutResolveDst;
         }
 
         // The compressWriteLayout set must always be a subset of the compressedLayout set.
@@ -1375,7 +1382,8 @@ Result Image::ComputePipeBankXor(
             }
             else
             {
-                PAL_ASSERT_ALWAYS();
+                // Otherwise for other cases, tileSwizzle specified by clients can only be 0.
+                PAL_ASSERT(m_createInfo.tileSwizzle == 0);
             }
         }
         else
@@ -1753,6 +1761,11 @@ bool Image::IsFastDepthStencilClearSupported(
         if ((subResource.aspect == ImageAspect::Stencil)
             && HasHtileData()
             && GetHtile()->TileStencilDisabled())
+        {
+            isFastClearSupported = false;
+        }
+        // Only depth in the [0.0, 1.0] range can be compressed.
+        else if ((subResource.aspect == ImageAspect::Depth) && ((depth < 0.0f) || (depth > 1.0f)))
         {
             isFastClearSupported = false;
         }

@@ -68,11 +68,9 @@ public:
         const GpuChipProperties& chipProps,
         uint32                   maxWavesPerCu);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) override;
-#endif
 
 protected:
     virtual Result HwlInit(

@@ -190,8 +190,10 @@ enum RMT_HEAP_TYPE
 {
     RMT_HEAP_TYPE_LOCAL          = 0,
     RMT_HEAP_TYPE_INVISIBLE      = 1,
-    RMT_HEAP_TYPE_GART_USWC      = 2,
-    RMT_HEAP_TYPE_GART_CACHEABLE = 3,
+    RMT_HEAP_TYPE_SYSTEM         = 2,
+
+    RMT_HEAP_TYPE_GART_USWC      = 2, // Deprecated (Use RMT_HEAP_TYPE_SYSTEM instead)
+    RMT_HEAP_TYPE_GART_CACHEABLE = 2, // Deprecated (Use RMT_HEAP_TYPE_SYSTEM instead)
 };
 
 inline RMT_PAGE_SIZE GetRmtPageSize(uint64 pageSize)

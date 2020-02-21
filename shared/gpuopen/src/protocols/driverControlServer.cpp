@@ -87,6 +87,7 @@ DriverControlServer::DriverControlServer(IMsgChannel* pMsgChannel)
     , m_numSessions(0)
     , m_stepCounter(0)
     , m_initStepRequested(false)
+    , m_driverInitClientId(kBroadcastClientId)
 {
     DD_ASSERT(m_pMsgChannel != nullptr);
 
@@ -662,21 +663,35 @@ bool DriverControlServer::DiscoverHaltRequests()
     {
         if ((m_driverStatus == DriverStatus::PlatformInit) || (m_driverStatus == DriverStatus::EarlyDeviceInit))
         {
-            ClientMetadata filter = {};
-            if (m_driverStatus == DriverStatus::PlatformInit)
+            // If we don't have a valid driver init client id, then attempt to locate one now.
+            if (m_driverInitClientId == kBroadcastClientId)
             {
-                filter.status |= static_cast<StatusFlags>(ClientStatusFlags::PlatformHaltOnConnect);
+                ClientMetadata filter = {};
+                if (m_driverStatus == DriverStatus::PlatformInit)
+                {
+                    filter.status |= static_cast<StatusFlags>(ClientStatusFlags::PlatformHaltOnConnect);
+                }
+                else
+                {
+                    filter.status |= static_cast<StatusFlags>(ClientStatusFlags::DeviceHaltOnConnect);
+                }
+
+                DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Attempting to find suitable client for driver initialization");
+
+                if (m_pMsgChannel->FindFirstClient(filter, &m_driverInitClientId, kBroadcastIntervalInMs) == Result::Success)
+                {
+                    DD_ASSERT(m_driverInitClientId != kBroadcastClientId);
+                    DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Found suitable driver initialization client: %u", m_driverInitClientId);
+                    ret = true;
+                }
+                else
+                {
+                    DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Failed to find suitable client for driver initialization");
+                }
             }
             else
             {
-                filter.status |= static_cast<StatusFlags>(ClientStatusFlags::DeviceHaltOnConnect);
-            }
-
-            ClientId clientId = kBroadcastClientId;
-            if (m_pMsgChannel->FindFirstClient(filter, &clientId, kBroadcastIntervalInMs) == Result::Success)
-            {
-                DD_ASSERT(clientId != kBroadcastClientId);
-                DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Found client requesting driver halt on init: %u", clientId);
+                DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Using existing client id for driver initialization: %u", m_driverInitClientId);
                 ret = true;
             }
         }
@@ -761,14 +776,14 @@ void DriverControlServer::WaitForResume()
             const ClientInfoStruct &clientInfo = m_pMsgChannel->GetClientInfo();
             ClientMetadata filter = {};
 
-            m_pMsgChannel->Send(kBroadcastClientId,
+            m_pMsgChannel->Send(m_driverInitClientId,
                                 Protocol::System,
                                 static_cast<MessageCode>(SystemProtocol::SystemMessage::Halted),
                                 filter,
                                 sizeof(ClientInfoStruct),
                                 &clientInfo);
 
-            DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Sent system halted message");
+            DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Sent system halted message to %u", m_driverInitClientId);
         }
         else
         {

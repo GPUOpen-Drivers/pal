@@ -24,7 +24,11 @@
  **********************************************************************************************************************/
 
 #include "core/os/amdgpu/amdgpuScreen.h"
+#if PAL_HAVE_DRI3_PLATFORM
 #include "core/os/amdgpu/dri3/dri3WindowSystem.h"
+#else
+#include "core/os/amdgpu/amdgpuWindowSystem.h"
+#endif
 #include "core/os/amdgpu/g_drmLoader.h"
 #include "palSwapChain.h"
 #include "palVectorImpl.h"

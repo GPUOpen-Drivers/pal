@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -117,16 +117,19 @@ Pal::Result CreateMlaaComputePipelines(
     case Pal::AsicRevision::Carrizo:
     case Pal::AsicRevision::Bristol:
     case Pal::AsicRevision::Stoney:
-    case Pal::AsicRevision::Fiji:
     case Pal::AsicRevision::Polaris10:
-    case Pal::AsicRevision::Polaris11:
-    case Pal::AsicRevision::Polaris12:
         pTable = mlaaComputeBinaryTableCarrizo;
         break;
 
     case Pal::AsicRevision::Iceland:
     case Pal::AsicRevision::Tonga:
         pTable = mlaaComputeBinaryTableIceland;
+        break;
+
+    case Pal::AsicRevision::Fiji:
+    case Pal::AsicRevision::Polaris11:
+    case Pal::AsicRevision::Polaris12:
+        pTable = mlaaComputeBinaryTableFiji;
         break;
 
     case Pal::AsicRevision::Vega10:

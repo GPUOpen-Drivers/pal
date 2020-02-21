@@ -28,12 +28,26 @@
 #include "core/platform.h"
 #include "core/gpuMemory.h"
 #include "palSysUtil.h"
+#include "core/devDriverUtil.h"
+#include "devDriverServer.h"
 
 using namespace Util;
 using namespace DevDriver;
 
 namespace Pal
 {
+
+EventProvider::EventProvider(Platform* pPlatform)
+        :
+#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
+        DevDriver::EventProtocol::EventProvider(),
+#endif
+        m_pPlatform(pPlatform),
+        m_isFileLoggingActive(false),
+        m_eventStream(pPlatform),
+        m_jsonWriter(&m_eventStream),
+        m_eventService({ pPlatform, DevDriverAlloc, DevDriverFree })
+        {}
 
 // =====================================================================================================================
 Result EventProvider::Init()
@@ -43,6 +57,12 @@ Result EventProvider::Init()
     if (result == Result::Success)
     {
         result = m_eventStreamMutex.Init();
+    }
+
+    if ((result == Result::Success) && (m_pPlatform->GetDevDriverServer() != nullptr))
+    {
+        result = (m_pPlatform->GetDevDriverServer()->GetMessageChannel()->RegisterService(&m_eventService) ==
+                  DevDriver::Result::Success) ? Result::Success : Result::ErrorUnknown;
     }
 
     return result;
@@ -132,7 +152,7 @@ bool EventProvider::ShouldLog(
     PalEvent eventId
     ) const
 {
-    bool shouldLog = m_isFileLoggingActive;
+    bool shouldLog = (m_isFileLoggingActive || m_eventService.IsMemoryProfilingEnabled());
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
     // If the event provider and event ID are active, set shouldLog to true
 #endif
@@ -143,33 +163,37 @@ bool EventProvider::ShouldLog(
 // =====================================================================================================================
 // Logs an event on creation of a GPU Memory allocation (physical or virtual).
 void EventProvider::LogCreateGpuMemoryEvent(
-    const GpuMemory* pGpuMemory,
-    Result           result,
-    bool             isInternal)
+    const GpuMemory* pGpuMemory)
 {
-    static constexpr PalEvent EventId = PalEvent::CreateGpuMemory;
-    if (ShouldLog(EventId))
+    // We only want to log new allocations
+    if ((pGpuMemory != nullptr) && (pGpuMemory->IsGpuVaPreReserved() == false))
     {
-        const GpuMemoryDesc desc = pGpuMemory->Desc();
-        CreateGpuMemoryData data = {};
-        data.handle = reinterpret_cast<GpuMemHandle>(pGpuMemory);
-        data.size = desc.size;
-        data.alignment = desc.alignment;
-        data.preferredHeap = desc.preferredHeap;
-        data.isVirtual = desc.flags.isVirtual;
-        data.isInternal = isInternal;
-        data.gpuVirtualAddr = desc.gpuVirtAddr;
-        data.result = result;
-
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        // Call the EventServer
-#endif
-
-        if (m_isFileLoggingActive)
+        static constexpr PalEvent EventId = PalEvent::CreateGpuMemory;
+        if (ShouldLog(EventId))
         {
-            MutexAuto lock(&m_jsonWriterMutex);
-            WriteEventHeader(EventId, sizeof(CreateGpuMemoryData));
-            SerializeCreateGpuMemoryData(&m_jsonWriter, data);
+            const GpuMemoryDesc desc = pGpuMemory->Desc();
+            CreateGpuMemoryData data = {};
+            data.handle = reinterpret_cast<GpuMemHandle>(pGpuMemory);
+            data.size = desc.size;
+            data.alignment = desc.alignment;
+            data.preferredHeap = desc.preferredHeap;
+            data.isVirtual = desc.flags.isVirtual;
+            data.isInternal = pGpuMemory->IsClient();
+            data.isExternalShared = desc.flags.isExternal;
+            data.gpuVirtualAddr = desc.gpuVirtAddr;
+
+    #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
+            // Call the EventServer
+    #endif
+
+            m_eventService.LogEvent(EventId, &data, sizeof(data));
+
+            if (m_isFileLoggingActive)
+            {
+                MutexAuto lock(&m_jsonWriterMutex);
+                WriteEventHeader(EventId, sizeof(CreateGpuMemoryData));
+                SerializeCreateGpuMemoryData(&m_jsonWriter, data);
+            }
         }
     }
 }
@@ -189,6 +213,7 @@ void EventProvider::LogDestroyGpuMemoryEvent(
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
         // Call the EventServer
 #endif
+        m_eventService.LogEvent(EventId, &data, sizeof(data));
 
         if (m_isFileLoggingActive)
         {
@@ -209,15 +234,18 @@ void EventProvider::LogGpuMemoryResourceBindEvent(
     {
         GpuMemoryResourceBindData data = {};
         data.handle = reinterpret_cast<GpuMemHandle>(eventData.pGpuMemory);
-        data.gpuVirtualAddr = eventData.pGpuMemory->Desc().gpuVirtAddr;
+        data.gpuVirtualAddr = (eventData.pGpuMemory != nullptr) ? eventData.pGpuMemory->Desc().gpuVirtAddr : 0;
         PAL_ASSERT(eventData.pObj != nullptr);
         data.resourceHandle = reinterpret_cast<ResourceHandle>(eventData.pObj);
         data.requiredSize = eventData.requiredGpuMemSize;
         data.offset = eventData.offset;
+        data.isSystemMemory = eventData.isSystemMemory;
 
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
         // Call the EventServer
 #endif
+
+        m_eventService.LogEvent(EventId, &data, sizeof(data));
 
         if (m_isFileLoggingActive)
         {
@@ -244,6 +272,8 @@ void EventProvider::LogGpuMemoryCpuMapEvent(
         // Call the EventServer
 #endif
 
+        m_eventService.LogEvent(EventId, &data, sizeof(data));
+
         if (m_isFileLoggingActive)
         {
             MutexAuto lock(&m_jsonWriterMutex);
@@ -268,6 +298,8 @@ void EventProvider::LogGpuMemoryCpuUnmapEvent(
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
         // Call the EventServer
 #endif
+
+        m_eventService.LogEvent(EventId, &data, sizeof(data));
 
         if (m_isFileLoggingActive)
         {
@@ -303,6 +335,8 @@ void EventProvider::LogGpuMemoryAddReferencesEvent(
             // Call the EventServer
 #endif
 
+            m_eventService.LogEvent(EventId, &data, sizeof(data));
+
             if (m_isFileLoggingActive)
             {
                 MutexAuto lock(&m_jsonWriterMutex);
@@ -334,6 +368,8 @@ void EventProvider::LogGpuMemoryRemoveReferencesEvent(
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
             // Call the EventServer
 #endif
+
+            m_eventService.LogEvent(EventId, &data, sizeof(data));
 
             if (m_isFileLoggingActive)
             {
@@ -369,6 +405,8 @@ void EventProvider::LogGpuMemoryResourceCreateEvent(
         // Call the EventServer
 #endif
 
+        m_eventService.LogEvent(EventId, &data, sizeof(data));
+
         if (m_isFileLoggingActive)
         {
             MutexAuto lock(&m_jsonWriterMutex);
@@ -395,6 +433,8 @@ void EventProvider::LogGpuMemoryResourceDestroyEvent(
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
         // Call the EventServer
 #endif
+
+        m_eventService.LogEvent(EventId, &data, sizeof(data));
 
         if (m_isFileLoggingActive)
         {
@@ -424,6 +464,8 @@ void EventProvider::LogDebugNameEvent(
         // Call the EventServer
 #endif
 
+        m_eventService.LogEvent(EventId, &data, sizeof(data));
+
         if (m_isFileLoggingActive)
         {
             MutexAuto lock(&m_jsonWriterMutex);
@@ -450,6 +492,8 @@ void EventProvider::LogGpuMemoryMiscEvent(
         // Call the EventServer
 #endif
 
+        m_eventService.LogEvent(EventId, &data, sizeof(data));
+
         if (m_isFileLoggingActive)
         {
             MutexAuto lock(&m_jsonWriterMutex);
@@ -475,6 +519,8 @@ void EventProvider::LogGpuMemorySnapshotEvent(
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
         // Call the EventServer
 #endif
+
+        m_eventService.LogEvent(EventId, &data, sizeof(data));
 
         if (m_isFileLoggingActive)
         {

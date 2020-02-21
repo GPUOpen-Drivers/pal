@@ -127,16 +127,18 @@ namespace DevDriver
         /////////////////////////////////////////////////////
         // Local routines.....
         //
-        void DebugPrint(LogLevel lvl, const char* format, ...)
+        void DebugPrint(LogLevel lvl, const char* pFormat, ...)
         {
             DD_UNUSED(lvl);
 
             va_list args;
-            va_start(args, format);
+            va_start(args, pFormat);
             char buffer[1024];
-            Platform::Vsnprintf(buffer, ArraySize(buffer), format, args);
+            Platform::Vsnprintf(buffer, ArraySize(buffer), pFormat, args);
             va_end(args);
-            strcat_s(buffer, "\n");
+
+            // Append a newline
+            Platform::Snprintf(buffer, "%s\n", buffer);
 
             OutputDebugString(buffer);
             printf("%s", buffer);
@@ -214,7 +216,6 @@ namespace DevDriver
 
                     const size_t len = Min(ArraySize(wThreadName), strlen(pThreadName));
 
-                    // See: https://en.cppreference.com/w/cpp/string/multibyte/mbstowcs
                     const size_t converted = mbstowcs(wThreadName, pThreadName, len);
 
                     HRESULT hResult = E_FAIL;
@@ -523,6 +524,7 @@ namespace DevDriver
         char* Strtok(char* pDst, const char* pDelimiter, char** ppContext)
         {
             DD_ASSERT(pDelimiter != nullptr);
+
             return strtok_s(pDst, pDelimiter, ppContext);
         }
 
@@ -530,7 +532,16 @@ namespace DevDriver
         {
             DD_ASSERT(pDst != nullptr);
             DD_ASSERT(pSrc != nullptr);
+
             strcat_s(pDst, dstSize, pSrc);
+        }
+
+        int32 Strcmpi(const char* pSrc1, const char* pSrc2)
+        {
+            DD_ASSERT(pSrc1 != nullptr);
+            DD_ASSERT(pSrc2 != nullptr);
+
+            return _stricmp(pSrc1, pSrc2);
         }
 
         int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args)
@@ -549,6 +560,107 @@ namespace DevDriver
             }
 
             return ret;
+        }
+
+        Result QueryOsInfo(OsInfo* pInfo)
+        {
+            DD_ASSERT(pInfo != nullptr);
+            memset(pInfo, 0, sizeof(*pInfo));
+
+            Result result = Result::Success;
+
+            HKEY hKey = 0;
+            LONG res  = RegOpenKeyExA(
+                HKEY_LOCAL_MACHINE,
+                "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+                0,
+                KEY_READ,
+                &hKey
+            );
+
+            /// Populate a name
+            {
+                DWORD keyType = 0;
+                DWORD valueSize = 0;
+                char  textBuffer[128];
+
+                if (res == ERROR_SUCCESS)
+                {
+                    memset(textBuffer, 0, ArraySize(textBuffer));
+                    valueSize = ArraySize<DWORD>(textBuffer);
+                    res = RegQueryValueExA(
+                        hKey,
+                        "productName",
+                        nullptr,
+                        &keyType,
+                        (LPBYTE)&textBuffer[0],
+                        &valueSize
+                    );
+                    if (res == ERROR_SUCCESS)
+                    {
+                        DD_ASSERT(valueSize < ArraySize(textBuffer));
+                        DD_ASSERT(keyType == REG_SZ);
+
+                        Strncpy(pInfo->name, textBuffer);
+                    }
+                    else
+                    {
+                        result = Result::Error;
+                    }
+                }
+            }
+
+            /// Populate a description
+            {
+                DWORD keyType = 0;
+                DWORD valueSize = 0;
+                char  textBuffer[128];
+
+                if (res == ERROR_SUCCESS)
+                {
+                    memset(textBuffer, 0, ArraySize(textBuffer));
+                    valueSize = ArraySize<DWORD>(textBuffer);
+                    res = RegQueryValueExA(
+                        hKey,
+                        "buildLabEx",
+                        nullptr,
+                        &keyType,
+                        (LPBYTE)&textBuffer[0],
+                        &valueSize
+                    );
+                    if (res == ERROR_SUCCESS)
+                    {
+                        DD_ASSERT(valueSize < ArraySize(textBuffer));
+                        DD_ASSERT(keyType == REG_SZ);
+
+                        Strncpy(pInfo->description, textBuffer);
+                    }
+                    else
+                    {
+                        result = Result::Error;
+                    }
+                }
+            }
+
+            /// Query the machine's hostname
+            {
+                DWORD nSize = ArraySize<DWORD>(pInfo->hostname);
+                GetComputerNameEx(ComputerNameDnsFullyQualified, pInfo->hostname, &nSize);
+                DD_WARN(nSize > 0);
+            }
+
+            /// Query available memory
+            {
+                MEMORYSTATUSEX memoryStatus = {};
+                memoryStatus.dwLength = sizeof(memoryStatus);
+                DD_UNHANDLED_RESULT(BoolToResult(GlobalMemoryStatusEx(&memoryStatus) != 0));
+                pInfo->physMemory = memoryStatus.ullTotalPhys;
+                pInfo->swapMemory = memoryStatus.ullTotalPageFile;
+            }
+
+            RegCloseKey(hKey);
+
+            return result;
         }
 
         namespace Windows

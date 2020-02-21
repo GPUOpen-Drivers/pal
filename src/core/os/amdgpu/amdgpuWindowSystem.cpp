@@ -25,7 +25,9 @@
 
 #include "core/os/amdgpu/amdgpuDevice.h"
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
+#if PAL_HAVE_DRI3_PLATFORM
 #include "core/os/amdgpu/dri3/dri3WindowSystem.h"
+#endif
 #include "core/os/amdgpu/display/displayWindowSystem.h"
 #if PAL_HAVE_WAYLAND_PLATFORM
 #include "core/os/amdgpu/wayland/waylandWindowSystem.h"
@@ -56,10 +58,12 @@ size_t PresentFence::GetSize(
     {
         switch (platform)
         {
+#if PAL_HAVE_DRI3_PLATFORM
         case WsiPlatform::Xcb:
         case WsiPlatform::Xlib:
             size = Dri3PresentFence::GetSize();
             break;
+#endif
 #if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             size = WaylandPresentFence::GetSize();
@@ -95,6 +99,7 @@ Result PresentFence::Create(
     {
         switch (platform)
         {
+#if PAL_HAVE_DRI3_PLATFORM
         case WsiPlatform::Xcb:
         case WsiPlatform::Xlib:
             result = Dri3PresentFence::Create(static_cast<const Dri3WindowSystem&>(windowSystem),
@@ -102,6 +107,7 @@ Result PresentFence::Create(
                                               pPlacementAddr,
                                               ppPresentFence);
             break;
+#endif
 #if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             result = WaylandPresentFence::Create(static_cast<const WaylandWindowSystem&>(windowSystem),
@@ -139,10 +145,12 @@ size_t WindowSystem::GetSize(
     {
         switch (platform)
         {
+#if PAL_HAVE_DRI3_PLATFORM
         case WsiPlatform::Xcb:
         case WsiPlatform::Xlib:
             size = Dri3WindowSystem::GetSize();
             break;
+#endif
 #if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             size = WaylandWindowSystem::GetSize();
@@ -177,10 +185,12 @@ Result WindowSystem::Create(
     {
         switch (createInfo.platform)
         {
+#if PAL_HAVE_DRI3_PLATFORM
         case WsiPlatform::Xcb:
         case WsiPlatform::Xlib:
             result = Dri3WindowSystem::Create(device, createInfo, pPlacementAddr, ppWindowSystem);
             break;
+#endif
 #if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             result = WaylandWindowSystem::Create(device, createInfo, pPlacementAddr, ppWindowSystem);
@@ -227,12 +237,14 @@ Result WindowSystem::GetWindowGeometry(
     {
         switch (platform)
         {
+#if PAL_HAVE_DRI3_PLATFORM
         case WsiPlatform::Xcb:
             result = Dri3WindowSystem::GetWindowGeometry(pDevice, hDisplay, hWindow, pExtents);
             break;
         case WsiPlatform::Xlib:
             result = Dri3WindowSystem::GetWindowGeometryXlib(pDevice, hDisplay, hWindow, pExtents);
             break;
+#endif
 #if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             result = WaylandWindowSystem::GetWindowGeometry(pDevice, hDisplay, hWindow, pExtents);
@@ -267,12 +279,14 @@ Result WindowSystem::DeterminePresentationSupported(
     {
         switch (platform)
         {
+#if PAL_HAVE_DRI3_PLATFORM
         case WsiPlatform::Xcb:
             result = Dri3WindowSystem::DeterminePresentationSupported(pDevice, hDisplay, visualId);
             break;
         case WsiPlatform::Xlib:
             result = Dri3WindowSystem::DeterminePresentationSupportedXlib(pDevice, hDisplay, visualId);
             break;
+#endif
 #if PAL_HAVE_WAYLAND_PLATFORM
         case WsiPlatform::Wayland:
             result = WaylandWindowSystem::DeterminePresentationSupported(pDevice, hDisplay, visualId);
@@ -308,6 +322,7 @@ Result WindowSystem::AcquireScreenAccess(
     {
         switch (wsiPlatform)
         {
+#if PAL_HAVE_DRI3_PLATFORM
         case WsiPlatform::Xcb:
         case WsiPlatform::Xlib:
             result = Dri3WindowSystem::AcquireScreenAccess(hDisplay,
@@ -316,6 +331,7 @@ Result WindowSystem::AcquireScreenAccess(
                                                            pRandrOutput,
                                                            pDrmMasterFd);
             break;
+#endif
         default:
             PAL_NOT_IMPLEMENTED();
             break;
@@ -343,10 +359,12 @@ Result WindowSystem::GetOutputFromConnector(
     {
         switch (wsiPlatform)
         {
+#if PAL_HAVE_DRI3_PLATFORM
         case WsiPlatform::Xcb:
         case WsiPlatform::Xlib:
             result = Dri3WindowSystem::GetOutputFromConnector(hDisplay, pDevice, connector, pOutput);
             break;
+#endif
         default:
             PAL_NOT_IMPLEMENTED();
             break;

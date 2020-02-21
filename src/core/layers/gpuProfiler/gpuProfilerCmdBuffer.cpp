@@ -822,15 +822,11 @@ void CmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
     InsertToken(CmdBufCallId::CmdBarrier);
-    InsertToken(barrierInfo.flags);
-
-    InsertToken(barrierInfo.waitPoint);
+    InsertToken(barrierInfo);
     InsertTokenArray(barrierInfo.pPipePoints, barrierInfo.pipePointWaitCount);
     InsertTokenArray(barrierInfo.ppGpuEvents, barrierInfo.gpuEventWaitCount);
     InsertTokenArray(barrierInfo.ppTargets, barrierInfo.rangeCheckedTargetWaitCount);
     InsertTokenArray(barrierInfo.pTransitions, barrierInfo.transitionCount);
-    InsertToken(barrierInfo.pSplitBarrierGpuEvent);
-    InsertToken(barrierInfo.reason);
 }
 
 // =====================================================================================================================
@@ -838,16 +834,11 @@ void CmdBuffer::ReplayCmdBarrier(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    BarrierInfo barrierInfo;
-
-    barrierInfo.flags                       = ReadTokenVal<BarrierFlags>();
-    barrierInfo.waitPoint                   = ReadTokenVal<HwPipePoint>();
+    BarrierInfo barrierInfo                 = ReadTokenVal<BarrierInfo>();
     barrierInfo.pipePointWaitCount          = ReadTokenArray(&barrierInfo.pPipePoints);
     barrierInfo.gpuEventWaitCount           = ReadTokenArray(&barrierInfo.ppGpuEvents);
     barrierInfo.rangeCheckedTargetWaitCount = ReadTokenArray(&barrierInfo.ppTargets);
     barrierInfo.transitionCount             = ReadTokenArray(&barrierInfo.pTransitions);
-    barrierInfo.pSplitBarrierGpuEvent       = ReadTokenVal<const IGpuEvent*>();
-    barrierInfo.reason                      = ReadTokenVal<uint32>();
 
     pTgtCmdBuffer->ResetBarrierString();
 
@@ -857,11 +848,21 @@ void CmdBuffer::ReplayCmdBarrier(
     LogItem logItem = { };
     logItem.cmdBufCall.flags.barrier    = 1;
     logItem.cmdBufCall.barrier.pComment = nullptr;
+
+    char commentString[MaxCommentLength] = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 482
+    Snprintf(&commentString[0], MaxCommentLength,
+             "globalSrcCacheMask: 0x%08x\n"
+             "globalDstCacheMask: 0x%08x",
+             barrierInfo.globalSrcCacheMask,
+             barrierInfo.globalDstCacheMask);
+    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+#endif
+
     for (uint32 i = 0; i < barrierInfo.transitionCount; i++)
     {
         const BarrierTransition& transition = barrierInfo.pTransitions[i];
 
-        char commentString[MaxCommentLength] = {};
         Snprintf(&commentString[0], MaxCommentLength,
                  "SrcCacheMask: 0x%08x\n"
                  "DstCacheMask: 0x%08x\n"
@@ -3517,7 +3518,7 @@ void CmdBuffer::ReplayCmdXdmaWaitFlipPending(
 // =====================================================================================================================
 // Replays the commands that were recorded on this command buffer into a separate, target command buffer while adding
 // additional commands for GPU profiling purposes.
-void CmdBuffer::Replay(
+Result CmdBuffer::Replay(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer,
     uint32           curFrame)
@@ -3648,6 +3649,8 @@ void CmdBuffer::Replay(
     static_assert(ArrayLen(ReplayFuncTbl) == static_cast<size_t>(CmdBufCallId::Count),
                   "Replay table must be updated!");
 
+    Result result = Result::Success;
+
     // Don't even try to replay the stream if some error occured during recording.
     if (m_tokenStreamResult == Result::Success)
     {
@@ -3663,8 +3666,12 @@ void CmdBuffer::Replay(
             callId = ReadTokenVal<CmdBufCallId>();
 
             (this->*ReplayFuncTbl[static_cast<uint32>(callId)])(pQueue, pTgtCmdBuffer);
-        } while (callId != CmdBufCallId::End);
+
+            result = pTgtCmdBuffer->GetLastResult();
+        } while ((callId != CmdBufCallId::End) && (result == Result::Success));
     }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -3825,7 +3832,8 @@ TargetCmdBuffer::TargetCmdBuffer(
     m_queueType(createInfo.queueType),
     m_engineType(createInfo.engineType),
     m_supportTimestamps(false),
-    m_pGpaSession(nullptr)
+    m_pGpaSession(nullptr),
+    m_result(Result::Success)
 {
 }
 
@@ -4161,7 +4169,7 @@ void TargetCmdBuffer::UpdateCommentString(
             "Fast Clear Eliminate",
             "Fmask Color Expand",
             "Init Mask Ram",
-            "Reserved",
+            "Update DCC State Metadata",
             "Reserved",
             "Reserved",
             "Reserved",
@@ -4270,6 +4278,17 @@ void TargetCmdBuffer::UpdateCommentString(
 }
 
 // =====================================================================================================================
+// Set the last result - do not allow Success to override non-Success
+void TargetCmdBuffer::SetLastResult(
+    Result result)
+{
+    if (m_result == Result::Success)
+    {
+        m_result = result;
+    }
+}
+
+// =====================================================================================================================
 // Issue commands on a target command buffer needed to begin a section of work to be profiled.
 void TargetCmdBuffer::BeginSample(
     Queue*   pQueue,
@@ -4291,7 +4310,9 @@ void TargetCmdBuffer::BeginSample(
         {
             GpuUtil::GpaSampleConfig queryConfig = {};
             queryConfig.type                     = GpuUtil::GpaSampleType::Query;
-            pLogItem->gpaSampleIdQuery           = m_pGpaSession->BeginSample(this, queryConfig);
+
+            Result result = m_pGpaSession->BeginSample(this, queryConfig, &pLogItem->gpaSampleIdQuery);
+            SetLastResult(result);
         }
         else
         {
@@ -4304,7 +4325,8 @@ void TargetCmdBuffer::BeginSample(
     {
         if ((m_queueType == QueueTypeUniversal) || (m_queueType == QueueTypeCompute))
         {
-            pLogItem->gpaSampleId = m_pGpaSession->BeginSample(this, config);
+            Result result = m_pGpaSession->BeginSample(this, config, &pLogItem->gpaSampleId);
+            SetLastResult(result);
 
         }
         else
@@ -4320,7 +4342,9 @@ void TargetCmdBuffer::BeginSample(
         tsConfig.type                     = GpuUtil::GpaSampleType::Timing;
         tsConfig.timing.preSample         = config.timing.preSample;
         tsConfig.timing.postSample        = config.timing.postSample;
-        pLogItem->gpaSampleIdTs           = m_pGpaSession->BeginSample(this, tsConfig);
+
+        Result result = m_pGpaSession->BeginSample(this, tsConfig, &pLogItem->gpaSampleIdTs);
+        SetLastResult(result);
     }
 }
 

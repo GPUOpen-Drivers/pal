@@ -54,7 +54,10 @@ namespace Pal
     class  IQueue;
     class  IQueueSemaphore;
     struct GlobalCounterLayout;
+    struct MultiSubmitInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572
     struct SubmitInfo;
+#endif
     struct ThreadTraceLayout;
     enum   HwPipePoint : uint32;
 }
@@ -408,12 +411,18 @@ public:
     /// no longer be submitted on the queue after this has been called.
     Pal::Result UnregisterTimedQueue(Pal::IQueue* pQueue);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572
     /// Used to trigger a timed submit of one or more command buffers through the specified queue.  Each command buffer
     /// is timed individually and will be tagged with an atomically increasing event index on the given queue since the
     /// last reset.
     Pal::Result TimedSubmit(Pal::IQueue* pQueue,
                             const Pal::SubmitInfo& submitInfo,
                             const TimedSubmitInfo& timedSubmitInfo);
+#endif
+
+    Pal::Result TimedSubmit(Pal::IQueue*                pQueue,
+                            const Pal::MultiSubmitInfo& submitInfo,
+                            const TimedSubmitInfo&      timedSubmitInfo);
 
     /// Executes a timed queue semaphore signal through the given queue.  The HW time is measured when the queue semaphore
     /// is signaled.
@@ -483,17 +492,33 @@ public:
     /// the session will be marked invalid and no sample commands will be inserted.  Reporting of this error is
     /// delayed until GetResults().
     ///
-    /// @param [in] pCmdBuf      Command buffer to issue the begin sample commands.  All operations performed
-    ///                          between executing the BeginSample() and EndSample() GPU commands will contribute to
-    ///                          the sample results.
-    /// @param [in] sampleConfig Describes what data should be sampled.
+    /// @param [in]  pCmdBuf      Command buffer to issue the begin sample commands.  All operations performed
+    ///                           between executing the BeginSample() and EndSample() GPU commands will contribute to
+    ///                           the sample results.
+    /// @param [in]  sampleConfig Describes what data should be sampled.
+    /// @param [out] pSampleId    An ID corresponding to this sample.  This ID should be recorded and passed back to
+    ///                           EndSample() when the sampled command buffer range is complete.  This ID should also
+    ///                           be passed to GetResults() when the session is in the _ready_ state in order to get
+    ///                           the results of this sample.
     ///
-    /// @returns An ID corresponding to this sample.  This ID should be recorded and passed back to EndSample() when
-    ///          the sampled command buffer range is complete.  This ID should also be passed to GetResults() when
-    ///          the session is in the _ready_ state in order to get the results of this sample.
+    /// @returns Success if the update was successful.  Unsupported if the sample config type is not supported.
+    ///          Otherwise, possible errors include:
+    ///          + ErrorInvalidPointer if pCmdBuf or pSampleId is nullptr.
+    Pal::Result BeginSample(
+        Pal::ICmdBuffer*       pCmdBuf,
+        const GpaSampleConfig& sampleConfig,
+        Pal::uint32*           pSampleId);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 570
     Pal::uint32 BeginSample(
         Pal::ICmdBuffer*        pCmdBuf,
-        const GpaSampleConfig&  sampleConfig);
+        const GpaSampleConfig&  sampleConfig)
+    {
+        Pal::uint32 sampleId = 0;
+        BeginSample(pCmdBuf, sampleConfig, &sampleId);
+        return sampleId;
+    }
+#endif
 
     /// Updates the trace parameters for a specific sample.
     ///

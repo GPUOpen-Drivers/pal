@@ -176,7 +176,7 @@ public:
 
     // Public IQueue interface methods:
     virtual Result Submit(
-        const SubmitInfo& submitInfo) override;
+        const MultiSubmitInfo& submitInfo) override;
     virtual Result WaitIdle() override;
     virtual Result SignalQueueSemaphore(
         IQueueSemaphore* pQueueSemaphore,
@@ -216,8 +216,8 @@ private:
     void ProcessIdleSubmits();
 
     Result InternalSubmit(
-        const SubmitInfo& submitInfo,
-        bool              releaseObjects);
+        const MultiSubmitInfo& submitInfo,
+        bool                   releaseObjects);
 
     void BeginNextFrame(bool samplingEnabled);
 

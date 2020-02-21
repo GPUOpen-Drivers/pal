@@ -428,6 +428,17 @@ static void Extent3dToString(
 }
 
 // =====================================================================================================================
+static void SignedExtent3dToString(
+    const SignedExtent3d& extent,
+    char                  string[StringLength])
+{
+    const size_t currentLength = strlen(string);
+
+    Snprintf(string + currentLength, StringLength - currentLength, "{ width = 0x%d, height = 0x%d, depth = 0x%d }",
+        extent.width, extent.height, extent.depth);
+}
+
+// =====================================================================================================================
 static const void DumpRanges(
     CmdBuffer*   pCmdBuffer,
     uint32       count,
@@ -3493,6 +3504,65 @@ static void DumpImageCopyRegion(
 }
 
 // =====================================================================================================================
+static void DumpImageScaledCopyRegion(
+    CmdBuffer*                   pCmdBuffer,
+    uint32                       regionCount,
+    const ImageScaledCopyRegion* pRegions)
+{
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+
+    for (uint32 i = 0; i < regionCount; i++)
+    {
+        const auto& region = pRegions[i];
+
+        Snprintf(pString, StringLength, "Region %u = [", i);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t srcSubres  = ");
+        SubresIdToString(region.srcSubres, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t srcOffset  = ");
+        Offset3dToString(region.srcOffset, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t srcExtent  = ");
+        SignedExtent3dToString(region.srcExtent, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t dstSubres  = ");
+        SubresIdToString(region.dstSubres, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t dstOffset  = ");
+        Offset3dToString(region.dstOffset, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t dstExtent  = ");
+        SignedExtent3dToString(region.dstExtent, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t numSlices  = %u",   region.numSlices);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 494
+        Snprintf(pString, StringLength, "\t swizzledFormat = { format = %s, swizzle = ",
+                 FormatToString(region.swizzledFormat.format));
+        SwizzleToString(region.swizzledFormat.swizzle, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+#endif
+
+        Snprintf(pString, StringLength, "]");
+        pNextCmdBuffer->CmdCommentString(pString);
+    }
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
 static void DumpImageResolveRegion(
     CmdBuffer*                pCmdBuffer,
     uint32                    regionCount,
@@ -3638,6 +3708,7 @@ void CmdBuffer::CmdScaledCopyImage(
         DumpImageLayout(this, copyInfo.srcImageLayout, "srcImageLayout");
         DumpImageInfo(this, copyInfo.pDstImage, "dstImage", "");
         DumpImageLayout(this, copyInfo.dstImageLayout, "dstImageLayout");
+        DumpImageScaledCopyRegion(this, copyInfo.regionCount, copyInfo.pRegions);
 
         // TODO: Add comment string.
     }

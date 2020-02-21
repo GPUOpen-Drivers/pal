@@ -113,16 +113,15 @@ private:
     //          None
     // Response Data Format: JSON
     //
-    //  [
-    //      {
-    //          "Name":"<source name>",
-    //          "Version":"<source version>",
-    //          "Value":{
+    //  {
+    //      "<source name>": {
+    //          "version":"<source version>",
+    //          "value":{
     //            <info written by registered pfnWriteCallback>
     //          }
     //      },
     //      ...
-    //  ]
+    //  }
     //
     // Return Values:
     //      Result::Success - if all registered info sources were written successfully.
@@ -155,8 +154,8 @@ private:
 
     // Overview:
     //      Retrieve a single info source using the source name.
-    //      The response includes the source name, source version,
-    //      and the value written by the registered pfnWriteCallback.
+    //      The response includes the source version, and the value
+    //      written by the registered pfnWriteCallback.
     //
     // Request Format:
     //      uri request:
@@ -168,9 +167,8 @@ private:
     // Response Data Format: JSON
     //
     //    {
-    //        "Name":"<source name>",
-    //        "Version":<source version>,
-    //        "Value":{
+    //        "version":<source version>,
+    //        "value":{
     //            <info written by registered pfnWriteCallback>
     //        }
     //    }

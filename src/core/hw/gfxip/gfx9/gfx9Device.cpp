@@ -216,6 +216,13 @@ Result Device::Cleanup()
     {
         result = m_pParent->MemMgr()->FreeGpuMem(m_occlusionSrcMem.Memory(), m_occlusionSrcMem.Offset());
         m_occlusionSrcMem.Update(nullptr, 0);
+
+        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+        {
+            ResourceDestroyEventData destroyData = {};
+            destroyData.pObj = &m_occlusionSrcMem;
+            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+        }
     }
 
     if (m_dummyZpassDoneMem.IsBound())
@@ -383,6 +390,7 @@ Result Device::Finalize()
 {
     Result result = GfxDevice::Finalize();
 
+
     if (result == Result::Success)
     {
         result = m_pRsrcProcMgr->LateInit();
@@ -443,6 +451,27 @@ Result Device::InitOcclusionResetMem()
     if (result == Result::Success)
     {
         m_occlusionSrcMem.Update(pMemObj, memOffset);
+
+        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+        {
+            ResourceDescriptionMiscInternal desc;
+            desc.type = MiscInternalAllocType::OcclusionQueryResetData;
+
+            ResourceCreateEventData createData = {};
+            createData.type = ResourceType::MiscInternal;
+            createData.pObj = &m_occlusionSrcMem;
+            createData.pResourceDescData = &desc;
+            createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
+
+            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+
+            GpuMemoryResourceBindEventData bindData = {};
+            bindData.pGpuMemory = pMemObj;
+            bindData.pObj = &m_occlusionSrcMem;
+            bindData.offset = memOffset;
+            bindData.requiredGpuMemSize = srcMemCreateInfo.size;
+            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+        }
 
         result = m_occlusionSrcMem.Map(reinterpret_cast<void**>(&pData));
     }
@@ -597,7 +626,7 @@ Result Device::CreateEngine(
     case EngineTypeHighPriorityUniversal:
 #endif
     case EngineTypeUniversal:
-        pEngine = PAL_NEW(UniversalEngine, GetPlatform(), AllocInternal)(this, engineType, engineIndex);
+        pEngine = PAL_NEW(UniversalEngine, GetPlatform(), AllocInternalShader)(this, engineType, engineIndex);
         break;
     case EngineTypeCompute:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 530
@@ -719,25 +748,26 @@ size_t Device::GetQueueContextSize(
 
 // =====================================================================================================================
 // Creates the QueueContext object for the specified Queue in preallocated memory. Only supported on Universal and
-// Compute Queues.
+// Compute Queues. The createInfo here is not the orignally createInfo passed by Pal client. It's an updated one after
+// execution of queue's contructor.
 Result Device::CreateQueueContext(
-    Queue*         pQueue,
-    Engine*        pEngine,
-    void*          pPlacementAddr,
-    QueueContext** ppQueueContext)
+    const QueueCreateInfo& createInfo,
+    Engine*                pEngine,
+    void*                  pPlacementAddr,
+    QueueContext**         ppQueueContext)
 {
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppQueueContext != nullptr));
 
     Result result = Result::Success;
 
-    const uint32 engineId = pQueue->EngineId();
-    switch (pQueue->Type())
+    const uint32 engineId = createInfo.engineIndex;
+    switch (createInfo.queueType)
     {
     case QueueTypeCompute:
         {
             {
                 ComputeQueueContext* pContext =
-                    PAL_PLACEMENT_NEW(pPlacementAddr) ComputeQueueContext(this, pQueue, pEngine, engineId);
+                    PAL_PLACEMENT_NEW(pPlacementAddr) ComputeQueueContext(this, pEngine, engineId);
 
                 result = pContext->Init();
 
@@ -752,10 +782,17 @@ Result Device::CreateQueueContext(
             }
         }
         break;
-    case QueueTypeUniversal:
+     case QueueTypeUniversal:
         {
+            const bool isPreemptionSupported = Parent()->IsPreemptionSupported(createInfo.engineType);
             UniversalQueueContext* pContext =
-                PAL_PLACEMENT_NEW(pPlacementAddr) UniversalQueueContext(this, pQueue, pEngine, engineId);
+                PAL_PLACEMENT_NEW(pPlacementAddr) UniversalQueueContext(
+                this,
+                isPreemptionSupported,
+                createInfo.persistentCeRamOffset,
+                createInfo.persistentCeRamSize,
+                pEngine,
+                engineId);
 
             result = pContext->Init();
 
@@ -820,19 +857,22 @@ Result Device::CreateComputePipeline(
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
 // =====================================================================================================================
 size_t Device::GetShaderLibrarySize(
     const ShaderLibraryCreateInfo&  createInfo,
     Result*                         pResult
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     if (pResult != nullptr)
     {
         (*pResult) = Result::Success;
     }
 
     return sizeof(ShaderLibrary);
+#else
+    return 0;
+#endif
 }
 
 // =====================================================================================================================
@@ -842,6 +882,7 @@ Result Device::CreateShaderLibrary(
     bool                            isInternal,
     IShaderLibrary**                ppPipeline)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     auto* pShaderLib = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderLibrary(this);
 
     Result result = pShaderLib->Initialize(createInfo);
@@ -854,8 +895,10 @@ Result Device::CreateShaderLibrary(
     *ppPipeline = pShaderLib;
 
     return result;
-}
+#else
+    return Result::Unsupported;
 #endif
+}
 
 // =====================================================================================================================
 size_t Device::GetGraphicsPipelineSize(
@@ -1558,6 +1601,7 @@ Result Device::InitAddrLibCreateInput(
     ) const
 {
     pRegValue->gbAddrConfig = m_pParent->ChipProperties().gfx9.gbAddrConfig;
+    pCreateFlags->nonPower2MemConfig = (IsPowerOfTwo(m_pParent->MemoryProperties().vramBusBitWidth) == false);
 
     return Result::Success;
 }
@@ -1840,36 +1884,47 @@ void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
     const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(pGfxDevice->Parent()->ChipProperties().gfxLevel,
                                                           &pGfxDevice->GetPlatform()->PlatformSettings());
 
+    Gfx9BufferSrd* pOutSrd = static_cast<Gfx9BufferSrd*>(pOut);
+
     for (uint32 idx = 0; idx < count; ++idx)
     {
-        const auto& view = pBufferViewInfo[idx];
-        PAL_ASSERT(view.gpuAddr != 0);
-        PAL_ASSERT((view.stride == 0) || ((view.gpuAddr % Min<gpusize>(sizeof(uint32), view.stride)) == 0));
+        PAL_ASSERT(pBufferViewInfo->gpuAddr != 0);
+        PAL_ASSERT((pBufferViewInfo->stride == 0) ||
+                   ((pBufferViewInfo->gpuAddr % Min<gpusize>(sizeof(uint32), pBufferViewInfo->stride)) == 0));
 
-        Gfx9BufferSrd srd = { };
+        pOutSrd->word0.bits.BASE_ADDRESS = LowPart(pBufferViewInfo->gpuAddr);
+        pOutSrd->word1.u32All =
+            ((HighPart(pBufferViewInfo->gpuAddr)           << Gfx09::SQ_BUF_RSRC_WORD1__BASE_ADDRESS_HI__SHIFT) |
+             (static_cast<uint32>(pBufferViewInfo->stride) << Gfx09::SQ_BUF_RSRC_WORD1__STRIDE__SHIFT));
 
-        srd.word0.bits.BASE_ADDRESS    = LowPart(view.gpuAddr);
-        srd.word1.bits.BASE_ADDRESS_HI = HighPart(view.gpuAddr);
-        srd.word1.bits.STRIDE          = view.stride;
-        srd.word2.bits.NUM_RECORDS     = pGfxDevice->CalcNumRecords(static_cast<size_t>(view.range),
-                                                                    srd.word1.bits.STRIDE);
-        srd.word3.bits.TYPE            = SQ_RSRC_BUF;
+        pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
+                                                                     static_cast<uint32>(pBufferViewInfo->stride));
 
-        PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format) == false);
-        PAL_ASSERT(Formats::BytesPerPixel(view.swizzledFormat.format) == view.stride);
+        PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format) == false);
+        PAL_ASSERT(Formats::BytesPerPixel(pBufferViewInfo->swizzledFormat.format) == pBufferViewInfo->stride);
 
-        srd.word3.bits.DST_SEL_X   = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.r);
-        srd.word3.bits.DST_SEL_Y   = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.g);
-        srd.word3.bits.DST_SEL_Z   = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.b);
-        srd.word3.bits.DST_SEL_W   = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.a);
-        srd.word3.bits.DATA_FORMAT = Formats::Gfx9::HwBufDataFmt(pFmtInfo, view.swizzledFormat.format);
-        srd.word3.bits.NUM_FORMAT  = Formats::Gfx9::HwBufNumFmt(pFmtInfo, view.swizzledFormat.format);
+        const SQ_SEL_XYZW01 SqSelX = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.r);
+        const SQ_SEL_XYZW01 SqSelY = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.g);
+        const SQ_SEL_XYZW01 SqSelZ = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.b);
+        const SQ_SEL_XYZW01 SqSelW = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.a);
+
+        // Get the HW format enumeration corresponding to the view-specified format.
+        const BUF_DATA_FORMAT hwBufDataFmt = Formats::Gfx9::HwBufDataFmt(pFmtInfo, pBufferViewInfo->swizzledFormat.format);
+        const BUF_NUM_FORMAT  hwBufNumFmt  = Formats::Gfx9::HwBufNumFmt(pFmtInfo, pBufferViewInfo->swizzledFormat.format);
 
         // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
-        PAL_ASSERT(srd.word3.bits.DATA_FORMAT != BUF_DATA_FORMAT_INVALID);
+        PAL_ASSERT(hwBufDataFmt != BUF_DATA_FORMAT_INVALID);
 
-        memcpy(pOut, &srd, sizeof(srd));
-        pOut = VoidPtrInc(pOut, sizeof(srd));
+        pOutSrd->word3.u32All = ((SQ_RSRC_BUF  << Gfx09::SQ_BUF_RSRC_WORD3__TYPE__SHIFT)        |
+                                 (SqSelX       << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT)   |
+                                 (SqSelY       << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT)   |
+                                 (SqSelZ       << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT)   |
+                                 (SqSelW       << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT)   |
+                                 (hwBufDataFmt << Gfx09::SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
+                                 (hwBufNumFmt  << Gfx09::SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
+
+        pOutSrd++;
+        pBufferViewInfo++;
     }
 }
 
@@ -1887,46 +1942,52 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
     const auto*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(pPalDevice->ChipProperties().gfxLevel,
                                                               &pGfxDevice->GetPlatform()->PlatformSettings());
 
+    sq_buf_rsrc_t* pOutSrd = static_cast<sq_buf_rsrc_t*>(pOut);
+
+    uint32 resourceLevel = 1;
+
+    // This means "(index >= NumRecords)" is out-of-bounds.
+    constexpr uint32 OobSelect = SQ_OOB_INDEX_ONLY;
+
     for (uint32 idx = 0; idx < count; ++idx)
     {
-        const auto& view = pBufferViewInfo[idx];
-        PAL_ASSERT(view.gpuAddr != 0);
-        PAL_ASSERT((view.stride == 0) || ((view.gpuAddr % Min<gpusize>(sizeof(uint32), view.stride)) == 0));
+        PAL_ASSERT(pBufferViewInfo->gpuAddr != 0);
+        PAL_ASSERT((pBufferViewInfo->stride == 0) ||
+                   ((pBufferViewInfo->gpuAddr % Min<gpusize>(sizeof(uint32), pBufferViewInfo->stride)) == 0));
 
-        BufferSrd       srd  = { };
-        sq_buf_rsrc_t*  pSrd = &srd.gfx10;
+        pOutSrd->u32All[0] = LowPart(pBufferViewInfo->gpuAddr);
+        pOutSrd->u32All[1] =
+            (HighPart(pBufferViewInfo->gpuAddr) |
+             (static_cast<uint32>(pBufferViewInfo->stride) << SqBufRsrcTWord1StrideShift));
 
-        pSrd->base_address = view.gpuAddr;
-        pSrd->stride       = view.stride;
-        pSrd->num_records  = pGfxDevice->CalcNumRecords(static_cast<size_t>(view.range),
-                                                        pSrd->stride);
-        pSrd->type         = SQ_RSRC_BUF;
+        pOutSrd->u32All[2] = pGfxDevice->CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
+                                                        static_cast<uint32>(pBufferViewInfo->stride));
 
-        PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format) == false);
-        PAL_ASSERT(Formats::BytesPerPixel(view.swizzledFormat.format) == view.stride);
+        PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format) == false);
+        PAL_ASSERT(Formats::BytesPerPixel(pBufferViewInfo->swizzledFormat.format) == pBufferViewInfo->stride);
 
-        pSrd->dst_sel_x = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.r);
-        pSrd->dst_sel_y = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.g);
-        pSrd->dst_sel_z = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.b);
-        pSrd->dst_sel_w = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.a);
+        const SQ_SEL_XYZW01 SqSelX = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.r);
+        const SQ_SEL_XYZW01 SqSelY = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.g);
+        const SQ_SEL_XYZW01 SqSelZ = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.b);
+        const SQ_SEL_XYZW01 SqSelW = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.a);
 
         // Get the HW format enumeration corresponding to the view-specified format.
-        const BUF_FMT  hwBufFmt = Formats::Gfx9::HwBufFmt(pFmtInfo, view.swizzledFormat.format);
+        const BUF_FMT hwBufFmt = Formats::Gfx9::HwBufFmt(pFmtInfo, pBufferViewInfo->swizzledFormat.format);
 
         // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
         PAL_ASSERT(hwBufFmt != BUF_FMT_INVALID);
 
-        {
-            pSrd->most.format         = hwBufFmt;
+        pOutSrd->u32All[3] = ((SqSelX        << SqBufRsrcTWord3DstSelXShift)              |
+                              (SqSelY        << SqBufRsrcTWord3DstSelYShift)              |
+                              (SqSelZ        << SqBufRsrcTWord3DstSelZShift)              |
+                              (SqSelW        << SqBufRsrcTWord3DstSelWShift)              |
+                              (hwBufFmt      << MostSqBufRsrcTWord3FormatShift)           |
+                              (resourceLevel << MostSqBufRsrcTWord3ResourceLevelShift)    |
+                              (OobSelect     << SqBufRsrcTWord3OobSelectShift)            |
+                              (SQ_RSRC_BUF   << SqBufRsrcTWord3TypeShift));
 
-            pSrd->most.resource_level = 1;
-        }
-
-        // This means "(index >= NumRecords)" is out-of-bounds.
-        pSrd->oob_select = SQ_OOB_INDEX_ONLY;
-
-        memcpy(pOut, pSrd, sizeof(BufferSrd));
-        pOut = VoidPtrInc(pOut, sizeof(BufferSrd));
+        pOutSrd++;
+        pBufferViewInfo++;
     }
 }
 
@@ -1943,7 +2004,7 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
 
     Gfx9BufferSrd* pOutSrd = static_cast<Gfx9BufferSrd*>(pOut);
 
-    for (uint32 idx = 0; idx < count; ++idx, ++pBufferViewInfo)
+    for (uint32 idx = 0; idx < count; ++idx)
     {
         PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) ||
                    ((pBufferViewInfo->range == 0) && (pBufferViewInfo->stride == 0)));
@@ -1951,7 +2012,7 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
         pOutSrd->word0.bits.BASE_ADDRESS = LowPart(pBufferViewInfo->gpuAddr);
 
         pOutSrd->word1.u32All =
-            ((HighPart(pBufferViewInfo->gpuAddr) << Gfx09::SQ_BUF_RSRC_WORD1__BASE_ADDRESS_HI__SHIFT) |
+            ((HighPart(pBufferViewInfo->gpuAddr)           << Gfx09::SQ_BUF_RSRC_WORD1__BASE_ADDRESS_HI__SHIFT) |
              (static_cast<uint32>(pBufferViewInfo->stride) << Gfx09::SQ_BUF_RSRC_WORD1__STRIDE__SHIFT));
 
         pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
@@ -1961,12 +2022,12 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
 
         if (pBufferViewInfo->gpuAddr != 0)
         {
-            pOutSrd->word3.u32All  = ((SQ_RSRC_BUF << Gfx09::SQ_BUF_RSRC_WORD3__TYPE__SHIFT)   |
-                                      (SQ_SEL_X << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT) |
-                                      (SQ_SEL_Y << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT) |
-                                      (SQ_SEL_Z << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT) |
-                                      (SQ_SEL_W << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT) |
-                                      (BUF_DATA_FORMAT_32 << Gfx09::SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
+            pOutSrd->word3.u32All  = ((SQ_RSRC_BUF         << Gfx09::SQ_BUF_RSRC_WORD3__TYPE__SHIFT)        |
+                                      (SQ_SEL_X            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT)   |
+                                      (SQ_SEL_Y            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT)   |
+                                      (SQ_SEL_Z            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT)   |
+                                      (SQ_SEL_W            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT)   |
+                                      (BUF_DATA_FORMAT_32  << Gfx09::SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
                                       (BUF_NUM_FORMAT_UINT << Gfx09::SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
         }
         else
@@ -1975,6 +2036,7 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
         }
 
         pOutSrd++;
+        pBufferViewInfo++;
     }
 }
 
@@ -1990,48 +2052,47 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
     const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
     const auto*const pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
 
+    sq_buf_rsrc_t* pOutSrd = static_cast<sq_buf_rsrc_t*>(pOut);
+
+    uint32 resourceLevel = 1;
+
     for (uint32 idx = 0; idx < count; ++idx)
     {
-        const auto& view = pBufferViewInfo[idx];
-        PAL_ASSERT((view.gpuAddr != 0) || ((view.range == 0) && (view.stride == 0)));
+        PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) ||
+                   ((pBufferViewInfo->range == 0) && (pBufferViewInfo->stride == 0)));
 
-        BufferSrd       bufferSrd = { };
-        sq_buf_rsrc_t*  pSrd      = &bufferSrd.gfx10;
+        pOutSrd->u32All[0] = LowPart(pBufferViewInfo->gpuAddr);
 
-        pSrd->base_address  = view.gpuAddr;
-        pSrd->stride        = view.stride;
-        pSrd->num_records   = pGfxDevice->CalcNumRecords(static_cast<size_t>(view.range),
-                                                         pSrd->stride);
-        if (view.gpuAddr != 0)
+        pOutSrd->u32All[1] =
+            (HighPart(pBufferViewInfo->gpuAddr) |
+             (static_cast<uint32>(pBufferViewInfo->stride) << SqBufRsrcTWord1StrideShift));
+
+        pOutSrd->u32All[2] = pGfxDevice->CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
+                                                        static_cast<uint32>(pBufferViewInfo->stride));
+
+        PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format));
+
+        if (pBufferViewInfo->gpuAddr != 0)
         {
-            pSrd->type          = SQ_RSRC_BUF;
+            const uint32 oobSelect = ((pBufferViewInfo->stride == 1) ||
+                                      (pBufferViewInfo->stride == 0)) ? SQ_OOB_COMPLETE : SQ_OOB_INDEX_ONLY;
 
-            PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format));
-
-            pSrd->dst_sel_x = SQ_SEL_X;
-            pSrd->dst_sel_y = SQ_SEL_Y;
-            pSrd->dst_sel_z = SQ_SEL_Z;
-            pSrd->dst_sel_w = SQ_SEL_W;
-            {
-                pSrd->most.format         = BUF_FMT_32_UINT;
-
-                pSrd->most.resource_level = 1;
-            }
-
-            if ((pSrd->stride == 1) || (pSrd->stride == 0))
-            {
-                // Raw buffer.  This means "offset >= NumRecords" is out-of-bounds.
-                pSrd->oob_select = SQ_OOB_COMPLETE;
-            }
-            else
-            {
-                // Structured buffer.  This means "(index >= NumRecords)" is out-of-bounds.
-                pSrd->oob_select = SQ_OOB_INDEX_ONLY;
-            }
+            pOutSrd->u32All[3] = ((SQ_SEL_X        << SqBufRsrcTWord3DstSelXShift)              |
+                                  (SQ_SEL_Y        << SqBufRsrcTWord3DstSelYShift)              |
+                                  (SQ_SEL_Z        << SqBufRsrcTWord3DstSelZShift)              |
+                                  (SQ_SEL_W        << SqBufRsrcTWord3DstSelWShift)              |
+                                  (BUF_FMT_32_UINT << MostSqBufRsrcTWord3FormatShift)           |
+                                  (resourceLevel   << MostSqBufRsrcTWord3ResourceLevelShift)    |
+                                  (oobSelect       << SqBufRsrcTWord3OobSelectShift)            |
+                                  (SQ_RSRC_BUF     << SqBufRsrcTWord3TypeShift));
+        }
+        else
+        {
+            pOutSrd->u32All[3] = 0;
         }
 
-        memcpy(pOut, pSrd, sizeof(BufferSrd));
-        pOut = VoidPtrInc(pOut, sizeof(BufferSrd));
+        pOutSrd++;
+        pBufferViewInfo++;
     }
 }
 
@@ -2388,6 +2449,13 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                                             pBaseSubResInfo->actualExtentElements.height);
 
                 actualExtent = pBaseSubResInfo->actualExtentElements;
+
+                // It would appear that HW needs the actual extents to calculate the mip addresses correctly when
+                // viewing more than 1 mip especially in the case of non power of two textures.
+                if (viewInfo.subresRange.numMips > 1)
+                {
+                    includePadding = true;
+                }
             }
             else if (pBaseSubResInfo->bitsPerTexel != Formats::BitsPerPixel(format))
             {
@@ -2899,6 +2967,13 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                                         pBaseSubResInfo->actualExtentElements.height);
 
             actualExtent = pBaseSubResInfo->actualExtentElements;
+
+            // It would appear that HW needs the actual extents to calculate the mip addresses correctly when
+            // viewing more than 1 mip especially in the case of non power of two textures.
+            if (viewInfo.subresRange.numMips > 1)
+            {
+                includePadding = true;
+            }
         }
         else if ((pBaseSubResInfo->bitsPerTexel != Formats::BitsPerPixel(format))
                 )
@@ -3214,13 +3289,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
                 if (image.Parent()->IsDepthStencil())
                 {
-                    // compressed DS writes haven't been tested
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
-                    PAL_ASSERT(TestAnyFlagSet(viewInfo.possibleLayouts.usages,
-                                              LayoutShaderWrite | LayoutCopyDst) == false);
-#else
-                    PAL_ASSERT(viewInfo.flags.shaderWritable == false);
-#endif
                     srd.meta_data_address = image.GetHtile256BAddr();
                 }
                 else
@@ -3234,30 +3302,28 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
                     srd.max_compressed_block_size   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
 
-                    {
-                        srd.most.max_uncompressed_block_size = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
+                    srd.max_uncompressed_block_size = dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
 
-                        // In GFX10, there is a feature called compress-to-constant which automatically enocde A0/1
-                        // C0/1 in DCC key if it detected the whole 256Byte of data are all 0s or 1s for both alpha
-                        // channel and color channel. However, this does not work well with format replacement in PAL.
-                        // When a format changes from with-alpha-format to without-alpha-format, HW may incorrectly
-                        // encode DCC key if compress-to-constant is triggered. In PAL, format is only replaceable
-                        // when DCC is in decompressed state.  Therefore, we have the choice to not enable compressed
-                        // write and simply write the surface and allow it to stay in expanded state.
-                        // Additionally, HW will encode the DCC key in a manner that is incompatible with the app's
-                        // understanding of the surface if the format for the SRD differs from the surface's format.
-                        // If the format differs, we need to disable compressed writes.
+                    // In GFX10, there is a feature called compress-to-constant which automatically enocde A0/1
+                    // C0/1 in DCC key if it detected the whole 256Byte of data are all 0s or 1s for both alpha
+                    // channel and color channel. However, this does not work well with format replacement in PAL.
+                    // When a format changes from with-alpha-format to without-alpha-format, HW may incorrectly
+                    // encode DCC key if compress-to-constant is triggered. In PAL, format is only replaceable
+                    // when DCC is in decompressed state.  Therefore, we have the choice to not enable compressed
+                    // write and simply write the surface and allow it to stay in expanded state.
+                    // Additionally, HW will encode the DCC key in a manner that is incompatible with the app's
+                    // understanding of the surface if the format for the SRD differs from the surface's format.
+                    // If the format differs, we need to disable compressed writes.
                     if (Formats::IsSameFormat(viewInfo.swizzledFormat, imageCreateInfo.swizzledFormat) &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 478
                         ImageLayoutCanCompressColorData(image.LayoutToColorCompressionState(),
-                                                        viewInfo.possibleLayouts))
+                                                    viewInfo.possibleLayouts))
 #else
                         (viewInfo.flags.shaderWritable != 0))
 #endif
-                        {
-                            srd.color_transform            = dccControl.bits.COLOR_TRANSFORM;
-                            srd.most.write_compress_enable = 1;
-                        }
+                    {
+                        srd.color_transform            = dccControl.bits.COLOR_TRANSFORM;
+                        srd.write_compress_enable = 1;
                     }
                 }
             } // end check for image supporting meta-data tex fetches
@@ -3267,7 +3333,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             srd.most.resource_level = 1;
 
             // Fill the unused 4 bits of word6 with sample pattern index
-            srd.most._reserved_206_203 = viewInfo.samplePatternIdx;
+            srd._reserved_206_203 = viewInfo.samplePatternIdx;
 
             //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
             //   Only used with image ops (sample/load)
@@ -4148,7 +4214,6 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numTccBlocks         = 16;
             pInfo->gfx9.maxNumCuPerSh        = 16;
             pInfo->gfx9.maxNumRbPerSe        = 4;
-            pInfo->gfx9.timestampResetOnIdle = 1;
             pInfo->gfx9.numSdpInterfaces     = 32;
             pInfo->gfx9.eccProtectedGprs     = 1;
         }

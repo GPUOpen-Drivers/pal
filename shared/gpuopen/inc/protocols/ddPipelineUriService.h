@@ -70,6 +70,8 @@ struct PipelineHash
     {
         memcpy(this, &other, sizeof(T));
     }
+
+    PipelineHash& operator=(const PipelineHash&) = default;
 };
 DD_CHECK_SIZE(PipelineHash, 16);
 

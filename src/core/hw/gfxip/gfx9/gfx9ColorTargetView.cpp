@@ -52,10 +52,6 @@ constexpr uint32 CbColorInfoDecompressedMask = (CB_COLOR0_INFO__DCC_ENABLE_MASK 
                                                 CB_COLOR0_INFO__FMASK_COMPRESSION_DISABLE_MASK |
                                                 CB_COLOR0_INFO__FMASK_COMPRESS_1FRAG_ONLY_MASK);
 
-// Mask of CB_COLOR0_INFO bits owned by the ColorTargetView classes.
-constexpr uint32 CbColorInfoRmwMask = static_cast<uint32>(~(CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
-                                                            CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK));
-
 // =====================================================================================================================
 ColorTargetView::ColorTargetView(
     const Device*                     pDevice,
@@ -292,7 +288,8 @@ void ColorTargetView::InitCommonImageView(
     if (m_flags.hasDcc != 0)
     {
         regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc()->GetControlReg();
-        if (internalInfo.flags.fastClearElim && IsGfx091xPlus(*device.Parent()))
+        const SubResourceInfo*const pSubResInfo = m_pImage->Parent()->SubresourceInfo(m_subresource);
+        if ((internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch) && IsGfx091xPlus(*device.Parent()))
         {
             // Without this, the CB will not expand the compress-to-register (0x20) keys.
             dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
@@ -584,10 +581,11 @@ void Gfx9ColorTargetView::InitRegisters(
 // =====================================================================================================================
 // Writes the PM4 commands required to bind to a certain slot. Returns the next unused DWORD in pCmdSpace.
 uint32* Gfx9ColorTargetView::WriteCommands(
-    uint32        slot,        // Bind slot
-    ImageLayout   imageLayout, // Current image layout
-    CmdStream*    pCmdStream,
-    uint32*       pCmdSpace
+    uint32             slot,        // Bind slot
+    ImageLayout        imageLayout, // Current image layout
+    CmdStream*         pCmdStream,
+    uint32*            pCmdSpace,
+    regCB_COLOR0_INFO* pCbColorInfo // Device's copy of CB_COLORn_INFO to update
     ) const
 {
     Gfx9ColorTargetViewRegs regs = m_regs;
@@ -599,10 +597,6 @@ uint32* Gfx9ColorTargetView::WriteCommands(
                                                    (mmCB_COLOR0_VIEW + slotOffset),
                                                    &regs.cbColorBase,
                                                    pCmdSpace);
-    pCmdSpace = pCmdStream->WriteContextRegRmw((mmCB_COLOR0_INFO + slotOffset),
-                                               CbColorInfoRmwMask,
-                                               regs.cbColorInfo.u32All,
-                                               pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs((mmCB_COLOR0_ATTRIB                + slotOffset),
                                                    (Gfx09::mmCB_COLOR0_FMASK_BASE_EXT + slotOffset),
                                                    &regs.cbColorAttrib,
@@ -615,7 +609,14 @@ uint32* Gfx9ColorTargetView::WriteCommands(
     // Registers above this point are grouped by slot index (e.g., all of slot0 then all of slot1, etc.).  Registers
     // below this point are grouped by register (e.g., all of CB_MRT*_EPITCH, and so on).
 
-    return pCmdStream->WriteSetOneContextReg((Gfx09::mmCB_MRT0_EPITCH + slot), regs.cbMrtEpitch.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx09::mmCB_MRT0_EPITCH + slot),
+                                                  regs.cbMrtEpitch.u32All,
+                                                  pCmdSpace);
+
+    // Update just the portion owned by RTV.
+    BitfieldUpdateSubfield(&(pCbColorInfo->u32All), regs.cbColorInfo.u32All, CbColorInfoMask);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -823,10 +824,11 @@ void Gfx10ColorTargetView::InitRegisters(
 // =====================================================================================================================
 // Writes the PM4 commands required to bind to a certain slot.  Returns the next unused DWORD in pCmdSpace.
 uint32* Gfx10ColorTargetView::WriteCommands(
-    uint32        slot,        // Bind slot
-    ImageLayout   imageLayout, // Current image layout
-    CmdStream*    pCmdStream,
-    uint32*       pCmdSpace
+    uint32             slot,        // Bind slot
+    ImageLayout        imageLayout, // Current image layout
+    CmdStream*         pCmdStream,
+    uint32*            pCmdSpace,
+    regCB_COLOR0_INFO* pCbColorInfo // Device's copy of CB_COLORn_INFO to update
     ) const
 {
     Gfx10ColorTargetViewRegs regs = m_regs;
@@ -838,10 +840,6 @@ uint32* Gfx10ColorTargetView::WriteCommands(
                                                    (mmCB_COLOR0_VIEW + slotOffset),
                                                    &regs.cbColorBase,
                                                    pCmdSpace);
-    pCmdSpace = pCmdStream->WriteContextRegRmw((mmCB_COLOR0_INFO + slotOffset),
-                                               CbColorInfoRmwMask,
-                                               regs.cbColorInfo.u32All,
-                                               pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs((mmCB_COLOR0_ATTRIB + slotOffset),
                                                    (mmCB_COLOR0_FMASK  + slotOffset),
                                                    &regs.cbColorAttrib,
@@ -856,9 +854,14 @@ uint32* Gfx10ColorTargetView::WriteCommands(
     pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10::mmCB_COLOR0_ATTRIB2 + slot),
                                                   regs.cbColorAttrib2.u32All,
                                                   pCmdSpace);
-    return pCmdStream->WriteSetOneContextReg((Gfx10::mmCB_COLOR0_ATTRIB3 + slot),
-                                             regs.cbColorAttrib3.u32All,
-                                             pCmdSpace);
+    pCmdSpace =  pCmdStream->WriteSetOneContextReg((Gfx10::mmCB_COLOR0_ATTRIB3 + slot),
+                                                   regs.cbColorAttrib3.u32All,
+                                                   pCmdSpace);
+
+    // Update just the portion owned by RTV.
+    BitfieldUpdateSubfield(&(pCbColorInfo->u32All), regs.cbColorInfo.u32All, CbColorInfoMask);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

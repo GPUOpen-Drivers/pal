@@ -45,21 +45,32 @@ EventTimestamp EventTimer::CreateTimestamp()
 {
     EventTimestamp eventTimestamp = {};
 
-    const uint64 timestamp = Platform::QueryTimestamp();
+    // Acquire a lock to control access to our last timestamp value
+    m_lastTimestampLock.Lock();
 
+    const uint64 timestamp = Platform::QueryTimestamp();
     const uint64 deltaSinceLastToken = ((timestamp - m_lastTimestamp) / kEventTimeUnit);
 
-    if ((deltaSinceLastToken > kEventTimestampThreshold) || (m_lastTimestamp == 0))
+    const bool needsFullTimestamp = ((deltaSinceLastToken > kEventTimestampThreshold) || (m_lastTimestamp == 0));
+    const bool needsTimeDelta     = (deltaSinceLastToken > kEventTimeDeltaThreshold);
+
+    // If enough time has passed, we'll need to output either a full timestamp or a time delta timestamp.
+    // In either case, we need to update our last timestamp.
+    if (needsFullTimestamp || needsTimeDelta)
+    {
+        m_lastTimestamp = timestamp;
+    }
+
+    m_lastTimestampLock.Unlock();
+
+    if (needsFullTimestamp)
     {
         // In this case we need to write a timestamp and the delta returned will be zero
         eventTimestamp.type           = EventTimestampType::Full;
         eventTimestamp.full.timestamp = (timestamp / kEventTimeUnit);
         eventTimestamp.full.frequency = m_timestampFrequency;
-
-        // Update the last timestamp
-        m_lastTimestamp = timestamp;
     }
-    else if (deltaSinceLastToken > kEventTimeDeltaThreshold)
+    else if (needsTimeDelta)
     {
         // In this case we need to write a large delta
         eventTimestamp.type             = EventTimestampType::LargeDelta;
@@ -68,11 +79,8 @@ EventTimestamp EventTimer::CreateTimestamp()
         // Count the number of bytes in the delta
         // TODO: Replace this with lzcnt and some arithmetic
         //      [C++]
-        //          https://en.cppreference.com/w/cpp/numeric/countl_zero
         //      [MSVC]
-        //          https://docs.microsoft.com/en-us/cpp/intrinsics/lzcnt16-lzcnt-lzcnt64?view=vs-2019
         //      [GCC/Clang] See __builtin_ia32_lzcnt_u64
-        //          https://gcc.gnu.org/onlinedocs/gcc/x86-Built-in-Functions.html
         uint64 numBytes = 1;
         while (((1ull << (numBytes * 8)) - 1) < deltaSinceLastToken)
         {
@@ -81,9 +89,6 @@ EventTimestamp EventTimer::CreateTimestamp()
 
         DD_ASSERT(numBytes <= 6);
         eventTimestamp.largeDelta.numBytes = static_cast<uint8>(numBytes);
-
-        // Finally update our last timestamp
-        m_lastTimestamp = timestamp;
     }
     else
     {
@@ -95,6 +100,14 @@ EventTimestamp EventTimer::CreateTimestamp()
     }
 
     return eventTimestamp;
+}
+
+void EventTimer::Reset()
+{
+    // Acquire a lock since we modify our last timestamp here
+    Platform::LockGuard<Platform::AtomicLock> lockGuard(m_lastTimestampLock);
+
+    m_lastTimestamp = 0;
 }
 
 } // namespace DevDriver

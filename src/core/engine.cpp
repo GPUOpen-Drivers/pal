@@ -39,6 +39,7 @@ Engine::Engine(
     m_device(device),
     m_type(type),
     m_index(index),
+    m_queues(device.GetPlatform()),
     m_queueLock(),
     m_pContext(nullptr)
 {
@@ -47,7 +48,7 @@ Engine::Engine(
 // =====================================================================================================================
 Result Engine::Init()
 {
-    return m_queueLock.Init();
+    return  m_queueLock.Init();
 }
 
 // =====================================================================================================================
@@ -58,34 +59,46 @@ Result Engine::WaitIdleAllQueues()
     // Queue-list operations need to be protected.
     Util::MutexAuto lock(&m_queueLock);
 
-    for (auto iter = m_queues.Begin(); iter.IsValid() && (result == Result::Success); iter.Next())
+    for (auto iter = m_queues.Begin(); ((iter != m_queues.End()) && (result == Result::Success)); iter.Next())
     {
-        result = iter.Get()->WaitIdle();
+        result = (*iter.Get())->WaitIdle();
     }
 
     return result;
 }
 
 // =====================================================================================================================
-void Engine::AddQueue(
-    Util::IntrusiveListNode<Queue>* pQueueNode)
+Result Engine::AddQueue(
+    Queue* pQueue)
 {
-    PAL_ASSERT(pQueueNode != nullptr);
+    PAL_ASSERT(pQueue != nullptr);
 
     // Queue-list operations need to be protected.
     Util::MutexAuto lock(&m_queueLock);
-    m_queues.PushBack(pQueueNode);
+    return m_queues.PushBack(pQueue);
 }
 
 // =====================================================================================================================
 void Engine::RemoveQueue(
-    Util::IntrusiveListNode<Queue>* pQueueNode)
+    Queue* pQueue)
 {
-    PAL_ASSERT(pQueueNode != nullptr);
+    PAL_ASSERT(pQueue != nullptr);
 
     // Queue-list operations need to be protected.
     Util::MutexAuto lock(&m_queueLock);
-    m_queues.Erase(pQueueNode);
+    // Try to find the allocation in the reference list
+    for (auto iter = m_queues.Begin(); iter != m_queues.End(); iter.Next())
+    {
+        Queue* pCurQueuePtr = *iter.Get();
+
+        PAL_ASSERT(pCurQueuePtr != nullptr);
+
+        if (pQueue == pCurQueuePtr)
+        {
+            m_queues.Erase(&iter);
+            break;
+        }
+    }
 }
 
 } // Pal

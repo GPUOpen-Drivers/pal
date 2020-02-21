@@ -77,6 +77,8 @@ typedef enum RmtFileChunkType
     RMT_FILE_CHUNK_TYPE_SEGMENT_INFO  = 4,  ///< A chunk containing segment information for the main process.
     RMT_FILE_CHUNK_TYPE_PROCESS_INFO  = 5,  ///< A chunk containing process state information at the start of the
                                             ///  RMT trace.
+    RMT_FILE_CHUNK_TYPE_SNAPSHOT_INFO = 6,  ///< A chunk containing information about a snapshot.
+    RMT_FILE_CHUNK_TYPE_ADAPTER_INFO  = 7,  ///< A chunk containing information about the adapter.
 
     // NOTE: Add new chunks above this.
     RMT_FILE_CHUNK_TYPE_COUNT               ///< The number of different chunk types.
@@ -89,13 +91,29 @@ typedef enum RmtFileChunkFileHeaderFlags
 } RmtFileChunkFileHeaderFlags;
 
 /// An enumeration of the API types.
-typedef enum RmtApiType {
-    RMT_API_TYPE_DIRECTX_12  = 0,  ///< The trace contains data from a DirectX 12 application.
-    RMT_API_TYPE_VULKAN      = 1,  ///< The trace contains data from a Vulkan application.
-    RMT_API_TYPE_GENERIC     = 2,  ///< The API of the application is not known.
-    RMT_API_TYPE_OPENCL      = 3,  ///< The API of the application is OpenCL.
-    RMT_API_TYPE_COUNT             ///< The number of APIs supported.
+typedef enum RmtApiType
+{
+    RMT_API_TYPE_DIRECTX_12 = 0,  ///< The trace contains data from a DirectX 12 application.
+    RMT_API_TYPE_VULKAN     = 1,  ///< The trace contains data from a Vulkan application.
+    RMT_API_TYPE_GENERIC    = 2,  ///< The API of the application is not known.
+    RMT_API_TYPE_OPENCL     = 3,  ///< The API of the application is OpenCL.
+    RMT_API_TYPE_COUNT            ///< The number of APIs supported.
 } RmtApiType;
+
+/// An enumeration of the memory types.
+typedef enum RmtMemoryType
+{
+    RMT_MEMORY_TYPE_UNKNOWN = 0, ///< Unknown memory type
+    RMT_MEMORY_TYPE_DDR2,
+    RMT_MEMORY_TYPE_DDR3,
+    RMT_MEMORY_TYPE_DDR4,
+    RMT_MEMORY_TYPE_GDDR5,
+    RMT_MEMORY_TYPE_GDDR6,
+    RMT_MEMORY_TYPE_HBM,
+    RMT_MEMORY_TYPE_HBM2,
+    RMT_MEMORY_TYPE_HBM3,
+    RMT_MEMORY_TYPE_COUNT        ///< The number of memory types supported.
+} RmtMemoryType;
 
 /// A structure encapsulating a single chunk identifier.
 typedef struct RmtFileChunkIdentifier
@@ -148,5 +166,46 @@ typedef struct RmtFileChunkSystemInfo
     int32              physicalCores;       ///< The number of physical cores.
     int32              systemRamInMB;       ///< The amount of system RAM expressed in MB.
 } RmtFileChunkSystemInfo;
+
+/// A structure encapsulating information about a single snapshot.
+/// The name of the snapshot is written directly after this chunk structure.
+typedef struct RmtFileChunkSnapshotData
+{
+    RmtFileChunkHeader header;        ///< Common header for all chunks.
+    uint64             snapshotPoint; ///< 64bit timestamp of the snapshot.
+    uint32             nameLength;    ///< Size in bytes of the snapshot name.
+} RmtFileChunkSnapshotData;
+
+/// A structure encapsulating information about a segment of memory.
+typedef struct RmtFileChunkSegmentInfo
+{
+    RmtFileChunkHeader header;              ///< Common header for all chunks.
+    uint64             physicalBaseAddress; ///< Physical base address of the segment.
+    uint64             size;                ///< Size in bytes of the segment.
+    uint32             heapType;            ///< Type of heap.
+    uint32             memoryTypeIndex;     ///< Memory type index.
+} RmtFileChunkSegmentInfo;
+
+/// A structure encapsulating information about a segment of memory.
+typedef struct RmtFileChunkAdapterInfo
+{
+    RmtFileChunkHeader header;            ///< Common header for all chunks.
+
+    char               name[128];         ///< Name of the gpu
+
+    uint32             familyId;          ///< PCI Family
+    uint32             revisionId;        ///< PCI Revision
+    uint32             deviceId;          ///< PCI Device
+
+    uint32             minEngineClock;    ///< Minumum engine clock in Mhz
+    uint32             maxEngineClock;    ///< Maximum engine clock in Mhz
+
+    uint32             memoryType;        ///< Type of memory
+    uint32             memoryOpsPerClock; ///< Number of memory operations per clock
+    uint32             memoryBusWidth;    ///< Bus width of memory interface in bits
+    uint32             memoryBandwidth;   ///< Bandwidth of memory in MB/s
+    uint32             minMemoryClock;    ///< Minumum memory clock in Mhz
+    uint32             maxMemoryClock;    ///< Minumum memory clock in Mhz
+} RmtFileChunkAdapterInfo;
 
 } // namespace DevDriver

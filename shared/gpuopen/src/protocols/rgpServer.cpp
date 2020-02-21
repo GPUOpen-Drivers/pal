@@ -29,7 +29,11 @@
 #include "util/queue.h"
 
 #define RGP_SERVER_MIN_VERSION 2
-#define RGP_SERVER_MAX_VERSION 9
+#if DD_VERSION_SUPPORTS(GPUOPEN_RGP_SPM_COUNTERS_VERSION)
+    #define RGP_SERVER_MAX_VERSION 10
+#else
+    #define RGP_SERVER_MAX_VERSION 9
+#endif
 
 namespace DevDriver
 {
@@ -40,17 +44,21 @@ namespace DevDriver
             ReceivePayload = 0,
             ProcessPayload,
             SendPayload,
-            TransferTraceData
+            TransferTraceData,
+            TransferSpmConfigData,
         };
 
         struct RGPSession
         {
-            SessionState state;
-            Version version;
-            uint64 traceSizeInBytes;
-            Queue<RGPPayload, 32> chunkPayloads;
-            RGPPayload payload;
-            bool abortRequestedByClient;
+            SessionState               state;
+            Version                    version;
+            uint64                     traceSizeInBytes;
+            Queue<RGPPayload, 32>      chunkPayloads;
+            RGPPayload                 payload;
+            bool                       abortRequestedByClient;
+            uint32                     numSpmUpdatePackets;
+            ServerSpmConfig            spmConfig;
+            Vector<ServerSpmCounterId> spmCounters;
 
             explicit RGPSession(const AllocCb& allocCb)
                 : state(SessionState::ReceivePayload)
@@ -59,6 +67,9 @@ namespace DevDriver
                 , chunkPayloads(allocCb)
                 , payload()
                 , abortRequestedByClient(false)
+                , numSpmUpdatePackets(0)
+                , spmConfig()
+                , spmCounters(allocCb)
             {
             }
         };
@@ -68,6 +79,8 @@ namespace DevDriver
             , m_traceStatus(TraceStatus::Idle)
             , m_pCurrentSessionData(nullptr)
             , m_profilingStatus(ProfilingStatus::NotAvailable)
+            , m_spmCounterData(pMsgChannel->GetAllocCb())
+            , m_spmValidationCb({ nullptr, nullptr })
         {
             DD_ASSERT(m_pMsgChannel != nullptr);
             memset(&m_traceParameters, 0, sizeof(m_traceParameters));
@@ -228,20 +241,20 @@ namespace DevDriver
                                     }
                                     else
                                     {
-                                    if (pSessionData->version >= RGP_TRACE_PROGRESS_VERSION)
-                                    {
-                                        pSessionData->payload.command = RGPMessage::TraceDataHeader;
-                                        pSessionData->payload.traceDataHeader.numChunks = 0;
-                                        pSessionData->payload.traceDataHeader.sizeInBytes = 0;
-                                        pSessionData->payload.traceDataHeader.result = Result::Error;
-                                    }
-                                    else
-                                    {
-                                        pSessionData->payload.command = RGPMessage::TraceDataSentinel;
-                                        pSessionData->payload.traceDataSentinel.result = Result::Error;
-                                    }
+                                        if (pSessionData->version >= RGP_TRACE_PROGRESS_VERSION)
+                                        {
+                                            pSessionData->payload.command = RGPMessage::TraceDataHeader;
+                                            pSessionData->payload.traceDataHeader.numChunks = 0;
+                                            pSessionData->payload.traceDataHeader.sizeInBytes = 0;
+                                            pSessionData->payload.traceDataHeader.result = Result::Error;
+                                        }
+                                        else
+                                        {
+                                            pSessionData->payload.command = RGPMessage::TraceDataSentinel;
+                                            pSessionData->payload.traceDataSentinel.result = Result::Error;
+                                        }
 
-                                    pSessionData->state = SessionState::SendPayload;
+                                        pSessionData->state = SessionState::SendPayload;
                                     }
 
                                     break;
@@ -291,36 +304,76 @@ namespace DevDriver
 
                                     if (result == Result::Success)
                                     {
-                                        TraceParametersV6& parameters =
-                                            pSessionData->payload.queryTraceParametersResponse.parameters;
+                                        if (pSession->GetVersion() == RGP_DECOUPLED_TRACE_PARAMETERS)
+                                        {
+                                            TraceParametersV6& parameters =
+                                                pSessionData->payload.queryTraceParametersResponse.parameters;
 
-                                        parameters.gpuMemoryLimitInMb   = m_traceParameters.gpuMemoryLimitInMb;
-                                        parameters.numPreparationFrames = m_traceParameters.numPreparationFrames;
+                                            parameters.gpuMemoryLimitInMb = m_traceParameters.gpuMemoryLimitInMb;
+                                            parameters.numPreparationFrames = m_traceParameters.numPreparationFrames;
 
-                                        parameters.captureStartIndex    = m_traceParameters.captureStartIndex;
-                                        parameters.captureStopIndex     = m_traceParameters.captureStopIndex;
+                                            parameters.captureStartIndex = m_traceParameters.captureStartIndex;
+                                            parameters.captureStopIndex = m_traceParameters.captureStopIndex;
 
-                                        parameters.captureMode          = m_traceParameters.captureMode;
+                                            parameters.captureMode = m_traceParameters.captureMode;
 
-                                        parameters.flags.u32All         = m_traceParameters.flags.u32All;
+                                            parameters.flags.u32All = m_traceParameters.flags.u32All;
 
-                                        parameters.beginTagHigh = static_cast<uint32>(m_traceParameters.beginTag >> 32);
-                                        parameters.beginTagLow  = static_cast<uint32>(m_traceParameters.beginTag & 0xFFFFFFFF);
-                                        parameters.endTagHigh = static_cast<uint32>(m_traceParameters.endTag >> 32);
-                                        parameters.endTagLow  = static_cast<uint32>(m_traceParameters.endTag & 0xFFFFFFFF);
+                                            parameters.beginTagHigh = static_cast<uint32>(m_traceParameters.beginTag >> 32);
+                                            parameters.beginTagLow = static_cast<uint32>(m_traceParameters.beginTag & 0xFFFFFFFF);
+                                            parameters.endTagHigh = static_cast<uint32>(m_traceParameters.endTag >> 32);
+                                            parameters.endTagLow = static_cast<uint32>(m_traceParameters.endTag & 0xFFFFFFFF);
 
-                                        Platform::Strncpy(parameters.beginMarker,
-                                                          m_traceParameters.beginMarker,
-                                                          sizeof(parameters.beginMarker));
+                                            Platform::Strncpy(parameters.beginMarker,
+                                                m_traceParameters.beginMarker,
+                                                sizeof(parameters.beginMarker));
 
-                                        Platform::Strncpy(parameters.endMarker,
-                                                          m_traceParameters.endMarker,
-                                                          sizeof(parameters.endMarker));
+                                            Platform::Strncpy(parameters.endMarker,
+                                                m_traceParameters.endMarker,
+                                                sizeof(parameters.endMarker));
 
-                                        parameters.pipelineHashHi =
-                                            static_cast<uint32>(m_traceParameters.pipelineHash >> 32);
-                                        parameters.pipelineHashLo =
-                                            static_cast<uint32>(m_traceParameters.pipelineHash & 0xFFFFFFFF);
+                                            parameters.pipelineHashHi =
+                                                static_cast<uint32>(m_traceParameters.pipelineHash >> 32);
+                                            parameters.pipelineHashLo =
+                                                static_cast<uint32>(m_traceParameters.pipelineHash & 0xFFFFFFFF);
+                                        }
+                                        else
+                                        {
+                                            TraceParametersV7& parameters =
+                                                pSessionData->payload.queryTraceParametersResponseV2.parameters;
+
+                                            parameters.gpuMemoryLimitInMb = m_traceParameters.gpuMemoryLimitInMb;
+                                            parameters.numPreparationFrames = m_traceParameters.numPreparationFrames;
+
+                                            parameters.captureStartIndex = m_traceParameters.captureStartIndex;
+                                            parameters.captureStopIndex = m_traceParameters.captureStopIndex;
+
+                                            parameters.captureMode = m_traceParameters.captureMode;
+
+                                            parameters.flags.u32All = m_traceParameters.flags.u32All;
+
+                                            parameters.beginTagHigh = static_cast<uint32>(m_traceParameters.beginTag >> 32);
+                                            parameters.beginTagLow = static_cast<uint32>(m_traceParameters.beginTag & 0xFFFFFFFF);
+                                            parameters.endTagHigh = static_cast<uint32>(m_traceParameters.endTag >> 32);
+                                            parameters.endTagLow = static_cast<uint32>(m_traceParameters.endTag & 0xFFFFFFFF);
+
+                                            Platform::Strncpy(parameters.beginMarker,
+                                                m_traceParameters.beginMarker,
+                                                sizeof(parameters.beginMarker));
+
+                                            Platform::Strncpy(parameters.endMarker,
+                                                m_traceParameters.endMarker,
+                                                sizeof(parameters.endMarker));
+
+                                            parameters.pipelineHashHi =
+                                                static_cast<uint32>(m_traceParameters.pipelineHash >> 32);
+                                            parameters.pipelineHashLo =
+                                                static_cast<uint32>(m_traceParameters.pipelineHash & 0xFFFFFFFF);
+
+#if DD_VERSION_SUPPORTS(GPUOPEN_RGP_SPM_COUNTERS_VERSION)
+                                            parameters.seMask = m_traceParameters.seMask;
+#endif
+                                        }
                                     }
 
                                     pSessionData->payload.queryTraceParametersResponse.result = result;
@@ -344,35 +397,74 @@ namespace DevDriver
                                         // Trace parameters can only be updated if there's no trace in progress.
                                         if (m_traceStatus == TraceStatus::Idle)
                                         {
-                                            const TraceParametersV6& traceParameters =
-                                                pSessionData->payload.updateTraceParametersRequest.parameters;
+                                            if (pSession->GetVersion() == RGP_DECOUPLED_TRACE_PARAMETERS)
+                                            {
+                                                const TraceParametersV6& traceParameters =
+                                                    pSessionData->payload.updateTraceParametersRequest.parameters;
 
-                                            m_traceParameters.gpuMemoryLimitInMb = traceParameters.gpuMemoryLimitInMb;
-                                            m_traceParameters.numPreparationFrames = traceParameters.numPreparationFrames;
-                                            m_traceParameters.captureMode = traceParameters.captureMode;
-                                            m_traceParameters.flags.u32All = traceParameters.flags.u32All;
+                                                m_traceParameters.gpuMemoryLimitInMb = traceParameters.gpuMemoryLimitInMb;
+                                                m_traceParameters.numPreparationFrames = traceParameters.numPreparationFrames;
+                                                m_traceParameters.captureMode = traceParameters.captureMode;
+                                                m_traceParameters.flags.u32All = traceParameters.flags.u32All;
 
-                                            m_traceParameters.captureStartIndex = traceParameters.captureStartIndex;
-                                            m_traceParameters.captureStopIndex = traceParameters.captureStopIndex;
+                                                m_traceParameters.captureStartIndex = traceParameters.captureStartIndex;
+                                                m_traceParameters.captureStopIndex = traceParameters.captureStopIndex;
 
-                                            m_traceParameters.beginTag =
-                                                ((static_cast<uint64>(traceParameters.beginTagHigh) << 32) |
-                                                  traceParameters.beginTagLow);
-                                            m_traceParameters.endTag =
-                                                ((static_cast<uint64>(traceParameters.endTagHigh) << 32) |
-                                                  traceParameters.endTagLow);
+                                                m_traceParameters.beginTag =
+                                                    ((static_cast<uint64>(traceParameters.beginTagHigh) << 32) |
+                                                        traceParameters.beginTagLow);
+                                                m_traceParameters.endTag =
+                                                    ((static_cast<uint64>(traceParameters.endTagHigh) << 32) |
+                                                        traceParameters.endTagLow);
 
-                                            Platform::Strncpy(m_traceParameters.beginMarker,
-                                                traceParameters.beginMarker,
-                                                sizeof(m_traceParameters.beginMarker));
+                                                Platform::Strncpy(m_traceParameters.beginMarker,
+                                                    traceParameters.beginMarker,
+                                                    sizeof(m_traceParameters.beginMarker));
 
-                                            Platform::Strncpy(m_traceParameters.endMarker,
-                                                traceParameters.endMarker,
-                                                sizeof(m_traceParameters.endMarker));
+                                                Platform::Strncpy(m_traceParameters.endMarker,
+                                                    traceParameters.endMarker,
+                                                    sizeof(m_traceParameters.endMarker));
 
-                                            m_traceParameters.pipelineHash =
-                                                ((static_cast<uint64>(traceParameters.pipelineHashHi) << 32) |
-                                                  static_cast<uint64>(traceParameters.pipelineHashLo));
+                                                m_traceParameters.pipelineHash =
+                                                    ((static_cast<uint64>(traceParameters.pipelineHashHi) << 32) |
+                                                        static_cast<uint64>(traceParameters.pipelineHashLo));
+                                            }
+                                            else
+                                            {
+                                                const TraceParametersV7& traceParameters =
+                                                    pSessionData->payload.updateTraceParametersRequestV2.parameters;
+
+                                                m_traceParameters.gpuMemoryLimitInMb = traceParameters.gpuMemoryLimitInMb;
+                                                m_traceParameters.numPreparationFrames = traceParameters.numPreparationFrames;
+                                                m_traceParameters.captureMode = traceParameters.captureMode;
+                                                m_traceParameters.flags.u32All = traceParameters.flags.u32All;
+
+                                                m_traceParameters.captureStartIndex = traceParameters.captureStartIndex;
+                                                m_traceParameters.captureStopIndex = traceParameters.captureStopIndex;
+
+                                                m_traceParameters.beginTag =
+                                                    ((static_cast<uint64>(traceParameters.beginTagHigh) << 32) |
+                                                        traceParameters.beginTagLow);
+                                                m_traceParameters.endTag =
+                                                    ((static_cast<uint64>(traceParameters.endTagHigh) << 32) |
+                                                        traceParameters.endTagLow);
+
+                                                Platform::Strncpy(m_traceParameters.beginMarker,
+                                                    traceParameters.beginMarker,
+                                                    sizeof(m_traceParameters.beginMarker));
+
+                                                Platform::Strncpy(m_traceParameters.endMarker,
+                                                    traceParameters.endMarker,
+                                                    sizeof(m_traceParameters.endMarker));
+
+                                                m_traceParameters.pipelineHash =
+                                                    ((static_cast<uint64>(traceParameters.pipelineHashHi) << 32) |
+                                                        static_cast<uint64>(traceParameters.pipelineHashLo));
+
+#if DD_VERSION_SUPPORTS(GPUOPEN_RGP_SPM_COUNTERS_VERSION)
+                                                m_traceParameters.seMask = traceParameters.seMask;
+#endif
+                                            }
 
                                             result = Result::Success;
                                         }
@@ -390,11 +482,108 @@ namespace DevDriver
 
                                     break;
                                 }
+                                case RGPMessage::UpdateSpmConfigRequest:
+                                {
+                                    // Make sure our session version is new enough to use this interface.
+                                    if (pSession->GetVersion() >= RGP_SPM_COUNTERS_VERSION)
+                                    {
+                                        // Perf counters can only be updated if there's no trace in progress.
+                                        if (m_traceStatus == TraceStatus::Idle)
+                                        {
+                                            const UpdateSpmConfigRequestPayload& updateCountersRequest =
+                                                pSessionData->payload.updateSpmConfigRequest;
+
+                                            pSessionData->spmConfig.sampleFrequency = updateCountersRequest.sampleFrequency;
+                                            pSessionData->spmConfig.memoryLimitInMb = updateCountersRequest.memoryLimitInMb;
+                                            pSessionData->spmCounters.Clear();
+
+                                            // If we have data payloads following this packet, then we need to transition into
+                                            // a special transfer state in order to receive them.
+                                            if (updateCountersRequest.numDataPayloads > 0)
+                                            {
+                                                pSessionData->numSpmUpdatePackets = updateCountersRequest.numDataPayloads;
+                                                pSessionData->state = SessionState::TransferSpmConfigData;
+                                            }
+                                            else
+                                            {
+                                                // We don't have any counters to receive so we're done with the update
+                                                const Result result =
+                                                    UpdateSpmConfig(pSessionData->spmConfig, pSessionData->spmCounters);
+                                                pSessionData->payload.command = RGPMessage::UpdateSpmConfigResponse;
+                                                pSessionData->payload.updateSpmConfigResponse.result = result;
+                                                pSessionData->state = SessionState::SendPayload;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            // Set the result to NotReady since we can handle this request eventually,
+                                            // just not right now.
+                                            pSessionData->payload.command = RGPMessage::UpdateSpmConfigResponse;
+                                            pSessionData->payload.updateSpmConfigResponse.result = Result::NotReady;
+                                            pSessionData->state = SessionState::SendPayload;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        pSessionData->payload.command = RGPMessage::UpdateSpmConfigResponse;
+                                        pSessionData->payload.updateSpmConfigResponse.result = Result::VersionMismatch;
+                                        pSessionData->state = SessionState::SendPayload;
+                                    }
+
+                                    break;
+                                }
                                 default:
                                 {
                                     // Invalid command
                                     DD_UNREACHABLE();
                                     break;
+                                }
+                            }
+
+                            break;
+                        }
+
+                        case SessionState::TransferSpmConfigData:
+                        {
+                            uint32 bytesReceived = 0;
+                            Result result = pSession->Receive(sizeof(pSessionData->payload), &pSessionData->payload, &bytesReceived, kNoWait);
+
+                            if (result == Result::Success)
+                            {
+                                if (pSessionData->payload.command == RGPMessage::UpdateSpmConfigData)
+                                {
+                                    const UpdateSpmConfigDataPayload& updateCounterData =
+                                            pSessionData->payload.updateSpmConfigData;
+
+                                    // Copy all the counters into our local collection
+                                    const uint32 numCounters = updateCounterData.numCounters;
+                                    for (uint32 counterIndex = 0; counterIndex < numCounters; ++counterIndex)
+                                    {
+                                        const SpmCounterId& counter = updateCounterData.counters[counterIndex];
+
+                                        ServerSpmCounterId serverCounter = {};
+                                        serverCounter.blockId    = counter.blockId;
+                                        serverCounter.instanceId = counter.instanceId;
+                                        serverCounter.eventId    = counter.eventId;
+
+                                        pSessionData->spmCounters.PushBack(serverCounter);
+                                    }
+
+                                    DD_ASSERT(pSessionData->numSpmUpdatePackets > 0);
+                                    --pSessionData->numSpmUpdatePackets;
+
+                                    // Once we receive all the config updates, transition back to the normal session state cycle
+                                    if (pSessionData->numSpmUpdatePackets == 0)
+                                    {
+                                        result = UpdateSpmConfig(pSessionData->spmConfig, pSessionData->spmCounters);
+                                        pSessionData->payload.command = RGPMessage::UpdateSpmConfigResponse;
+                                        pSessionData->payload.updateSpmConfigResponse.result = result;
+                                        pSessionData->state = SessionState::SendPayload;
+                                    }
+                                }
+                                else
+                                {
+                                    DD_ASSERT_REASON("Received non config update packet in config update state!");
                                 }
                             }
 
@@ -789,6 +978,38 @@ namespace DevDriver
             return traceParameters;
         }
 
+        Result RGPServer::QuerySpmConfig(ServerSpmConfig* pConfig, Vector<ServerSpmCounterId>* pCounterData)
+        {
+            Result result = Result::Success;
+
+            if ((pConfig != nullptr) && (pCounterData != nullptr))
+            {
+                Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+
+                (*pConfig) = m_spmConfig;
+
+                pCounterData->Clear();
+                for (size_t counterIndex = 0; counterIndex < m_spmCounterData.Size(); ++counterIndex)
+                {
+                    pCounterData->PushBack(m_spmCounterData[counterIndex]);
+                }
+            }
+            else
+            {
+                result = Result::InvalidParameter;
+            }
+
+            return result;
+        }
+
+        void RGPServer::SetSpmValidationCallback(
+            const ValidateSpmCallbackInfo& callback)
+        {
+            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+
+            m_spmValidationCb = callback;
+        }
+
         void RGPServer::LockData()
         {
             m_mutex.Lock();
@@ -812,6 +1033,37 @@ namespace DevDriver
                 m_pCurrentSessionData->abortRequestedByClient = false;
                 m_pCurrentSessionData = nullptr;
             }
+        }
+
+        Result RGPServer::UpdateSpmConfig(
+            const ServerSpmConfig&            config,
+            const Vector<ServerSpmCounterId>& counters)
+        {
+            // Assume the data is valid by default in case we don't have a validation callback set.
+            Result result = Result::Success;
+
+            if (m_spmValidationCb.pfnValidateSpmConfig != nullptr)
+            {
+                if (m_spmValidationCb.pfnValidateSpmConfig(m_spmValidationCb.pUserdata, &config, &counters) == false)
+                {
+                    result = Result::InvalidParameter;
+                }
+            }
+
+            if (result == Result::Success)
+            {
+                // Commit the configuration changes to memory since we passed validation
+
+                m_spmConfig = config;
+
+                m_spmCounterData.Resize(counters.Size());
+                for (size_t counterIndex = 0; counterIndex < counters.Size(); ++counterIndex)
+                {
+                    m_spmCounterData[counterIndex] = counters[counterIndex];
+                }
+            }
+
+            return result;
         }
     }
 } // DevDriver

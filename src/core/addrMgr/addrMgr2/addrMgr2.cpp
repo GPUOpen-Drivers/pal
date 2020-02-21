@@ -392,7 +392,7 @@ void AddrMgr2::InitTilingCaps(
         pBlockSettings->macroThin64KB  = 1;
         pBlockSettings->macroThick64KB = 1;
     }
-    else if (surfaceFlags.prt)
+    else if (createInfo.flags.prt)
     {
         // Tiled resource must use 64KB block size and all other flags must be set as well (forbidden).
         pBlockSettings->macroThin4KB  = 1;

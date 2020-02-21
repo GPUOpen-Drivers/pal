@@ -925,13 +925,56 @@ Pal::Result GpaSession::UnregisterTimedQueue(
     return result;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572
 // =====================================================================================================================
-// Injects timing commands into a submission and submits it to pQueue.
 Pal::Result GpaSession::TimedSubmit(
     Pal::IQueue*           pQueue,
     const Pal::SubmitInfo& submitInfo,
     const TimedSubmitInfo& timedSubmitInfo)
 {
+    MultiSubmitInfo       newInfo               = { };
+    PerSubQueueSubmitInfo perSubQueueSubmitInfo = { };
+
+    if (submitInfo.cmdBufferCount > 0)
+    {
+        newInfo.pPerSubQueueInfo     = &perSubQueueSubmitInfo;
+        newInfo.perSubQueueInfoCount = 1;
+
+        perSubQueueSubmitInfo.cmdBufferCount  = submitInfo.cmdBufferCount;
+        perSubQueueSubmitInfo.pCmdBufInfoList = submitInfo.pCmdBufInfoList;
+        perSubQueueSubmitInfo.ppCmdBuffers    = submitInfo.ppCmdBuffers;
+    }
+
+    newInfo.gpuMemRefCount       = submitInfo.gpuMemRefCount;
+    newInfo.pGpuMemoryRefs       = submitInfo.pGpuMemoryRefs;
+    newInfo.doppRefCount         = submitInfo.doppRefCount;
+    newInfo.pDoppRefs            = submitInfo.pDoppRefs;
+    newInfo.externPhysMemCount   = submitInfo.externPhysMemCount;
+    newInfo.ppExternPhysMem      = submitInfo.ppExternPhysMem;
+    newInfo.blockIfFlippingCount = submitInfo.blockIfFlippingCount;
+    newInfo.ppBlockIfFlipping    = submitInfo.ppBlockIfFlipping;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+    newInfo.fenceCount           = submitInfo.fenceCount;
+    newInfo.ppFences             = submitInfo.ppFences;
+#else
+    newInfo.pFence               = submitInfo.pFence;
+#endif
+
+    return TimedSubmit(pQueue, newInfo, timedSubmitInfo);
+}
+#endif
+
+// =====================================================================================================================
+// Injects timing commands into a submission and submits it to pQueue.
+Pal::Result GpaSession::TimedSubmit(
+    Pal::IQueue*                pQueue,
+    const Pal::MultiSubmitInfo& submitInfo,
+    const TimedSubmitInfo&      timedSubmitInfo)
+{
+    // Multi-queue submits are not yet supported by GpaSession!
+    PAL_ASSERT(submitInfo.pPerSubQueueInfo != nullptr);
+    PAL_ASSERT_MSG((submitInfo.perSubQueueInfoCount <= 1),
+                   "Multi-Queue support has not yet been implemented in GpaSession!", nullptr);
     Pal::Result result = m_flags.enableQueueTiming ? Pal::Result::Success : Pal::Result::ErrorUnavailable;
 
     TimedQueueState* pQueueState = nullptr;
@@ -944,8 +987,10 @@ Pal::Result GpaSession::TimedSubmit(
 
     if (result == Pal::Result::Success)
     {
+        const PerSubQueueSubmitInfo& primarySubQueueInfo = submitInfo.pPerSubQueueInfo[0];
+
         // Acquire command buffers
-        const uint32 numCmdBuffersRequired = (submitInfo.cmdBufferCount + 1);
+        const uint32 numCmdBuffersRequired = (primarySubQueueInfo.cmdBufferCount + 1);
 
         Util::Vector<Pal::ICmdBuffer*, 8, GpaAllocator> cmdBufferList(m_pPlatform);
 
@@ -971,7 +1016,7 @@ Pal::Result GpaSession::TimedSubmit(
         if (result == Pal::Result::Success)
         {
             // Acquire timestamp memory
-            const uint32 numTimestampsRequired = (2 * submitInfo.cmdBufferCount);
+            const uint32 numTimestampsRequired = (2 * primarySubQueueInfo.cmdBufferCount);
 
             for (uint32 timestampIndex = 0; timestampIndex < numTimestampsRequired; ++timestampIndex)
             {
@@ -1006,7 +1051,7 @@ Pal::Result GpaSession::TimedSubmit(
             Util::Vector<Pal::ICmdBuffer*, 8, GpaAllocator> patchedCmdBufferList(m_pPlatform);
             Util::Vector<Pal::CmdBufInfo, 8, GpaAllocator> patchedCmdBufInfoList(m_pPlatform);
 
-            for (uint32 cmdBufIndex = 0; cmdBufIndex < submitInfo.cmdBufferCount; ++cmdBufIndex)
+            for (uint32 cmdBufIndex = 0; cmdBufIndex < primarySubQueueInfo.cmdBufferCount; ++cmdBufIndex)
             {
                 const Pal::uint32 baseIndex                   = cmdBufIndex * 2;
                 const GpuMemoryInfo* pPreTimestampMemoryInfo  = &timestampMemoryInfoList.At(baseIndex);
@@ -1015,7 +1060,8 @@ Pal::Result GpaSession::TimedSubmit(
                 const Pal::gpusize postTimestampOffset        = timestampMemoryOffsetList.At(baseIndex + 1);
 
                 Pal::ICmdBuffer* pPreCmdBuffer  = cmdBufferList.At(cmdBufIndex);
-                Pal::ICmdBuffer* pCurCmdBuffer  = submitInfo.ppCmdBuffers[cmdBufIndex];
+
+                Pal::ICmdBuffer* pCurCmdBuffer  = primarySubQueueInfo.ppCmdBuffers[cmdBufIndex];
                 Pal::ICmdBuffer* pPostCmdBuffer = cmdBufferList.At(cmdBufIndex + 1);
 
                 // Sample the current cpu time before building the timing command buffers.
@@ -1064,7 +1110,7 @@ Pal::Result GpaSession::TimedSubmit(
                                                       postTimestampOffset);
 
                     // Only the last cmdbuffer needs to end the post-cmdbuffer.
-                    if (cmdBufIndex == (submitInfo.cmdBufferCount - 1))
+                    if (cmdBufIndex == (primarySubQueueInfo.cmdBufferCount - 1))
                     {
                         result = pPostCmdBuffer->End();
                     }
@@ -1072,7 +1118,7 @@ Pal::Result GpaSession::TimedSubmit(
 
                 // If this submit contains command buffer info structs, we need to insert dummy structs for each of
                 // the timing command buffers.
-                if (submitInfo.pCmdBufInfoList != nullptr)
+                if (primarySubQueueInfo.pCmdBufInfoList != nullptr)
                 {
                     Pal::CmdBufInfo dummyCmdBufInfo = {};
                     dummyCmdBufInfo.isValid = 0;
@@ -1086,7 +1132,7 @@ Pal::Result GpaSession::TimedSubmit(
 
                     if (result == Pal::Result::Success)
                     {
-                        result = patchedCmdBufInfoList.PushBack(submitInfo.pCmdBufInfoList[cmdBufIndex]);
+                        result = patchedCmdBufInfoList.PushBack(primarySubQueueInfo.pCmdBufInfoList[cmdBufIndex]);
                     }
 
                     if (result == Pal::Result::Success)
@@ -1151,14 +1197,15 @@ Pal::Result GpaSession::TimedSubmit(
 
             if (result == Pal::Result::Success)
             {
-                Pal::SubmitInfo patchedSubmitInfo = submitInfo;
-                patchedSubmitInfo.cmdBufferCount = patchedCmdBufferList.NumElements();
-                patchedSubmitInfo.ppCmdBuffers = &patchedCmdBufferList.At(0);
-
-                if (submitInfo.pCmdBufInfoList != nullptr)
+                Pal::MultiSubmitInfo  patchedSubmitInfo = submitInfo;
+                PerSubQueueSubmitInfo perSubQueueInfo   = {};
+                perSubQueueInfo.cmdBufferCount          = patchedCmdBufferList.NumElements();
+                perSubQueueInfo.ppCmdBuffers            = &patchedCmdBufferList.At(0);
+                if (primarySubQueueInfo.pCmdBufInfoList != nullptr)
                 {
-                    patchedSubmitInfo.pCmdBufInfoList = &patchedCmdBufInfoList.At(0);
+                    perSubQueueInfo.pCmdBufInfoList = &patchedCmdBufInfoList.At(0);
                 }
+                patchedSubmitInfo.pPerSubQueueInfo = &perSubQueueInfo;
 
                 result = pQueue->Submit(patchedSubmitInfo);
             }
@@ -1318,11 +1365,18 @@ Pal::Result GpaSession::TimedQueuePresent(
 
     if (result == Pal::Result::Success)
     {
-        // Submit the measurement command buffer
-        Pal::SubmitInfo submitInfo = {};
-        submitInfo.cmdBufferCount  = 1;
-        submitInfo.ppCmdBuffers    = &pCmdBuffer;
-        submitInfo.pFence          = pQueueState->pFence;
+        PerSubQueueSubmitInfo perSubQueueInfo = {};
+        perSubQueueInfo.cmdBufferCount        = 1;
+        perSubQueueInfo.ppCmdBuffers          = &pCmdBuffer;
+        MultiSubmitInfo submitInfo            = {};
+        submitInfo.perSubQueueInfoCount       = 1;
+        submitInfo.pPerSubQueueInfo           = &perSubQueueInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        submitInfo.ppFences                   = &pQueueState->pFence;
+        submitInfo.fenceCount                 = 1;
+#else
+        submitInfo.pFence                     = pQueueState->pFence;
+#endif
 
         result = pQueue->Submit(submitInfo);
     }
@@ -1625,9 +1679,10 @@ Result GpaSession::End(
 
 // =====================================================================================================================
 // Marks the beginning of a range of GPU operations to be measured and specifies what data should be recorded.
-uint32 GpaSession::BeginSample(
+Result GpaSession::BeginSample(
     ICmdBuffer*            pCmdBuf,
-    const GpaSampleConfig& sampleConfig)
+    const GpaSampleConfig& sampleConfig,
+    uint32*                pSampleId)
 {
     PAL_ASSERT(m_sessionState == GpaSessionState::Building);
 
@@ -1695,16 +1750,7 @@ uint32 GpaSession::BeginSample(
                                            &heapSize,
                                            &pPerfExperiment);
 
-            if (result != Result::Success)
-            {
-                // Destroy the perf experiment to prevent a memory leak.
-                if (pPerfExperiment != nullptr)
-                {
-                    pPerfExperiment->Destroy();
-                    pPerfExperiment = nullptr;
-                }
-            }
-            else
+            if (result == Result::Success)
             {
                 PAL_ASSERT(pPerfExperiment != nullptr);
 
@@ -1859,7 +1905,9 @@ uint32 GpaSession::BeginSample(
         sampleId = InvalidSampleId;
     }
 
-    return sampleId;
+    *pSampleId = sampleId;
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -2957,6 +3005,8 @@ Result GpaSession::AcquireGpuMem(
 
     Result result = Result::Success;
 
+    uint32 iterCount = 0;
+
     // If there isn't enough space left in the current allocation to fulfill this request, get a new allocation.  This
     // is done in a loop to handle the low GPU memory case where we may need to wait for prior work to finish then
     // try again.
@@ -3043,12 +3093,21 @@ Result GpaSession::AcquireGpuMem(
         }
 
         *pCurGpuMemOffset = 0;
+
+        // If we've iterated 1000 times break out and return whatever non-Success result we have.
+        if (++iterCount == 1000)
+        {
+            break;
+        }
     }
 
-    *pGpuMem = *pCurGpuMem;
-    *pOffset = *pCurGpuMemOffset;
+    if (result == Result::Success)
+    {
+        *pGpuMem = *pCurGpuMem;
+        *pOffset = *pCurGpuMemOffset;
 
-    *pCurGpuMemOffset += size;
+        *pCurGpuMemOffset += size;
+    }
 
     pMemoryReuseLock->Unlock();
 
@@ -3101,9 +3160,11 @@ Result GpaSession::AcquirePerfExperiment(
 
     Result result = Result::ErrorOutOfMemory;
 
+    IPerfExperiment* pExperiment = nullptr;
+
     if (pSampleItem->perfMemInfo.pMemory != nullptr)
     {
-        result = m_pDevice->CreatePerfExperiment(createInfo, pSampleItem->perfMemInfo.pMemory, ppExperiment);
+        result = m_pDevice->CreatePerfExperiment(createInfo, pSampleItem->perfMemInfo.pMemory, &pExperiment);
 
         if (result != Result::Success)
         {
@@ -3175,7 +3236,7 @@ Result GpaSession::AcquirePerfExperiment(
                         counterInfo.eventId           = pCounters[i].eventId;
                         counterInfo.instance          = pCounters[i].instance;
 
-                        result = (*ppExperiment)->AddCounter(counterInfo);
+                        result = pExperiment->AddCounter(counterInfo);
                     }
                     PAL_ALERT(result != Result::Success);
                 }
@@ -3219,7 +3280,7 @@ Result GpaSession::AcquirePerfExperiment(
                     if (sampleConfig.sqtt.seMask == 0 || Util::TestAnyFlagSet(sampleConfig.sqtt.seMask, 1 << i))
                     {
                         sqttInfo.instance = i;
-                        result = (*ppExperiment)->AddThreadTrace(sqttInfo);
+                        result = pExperiment->AddThreadTrace(sqttInfo);
                     }
                 }
             }
@@ -3254,7 +3315,7 @@ Result GpaSession::AcquirePerfExperiment(
                         pCounterInfo->instance          = pCounters[i].instance;
                     }
 
-                    result = (*ppExperiment)->AddSpmTrace(spmCreateInfo);
+                    result = pExperiment->AddSpmTrace(spmCreateInfo);
 
                     // Free the memory allocated for the PerfCounterInfo(s) once AddSpmTrace returns.
                     PAL_SAFE_FREE(pMem, m_pPlatform);
@@ -3274,20 +3335,22 @@ Result GpaSession::AcquirePerfExperiment(
 
     if (result == Result::Success)
     {
-        result = (*ppExperiment)->Finalize();
-    }
+        // CreatePerfExperiment() would had to have returned success for us to get here.
+        // As a result pExperiment cannot be null.
+        result = pExperiment->Finalize();
 
-    if (result == Result::Success)
-    {
         // Acquire GPU memory for the query from the pool and bind it.
         GpuMemoryRequirements gpuMemReqs = {};
-        (*ppExperiment)->GetGpuMemoryRequirements(&gpuMemReqs);
+        pExperiment->GetGpuMemoryRequirements(&gpuMemReqs);
 
-        result = AcquireGpuMem(gpuMemReqs.size,
-                               gpuMemReqs.alignment,
-                               GpuHeapGartCacheable,
-                               pGpuMem,
-                               pOffset);
+        if (result == Result::Success)
+        {
+            result = AcquireGpuMem(gpuMemReqs.size,
+                                   gpuMemReqs.alignment,
+                                   GpuHeapGartCacheable,
+                                   pGpuMem,
+                                   pOffset);
+        }
 
         if (result == Result::Success)
         {
@@ -3298,28 +3361,30 @@ Result GpaSession::AcquirePerfExperiment(
             *pSecondaryGpuMem = *pGpuMem;
             *pSecondaryOffset = *pOffset;
 
-            // Acquire new local invisible gpu memory for use as the trace buffer into which the  trace data is written
+            // Acquire new local invisible gpu memory for use as the trace buffer into which the trace data is written
             // by the GPU. Trace data will later be copied to the secondary memory which is CPU-visible.
             if (sampleConfig.type == GpaSampleType::Trace)
             {
                 result = AcquireGpuMem(gpuMemReqs.size,
-                                       gpuMemReqs.alignment,
-                                       GpuHeapInvisible,
-                                       pGpuMem,
-                                       pOffset);
+                                        gpuMemReqs.alignment,
+                                        GpuHeapInvisible,
+                                        pGpuMem,
+                                        pOffset);
             }
         }
+    }
 
-        if ((result == Result::Success) && (pGpuMem->pGpuMemory != nullptr))
-        {
-            (*ppExperiment)->BindGpuMemory(pGpuMem->pGpuMemory, *pOffset);
-        }
-        else
-        {
-            // We weren't able to get memory for this perf experiment. Let's not accidentally bind a perf
-            // experiment with no backing memory. Clean up this perf experiment.
-            (*ppExperiment)->Destroy();
-        }
+    if ((result == Result::Success) && (pGpuMem->pGpuMemory != nullptr))
+    {
+        pExperiment->BindGpuMemory(pGpuMem->pGpuMemory, *pOffset);
+
+        *ppExperiment = pExperiment;
+    }
+    else if (pExperiment != nullptr)
+    {
+        // We weren't able to get memory for this perf experiment. Let's not accidentally bind a perf
+        // experiment with no backing memory. Clean up this perf experiment.
+        pExperiment->Destroy();
     }
 
     return result;

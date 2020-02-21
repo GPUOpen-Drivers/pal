@@ -1,4 +1,4 @@
-﻿/*
+/*
  ***********************************************************************************************************************
  *
  *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
@@ -26,6 +26,7 @@
 #include "messageChannel.h"
 #include "protocolServer.h"
 #include "protocolClient.h"
+#include "util/hashSet.h"
 
 namespace DevDriver
 {
@@ -57,13 +58,33 @@ namespace DevDriver
         DD_PRINT(LogLevel::Info, "Exiting receive thread");
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    template <class MsgTransport>
+    bool MessageChannel<MsgTransport>::FindFirstClientDiscoverFunc(void* pUserdata, const DiscoveredClientInfo& info)
+    {
+        FindFirstClientContext* pContext = reinterpret_cast<FindFirstClientContext*>(pUserdata);
+
+        // The discovery callback should never be called with an invalid client id
+        DD_ASSERT(info.id != kBroadcastClientId);
+
+        (*pContext->pClientId) = info.id;
+
+        if (pContext->pClientMetadata != nullptr)
+        {
+            (*pContext->pClientMetadata) = info.metadata;
+        }
+
+        // Find first client always stops discovery after the first client
+        return false;
+    }
+
     template <class MsgTransport>
     template <class ...Args>
     MessageChannel<MsgTransport>::MessageChannel(const AllocCb&                  allocCb,
                                                  const MessageChannelCreateInfo& createInfo,
                                                  Args&&...                       args) :
         m_msgTransport(Platform::Forward<Args>(args)...),
-        m_receiveQueue(allocCb),
+        m_discoveredClientsQueue(allocCb),
         m_clientId(kBroadcastClientId),
         m_allocCb(allocCb),
         m_createInfo(createInfo),
@@ -73,7 +94,6 @@ namespace DevDriver
         m_lastKeepaliveReceived(0),
         m_msgThread(),
         m_msgThreadParams(),
-        m_updateSemaphore(1, 1),
         m_sessionManager(allocCb),
         m_transferManager(allocCb),
         m_pURIServer(nullptr),
@@ -93,70 +113,77 @@ namespace DevDriver
         MessageBuffer messageBuffer = {};
 
         // Attempt to read a message from the queue with a timeout.
-        if (m_updateSemaphore.Wait(kLogicFailureTimeout) == Result::Success)
+        Result result = ReadTransportMessage(messageBuffer, timeoutInMs);
+        while (result == Result::Success)
         {
-            Result status = ReadTransportMessage(messageBuffer, timeoutInMs);
-            while (status == Result::Success)
+            // Handle the message
+            HandleMessageReceived(messageBuffer);
+
+            // Read any remaining messages in the queue without waiting on a timeout until the queue is empty.
+            result = ReadTransportMessage(messageBuffer, kNoWait);
+        }
+
+        // Once we finish processing all the available messages, handle client discovery if necessary.
+        if ((result == Result::NotReady) && (m_discoveredClientsQueue.active))
+        {
+            // We're in the middle of a client discovery operation, so keep sending out pings until we finish
+            // the operation.
+            result = SendSystem(kBroadcastClientId,
+                SystemProtocol::SystemMessage::Ping,
+                m_discoveredClientsQueue.filter);
+
+            // Make sure to change the result back to NotReady if we successfully send out the ping.
+            // We should still allow errors to propagate out though.
+            if (result == Result::Success)
             {
-                // Read any remaining messages in the queue without waiting on a timeout until the queue is empty.
-                if (!HandleMessageReceived(messageBuffer))
+                result = Result::NotReady;
+            }
+        }
+
+        if (result != Result::NotReady)
+        {
+            Disconnect();
+        }
+        else if (MsgTransport::RequiresClientRegistration() & MsgTransport::RequiresKeepAlive())
+        {
+            // if keep alive is enabled and the last message read wasn't an error
+            uint64 currentTime = Platform::GetCurrentTimeInMs();
+
+            // only check the keep alive threshold if we haven't had any network traffic in kKeepAliveTimeout time
+            if ((currentTime - m_lastActivityTimeMs) > kKeepAliveTimeout)
+            {
+                // if we have gone <kKeepAliveThreshold> heartbeats without reponse we disconnect
+                if ((m_lastKeepaliveTransmitted - m_lastKeepaliveReceived) < kKeepAliveThreshold)
                 {
-                    Platform::LockGuard<Platform::AtomicLock> lock(m_receiveQueue.lock);
-                    if (m_receiveQueue.queue.PushBack(messageBuffer))
-                    {
-                        m_receiveQueue.semaphore.Signal();
-                    }
+                    // send a heartbeat and increment the last keepalive transmitted variable
+                    using namespace DevDriver::ClientManagementProtocol;
+                    MessageBuffer heartbeat = kOutOfBandMessage;
+                    heartbeat.header.messageId = static_cast<MessageCode>(ManagementMessage::KeepAlive);
+                    heartbeat.header.sessionId = ++m_lastKeepaliveTransmitted;
+                    Forward(heartbeat);
+
+                    // we need to update the last activity time to make sure it doesn't immediately timeout again
+                    m_lastActivityTimeMs = currentTime;
                 }
-                status = ReadTransportMessage(messageBuffer, kNoWait);
-            }
-
-            if (status != Result::NotReady)
-            {
-                Disconnect();
-            }
-            else if (MsgTransport::RequiresClientRegistration() & MsgTransport::RequiresKeepAlive())
-            {
-                // if keep alive is enabled and the last message read wasn't an error
-                uint64 currentTime = Platform::GetCurrentTimeInMs();
-
-                // only check the keep alive threshold if we haven't had any network traffic in kKeepAliveTimeout time
-                if ((currentTime - m_lastActivityTimeMs) > kKeepAliveTimeout)
+                else
                 {
-                    // if we have gone <kKeepAliveThreshold> heartbeats without reponse we disconnect
-                    if ((m_lastKeepaliveTransmitted - m_lastKeepaliveReceived) < kKeepAliveThreshold)
-                    {
-                        // send a heartbeat and increment the last keepalive transmitted variable
-                        using namespace DevDriver::ClientManagementProtocol;
-                        MessageBuffer heartbeat = kOutOfBandMessage;
-                        heartbeat.header.messageId = static_cast<MessageCode>(ManagementMessage::KeepAlive);
-                        heartbeat.header.sessionId = ++m_lastKeepaliveTransmitted;
-                        Forward(heartbeat);
+                    DD_PRINT(LogLevel::Info, "Disconnecting transport due to keep alive timeout");
 
-                        // we need to update the last activity time to make sure it doesn't immediately timeout again
-                        m_lastActivityTimeMs = currentTime;
-                    }
-                    else
-                    {
-                        DD_PRINT(LogLevel::Info, "Disconnecting transport due to keep alive timeout");
-
-                        // we have sent too many heartbeats without response, so disconnect
-                        Disconnect();
-                    }
+                    // we have sent too many heartbeats without response, so disconnect
+                    Disconnect();
                 }
             }
+        }
 
-            // Give the session manager a chance to update its sessions.
-            m_sessionManager.UpdateSessions();
-
-            m_updateSemaphore.Signal();
+        // Give the session manager a chance to update its sessions.
+        m_sessionManager.UpdateSessions();
 
 #if defined(DD_PLATFORM_LINUX_UM)
-            // we yield the thread after processing messages to let other threads grab the lock if the need to
-            // this works around an issue where the message processing thread releases the lock then reacquires
-            // it before a sleeping thread that is waiting on it can get it.
-            Platform::Sleep(0);
+        // we yield the thread after processing messages to let other threads grab the lock if the need to
+        // this works around an issue where the message processing thread releases the lock then reacquires
+        // it before a sleeping thread that is waiting on it can get it.
+        Platform::Sleep(0);
 #endif
-        }
     }
 
     template <class MsgTransport>
@@ -249,129 +276,147 @@ namespace DevDriver
     }
 
     template <class MsgTransport>
+    inline Result MessageChannel<MsgTransport>::DiscoverClients(const DiscoverClientsInfo& info)
+    {
+        // Start the discovery process by setting our client metadata filter and activating
+        // the client discovery queue.
+        {
+            Platform::LockGuard<Platform::AtomicLock> lock(m_discoveredClientsQueue.lock);
+
+            m_discoveredClientsQueue.filter = info.filter;
+            m_discoveredClientsQueue.active = true;
+        }
+
+        const uint64 startTime = Platform::GetCurrentTimeInMs();
+
+        DevDriver::HashSet<uint32, 16u> clientHashSet(m_allocCb);
+
+        // Wait until we have a new client entry to process
+        Result result = m_discoveredClientsQueue.hasDataEvent.Wait(info.timeoutInMs);
+        while (result == Result::Success)
+        {
+            DiscoveredClientInfo clientInfo = {};
+
+            // Retrieve the client info from the queue
+            {
+                Platform::LockGuard<Platform::AtomicLock> lock(m_discoveredClientsQueue.lock);
+
+                // We should never have an empty queue while the hasDataEvent is signaled.
+                DD_ASSERT(m_discoveredClientsQueue.clients.IsEmpty() == false);
+
+                DD_UNHANDLED_RESULT(m_discoveredClientsQueue.clients.PopBack(&clientInfo) ? Result::Success : Result::Error);
+
+                if (m_discoveredClientsQueue.clients.IsEmpty())
+                {
+                    // Clear the event if the queue is now empty.
+                    m_discoveredClientsQueue.hasDataEvent.Clear();
+                }
+            }
+
+            bool continueDiscovery = false;
+
+            // Automatically filter out duplicate clients
+            // This can occur because the implementation may receive multiple responses to the discovery ping
+            // from the same client.
+            if (clientHashSet.Contains(clientInfo.id) == false)
+            {
+                // This is a new client, attempt to add it to our hash set
+                result = clientHashSet.Insert(clientInfo.id);
+
+                if (result == Result::Success)
+                {
+                    // Notify the caller as long as we're successful and see if they want to continue discovery.
+                    continueDiscovery = info.pfnCallback(info.pUserdata, clientInfo);
+                }
+                else
+                {
+                    // We've encountered some sort of memory failure. This will abort the discovery process.
+                }
+            }
+            else
+            {
+                // We've already seen this client, continue discovery without notifying the caller.
+                continueDiscovery = true;
+            }
+
+            if (result == Result::Success)
+            {
+                if (continueDiscovery)
+                {
+                    // The client requested to continue discovery or we encountered a duplicate client.
+                    // Check if we have more time to continue discovery.
+                    const uint64 elapsedTime = (Platform::GetCurrentTimeInMs() - startTime);
+                    if (elapsedTime < info.timeoutInMs)
+                    {
+                        // We still have time, wait for more client information to appear in the queue.
+                        const uint32 timeoutRemaining = static_cast<uint32>(info.timeoutInMs - elapsedTime);
+                        result = m_discoveredClientsQueue.hasDataEvent.Wait(timeoutRemaining);
+                    }
+                    else
+                    {
+                        // The timeout has expired, return the to caller.
+                        result = Result::NotReady;
+                    }
+                }
+                else
+                {
+                    // The caller has signaled that they're no longer interested in discovering more clients.
+                    // Break out of the loop because the caller indicated that they're done with discovery.
+                    break;
+                }
+            }
+        }
+
+        // Stop the discovery process by deactivating the client discovery queue and clearing its contents.
+        {
+            Platform::LockGuard<Platform::AtomicLock> lock(m_discoveredClientsQueue.lock);
+
+            m_discoveredClientsQueue.active = false;
+
+            m_discoveredClientsQueue.clients.Clear();
+            m_discoveredClientsQueue.hasDataEvent.Clear();
+        }
+
+        return result;
+    }
+
+    template <class MsgTransport>
     inline Result MessageChannel<MsgTransport>::FindFirstClient(const ClientMetadata& filter,
                                                                 ClientId*             pClientId,
                                                                 uint32                timeoutInMs,
                                                                 ClientMetadata*       pClientMetadata)
     {
         using namespace DevDriver::SystemProtocol;
+
         Result result = Result::Error;
 
         if (pClientId != nullptr)
         {
-            result = Result::NotReady;
-            // acquire the update semaphore. this prevents the update thread from processing messages
-            // as it is possible it could process messages the client was looking for
-            if (m_updateSemaphore.Wait(kLogicFailureTimeout) == Result::Success)
-            {
-                const uint64 startTime = Platform::GetCurrentTimeInMs();
-                uint64 timeDelta = 0;
+            // Use our special context and function for client discovery to implement FindFirstClient.
+            // The specialized discover function returns after first discovered client that matches our
+            // client specifications.
 
-                MessageBuffer messageBuffer = {};
+            FindFirstClientContext context = {};
+            context.pClientId              = pClientId;
+            context.pClientMetadata        = pClientMetadata;
 
-                // we're going to loop through sending a ping, receiving/processing any messages, then updating sessions
-                do
-                {
-                    // send a ping every time the outer loop executes
-                    result = SendSystem(kBroadcastClientId,
-                                        SystemMessage::Ping,
-                                        filter);
+            DiscoverClientsInfo discoverInfo = {};
+            discoverInfo.pfnCallback         = &FindFirstClientDiscoverFunc;
+            discoverInfo.pUserdata           = &context;
+            discoverInfo.filter              = filter;
+            discoverInfo.timeoutInMs         = timeoutInMs;
 
-                    // there are two expected results from SendSystem: Success or NotReady
-                    // if it is successful, we need to transition to waiting
-                    if (result == Result::Success)
-                    {
-                        // read any traffic waiting
-                        result = ReadTransportMessage(messageBuffer, kDefaultUpdateTimeoutInMs);
-
-                        // we are going to loop until either an error is encountered or there is no data remaining
-                        // the expected behavior is that this loop will exit with result == Result::NotReady
-                        while (result == Result::Success)
-                        {
-                            // if the default message handler doesn't care about this message we inspect it
-                            if (!HandleMessageReceived(messageBuffer))
-                            {
-                                // did we receive any pong messages?
-                                if ((messageBuffer.header.protocolId == Protocol::System) &
-                                    (static_cast<SystemMessage>(messageBuffer.header.messageId) == SystemMessage::Pong))
-                                {
-                                    // Non-session messages don't have a sequence number. Instead the sequence field is
-                                    // aliased to contain ClientMetadata.
-                                    const ClientMetadata metadata(messageBuffer.header.sequence);
-
-                                    // check to see if it matches with our initial filter
-                                    if (filter.Matches(metadata))
-                                    {
-                                        // if it does, write out the client ID
-                                        *pClientId = messageBuffer.header.srcClientId;
-
-                                        // If the pClientMetadata pointer is valid, fill it with the matching client
-                                        // metadata struct data.
-                                        if (pClientMetadata != nullptr)
-                                        {
-                                            memcpy(pClientMetadata, &metadata, sizeof(ClientMetadata));
-                                        }
-
-                                        // if we found a matching client we break out of the inner loop.
-                                        // the outer loop will exit automatically because result is implied to be Success
-                                        // inside the execution of this loop
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    // if this message wasn't one we were looking for, we go ahead and enqueue
-                                    // the message in the local receive queue
-                                    Platform::LockGuard<Platform::AtomicLock> lock(m_receiveQueue.lock);
-                                    if (m_receiveQueue.queue.PushBack(messageBuffer))
-                                    {
-                                        m_receiveQueue.semaphore.Signal();
-                                    }
-                                }
-                            }
-
-                            // read the next message with no timeout
-                            // this ensures that this inner loop will exit immediately when no data is remaining
-                            result = ReadTransportMessage(messageBuffer, kNoWait);
-                        }
-
-                        // Give the session manager a chance to update its sessions.
-                        m_sessionManager.UpdateSessions();
-                    }
-                    else if (result == Result::NotReady)
-                    {
-                        // the write failed because the transport was busy, so we sleep and will try again
-                        Platform::Sleep(Platform::Min(timeoutInMs, kDefaultUpdateTimeoutInMs));
-                    }
-
-                    // calculate how much time has elapsed since we started looping
-                    timeDelta = Platform::GetCurrentTimeInMs() - startTime;
-
-                    // we repeat this loop so long as:
-                    //  1. result is NotReady, which implies that either the write or last read timed out
-                    //  2. The loop haven't exceed the specified timeout
-                    // we exit the outer loop if:
-                    //  1. The inner loop exited with result equal to Success, indicating we found a client
-                    //  2. result indicates an unexpected error
-                    //  3. We have timed out, in which case result is already NotReady
-                } while ((result == Result::NotReady) &
-                         (timeDelta < timeoutInMs));
-
-                // release the update lock
-                m_updateSemaphore.Signal();
-            }
+            result = DiscoverClients(discoverInfo);
         }
+
         return result;
     }
 
     template <class MsgTransport>
-    bool MessageChannel<MsgTransport>::HandleMessageReceived(const MessageBuffer& messageBuffer)
+    void MessageChannel<MsgTransport>::HandleMessageReceived(const MessageBuffer& messageBuffer)
     {
         using namespace DevDriver::SystemProtocol;
         using namespace DevDriver::ClientManagementProtocol;
-
-        bool handled = false;
-        bool forThisHost = false;
 
         // todo: move this out into message reading loop so that it isn't getting done for every message
         if (MsgTransport::RequiresClientRegistration() & MsgTransport::RequiresKeepAlive())
@@ -386,11 +431,9 @@ namespace DevDriver
             DD_ASSERT(messageBuffer.header.dstClientId == m_clientId);
 
             m_sessionManager.HandleReceivedSessionMessage(messageBuffer);
-            handled = true;
         }
         else if (IsOutOfBandMessage(messageBuffer))
         {
-            handled = true; // always filter these out from the client
             if (IsValidOutOfBandMessage(messageBuffer)
                 & (static_cast<ManagementMessage>(messageBuffer.header.messageId) == ManagementMessage::KeepAlive))
             {
@@ -401,12 +444,15 @@ namespace DevDriver
         else
         {
             using namespace DevDriver::SystemProtocol;
-            const ClientId &dstClientId = messageBuffer.header.dstClientId;
+
+            const ClientId dstClientId = messageBuffer.header.dstClientId;
             const ClientMetadata metadata(messageBuffer.header.sequence);
-            forThisHost = !!((((dstClientId == kBroadcastClientId)
-                               & (metadata.Matches(m_clientInfoResponse.metadata)))
-                              | ((m_clientId != kBroadcastClientId) & (dstClientId == m_clientId))));
-            if ((forThisHost) & (messageBuffer.header.protocolId == Protocol::System))
+
+            const bool isDirectedMessage = (dstClientId == m_clientId);
+            const bool isRelevantBroadcastMessage = ((dstClientId == kBroadcastClientId) && metadata.Matches(m_clientInfoResponse.metadata));
+            const bool isForThisHost = (isDirectedMessage || isRelevantBroadcastMessage);
+
+            if ((messageBuffer.header.protocolId == Protocol::System) && isForThisHost)
             {
                 const ClientId &srcClientId = messageBuffer.header.srcClientId;
 
@@ -420,7 +466,32 @@ namespace DevDriver
                                SystemMessage::Pong,
                                m_clientInfoResponse.metadata);
 
-                    handled = true;
+                    break;
+                }
+                case SystemMessage::Pong:
+                {
+                    Platform::LockGuard<Platform::AtomicLock> lock(m_discoveredClientsQueue.lock);
+
+                    // If the discovered clients queue is currently in use, add a new entry for this client into it.
+                    // We just ignore these messages otherwise.
+                    if (m_discoveredClientsQueue.active)
+                    {
+                        if (m_discoveredClientsQueue.filter.Matches(metadata))
+                        {
+                            DiscoveredClientInfo clientInfo = {};
+                            clientInfo.id                   = srcClientId;
+                            clientInfo.metadata             = metadata;
+
+                            if (m_discoveredClientsQueue.clients.PushBack(clientInfo))
+                            {
+                                m_discoveredClientsQueue.hasDataEvent.Signal();
+                            }
+                            else
+                            {
+                                DD_ASSERT_REASON("Failed to insert discovered client into queue!");
+                            }
+                        }
+                    }
 
                     break;
                 }
@@ -432,8 +503,6 @@ namespace DevDriver
                          m_clientInfoResponse.metadata,
                          sizeof(m_clientInfoResponse),
                          &m_clientInfoResponse);
-
-                    handled = true;
 
                     break;
                 }
@@ -455,8 +524,7 @@ namespace DevDriver
                         m_createInfo.pfnEventCallback(m_createInfo.pUserdata,
                                                       BusEventType::ClientHalted,
                                                       &clientHalted,
-                                                      sizeof(BusEventClientHalted));
-                        handled = true;
+                                                      sizeof(clientHalted));
                     }
                     break;
                 }
@@ -468,7 +536,6 @@ namespace DevDriver
                 }
             }
         }
-        return (handled | (!forThisHost));
     }
 
     template <class MsgTransport>
@@ -525,17 +592,10 @@ namespace DevDriver
     template <class MsgTransport>
     Result MessageChannel<MsgTransport>::Receive(MessageBuffer& message, uint32 timeoutInMs)
     {
-        Result result = Result::Unavailable;
-        if ((m_receiveQueue.queue.Size() > 0) | (m_clientId != kBroadcastClientId))
-        {
-            result = m_receiveQueue.semaphore.Wait(timeoutInMs);
-            if (result == Result::Success)
-            {
-                Platform::LockGuard<Platform::AtomicLock> lock(m_receiveQueue.lock);
-                m_receiveQueue.queue.PopFront(message);
-            }
-        }
-        return result;
+        DD_UNUSED(message);
+        DD_UNUSED(timeoutInMs);
+
+        return Result::NotReady;
     }
 
     template <class MsgTransport>

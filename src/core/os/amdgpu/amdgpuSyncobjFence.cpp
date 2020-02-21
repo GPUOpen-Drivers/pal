@@ -225,7 +225,11 @@ OsExternalHandle SyncobjFence::ExportExternalHandle(
     else
     {
         Result result = m_device.SyncObjExportSyncFile(m_fenceSyncObject, reinterpret_cast<int32*>(&handle));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 566
+        if ((result == Result::Success) && (exportInfo.flags.implicitReset))
+#else
         if (result == Result::Success)
+#endif
         {
             m_device.ResetSyncObject(&m_fenceSyncObject, 1);
         }

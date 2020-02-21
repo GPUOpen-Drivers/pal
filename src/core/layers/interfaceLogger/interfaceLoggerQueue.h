@@ -47,7 +47,7 @@ public:
 
     // Public IQueue interface methods:
     virtual Result Submit(
-        const SubmitInfo& submitInfo) override;
+        const MultiSubmitInfo& submitInfo) override;
     virtual Result WaitIdle() override;
     virtual Result SignalQueueSemaphore(
         IQueueSemaphore* pQueueSemaphore, uint64 value) override;

@@ -171,12 +171,26 @@ Result Device::Cleanup()
     {
         result = m_pParent->MemMgr()->FreeGpuMem(m_occlusionSrcMem.Memory(), m_occlusionSrcMem.Offset());
         m_occlusionSrcMem.Update(nullptr, 0);
+
+        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+        {
+            ResourceDestroyEventData destroyData = {};
+            destroyData.pObj = &m_occlusionSrcMem;
+            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+        }
     }
 
     if (m_cpDmaPatchMem.IsBound() && (result == Result::Success))
     {
         result = m_pParent->MemMgr()->FreeGpuMem(m_cpDmaPatchMem.Memory(), m_cpDmaPatchMem.Offset());
         m_cpDmaPatchMem.Update(nullptr, 0);
+
+        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+        {
+            ResourceDestroyEventData destroyData = {};
+            destroyData.pObj = &m_cpDmaPatchMem;
+            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+        }
     }
 
     if (result == Result::Success)
@@ -490,6 +504,27 @@ Result Device::Finalize()
         {
             m_occlusionSrcMem.Update(pMemObj, memOffset);
 
+            if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+            {
+                ResourceDescriptionMiscInternal desc;
+                desc.type = MiscInternalAllocType::OcclusionQueryResetData;
+
+                ResourceCreateEventData createData = {};
+                createData.type = ResourceType::MiscInternal;
+                createData.pObj = &m_occlusionSrcMem;
+                createData.pResourceDescData = &desc;
+                createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
+
+                m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+
+                GpuMemoryResourceBindEventData bindData = {};
+                bindData.pGpuMemory = pMemObj;
+                bindData.pObj = &m_occlusionSrcMem;
+                bindData.offset = memOffset;
+                bindData.requiredGpuMemSize = srcMemCreateInfo.size;
+                m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+            }
+
             result = m_occlusionSrcMem.Map(reinterpret_cast<void**>(&pData));
         }
 
@@ -524,6 +559,27 @@ Result Device::Finalize()
             if (result == Result::Success)
             {
                 m_cpDmaPatchMem.Update(pMemObj, memOffset);
+
+                if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+                {
+                    ResourceDescriptionMiscInternal desc;
+                    desc.type = MiscInternalAllocType::Cpdmapatch;
+
+                    ResourceCreateEventData createData = {};
+                    createData.type = ResourceType::MiscInternal;
+                    createData.pObj = &m_cpDmaPatchMem;
+                    createData.pResourceDescData = &desc;
+                    createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
+
+                    m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+
+                    GpuMemoryResourceBindEventData bindData = {};
+                    bindData.pGpuMemory = pMemObj;
+                    bindData.pObj = &m_cpDmaPatchMem;
+                    bindData.offset = memOffset;
+                    bindData.requiredGpuMemSize = srcMemCreateInfo.size;
+                    m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+                }
             }
         }
     }
@@ -807,23 +863,23 @@ size_t Device::GetQueueContextSize(
 // Creates the QueueContext object for the specified Queue in preallocated memory. Only supported on Universal and
 // Compute Queues.
 Result Device::CreateQueueContext(
-    Queue*         pQueue,
-    Engine*        pEngine,
-    void*          pPlacementAddr,
-    QueueContext** ppQueueContext)
+    const QueueCreateInfo& createInfo,
+    Engine*                pEngine,
+    void*                  pPlacementAddr,
+    QueueContext**         ppQueueContext)
 {
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppQueueContext != nullptr));
 
     Result result = Result::Success;
 
-    const uint32 engineId = pQueue->EngineId();
-    switch (pQueue->Type())
+    const uint32 engineId = createInfo.engineIndex;
+    switch (createInfo.engineType)
     {
     case QueueTypeCompute:
         {
             {
                 ComputeQueueContext* pContext =
-                    PAL_PLACEMENT_NEW(pPlacementAddr) ComputeQueueContext(this, pQueue, pEngine, engineId);
+                    PAL_PLACEMENT_NEW(pPlacementAddr) ComputeQueueContext(this, pEngine, engineId);
 
                 result = pContext->Init();
 
@@ -840,8 +896,15 @@ Result Device::CreateQueueContext(
         break;
     case QueueTypeUniversal:
         {
+            const bool isPreemptionSupported = Parent()->IsPreemptionSupported(createInfo.engineType);
             UniversalQueueContext* pContext =
-                PAL_PLACEMENT_NEW(pPlacementAddr) UniversalQueueContext(this, pQueue, pEngine, engineId);
+                PAL_PLACEMENT_NEW(pPlacementAddr) UniversalQueueContext(
+                                                    this,
+                                                    isPreemptionSupported,
+                                                    createInfo.persistentCeRamOffset,
+                                                    createInfo.persistentCeRamSize,
+                                                    pEngine,
+                                                    engineId);
 
             result = pContext->Init();
 
@@ -898,7 +961,6 @@ Result Device::CreateComputePipeline(
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
 // =====================================================================================================================
 size_t Device::GetShaderLibrarySize(
     const ShaderLibraryCreateInfo&  createInfo,
@@ -919,7 +981,6 @@ Result Device::CreateShaderLibrary(
     // Not supported in gfx6
     return Result::Unsupported;
 }
-#endif
 
 // =====================================================================================================================
 size_t Device::GetGraphicsPipelineSize(
@@ -2761,6 +2822,7 @@ void InitializeGpuChipProperties(
     case FAMILY_SI:
         pInfo->gpuType = GpuType::Discrete;
 
+
         pInfo->gfx6.gsVgtTableDepth         = 32;
         pInfo->gfx6.gsPrimBufferDepth       = 1792;
         pInfo->gfx6.maxGsWavesPerVgt        = 32;
@@ -2849,6 +2911,7 @@ void InitializeGpuChipProperties(
     case FAMILY_CI:
         pInfo->gpuType = GpuType::Discrete;
 
+
         pInfo->gfx6.numShaderArrays         = 1;
         pInfo->gfx6.gsVgtTableDepth         = 32;
         pInfo->gfx6.gsPrimBufferDepth       = 1792;
@@ -2905,6 +2968,7 @@ void InitializeGpuChipProperties(
     // GFXIP 7 Kaveri APU's:
     case FAMILY_KV:
         pInfo->gpuType = GpuType::Integrated;
+
 
         pInfo->gfx6.numShaderEngines        = 1;
         pInfo->gfx6.numShaderArrays         = 1;
@@ -2965,6 +3029,7 @@ void InitializeGpuChipProperties(
     // GFXIP 8 Discrete GPU's (Volcanic Islands):
     case FAMILY_VI:
         pInfo->gpuType = GpuType::Discrete;
+
 
         pInfo->gfx6.numShaderArrays                = 1;
         pInfo->gfx6.gsVgtTableDepth                = 32;
@@ -3095,6 +3160,7 @@ void InitializeGpuChipProperties(
     // GFXIP 8.x APU's (Carrizo):
     case FAMILY_CZ:
         pInfo->gpuType = GpuType::Integrated;
+
 
         pInfo->gfx6.numShaderEngines         = 1;
         pInfo->gfx6.numShaderArrays          = 1;

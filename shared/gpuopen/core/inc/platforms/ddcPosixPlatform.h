@@ -88,11 +88,8 @@
 // it is recommended to use DD_ASSERT(), because DD_ASSERT() will
 // do that validation in a Debug build and behave like DD_ASSUME() in Release build.
 //
-// [GCC] __builtin_unreachable()
-//  ~ https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html
 //
 // [C++] Contracts: expects, ensures, assert, axiom
-//  ~ https://en.cppreference.com/w/cpp/language/attributes/contract
 #define DD_ASSUME(expression) do \
 {                                \
     if (!(expression))           \

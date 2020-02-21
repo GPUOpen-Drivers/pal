@@ -147,9 +147,16 @@ Result Queue::Init()
 
 // =====================================================================================================================
 Result Queue::Submit(
-    const SubmitInfo& submitInfo)
+    const MultiSubmitInfo& submitInfo)
 {
-    AccumulateStatistics(submitInfo.ppCmdBuffers, submitInfo.cmdBufferCount);
+    PAL_ASSERT_MSG((submitInfo.perSubQueueInfoCount <= 1),
+                   "Multi-Queue support has not yet been implemented in Pm4Instrumentor!", nullptr);
+
+    if (submitInfo.pPerSubQueueInfo != nullptr)
+    {
+        AccumulateStatistics(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers,
+                             submitInfo.pPerSubQueueInfo[0].cmdBufferCount);
+    }
 
     if (m_dumpMode == Pm4InstrumentorDumpQueueSubmit)
     {

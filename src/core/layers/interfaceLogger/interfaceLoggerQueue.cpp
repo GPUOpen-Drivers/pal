@@ -54,7 +54,7 @@ Queue::Queue(
 
 // =====================================================================================================================
 Result Queue::Submit(
-    const SubmitInfo& submitInfo)
+    const MultiSubmitInfo& submitInfo)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::QueueSubmit;
@@ -68,51 +68,47 @@ Result Queue::Submit(
     {
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginMap("submitInfo", false);
-        pLogContext->KeyAndBeginList("cmdBuffers", false);
 
-        for (uint32 idx = 0; idx < submitInfo.cmdBufferCount; ++idx)
+        pLogContext->KeyAndBeginList("perSubQueueInfos", false);
+        for (uint32 queueIdx = 0; queueIdx < submitInfo.perSubQueueInfoCount; queueIdx++)
         {
-            pLogContext->BeginMap(false);
-            pLogContext->KeyAndObject("object", submitInfo.ppCmdBuffers[idx]);
-
-            if ((submitInfo.pCmdBufInfoList != nullptr) && submitInfo.pCmdBufInfoList[idx].isValid)
-            {
-                pLogContext->KeyAndStruct("info", submitInfo.pCmdBufInfoList[idx]);
-            }
-            else
-            {
-                pLogContext->KeyAndNullValue("info");
-            }
-
-            pLogContext->EndMap();
+            pLogContext->Struct(submitInfo.pPerSubQueueInfo[queueIdx]);
         }
-
         pLogContext->EndList();
-        pLogContext->KeyAndBeginList("gpuMemoryRefs", false);
 
+        pLogContext->KeyAndBeginList("gpuMemoryRefs", false);
         for (uint32 idx = 0; idx < submitInfo.gpuMemRefCount; ++idx)
         {
             pLogContext->Struct(submitInfo.pGpuMemoryRefs[idx]);
         }
-
         pLogContext->EndList();
-        pLogContext->KeyAndBeginList("doppRefs", false);
 
+        pLogContext->KeyAndBeginList("doppRefs", false);
         for (uint32 idx = 0; idx < submitInfo.doppRefCount; ++idx)
         {
             pLogContext->Struct(submitInfo.pDoppRefs[idx]);
         }
-
         pLogContext->EndList();
-        pLogContext->KeyAndBeginList("blockIfFlipping", false);
 
+        pLogContext->KeyAndBeginList("blockIfFlipping", false);
         for (uint32 idx = 0; idx < submitInfo.blockIfFlippingCount; ++idx)
         {
             pLogContext->Object(submitInfo.ppBlockIfFlipping[idx]);
         }
+        pLogContext->EndList();
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        pLogContext->KeyAndBeginList("fences", false);
+
+        for (uint32 idx = 0; idx < submitInfo.fenceCount; ++idx)
+        {
+            pLogContext->Object(submitInfo.ppFences[idx]);
+        }
 
         pLogContext->EndList();
+#else
         pLogContext->KeyAndObject("fence", submitInfo.pFence);
+#endif
         pLogContext->EndMap();
         pLogContext->EndInput();
 

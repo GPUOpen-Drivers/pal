@@ -71,6 +71,7 @@ private:
     // auto-generated functions
     virtual void SetupDefaults() override;
     virtual void ReadSettings() override;
+    virtual void RereadSettings() override;
     virtual void InitSettingsInfo() override;
     virtual void DevDriverRegister() override;
 

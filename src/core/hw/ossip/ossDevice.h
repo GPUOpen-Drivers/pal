@@ -62,7 +62,7 @@ public:
     // Constructs a new QueueContext object in preallocated memory for the specified parent Queue. This should always
     // fail with Result::ErrorUnavailable when called on a Queue which OSSIP hardware blocks don't support.
     virtual Result CreateQueueContext(
-        Queue*         pQueue,
+        QueueType      qType,
         void*          pPlacementAddr,
         QueueContext** ppQueueContext) = 0;
 

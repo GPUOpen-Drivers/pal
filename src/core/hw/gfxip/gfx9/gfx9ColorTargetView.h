@@ -55,10 +55,11 @@ public:
         ColorTargetViewInternalCreateInfo internalInfo);
 
     virtual uint32* WriteCommands(
-        uint32      slot,
-        ImageLayout imageLayout,
-        CmdStream*  pCmdStream,
-        uint32*     pCmdSpace) const = 0;
+        uint32             slot,
+        ImageLayout        imageLayout,
+        CmdStream*         pCmdStream,
+        uint32*            pCmdSpace,
+        regCB_COLOR0_INFO* pCbColorInfo) const = 0;
 
     bool IsVaLocked() const { return m_flags.viewVaLocked; }
     bool WaitOnMetadataMipTail() const { return m_flags.waitOnMetadataMipTail; }
@@ -77,6 +78,10 @@ public:
     TargetExtent2d GetExtent() const { return m_extent; }
 
     bool IsRotatedSwizzleOverwriteCombinerDisabled() const { return m_flags.disableRotateSwizzleOC != 0; }
+
+    // Mask of CB_COLORn_INFO bits owned by the ColorTargetView classes.
+    static const uint32 CbColorInfoMask = static_cast<uint32>(~(CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
+                                                                CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK));
 
 protected:
     virtual ~ColorTargetView()
@@ -188,10 +193,11 @@ public:
         ColorTargetViewInternalCreateInfo internalInfo);
 
     virtual uint32* WriteCommands(
-        uint32      slot,
-        ImageLayout imageLayout,
-        CmdStream*  pCmdStream,
-        uint32*     pCmdSpace) const override;
+        uint32             slot,
+        ImageLayout        imageLayout,
+        CmdStream*         pCmdStream,
+        uint32*            pCmdSpace,
+        regCB_COLOR0_INFO* pCbColorInfo) const override;
 
 protected:
     virtual ~Gfx9ColorTargetView()
@@ -243,10 +249,11 @@ public:
         ColorTargetViewInternalCreateInfo internalInfo);
 
     virtual uint32* WriteCommands(
-        uint32      slot,
-        ImageLayout imageLayout,
-        CmdStream*  pCmdStream,
-        uint32*     pCmdSpace) const override;
+        uint32             slot,
+        ImageLayout        imageLayout,
+        CmdStream*         pCmdStream,
+        uint32*            pCmdSpace,
+        regCB_COLOR0_INFO* pCbColorInfo) const override;
 
     bool IsColorBigPage() const;
     bool IsFmaskBigPage() const;

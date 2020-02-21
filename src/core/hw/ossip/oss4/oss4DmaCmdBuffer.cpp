@@ -28,7 +28,6 @@
 #include "core/settingsLoader.h"
 #include "core/hw/ossip/oss4/oss4DmaCmdBuffer.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
-#include "core/hw/ossip/oss4/sdma40_pkt_struct.h"
 #include "marker_payload.h"
 #include "palFormatInfo.h"
 
@@ -38,6 +37,8 @@ namespace Pal
 {
 namespace Oss4
 {
+
+#include "core/hw/ossip/oss4/sdma40_pkt_struct.h"
 
 constexpr size_t NopSizeDwords = sizeof(SDMA_PKT_NOP) / sizeof(uint32);
 

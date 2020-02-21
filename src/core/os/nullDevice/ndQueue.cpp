@@ -52,15 +52,17 @@ Result SubmissionContext::Create(
 
 // =====================================================================================================================
 Queue::Queue(
+    uint32                 qCount,
     Device*                pDevice,
-    const QueueCreateInfo& createInfo)
+    const QueueCreateInfo* pCreateInfo)
     :
-    Pal::Queue(pDevice, createInfo)
+    Pal::Queue(qCount, pDevice, pCreateInfo)
 {
 }
 
 // =====================================================================================================================
 Result Queue::Init(
+    const QueueCreateInfo* pCreateInfo,
     void* pContextPlacementAddr)
 {
     return Result::Success;
@@ -91,8 +93,8 @@ Result Queue::OsPresentDirect(
 // =====================================================================================================================
 // We don't have hardware to submit to, so this is easy.  Do nothing.
 Result Queue::OsSubmit(
-    const SubmitInfo&         submitInfo,
-    const InternalSubmitInfo& internalSubmitInfo)
+    const MultiSubmitInfo&    submitInfo,
+    const InternalSubmitInfo* pInternalSubmitInfos)
 {
     return Result::Success;
 }

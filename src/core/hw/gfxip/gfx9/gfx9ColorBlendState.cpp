@@ -494,17 +494,18 @@ uint32* ColorBlendState::WriteCommands(
 
 // =====================================================================================================================
 // Writes the PM4 commands required to enable or disable blending opts. Returns the next unused DWORD in pCmdSpace.
-template <bool Pm4OptImmediate>
-uint32* ColorBlendState::WriteBlendOptimizations(
+uint8 ColorBlendState::WriteBlendOptimizations(
     CmdStream*                     pCmdStream,
     const SwizzledFormat*          pTargetFormats,     // [in] Array of pixel formats per target.
     const uint8*                   pTargetWriteMasks,  // [in] Array of 4-bit write masks for each target.
     bool                           enableOpts,
     GfxBlendOptimizer::BlendOpts*  pBlendOpts,         // [in/out] Blend optimizations
-    uint32*                        pCmdSpace
+    regCB_COLOR0_INFO*             pCbColorInfoRegs    // [in/out] CB_COLORx_INFO regs from the device
     ) const
 {
     using namespace GfxBlendOptimizer;
+
+    uint8 blendOptDirtyMask = 0;
 
     for (uint32 idx = 0; idx < MaxColorTargets; idx++)
     {
@@ -535,44 +536,19 @@ uint32* ColorBlendState::WriteBlendOptimizations(
             // Update blend optimizations if changed
             if ((pBlendOpts[idx].dontRdDst != dontRdDst) || (pBlendOpts[idx].discardPixel != discardPixel))
             {
-                constexpr uint32 BlendOptRegMask = (CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
-                                                    CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK);
-                regCB_COLOR0_INFO regValue = {};
-                regValue.bits.BLEND_OPT_DONT_RD_DST   = BlendOptToHw(dontRdDst);
-                regValue.bits.BLEND_OPT_DISCARD_PIXEL = BlendOptToHw(discardPixel);
-
-                pCmdSpace = pCmdStream->WriteContextRegRmw<Pm4OptImmediate>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
-                                                                            BlendOptRegMask,
-                                                                            regValue.u32All,
-                                                                            pCmdSpace);
+                pCbColorInfoRegs[idx].bits.BLEND_OPT_DONT_RD_DST   = BlendOptToHw(dontRdDst);
+                pCbColorInfoRegs[idx].bits.BLEND_OPT_DISCARD_PIXEL = BlendOptToHw(discardPixel);
 
                 pBlendOpts[idx].dontRdDst    = dontRdDst;
                 pBlendOpts[idx].discardPixel = discardPixel;
+
+                blendOptDirtyMask |= (1 << idx);
             }
         }
     }
 
-    return pCmdSpace;
+    return blendOptDirtyMask;
 }
-
-template
-uint32* ColorBlendState::WriteBlendOptimizations<true>(
-    CmdStream*                     pCmdStream,
-    const SwizzledFormat*          pTargetFormats,
-    const uint8*                   pTargetWriteMasks,
-    bool                           enableOpts,
-    GfxBlendOptimizer::BlendOpts*  pBlendOpts,
-    uint32*                        pCmdSpace
-    ) const;
-template
-uint32* ColorBlendState::WriteBlendOptimizations<false>(
-    CmdStream*                     pCmdStream,
-    const SwizzledFormat*          pTargetFormats,
-    const uint8*                   pTargetWriteMasks,
-    bool                           enableOpts,
-    GfxBlendOptimizer::BlendOpts*  pBlendOpts,
-    uint32*                        pCmdSpace
-    ) const;
 
 // =====================================================================================================================
 // Examines the blend state for each target to determine if the state is commutative and sets/clears the appropriate bit

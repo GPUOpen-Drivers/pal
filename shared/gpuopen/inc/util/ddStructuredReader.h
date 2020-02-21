@@ -168,6 +168,12 @@ namespace DevDriver
         //       The other types are simple enough that they benefit from using bool instead of a Result, but Strings may not.
         DD_NODISCARD bool GetStringCopy(char* pBuffer, size_t bufferSize, size_t* pStringSize) const;
 
+        template <size_t BufferSize>
+        DD_NODISCARD bool GetStringCopy(char(&buffer)[BufferSize]) const
+        {
+            return GetStringCopy(buffer, BufferSize, nullptr);
+        }
+
         // Return a a NULL-terminated string from the backing messagepack data.
         // This will fail and return NULL if the embedded string does not end with a NULL byte. Use GetStringCopy() if this is the case.
         DD_NODISCARD const char* GetStringPtr() const;

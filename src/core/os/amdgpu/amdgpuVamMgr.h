@@ -155,19 +155,19 @@ private:
     typedef Util::HashMap<
         amdgpu_device_handle,
         ReservedVaRangeInfo,
-        GenericAllocatorAuto,
-        DefaultHashFunc,
-        DefaultEqualFunc,
-        HashAllocator<GenericAllocatorAuto>,
+        Util::GenericAllocatorAuto,
+        Util::DefaultHashFunc,
+        Util::DefaultEqualFunc,
+        Util::HashAllocator<Util::GenericAllocatorAuto>,
         (PAL_CACHE_LINE_BYTES * 4)> ReservedVaMap;
 
-    typedef Util::HashMap<amdgpu_device_handle, VamMgrInfo, GenericAllocatorAuto> VamMgrMap;
+    typedef Util::HashMap<amdgpu_device_handle, VamMgrInfo, Util::GenericAllocatorAuto> VamMgrMap;
 
-    GenericAllocatorAuto m_mapAllocator;
-    ReservedVaMap        m_reservedVaMap;
-    Util::Mutex          m_vaMapLock;
-    VamMgrMap            m_vamMgrMap;
-    Util::Mutex          m_mutex;
+    Util::GenericAllocatorAuto m_mapAllocator;
+    ReservedVaMap              m_reservedVaMap;
+    Util::Mutex                m_vaMapLock;
+    VamMgrMap                  m_vamMgrMap;
+    Util::Mutex                m_mutex;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(VamMgrSingleton);
 };

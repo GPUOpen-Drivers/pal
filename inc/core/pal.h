@@ -643,6 +643,17 @@ struct PipelineHash
     uint64 unique;   ///< Upper 64-bits of hash.  "Unique" portion, suitable for e.g. pipeline cache use cases.
 };
 
+/// Common shader pre and post compilation stats.
+struct CommonShaderStats
+{
+    uint32  numUsedVgprs;              ///< Number of VGPRs used by this shader
+    uint32  numUsedSgprs;              ///< Number of SGPRs used by this shader
+    uint32  ldsSizePerThreadGroup;     ///< LDS size per thread group in bytes.
+    size_t  ldsUsageSizeInBytes;       ///< LDS usage by this shader.
+    size_t  scratchMemUsageInBytes;    ///< Amount of scratch mem used by this shader.
+    gpusize gpuVirtAddress;            ///< Gpu mem address of shader ISA code.
+};
+
 ///@{
 /// Determines whether two ShaderHashes or PipelineHashes are equal.
 ///

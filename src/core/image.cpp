@@ -177,6 +177,15 @@ Result Image::ValidateCreateInfo(
         ret = Result::Unsupported;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 564
+    // FmaskOnly metadata mode is only valid for color msaa image
+    if ((imageInfo.metadataMode == MetadataMode::FmaskOnly) &&
+        ((imageInfo.samples == 1) || (imageInfo.usageFlags.colorTarget == 0)))
+    {
+        ret = Result::ErrorInvalidImageMetadataMode;
+    }
+#endif
+
     // Check MSAA compatibility
     if (ret == Result::Success)
     {

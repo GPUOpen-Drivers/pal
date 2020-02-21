@@ -32,7 +32,9 @@
 #include "core/os/amdgpu/amdgpuTimestampFence.h"
 #include "core/os/amdgpu/amdgpuVamMgr.h"
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
+#if PAL_HAVE_DRI3_PLATFORM
 #include "core/os/amdgpu/dri3/dri3WindowSystem.h"
+#endif
 #include "core/queueSemaphore.h"
 #include "palAutoBuffer.h"
 #include "palHashMapImpl.h"
@@ -872,8 +874,14 @@ Result Device::InitGpuProperties()
 
     if (result == Result::Success)
     {
-        m_engineProperties.perEngine[EngineTypeUniversal].availableCeRamSize =
-            m_gpuInfo.ce_ram_size - m_engineProperties.perEngine[EngineTypeUniversal].reservedCeRamSize;
+
+        if (m_gpuInfo.ce_ram_size != 0)
+        {
+            PAL_ASSERT(m_gpuInfo.ce_ram_size >= m_engineProperties.perEngine[EngineTypeUniversal].reservedCeRamSize);
+
+            m_engineProperties.perEngine[EngineTypeUniversal].availableCeRamSize =
+                (m_gpuInfo.ce_ram_size - m_engineProperties.perEngine[EngineTypeUniversal].reservedCeRamSize);
+        }
 
         InitPerformanceRatings();
         InitMemoryHeapProperties();
@@ -1733,7 +1741,7 @@ Pal::Queue* Device::ConstructQueueObject(
     case QueueTypeCompute:
     case QueueTypeUniversal:
     case QueueTypeDma:
-        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Amdgpu::Queue(this, createInfo);
+        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Amdgpu::Queue(1, this, &createInfo);
         break;
     case QueueTypeTimer:
         // Timer Queue is not supported so far.

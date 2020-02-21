@@ -38,6 +38,9 @@ namespace GpuProfiler
 static GpuBlock StringToGpuBlock(const char* pString);
 static constexpr ShaderHash ZeroShaderHash = {};
 
+/// Identifies ray-tracing-related dispatches for tools
+constexpr uint64 RayTracingPsoHashPrefix = 0xEEE5FFF600000000;
+
 // =====================================================================================================================
 Device::Device(
     PlatformDecorator* pPlatform,
@@ -192,7 +195,8 @@ Result Device::CommitSettingsAndInit()
     }
 
     if ((result == Result::Success)                                               &&
-        (settings.gpuProfilerMode == GpuProfilerMode::GpuProfilerTraceEnabledTtv) &&
+        ((settings.gpuProfilerMode == GpuProfilerMode::GpuProfilerTraceEnabledTtv)  ||
+         (settings.gpuProfilerMode == GpuProfilerMode::GpuProfilerTraceEnabledRgp)) &&
         (settings.gpuProfilerSpmConfig.spmPerfCounterConfigFile[0] != '\0'))
     {
         result = InitSpmTraceCounterState();
@@ -869,9 +873,17 @@ bool Device::SqttEnabledForPipeline(
         }
 
         // Return true if we find a non-zero matching hash.
-        if ((m_sqttCompilerHash != 0) && (m_sqttCompilerHash == hashForComparison))
+        if (m_sqttCompilerHash != 0)
         {
-            enabled = true;
+            if (m_sqttCompilerHash == hashForComparison)
+            {
+                enabled = true;
+            }
+            else if ((m_sqttCompilerHash == RayTracingPsoHashPrefix) &&
+                     ((m_sqttCompilerHash & hashForComparison) == RayTracingPsoHashPrefix))
+            {
+                enabled = true;
+            }
         }
         else if (bindPoint == PipelineBindPoint::Compute)
         {

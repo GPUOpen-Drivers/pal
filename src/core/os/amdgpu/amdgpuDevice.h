@@ -821,6 +821,21 @@ protected:
 
     virtual Result OsLateInit() override;
 
+    virtual Pal::Queue* ConstructMultiQueueObject(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        void*                  pPlacementAddr) override
+    {
+        return nullptr;
+    }
+
+    virtual size_t MultiQueueObjectSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo) const override
+    {
+        return 0;
+    }
+
 private:
     virtual Result OsEarlyInit() override;
 
@@ -909,9 +924,9 @@ private:
         gpusize size;
         amdgpu_va_handle vaHandle;
     };
-    typedef Util::HashMap<gpusize, ReservedVaRangeInfo, GenericAllocatorAuto> ReservedVaMap;
-    GenericAllocatorAuto  m_mapAllocator;
-    ReservedVaMap         m_reservedVaMap;
+    typedef Util::HashMap<gpusize, ReservedVaRangeInfo, Util::GenericAllocatorAuto> ReservedVaMap;
+    Util::GenericAllocatorAuto  m_mapAllocator;
+    ReservedVaMap               m_reservedVaMap;
 
     // Store information of shader and memory clock.
     // For example(cat /sys/class/drm/card0/device/pp_dpm_mclk):

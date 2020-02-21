@@ -42,12 +42,26 @@ QueueContext::~QueueContext()
 
         // We assume we allocated this timestamp together with the exclusive exec TS.
         PAL_ASSERT(m_exclusiveExecTs.IsBound());
+
+        if ((m_pDevice->GetPlatform() != nullptr) && (m_pDevice->GetPlatform()->GetEventProvider() != nullptr))
+        {
+            ResourceDestroyEventData destroyData = {};
+            destroyData.pObj = &m_waitForIdleTs;
+            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+        }
     }
 
     if (m_exclusiveExecTs.IsBound())
     {
         m_pDevice->MemMgr()->FreeGpuMem(m_exclusiveExecTs.Memory(), m_exclusiveExecTs.Offset());
         m_exclusiveExecTs.Update(nullptr, 0);
+
+        if ((m_pDevice->GetPlatform() != nullptr) && (m_pDevice->GetPlatform()->GetEventProvider() != nullptr))
+        {
+            ResourceDestroyEventData destroyData = {};
+            destroyData.pObj = &m_exclusiveExecTs;
+            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+        }
     }
 }
 
@@ -55,7 +69,7 @@ QueueContext::~QueueContext()
 // Initializes the queue context submission info describing the submission preamble, postamble and paging fence value.
 Result QueueContext::PreProcessSubmit(
     InternalSubmitInfo* pSubmitInfo,
-    const SubmitInfo&   submitInfo)
+    uint32              cmdBufferCount)
 {
     pSubmitInfo->numPreambleCmdStreams  = 0;
     pSubmitInfo->numPostambleCmdStreams = 0;
@@ -93,6 +107,35 @@ Result QueueContext::CreateTimestampMem(
         if (needWaitForIdleMem)
         {
             m_waitForIdleTs.Update(pGpuMemory, offset + sizeof(uint32));
+        }
+
+        if ((m_pDevice->GetPlatform() != nullptr) && (m_pDevice->GetPlatform()->GetEventProvider() != nullptr))
+        {
+            ResourceCreateEventData createData = {};
+            createData.type = ResourceType::Timestamp;
+            createData.pObj = &m_exclusiveExecTs;
+            createData.pResourceDescData = nullptr;
+            createData.resourceDescSize = 0;
+
+            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+
+            GpuMemoryResourceBindEventData bindData = {};
+            bindData.pGpuMemory = pGpuMemory;
+            bindData.pObj = &m_exclusiveExecTs;
+            bindData.offset = offset;
+            bindData.requiredGpuMemSize = sizeof(uint32);
+            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+
+            if (needWaitForIdleMem)
+            {
+                createData.pObj = &m_waitForIdleTs;
+                m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+
+                bindData.offset = offset + sizeof(uint32);
+                bindData.pObj = &m_waitForIdleTs;
+                m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+            }
+
         }
 
         void* pPtr = nullptr;

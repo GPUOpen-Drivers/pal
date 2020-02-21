@@ -481,6 +481,18 @@ void UniversalCmdBuffer::CmdSetLineStippleState(
     m_graphicsState.dirtyFlags.validationBits.lineStippleState = 1;
 }
 
+// =====================================================================================================================
+// Override the DB_RENDER_OVERRIDE.DISABLE_VIEWPORT_CLAMP bit at draw-time validation. It persists until the graphics
+// state is reset.
+void UniversalCmdBuffer::CmdOverwriteDisableViewportClampForBlits(
+    bool disableViewportClamp)
+{
+    m_graphicsState.depthClampOverride.enabled              = 1;
+    m_graphicsState.depthClampOverride.disableViewportClamp = disableViewportClamp;
+
+    m_graphicsState.dirtyFlags.validationBits.depthClampOverride = 1;
+}
+
 #if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Dumps this command buffer's DE and CE command streams to the given file with an appropriate header.
@@ -529,6 +541,11 @@ void UniversalCmdBuffer::PopGraphicsState()
     // need to revisit this!)
 
     SetGraphicsState(m_graphicsRestoreState);
+
+    // This is expected to hold if the override is only used by RPM.
+    PAL_ASSERT(m_graphicsRestoreState.depthClampOverride.enabled == 0);
+    m_graphicsState.depthClampOverride.enabled              = 0;
+    m_graphicsState.depthClampOverride.disableViewportClamp = 0;
 
     // All RMP GFX Blts should push/pop command buffer's graphics state,
     // so this is a safe opprotunity to mark that a GFX Blt is active

@@ -338,10 +338,10 @@ public:
     // Constructs a new QueueContext object in preallocated memory for the specified parent Queue. This should always
     // fail with Result::ErrorUnavailable when called on a Queue which GFXIP hardware blocks don't support.
     virtual Result CreateQueueContext(
-        Queue*         pQueue,
-        Engine*        pEngine,
-        void*          pPlacementAddr,
-        QueueContext** ppQueueContext) = 0;
+        const QueueCreateInfo& createInfo,
+        Engine*                pEngine,
+        void*                  pPlacementAddr,
+        QueueContext**         ppQueueContext) = 0;
 
     virtual size_t GetComputePipelineSize(
         const ComputePipelineCreateInfo& createInfo,
@@ -356,7 +356,6 @@ public:
         ComputePipeline**                ppPipeline,
         Util::SystemAllocType            allocType);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
    virtual size_t GetShaderLibrarySize(
         const ShaderLibraryCreateInfo&  createInfo,
         Result*                         pResult) const = 0;
@@ -365,7 +364,6 @@ public:
         void*                           pPlacementAddr,
         bool                            isInternal,
         IShaderLibrary**                ppPipeline) = 0;
-#endif
 
     virtual size_t GetGraphicsPipelineSize(
         const GraphicsPipelineCreateInfo& createInfo,

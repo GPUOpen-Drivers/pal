@@ -26,7 +26,9 @@
 #pragma once
 
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
+#if PAL_HAVE_DRI3_PLATFORM
 #include "core/os/amdgpu/dri3/g_dri3Loader.h"
+#endif
 #include "core/os/amdgpu/g_drmLoader.h"
 #include "palEvent.h"
 #include "palMutex.h"
@@ -34,8 +36,10 @@
 #include "palThread.h"
 #include "palUtil.h"
 
+#if PAL_HAVE_DRI3_PLATFORM
 #include <xcb/xcb.h>
 #include <xcb/present.h>
+#endif
 
 namespace Pal
 {

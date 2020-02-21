@@ -479,6 +479,14 @@ namespace DevDriver
             return static_cast<int32>(pDstEnd - pDst);
         }
 
+        Result QueryOsInfo(OsInfo* pInfo)
+        {
+            DD_ASSERT(pInfo != nullptr);
+            memset(pInfo, 0, sizeof(*pInfo));
+
+            return Result::Unavailable;
+        }
+
         namespace Windows
         {
             /////////////////////////////////////////////////////

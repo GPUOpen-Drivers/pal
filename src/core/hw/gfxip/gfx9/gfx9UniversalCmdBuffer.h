@@ -67,7 +67,9 @@ struct UniversalCmdBufferState
             uint32 placeholder0          :  1; // Placeholder for future feature support.
             uint32 cbTargetMaskChanged   :  1; // Flag setup at Pipeline bind-time informing the draw-time set
                                                // that the CB_TARGET_MASK has been changed.
-            uint32 reserved              : 22;
+            uint32 reserved0             :  6;
+            uint32 cbColorInfoDirtyRtv   :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
+            uint32 reserved1             :  8;
         };
         uint32 u32All;
     } flags;
@@ -719,6 +721,10 @@ private:
         const GraphicsPipeline*  pPipeline,
         uint32*                  pDeCmdSpace);
 
+    template <bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
+    uint32* ValidateCbColorInfo(
+        uint32* pDeCmdSpace);
+
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
 
@@ -733,8 +739,7 @@ private:
     uint32* ValidateViewports(uint32* pDeCmdSpace);
     uint32* ValidateViewports(uint32* pDeCmdSpace);
 
-    uint32* WriteNullColorTargets(
-        uint32* pCmdSpace,
+    void WriteNullColorTargets(
         uint32  newColorTargetMask,
         uint32  oldColorTargetMask);
     uint32* WriteNullDepthTarget(uint32* pCmdSpace);
@@ -971,6 +976,9 @@ private:
     uint16                                   m_vertexOffsetReg;   // Register where the vertex start offset is written
     uint16                                   m_drawIndexReg;      // Register where the draw index is written
 
+    regCB_COLOR0_INFO m_cbColorInfo[MaxColorTargets]; // Final CB_COLOR_INFO register values. Impacted by RTV and
+                                                      // (Pipeline || Blend) state.
+
     const uint32  m_log2NumSes;
     const uint32  m_log2NumRbPerSe;
 
@@ -985,6 +993,8 @@ private:
     regPA_SC_BINNER_CNTL_0  m_paScBinnerCntl0;
     uint32                  m_log2NumSamples;       // Last written value of PA_SC_AA_CONFIG.MSAA_NUM_SAMPLES.
     regDB_DFSM_CONTROL      m_dbDfsmControl;
+    regDB_RENDER_OVERRIDE   m_dbRenderOverride;     // Last written value of the pipeline-owned part of
+                                                    // DB_RENDER_OVERRIDE register.
 
     BinningOverride  m_pbbStateOverride; // Sets PBB on/off as per dictated by the new bound pipeline.
     bool             m_enabledPbb;       // PBB is currently enabled or disabled.
@@ -1044,6 +1054,8 @@ private:
     // to track memory ranges affected by outstanding End() calls in this command buffer so we can avoid the idle
     // during Reset() if the reset doesn't affect any pending queries.
     Util::IntervalTree<gpusize, bool, Platform>  m_activeOcclusionQueryWriteRanges;
+
+    uint8 m_leakCbColorInfoRtv;   // Sticky per-MRT dirty mask of CB_COLORx_INFO state written due to RTV
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

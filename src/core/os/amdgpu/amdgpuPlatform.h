@@ -27,7 +27,9 @@
 
 #include "core/platform.h"
 #include "core/os/amdgpu/amdgpuHeaders.h"
+#if PAL_HAVE_DRI3_PLATFORM
 #include "core/os/amdgpu/dri3/g_dri3Loader.h"
+#endif
 #include "core/os/amdgpu/g_drmLoader.h"
 #if PAL_HAVE_WAYLAND_PLATFORM
 #include "core/os/amdgpu/wayland/g_waylandLoader.h"
@@ -55,8 +57,9 @@ public:
     virtual void Destroy() override;
 
     virtual size_t GetScreenObjectSize() const override;
-
+#if PAL_HAVE_DRI3_PLATFORM
     const Dri3Loader&    GetDri3Loader();
+#endif
     const DrmLoader&     GetDrmLoader();
 #if PAL_HAVE_WAYLAND_PLATFORM
     const WaylandLoader& GetWaylandLoader();
@@ -84,8 +87,9 @@ protected:
         uint32*  pScreenCount,
         void*    pStorage[MaxScreens],
         IScreen* pScreens[MaxScreens]) override;
-
+#if PAL_HAVE_DRI3_PLATFORM
     Dri3Loader    m_dri3Loader;
+#endif
     DrmLoader     m_drmLoader;
 #if PAL_HAVE_WAYLAND_PLATFORM
     WaylandLoader m_waylandLoader;

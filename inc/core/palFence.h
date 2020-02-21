@@ -76,9 +76,10 @@ struct FenceExportInfo
     {
         struct
         {
-            uint32 isReference  : 1;    ///< If set, then the fence exporting a handle that reference the same sync
-                                        ///< object in the kernel.  Otherwise, the object is copied to the new Fence.
-            uint32 reserved     : 31;   ///< Reserved for future use.
+            uint32 isReference     : 1;  ///< If set, then the fence exporting a handle that reference the same sync
+                                         ///< object in the kernel.  Otherwise, the object is copied to the new Fence.
+            uint32 implicitReset   : 1;  ///< If set, a fence reset will be done for the sync fd exported.
+            uint32 reserved        : 30; ///< Reserved for future use.
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;

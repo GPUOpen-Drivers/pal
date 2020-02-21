@@ -35,7 +35,7 @@
 
 #include "gpuopen.h"
 
-#define RGP_PROTOCOL_VERSION 9
+#define RGP_PROTOCOL_VERSION 10
 
 #define RGP_PROTOCOL_MINIMUM_VERSION 2
 
@@ -43,6 +43,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  10.0   | Added support for SPM counters and SE masking.                                                           |
 *|  9.0    | Decoupled trace parameters from execute trace request.                                                   |
 *|  8.0    | Added support for capturing the RGP trace on specific frame or dispatch                                  |
 *|         | Added bitfield to control whether driver internal code objects are included in the code object database  |
@@ -56,6 +57,7 @@
 ***********************************************************************************************************************
 */
 
+#define RGP_SPM_COUNTERS_VERSION 10
 #define RGP_DECOUPLED_TRACE_PARAMETERS 9
 #define RGP_FRAME_CAPTURE_VERSION 8
 #define RGP_PENDING_ABORT_VERSION 7
@@ -88,6 +90,9 @@ namespace DevDriver
             QueryTraceParametersResponse,
             UpdateTraceParametersRequest,
             UpdateTraceParametersResponse,
+            UpdateSpmConfigRequest,
+            UpdateSpmConfigData,
+            UpdateSpmConfigResponse,
             Count
         };
 
@@ -100,6 +105,23 @@ namespace DevDriver
         ///////////////////////
         // RGP Constants
         const uint32 kMarkerStringLength = 256;
+        const uint32 kMaxSpmCountersPerUpdate = 320;
+
+        // Define the number of bits per SPM id value
+        constexpr uint32 kSpmBlockIdBits    = 8;
+        constexpr uint32 kSpmInstanceIdBits = 12;
+        constexpr uint32 kSpmEventIdBits    = 12;
+
+        // Define the max SPM id values based on the number of bits we allocate for them in the network packet
+        constexpr uint32 kMaxSpmBlockId    = (1 << kSpmBlockIdBits);
+        constexpr uint32 kMaxSpmInstanceId = (1 << kSpmInstanceIdBits);
+        constexpr uint32 kMaxSpmEventId    = (1 << kSpmEventIdBits);
+
+        // The application can specify this value for the instance id and it will be expanded into
+        // all available instances on the driver side.
+        // The counter fields are bit packed when transferred over the network so we need to account for that here
+        // rather than simply setting all bits.
+        constexpr uint32 kSpmAllInstancesId = (kMaxSpmInstanceId - 1);
 
         ///////////////////////
         // RGP Types
@@ -284,6 +306,62 @@ namespace DevDriver
 
         DD_CHECK_SIZE(TraceParametersV6, 560);
 
+        DD_NETWORK_STRUCT(TraceParametersV7, 4)
+        {
+            uint32             gpuMemoryLimitInMb;
+            uint32             numPreparationFrames;
+            uint32             captureStartIndex;
+            uint32             captureStopIndex;
+            CaptureTriggerMode captureMode;
+
+            union
+            {
+                struct
+                {
+                    uint32 enableInstructionTokens   : 1;
+                    uint32 allowComputePresents      : 1;
+                    uint32 captureDriverCodeObjects  : 1;
+                    uint32 enableSpm                 : 1;
+                    uint32 reserved : 28;
+                };
+                uint32 u32All;
+            } flags;
+
+            // Begin Tag
+            uint32 beginTagHigh;
+            uint32 beginTagLow;
+
+            // End Tag
+            uint32 endTagHigh;
+            uint32 endTagLow;
+
+            // Begin/End Marker Strings
+            char beginMarker[kMarkerStringLength];
+            char endMarker[kMarkerStringLength];
+
+            // Target pipeline hash
+            uint32 pipelineHashHi;
+            uint32 pipelineHashLo;
+
+            // Shader Engine Mask
+            uint32 seMask;
+        };
+
+        DD_CHECK_SIZE(TraceParametersV7, 564);
+
+        DD_NETWORK_STRUCT(SpmCounterId, 4)
+        {
+            uint32 blockId    : kSpmBlockIdBits;
+            uint32 instanceId : kSpmInstanceIdBits;
+            uint32 eventId    : kSpmEventIdBits;
+        };
+
+        DD_CHECK_SIZE(SpmCounterId, 4);
+
+        static_assert(
+            kSpmBlockIdBits + kSpmInstanceIdBits + kSpmEventIdBits == 8 * sizeof(SpmCounterId),
+            "SpmCounterId is wasting bits");
+
         enum struct ProfilingStatus : uint32
         {
             NotAvailable = 0,
@@ -375,12 +453,27 @@ namespace DevDriver
 
         DD_CHECK_SIZE(QueryTraceParametersResponsePayload, 564);
 
+        DD_NETWORK_STRUCT(QueryTraceParametersResponsePayloadV2, 4)
+        {
+            Result            result;
+            TraceParametersV7 parameters;
+        };
+
+        DD_CHECK_SIZE(QueryTraceParametersResponsePayloadV2, 568);
+
         DD_NETWORK_STRUCT(UpdateTraceParametersRequestPayload, 4)
         {
             TraceParametersV6 parameters;
         };
 
         DD_CHECK_SIZE(UpdateTraceParametersRequestPayload, 560);
+
+        DD_NETWORK_STRUCT(UpdateTraceParametersRequestPayloadV2, 4)
+        {
+            TraceParametersV7 parameters;
+        };
+
+        DD_CHECK_SIZE(UpdateTraceParametersRequestPayloadV2, 564);
 
         DD_NETWORK_STRUCT(UpdateTraceParametersResponsePayload, 4)
         {
@@ -389,6 +482,30 @@ namespace DevDriver
 
         DD_CHECK_SIZE(UpdateTraceParametersResponsePayload, 4);
 
+        DD_NETWORK_STRUCT(UpdateSpmConfigRequestPayload, 4)
+        {
+            uint32 sampleFrequency;
+            uint32 memoryLimitInMb;
+            uint32 numDataPayloads;
+        };
+
+        DD_CHECK_SIZE(UpdateSpmConfigRequestPayload, 12);
+
+        DD_NETWORK_STRUCT(UpdateSpmConfigDataPayload, 4)
+        {
+            uint32       numCounters;
+            SpmCounterId counters[kMaxSpmCountersPerUpdate];
+        };
+
+        DD_CHECK_SIZE(UpdateSpmConfigDataPayload, 1284);
+
+        DD_NETWORK_STRUCT(UpdateSpmConfigResponsePayload, 4)
+        {
+            Result result;
+        };
+
+        DD_CHECK_SIZE(UpdateSpmConfigResponsePayload, 4);
+
         DD_NETWORK_STRUCT(RGPPayload, 4)
         {
             RGPMessage  command;
@@ -396,19 +513,24 @@ namespace DevDriver
             char        padding[3];
             union
             {
-                ExecuteTraceRequestPayload           executeTraceRequest;
-                ExecuteTraceRequestPayloadV2         executeTraceRequestV2;
-                ExecuteTraceRequestPayloadV3         executeTraceRequestV3;
-                ExecuteTraceRequestPayloadV4         executeTraceRequestV4;
-                ExecuteTraceRequestPayloadV5         executeTraceRequestV5;
-                TraceDataChunkPayload                traceDataChunk;
-                TraceDataSentinelPayload             traceDataSentinel;
-                TraceDataHeaderPayload               traceDataHeader;
-                QueryProfilingStatusResponsePayload  queryProfilingStatusResponse;
-                EnableProfilingResponsePayload       enableProfilingStatusResponse;
-                QueryTraceParametersResponsePayload  queryTraceParametersResponse;
-                UpdateTraceParametersRequestPayload  updateTraceParametersRequest;
-                UpdateTraceParametersResponsePayload updateTraceParametersResponse;
+                ExecuteTraceRequestPayload            executeTraceRequest;
+                ExecuteTraceRequestPayloadV2          executeTraceRequestV2;
+                ExecuteTraceRequestPayloadV3          executeTraceRequestV3;
+                ExecuteTraceRequestPayloadV4          executeTraceRequestV4;
+                ExecuteTraceRequestPayloadV5          executeTraceRequestV5;
+                TraceDataChunkPayload                 traceDataChunk;
+                TraceDataSentinelPayload              traceDataSentinel;
+                TraceDataHeaderPayload                traceDataHeader;
+                QueryProfilingStatusResponsePayload   queryProfilingStatusResponse;
+                EnableProfilingResponsePayload        enableProfilingStatusResponse;
+                QueryTraceParametersResponsePayload   queryTraceParametersResponse;
+                QueryTraceParametersResponsePayloadV2 queryTraceParametersResponseV2;
+                UpdateTraceParametersRequestPayload   updateTraceParametersRequest;
+                UpdateTraceParametersRequestPayloadV2 updateTraceParametersRequestV2;
+                UpdateTraceParametersResponsePayload  updateTraceParametersResponse;
+                UpdateSpmConfigRequestPayload         updateSpmConfigRequest;
+                UpdateSpmConfigDataPayload            updateSpmConfigData;
+                UpdateSpmConfigResponsePayload        updateSpmConfigResponse;
             };
         };
 

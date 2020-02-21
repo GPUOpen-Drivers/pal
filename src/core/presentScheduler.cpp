@@ -232,8 +232,16 @@ Result PresentScheduler::SignalOnAcquire(
 
         if (pFence != nullptr)
         {
-            SubmitInfo submitInfo = {};
-            submitInfo.pFence     = pFence;
+            constexpr PerSubQueueSubmitInfo PerSubQueueInfo = {};
+            MultiSubmitInfo submitInfo      = {};
+            submitInfo.perSubQueueInfoCount = 1;
+            submitInfo.pPerSubQueueInfo     = &PerSubQueueInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+            submitInfo.ppFences             = &pFence;
+            submitInfo.fenceCount           = 1;
+#else
+            submitInfo.pFence               = pFence;
+#endif
 
             const Result fenceResult = m_pSignalQueue->Submit(submitInfo);
             PAL_ASSERT(fenceResult == Result::Success);
@@ -259,13 +267,21 @@ Result PresentScheduler::PreparePresent(
 #if !defined(__unix__)
     // Use an empty submit to get the job's fence signaled once the app's prior rendering is completed.
     // The scheduling thread will use this fence to know when the image is ready to be presented.
-    IFence*const pFence = pJob->PriorWorkFence();
+    IFence* pFence = pJob->PriorWorkFence();
     Result result = m_pDevice->ResetFences(1, &pFence);
 
     if (result == Result::Success)
     {
-        SubmitInfo submitInfo = {};
-        submitInfo.pFence     = pFence;
+        constexpr PerSubQueueSubmitInfo PerSubQueueInfo = {};
+        MultiSubmitInfo submitInfo      = {};
+        submitInfo.perSubQueueInfoCount = 1;
+        submitInfo.pPerSubQueueInfo     = &PerSubQueueInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        submitInfo.ppFences             = &pFence;
+        submitInfo.fenceCount           = 1;
+#else
+        submitInfo.pFence               = pFence;
+#endif
 
         result = pQueue->Submit(submitInfo);
     }

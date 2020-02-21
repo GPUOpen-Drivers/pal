@@ -630,6 +630,25 @@ public:
         const QueueCreateInfo& createInfo,
         Result*                pResult) const override;
 
+    // need a real implementation later!
+    virtual size_t GetMultiQueueSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        Result*                pResult) const override
+    {
+        return 0;
+    }
+
+    // need a real implementation later!
+    virtual Result CreateMultiQueue(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        void*                  pPlacementAddr,
+        IQueue**               ppQueue) override
+    {
+        return Result::Unsupported;
+    }
+
     virtual Result CreateQueue(
         const QueueCreateInfo& createInfo,
         void*                  pPlacementAddr,
@@ -800,23 +819,15 @@ public:
         void*                            pPlacementAddr,
         IPipeline**                      ppPipeline) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetShaderLibrarySize(
         const ShaderLibraryCreateInfo& createInfo,
-        Result*                        pResult) const override
-    {
-        return 0;       /// TODO TODO
-    }
+        Result*                        pResult) const override;
 
     virtual Result CreateShaderLibrary(
         const ShaderLibraryCreateInfo& createInfo,
         void*                          pPlacementAddr,
-        IShaderLibrary**               ppLibrary) override
-    {
-        return Result::Unsupported;     /// TODO TODO
-    }
-#endif
+        IShaderLibrary**               ppLibrary) override;
 
     virtual size_t GetGraphicsPipelineSize(
         const GraphicsPipelineCreateInfo& createInfo,
@@ -2621,12 +2632,9 @@ public:
     virtual Result GetPerformanceData(Util::Abi::HardwareStage hardwareStage, size_t* pSize, void* pBuffer) override
         { return m_pNextLayer->GetPerformanceData(hardwareStage, pSize, pBuffer); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,
-        uint32                      libraryCount) override
-     { return m_pNextLayer->LinkWithLibraries(ppLibraryList, libraryCount); }
-#endif
+        uint32                      libraryCount) override;
 
     virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) const override
         { return m_pNextLayer->QueryAllocationInfo(pNumEntries, pAllocInfoList); }
@@ -2724,7 +2732,6 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(QueryPoolDecorator);
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
 class ShaderLibraryDecorator : public IShaderLibrary
 {
 public:
@@ -2741,6 +2748,21 @@ public:
 
     virtual Result GetCodeObject(uint32* pSize, void* pBuffer) const override
         { return m_pNextLayer->GetCodeObject(pSize, pBuffer); }
+
+    virtual Result GetShaderFunctionCode(
+        const char*  pShaderExportName,
+        size_t*      pSize,
+        void*        pBuffer) const override
+    {
+        return m_pNextLayer->GetShaderFunctionCode(pShaderExportName, pSize, pBuffer);
+    }
+
+    virtual Result GetShaderFunctionStats(
+        const char*      pShaderExportName,
+        ShaderLibStats*  pShaderStats) const
+    {
+        return m_pNextLayer->GetShaderFunctionStats(pShaderExportName, pShaderStats);
+    }
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
@@ -2763,7 +2785,6 @@ private:
     PAL_DISALLOW_DEFAULT_CTOR(ShaderLibraryDecorator);
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderLibraryDecorator);
 };
-#endif
 
 // =====================================================================================================================
 class QueueDecorator : public IQueue
@@ -2777,7 +2798,7 @@ public:
     virtual ~QueueDecorator() {}
 
     virtual Result Submit(
-        const SubmitInfo& submitInfo) override;
+        const MultiSubmitInfo& submitInfo) override;
 
     virtual Result WaitIdle() override
         { return m_pNextLayer->WaitIdle(); }

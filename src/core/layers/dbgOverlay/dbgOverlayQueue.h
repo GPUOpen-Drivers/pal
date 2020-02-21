@@ -74,7 +74,7 @@ public:
     virtual Result PresentDirect(const PresentDirectInfo& presentInfo) override;
     virtual Result PresentSwapChain(const PresentSwapChainInfo& presentInfo) override;
 
-    virtual Result Submit(const SubmitInfo& submitInfo) override;
+    virtual Result Submit(const MultiSubmitInfo& submitInfo) override;
 
 private:
     Result CreateCmdBuffer(const CmdBufferCreateInfo& createInfo, ICmdBuffer** ppCmdBuffer);
@@ -87,7 +87,7 @@ private:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     Result SubmitOverlayCmdBuffer(const Image& image, PresentMode presentMode);
 #endif
-    Result SubmitWithGpuTimestampPair(const SubmitInfo& submitInfo, GpuTimestampPair* pTimestamp);
+    Result SubmitWithGpuTimestampPair(const MultiSubmitInfo& submitInfo, GpuTimestampPair* pTimestamp);
 
     Result CreateGpuTimestampPair(GpuTimestampPair** ppTimestamp);
     void DestroyGpuTimestampPair(GpuTimestampPair* pTimestamp);

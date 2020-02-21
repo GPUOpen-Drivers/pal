@@ -386,6 +386,7 @@ void RsrcProcMgr::CmdCopyImage(
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
     // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
     const bool useGraphicsCopy = ((Image::PreferGraphicsCopy && pCmdBuffer->IsGraphicsSupported()) &&
+                                  (p2pBltWa == false) &&
                                   (dstImage.IsDepthStencil() ||
                                    ((srcImageType != ImageType::Tex1d) &&
                                     (dstImageType != ImageType::Tex1d) &&
@@ -393,8 +394,7 @@ void RsrcProcMgr::CmdCopyImage(
                                     (isCompressed == false)            &&
                                     (isYuv == false)                   &&
                                     (bothColor == true)                &&
-                                    (isSrgb == false)                  &&
-                                    (p2pBltWa == false))));
+                                    (isSrgb == false))));
 
     if (useGraphicsCopy)
     {
@@ -1071,6 +1071,7 @@ void RsrcProcMgr::CopyImageCompute(
     const bool      useMipInSrd   = CopyImageUseMipLevelInSrd(isCompressed);
     const GfxImage* pSrcGfxImage  = srcImage.GetGfxImage();
     const ImageType imageType     = pSrcGfxImage->GetOverrideImageType();
+    const bool      isEqaaSrc     = (srcCreateInfo.samples != srcCreateInfo.fragments);
 
     bool isFmaskCopy          = false;
     bool isFmaskCopyOptimized = false;
@@ -1080,15 +1081,15 @@ void RsrcProcMgr::CopyImageCompute(
     // The Fmask accelerated copy should be used in all non-EQAA cases where Fmask is enabled. There is no use case
     // Fmask accelerated EQAA copy and it would require several new shaders. It can be implemented at a future
     // point if required.
-    if (pSrcGfxImage->HasFmaskData() == true)
+    if (pSrcGfxImage->HasFmaskData() && isEqaaSrc)
+    {
+        PAL_NOT_IMPLEMENTED();
+    }
+
+    if (pSrcGfxImage->HasFmaskData() && (isEqaaSrc == false))
     {
         PAL_ASSERT(srcCreateInfo.fragments > 1);
         PAL_ASSERT((srcImage.IsDepthStencil() == false) && (dstImage.IsDepthStencil() == false));
-
-        if (srcCreateInfo.samples != srcCreateInfo.fragments)
-        {
-            PAL_NOT_IMPLEMENTED();
-        }
 
         // Optimized image copies require a call to HwlFixupCopyDstImageMetaData...
         // Verify that any "update" operation performed is legal for the source and dest images.
@@ -1590,14 +1591,29 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
                               dstImage,
                               dstImageLayout,
                               true,
+                              false,
                               regionCount,
                               pRegions,
                               includePadding);
 
+    if (dstImage.IsDepthStencil() && dstImage.GetGfxImage()->HasHtileData())
+    {
+        // CopyDst is treated as a compressed layout for depth/stencil images, but since CS does not support compressed
+        // DS writes, we need to resummarize hTile after the copy.
+        for (uint32 regionIdx = 0; regionIdx < regionCount; regionIdx++)
+        {
+            SubresRange range = {};
+            range.startSubres = pRegions[regionIdx].imageSubres;
+            range.numMips     = 1;
+            range.numSlices   = pRegions[regionIdx].numSlices;
+
+            HwlResummarizeHtileCompute(pCmdBuffer, *dstImage.GetGfxImage(), range);
+        }
+    }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
     // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
     // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
-    if (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0)
+    else if (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0)
     {
         AutoBuffer<ImageCopyRegion, 32, Platform> newRegions(regionCount, m_pDevice->GetPlatform());
         for (uint32 i = 0; i < regionCount; i++)
@@ -1623,33 +1639,53 @@ void RsrcProcMgr::CmdCopyImageToMemory(
     ) const
 {
     // Select the appropriate pipeline for this copy based on the source image's properties.
-    const auto& createInfo = srcImage.GetImageCreateInfo();
-    const ComputePipeline* pPipeline = nullptr;
+    const auto&            createInfo = srcImage.GetImageCreateInfo();
+    const bool             isEqaaSrc  = (createInfo.samples != createInfo.fragments);
+    const GfxImage*        pGfxImage  = srcImage.GetGfxImage();
+    const ComputePipeline* pPipeline  = nullptr;
 
-    switch (srcImage.GetGfxImage()->GetOverrideImageType())
+    bool isFmaskCopy = false;
+
+    switch (pGfxImage->GetOverrideImageType())
     {
     case ImageType::Tex1d:
         pPipeline = GetPipeline(RpmComputePipeline::CopyImgToMem1d);
         break;
 
     case ImageType::Tex2d:
-        switch (createInfo.fragments)
+        // The Fmask accelerated copy should be used in all non-EQAA cases where Fmask is enabled. There is no use case
+        // Fmask accelerated EQAA copy and it would require several new shaders. It can be implemented at a future
+        // point if required.
+        if (pGfxImage->HasFmaskData() && isEqaaSrc)
         {
-        case 2:
-            pPipeline = GetPipeline(RpmComputePipeline::CopyImgToMem2dms2x);
-            break;
+            PAL_NOT_IMPLEMENTED();
+        }
+        if (pGfxImage->HasFmaskData() && (isEqaaSrc == false))
+        {
+            PAL_ASSERT((srcImage.IsDepthStencil() == false) && (createInfo.fragments > 1));
+            pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskCopyImgToMem);
+            isFmaskCopy = true;
+        }
+        else
+        {
+            switch (createInfo.fragments)
+            {
+            case 2:
+                pPipeline = GetPipeline(RpmComputePipeline::CopyImgToMem2dms2x);
+                break;
 
-        case 4:
-            pPipeline = GetPipeline(RpmComputePipeline::CopyImgToMem2dms4x);
-            break;
+            case 4:
+                pPipeline = GetPipeline(RpmComputePipeline::CopyImgToMem2dms4x);
+                break;
 
-        case 8:
-            pPipeline = GetPipeline(RpmComputePipeline::CopyImgToMem2dms8x);
-            break;
+            case 8:
+                pPipeline = GetPipeline(RpmComputePipeline::CopyImgToMem2dms8x);
+                break;
 
-        default:
-            pPipeline = GetPipeline(RpmComputePipeline::CopyImgToMem2d);
-            break;
+            default:
+                pPipeline = GetPipeline(RpmComputePipeline::CopyImgToMem2d);
+                break;
+            }
         }
         break;
 
@@ -1664,6 +1700,7 @@ void RsrcProcMgr::CmdCopyImageToMemory(
                               srcImage,
                               srcImageLayout,
                               false,
+                              isFmaskCopy,
                               regionCount,
                               pRegions,
                               includePadding);
@@ -1680,6 +1717,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
     const Image&                 image,
     ImageLayout                  imageLayout,
     bool                         isImageDst,
+    bool                         isFmaskCopy,
     uint32                       regionCount,
     const MemoryImageCopyRegion* pRegions,
     bool                         includePadding
@@ -1832,10 +1870,10 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
         const uint32 rowPitch   = static_cast<uint32>(copyRegion.gpuMemoryRowPitch   / viewBpp);
         const uint32 depthPitch = static_cast<uint32>(copyRegion.gpuMemoryDepthPitch / viewBpp);
 
-        // The pipeline expects the user data to be arranged as follows for each dispatch:
+        // Generally the pipeline expects the user data to be arranged as follows for each dispatch:
         // Img X offset, Img Y offset, Img Z offset (3D), row pitch
         // Copy width, Copy height, Copy depth, slice pitch
-        const uint32 copyData[8] =
+        uint32 copyData[8] =
         {
             static_cast<uint32>(copyRegion.imageOffset.x),
             static_cast<uint32>(copyRegion.imageOffset.y),
@@ -1846,6 +1884,15 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
             copyRegion.imageExtent.depth,
             depthPitch
         };
+
+        // For fmask accelerated copy, the pipeline expects the user data to be arranged as below,
+        // Img X offset, Img Y offset, samples, row pitch
+        // Copy width, Copy height, Copy depth, slice pitch
+        if (isFmaskCopy)
+        {
+            // Img Z offset doesn't make sense for msaa image; store numSamples instead.
+            copyData[2] = imgCreateInfo.samples;
+        }
 
         // Create an embedded user-data table to contain the Image SRD's and the copy data constants. It will be bound
         // to entry 0.
@@ -1907,6 +1954,18 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
 
             device.CreateImageViewSrds(1, &imageView, pUserData);
             pUserData += SrdDwordAlignment();
+
+            if (isFmaskCopy)
+            {
+                // If this is an Fmask-accelerated Copy, create an image view of the source Image's Fmask surface.
+                FmaskViewInfo fmaskView = {};
+                fmaskView.pImage         = &image;
+                fmaskView.baseArraySlice = copyRegion.imageSubres.arraySlice;
+                fmaskView.arraySize      = copyRegion.numSlices;
+
+                m_pDevice->Parent()->CreateFmaskViewSrds(1, &fmaskView, pUserData);
+                pUserData += SrdDwordAlignment();
+            }
 
             // Copy the copy data into the embedded user data memory.
             memcpy(pUserData, &copyData[0], sizeof(copyData));
@@ -5017,49 +5076,110 @@ void RsrcProcMgr::LateExpandResolveSrc(
     ResolveMethod             method
     ) const
 {
-    // the method is either shaderCsFmask or shaderCs
-    if (((method.shaderCsFmask == 1) &&
-          (TestAnyFlagSet(srcImageLayout.usages, Pal::LayoutShaderFmaskBasedRead) == false)) ||
-        ((method.shaderCs == 1) && (TestAnyFlagSet(srcImageLayout.usages, Pal::LayoutShaderRead) == false)))
+    const ImageLayoutUsageFlags shaderUsage =
+        (method.shaderCsFmask ? Pal::LayoutShaderFmaskBasedRead : Pal::LayoutShaderRead);
+
+    if (((method.shaderCsFmask != 0) || (method.shaderCs != 0)) &&
+        (TestAnyFlagSet(srcImageLayout.usages, shaderUsage) == false))
     {
-        BarrierInfo        barrierInfo  = {};
-        Pal::SubresRange   range        = {};
-        AutoBuffer<BarrierTransition, 32, Platform> transition(regionCount, m_pDevice->GetPlatform());
+        BarrierTransition transition = { };
+        transition.imageInfo.pImage            = &srcImage;
+        transition.imageInfo.oldLayout.usages  = srcImageLayout.usages;
+        transition.imageInfo.oldLayout.engines = srcImageLayout.engines;
+        transition.imageInfo.newLayout.usages  = srcImageLayout.usages | shaderUsage;
+        transition.imageInfo.newLayout.engines = srcImageLayout.engines;
+        transition.srcCacheMask                = Pal::CoherResolve;
+        transition.dstCacheMask                = Pal::CoherShader;
 
-        const ImageLayoutUsageFlags shaderUsage = (method.shaderCsFmask == 1) ? Pal::LayoutShaderFmaskBasedRead
-                                                                              : Pal::LayoutShaderRead;
+        LateExpandResolveSrcHelper(pCmdBuffer, pRegions, regionCount, transition, HwPipePreBlt);
+    }
+}
 
+// =====================================================================================================================
+// Inserts a barrier after a compute resolve for a color image.  Returns the image to the ResolveSrc layout after the
+// internal compute shader runs.
+void RsrcProcMgr::FixupLateExpandResolveSrc(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Image&              srcImage,
+    ImageLayout               srcImageLayout,
+    const ImageResolveRegion* pRegions,
+    uint32                    regionCount,
+    ResolveMethod             method
+    ) const
+{
+    const ImageLayoutUsageFlags shaderUsage =
+        (method.shaderCsFmask ? Pal::LayoutShaderFmaskBasedRead : Pal::LayoutShaderRead);
+
+    if (((method.shaderCsFmask != 0) || (method.shaderCs != 0)) &&
+        (TestAnyFlagSet(srcImageLayout.usages, shaderUsage) == false))
+    {
+        BarrierTransition transition = { };
+        transition.imageInfo.pImage             = &srcImage;
+        transition.imageInfo.oldLayout.usages   = srcImageLayout.usages | shaderUsage;
+        transition.imageInfo.oldLayout.engines  = srcImageLayout.engines;
+        transition.imageInfo.newLayout.usages   = srcImageLayout.usages;
+        transition.imageInfo.newLayout.engines  = srcImageLayout.engines;
+
+        transition.srcCacheMask = Pal::CoherShader;
+        transition.dstCacheMask = Pal::CoherResolve;
+
+        LateExpandResolveSrcHelper(pCmdBuffer, pRegions, regionCount, transition, HwPipePostBlt);
+    }
+}
+
+// =====================================================================================================================
+// Helper function for setting up a barrier used before and after a compute shader resolve.
+void RsrcProcMgr::LateExpandResolveSrcHelper(
+    GfxCmdBuffer*             pCmdBuffer,
+    const ImageResolveRegion* pRegions,
+    uint32                    regionCount,
+    const BarrierTransition&  transition,
+    HwPipePoint               waitPoint
+    ) const
+{
+    const Image& image = *static_cast<const Image*>(transition.imageInfo.pImage);
+
+    LinearAllocatorAuto<VirtualLinearAllocator> transitionAllocator(pCmdBuffer->Allocator(), false);
+    auto* pTransitions = PAL_NEW_ARRAY(BarrierTransition, regionCount, &transitionAllocator, AllocInternalTemp);
+
+    if (pTransitions != nullptr)
+    {
         for (uint32 i = 0; i < regionCount; i++)
         {
-            range.startSubres.aspect     = pRegions[i].srcAspect;
-            range.startSubres.arraySlice = pRegions[i].srcSlice;
-            range.startSubres.mipLevel   = 0;
-            range.numMips                = 1;
-            range.numSlices              = pRegions[i].numSlices;
+            pTransitions[i].imageInfo.subresRange.startSubres.aspect     = pRegions[i].srcAspect;
+            pTransitions[i].imageInfo.subresRange.startSubres.arraySlice = pRegions[i].srcSlice;
+            pTransitions[i].imageInfo.subresRange.startSubres.mipLevel   = 0;
+            pTransitions[i].imageInfo.subresRange.numMips                = 1;
+            pTransitions[i].imageInfo.subresRange.numSlices              = pRegions[i].numSlices;
 
-            transition[i].imageInfo.pImage             = &srcImage;
-            transition[i].imageInfo.oldLayout.usages   = srcImageLayout.usages;
-            transition[i].imageInfo.oldLayout.engines  = srcImageLayout.engines;
-            transition[i].imageInfo.newLayout.usages   = srcImageLayout.usages | shaderUsage;
-            transition[i].imageInfo.newLayout.engines  = srcImageLayout.engines;
-            transition[i].imageInfo.subresRange        = range;
-            transition[i].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
-            transition[i].srcCacheMask                 = Pal::CoherResolve;
-            transition[i].dstCacheMask                 = Pal::CoherShader;
+            pTransitions[i].imageInfo.pImage             = &image;
+            pTransitions[i].imageInfo.oldLayout          = transition.imageInfo.oldLayout;
+            pTransitions[i].imageInfo.newLayout          = transition.imageInfo.newLayout;
+            pTransitions[i].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
 
-            PAL_ASSERT((srcImage.GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0) ==
+            pTransitions[i].srcCacheMask = transition.srcCacheMask;
+            pTransitions[i].dstCacheMask = transition.dstCacheMask;
+
+            PAL_ASSERT((image.GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0) ==
                        (pRegions[i].pQuadSamplePattern != nullptr));
         }
 
-        barrierInfo.pTransitions    = transition.Data();
+        BarrierInfo barrierInfo = { };
+        barrierInfo.pTransitions    = pTransitions;
         barrierInfo.transitionCount = regionCount;
-        barrierInfo.waitPoint       = Pal::HwPipePreCs;
+        barrierInfo.waitPoint       = waitPoint;
 
-        Pal::HwPipePoint releasePipePoint = Pal::HwPipeBottom;
-        barrierInfo.pipePointWaitCount    = 1;
-        barrierInfo.pPipePoints           = &releasePipePoint;
+        const HwPipePoint releasePipePoint = Pal::HwPipeBottom;
+        barrierInfo.pipePointWaitCount = 1;
+        barrierInfo.pPipePoints        = &releasePipePoint;
 
         pCmdBuffer->CmdBarrier(barrierInfo);
+
+        PAL_SAFE_DELETE_ARRAY(pTransitions, &transitionAllocator);
+    }
+    else
+    {
+        pCmdBuffer->NotifyAllocFailure();
     }
 }
 
@@ -5566,6 +5686,8 @@ void RsrcProcMgr::ResolveImageGraphics(
 
     // Restore original command buffer state.
     pCmdBuffer->PopGraphicsState();
+
+    FixupLateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, srcImageInfo.resolveMethod);
 }
 
 // =====================================================================================================================
@@ -5789,6 +5911,8 @@ void RsrcProcMgr::ResolveImageCompute(
             pCmdBuffer->CmdBarrier(hiZExpandBarrier);
         }
     }
+
+    FixupLateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, method);
 }
 
 // =====================================================================================================================

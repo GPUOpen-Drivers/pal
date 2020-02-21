@@ -40,8 +40,6 @@ option(PAL_BUILD_GPUOPEN "Build GPUOpen developer driver support?" OFF)
 
 option(PAL_DBG_COMMAND_COMMENTS "Command with comments" OFF)
 
-option(PAL_DEVELOPER_BUILD "Enable developer build" OFF)
-
 option(PAL_ENABLE_PRINTS_ASSERTS "Enable print assertions?" ${CMAKE_BUILD_TYPE_DEBUG})
 cmake_dependent_option(PAL_MEMTRACK "Enable PAL memory tracker?" ${CMAKE_BUILD_TYPE_DEBUG} "PAL_ENABLE_PRINTS_ASSERTS" OFF)
 
@@ -53,19 +51,14 @@ option(PAL_BUILD_DBG_OVERLAY "Build PAL Debug Overlay?" ON)
 
 option(PAL_BUILD_GPU_PROFILER "Build PAL GPU Profiler?" ON)
 
-option(PAL_BUILD_CMD_BUFFER_LOGGER "Build PAL Command Buffer Logger?" ${CMAKE_BUILD_TYPE_DEBUG})
-option(PAL_BUILD_INTERFACE_LOGGER  "Build PAL Interface Logger?"      ${CMAKE_BUILD_TYPE_DEBUG})
-option(PAL_BUILD_PM4_INSTRUMENTOR  "Build PAL PM4 Instrumentor?"      ${CMAKE_BUILD_TYPE_DEBUG})
-
 option(PAL_BUILD_GFX  "Build PAL with Graphics support?" ON)
 cmake_dependent_option(PAL_BUILD_GFX6 "Build PAL with GFX6 support?" ON "PAL_BUILD_GFX" OFF)
 cmake_dependent_option(PAL_BUILD_GFX9 "Build PAL with GFX9 support?" ON "PAL_BUILD_GFX" OFF)
 cmake_dependent_option(PAL_BUILD_VEGA20 "Build PAL with Vega20 support?" ON "PAL_BUILD_GFX" OFF)
 cmake_dependent_option(CHIP_HDR_VEGA20 "Build PAL chip with Vega20 support?" ON "PAL_BUILD_GFX" OFF)
+
 cmake_dependent_option(PAL_BUILD_RAVEN2 "Build PAL with Raven2 support?" ON "PAL_BUILD_GFX" OFF)
 cmake_dependent_option(CHIP_HDR_RAVEN2 "Build PAL chip with Raven2 support?" ON "PAL_BUILD_GFX" OFF)
-
-option(PAL_BUILD_GFX10 "Build PAL with GFX10 support?" OFF)
 
 option(PAL_BUILD_OSS  "Build PAL with Operating System support?" ON)
 cmake_dependent_option(PAL_BUILD_OSS1   "Build PAL with OSS1?"   ON "PAL_BUILD_OSS" OFF)
@@ -73,6 +66,7 @@ cmake_dependent_option(PAL_BUILD_OSS2   "Build PAL with OSS2?"   ON "PAL_BUILD_O
 cmake_dependent_option(PAL_BUILD_OSS2_4 "Build PAL with OSS2_4?" ON "PAL_BUILD_OSS" OFF)
 cmake_dependent_option(PAL_BUILD_OSS4   "Build PAL with OSS4?"   ON "PAL_BUILD_OSS" OFF)
 
+option(PAL_BUILD_DRI3 "Build PAL with DRI3 support?" ON)
 option(PAL_BUILD_WAYLAND "Build PAL with WAYLAND support?" OFF)
 
 # PAL Client Options ###############################################################################
@@ -141,9 +135,7 @@ if(PAL_BUILD_GFX9)
         set(ADDR_RAVEN2_BUILD OFF CACHE BOOL "PAL override to build ADDRLIB with Vega20 support." FORCE)
 	set(CHIP_HDR_RAVEN2 OFF CACHE BOOL "PAL override to build chip register header with Raven2 support." FORCE)
     endif()
-    if(PAL_BUILD_GFX10)
-        set(ADDR_GFX10_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with GFX10 support." FORCE)
-    endif()
+    set(ADDR_GFX10_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with GFX10 support." FORCE)
     if(PAL_BUILD_NAVI14)
         set(ADDR_NAVI14_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with NAVI14 support." FORCE)
     endif()

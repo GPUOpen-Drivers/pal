@@ -80,7 +80,7 @@ public:
     }
 
     // Create a FixedString from a C String, truncating the copy if pString is too long
-    explicit FixedString(const char* pString) { Platform::Strncpy(m_data, pString, sizeof(m_data)); }
+    FixedString(const char* pString) { Platform::Strncpy(m_data, pString, sizeof(m_data)); }
 
     // Return a pointer to the inline C String.
     const char* AsCStr() const { return m_data; }

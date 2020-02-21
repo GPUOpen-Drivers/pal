@@ -26,7 +26,6 @@
  ***********************************************************************************************************************
  * @file  palElfProcessor.h
  * @brief PAL Elf utility class declarations.
- * SEE: Section 1 in https://www.uclibc.org/docs/elf-64-gen.pdf for an overview of the ELF format.
  ***********************************************************************************************************************
  */
 
@@ -171,7 +170,6 @@ private:
 /**
  ***********************************************************************************************************************
  * @brief An ELF Section
- * SEE: Section 4 in https://www.uclibc.org/docs/elf-64-gen.pdf
  ***********************************************************************************************************************
  */
 template <typename Allocator>
@@ -332,7 +330,6 @@ private:
 /**
  ***********************************************************************************************************************
  * @brief Creates and stores the ELF segments.
- * SEE: Section 8 in https://www.uclibc.org/docs/elf-64-gen.pdf
  ***********************************************************************************************************************
  */
 template <typename Allocator>
@@ -395,7 +392,6 @@ private:
 /**
  ***********************************************************************************************************************
  * @brief An ELF Segment
- * SEE: Section 8 in https://www.uclibc.org/docs/elf-64-gen.pdf
  ***********************************************************************************************************************
  */
 template <typename Allocator>
@@ -474,7 +470,6 @@ private:
 /**
  ***********************************************************************************************************************
  * @brief Given a note section the NoteProcessor handles adding and getting notes.
- * SEE: Section 9 in https://www.uclibc.org/docs/elf-64-gen.pdf
  ***********************************************************************************************************************
  */
 template <typename Allocator>
@@ -541,7 +536,6 @@ constexpr size_t SymbolTableEntrySize = sizeof(SymbolTableEntry);
 /**
  ***********************************************************************************************************************
  * @brief Given a symbol section the SymbolProcessor handles adding and getting symbols.
- * SEE: Section 6 in https://www.uclibc.org/docs/elf-64-gen.pdf
  ***********************************************************************************************************************
  */
 template <typename Allocator>
@@ -614,7 +608,6 @@ private:
 /**
  ***********************************************************************************************************************
  * @brief Given a relocation section the RelocationProcessor handles adding and getting relocations.
- * SEE: Section 7 in https://www.uclibc.org/docs/elf-64-gen.pdf
  ***********************************************************************************************************************
  */
 template <typename Allocator>
@@ -694,7 +687,6 @@ private:
 /**
  ***********************************************************************************************************************
  * @brief Given a string table section the StringProcessor handles adding and getting strings.
- * SEE: Section 5 in https://www.uclibc.org/docs/elf-64-gen.pdf
  ***********************************************************************************************************************
  */
 template <typename Allocator>
@@ -738,7 +730,6 @@ private:
 /**
  ***********************************************************************************************************************
  * @brief The ElfProcessor manages the elf header and loads and saves the ELF Object to a buffer.
- * SEE: Section 3 in https://www.uclibc.org/docs/elf-64-gen.pdf
  ***********************************************************************************************************************
  */
 template <typename Allocator>

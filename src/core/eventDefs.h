@@ -71,9 +71,9 @@ struct CreateGpuMemoryData
     GpuHeap       preferredHeap;
     bool          isVirtual;
     bool          isInternal;
+    bool          isExternalShared;
     gpusize       gpuVirtualAddr;
     GpuMemHandle  handle;
-    Result        result;
 };
 
 struct DestroyGpuMemoryData
@@ -86,6 +86,7 @@ struct GpuMemoryResourceBindData
 {
     GpuMemHandle   handle;
     gpusize        gpuVirtualAddr;
+    bool           isSystemMemory;
     ResourceHandle resourceHandle;
     gpusize        requiredSize;
     gpusize        offset;

@@ -755,6 +755,9 @@ private:
     uint16                       m_vertexOffsetReg;     // Register where the vertex start offset is written
     uint16                       m_drawIndexReg;        // Register where the draw index is written
 
+    regDB_RENDER_OVERRIDE        m_dbRenderOverride;    // Last written value of the pipeline-owned part of
+                                                        // DB_RENDER_OVERRIDE register.
+
     WorkaroundState  m_workaroundState;  // Manages several hardware workarounds whose states change between draws.
     DrawTimeHwState  m_drawTimeHwState;  // Tracks certain bits of HW-state that might need to be updated per draw.
 

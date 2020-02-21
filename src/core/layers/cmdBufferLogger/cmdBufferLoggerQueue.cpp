@@ -261,25 +261,28 @@ void Queue::AddRemapRange(
 
 // =====================================================================================================================
 Result Queue::Submit(
-    const SubmitInfo& submitInfo)
+    const MultiSubmitInfo& submitInfo)
 {
     // Wait for a maximum of 1000 seconds.
     constexpr uint64 Timeout = 1000000000000ull;
+    PAL_ASSERT(submitInfo.perSubQueueInfoCount == 1);
 
-    Platform*  pPlatform       = static_cast<Platform*>(m_pDevice->GetPlatform());
-    SubmitInfo finalSubmitInfo = submitInfo;
-    Result     result          = Result::Success;
+    Platform*       pPlatform       = static_cast<Platform*>(m_pDevice->GetPlatform());
+    MultiSubmitInfo finalSubmitInfo = submitInfo;
+    Result          result          = Result::Success;
+
+    PerSubQueueSubmitInfo perSubQueueInfo = {};
 
     if (m_timestampingActive)
     {
-        const uint32 maxCmdBufferCount = submitInfo.cmdBufferCount + 1;
-
-        AutoBuffer<ICmdBuffer*, 32, Platform>             cmdBuffers(maxCmdBufferCount, pPlatform);
-        AutoBuffer<CmdBufInfo,  32, Platform>             cmdBufInfoList(maxCmdBufferCount, pPlatform);
+        const uint32 maxCmdBufferCount = submitInfo.pPerSubQueueInfo[0].cmdBufferCount + 1;
+        AutoBuffer<ICmdBuffer*, 32, Platform> cmdBuffers(maxCmdBufferCount, pPlatform);
+        AutoBuffer<CmdBufInfo, 32, Platform> cmdBufInfoList(maxCmdBufferCount, pPlatform);
         AutoBuffer<VirtualMemoryRemapRange, 16, Platform> ranges(maxCmdBufferCount, pPlatform);
-        if ((cmdBuffers.Capacity()     < maxCmdBufferCount) ||
-            (cmdBufInfoList.Capacity() < maxCmdBufferCount) ||
-            (ranges.Capacity()         < maxCmdBufferCount))
+
+        if ((cmdBuffers.Capacity() < submitInfo.pPerSubQueueInfo[0].cmdBufferCount)     ||
+            (cmdBufInfoList.Capacity() < submitInfo.pPerSubQueueInfo[0].cmdBufferCount) ||
+            (ranges.Capacity() < submitInfo.pPerSubQueueInfo[0].cmdBufferCount))
         {
             result = Result::ErrorOutOfMemory;
         }
@@ -287,8 +290,7 @@ Result Queue::Submit(
         {
             memset(cmdBufInfoList.Data(), 0, sizeof(CmdBufInfo) * maxCmdBufferCount);
 
-            const bool  hasCmdBufInfo = (submitInfo.pCmdBufInfoList != nullptr);
-            IFence*     pFence        = (submitInfo.pFence != nullptr) ? submitInfo.pFence : m_pFence;
+            const bool  hasCmdBufInfo   = (submitInfo.pPerSubQueueInfo[0].pCmdBufInfoList != nullptr);
 
             // Our informative command buffer goes first.
             cmdBuffers[0] = m_pCmdBuffer;
@@ -297,12 +299,12 @@ Result Queue::Submit(
             if (hasCmdBufInfo)
             {
                 // Only the first one of these has any real data in it.
-                cmdBufInfoList[0] = submitInfo.pCmdBufInfoList[0];
+                cmdBufInfoList[0] = submitInfo.pPerSubQueueInfo[0].pCmdBufInfoList[0];
             }
 
-            for (uint32 i = 0; i < submitInfo.cmdBufferCount; i++)
+            for (uint32 i = 0; i < submitInfo.pPerSubQueueInfo[0].cmdBufferCount; i++)
             {
-                CmdBuffer* pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[i]);
+                CmdBuffer* pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[i]);
                 AddRemapRange(&ranges[i + 1], pCmdBuffer);
                 cmdBuffers[i + 1] = pCmdBuffer;
             }
@@ -312,30 +314,45 @@ Result Queue::Submit(
                 result = RemapVirtualMemoryPages(maxCmdBufferCount, ranges.Data(), true, nullptr);
             }
 
-            if (result == Result::Success)
+            if ((result == Result::Success) && (m_pFence != nullptr))
             {
                 result = m_pDevice->ResetFences(1, &m_pFence);
             }
 
             if (result == Result::Success)
             {
-                finalSubmitInfo.cmdBufferCount  = maxCmdBufferCount;
-                finalSubmitInfo.ppCmdBuffers    = &cmdBuffers[0];
-                finalSubmitInfo.pCmdBufInfoList = (hasCmdBufInfo) ? &cmdBufInfoList[0] : nullptr;
-                finalSubmitInfo.pFence          = pFence;
+                perSubQueueInfo.cmdBufferCount = maxCmdBufferCount;
+                perSubQueueInfo.ppCmdBuffers = &cmdBuffers[0];
+                perSubQueueInfo.pCmdBufInfoList = (hasCmdBufInfo) ? &cmdBufInfoList[0] : nullptr;
+                finalSubmitInfo.pPerSubQueueInfo = &perSubQueueInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+                finalSubmitInfo.ppFences   = (submitInfo.fenceCount > 0) ? submitInfo.ppFences : &m_pFence;
+                finalSubmitInfo.fenceCount = (submitInfo.fenceCount > 0) ? submitInfo.fenceCount :
+                                             (m_pFence != nullptr);
+#else
+                finalSubmitInfo.pFence = (submitInfo.pFence != nullptr) ? submitInfo.pFence : m_pFence;
+#endif
             }
         }
     }
 
-    if (result == Result::Success)
+    if(result == Result::Success)
     {
         result = QueueDecorator::Submit(finalSubmitInfo);
     }
 
-    if ((result == Result::Success) && m_timestampingActive && (finalSubmitInfo.pFence != nullptr))
+    if ((result == Result::Success) && m_timestampingActive &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        (finalSubmitInfo.fenceCount > 0))
+    {
+        result = m_pDevice->WaitForFences(finalSubmitInfo.fenceCount, finalSubmitInfo.ppFences, true, Timeout);
+    }
+#else
+        (finalSubmitInfo.pFence != nullptr))
     {
         result = m_pDevice->WaitForFences(1, &finalSubmitInfo.pFence, true, Timeout);
     }
+#endif
 
     return result;
 }

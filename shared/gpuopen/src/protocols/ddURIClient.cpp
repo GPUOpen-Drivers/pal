@@ -52,45 +52,69 @@ static constexpr URIDataFormat ResponseFormatToUriFormat(ResponseDataFormat form
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Result URIClient::TransactURIRequest(
-    const void*     pPostDataBuffer,        /// [in] Post data to send to the remote client
-                                            ///      Can be set to nullptr if there's no post data to send
-    uint32          postDataSize,           /// [in] Size of the data pointed to by pPostDataBuffer
-    Vector<uint8>*  pResponseBuffer,        /// [in/out] Buffer to write the response data into
-                                            ///          Can be set to nullptr if there's no output data expected
-                                            ///          for the provided request
-    const char*     pFormatString,          /// A format string used to generate the request string
-    ...)                                    /// Variable length argument list associated with pFormatString
+    const void*     pPostDataBuffer, /// [in] Post data to send to the remote client
+                                     ///      Can be set to nullptr if there's no post data to send
+    uint32          postDataSize,    /// [in] Size of the data pointed to by pPostDataBuffer
+    Vector<uint8>*  pResponseBuffer, /// [in/out] Buffer to write the response data into
+                                     ///          Can be set to nullptr if there's no output data expected
+                                     ///          for the provided request
+    const char*     pFormatString,   /// A format string used to generate the request string
+    ...)                             /// Variable length argument list associated with pFormatString
 {
-    DD_ASSERT(pFormatString != nullptr);
+    va_list formatArgs;
+    va_start(formatArgs, pFormatString);
+
+    const Result result = TransactURIRequestV(
+        pPostDataBuffer,
+        postDataSize,
+        pResponseBuffer,
+        pFormatString,
+        formatArgs
+    );
+
+    va_end(formatArgs);
+
+    return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Result URIClient::TransactURIRequestV(
+    const void*     pPostDataBuffer, /// [in] Post data to send to the remote client
+                                     ///      Can be set to nullptr if there's no post data to send
+    uint32          postDataSize,    /// [in] Size of the data pointed to by pPostDataBuffer
+    Vector<uint8>*  pResponseBuffer, /// [in/out] Buffer to write the response data into
+                                     ///          Can be set to nullptr if there's no output data expected
+                                     ///          for the provided request
+    const char*     pFormatString,   /// A format string used to generate the request string
+    va_list         formatArgs)      /// Variable length argument list associated with pFormatString
+{
+    size_t formatSize = 0;
+    {
+        va_list localArgs;
+        va_copy(localArgs, formatArgs);
+
+        const int32 ret = Platform::Vsnprintf(
+            m_requestStringBuffer.Data(),
+            m_requestStringBuffer.Size(),
+            pFormatString,
+            localArgs);
+
+        va_end(localArgs);
+        formatSize = static_cast<size_t>(ret);
+    }
 
     Result result = Result::Success;
 
-    va_list args;
-
-    va_start(args, pFormatString);
-
-    int32 ret = Platform::Vsnprintf(
-        m_requestStringBuffer.Data(),
-        m_requestStringBuffer.Size(),
-        pFormatString,
-        args);
-
-    va_end(args);
-
     // Check that we had enough space for the formatting.
-    // We may need to do it again.
-    if (static_cast<size_t>(ret) > m_requestStringBuffer.Size())
+    // We may need to adjust our buffer, and re-run the format for it to fit.
+    if (formatSize > m_requestStringBuffer.Size())
     {
-        m_requestStringBuffer.Resize(static_cast<size_t>(ret));
+        m_requestStringBuffer.Resize(formatSize);
 
-        va_start(args, pFormatString);
-
-        ret = Platform::Vsnprintf(m_requestStringBuffer.Data(),
+        const int32 ret = Platform::Vsnprintf(m_requestStringBuffer.Data(),
             m_requestStringBuffer.Size(),
             pFormatString,
-            args);
-
-        va_end(args);
+            formatArgs);
 
         // If we still failed to print the string properly after resizing, return an error.
         if (static_cast<size_t>(ret) != m_requestStringBuffer.Size())

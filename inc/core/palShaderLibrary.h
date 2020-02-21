@@ -92,6 +92,23 @@ struct LibraryInfo
                                        ///  library.  The lower 64 bits are "stable"; the upper 64 bits are "unique".
 };
 
+/// Reports shader stats. Multiple bits set in the shader stage mask indicates that multiple shaders have been combined
+/// due to HW support. The same information will be repeated for both the constituent shaders in this case.
+struct ShaderLibStats
+{
+    CommonShaderStats  common;                 ///< The shader compilation parameters for this shader.
+    /// Maximum number of VGPRs the compiler was allowed to use for this shader.  This limit will be the minimum
+    /// of any architectural restriction and any client-requested limit intended to increase the number of waves in
+    /// flight.
+    uint32             numAvailableVgprs;
+    /// Maximum number of SGPRs the compiler was allowed to use for this shader.  This limit will be the minimum
+    /// of any architectural restriction and any client-requested limit intended to increase the number of waves in
+    /// flight.
+    uint32             numAvailableSgprs;
+    size_t             isaSizeInBytes;          ///< Size of the shader ISA disassembly for this shader.
+    PipelineHash       palInternalLibraryHash;  ///< Internal hash of the shader compilation data used by PAL.
+};
+
 /**
  ***********************************************************************************************************************
  * @interface IShaderLibrary
@@ -158,6 +175,37 @@ public:
     {
         m_pClientData = pClientData;
     }
+
+    /// Obtains the compiled shader ISA code for the shader function specified.
+    ///
+    /// @param [in]  pShaderExportName The shader exported name
+    ///
+    /// @param [in, out] pSize  Represents the size of the shader ISA code.
+    ///
+    /// @param [out] pBuffer    If non-null, the shader ISA code is written in the buffer. If null, the size required
+    ///                         for the shader ISA is given out in the location pSize.
+    ///
+    /// @returns Success if the shader ISA code was fetched successfully.
+    ///          +ErrorUnavailable if the shader ISA code was not fetched successfully.
+    virtual Result GetShaderFunctionCode(
+        const char*  pShaderExportName,
+        size_t*      pSize,
+        void*        pBuffer) const = 0;
+
+    /// Obtains the shader pre and post compilation stats/params for the specified shader.
+    ///
+    /// @param [in]  pShaderExportName The shader exported name
+    ///
+    /// @param [out] pShaderStats Pointer to the ShaderStats structure which will be filled with the shader stats for
+    ///                           the shader stage mentioned in shaderType. This cannot be nullptr.
+    /// @param [in]  getDisassemblySize If set to true performs disassembly on the shader binary code and reports the
+    ///                                 size of the disassembly string in ShaderStats::isaSizeInBytes. Else reports 0.
+    /// @returns Success if the stats were successfully obtained for this shader, including the shader disassembly size.
+    ///          +ErrorUnavailable if a wrong shader stage for this pipeline was specified, or if some internal error
+    ///                           occured.
+    virtual Result GetShaderFunctionStats(
+        const char*      pShaderExportName,
+        ShaderLibStats*  pShaderStats) const = 0;
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

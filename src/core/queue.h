@@ -50,6 +50,16 @@ class GpuMemory;
 constexpr uint32 MaxPreambleCmdStreams  = 3;
 constexpr uint32 MaxPostambleCmdStreams = 2;
 
+// This struct tracks per subQueue info when we do gang submission.
+struct SubQueueInfo
+{
+    // Each subQueue needs a QueueContext to apply any hardware-specific pre- or post-processing before Submit().
+    QueueContext*    pQueueContext;
+    QueueCreateInfo  createInfo;
+    // Each subQueue is associated with an engine.
+    Engine*          pEngine;
+};
+
 // Contains internal information describing the submission preamble and postamble for a given QueueContext, and
 // additional internal flags.
 struct InternalSubmitInfo
@@ -96,9 +106,9 @@ struct BatchedQueueCmdData
     {
         struct
         {
-            SubmitInfo         submitInfo;
-            InternalSubmitInfo internalSubmitInfo;
-            void*              pDynamicMem;
+            MultiSubmitInfo           submitInfo;
+            const InternalSubmitInfo* pInternalSubmitInfo;
+            void*                     pDynamicMem;
         } submit;
 
         struct
@@ -169,16 +179,18 @@ private:
 class Queue : public IQueue
 {
 public:
-    virtual ~Queue() {}
+    virtual ~Queue();
 
-    virtual Result Init(void* pContextPlacementAddr);
+    virtual Result Init(
+        const QueueCreateInfo* pCreateInfo,
+        void*                  pContextPlacementAddr);
 
     // NOTE: Part of the public IQueue interface.
-    virtual Result Submit(const SubmitInfo& submitInfo) override
+    virtual Result Submit(const MultiSubmitInfo& submitInfo) override
         { return SubmitInternal(submitInfo, false); }
 
     // A special version of Submit with PAL-internal arguments.
-    Result SubmitInternal(const SubmitInfo& submitInfo, bool postBatching);
+    Result SubmitInternal(const MultiSubmitInfo& submitInfo, bool postBatching);
 
     // NOTE: Part of the public IQueue interface.
     virtual Result WaitIdle() override;
@@ -218,16 +230,16 @@ public:
 
     // NOTE: Part of the public IQueue interface.
     virtual void SetExecutionPriority(QueuePriority priority) override
-        { m_queuePriority = priority; }
+        { m_pQueueInfos[0].createInfo.priority = priority; }
 
     // NOTE: Part of the public IQueue interface.
     virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) override;
 
     // NOTE: Part of the public IQueue interface.
-    virtual QueueType Type() const override { return m_type; }
+    virtual QueueType Type() const override { return m_pQueueInfos[0].createInfo.queueType; }
 
     // NOTE: Part of the public IQueue interface.
-    virtual EngineType GetEngineType() const override { return m_engineType; }
+    virtual EngineType GetEngineType() const override { return m_pQueueInfos[0].createInfo.engineType; }
 
     // NOTE: Part of the public IQueue interface.
     virtual Result QueryKernelContextInfo(KernelContextInfo* pKernelContextInfo) const override
@@ -242,18 +254,18 @@ public:
 
     Result ReleaseFromStalledState();
 
-    uint32        EngineId() const { return m_engineId; }
-    QueuePriority Priority() const { return m_queuePriority; }
+    uint32        EngineId() const { return m_pQueueInfos[0].createInfo.engineIndex; }
+    QueuePriority Priority() const { return m_pQueueInfos[0].createInfo.priority; }
     CmdBuffer*    DummyCmdBuffer() const { return m_pDummyCmdBuffer; }
     Result        DummySubmit(bool postBatching);
 
-    bool UsesDispatchTunneling()      const { return (m_flags.dispatchTunneling      != 0); }
-    bool IsWindowedPriorBlit()        const { return (m_flags.windowedPriorBlit      != 0); }
-    bool UsesPhysicalModeSubmission() const { return (m_flags.physicalModeSubmission != 0); }
-    bool IsPreemptionSupported()      const { return (m_flags.midCmdBufPreemption    != 0); }
+    bool UsesDispatchTunneling()      const { return (m_pQueueInfos[0].createInfo.dispatchTunneling != 0); }
+    bool IsWindowedPriorBlit()        const { return (m_pQueueInfos[0].createInfo.windowedPriorBlit != 0); }
+    bool UsesPhysicalModeSubmission() const;
+    bool IsPreemptionSupported()      const;
 
-    uint32 PersistentCeRamOffset() const { return m_persistentCeRamOffset; }
-    uint32 PersistentCeRamSize()   const { return m_persistentCeRamSize; }
+    uint32 PersistentCeRamOffset() const { return m_pQueueInfos[0].createInfo.persistentCeRamOffset; }
+    uint32 PersistentCeRamSize()   const { return m_pQueueInfos[0].createInfo.persistentCeRamSize; }
 
     IQueueSemaphore* WaitingSemaphore() const { return m_pWaitingSemaphore; }
     void SetWaitingSemaphore(IQueueSemaphore* pQueueSemaphore) { m_pWaitingSemaphore = pQueueSemaphore; }
@@ -273,11 +285,11 @@ public:
 
     // Performs OS-specific Queue submission behavior.
     virtual Result OsSubmit(
-        const SubmitInfo&         submitInfo,
-        const InternalSubmitInfo& internalSubmitInfo) = 0;
+        const MultiSubmitInfo&    submitInfo,
+        const InternalSubmitInfo* pInternalSubmitInfos) = 0;
 
 protected:
-    Queue(Device* pDevice, const QueueCreateInfo& createInfo);
+    Queue(uint32 queueCount, Device* pDevice, const QueueCreateInfo* pCreateInfo);
 
     // Performs OS-specific Queue wait-idle behavior.
     virtual Result OsWaitIdle() = 0;
@@ -303,15 +315,10 @@ protected:
     virtual Result DoAssociateFenceWithLastSubmit(Fence* pFence) = 0;
 
     Device*const        m_pDevice;
-    const QueueType     m_type;
-    const EngineType    m_engineType;
-    const uint32        m_engineId;
-    const SubmitOptMode m_submitOptMode;
 
     // Each Queue is associated with an engine and a submission context. Note that the submission context is created
     // by a subclass but owned by this class.
-    Engine*            m_pEngine;
-    SubmissionContext* m_pSubmissionContext;
+    SubmissionContext*  m_pSubmissionContext;
 
     // A dummy command buffer for any situation where we need to submit something without doing anything. Each specific
     // OS backend has different situations when this command buffer is needed. For example, most OS backends need to
@@ -319,27 +326,13 @@ protected:
     //
     // In theory we could save some space by creating one dummy command buffer of each type in the device but for now
     // we create one in each queue for simplicity.
-    CmdBuffer*         m_pDummyCmdBuffer;
-
-    union
-    {
-        struct
-        {
-            uint32  physicalModeSubmission :  1;
-            uint32  midCmdBufPreemption    :  1;
-            uint32  windowedPriorBlit      :  1;
-            uint32  placeholder0           :  1;
-            uint32  placeholder1           :  1;
-            uint32  dispatchTunneling      :  1;
-            uint32  reserved               : 26;
-        };
-        uint32  u32All;
-    }  m_flags; // Flags describing properties of this Queue.
+    CmdBuffer*          m_pDummyCmdBuffer;
 
     IfhMode m_ifhMode;       // Cache IFH mode for this Queue to avoid looking up the IFH mode and IFH GPU mask
                              // settings on every submit.
 
-    uint32  m_numReservedCu; // The number of reserved CUs for RT queue
+    SubQueueInfo* m_pQueueInfos; // m_pQueueInfos struct tracks per subQueue info when we do gang submission.
+    const uint32  m_queueCount;
 
 private:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
@@ -351,10 +344,11 @@ private:
     };
 #endif
 
-    Result ValidateSubmit(const SubmitInfo& submitInfo) const;
+    virtual Result ValidateSubmit(const MultiSubmitInfo& submitInfo) const;
+
     Result EnqueueSubmit(
-        const SubmitInfo&         submitInfo,
-        const InternalSubmitInfo& internalSubmitInfo);
+        const MultiSubmitInfo&    submitInfo,
+        const InternalSubmitInfo* pInternalSubmitInfo);
 
     Result WaitQueueSemaphoreNoChecks(
         IQueueSemaphore* pQueueSemaphore,
@@ -362,7 +356,7 @@ private:
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     void DumpCmdToFile(
-        const SubmitInfo&         submitInfo,
+        const MultiSubmitInfo&    submitInfo,
         const InternalSubmitInfo& internalSubmitInfo);
 #endif
 
@@ -370,13 +364,13 @@ private:
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool IsCmdDumpEnabled() const;
     Result OpenCommandDumpFile(
-        const SubmitInfo&           submitInfo,
+        const MultiSubmitInfo&      submitInfo,
         const InternalSubmitInfo&   internalSubmitInfo,
         Util::File*                 logFile);
 #endif // PAL_ENABLE_PRINTS_ASSERTS
 
     void DumpCmdBuffers(
-        const SubmitInfo&         submitInfo,
+        const MultiSubmitInfo&    submitInfo,
         const InternalSubmitInfo& internalSubmitInfo) const;
     void DumpCmdStream(
         const CmdBufferDumpDesc& cmdBufferDesc,
@@ -391,9 +385,6 @@ private:
     Result SubmitTrackedCmdBuffer(TrackedCmdBuffer* pTrackedCmdBuffer, const GpuMemory* pWrittenPrimary);
 #endif
 
-    // Each Queue needs a QueueContext to apply any hardware-specific pre- or post-processing before Submit().
-    QueueContext*     m_pQueueContext;
-
     // Tracks whether or not this Queue is stalled by a Queue Semaphore, and if so, the Semaphore which is blocking
     // this Queue.
     volatile bool     m_stalled;
@@ -406,15 +397,9 @@ private:
 
     // Each queue must register itself with its device and engine so that they can manage their internal lists.
     Util::IntrusiveListNode<Queue>              m_deviceMembershipNode;
-    Util::IntrusiveListNode<Queue>              m_engineMembershipNode;
+
     uint32           m_lastFrameCnt;       // Most recent frame in which the queue submission occurs
     uint32           m_submitIdPerFrame;   // The Nth queue submission of the frame
-    QueuePriority    m_queuePriority;      // The queue priority could be adjusted by calling SetExecutionPriority
-
-    uint32  m_persistentCeRamOffset;       // Byte offset to the beginning of the region of CE RAM whose contents will
-                                           // be made persistent across multiple submissions.
-    uint32  m_persistentCeRamSize;         // Amount of CE RAM space (in DWORDs) which this Queue will keep persistent
-                                           // across multiple submissions.
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 518
     // Internal command buffers used by this queue for various postprocess tasks such as render the developer overlay.

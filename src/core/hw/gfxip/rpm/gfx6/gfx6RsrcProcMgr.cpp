@@ -957,6 +957,18 @@ bool RsrcProcMgr::ExpandDepthStencil(
     }
     else
     {
+#if PAL_AMDGPU_BUILD
+        // After expand, Htile SMEM bit is wrong for partially covered Htile, a DB cache flush and invalidation here can
+        // make sure Htile result is correct.
+        if (range.startSubres.aspect == ImageAspect::Stencil)
+        {
+            auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+            PAL_ASSERT(pCmdStream != nullptr);
+            uint32* pCmdSpace = pCmdStream->ReserveCommands();
+            pCmdSpace += m_cmdUtil.BuildEventWrite(DB_CACHE_FLUSH_AND_INV, pCmdSpace);
+            pCmdStream->CommitCommands(pCmdSpace);
+        }
+#endif
         // Do the expand the legacy way.
         Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pQuadSamplePattern, range);
     }
@@ -2486,6 +2498,13 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
     pCmdBuffer->CmdSetClipRects(DefaultClipRectsRule, 0, nullptr);
+
+    if (clearDepth && ((depth >= 0.0f) && (depth <= 1.0f)))
+    {
+        // Enable viewport clamping if depth values are in the [0, 1] range. This avoids writing expanded depth
+        // when using a float depth format. DepthExpand pipeline disables clamping by default.
+        pCmdBuffer->CmdOverwriteDisableViewportClampForBlits(false);
+    }
 
     // Select a depth/stencil state object for this clear:
     if (clearDepth && clearStencil)

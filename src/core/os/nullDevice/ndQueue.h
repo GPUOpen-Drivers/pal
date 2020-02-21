@@ -56,10 +56,12 @@ private:
 class Queue : public Pal::Queue
 {
 public:
-    Queue(Device* pDevice, const QueueCreateInfo& createInfo);
+    Queue(uint32 qCount, Device* pDevice, const QueueCreateInfo* pCreateInfo);
     virtual ~Queue() {}
 
-    virtual Result Init(void* pContextPlacementAddr) override;
+    virtual Result Init(
+        const QueueCreateInfo* pCreateInfo,
+        void*                  pContextPlacementAddr) override;
 
     virtual Result CopyVirtualMemoryPageMappings(
         uint32                                    rangeCount,
@@ -79,8 +81,8 @@ protected:
     virtual Result OsPresentDirect(const PresentDirectInfo& presentInfo) override;
 
     virtual Result OsSubmit(
-        const SubmitInfo&         submitInfo,
-        const InternalSubmitInfo& internalSubmitInfo) override;
+        const MultiSubmitInfo&    submitInfo,
+        const InternalSubmitInfo* pInternalSubmitInfos) override;
 
     virtual Result OsWaitIdle() override;
 

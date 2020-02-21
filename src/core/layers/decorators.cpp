@@ -197,6 +197,15 @@ PipelineBindParams NextPipelineBindParams(
 }
 
 // =====================================================================================================================
+IShaderLibrary* NextShaderLibrary(
+    const IShaderLibrary* pShaderLibrary)
+{
+    return (pShaderLibrary != nullptr) ?
+            static_cast<const ShaderLibraryDecorator*>(pShaderLibrary)->GetNextLayer() :
+            nullptr;
+}
+
+// =====================================================================================================================
 IPlatform* NextPlatform(
     const IPlatform* pPlatform)
 {
@@ -1122,6 +1131,37 @@ Result DeviceDecorator::CreateComputePipeline(
         pPipeline->SetClientData(pPlacementAddr);
 
         (*ppPipeline) = PAL_PLACEMENT_NEW(pPlacementAddr) PipelineDecorator(pPipeline, this);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t DeviceDecorator::GetShaderLibrarySize(
+    const ShaderLibraryCreateInfo& createInfo,
+    Result*                        pResult) const
+{
+    return m_pNextLayer->GetShaderLibrarySize(createInfo, pResult) + sizeof(ShaderLibraryDecorator);
+}
+
+// =====================================================================================================================
+Result DeviceDecorator::CreateShaderLibrary(
+    const ShaderLibraryCreateInfo& createInfo,
+    void*                          pPlacementAddr,
+    IShaderLibrary**               ppLibrary)
+{
+    IShaderLibrary* pLib = nullptr;
+
+    Result result = m_pNextLayer->CreateShaderLibrary(createInfo,
+                                                      NextObjectAddr<ShaderLibraryDecorator>(pPlacementAddr),
+                                                      &pLib);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pLib != nullptr);
+        pLib->SetClientData(pPlacementAddr);
+
+        (*ppLibrary) = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderLibraryDecorator(pLib, this);
     }
 
     return result;
@@ -2454,60 +2494,104 @@ Result PlatformDecorator::CreateLogDir(
 
 // =====================================================================================================================
 Result QueueDecorator::Submit(
-    const SubmitInfo& submitInfo)
+    const MultiSubmitInfo& submitInfo)
 {
     Result     result    = Result::Success;
     auto*const pPlatform = m_pDevice->GetPlatform();
+    PAL_ASSERT(submitInfo.perSubQueueInfoCount > 0);
+    AutoBuffer<PerSubQueueSubmitInfo, 64, PlatformDecorator> nextPerSubQueueInfo(
+        submitInfo.perSubQueueInfoCount, pPlatform);
 
-    AutoBuffer<ICmdBuffer*,  64, PlatformDecorator> nextCmdBuffers(submitInfo.cmdBufferCount, pPlatform);
-    AutoBuffer<CmdBufInfo,   64, PlatformDecorator> nextCmdBufInfoList(submitInfo.cmdBufferCount, pPlatform);
+    uint32 cmdBufferCount = 0;
+    for (uint32 i = 0; i < submitInfo.perSubQueueInfoCount; i++)
+    {
+        cmdBufferCount += submitInfo.pPerSubQueueInfo[i].cmdBufferCount;
+    }
+
+    AutoBuffer<ICmdBuffer*, 64, PlatformDecorator> nextCmdBuffers(Max(cmdBufferCount, 1u), pPlatform);
+    AutoBuffer<CmdBufInfo, 64, PlatformDecorator>  nextCmdBufInfoList(Max(cmdBufferCount, 1u), pPlatform);
     AutoBuffer<GpuMemoryRef, 64, PlatformDecorator> nextGpuMemoryRefs(submitInfo.gpuMemRefCount, pPlatform);
     AutoBuffer<DoppRef,      64, PlatformDecorator> nextDoppRefs(submitInfo.doppRefCount, pPlatform);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+    AutoBuffer<IFence*, 64, PlatformDecorator> nextFences(submitInfo.fenceCount, pPlatform);
+#endif
 
-    if ((nextCmdBuffers.Capacity()     < submitInfo.cmdBufferCount) ||
-        (nextCmdBufInfoList.Capacity() < submitInfo.cmdBufferCount) ||
-        (nextDoppRefs.Capacity()       < submitInfo.doppRefCount)   ||
-        (nextGpuMemoryRefs.Capacity()  < submitInfo.gpuMemRefCount))
+    if ((nextPerSubQueueInfo.Capacity() < submitInfo.perSubQueueInfoCount)  ||
+        (nextCmdBuffers.Capacity() < cmdBufferCount)                        ||
+        (nextCmdBufInfoList.Capacity() < cmdBufferCount)                    ||
+        (nextDoppRefs.Capacity() < submitInfo.doppRefCount)                 ||
+        (nextGpuMemoryRefs.Capacity() < submitInfo.gpuMemRefCount)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        ||
+        (nextFences.Capacity() < submitInfo.fenceCount)
+#endif
+        )
     {
         result = Result::ErrorOutOfMemory;
     }
     else
     {
-        const IGpuMemory* pNextBlockIfFlipping[MaxBlockIfFlippingCount] = {};
-        PAL_ASSERT(submitInfo.blockIfFlippingCount <= MaxBlockIfFlippingCount);
+        MultiSubmitInfo nextSubmitInfo    = {};
+        uint32          currCmdBufIdx     = 0;
+        uint32          currCmdBufInfoIdx = 0;
 
-        SubmitInfo nextSubmitInfo           = {};
-        nextSubmitInfo.cmdBufferCount       = submitInfo.cmdBufferCount;
-        nextSubmitInfo.ppCmdBuffers         = &nextCmdBuffers[0];
+        memset(nextPerSubQueueInfo.Data(), 0, sizeof(PerSubQueueSubmitInfo) * submitInfo.perSubQueueInfoCount);
+
+        for (uint32 subQueueIdx = 0; subQueueIdx < submitInfo.perSubQueueInfoCount; subQueueIdx++)
+        {
+            const PerSubQueueSubmitInfo& origSubQueueInfo  = submitInfo.pPerSubQueueInfo[subQueueIdx];
+            PerSubQueueSubmitInfo*       pNextSubQueueInfo = &nextPerSubQueueInfo[subQueueIdx];
+            pNextSubQueueInfo->cmdBufferCount = origSubQueueInfo.cmdBufferCount;
+
+            if (origSubQueueInfo.cmdBufferCount > 0)
+            {
+                pNextSubQueueInfo->ppCmdBuffers = &nextCmdBuffers[currCmdBufIdx];
+                for (uint32 cmdBufIdx = 0; cmdBufIdx < origSubQueueInfo.cmdBufferCount; cmdBufIdx++)
+                {
+                    nextCmdBuffers[currCmdBufIdx + cmdBufIdx] = NextCmdBuffer(origSubQueueInfo.ppCmdBuffers[cmdBufIdx]);
+                }
+
+                currCmdBufIdx += origSubQueueInfo.cmdBufferCount;
+            }
+
+            if (origSubQueueInfo.pCmdBufInfoList != nullptr)
+            {
+                PAL_ASSERT(origSubQueueInfo.cmdBufferCount > 0);
+                pNextSubQueueInfo->pCmdBufInfoList = &nextCmdBufInfoList[currCmdBufInfoIdx];
+
+                for (uint32 cmdBufIdx = 0; cmdBufIdx < origSubQueueInfo.cmdBufferCount; cmdBufIdx++)
+                {
+                    CmdBufInfo* pNextCmdBufInfoList = &nextCmdBufInfoList[currCmdBufInfoIdx + cmdBufIdx];
+                    pNextCmdBufInfoList->u32All = origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].u32All;
+
+                    if (pNextCmdBufInfoList->isValid)
+                    {
+                        pNextCmdBufInfoList->pPrimaryMemory =
+                            NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrimaryMemory);
+                    }
+                }
+
+                currCmdBufInfoIdx += origSubQueueInfo.cmdBufferCount;
+            }
+        }
+
+        nextSubmitInfo.pPerSubQueueInfo     = nextPerSubQueueInfo.Data();
+        nextSubmitInfo.perSubQueueInfoCount = submitInfo.perSubQueueInfoCount;
         nextSubmitInfo.gpuMemRefCount       = submitInfo.gpuMemRefCount;
         nextSubmitInfo.pGpuMemoryRefs       = &nextGpuMemoryRefs[0];
         nextSubmitInfo.doppRefCount         = submitInfo.doppRefCount;
         nextSubmitInfo.pDoppRefs            = &nextDoppRefs[0];
 
+        const IGpuMemory* pNextBlockIfFlipping[MaxBlockIfFlippingCount] = {};
+        PAL_ASSERT(submitInfo.blockIfFlippingCount <= MaxBlockIfFlippingCount);
         nextSubmitInfo.blockIfFlippingCount = submitInfo.blockIfFlippingCount;
         nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        nextSubmitInfo.fenceCount           = submitInfo.fenceCount;
+        nextSubmitInfo.ppFences             = &nextFences[0];
+#else
         nextSubmitInfo.pFence               = NextFence(submitInfo.pFence);
-
-        for (uint32 i = 0; i < submitInfo.cmdBufferCount; i++)
-        {
-            nextCmdBuffers[i] = NextCmdBuffer(submitInfo.ppCmdBuffers[i]);
-        }
-
-        if (submitInfo.pCmdBufInfoList != nullptr)
-        {
-            // Note that we must leave pCmdBufInfoList null if it was null in submitInfo.
-            nextSubmitInfo.pCmdBufInfoList = &nextCmdBufInfoList[0];
-
-            for (uint32 i = 0; i < submitInfo.cmdBufferCount; i++)
-            {
-                nextCmdBufInfoList[i].u32All = submitInfo.pCmdBufInfoList[i].u32All;
-
-                if (submitInfo.pCmdBufInfoList[i].isValid)
-                {
-                    nextCmdBufInfoList[i].pPrimaryMemory = NextGpuMemory(submitInfo.pCmdBufInfoList[i].pPrimaryMemory);
-                }
-            }
-        }
+#endif
 
         for (uint32 i = 0; i < submitInfo.gpuMemRefCount; i++)
         {
@@ -2525,6 +2609,13 @@ Result QueueDecorator::Submit(
         {
             pNextBlockIfFlipping[i] = NextGpuMemory(submitInfo.ppBlockIfFlipping[i]);
         }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        for (uint32 i = 0; i < submitInfo.fenceCount; i++)
+        {
+            nextFences[i] = NextFence(submitInfo.ppFences[i]);
+        }
+#endif
 
         result = m_pNextLayer->Submit(nextSubmitInfo);
     }
@@ -2683,6 +2774,32 @@ Result SwapChainDecorator::AcquireNextImage(
     nextAcquireInfo.pFence     = NextFence(acquireInfo.pFence);
 
     return m_pNextLayer->AcquireNextImage(nextAcquireInfo, pImageIndex);
+}
+
+// =====================================================================================================================
+Result PipelineDecorator::LinkWithLibraries(
+    const IShaderLibrary*const* ppLibraryList,
+    uint32                      libraryCount)
+{
+    AutoBuffer<IShaderLibrary*, 16, PlatformDecorator> nextLibraryList(libraryCount, m_pDevice->GetPlatform());
+
+    Result result = Result::Success;
+
+    if (nextLibraryList.Capacity() < libraryCount)
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+    else
+    {
+        for (uint32 i = 0; i < libraryCount; i++)
+        {
+            nextLibraryList[i] = NextShaderLibrary(ppLibraryList[i]);
+        }
+
+        result = m_pNextLayer->LinkWithLibraries(&nextLibraryList[0], libraryCount);
+    }
+
+    return result;
 }
 
 } // Pal

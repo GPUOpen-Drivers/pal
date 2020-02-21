@@ -32,6 +32,7 @@
 #pragma once
 
 #include "baseProtocolServer.h"
+#include "util/vector.h"
 
 #include "rgpProtocol.h"
 
@@ -60,10 +61,11 @@ namespace DevDriver
             {
                 struct
                 {
-                    uint32 enableInstructionTokens    : 1;
-                    uint32 allowComputePresents       : 1;
-                    uint32 captureDriverCodeObjects   : 1;
-                    uint32 reserved                   : 29;
+                    uint32 enableInstructionTokens   : 1;
+                    uint32 allowComputePresents      : 1;
+                    uint32 captureDriverCodeObjects  : 1;
+                    uint32 enableSpm                 : 1;
+                    uint32 reserved : 28;
                 };
                 uint32 u32All;
             } flags;
@@ -75,6 +77,30 @@ namespace DevDriver
             char endMarker[kMarkerStringLength];
 
             uint64 pipelineHash;
+
+#if DD_VERSION_SUPPORTS(GPUOPEN_RGP_SPM_COUNTERS_VERSION)
+            uint32 seMask;
+#endif
+        };
+
+        struct ServerSpmCounterId
+        {
+            uint32 blockId;
+            uint32 instanceId;
+            uint32 eventId;
+        };
+
+        struct ServerSpmConfig
+        {
+            uint32 sampleFrequency;
+            uint32 memoryLimitInMb;
+        };
+
+        typedef bool (*PFN_ValidateSpmConfig)(void* pUserdata, const ServerSpmConfig* pConfig, const Vector<ServerSpmCounterId>* pCounterData);
+        struct ValidateSpmCallbackInfo
+        {
+            void*                 pUserdata;
+            PFN_ValidateSpmConfig pfnValidateSpmConfig;
         };
 
         struct RGPSession;
@@ -125,16 +151,27 @@ namespace DevDriver
             // Returns the current trace parameters on the rgp server.
             ServerTraceParametersInfo QueryTraceParameters();
 
+            // Populates the provided structure with the current perf counter config and returns data for each counter
+            // in the provided vector
+            Result QuerySpmConfig(ServerSpmConfig* pConfig, Vector<ServerSpmCounterId>* pCounterData);
+
+            // Sets a validation callback that will be used to validate SPM configuration data
+            void SetSpmValidationCallback(const ValidateSpmCallbackInfo& callback);
+
         private:
             void LockData();
             void UnlockData();
             void ClearCurrentSession();
+            Result UpdateSpmConfig(const ServerSpmConfig& config, const Vector<ServerSpmCounterId>& counters);
 
-            Platform::Mutex           m_mutex;
-            TraceStatus               m_traceStatus;
-            RGPSession*               m_pCurrentSessionData;
-            ProfilingStatus           m_profilingStatus;
-            ServerTraceParametersInfo m_traceParameters;
+            Platform::Mutex            m_mutex;
+            TraceStatus                m_traceStatus;
+            RGPSession*                m_pCurrentSessionData;
+            ProfilingStatus            m_profilingStatus;
+            ServerTraceParametersInfo  m_traceParameters;
+            ServerSpmConfig            m_spmConfig;
+            Vector<ServerSpmCounterId> m_spmCounterData;
+            ValidateSpmCallbackInfo    m_spmValidationCb;
         };
     }
 } // DevDriver

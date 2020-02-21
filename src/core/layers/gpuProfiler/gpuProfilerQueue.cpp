@@ -220,10 +220,11 @@ Result Queue::Init()
 // Submits the specified command buffers to the next layer.  This same implementation is used for both command buffers
 // submitted by the application and any internal command buffers this layer needs to submit.
 Result Queue::InternalSubmit(
-    const SubmitInfo& submitInfo,
-    bool              releaseObjects)  // If true, all currently acquired objects can be associated with this submit
-                                       // and reclaimed once this submit completes.  Otherwise, continue building
-                                       // m_nextSubmitInfo pinning more acquired resources to the next tracked submit.
+    const MultiSubmitInfo& submitInfo,
+    bool                   releaseObjects)  // If true, all currently acquired objects can be associated with this
+                                            // submit and reclaimed once this submit completes.  Otherwise, continue
+                                            // building m_nextSubmitInfo pinning more acquired resources to the next
+                                            // tracked submit.
 {
     Result result = m_pNextLayer->Submit(submitInfo);
 
@@ -285,10 +286,13 @@ void Queue::BeginNextFrame(
             pStartFrameTgtCmdBuf->BeginSample(this, &m_perFrameLogItem, false, perfExp);
             pStartFrameTgtCmdBuf->End();
 
-            ICmdBuffer* pNextCmdBuf       = NextCmdBuffer(pStartFrameTgtCmdBuf);
-            SubmitInfo nextSubmitInfo     = {};
-            nextSubmitInfo.cmdBufferCount = 1;
-            nextSubmitInfo.ppCmdBuffers   = &pNextCmdBuf;
+            ICmdBuffer* pNextCmdBuf = NextCmdBuffer(pStartFrameTgtCmdBuf);
+            PerSubQueueSubmitInfo perSubQueueInfo = {};
+            perSubQueueInfo.cmdBufferCount        = 1;
+            perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
+            MultiSubmitInfo nextSubmitInfo        = {};
+            nextSubmitInfo.perSubQueueInfoCount   = 1;
+            nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
 
             InternalSubmit(nextSubmitInfo, false);
         }
@@ -310,7 +314,7 @@ void Queue::BeginNextFrame(
 // Now, at submit time, we actually generate submittable command buffers (possibly with additional commands to
 // gather performance data).
 Result Queue::Submit(
-    const SubmitInfo& submitInfo)
+    const MultiSubmitInfo& submitInfo)
 {
     LogQueueCall(QueueCallId::Submit);
 
@@ -318,21 +322,40 @@ Result Queue::Submit(
     auto*const pPlatform     = m_pDevice->GetPlatform();
     bool       beginNewFrame = false;
 
-    const bool   hasCmdBufInfo   = (submitInfo.pCmdBufInfoList != nullptr);
+    PAL_ASSERT_MSG((submitInfo.perSubQueueInfoCount <= 1),
+                   "Multi-Queue support has not yet been implemented in GpuProfiler!", nullptr);
+
+    const bool   validSubmit     = (submitInfo.pPerSubQueueInfo != nullptr) &&
+                                   (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
+    const bool   hasCmdBufInfo   = (validSubmit && (submitInfo.pPerSubQueueInfo[0].pCmdBufInfoList != nullptr));
     const bool   breakBatches    = m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerConfig.breakSubmitBatches;
-    const uint32 batchCount      = breakBatches ? submitInfo.cmdBufferCount : 1;
-    const uint32 cmdBufsPerBatch = breakBatches ? 1 : submitInfo.cmdBufferCount;
+    const uint32 batchCount =
+        (validSubmit)
+           ? (breakBatches) ? submitInfo.pPerSubQueueInfo[0].cmdBufferCount : 1
+           : 0;
+    const uint32 cmdBufsPerBatch =
+        (validSubmit)
+            ? (breakBatches) ? 1 : submitInfo.pPerSubQueueInfo[0].cmdBufferCount
+            : 0;
     const uint32 maxNextCmdBufs  = cmdBufsPerBatch + 1; // One per recorded CmdBuffer plus the end-frame CmdBuffer.
 
-    AutoBuffer<ICmdBuffer*,  32, PlatformDecorator> nextCmdBuffers(maxNextCmdBufs, pPlatform);
-    AutoBuffer<CmdBufInfo,   32, PlatformDecorator> nextCmdBufInfoList(maxNextCmdBufs, pPlatform);
+    AutoBuffer<ICmdBuffer*, 32, PlatformDecorator>  nextCmdBuffers(maxNextCmdBufs, pPlatform);
+    AutoBuffer<CmdBufInfo, 32, PlatformDecorator>   nextCmdBufInfoList(maxNextCmdBufs, pPlatform);
     AutoBuffer<GpuMemoryRef, 32, PlatformDecorator> nextGpuMemoryRefs(submitInfo.gpuMemRefCount, pPlatform);
     AutoBuffer<DoppRef,      32, PlatformDecorator> nextDoppRefs(submitInfo.doppRefCount, pPlatform);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+    AutoBuffer<IFence*,      32, PlatformDecorator> nextFences(submitInfo.fenceCount, pPlatform);
+#endif
 
-    if ((nextCmdBuffers.Capacity()     < maxNextCmdBufs)            ||
-        (nextCmdBufInfoList.Capacity() < maxNextCmdBufs)            ||
-        (nextDoppRefs.Capacity()       < submitInfo.doppRefCount)   ||
-        (nextGpuMemoryRefs.Capacity()  < submitInfo.gpuMemRefCount))
+    if ((nextCmdBuffers.Capacity()     < maxNextCmdBufs)          ||
+        (nextCmdBufInfoList.Capacity() < maxNextCmdBufs)          ||
+        (nextDoppRefs.Capacity()       < submitInfo.doppRefCount) ||
+        (nextGpuMemoryRefs.Capacity()  < submitInfo.gpuMemRefCount)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        ||
+        (nextFences.Capacity()         < submitInfo.fenceCount)
+#endif
+       )
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -340,13 +363,13 @@ Result Queue::Submit(
     {
         for (uint32 i = 0; i < submitInfo.gpuMemRefCount; i++)
         {
-            nextGpuMemoryRefs[i].pGpuMemory   = NextGpuMemory(submitInfo.pGpuMemoryRefs[i].pGpuMemory);
+            nextGpuMemoryRefs[i].pGpuMemory = NextGpuMemory(submitInfo.pGpuMemoryRefs[i].pGpuMemory);
             nextGpuMemoryRefs[i].flags.u32All = submitInfo.pGpuMemoryRefs[i].flags.u32All;
         }
 
         for (uint32 i = 0; i < submitInfo.doppRefCount; i++)
         {
-            nextDoppRefs[i].pGpuMemory   = NextGpuMemory(submitInfo.pDoppRefs[i].pGpuMemory);
+            nextDoppRefs[i].pGpuMemory = NextGpuMemory(submitInfo.pDoppRefs[i].pGpuMemory);
             nextDoppRefs[i].flags.u32All = submitInfo.pDoppRefs[i].flags.u32All;
         }
 
@@ -358,6 +381,12 @@ Result Queue::Submit(
             pNextBlockIfFlipping[i] = NextGpuMemory(submitInfo.ppBlockIfFlipping[i]);
         }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        for (uint32 i = 0; i < submitInfo.fenceCount; i++)
+        {
+            nextFences[i] = NextFence(submitInfo.ppFences[i]);
+        }
+#endif
         uint32 cmdBufIdx = 0;
 
         for (uint32 i = 0; (i < batchCount) && (result == Result::Success); i++)
@@ -373,10 +402,11 @@ Result Queue::Submit(
             for (uint32 j = 0; j < cmdBufsPerBatch; j++)
             {
                 // Get an available queue-owned command buffer for this recorded command buffer.
-                auto*const pRecordedCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[cmdBufIdx]);
+                auto*const pRecordedCmdBuffer =
+                        static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[cmdBufIdx]);
 
                 // Detect a DX12 app has issues a present that will end a logged frame.
-                if (pRecordedCmdBuffer->ContainsPresent()                  &&
+                if (pRecordedCmdBuffer->ContainsPresent() &&
                     m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) &&
                     (m_perFrameLogItem.pGpaSession != nullptr))
                 {
@@ -409,14 +439,18 @@ Result Queue::Submit(
                 nextCmdBuffers[cmdBufCnt] = NextCmdBuffer(pTargetCmdBuffer);
 
                 // Replay the client-specified command buffer commands into the queue-owned command buffer.
-                pRecordedCmdBuffer->Replay(this,
-                                           pTargetCmdBuffer,
-                                           static_cast<Platform*>(m_pDevice->GetPlatform())->FrameId());
+                result = pRecordedCmdBuffer->Replay(this,
+                                                    pTargetCmdBuffer,
+                                                    static_cast<Platform*>(m_pDevice->GetPlatform())->FrameId());
+                if (result != Result::Success)
+                {
+                    break;
+                }
 
                 if (hasCmdBufInfo)
                 {
                     // We need to copy the caller's CmdBufInfo.
-                    const CmdBufInfo& cmdBufInfo = submitInfo.pCmdBufInfoList[cmdBufIdx];
+                    const CmdBufInfo& cmdBufInfo = submitInfo.pPerSubQueueInfo[0].pCmdBufInfoList[cmdBufIdx];
 
                     nextCmdBufInfoList[cmdBufCnt].u32All = cmdBufInfo.u32All;
 
@@ -432,34 +466,45 @@ Result Queue::Submit(
                 // the frame ID. It is expected that only the last command buffer in a submit would request a present.
                 if (pRecordedCmdBuffer->ContainsPresent())
                 {
-                    PAL_ASSERT(cmdBufIdx == (submitInfo.cmdBufferCount - 1));
+                    PAL_ASSERT(cmdBufIdx == (submitInfo.pPerSubQueueInfo[0].cmdBufferCount - 1));
                     static_cast<Platform*>(m_pDevice->GetPlatform())->IncrementFrameId();
-                    beginNewFrame  = true;
+                    beginNewFrame = true;
                 }
 
                 cmdBufIdx++;
             }
 
-            // Make sure we didn't overflow the next arrays.
-            PAL_ASSERT(cmdBufCnt <= maxNextCmdBufs);
+            if (result == Result::Success)
+            {
+                // Make sure we didn't overflow the next arrays.
+                PAL_ASSERT(cmdBufCnt <= maxNextCmdBufs);
 
-            // Only pass the client fence on to the next layer if this is the last batch, so that it will only be
-            // signaled once all work the client specified in this submit has completed.
-            const bool passFence = (cmdBufIdx == submitInfo.cmdBufferCount);
+                // Only pass the client fence on to the next layer if this is the last batch, so that it will only be
+                // signaled once all work the client specified in this submit has completed.
+                const bool passFence = (cmdBufIdx == submitInfo.pPerSubQueueInfo[0].cmdBufferCount);
 
-            SubmitInfo nextSubmitInfo           = {};
-            nextSubmitInfo.cmdBufferCount       = cmdBufCnt;
-            nextSubmitInfo.ppCmdBuffers         = &nextCmdBuffers[0];
-            nextSubmitInfo.pCmdBufInfoList      = hasCmdBufInfo ? &nextCmdBufInfoList[0] : nullptr;
-            nextSubmitInfo.gpuMemRefCount       = submitInfo.gpuMemRefCount;
-            nextSubmitInfo.pGpuMemoryRefs       = &nextGpuMemoryRefs[0];
-            nextSubmitInfo.doppRefCount         = submitInfo.doppRefCount;
-            nextSubmitInfo.pDoppRefs            = &nextDoppRefs[0];
-            nextSubmitInfo.blockIfFlippingCount = submitInfo.blockIfFlippingCount;
-            nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
-            nextSubmitInfo.pFence               = passFence ? NextFence(submitInfo.pFence) : nullptr;
+                PerSubQueueSubmitInfo perSubQueueInfo = {};
+                perSubQueueInfo.cmdBufferCount        = cmdBufCnt;
+                perSubQueueInfo.ppCmdBuffers          = (cmdBufCnt > 0) ? &nextCmdBuffers[0] : nullptr;
+                perSubQueueInfo.pCmdBufInfoList       = (hasCmdBufInfo) ? &nextCmdBufInfoList[0] : nullptr;
 
-            InternalSubmit(nextSubmitInfo, releaseObjects);
+                MultiSubmitInfo nextSubmitInfo      = {};
+                nextSubmitInfo.perSubQueueInfoCount = 1;
+                nextSubmitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
+                nextSubmitInfo.gpuMemRefCount       = submitInfo.gpuMemRefCount;
+                nextSubmitInfo.pGpuMemoryRefs       = &nextGpuMemoryRefs[0];
+                nextSubmitInfo.doppRefCount         = submitInfo.doppRefCount;
+                nextSubmitInfo.pDoppRefs            = &nextDoppRefs[0];
+                nextSubmitInfo.blockIfFlippingCount = submitInfo.blockIfFlippingCount;
+                nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+                nextSubmitInfo.ppFences   = passFence ? &nextFences[0] : nullptr;
+                nextSubmitInfo.fenceCount = passFence ? submitInfo.fenceCount : 0;
+#else
+                nextSubmitInfo.pFence = passFence ? NextFence(submitInfo.pFence) : nullptr;
+#endif
+                result = InternalSubmit(nextSubmitInfo, releaseObjects);
+            }
         }
     }
 
@@ -532,11 +577,13 @@ Result Queue::PresentDirect(
         pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
         pEndFrameTgtCmdBuf->End();
 
-        ICmdBuffer* pNextCmdBuf        = NextCmdBuffer(pEndFrameTgtCmdBuf);
-        SubmitInfo nextSubmitInfo      = {};
-        nextSubmitInfo.cmdBufferCount  = 1;
-        nextSubmitInfo.ppCmdBuffers    = &pNextCmdBuf;
-
+        ICmdBuffer* pNextCmdBuf = NextCmdBuffer(pEndFrameTgtCmdBuf);
+        PerSubQueueSubmitInfo perSubQueueInfo = {};
+        perSubQueueInfo.cmdBufferCount        = 1;
+        perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
+        MultiSubmitInfo nextSubmitInfo        = {};
+        nextSubmitInfo.perSubQueueInfoCount   = 1;
+        nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
         AddLogItem(m_perFrameLogItem);
         InternalSubmit(nextSubmitInfo, true);
     }
@@ -574,9 +621,13 @@ Result Queue::PresentSwapChain(
         pEndFrameTgtCmdBuf->End();
 
         ICmdBuffer* pNextCmdBuf        = NextCmdBuffer(pEndFrameTgtCmdBuf);
-        SubmitInfo nextSubmitInfo      = {};
-        nextSubmitInfo.cmdBufferCount  = 1;
-        nextSubmitInfo.ppCmdBuffers    = &pNextCmdBuf;
+
+        PerSubQueueSubmitInfo perSubQueueInfo = {};
+        perSubQueueInfo.cmdBufferCount        = 1;
+        perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
+        MultiSubmitInfo nextSubmitInfo        = {};
+        nextSubmitInfo.perSubQueueInfoCount   = 1;
+        nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
 
         AddLogItem(m_perFrameLogItem);
         InternalSubmit(nextSubmitInfo, true);

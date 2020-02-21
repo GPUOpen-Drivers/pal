@@ -89,7 +89,7 @@ struct InvocationProperties
 
         struct
         {
-            uint32  threadsPerGroup[3]; // Compute thread-group dimensions. Ignored for graphics commands.
+            uint32  dispatchInitiator;  // COMPUTE_DISPATCH_INITIATOR value for CS dispatches
         } gfx9;
     };
 };

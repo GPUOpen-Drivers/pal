@@ -102,6 +102,10 @@ namespace DevDriver
             uint32 GetNumGpus();
             DeviceClockMode GetDeviceClockMode(uint32 gpuIndex);
 
+            // Sets the client id that's expected to walk us through the driver initialization process.
+            // If this isn't set, the server will attempt to find a suitable client itself via broadcast + discovery.
+            void SetDriverInitClientId(ClientId clientId) { m_driverInitClientId = clientId; }
+
         private:
             void LockData();
             void UnlockData();
@@ -140,6 +144,10 @@ namespace DevDriver
             Platform::Atomic m_numSessions;
             Platform::Atomic m_stepCounter;
             bool m_initStepRequested;
+
+            // The client id of the remote client who's responsible for walking us through the driver initialization
+            // process.
+            ClientId m_driverInitClientId;
 
             DD_STATIC_CONST uint32 kBroadcastIntervalInMs = 100;
             DD_STATIC_CONST uint32 kDefaultDriverStartTimeoutMs = 1000;

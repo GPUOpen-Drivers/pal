@@ -62,7 +62,7 @@ namespace DevDriver
      *
      * EqualFunc is a functor for comparing keys.  Built-in choices for EqualFunc are:
      *
-     * - DefaultEqualFunc: Determines keys are equal using teh equality operator.
+     * - DefaultEqualFunc: Determines keys are equal using the equality operator.
      * - BitwiseEqualFunc: Determines keys are equal by bitwise comparison.
      * - StringEqualFunc: Treats keys as a char* and compares them as C-style strings.
      *

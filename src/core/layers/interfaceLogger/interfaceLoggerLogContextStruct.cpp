@@ -1974,6 +1974,30 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    const PerSubQueueSubmitInfo& value)
+{
+    BeginMap(false);
+    KeyAndBeginList("cmdBuffers", false);
+    for (uint32 i = 0; i < value.cmdBufferCount; i++)
+    {
+        BeginMap(false);
+        KeyAndObject("object", value.ppCmdBuffers[i]);
+        if ((value.pCmdBufInfoList != nullptr) && value.pCmdBufInfoList[i].isValid)
+        {
+            KeyAndStruct("info", value.pCmdBufInfoList[i]);
+        }
+        else
+        {
+            KeyAndNullValue("info");
+        }
+        EndMap();
+    }
+    EndList();
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     const PinnedGpuMemoryCreateInfo& value)
 {
     BeginMap(false);

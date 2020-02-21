@@ -32,11 +32,7 @@
 #include "ddPlatform.h"
 #include "messageChannel.h"
 
-    // In the future, this will be provided by the build system directly. Doing that will cause a lot of code changes,
-    // so this is being done temporarily as a way to ease the transition.
-    #define DD_PLATFORM_POSIX_UM DD_PLATFORM_LINUX_UM
-
-#define DD_SUPPORT_SOCKET_TRANSPORT ((DD_PLATFORM_WINDOWS_UM && DEVDRIVER_BUILD_REMOTE_TRANSPORT) || (DD_PLATFORM_POSIX_UM))
+#define DD_SUPPORT_SOCKET_TRANSPORT ((DD_PLATFORM_WINDOWS_UM && DEVDRIVER_BUILD_REMOTE_TRANSPORT) || (DD_PLATFORM_IS_POSIX))
 
 #if DD_SUPPORT_SOCKET_TRANSPORT
     #include "socketMsgTransport.h"
@@ -50,7 +46,7 @@ namespace DevDriver
     {
         Result result = Result::Unavailable;
 
-#if   DD_PLATFORM_POSIX_UM
+#if   DD_PLATFORM_IS_POSIX
         if ((hostInfo.type == TransportType::Remote) |
             (hostInfo.type == TransportType::Local))
         {
@@ -84,7 +80,7 @@ namespace DevDriver
             DD_ASSERT(createInfo.allocCb.pfnAlloc != nullptr);
             DD_ASSERT(createInfo.allocCb.pfnFree != nullptr);
 
-#if   DD_PLATFORM_POSIX_UM
+#if   DD_PLATFORM_IS_POSIX
             if ((createInfo.hostInfo.type == TransportType::Remote) |
                 (createInfo.hostInfo.type == TransportType::Local))
             {

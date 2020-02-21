@@ -109,6 +109,10 @@ constexpr VGT_DI_PRIM_TYPE TopologyToPrimTypeTable[] =
 #endif
 };
 
+// The DB_RENDER_OVERRIDE fields owned by the graphics pipeline.
+constexpr uint32 PipelineDbRenderOverrideMask = DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK  |
+                                                DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK;
+
 // =====================================================================================================================
 // Returns the entry in the pBinSize table that corresponds to "c".  It is the caller's responsibility to verify that
 // "c" can be found in the table.  If not, this routine could get into an infinite loop.
@@ -421,6 +425,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_sxBlendOptEpsilon.u32All    = 0;
     m_sxBlendOptControl.u32All    = 0;
     m_cbRmiGl2CacheControl.u32All = 0;
+    m_dbRenderOverride.u32All     = 0;
 
     SwitchDrawFunctions(false, false);
 }
@@ -595,6 +600,21 @@ void UniversalCmdBuffer::ResetState()
     m_vgtDmaIndexType.u32All = 0;
     m_vgtDmaIndexType.bits.SWAP_MODE  = VGT_DMA_SWAP_NONE;
     m_vgtDmaIndexType.bits.INDEX_TYPE = VgtIndexTypeLookup[0];
+
+    m_leakCbColorInfoRtv   = 0;
+
+    for (uint32 x = 0; x < MaxColorTargets; x++)
+    {
+        static_assert(COLOR_INVALID  == 0, "Unexpected value for COLOR_INVALID!");
+        static_assert(FORCE_OPT_AUTO == 0, "Unexpected value for FORCE_OPT_AUTO!");
+        m_cbColorInfo[x].u32All = 0;
+
+        if (m_cachedSettings.blendOptimizationsEnable == false)
+        {
+            m_cbColorInfo[x].bits.BLEND_OPT_DONT_RD_DST   = FORCE_OPT_DISABLE;
+            m_cbColorInfo[x].bits.BLEND_OPT_DISCARD_PIXEL = FORCE_OPT_DISABLE;
+        }
+    }
 
     // For IndexBuffers - default to STREAM cache policy so that they get evicted from L2 as soon as possible.
     if (IsGfx10(m_gfxIpLevel))
@@ -1485,7 +1505,8 @@ void UniversalCmdBuffer::CmdBindTargets(
             pDeCmdSpace = pNewView->WriteCommands(slot,
                                                   params.colorTargets[slot].imageLayout,
                                                   &m_deCmdStream,
-                                                  pDeCmdSpace);
+                                                  pDeCmdSpace,
+                                                  &(m_cbColorInfo[slot]));
             m_deCmdStream.CommitCommands(pDeCmdSpace);
 
             if (validCbViewFound == false)
@@ -1520,14 +1541,18 @@ void UniversalCmdBuffer::CmdBindTargets(
             }
 
             validCbViewFound = true;
+            m_state.flags.cbColorInfoDirtyRtv |= (1 << slot);
         }
 
-        if ((pCurrentView != nullptr) && (pCurrentView != pNewView))  // view1->view2 or view->null
+        if (pCurrentView != pNewView)
         {
-            colorTargetsChanged = true;
-            // Record if this depth view we are switching from should trigger a Release_Mem due to being in the
-            // MetaData tail region.
-            waitOnMetadataMipTail |= pCurrentView->WaitOnMetadataMipTail();
+            if (pCurrentView != nullptr) // view1->view2 or view->null
+            {
+                colorTargetsChanged = true;
+                // Record if this depth view we are switching from should trigger a Release_Mem due to being in the
+                // MetaData tail region.
+                waitOnMetadataMipTail |= pCurrentView->WaitOnMetadataMipTail();
+            }
         }
     }
 
@@ -1536,7 +1561,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     // Bind NULL for all remaining color target slots.
     if (newColorTargetMask != AllColorTargetSlotMask)
     {
-        pDeCmdSpace = WriteNullColorTargets(pDeCmdSpace, newColorTargetMask, m_graphicsState.boundColorTargetMask);
+        WriteNullColorTargets(newColorTargetMask, m_graphicsState.boundColorTargetMask);
     }
     m_graphicsState.boundColorTargetMask = newColorTargetMask;
 
@@ -2150,15 +2175,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    // Streamout filled is saved in gpuMemory, we use a me_copy to set mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE.
-    pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                  dst_sel__me_copy_data__mem_mapped_register,
-                                                  mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE,
-                                                  src_sel__me_copy_data__memory__GFX09,
-                                                  streamOutFilledSizeVa,
-                                                  count_sel__me_copy_data__32_bits_of_data,
-                                                  wr_confirm__me_copy_data__wait_for_confirmation,
-                                                  pDeCmdSpace);
+    pDeCmdSpace += pThis->m_cmdUtil.BuildLoadContextRegsIndex<true>(streamOutFilledSizeVa,
+                                                                    mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE,
+                                                                    1,
+                                                                    pDeCmdSpace);
 
     // For now, this method is only invoked by DXXP and Vulkan clients, they both prefer to use the size/offset in
     // bytes.
@@ -3010,14 +3030,10 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
 
 // =====================================================================================================================
 // Build the NULL color targets PM4 packets. It is safe to call this when there are no NULL color targets.
-uint32* UniversalCmdBuffer::WriteNullColorTargets(
-    uint32* pCmdSpace,
+void UniversalCmdBuffer::WriteNullColorTargets(
     uint32  newColorTargetMask,
     uint32  oldColorTargetMask)
 {
-    regCB_COLOR0_INFO cbColorInfo = { };
-    cbColorInfo.bits.FORMAT = COLOR_INVALID;
-
     // Compute a mask of slots which were previously bound to valid targets, but are now being bound to NULL.
     uint32 newNullSlotMask = (oldColorTargetMask & ~newColorTargetMask);
     while (newNullSlotMask != 0)
@@ -3025,15 +3041,16 @@ uint32* UniversalCmdBuffer::WriteNullColorTargets(
         uint32 slot = 0;
         BitMaskScanForward(&slot, newNullSlotMask);
 
-        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_COLOR0_INFO + (slot * CbRegsPerSlot),
-                                                        cbColorInfo.u32All,
-                                                        pCmdSpace);
+        static_assert((COLOR_INVALID == 0), "COLOR_INVALID != 0");
+
+        // Zero out all the RTV owned fields of CB_COLOR_INFO.
+        BitfieldUpdateSubfield(&(m_cbColorInfo[slot].u32All), 0u, ColorTargetView::CbColorInfoMask);
+
+        m_state.flags.cbColorInfoDirtyRtv |= (1 << slot);
 
         // Clear the bit since we've already added it to our PM4 image.
         newNullSlotMask &= ~(1 << slot);
     }
-
-    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -3160,41 +3177,48 @@ Result UniversalCmdBuffer::AddPreamble()
         dbRenderOverride.bits.FORCE_HIS_ENABLE1 = FORCE_DISABLE;
     }
 
+    // Track the state of the fields owned by the graphics pipeline.
+    PAL_ASSERT((dbRenderOverride.u32All & PipelineDbRenderOverrideMask) == 0);
+    m_dbRenderOverride.u32All = 0;
+
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_OVERRIDE, dbRenderOverride.u32All, pDeCmdSpace);
 
-    // Clear out the blend optimizations explicitly here as the chained command buffers don't have a way to check
-    // inherited state and the optimizations won't be cleared unless cleared in this command buffer.
-    BlendOpt dontRdDst    = FORCE_OPT_AUTO;
-    BlendOpt discardPixel = FORCE_OPT_AUTO;
-
-    if (m_cachedSettings.blendOptimizationsEnable == false)
+    if (isNested)
     {
-        dontRdDst    = FORCE_OPT_DISABLE;
-        discardPixel = FORCE_OPT_DISABLE;
-    }
+        // Clear out the blend optimizations explicitly here as the chained command buffers don't have a way to check
+        // inherited state and the optimizations won't be cleared unless cleared in this command buffer.
+        BlendOpt dontRdDst    = FORCE_OPT_AUTO;
+        BlendOpt discardPixel = FORCE_OPT_AUTO;
 
-    for (uint32 idx = 0; idx < MaxColorTargets; idx++)
-    {
-        constexpr uint32 BlendOptRegMask = (CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
-                                            CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK);
-
-        regCB_COLOR0_INFO regValue            = {};
-        regValue.bits.BLEND_OPT_DONT_RD_DST   = dontRdDst;
-        regValue.bits.BLEND_OPT_DISCARD_PIXEL = discardPixel;
-
-        if (m_deCmdStream.Pm4OptimizerEnabled())
+        if (m_cachedSettings.blendOptimizationsEnable == false)
         {
-            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<true>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
-                                                                 BlendOptRegMask,
-                                                                 regValue.u32All,
-                                                                 pDeCmdSpace);
+            dontRdDst    = FORCE_OPT_DISABLE;
+            discardPixel = FORCE_OPT_DISABLE;
         }
-        else
+
+        for (uint32 idx = 0; idx < MaxColorTargets; idx++)
         {
-            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<false>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
-                                                                  BlendOptRegMask,
-                                                                  regValue.u32All,
-                                                                  pDeCmdSpace);
+            constexpr uint32 BlendOptRegMask = (CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
+                                                CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK);
+
+            regCB_COLOR0_INFO regValue            = {};
+            regValue.bits.BLEND_OPT_DONT_RD_DST   = dontRdDst;
+            regValue.bits.BLEND_OPT_DISCARD_PIXEL = discardPixel;
+
+            if (m_deCmdStream.Pm4OptimizerEnabled())
+            {
+                pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<true>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
+                                                                     BlendOptRegMask,
+                                                                     regValue.u32All,
+                                                                     pDeCmdSpace);
+            }
+            else
+            {
+                pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<false>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
+                                                                      BlendOptRegMask,
+                                                                      regValue.u32All,
+                                                                      pDeCmdSpace);
+            }
         }
     }
 
@@ -4964,22 +4988,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    if (PipelineDirty || (StateDirty && dirtyFlags.colorBlendState))
-    {
-        // Blend state optimizations are associated with the Blend state object, but the CB state affects which
-        // optimizations are chosen. We need to make sure we have the best optimizations chosen, so we write it at draw
-        // time only if it is dirty.
-        if (pBlendState != nullptr)
-        {
-            pDeCmdSpace = pBlendState->WriteBlendOptimizations<Pm4OptImmediate>(
-                &m_deCmdStream,
-                pPipeline->TargetFormats(),
-                pPipeline->TargetWriteMasks(),
-                m_cachedSettings.blendOptimizationsEnable,
-                &m_blendOpts[0],
-                pDeCmdSpace);
-        }
-    }
+    pDeCmdSpace = ValidateCbColorInfo<Pm4OptImmediate, PipelineDirty, StateDirty>(pDeCmdSpace);
 
     // Writing the viewport and scissor-rect state is deferred until draw-time because they depend on both the
     // viewport/scissor-rect state and the active pipeline.
@@ -5107,7 +5116,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         newAaConfigSamples                   ||
         (m_state.flags.paScAaConfigUpdated == 0))
     {
-
         m_state.flags.paScAaConfigUpdated = 1;
         m_log2NumSamples = log2TotalSamples;
 
@@ -5122,9 +5130,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     bool disableDfsm = m_cachedSettings.disableDfsm;
     if (disableDfsm == false)
     {
-        const auto*  pDepthTargetView =
-            reinterpret_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
-        const auto*  pDepthImage = (pDepthTargetView ? pDepthTargetView->GetImage() : nullptr);
+        const auto* pDepthImage = (pDsView ? pDsView->GetImage() : nullptr);
 
         // Is the setting configured such that this workaround is meaningful, and
         // Do we have a depth image, and
@@ -5236,6 +5242,30 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmPA_SC_LINE_STIPPLE,
                                                                            paScLineStipple.u32All,
                                                                            pDeCmdSpace);
+    }
+
+    if (PipelineDirty || (StateDirty && dirtyFlags.depthClampOverride))
+    {
+        PAL_ASSERT((m_dbRenderOverride.u32All & ~PipelineDbRenderOverrideMask) == 0);
+        PAL_ASSERT((pPipeline->DbRenderOverride().u32All & ~PipelineDbRenderOverrideMask) == 0);
+
+        regDB_RENDER_OVERRIDE updatedReg = pPipeline->DbRenderOverride();
+
+        // Depth clamping override used by RPM.
+        if (m_graphicsState.depthClampOverride.enabled)
+        {
+            updatedReg.bits.DISABLE_VIEWPORT_CLAMP = m_graphicsState.depthClampOverride.disableViewportClamp;
+        }
+
+        // Is the new state different from the last written state?
+        if (updatedReg.u32All != m_dbRenderOverride.u32All)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
+                                                           PipelineDbRenderOverrideMask,
+                                                           updatedReg.u32All,
+                                                           pDeCmdSpace);
+            m_dbRenderOverride = updatedReg;
+        }
     }
 
     // Validate the per-draw HW state.
@@ -5432,6 +5462,7 @@ void UniversalCmdBuffer::Gfx9GetDepthBinSize(
     {
         const auto* pDepthStencilState = static_cast<const DepthStencilState*>(m_graphicsState.pDepthStencilState);
         const auto& imageCreateInfo    = pImage->Parent()->GetImageCreateInfo();
+
 
         // Calculate cDepth
         //   C_per_sample = ((z_enabled) ? 5 : 0) + ((stencil_enabled) ? 1 : 0)
@@ -6033,6 +6064,91 @@ uint32* UniversalCmdBuffer::ValidateViewports(
     else
     {
         pDeCmdSpace = ValidateViewports<false>(pDeCmdSpace);
+    }
+
+    return pDeCmdSpace;
+}
+
+// =====================================================================================================================
+// Validate CB_COLORx_INFO registers. Depends on RTV state for much of the register and Pipeline | Blend for BlendOpt.
+template <bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
+uint32* UniversalCmdBuffer::ValidateCbColorInfo(
+    uint32* pDeCmdSpace)
+{
+    const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+
+    // If BlendOpt could have changed or color targets changed.
+    if (PipelineDirty || (StateDirty && (dirtyFlags.colorBlendState || dirtyFlags.colorTargetView)))
+    {
+        const auto*const pPipeline     = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+        const bool       blendOptDirty = (PipelineDirty || (StateDirty && dirtyFlags.colorBlendState));
+        const bool       rtvDirty      = (StateDirty && dirtyFlags.colorTargetView);
+
+        uint8 cbColorInfoDirtyBlendOpt = 0;
+
+        if (blendOptDirty)
+        {
+            const auto*const pBlendState = static_cast<const ColorBlendState*>(m_graphicsState.pColorBlendState);
+
+            // Blend state optimizations are associated with the Blend state object, but the CB state affects which
+            // optimizations are chosen. We need to make sure we have the best optimizations chosen, so we write it
+            // at draw time only if it is dirty.
+            if (pBlendState != nullptr)
+            {
+                cbColorInfoDirtyBlendOpt = pBlendState->WriteBlendOptimizations(
+                    &m_deCmdStream,
+                    pPipeline->TargetFormats(),
+                    pPipeline->TargetWriteMasks(),
+                    m_cachedSettings.blendOptimizationsEnable,
+                    &m_blendOpts[0],
+                    m_cbColorInfo);
+            }
+        }
+
+        if (m_state.flags.cbColorInfoDirtyRtv || cbColorInfoDirtyBlendOpt)
+        {
+            for (uint32 x = 0; x < MaxColorTargets; x++)
+            {
+                const bool slotDirtyRtv      = BitfieldIsSet(m_state.flags.cbColorInfoDirtyRtv, x);
+                const bool slotDirtyBlendOpt = BitfieldIsSet(cbColorInfoDirtyBlendOpt, x);
+
+                // If root CmdBuf or all state is has been set at some point on Nested, can simply set the register.
+                if (IsNested() == false)
+                {
+                    if (slotDirtyRtv || slotDirtyBlendOpt)
+                    {
+                        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(
+                            (mmCB_COLOR0_INFO + (x * CbRegsPerSlot)),
+                            m_cbColorInfo[x].u32All,
+                            pDeCmdSpace);
+                    }
+                }
+                // If on the NestedCmd buf and only partial state known must use RMW
+                else
+                {
+                    if (slotDirtyRtv)
+                    {
+                        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw((mmCB_COLOR0_INFO + (x * CbRegsPerSlot)),
+                                                                       ColorTargetView::CbColorInfoMask,
+                                                                       m_cbColorInfo[x].u32All,
+                                                                       pDeCmdSpace);
+                    }
+                    if (slotDirtyBlendOpt)
+                    {
+                        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw((mmCB_COLOR0_INFO + (x * CbRegsPerSlot)),
+                                                                       ~ColorTargetView::CbColorInfoMask,
+                                                                       m_cbColorInfo[x].u32All,
+                                                                       pDeCmdSpace);
+                    }
+                }
+            }
+
+            // Track state written over the course of the entire CmdBuf. Needed for Nested CmdBufs to know what
+            // state to leak back to the root CmdBuf.
+            m_leakCbColorInfoRtv   |= m_state.flags.cbColorInfoDirtyRtv;
+
+            m_state.flags.cbColorInfoDirtyRtv = 0;
+        }
     }
 
     return pDeCmdSpace;
@@ -7870,6 +7986,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_vertexOffsetReg     = cmdBuffer.m_vertexOffsetReg;
         m_drawIndexReg        = cmdBuffer.m_drawIndexReg;
         m_nggState.numSamples = cmdBuffer.m_nggState.numSamples;
+        m_dbRenderOverride    = cmdBuffer.m_dbRenderOverride;
 
         // Update the functions that are modified by nested command list
         m_pfnValidateUserDataGfx                    = cmdBuffer.m_pfnValidateUserDataGfx;
@@ -7886,6 +8003,20 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
             m_sxBlendOptEpsilon = cmdBuffer.m_sxBlendOptEpsilon;
             m_sxBlendOptControl = cmdBuffer.m_sxBlendOptControl;
         }
+    }
+
+    // Leak back valid CB_COLORx_INFO state.
+    for (uint32 x = 0; x < MaxColorTargets; x++)
+    {
+        if (BitfieldIsSet(cmdBuffer.m_leakCbColorInfoRtv, x))
+        {
+            BitfieldUpdateSubfield(
+                &(m_cbColorInfo[x].u32All), cmdBuffer.m_cbColorInfo[x].u32All, ColorTargetView::CbColorInfoMask);
+        }
+
+        // NestCmd buffer always updates BlendOpt.
+        BitfieldUpdateSubfield(
+            &(m_cbColorInfo[x].u32All), cmdBuffer.m_cbColorInfo[x].u32All, ~ColorTargetView::CbColorInfoMask);
     }
 
     // If the nested command buffer updated PA_SC_CONS_RAST_CNTL, leak its state back to the caller.
@@ -8131,6 +8262,34 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
     uint32            cmdBufferCount,
     ICmdBuffer*const* ppCmdBuffers)
 {
+    // Need to validate some state as it is valid for root CmdBuf to set state, not issue a draw and expect
+    // that state to inherit into the nested CmdBuf. It might be safest to just ValidateDraw here eventually.
+    // That would break the assumption that the Pipeline is bound at draw-time.
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
+    {
+        if (m_graphicsState.dirtyFlags.validationBits.u16All)
+        {
+            pDeCmdSpace = ValidateCbColorInfo<false, true, true>(pDeCmdSpace);
+        }
+        else
+        {
+            pDeCmdSpace = ValidateCbColorInfo<false, true, false>(pDeCmdSpace);
+        }
+    }
+    else
+    {
+        if (m_graphicsState.dirtyFlags.validationBits.u16All)
+        {
+            pDeCmdSpace = ValidateCbColorInfo<false, false, true>(pDeCmdSpace);
+        }
+        else
+        {
+            pDeCmdSpace = ValidateCbColorInfo<false, false, false>(pDeCmdSpace);
+        }
+    }
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+
     for (uint32 buf = 0; buf < cmdBufferCount; ++buf)
     {
         auto*const pCallee = static_cast<Gfx9::UniversalCmdBuffer*>(ppCmdBuffers[buf]);

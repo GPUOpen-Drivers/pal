@@ -72,6 +72,9 @@ public:
         SwizzledFormat format,
         uint32         targetIndex) override { PAL_NEVER_CALLED(); }
 
+    virtual void CmdOverwriteDisableViewportClampForBlits(
+        bool disableViewportClamp) override { PAL_NEVER_CALLED(); }
+
     // Returns a pointer to the command stream associated with the specified engine type
     virtual CmdStream* GetCmdStreamByEngine(uint32 engineType) override;
 

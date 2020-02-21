@@ -117,6 +117,10 @@ enum class MetadataMode : uint16
                         ///  useful for scenarios where metadata isn't an obvious win and clients can enable based
                         ///  on some hueristic or app-detect.
     Disabled,           ///< The Image will not contain any compression metadata.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 564
+    FmaskOnly,          ///< The color msaa Image will only contain Cmask/Fmask metadata; this mode is only valid for
+                        ///  color msaa Image.
+#endif
     Count,
 };
 
@@ -232,7 +236,13 @@ union ImageCreateFlags
 #else
         uint32 reserved562             :  1;
 #endif
-        uint32 reserved                : 12; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 567
+        uint32 pipSwapChain            :  1; ///< Indicates this image is PIP swap-chain. It is only supported on Windows
+                                             ///  platforms.
+#else
+        uint32 reserved567             :  1;
+#endif
+        uint32 reserved                : 11; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };

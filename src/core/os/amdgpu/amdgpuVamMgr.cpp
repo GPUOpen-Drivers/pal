@@ -454,7 +454,7 @@ Result VamMgrSingleton::Init()
     {
         if (pVamMgrSingleton == nullptr)
         {
-            GenericAllocatorAuto genericAllocator;
+            GenericAllocator genericAllocator;
             pVamMgrSingleton = PAL_NEW(VamMgrSingleton, &genericAllocator, AllocInternal);
             if(pVamMgrSingleton == nullptr)
             {

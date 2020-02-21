@@ -61,10 +61,11 @@ namespace DevDriver
             {
                 struct
                 {
-                    uint32 enableInstructionTokens : 1;
-                    uint32 allowComputePresents : 1;
-                    uint32 captureDriverCodeObjects : 1;
-                    uint32 reserved : 29;
+                    uint32 enableInstructionTokens   : 1;
+                    uint32 allowComputePresents      : 1;
+                    uint32 captureDriverCodeObjects  : 1;
+                    uint32 enableSpm                 : 1;
+                    uint32 reserved : 28;
                 };
                 uint32 u32All;
             } flags;
@@ -78,6 +79,10 @@ namespace DevDriver
 #if DD_VERSION_SUPPORTS(GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION)
             uint64 pipelineHash;
 #endif
+
+#if DD_VERSION_SUPPORTS(GPUOPEN_RGP_SPM_COUNTERS_VERSION)
+            uint32 seMask;
+#endif
         };
 
         struct BeginTraceInfo
@@ -86,6 +91,21 @@ namespace DevDriver
             ClientTraceParametersInfo parameters;   // Parameters for the trace
 #endif
             ChunkCallbackInfo         callbackInfo; // Callback used to return trace data
+        };
+
+        struct ClientSpmCounterId
+        {
+            uint32 blockId;
+            uint32 instanceId;
+            uint32 eventId;
+        };
+
+        struct ClientSpmConfig
+        {
+            uint32                    sampleFrequency;
+            uint32                    memoryLimitInMb;
+            uint32                    numCounters;
+            const ClientSpmCounterId* pCounters;
         };
 
         class RGPClient : public BaseProtocolClient
@@ -125,8 +145,12 @@ namespace DevDriver
             Result UpdateTraceParameters(const ClientTraceParametersInfo& parameters);
 #endif
 
+            Result UpdateCounterConfig(const ClientSpmConfig& config);
+
         private:
             void ResetState() override;
+            bool ValidateInputCounter(const ClientSpmCounterId& counter) const;
+            Result SendUpdateTraceParametersPacket(const ClientTraceParametersInfo& parameters);
 
             enum class TraceState : uint32
             {

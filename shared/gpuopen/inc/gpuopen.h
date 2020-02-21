@@ -27,7 +27,7 @@
 
 #include <ddDefs.h>
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 41
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 42
 
 #define GPUOPEN_INTERFACE_MINOR_VERSION 0
 
@@ -50,6 +50,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 42.0    | Updates RGP Protocol to support SPM counters and SE masking.                                             |
 *| 41.0    | Updates DriverControlProtocol to allow user to query device clock frequencies for a given                |
 *|         | clock mode without changing the clock mode.                                                              |
 *| 40.0    | Moves DriverStatus enum out of DriverControlProtocol and into gpuopen.h, and renames several             |
@@ -159,6 +160,7 @@
 ***********************************************************************************************************************
 */
 
+#define GPUOPEN_RGP_SPM_COUNTERS_VERSION                                      42
 #define GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION                   41
 #define GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION                                40
 #define GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION                              39
@@ -241,12 +243,13 @@ namespace DevDriver
     // Client status codes
     enum struct ClientStatusFlags : StatusFlags
     {
-        None                  = 0,
-        DeveloperModeEnabled  = (1 << 0),
-        DeviceHaltOnConnect   = (1 << 1),
-        GpuCrashDumpsEnabled  = (1 << 2),
-        PipelineDumpsEnabled  = (1 << 3),
-        PlatformHaltOnConnect = (1 << 4),
+        None                   = 0,
+        DeveloperModeEnabled   = (1 << 0),
+        DeviceHaltOnConnect    = (1 << 1),
+        GpuCrashDumpsEnabled   = (1 << 2),
+        PipelineDumpsEnabled   = (1 << 3),
+        PlatformHaltOnConnect  = (1 << 4),
+        DriverInitializer      = (1 << 5)
     };
 
     DD_CHECK_SIZE(ClientId, 2);
@@ -452,7 +455,16 @@ namespace DevDriver
         TransportType::Local,
         0,
 
-        "\\\\.\\pipe\\AMD-Developer-Service"
+        // Note: Changing this default value will break old drivers and new tool pairings.
+        // Be thoughtful when changing this.
+#if   defined(DD_PLATFORM_LINUX_UM)
+        // On Linux, we use an abstract path witih a unix domain socket
+        // This string is not backed in the filesystem, and can be pretty free-form.
+        // We reuse the same path from Windows for historical reasons.
+        "\\\\.\\pipe\\AMD-Developer-Service",
+#else
+        #error "Unsupported platform cannot select default pipe name"
+#endif
 
     };
 

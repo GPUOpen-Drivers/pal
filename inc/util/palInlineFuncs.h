@@ -164,6 +164,38 @@ constexpr bool TestAllFlagsSet(
     return ((src & test) == test);
 }
 
+/// Tests if a single bit in a bitfield is set.
+///
+/// @param [in] bitfield  Bitfield being tested
+/// @param [in] bit       Bit index to test
+///
+/// @returns True if the flag is set.
+template <typename T>
+bool BitfieldIsSet(
+    const T bitfield,
+    uint32  bit)
+{
+    PAL_ASSERT(bit < (sizeof(T) * 8));
+    return (bitfield & (1 << bit));
+}
+
+/// Update a subfield of a bitfield.
+///
+/// @param [in] bitFieldToUpdate  Bitfield being updated
+/// @param [in] updateValue       Source value to update
+/// @param [in] updateMask        Bitmask to update
+///
+/// @returns True if the flag is set.
+template <typename T>
+void BitfieldUpdateSubfield(
+    T*      pBitFieldToUpdate,
+    const T updateValue,
+    const T updateMask)
+{
+    *pBitFieldToUpdate = ((*pBitFieldToUpdate) & ~updateMask) |
+                          (updateValue         &  updateMask);
+}
+
 /// Tests if a single bit in a "wide bitfield" is set. A "wide bifield" is a bitfield which spans an array of
 /// integers because there are more flags than bits in one integer.
 ///

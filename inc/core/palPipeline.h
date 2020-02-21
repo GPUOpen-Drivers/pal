@@ -35,6 +35,7 @@
 #include "palGpuMemoryBindable.h"
 #include "palDestroyable.h"
 #include "palImage.h"
+#include "palShaderLibrary.h"
 
 namespace Util
 {
@@ -47,9 +48,6 @@ enum class HardwareStage : uint32;
 
 namespace Pal
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
-class  IShaderLibrary;
-#endif
 // Forward declarations.
 struct GpuMemSubAllocInfo;
 enum class PrimitiveTopology : uint32;
@@ -395,17 +393,6 @@ enum ShaderStageFlagBits : uint32
     ApiShaderStagePixel    = (1u << static_cast<uint32>(ShaderType::Pixel)),
 };
 
-/// Common shader pre and post compilation stats.
-struct CommonShaderStats
-{
-    uint32  numUsedVgprs;              ///< Number of VGPRs used by this shader
-    uint32  numUsedSgprs;              ///< Number of SGPRs used by this shader
-    uint32  ldsSizePerThreadGroup;     ///< LDS size per thread group in bytes.
-    size_t  ldsUsageSizeInBytes;       ///< LDS usage by this shader.
-    size_t  scratchMemUsageInBytes;    ///< Amount of scratch mem used by this shader.
-    gpusize gpuVirtAddress;            ///< Gpu mem address of shader ISA code.
-};
-
 /// Reports shader stats. Multiple bits set in the shader stage mask indicates that multiple shaders have been combined
 /// due to HW support. The same information will be repeated for both the constituent shaders in this case.
 struct ShaderStats
@@ -558,7 +545,6 @@ public:
         size_t*                  pSize,
         void*                    pBuffer) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     /// Notifies PAL that this pipeline may make indirect function calls to any function contained within any of the
     /// specified @ref IShaderLibrary objects.  This gives PAL a chance to perform any late linking steps required to
     /// valid execution of the possible function calls (this could include adjusting hardware resources such as GPRs
@@ -584,7 +570,6 @@ public:
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) = 0;
-#endif
 
     /// Returns the API shader type to hardware stage mapping for the pipeline.
     ///

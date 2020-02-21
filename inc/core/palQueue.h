@@ -141,8 +141,8 @@ struct QueueCreateInfo
     struct
     {
         uint32 placeholder1              :  1; ///< Reserved field. Set to 0.
-        uint32 windowedPriorBlit :  1; ///< All windowed presents on this queue are notifications that the client
-                                       ///  has manually done a blit present
+        uint32 windowedPriorBlit         :  1; ///< All windowed presents on this queue are notifications
+                                               ///  that the client has manually done a blit present
         uint32 placeholder2              :  1; ///< Reserved field. Set to 0.
 
 #if PAL_AMDGPU_BUILD && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 479)
@@ -169,6 +169,79 @@ struct QueueCreateInfo
 
 };
 
+/// Specifies the portion of @ref SubmitInfo that is specific to each sub-queue in a multi-queue object (@see
+/// IDevice::CreateMultiQueue).  Effectively, this enables specifying a different set of command buffers for each
+/// queue that makes up a gang submission to a multi-queue object.
+struct PerSubQueueSubmitInfo
+{
+    uint32            cmdBufferCount;   ///< Number of command buffers to be submitted (can be 0 if this submit doesn't
+                                        ///  involve work for the relevant queue).
+    ICmdBuffer*const* ppCmdBuffers;     ///< Array of cmdBufferCount command buffers to be submitted.  Command buffers
+                                        ///  that are part of a ganged submit must guarantee the conditions required
+                                        ///  for the optimizeExclusiveSubmit flag.
+    const CmdBufInfo* pCmdBufInfoList;  ///< Null, or an array of cmdBufferCount structs providing additional
+                                        ///  info about the command buffers being submitted.  If non-null,
+                                        ///  elements are ignored if their isValid flag is false.
+};
+
+/// Specifies all information needed to execute a set of command buffers.  Input structure to IQueue::Submit().
+///
+/// Some members of this structure are not supported on all platforms.  The client must check the appropriate properties
+/// structures to determine if the corresponding features are supported:
+/// + pGpuMemoryRefs:    Support is indicated by supportPerSubmitMemRefs in @ref DeviceProperties.
+/// + ppBlockIfFlipping: Support is indicated by supportBlockIfFlipping in @ref PlatformProperties.  If it is supported,
+///                      the client must not specify a blockIfFlippingCount greater than MaxBlockIfFlippingCount.
+///
+/// @note If this queue is running in physical submission mode (due to hardware restrictions), the gpuMemRefCount and
+///       pGpuMemoryRefs arguments to this method are ignored because the command buffers themselves contain their own
+///       GPU memory reference lists.
+struct MultiSubmitInfo
+{
+    const PerSubQueueSubmitInfo* pPerSubQueueInfo;///< Specifies per-subqueue information for the submit.  Typically
+                                                  ///  this is a pointer to a single entry specifying the command
+                                                  ///  buffers to be submitted on this queue.  For gang submission on
+                                                  ///  a multi-queue, this should be an array with one entry per
+                                                  ///  sub-queue.  The array size must be less than or equal to the
+                                                  ///  queueCount specified when the multi-queue was created and
+                                                  ///  the workload specified in each entry will be assigned to the
+                                                  ///  corresponding sub-queue.  It is valid to have a cmdBufferCount
+                                                  ///  of 0 for sub-queues without work.
+    uint32                  perSubQueueInfoCount; ///  Number of PerSubqueueSubmitInfo to be submitted.
+    uint32                  gpuMemRefCount;       ///< Number of GPU memory references for this submit.
+    const GpuMemoryRef*     pGpuMemoryRefs;       ///< Array of gpuMemRefCount GPU memory references.  Can be null if
+                                                  ///  gpuMemRefCount is zero.  The GPU memory objects will be made
+                                                  ///  resident for the duration of this submit.
+    uint32                  doppRefCount;         ///< Number of DOPP desktop texture references for this submit.
+    const DoppRef*          pDoppRefs;            ///< Array of doppRefCount DOPP texture references.  Can be null if
+                                                  ///  doppRefCount is zero.
+    uint32                  externPhysMemCount;   ///< Number of entries in ppExternPhysMem.
+    const IGpuMemory**      ppExternPhysMem;      ///< Array of external physical memory allocations to be initialized
+                                                  ///  as part of this submit.  The first submit that references a
+                                                  ///  particular external physical memory allocation must include
+                                                  ///  that allocation in this list.  Subsequent submits that reference
+                                                  ///  the same allocation should not include it in this list, as it
+                                                  ///  would trigger redundant GPU page table initialization.
+    uint32                  blockIfFlippingCount; ///< Number of GPU memory objects to protect when flipped.
+    const IGpuMemory*const* ppBlockIfFlipping;    ///< Array of blockIfFlippingCount GPU memory objects.  Can be null if
+                                                  ///  blockIfFlippingCount is zero.  The command buffers will not be
+                                                  ///  scheduled to the GPU while a fullscreen (flip) present is queued
+                                                  ///  for any of these GPU memory allocations.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+    uint32                  fenceCount;           ///< Number of fence objects to be signaled once the last command buffer
+                                                  ///  in this submission completes execution.
+    IFence**                ppFences;             ///< Array of fence objects. Can be null if fenceCount is zero.
+#else
+    IFence*                 pFence;               ///< Null, or a fence object to be signaled once the last command
+                                                  ///  buffer in the submission completes execution.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+    CmdDumpCallback         pfnCmdDumpCb;         ///< Null, or a callback function to handle the dumping of the
+                                                  ///  command buffers used in this submit.
+    void*                   pUserData;            ///< Client provided data to be passed to callback.
+#endif
+};
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572
 /// Specifies all information needed to execute a set of command buffers.  Input structure to IQueue::Submit().
 ///
 /// Some members of this structure are not supported on all platforms.  The client must check the appropriate properties
@@ -206,14 +279,23 @@ struct SubmitInfo
                                                   ///  blockIfFlippingCount is zero.  The command buffers will not be
                                                   ///  scheduled to the GPU while a fullscreen (flip) present is queued
                                                   ///  for any of these GPU memory allocations.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+    uint32                  fenceCount;           ///< Number of fence objects to be signaled once the last command buffer
+                                                  ///  in this submission completes execution.
+    IFence**                ppFences;             ///< Array of fence objects. Can be null if fenceCount is zero.
+#else
     IFence*                 pFence;               ///< Null, or a fence object to be signaled once the last command
                                                   ///  buffer in the submission completes execution.
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
     CmdDumpCallback         pfnCmdDumpCb;         ///< Null, or a callback function to handle the dumping of the
                                                   ///  command buffers used in this submit.
     void*                   pUserData;            ///< Client provided data to be passed to callback.
 #endif
 };
+#else
+typedef MultiSubmitInfo SubmitInfo;
+#endif
 
 /// The value of blockIfFlippingCount in @ref SubmitInfo cannot be greater than this value.
 constexpr uint32 MaxBlockIfFlippingCount = 16;
@@ -385,7 +467,46 @@ public:
     ///          + ErrorIncompatibleQueue if any submitted command buffer does not match this queue's type (e.g.,
     ///            universal, graphics, DMA).
     virtual Result Submit(
-        const SubmitInfo& submitInfo) = 0;
+        const MultiSubmitInfo& submitInfo) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 572
+    PAL_INLINE Result Submit(
+        const SubmitInfo& info)
+    {
+        MultiSubmitInfo       newInfo               = { };
+        PerSubQueueSubmitInfo perSubQueueSubmitInfo = { };
+        newInfo.pPerSubQueueInfo     			    = &perSubQueueSubmitInfo;
+        newInfo.perSubQueueInfoCount                = 1;
+
+        if (info.cmdBufferCount > 0)
+        {
+            perSubQueueSubmitInfo.cmdBufferCount  = info.cmdBufferCount;
+            perSubQueueSubmitInfo.pCmdBufInfoList = info.pCmdBufInfoList;
+            perSubQueueSubmitInfo.ppCmdBuffers    = info.ppCmdBuffers;
+        }
+
+        newInfo.gpuMemRefCount       = info.gpuMemRefCount;
+        newInfo.pGpuMemoryRefs       = info.pGpuMemoryRefs;
+        newInfo.doppRefCount         = info.doppRefCount;
+        newInfo.pDoppRefs            = info.pDoppRefs;
+        newInfo.externPhysMemCount   = info.externPhysMemCount;
+        newInfo.ppExternPhysMem      = info.ppExternPhysMem;
+        newInfo.blockIfFlippingCount = info.blockIfFlippingCount;
+        newInfo.ppBlockIfFlipping    = info.ppBlockIfFlipping;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 568
+        newInfo.fenceCount           = info.fenceCount;
+        newInfo.ppFences             = info.ppFences;
+#else
+        newInfo.pFence               = info.pFence;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 555
+        newInfo.pfnCmdDumpCb         = info.pfnCmdDumpCb;
+        newInfo.pUserData            = info.pUserData;
+#endif
+
+        return Submit(newInfo);
+    }
+#endif
 
     /// Waits for all previous submission on this queue to complete before control is returned to the caller.
     ///

@@ -658,15 +658,15 @@ struct RMT_RESOURCE_TYPE_IMAGE_TOKEN : RMT_TOKEN_DATA
         // METADATA_HEADER_SIZE [287:256] The size of the metadata header inside the resource.
         SetBits(createInfo.metadataHeaderSize, 287, 256);
 
-        // IMAGE_ALIGN [292:288] The alignment of the core image data within the resource’s virtual address allocation.
+        // IMAGE_ALIGN [292:288] The alignment of the core image data within the resource's virtual address allocation.
         //                         This is stored as the Log2(n) of the alignment.
         SetBits(Log2(createInfo.imageAlignment), 292, 288);
 
-        // METADATA_ALIGN [297:293] The alignment of the metadata within the resource’s virtual address allocation.
+        // METADATA_ALIGN [297:293] The alignment of the metadata within the resource's virtual address allocation.
         //                            This is stored as the Log2(n) of the alignment.
         SetBits(Log2(createInfo.metadataAlignment), 297, 293);
 
-        // METADATA_HEADER_ALIGN [302:298] The alignment of the metadata header within the resource’s virtual address
+        // METADATA_HEADER_ALIGN [302:298] The alignment of the metadata header within the resource's virtual address
         //                                   allocation. This is stored as the Log2(n) of the alignment.
         SetBits(Log2(createInfo.metadataHeaderAlignment), 302, 298);
 
@@ -712,7 +712,7 @@ struct RMT_RESOURCE_TYPE_GPU_EVENT_TOKEN : RMT_TOKEN_DATA
         sizeInBytes = sizeof(bytes);
         pByteData = &bytes[0];
 
-        // FLAGS [7:0] The flags used to create the GPU event. 0 – GPU-only event.
+        // FLAGS [7:0] The flags used to create the GPU event. 0 - GPU-only event.
         SetBits((isGpuOnly ? 1 : 0), 7, 0);
     }
 };
@@ -868,15 +868,14 @@ struct RMT_RESOURCE_TYPE_HEAP_TOKEN : RMT_TOKEN_DATA
         // SIZE [68:5] The size of the heap in bytes.
         SetBits(size, 68, 5);
 
-        // ALIGNMENT [71:69] The alignment of the heap. This will always match a page size, and therefore is encoded
-        //                     as RMT_PAGE_SIZE
-        SetBits(GetRmtPageSize(alignment), 71, 69);
+        // ALIGNMENT [73:69] The alignment of the heap. This is stored as the Log2(n) of the alignment.
+        SetBits(Log2(alignment), 73, 69);
 
-        // SEGMENT_INDEX [75:72] The segment index where the heap was requested to be created.
-        SetBits(segmentIndex, 75, 72);
+        // SEGMENT_INDEX [77:74] The segment index where the heap was requested to be created.
+        SetBits(segmentIndex, 77, 74);
 
-        // RESERVED [79:76] This is reserved for future expansion. Should be set to 0.
-        SetBits(0, 79, 76);
+        // RESERVED [79:78] This is reserved for future expansion. Should be set to 0.
+        SetBits(0, 79, 78);
     }
 };
 
@@ -981,7 +980,7 @@ struct RMT_RESOURCE_TYPE_DESCRIPTOR_HEAP_TOKEN : RMT_TOKEN_DATA
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RMT_RESOURCE_TYPE_POOL_SIZE
-static const size_t RMT_POOL_SIZE_BYTES_SIZE = 16 / 8; // 16-bits
+static const size_t RMT_POOL_SIZE_BYTES_SIZE = 24 / 8; // 16-bits
 struct RMT_RESOURCE_TYPE_POOL_SIZE_TOKEN : RMT_TOKEN_DATA
 {
     uint8 bytes[RMT_POOL_SIZE_BYTES_SIZE];
@@ -992,11 +991,11 @@ struct RMT_RESOURCE_TYPE_POOL_SIZE_TOKEN : RMT_TOKEN_DATA
         sizeInBytes = sizeof(bytes);
         pByteData = &bytes[0];
 
-        // MAX_SETS [11:0] Maximum number of descriptor sets that can be allocated from the pool.
-        SetBits(maxSets, 11, 0);
+        // MAX_SETS [15:0] Maximum number of descriptor sets that can be allocated from the pool.
+        SetBits(maxSets, 15, 0);
 
-        // POOL_SIZE_COUNT [15:12] The number of pool size structs.
-        SetBits(poolSizeCount, 15, 12);
+        // POOL_SIZE_COUNT [23:16] The number of pool size structs.
+        SetBits(poolSizeCount, 23, 16);
     }
 };
 

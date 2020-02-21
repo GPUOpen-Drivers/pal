@@ -290,7 +290,7 @@ Pal::Queue* Device::ConstructQueueObject(
     const QueueCreateInfo& createInfo,
     void*                  pPlacementAddr)
 {
-    Pal::Queue* pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(this, createInfo);
+    Pal::Queue* pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(1, this, &createInfo);
 
     return pQueue;
 }
@@ -1015,6 +1015,7 @@ Result Device::EarlyInit(
     m_chipProperties.ossLevel = ipLevels.oss;
     m_chipProperties.vceLevel = ipLevels.vce;
     m_chipProperties.uvdLevel = ipLevels.uvd;
+    m_chipProperties.vcnLevel = ipLevels.vcn;
 
     for (uint32 i = 0; i < EngineTypeCount; i++)
     {

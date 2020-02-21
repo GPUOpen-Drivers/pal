@@ -349,6 +349,21 @@ protected:
 
     virtual bool ValidatePipelineUploadHeap(const GpuHeap& preferredHeap) const override { return false; }
 
+    virtual Pal::Queue* ConstructMultiQueueObject(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        void*                  pPlacementAddr) override
+    {
+        return nullptr;
+    }
+
+    virtual size_t MultiQueueObjectSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo) const override
+    {
+        return 0;
+    }
+
 private:
     virtual Result EarlyInit(const HwIpLevels& ipLevels) override;
 

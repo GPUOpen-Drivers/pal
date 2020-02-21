@@ -412,12 +412,20 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
     pData->argumentBufAddr[0] = LowPart(argsGpuAddr);
     pData->argumentBufAddr[1] = HighPart(argsGpuAddr);
 
-    if (pCmdBuffer->GetEngineType() == EngineTypeCompute)
+    if (Type() == GeneratorType::Dispatch)
     {
-        const auto*const pCsPipeline = static_cast<const ComputePipeline*>(pPipeline);
-        pCsPipeline->ThreadsPerGroupXyz(&pData->gfx9.threadsPerGroup[0],
-                                        &pData->gfx9.threadsPerGroup[1],
-                                        &pData->gfx9.threadsPerGroup[2]);
+        regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator = {};
+
+        dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
+        dispatchInitiator.bits.ORDER_MODE         = 1;
+        if (IsGfx10(*m_device.Parent()))
+        {
+            const bool csWave32 = static_cast<const ComputePipeline*>(pPipeline)->Signature().flags.isWave32;
+            dispatchInitiator.gfx10.CS_W32_EN     = csWave32;
+            dispatchInitiator.gfx10.TUNNEL_ENABLE = pCmdBuffer->UsesDispatchTunneling();
+        }
+
+        pData->gfx9.dispatchInitiator = dispatchInitiator.u32All;
     }
 
     m_device.Parent()->CreateTypedBufferViewSrds(1, &viewInfo, pSrd);

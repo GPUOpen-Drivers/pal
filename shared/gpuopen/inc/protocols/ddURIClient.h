@@ -34,6 +34,7 @@
 #include "baseProtocolClient.h"
 #include "ddUriInterface.h"
 #include <util/vector.h>
+#include <stdarg.h>
 
 namespace DevDriver
 {
@@ -79,6 +80,15 @@ namespace DevDriver
                 Vector<uint8>*  pResponseBuffer,
                 const char*     pFormatString,
                 ...);
+
+            // Helper function used execute a URI request and read the response back if necessary
+            // This variant takes a va_list directly, and can be chained with other methods using var args.
+            Result TransactURIRequestV(
+                const void*     pPostDataBuffer,
+                uint32          postDataSize,
+                Vector<uint8>*  pResponseBuffer,
+                const char*     pFormatString,
+                va_list         formatArgs);
 
         private:
             void ResetState() override;

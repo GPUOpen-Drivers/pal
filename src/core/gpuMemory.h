@@ -154,7 +154,8 @@ union GpuMemoryFlags
         uint32 restrictedAccess         :  1; // GPU memory is restricted shared access resource
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
         uint32 gpuReadOnly              :  1; // GPU memory is read only.
-        uint32 reserved                 : 26;
+        uint32 placeholder1             :  1;
+        uint32 reserved                 : 25;
     };
     uint64  u64All;
 };

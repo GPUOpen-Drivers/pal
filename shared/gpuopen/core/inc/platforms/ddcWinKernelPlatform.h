@@ -81,7 +81,6 @@
 // [MSVC] __assume()
 //
 // [C++] Contracts: expects, ensures, assert, axiom
-//  ~ https://en.cppreference.com/w/cpp/language/attributes/contract
 #define DD_ASSUME(expression) __assume((expression))
 
 // Dummy delete operator required to support kernel mode builds with C++14 and newer

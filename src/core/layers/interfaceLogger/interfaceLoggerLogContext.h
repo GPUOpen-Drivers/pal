@@ -515,6 +515,7 @@ public:
     void Struct(Offset3d value);
     void Struct(const PeerGpuMemoryOpenInfo& value);
     void Struct(const PeerImageOpenInfo& value);
+    void Struct(const PerSubQueueSubmitInfo& value);
     void Struct(const PinnedGpuMemoryCreateInfo& value);
     void Struct(const PipelineBindParams& value);
     void Struct(PipelineCreateFlags value);

@@ -34,9 +34,11 @@ include(AMD)
 option(
     DEVDRIVER_USE_CPP17 "Optionally build using the C++17 standard. If disabled, build as C++11"
     OFF)
+
 option(
     DEVDRIVER_FORCE_COLOR_OUPUT "Force colored diagnostic messages (Clang/gcc only)"
     ON)
+
 string(CONCAT DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS_HELP_TEXT
     "C++ static_asserts cannot format strings. "
     "You can fake it with SFINAE template types, but it's rough. "
@@ -46,6 +48,17 @@ option(DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS
     ${DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS_HELP_TEXT}
     OFF)
 unset(DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS_HELP_TEXT)
+
+# Unity builds are only supported starting in 3.16, but significantly improve Windows build times
+# VERSION_GREATER_EQUAL was introduced in CMake 3.7. We use NOT ${X} VERSION_LESS for compatibility with CMake 3.5.
+if (NOT ${CMAKE_VERSION} VERSION_LESS "3.16.0")
+    set(DEVDRIVER_UNITY_BUILDS_DEFAULT ON)
+else()
+    set(DEVDRIVER_UNITY_BUILDS_DEFAULT OFF)
+endif()
+option(
+    DEVDRIVER_UNITY_BUILDS "Optionally build all devdriver CMake targets with unity builds. Can be overwritten with CMAKE_UNITY_BUILD."
+    ${DEVDRIVER_UNITY_BUILDS_DEFAULT})
 
 # Configure compilation options depending on available CPU cores
 include(ProcessorCount)
@@ -126,13 +139,19 @@ macro(apply_gpuopen_warnings _target)
             )
 
         endif()
+
         if (DEVDRIVER_FORCE_COLOR_OUPUT)
 
-            # For details on customizing this, see the docs:
-            #   https://gcc.gnu.org/onlinedocs/gcc-5.2.0/gcc/Language-Independent-Options.html
-            target_compile_options(${_target} PRIVATE -fdiagnostics-color)
+            if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+
+                # For details on customizing this, see the docs:
+                #   https://gcc.gnu.org/onlinedocs/gcc-5.2.0/gcc/Language-Independent-Options.html
+                target_compile_options(${_target} PRIVATE -fdiagnostics-color)
+
+            endif()
 
         endif()
+
      elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 
         target_compile_options(${_target} PRIVATE
@@ -184,10 +203,22 @@ macro(apply_gpuopen_warnings _target)
 
 endmacro()
 
+function(apply_devdriver_build_configs name)
+    # Do not overwrite the CMake system-wide define.
+    if (NOT DEFINED CMAKE_UNITY_BUILD)
+        set_target_properties(
+            ${name}
+            PROPERTIES
+                UNITY_BUILD ${DEVDRIVER_UNITY_BUILDS}
+        )
+    endif()
+endfunction()
+
 function(devdriver_target name)
 
     amd_target(${name} ${ARGN})
     apply_gpuopen_warnings(${name})
+    apply_devdriver_build_configs(${name})
 
 endfunction()
 
@@ -195,6 +226,7 @@ function(devdriver_executable name)
 
     amd_executable(${name} ${ARGN})
     apply_gpuopen_warnings(${name})
+    apply_devdriver_build_configs(${name})
 
 endfunction()
 
@@ -203,6 +235,7 @@ function(devdriver_library name type)
     amd_library(${name} ${type} ${ARGN})
     if (NOT ${type} STREQUAL "INTERFACE")
         apply_gpuopen_warnings(${name})
+        apply_devdriver_build_configs(${name})
     endif()
 
 endfunction()

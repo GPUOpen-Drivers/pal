@@ -3285,8 +3285,14 @@ void Gfx9Dcc::SetControlReg()
         }
         else
         {
-            // Verify that we only have DCC memory for shader writeable surfaces on GFX10
-            PAL_ASSERT(createInfo.usageFlags.shaderWrite == 0);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496
+            // Verify that we only have DCC memory for shader writeable surfaces on GFX10 or it is ForceEnabled.
+            PAL_ASSERT((createInfo.usageFlags.shaderWrite == 0) ||
+                       (createInfo.metadataMode == Pal::MetadataMode::ForceEnabled));
+#else
+            // Verify that we only have DCC memory for shader writeable surfaces on GFX10.
+            PAL_ASSERT((createInfo.usageFlags.shaderWrite == 0));
+#endif
         }
     }
     else
@@ -3349,6 +3355,16 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 564
+    else if ((createInfo.metadataMode == MetadataMode::FmaskOnly) &&
+             (createInfo.samples > 1) &&
+             (pParent->IsRenderTarget() == true))
+    {
+        // Don't use DCC if the caller asked that we allocate color msaa image with Fmask metadata only.
+        useDcc = false;
+        mustDisableDcc = true;
+    }
+#endif
     else if (pParent->GetDccFormatEncoding() == DccFormatEncoding::Incompatible)
     {
         // Don't use DCC if the caller can switch between view formats that are not DCC compatible with each other.
@@ -3385,6 +3401,24 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
+    else if (Formats::IsYuv(createInfo.swizzledFormat.format))
+    {
+        // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
+        useDcc = false;
+        mustDisableDcc = true;
+    }
+    else if (isNotARenderTarget && (allMipsShaderWritable == false))
+    {
+        // DCC should always be off for a resource that is not a UAV and is not a render target.
+        useDcc = false;
+        mustDisableDcc = true;
+    }
+    else if (pParent->IsShared() || pParent->IsPresentable() || pParent->IsFlippable())
+    {
+        // DCC is never available for shared, presentable, or flippable images.
+        useDcc = false;
+        mustDisableDcc = true;
+    }
     else if (allMipsShaderWritable && isGfx9)
     {
         // DCC does not make sense for UAVs or RT+UAVs (all mips are shader writeable) in gfx9.
@@ -3392,12 +3426,6 @@ bool Gfx9Dcc::UseDccForImage(
         // Give a chance for clients to force enabling DCC for RT+UAVs. i.e. App flags the resource as both render
         // target and unordered access but never uses it as UAV.
         mustDisableDcc = isNotARenderTarget;
-    }
-    else if (isNotARenderTarget && (allMipsShaderWritable == false))
-    {
-        // DCC should always be off for a resource that is not a UAV and is not a render target.
-        useDcc = false;
-        mustDisableDcc = true;
     }
     // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
     // preferred, the image will be readable by a shader.
@@ -3409,12 +3437,6 @@ bool Gfx9Dcc::UseDccForImage(
         // Disable DCC for shader read resource that cannot be made TC compat, this avoids DCC decompress
         // for RT->SR barrier.
         useDcc = false;
-    }
-    else if (pParent->IsShared() || pParent->IsPresentable() || pParent->IsFlippable())
-    {
-        // DCC is never available for shared, presentable, or flippable images.
-        useDcc = false;
-        mustDisableDcc = true;
     }
     else if (((createInfo.extent.width * createInfo.extent.height) <=
              (pPalSettings->hintDisableSmallSurfColorCompressionSize *
@@ -3450,12 +3472,6 @@ bool Gfx9Dcc::UseDccForImage(
             (TestAnyFlagSet(settings.useDcc, Gfx9UseDccSrgb) == false))
         {
             useDcc = false;
-        }
-        else if (Formats::IsYuv(createInfo.swizzledFormat.format))
-        {
-            // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
-            useDcc = false;
-            mustDisableDcc = true;
         }
         else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccPrt) == false))
         {
@@ -3498,8 +3514,11 @@ bool Gfx9Dcc::UseDccForImage(
             useDcc = image.ImageSupportsShaderReadsAndWrites();
         }
 
-        // TODO: Re-evaulate the performance of DCC with multi-mip / multi-slice images on GFX9.  Clearing
-        //       these is not a problem on GFX9 (it was on GFX8).
+        // According to DXX engineers, using DCC for mipmapped arrays has worse performance, so just disable it.
+        if (useDcc && (createInfo.arraySize > 1) && (createInfo.mipLevels > 1))
+        {
+            useDcc = false;
+        }
     }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 496

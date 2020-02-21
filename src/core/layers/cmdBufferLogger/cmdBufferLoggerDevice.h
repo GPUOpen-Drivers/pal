@@ -54,6 +54,15 @@ public:
         void*                      pPlacementAddr,
         ICmdBuffer**               ppCmdBuffer) override;
 
+    // need a real implementation later!
+    virtual size_t GetMultiQueueSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        Result*                pResult) const override
+    {
+        return 0;
+    }
+
     virtual size_t GetQueueSize(
         const QueueCreateInfo& createInfo,
         Result*                pResult) const override;

@@ -182,7 +182,6 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
 // If pipeline may make indirect function calls, perform any late linking steps required to valid execution
 // of the possible function calls.
 // (this could include adjusting hardware resources such as GPRs or LDS space for the pipeline).
@@ -191,6 +190,7 @@ Result ComputePipeline::LinkWithLibraries(
     const IShaderLibrary*const* ppLibraryList,
     uint32                      libraryCount)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
     Result result = Result::Success;
     const auto&  gpuInfo       = m_pDevice->Parent()->ChipProperties();
 
@@ -211,6 +211,7 @@ Result ComputePipeline::LinkWithLibraries(
         const auto*const pLibObj = static_cast<const Pal::Gfx9::ShaderLibrary*const>(ppLibraryList[idx]);
         const LibraryHwInfo& libObjRegInfo = pLibObj->HwInfo();
 
+        PAL_ASSERT(pLibObj->IsWave32() == isWave32);
         if (pLibObj->IsWave32() != isWave32)
         {
             // If the main pipeline and the shader library has a different wavefront size,
@@ -258,8 +259,10 @@ Result ComputePipeline::LinkWithLibraries(
     m_chunkCs.UpdateComputePgmRsrsAfterLibraryLink(computePgmRsrc1, computePgmRsrc2, computePgmRsrc3);
 
     return result;
-}
+#else
+    return Result::Unsupported;
 #endif
+}
 
 // =====================================================================================================================
 // Writes the PM4 commands required to bind this pipeline. Returns a pointer to the next unused DWORD in pCmdSpace.

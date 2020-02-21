@@ -33,7 +33,6 @@ namespace Pal
 class  CmdStream;
 class  Device;
 struct InternalSubmitInfo;
-struct SubmitInfo;
 
 // =====================================================================================================================
 // A "QueueContext" is responsible for managing any Device or hardware-layer state which needs to potentially be updated
@@ -51,7 +50,7 @@ public:
 
     // Performs preprocessing or validation which needs to occur before the Queue is "ready" to receive a set of
     // command buffers for submission. The base implementation is intentionally a no-op.
-    virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, const SubmitInfo& submitInfo);
+    virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount);
 
     // Performs postprocessing which needs to occur after the Queue has either submitted or batched a set of command
     // buffers from the client. The base implementation is intentionally a no-op.

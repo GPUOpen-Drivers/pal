@@ -189,6 +189,8 @@ namespace DevDriver
         // Create SharedPointer object with the default constructor
         constexpr SharedPointer() : SharedPointerBase() {};
 
+        SharedPointer(const SharedPointer<T>&) = default;
+
         // Copy conversion constructor. Creates a new object if you can cast from type U to type T.
         template <typename U, typename = typename Platform::EnableIf<Platform::IsConvertible<U*, T*>::Value>::Type>
         SharedPointer(const SharedPointer<U> &right)

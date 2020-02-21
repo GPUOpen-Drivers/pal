@@ -30,6 +30,7 @@
 #include "palIntrusiveListImpl.h"
 #include "palMutex.h"
 #include "palVectorImpl.h"
+#include "eventDefs.h"
 
 #include <limits.h>
 
@@ -631,6 +632,21 @@ Result CmdAllocator::CreateAllocation(
         {
             // Free the memory we allocated for the command stream since it failed to initialize.
             PAL_FREE(pPlacementAddr, m_pDevice->GetPlatform());
+        }
+        else if (pAlloc != nullptr)
+        {
+            GpuMemoryResourceBindEventData eventData = {};
+            eventData.pObj = this;
+            if (pAlloc->UsesSystemMemory())
+            {
+                eventData.isSystemMemory = true;
+            }
+            else
+            {
+                eventData.pGpuMemory = pAlloc->GpuMemory();
+            }
+            eventData.requiredGpuMemSize = pAllocInfo->allocCreateInfo.memObjCreateInfo.size;
+            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(eventData);
         }
     }
 

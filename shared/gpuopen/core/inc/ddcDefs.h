@@ -31,6 +31,8 @@
 
 #pragma once
 
+#include <ddLegacyDefs.h>
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -38,7 +40,6 @@
     #define DD_CPLUSPLUS __cplusplus
 // Denotes versions of the C++ standard from __cplusplus.
 // See here for details on what values you can expect:
-//      https://en.cppreference.com/w/cpp/preprocessor/replace
 #define CPP98 (199711L)
 #define CPP11 (201103L)
 #define CPP14 (201402L)
@@ -84,7 +85,6 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
     // Conditionally expose a `value` member using SFINAE and `std::enable_if`.
     // For a more complete overview, see:
     // [C++]
-    //      https://en.cppreference.com/w/cpp/types/enable_if
     // tl:dr; If left != right, prints an error message that includes the template type.
     //          We only do this because static_assert can't take format arguments.
     template <size_t left, size_t right>
@@ -118,7 +118,6 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
 
 #if DD_CPLUSPLUS_SUPPORTS(CPP17)
     // Require that a function's return value, or an entire type, be used.
-    //  See: https://en.cppreference.com/w/cpp/language/attributes/nodiscard
     #define DD_NODISCARD    [[nodiscard]]
 
     // Do not warn about switch statement cases falling through.  Place this macro as the case body, e.g.
@@ -131,11 +130,9 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
     //          break;
     //  }
     //
-    //  See: https://en.cppreference.com/w/cpp/language/attributes/fallthrough
     #define DD_FALLTHROUGH()  [[fallthrough]]
 #else
     // Require that a function's return value, or an entire type, be used.
-    //  See: https://en.cppreference.com/w/cpp/language/attributes/nodiscard
     // This option is aggressive enough that we do not enable it when C++17 is not enabled
     #define DD_NODISCARD
 
@@ -149,7 +146,6 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
     //          break;
     //  }
     //
-    //  See: https://en.cppreference.com/w/cpp/language/attributes/fallthrough
     #if defined(__clang__)
         #define DD_FALLTHROUGH() [[clang::fallthrough]]
     #elif defined(__GNUC__)
@@ -233,6 +229,7 @@ enum struct Result : uint32
     FileNotFound = 12,
     FunctionNotFound = 13,
     InterfaceNotFound = 14,
+    EntryExists = 15,
 
     //// URI PROTOCOL  ////
     UriServiceRegistrationError = 1000,

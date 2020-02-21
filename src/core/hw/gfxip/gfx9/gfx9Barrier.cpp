@@ -745,6 +745,7 @@ void Device::ExpandColor(
                 // this trips, there must be a logic error somewhere here or in Gfx9::Image::InitLayoutStateMasks().
                 PAL_ASSERT(dccDecompress == false);
 
+                pOperations->layoutTransitions.updateDccStateMetadata = 1;
                 gfx9Image.UpdateDccStateMetaData(pCmdStream, subresRange, true, engineType, PredDisable);
             }
         }
@@ -1198,7 +1199,9 @@ void Device::Barrier(
 
         // Invalidate TCC's meta data cache to prevent future threads from reading stale data, since TCC's meta data
         // cache is non-coherent and read-only.
-        if (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) || TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask))
+        const IImage* pImage = transition.imageInfo.pImage;
+        if (((pImage == nullptr) || (pImage->GetMemoryLayout().metadataSize > 0)) &&
+            (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) || TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask)))
         {
             globalSyncReqs.cacheFlags |= CacheSyncInvTccMd;
         }
@@ -1458,6 +1461,7 @@ void Device::Barrier(
                             // If the new layout is one which can write compressed DCC data,  then we need to update the
                             // Image's DCC state metadata to indicate that the image will become DCC compressed in
                             // upcoming operations.
+                            barrierOps.layoutTransitions.updateDccStateMetadata = 1;
                             gfx9Image.UpdateDccStateMetaData(pCmdStream,
                                                              subresRange,
                                                              canCompress,

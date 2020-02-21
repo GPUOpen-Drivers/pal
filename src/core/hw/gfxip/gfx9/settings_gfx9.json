@@ -1506,7 +1506,8 @@
       "VariableName": "gfx10GePcAllocNumLinesPerSeNggCulling",
       "Name": "Gfx10GePcAllocNumLinesPerSeNggCulling",
       "Flags": {
-        "IsHex": true
+        "IsHex": true,
+        "RereadSetting": true
       }
     },
     {

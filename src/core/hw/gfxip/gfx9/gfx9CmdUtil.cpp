@@ -353,6 +353,7 @@ CmdUtil::CmdUtil(
             m_registerInfo.mmAtcPerfResultCntl              = Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmAtcL2PerfResultCntl            = Gfx101::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
+            m_registerInfo.mmRpbPerfResultCntl              = Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL;
 
         }
         else
@@ -366,7 +367,6 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmRlcSpmSeMuxselAddr             = Gfx10::mmRLC_SPM_SE_MUXSEL_ADDR;
         m_registerInfo.mmRlcSpmSeMuxselData             = Gfx10::mmRLC_SPM_SE_MUXSEL_DATA;
         m_registerInfo.mmMcVmL2PerfResultCntl           = Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmRpbPerfResultCntl              = Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmVgtGsMaxPrimsPerSubGroup       = Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP;
         m_registerInfo.mmComputeShaderChksum            = Gfx10::mmCOMPUTE_SHADER_CHKSUM;
         m_registerInfo.mmPaStereoCntl                   = Gfx10::mmPA_STEREO_CNTL;

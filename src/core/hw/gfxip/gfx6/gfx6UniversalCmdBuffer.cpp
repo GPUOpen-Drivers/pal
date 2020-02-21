@@ -74,6 +74,11 @@ constexpr uint32 GsStageId = static_cast<uint32>(HwShaderStage::Gs);
 constexpr uint32 VsStageId = static_cast<uint32>(HwShaderStage::Vs);
 constexpr uint32 PsStageId = static_cast<uint32>(HwShaderStage::Ps);
 
+// The DB_RENDER_OVERRIDE fields owned by the graphics pipeline.
+constexpr uint32 PipelineDbRenderOverrideMask  = DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK  |
+                                                 DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK    |
+                                                 DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK;
+
 // =====================================================================================================================
 // Handle CE - DE synchronization before dumping from CE RAM to ring buffer instance.
 // Returns true if this ring will wrap on the next dump.
@@ -271,6 +276,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_sxPsDownconvert.u32All   = 0;
     m_sxBlendOptEpsilon.u32All = 0;
     m_sxBlendOptControl.u32All = 0;
+    m_dbRenderOverride.u32All  = 0;
 
     SwitchDrawFunctions(false);
 }
@@ -1678,8 +1684,22 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 
         uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-        // Streamout filled is saved in gpuMemory, we use a me_copy to set mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE.
-        pDeCmdSpace += pThis->m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_MEM_MAPPED_REG_DC,
+        if (pThis->m_device.Parent()->ChipProperties().gfx6.supportLoadRegIndexPkt)
+        {
+            // COPY_DATA won't store register value to shadow memory. In order to rightly save-restore,
+            // BufferFilledSize should be copy to shadow-memory before programming to register.
+            // Otherwise wrong register value will be restored once mid-Cmd-preemption(enabled on gfx8+)
+            // happened after COPY_DATA to register command. LoadContextRegsIndex can help us copy data
+            // into shadow-memory implicitly.
+            pDeCmdSpace += pThis->m_cmdUtil.BuildLoadContextRegsIndex<true>(streamOutFilledSizeVa,
+                                                                            mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE,
+                                                                            1,
+                                                                            pDeCmdSpace);
+        }
+        else
+        {
+            // Streamout filled is saved in gpuMemory, we use a me_copy to set mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE.
+            pDeCmdSpace += pThis->m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_MEM_MAPPED_REG_DC,
                                                       mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE,
                                                       COPY_DATA_SEL_SRC_MEMORY,
                                                       streamOutFilledSizeVa,
@@ -1687,6 +1707,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
                                                       COPY_DATA_ENGINE_ME,
                                                       COPY_DATA_WR_CONFIRM_WAIT,
                                                       pDeCmdSpace);
+        }
 
         // For now, this method is only invoked by DXXP and Vulkan clients, they both prefer to use the size/offset in
         // bytes.
@@ -2547,6 +2568,10 @@ Result UniversalCmdBuffer::AddPreamble()
         dbRenderOverride.bits.FORCE_HIS_ENABLE0 = FORCE_DISABLE;
         dbRenderOverride.bits.FORCE_HIS_ENABLE1 = FORCE_DISABLE;
     }
+
+    // Track the state of the fields owned by the graphics pipeline.
+    PAL_ASSERT((dbRenderOverride.u32All & PipelineDbRenderOverrideMask) == 0);
+    m_dbRenderOverride.u32All = 0;
 
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_OVERRIDE, dbRenderOverride.u32All, pDeCmdSpace);
 
@@ -4097,6 +4122,30 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmPA_SC_LINE_STIPPLE,
                                                                            paScLineStipple.u32All,
                                                                            pDeCmdSpace);
+    }
+
+    if (pipelineDirty || (stateDirty && dirtyFlags.depthClampOverride))
+    {
+        PAL_ASSERT((m_dbRenderOverride.u32All & ~PipelineDbRenderOverrideMask) == 0);
+        PAL_ASSERT((pPipeline->DbRenderOverride().u32All & ~PipelineDbRenderOverrideMask) == 0);
+
+        regDB_RENDER_OVERRIDE updatedReg = pPipeline->DbRenderOverride();
+
+        // Depth clamping override used by RPM.
+        if (m_graphicsState.depthClampOverride.enabled)
+        {
+            updatedReg.bits.DISABLE_VIEWPORT_CLAMP = m_graphicsState.depthClampOverride.disableViewportClamp;
+        }
+
+        // Is the new state different from the last written state?
+        if (updatedReg.u32All != m_dbRenderOverride.u32All)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
+                                                           PipelineDbRenderOverrideMask,
+                                                           updatedReg.u32All,
+                                                           pDeCmdSpace);
+            m_dbRenderOverride = updatedReg;
+        }
     }
 
     // Validate the per-draw HW state.
@@ -5915,8 +5964,9 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
 
     if (cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr)
     {
-        m_vertexOffsetReg = cmdBuffer.m_vertexOffsetReg;
-        m_drawIndexReg    = cmdBuffer.m_drawIndexReg;
+        m_vertexOffsetReg  = cmdBuffer.m_vertexOffsetReg;
+        m_drawIndexReg     = cmdBuffer.m_drawIndexReg;
+        m_dbRenderOverride = cmdBuffer.m_dbRenderOverride;
 
         // Update the functions that are modified by nested command list
         m_pfnValidateUserDataGfx                   = cmdBuffer.m_pfnValidateUserDataGfx;

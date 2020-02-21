@@ -212,10 +212,10 @@ public:
     virtual size_t GetQueueContextSize(const QueueCreateInfo& createInfo) const override;
 
     virtual Result CreateQueueContext(
-        Queue*         pQueue,
-        Engine*        pEngine,
-        void*          pPlacementAddr,
-        QueueContext** ppQueueContext) override;
+        const QueueCreateInfo& createInfo,
+        Engine*                pEngine,
+        void*                  pPlacementAddr,
+        QueueContext**         ppQueueContext) override;
 
     virtual size_t GetComputePipelineSize(
         const ComputePipelineCreateInfo& createInfo,
@@ -226,7 +226,6 @@ public:
         bool                             isInternal,
         IPipeline**                      ppPipeline) override;
 
- #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 556
    virtual size_t GetShaderLibrarySize(
         const ShaderLibraryCreateInfo&  createInfo,
         Result*                         pResult) const override;
@@ -235,7 +234,6 @@ public:
         void*                           pPlacementAddr,
         bool                            isInternal,
         IShaderLibrary**                ppPipeline) override;
-#endif
 
     virtual size_t GetGraphicsPipelineSize(
         const GraphicsPipelineCreateInfo& createInfo,
@@ -681,7 +679,7 @@ private:
         uint32                        stageMask,
         uint32                        accessMask,
         bool                          flushLlc,
-        gpusize                       gpuEventStartVa,
+        const IGpuEvent*              pGpuEventToSignal,
         void*                         pBuffer,
         Developer::BarrierOperations* pBarrierOps) const;
 

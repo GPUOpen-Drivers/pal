@@ -40,11 +40,11 @@ namespace Util
  ***********************************************************************************************************************
  * @brief Safe version of C99's variable-length arrays.
  *
- * This class is a concept inspired by the Boost C++ library.  The general idea is that this class encapsulates a
- * variable-length array where we expect the size required to not exceed the 'defaultCapacity' template parameter most
- * of the time.  In those "normal" cases, this buffer will reference a static array of size 'defaultCapacity', but if
- * the constructor's parameter exceeds defaultCapacity, then a dynamic array will be allocated from the heap to satisfy
- * the space requirements.  The destructor will clean-up any dynamic allocation made by the constructor.
+ * The general idea is that this class encapsulates a variable-length array where we expect the size required to not
+ * exceed the 'defaultCapacity' template parameter most of the time.  In those "normal" cases, this buffer will
+ * reference a static array of size 'defaultCapacity', but if the constructor's parameter exceeds defaultCapacity, then
+ * a dynamic array will be allocated from the heap to satisfy the space requirements.  The destructor will clean-up any
+ * dynamic allocation made by the constructor.
  *
  * This class violates several PAL coding conventions, but for good reason:
  *

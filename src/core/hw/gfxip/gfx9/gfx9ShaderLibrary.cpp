@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "palMsgPack.h"
 #include "palMsgPackImpl.h"
+#include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
 
@@ -93,9 +94,10 @@ Result ShaderLibrary::HwlInit(
             metadata,
             (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeap : GpuHeapInvisible,
             &uploader);
+        SetIsWave32(metadata);
     }
 
-    if (result ==  Result::Success)
+    if (result == Result::Success)
     {
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
@@ -142,6 +144,91 @@ void ShaderLibrary::UpdateHwInfo()
     m_hwInfo.libRegs.computePgmRsrc1 = m_chunkCs.LibHWInfo().computePgmRsrc1;
     m_hwInfo.libRegs.computePgmRsrc2 = m_chunkCs.LibHWInfo().dynamic.computePgmRsrc2;
     m_hwInfo.libRegs.computePgmRsrc3 = m_chunkCs.LibHWInfo().computePgmRsrc3;
+}
+
+// =====================================================================================================================
+// Obtains the compiled shader ISA code for the shader specified.
+Result ShaderLibrary::GetShaderFunctionCode(
+    const char*  pShaderExportName,
+    size_t*      pSize,
+    void*        pBuffer) const
+{
+    Result result = Result::ErrorUnavailable;
+
+    if (pSize == nullptr)
+    {
+        result = Result::ErrorInvalidPointer;
+    }
+    else
+    {
+        // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
+        // instructions by examining the symbol table entry for that shader's entrypoint.
+        AbiProcessor abiProcessor(m_pDevice->GetPlatform());
+        result = abiProcessor.LoadFromBuffer(m_pCodeObjectBinary, m_codeObjectBinaryLen);
+        if (result == Result::Success)
+        {
+            Abi::GenericSymbolEntry symbol = { };
+            if (abiProcessor.HasGenericSymbolEntry(pShaderExportName, &symbol))
+            {
+                if (pBuffer == nullptr)
+                {
+                    (*pSize) = static_cast<size_t>(symbol.size);
+                    result   = Result::Success;
+                }
+                else
+                {
+                    const void* pCodeSection   = nullptr;
+                    size_t      codeSectionLen = 0;
+                    abiProcessor.GetPipelineCode(&pCodeSection, &codeSectionLen);
+                    PAL_ASSERT((symbol.size + symbol.value) <= codeSectionLen);
+
+                    memcpy(pBuffer,
+                            VoidPtrInc(pCodeSection, static_cast<size_t>(symbol.value)),
+                            static_cast<size_t>(symbol.size));
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Obtains the shader pre and post compilation stats/params for the specified shader.
+Result ShaderLibrary::GetShaderFunctionStats(
+    const char*      pShaderExportName,
+    ShaderLibStats*  pShaderStats) const
+{
+    Result result = Result::Success;
+
+    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+
+    PAL_ASSERT(pShaderStats != nullptr);
+    memset(pShaderStats, 0, sizeof(ShaderStats));
+
+    // We can re-parse the saved pipeline ELF binary to extract shader statistics.
+    AbiProcessor abiProcessor(m_pDevice->GetPlatform());
+    result = abiProcessor.LoadFromBuffer(m_pCodeObjectBinary, m_codeObjectBinaryLen);
+
+    const auto&  gpuInfo       = m_pDevice->Parent()->ChipProperties();
+
+    pShaderStats->common.numUsedSgprs          = m_hwInfo.libRegs.computePgmRsrc1.bits.SGPRS;
+    pShaderStats->common.numUsedVgprs          = m_hwInfo.libRegs.computePgmRsrc1.bits.VGPRS;
+    pShaderStats->common.ldsUsageSizeInBytes   = m_hwInfo.libRegs.computePgmRsrc2.bits.LDS_SIZE;
+    pShaderStats->palInternalLibraryHash       = m_info.internalLibraryHash;
+    pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
+
+    result = abiProcessor.LoadFromBuffer(m_pCodeObjectBinary, m_codeObjectBinaryLen);
+    if (result == Result::Success)
+    {
+        Abi::GenericSymbolEntry symbol = { };
+        if (abiProcessor.HasGenericSymbolEntry(pShaderExportName, &symbol))
+        {
+            pShaderStats->isaSizeInBytes = static_cast<size_t>(symbol.size);
+        }
+    }
+
+    return result;
 }
 
 } // namespace Gfx9

@@ -106,13 +106,11 @@ static uint32* WriteCommonPreamble(
 // =====================================================================================================================
 ComputeQueueContext::ComputeQueueContext(
     Device* pDevice,
-    Queue*  pQueue,
     Engine* pEngine,
     uint32  queueId)
     :
     QueueContext(pDevice->Parent()),
     m_pDevice(pDevice),
-    m_pQueue(pQueue),
     m_pEngine(static_cast<ComputeEngine*>(pEngine)),
     m_queueId(queueId),
     m_currentUpdateCounter(0),
@@ -173,7 +171,7 @@ Result ComputeQueueContext::Init()
 // rings are re-validated and our context command stream is rebuilt.
 Result ComputeQueueContext::PreProcessSubmit(
     InternalSubmitInfo* pSubmitInfo,
-    const SubmitInfo&   submitInfo)
+    uint32              cmdBufferCount)
 {
     bool   hasUpdated = false;
     Result result     = m_pEngine->UpdateRingSet(&m_currentUpdateCounter, &hasUpdated);
@@ -380,19 +378,22 @@ Result ComputeQueueContext::RebuildCommandStream()
 // =====================================================================================================================
 UniversalQueueContext::UniversalQueueContext(
     Device* pDevice,
-    Queue*  pQueue,
+    bool    isPreemptionSupported,
+    uint32  persistentCeRamOffset,
+    uint32  persistentCeRamSize,
     Engine* pEngine,
     uint32  queueId)
     :
     QueueContext(pDevice->Parent()),
     m_pDevice(pDevice),
-    m_pQueue(pQueue),
     m_pEngine(static_cast<UniversalEngine*>(pEngine)),
     m_queueId(queueId),
+    m_persistentCeRamOffset(persistentCeRamOffset),
+    m_persistentCeRamSize(persistentCeRamSize),
     m_currentUpdateCounter(0),
     m_useShadowing((Device::ForceStateShadowing &&
                     pDevice->Parent()->ChipProperties().gfx6.supportLoadRegIndexPkt) ||
-                   m_pQueue->IsPreemptionSupported()),
+                    isPreemptionSupported),
     m_shadowGpuMemSizeInBytes(0),
     m_shadowedRegCount(0),
     m_deCmdStream(*pDevice,
@@ -509,7 +510,7 @@ Result UniversalQueueContext::AllocateShadowMemory()
 
     // Shadow memory only needs to include space for the region of CE RAM which the client requested PAL makes
     // persistent between submissions.
-    uint32 ceRamBytes = (m_pQueue->PersistentCeRamSize() * sizeof(uint32));
+    uint32 ceRamBytes = (m_persistentCeRamSize * sizeof(uint32));
 
     if (m_useShadowing)
     {
@@ -742,13 +743,13 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 // done once, so we need to rebuild the command stream on the second submit.
 Result UniversalQueueContext::PreProcessSubmit(
     InternalSubmitInfo* pSubmitInfo,
-    const SubmitInfo&   submitInfo)
+    uint32              cmdBufferCount)
 {
     bool   hasUpdated = false;
     Result result     = Result::Success;
 
     // We only need to rebuild the command stream if the user submits at least one command buffer.
-    if (submitInfo.cmdBufferCount != 0)
+    if (cmdBufferCount != 0)
     {
         result = m_pEngine->UpdateRingSet(&m_currentUpdateCounter, &hasUpdated);
 
@@ -969,12 +970,12 @@ Result UniversalQueueContext::RebuildCommandStreams()
     bool syncCeDeCounters = false;
     // If the client has requested that this Queue maintain persistent CE RAM contents, or if the Queue supports mid
     // command buffer preemption, we need to rebuild the CE preamble, as well as the CE & DE postambles.
-    if ((m_pQueue->PersistentCeRamSize() != 0) || m_useShadowing)
+    if ((m_persistentCeRamSize != 0) || m_useShadowing)
     {
         PAL_ASSERT(m_shadowGpuMem.IsBound());
         const gpusize gpuVirtAddr = (m_shadowGpuMem.GpuVirtAddr() + (sizeof(uint32) * m_shadowedRegCount));
-        uint32 ceRamByteOffset    = (m_pQueue->PersistentCeRamOffset() + ReservedCeRamBytes);
-        uint32 ceRamDwordSize     =  m_pQueue->PersistentCeRamSize();
+        uint32 ceRamByteOffset    = (m_persistentCeRamOffset + ReservedCeRamBytes);
+        uint32 ceRamDwordSize     = m_persistentCeRamSize;
 
         if (m_useShadowing)
         {
@@ -1002,7 +1003,7 @@ Result UniversalQueueContext::RebuildCommandStreams()
         // The postamble command streams which dump CE RAM at the end of the submission are only necessary if (1) the
         // client requested that this Queue maintains persistent CE RAM contents, or (2) this Queue supports mid
         // command buffer preemption and the panel setting to force the dump CE RAM postamble is set.
-        if ((m_pQueue->PersistentCeRamSize() != 0) ||
+        if ((m_persistentCeRamSize != 0) ||
             (m_pDevice->CoreSettings().commandBufferForceCeRamDumpInPostamble != false))
         {
             // On gfx6-7 we need to synchronize the CE/DE counters after the dump CE RAM because the dump writes to L2

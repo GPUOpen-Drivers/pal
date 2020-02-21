@@ -57,7 +57,7 @@ public:
     virtual size_t GetQueueContextSize(const QueueCreateInfo& createInfo) const override;
 
     virtual Result CreateQueueContext(
-        Queue*         pQueue,
+        QueueType      qType,
         void*          pPlacementAddr,
         QueueContext** ppQueueContext) override;
 

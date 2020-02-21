@@ -87,11 +87,12 @@ public:
     ~EventTimer();
 
     EventTimestamp CreateTimestamp();
-    void           Reset() { m_lastTimestamp = 0; }
+    void           Reset();
 
 private:
-    uint64 m_timestampFrequency;
-    uint64 m_lastTimestamp;
+    uint64               m_timestampFrequency;
+    uint64               m_lastTimestamp;
+    Platform::AtomicLock m_lastTimestampLock;
 };
 
 } // namespace DevDriver
