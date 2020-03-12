@@ -100,13 +100,7 @@ private:
             regSPI_SHADER_PGM_HI_ES       spiShaderPgmHiEs;
             regSPI_SHADER_PGM_RSRC1_GS    spiShaderPgmRsrc1Gs;
             regSPI_SHADER_PGM_RSRC2_GS    spiShaderPgmRsrc2Gs;
-
-            regSPI_SHADER_PGM_CHKSUM_GS      spiShaderPgmChksumGs;
-            regSPI_SHADER_USER_ACCUM_ESGS_0  spiShaderUserAccumEsGs0;
-            regSPI_SHADER_USER_ACCUM_ESGS_1  spiShaderUserAccumEsGs1;
-            regSPI_SHADER_USER_ACCUM_ESGS_2  spiShaderUserAccumEsGs2;
-            regSPI_SHADER_USER_ACCUM_ESGS_3  spiShaderUserAccumEsGs3;
-
+            regSPI_SHADER_PGM_CHKSUM_GS   spiShaderPgmChksumGs;
             regSPI_SHADER_USER_DATA_GS_0  userDataInternalTable;
             regSPI_SHADER_USER_DATA_GS_0  userDataLdsEsGsSize;
             uint16  ldsEsGsSizeRegAddrGs;

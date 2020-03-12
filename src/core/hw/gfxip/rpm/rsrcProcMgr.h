@@ -51,6 +51,22 @@ class  MsaaState;
 static constexpr uint32 MaxLog2AaSamples   = 4; // Max AA sample rate is 16x.
 static constexpr uint32 MaxLog2AaFragments = 3; // Max fragments is 8.
 
+// Specifies image region for metadata fixup pre/post all RPM copies.
+struct ImageFixupRegion
+{
+    SubresId subres;
+    Offset3d offset;
+    Extent3d extent;
+    uint32   numSlices;
+};
+
+// Which engine should be used for RPM copies into images
+enum class ImageCopyEngine : uint32
+{
+    Graphics        = 0x1,
+    Compute         = 0x2,
+};
+
 // =====================================================================================================================
 // Resource Processing Manager: Contains resource modification and preparation logic. RPM and its subclasses issue
 // draws, dispatches, and other operations to manipulate resource contents and hardware state.
@@ -67,7 +83,7 @@ public:
     Result LateInit();
     void Cleanup();
 
-    void CmdCopyImage(
+    ImageCopyEngine CmdCopyImage(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
         ImageLayout            srcImageLayout,
@@ -259,8 +275,20 @@ protected:
         const Pal::Image&  dstImage) const
         { return false; }
 
+    virtual bool CopyDstBoundStencilNeedsWa(
+        const GfxCmdBuffer* pCmdBuffer,
+        const Pal::Image&   dstImage) const
+        { return false; }
+
     //  If need to access single zRange for each subres independantly.
     virtual bool HwlNeedSinglezRangeAccess() const { return false; }
+
+    virtual ImageCopyEngine GetImageToImageCopyEngine(
+        const GfxCmdBuffer*    pCmdBuffer,
+        const Image&           srcImage,
+        const Image&           dstImage,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions) const;
 
     const ComputePipeline* GetLinearHtileClearPipeline(
         bool    expClearEnable,
@@ -363,13 +391,13 @@ private:
         const SubresRange& clearRange) const = 0;
 
     virtual void HwlFixupCopyDstImageMetaData(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image*      pSrcImage,
-        const Pal::Image&      dstImage,
-        ImageLayout            dstImageLayout,
-        const ImageCopyRegion* pRegions,
-        uint32                 regionCount,
-        bool                   isFmaskCopyOptimized) const = 0;
+        GfxCmdBuffer*           pCmdBuffer,
+        const Pal::Image*       pSrcImage,
+        const Pal::Image&       dstImage,
+        ImageLayout             dstImageLayout,
+        const ImageFixupRegion* pRegions,
+        uint32                  regionCount,
+        bool                    isFmaskCopyOptimized) const = 0;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
     virtual void HwlCreateDecompressResolveSafeImageViewSrds(
@@ -607,6 +635,14 @@ private:
         uint32                    regionCount,
         const BarrierTransition&  transition,
         HwPipePoint               waitPoint) const;
+
+    void FixupMetadataForComputeDst(
+        GfxCmdBuffer*           pCmdBuffer,
+        const Image&            dstImage,
+        ImageLayout             dstImageLayout,
+        uint32                  regionCount,
+        const ImageFixupRegion* pRegions,
+        bool                    beforeCopy) const;
 
     bool ScaledCopyImageUseGraphics(
         GfxCmdBuffer*           pCmdBuffer,

@@ -59,8 +59,7 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmVGT_ESGS_RING_ITEMSIZE
     1 + // mmVGT_GS_MAX_PRIMS_PER_SUBGROUP or mmGE_MAX_OUTPUT_PER_SUBGROUP, depending on GfxIp version
     0 + // mmSPI_SHADER_IDX_FORMAT is not included because it is not present on all HW
-    0 + // mmGE_NGG_SUBGRP_CNTL is not included because it is not present on all HW
-    0;  // mmSPI_SHADER_USER_ACCUM_ESGS_0...3 are not included because it is not present on all HW
+    0;  // mmGE_NGG_SUBGRP_CNTL is not included because it is not present on all HW
 
 // =====================================================================================================================
 PipelineChunkGs::PipelineChunkGs(
@@ -100,12 +99,6 @@ void PipelineChunkGs::EarlyInit(
             // mmSPI_SHADER_IDX_FORMAT
             // mmGE_NGG_SUBGRP_CNTL
             pInfo->loadedCtxRegCount += 2;
-
-            if (chipProps.gfx9.supportSpiPrefPriority != 0)
-            {
-                // mmSPI_SHADER_USER_ACCUM_ESGS_0...3
-                pInfo->loadedShRegCount += 4;
-            }
         }
 
         // Up to two additional SH registers will be loaded for on-chip GS or NGG pipelines for the ES/GS LDS sizes.
@@ -173,25 +166,36 @@ void PipelineChunkGs::LateInit(
     // always use the setting PAL prefers.
     m_regs.sh.spiShaderPgmRsrc1Gs.bits.CU_GROUP_ENABLE = (settings.gsCuGroupEnabled ? 1 : 0);
 
-    if (chipProps.gfx9.supportSpiPrefPriority)
-    {
-        registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0, &m_regs.sh.spiShaderUserAccumEsGs0.u32All);
-        registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_1, &m_regs.sh.spiShaderUserAccumEsGs1.u32All);
-        registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_2, &m_regs.sh.spiShaderUserAccumEsGs2.u32All);
-        registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_3, &m_regs.sh.spiShaderUserAccumEsGs3.u32All);
-    }
+#if PAL_ENABLE_PRINTS_ASSERTS
+    m_device.AssertUserAccumRegsDisabled(registers, Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0);
+#endif
 
-    uint32 lateAllocWaves  = (loadInfo.enableNgg ? settings.nggLateAllocGs : settings.lateAllocGs);
+    uint32 lateAllocWaves  = (loadInfo.enableNgg) ? settings.nggLateAllocGs : settings.lateAllocGs;
+    uint32 lateAllocLimit  = 127;
     uint16 gsCuDisableMask = 0;
 
-    const auto&  pgmRsrc1Gs     = m_regs.sh.spiShaderPgmRsrc1Gs.bits;
-    const auto&  pgmRsrc2Gs     = m_regs.sh.spiShaderPgmRsrc2Gs.bits;
-    const uint32 lateAllocLimit = GraphicsPipeline::CalcMaxLateAllocLimit(m_device,
+    if (loadInfo.enableNgg == false)
+    {
+        const auto&  pgmRsrc1Gs = m_regs.sh.spiShaderPgmRsrc1Gs.bits;
+        const auto&  pgmRsrc2Gs = m_regs.sh.spiShaderPgmRsrc2Gs.bits;
+        lateAllocLimit          = GraphicsPipeline::CalcMaxLateAllocLimit(m_device,
                                                                           registers,
                                                                           pgmRsrc1Gs.VGPRS,
                                                                           pgmRsrc1Gs.SGPRS,
                                                                           pgmRsrc2Gs.SCRATCH_EN,
                                                                           lateAllocWaves);
+    }
+    else if (IsGfx10(chipProps.gfxLevel))
+    {
+        VGT_SHADER_STAGES_EN vgtShaderStagesEn = {};
+        vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
+
+        if (settings.waLimitLateAllocGsNggFifo)
+        {
+            lateAllocLimit = 64;
+        }
+    }
+
     lateAllocWaves = Min(lateAllocWaves, lateAllocLimit);
 
     // If late-alloc for NGG is enabled, or if we're using on-chip legacy GS path, we need to avoid using CU1
@@ -221,6 +225,11 @@ void PipelineChunkGs::LateInit(
         {
             // Disable virtualized CU #1 instead of #0 because thread traces use CU #0 by default.
             gsCuDisableMask = 0x2;
+        }
+
+        if ((loadInfo.enableNgg) && (settings.allowNggOnAllCusWgps))
+        {
+            gsCuDisableMask = 0x0;
         }
     }
 
@@ -331,14 +340,6 @@ void PipelineChunkGs::LateInit(
             pUploader->AddCtxReg(Gfx10::mmGE_MAX_OUTPUT_PER_SUBGROUP, m_regs.context.geMaxOutputPerSubgroup);
             pUploader->AddCtxReg(Gfx10::mmSPI_SHADER_IDX_FORMAT,      m_regs.context.spiShaderIdxFormat);
             pUploader->AddCtxReg(Gfx10::mmGE_NGG_SUBGRP_CNTL,         m_regs.context.geNggSubgrpCntl);
-
-            if (chipProps.gfx9.supportSpiPrefPriority != 0)
-            {
-                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0, m_regs.sh.spiShaderUserAccumEsGs0);
-                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_1, m_regs.sh.spiShaderUserAccumEsGs1);
-                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_2, m_regs.sh.spiShaderUserAccumEsGs2);
-                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_3, m_regs.sh.spiShaderUserAccumEsGs3);
-            }
         }
     }
 }
@@ -383,15 +384,6 @@ uint32* PipelineChunkGs::WriteShCommands(
             pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS,
                                                                      m_regs.sh.spiShaderPgmChksumGs.u32All,
                                                                      pCmdSpace);
-        }
-
-        if (chipProps.gfx9.supportSpiPrefPriority != 0)
-        {
-            pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0,
-                                                      Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_3,
-                                                      ShaderGraphics,
-                                                      &m_regs.sh.spiShaderUserAccumEsGs0,
-                                                      pCmdSpace);
         }
 
         if (m_regs.sh.ldsEsGsSizeRegAddrGs != UserDataNotMapped)

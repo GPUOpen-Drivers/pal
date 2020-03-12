@@ -1493,6 +1493,21 @@
       }
     },
     {
+      "Description": "When TRUE, stops the driver from disabling any CUs/WGPs to avoid an NGG deadlock. Typically the driver disables 1 CU on GFX9 and 1 WGP on GFX10. It is up to the user to avoid any dead locks. This can be done by disabling late alloc.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx9",
+        "Gfx10"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "allowNggOnAllCusWgps",
+      "Name": "AllowNggOnAllCusWgps"
+    },
+    {
       "Description": "Value to program GE_PC_ALLOC::NUM_PC_LINES to for NGG-culling pipelines. The value in this setting is per shader-engine. The driver multiplies this value by the number of shader engines and then subtracts 1.",
       "Tags": [
         "Graphics Pipelines",
@@ -2670,22 +2685,6 @@
       "Name": "WaCmaskImageSyncs"
     },
     {
-      "Description": "If set, PAL will fit the tessellation factor ring buffer to be the 1Kb. This is to workaround a GE/UTCL1 counter underflow HW bug.\\n//# Supercedes waTessFactorBufferSizeLimit.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waTessFactorBufferSizeLimitGeUtcl1Underflow",
-      "Name": "WaTessFactorBufferSizeLimitGeUtcl1Underflow"
-    },
-    {
       "Description": "If set, SDMA can not access meta-data (compression) surfaces.",
       "Tags": [
         "Hardware Workarounds"
@@ -2873,6 +2872,38 @@
       "Type": "bool",
       "VariableName": "waTessIncorrectRelativeIndex",
       "Name": "WaTessIncorrectRelativeIndex"
+    },
+    {
+      "Description": "If the workaround is enabled and NGG is enabled we need to limit LATE_ALLOC_GS to <= 64.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waLimitLateAllocGsNggFifo",
+      "Name": "WaLimitLateAllocGsNggFifo"
+    },
+    {
+      "Description": "If the workaround is enabled, we need to clamp GE_CNTL::VERT_GRP_SIZE to avoid a hang due to an issue in PC space allocation.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waClampGeCntlVertGrpSize",
+      "Name": "WaClampGeCntlVertGrpSize"
     },
     {
       "Description": "Determines if GFX or Compute is used to fast clear SingleSampled DepthStencil surfaces. Value is in units of (pix width x height x depth). Values <= this will take GFX else Compute.",

@@ -34,6 +34,7 @@
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
+#include "palMetroHash.h"
 #include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
@@ -200,7 +201,9 @@ GraphicsPipeline::GraphicsPipeline(
     m_gfxLevel(pDevice->Parent()->ChipProperties().gfxLevel),
     m_pDevice(pDevice),
     m_contextRegHash(0),
+    m_configRegHash(0),
     m_isNggFastLaunch(false),
+    m_nggSubgroupSize(0),
     m_uavExportRequiresFlush(false),
     m_chunkHs(*pDevice,
               &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)]),
@@ -233,6 +236,7 @@ void GraphicsPipeline::EarlyInit(
     m_isNggFastLaunch = (IsGfx091xPlus(*(m_pDevice->Parent())) ?
                          (m_regs.context.vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH != 0) :
                          (m_regs.context.vgtShaderStagesEn.gfx09_0.GS_FAST_LAUNCH != 0));
+    m_nggSubgroupSize = (metadata.pipeline.hasEntry.nggSubgroupSize) ? metadata.pipeline.nggSubgroupSize : 0;
 
     // Similarly, VGT_GS_MODE should also be read early, since it determines if on-chip GS is enabled.
     registers.HasEntry(mmVGT_GS_MODE, &m_regs.context.vgtGsMode.u32All);
@@ -347,12 +351,25 @@ Result GraphicsPipeline::HwlInit(
 
             if (result == Result::Success)
             {
+                MetroHash::Hash hash = {};
+
                 hasher.Update(m_regs.context);
-                hasher.Update(m_regs.uconfig);
-                hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextRegHash));
+                hasher.Finalize(hash.bytes);
+                m_contextRegHash = MetroHash::Compact32(&hash);
+
+                // We write our config registers in a separate function so they get their own hash.
+                // Also, we only set config registers on gfx10+.
+                if (IsGfx10(m_gfxLevel))
+                {
+                    hasher.Initialize();
+                    hasher.Update(m_regs.uconfig);
+                    hasher.Finalize(hash.bytes);
+                    m_configRegHash = MetroHash::Compact32(&hash);
+                }
 
                 m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_prefetch);
 
+                // Updating the ring sizes expects that all of the register state has been set up.
                 UpdateRingSizes(metadata);
             }
         }
@@ -568,7 +585,8 @@ uint32* GraphicsPipeline::WriteShCommands(
     // CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
     if ((m_loadPath.countSh == 0) || pCmdStream->Pm4OptimizerEnabled())
     {
-        if (IsGfx10(m_gfxLevel) == false)
+        // If NGG is enabled, there is no hardware-VS, so there is no need to write the late-alloc VS limit.
+        if (IsNgg() == false)
         {
             pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_LATE_ALLOC_VS,
                                                                      m_regs.sh.spiShaderLateAllocVs.u32All,
@@ -609,7 +627,7 @@ uint32* GraphicsPipeline::WriteShCommands(
 }
 
 // =====================================================================================================================
-// Helper function for writing common context images which are shared by all graphics pipelines.
+// Helper function for writing common context registers which are shared by all graphics pipelines.
 // Returns a command buffer pointer incremented to the end of the commands we just wrote.
 uint32* GraphicsPipeline::WriteContextCommands(
     CmdStream* pCmdStream,
@@ -653,16 +671,28 @@ uint32* GraphicsPipeline::WriteContextCommands(
         pCmdSpace += CmdUtil::BuildNonSampleEventWrite(FLUSH_DFSM, EngineTypeUniversal, pCmdSpace);
     }
 
-    if (IsGfx10(m_gfxLevel))
-    {
-        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10::mmGE_STEREO_CNTL,
-                                                      Gfx10::mmGE_PC_ALLOC,
-                                                      &m_regs.uconfig.geStereoCntl,
-                                                      pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10::mmGE_USER_VGPR_EN,
-                                                     m_regs.uconfig.geUserVgprEn.u32All,
-                                                     pCmdSpace);
-    }
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Helper function for writing common GFX10 config registers which are shared by all graphics pipelines.
+// Returns a command buffer pointer incremented to the end of the commands we just wrote.
+uint32* GraphicsPipeline::WriteConfigCommandsGfx10(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    // The caller is required to check if this is gfx10 before calling. We'd probably just do it in here if we
+    // weren't worried about increasing our draw-time validation CPU overhead.
+    PAL_ASSERT(IsGfx10(m_gfxLevel));
+
+    pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10::mmGE_STEREO_CNTL,
+                                                  Gfx10::mmGE_PC_ALLOC,
+                                                  &m_regs.uconfig.geStereoCntl,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10::mmGE_USER_VGPR_EN,
+                                                 m_regs.uconfig.geUserVgprEn.u32All,
+                                                 pCmdSpace);
 
     return pCmdSpace;
 }
@@ -691,16 +721,12 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_SHADER_STAGES_EN,
                                                   m_regs.context.vgtShaderStagesEn.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_DRAW_PAYLOAD_CNTL,
-                                                  m_regs.context.vgtDrawPayloadCntl.u32All,
-                                                  pCmdSpace);
-
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_SHADER_STAGES_EN,
-                                                  m_regs.context.vgtShaderStagesEn.u32All,
-                                                  pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_GS_MODE, m_regs.context.vgtGsMode.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_REUSE_OFF, m_regs.context.vgtReuseOff.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_TF_PARAM, m_regs.context.vgtTfParam.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_DRAW_PAYLOAD_CNTL,
+                                                  m_regs.context.vgtDrawPayloadCntl.u32All,
+                                                  pCmdSpace);
 
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmCB_COLOR_CONTROL, m_regs.context.cbColorControl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_TARGET_MASK, mmCB_SHADER_MASK,
@@ -1546,13 +1572,39 @@ uint32 GraphicsPipeline::ComputeScratchMemorySize(
     const CodeObjectMetadata& metadata
     ) const
 {
+    const bool isGfx10       = IsGfx10(m_gfxLevel);
+    const bool isWave32Tbl[] = {
+        (isGfx10 && (m_regs.context.vgtShaderStagesEn.gfx10.HS_W32_EN != 0)),
+        (isGfx10 && (m_regs.context.vgtShaderStagesEn.gfx10.HS_W32_EN != 0)),
+        (isGfx10 && (m_regs.context.vgtShaderStagesEn.gfx10.GS_W32_EN != 0)),
+        (isGfx10 && (m_regs.context.vgtShaderStagesEn.gfx10.GS_W32_EN != 0)),
+        (isGfx10 && (m_regs.context.vgtShaderStagesEn.gfx10.VS_W32_EN != 0)),
+        (isGfx10 && (m_regs.other.spiPsInControl.gfx10.PS_W32_EN != 0)),
+        false,
+    };
+    static_assert(ArrayLen(isWave32Tbl) == static_cast<size_t>(Abi::HardwareStage::Count),
+                  "IsWave32Tbl is no longer appropriately sized!");
+
     uint32 scratchMemorySizeBytes = 0;
     for (uint32 i = 0; i < static_cast<uint32>(Abi::HardwareStage::Count); ++i)
     {
         const auto& stageMetadata = metadata.pipeline.hardwareStage[i];
         if (stageMetadata.hasEntry.scratchMemorySize != 0)
         {
-            scratchMemorySizeBytes = Max(scratchMemorySizeBytes, stageMetadata.scratchMemorySize);
+            PAL_ASSERT_MSG((i != static_cast<uint32>(Abi::HardwareStage::Cs)),
+                           "Do not expect a graphics pipeline to have a compute shader stage!");
+
+            uint32 stageScratchMemorySize = stageMetadata.scratchMemorySize;
+
+            if (isWave32Tbl[i] == false)
+            {
+                // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
+                // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for
+                // a Wave64, we need to multiply by 2.
+                stageScratchMemorySize *= 2;
+            }
+
+            scratchMemorySizeBytes = Max(scratchMemorySizeBytes, stageScratchMemorySize);
         }
     }
 

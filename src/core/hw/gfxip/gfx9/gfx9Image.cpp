@@ -1158,7 +1158,8 @@ void Image::InitLayoutStateMasks()
             }
         }
 
-        // Copy to depth always goes through gfx path with compression enabled.
+        // Copy to depth always goes through gfx path with compression enabled or via compute path but fixup
+        // metadata beofore and after copy internally.
         compressedLayouts.usages |= LayoutCopyDst;
 
         // If the depth-stencil image is always be fully overwritten when being resolved:
@@ -1177,7 +1178,7 @@ void Image::InitLayoutStateMasks()
             const bool supportsDepth = m_device.SupportsDepth(m_createInfo.swizzledFormat.format,
                                                               m_createInfo.tiling);
             const bool supportsStencil = m_device.SupportsStencil(m_createInfo.swizzledFormat.format,
-                                                              m_createInfo.tiling);
+                                                                  m_createInfo.tiling);
 
             // Our compute-based hTile expand option can only operate on one aspect (depth or stencil) at a
             // time, but it will overwrite hTile data for both aspects once it's done.  :-(  So we can only
@@ -1188,13 +1189,13 @@ void Image::InitLayoutStateMasks()
                 {
                     compressedLayouts.engines |= LayoutComputeEngine;
                 }
+            }
 
-                if (IsGfx10(m_device))
-                {
-                    // GFX10 supports compressed writes to HTILE, so it should be safe to add ShaderWrite and CopyDst
-                    // to the compressed usages.
-                    compressedLayouts.usages |= LayoutShaderWrite | LayoutCopyDst;
-                }
+            if (IsGfx10(m_device))
+            {
+                // GFX10 supports compressed writes to HTILE, so it should be safe to add ShaderWrite to the
+                // compressed usages (LayoutCopyDst was already added as above).
+                compressedLayouts.usages |= LayoutShaderWrite;
             }
         }
 
@@ -1804,6 +1805,36 @@ bool Image::IsFormatReplaceable(
     }
 
     return isFormatReplaceable;
+}
+
+// =====================================================================================================================
+// Answers the question: "If I do shader writes in this layout, will it break my metadata?". For example, this
+// would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
+bool Image::ShaderWriteIncompatibleWithLayout(
+    const SubresId& subresId,
+    ImageLayout     layout
+    ) const
+{
+    bool writeIncompatible = false;
+
+    const ImageLayout writeLayout = {LayoutShaderWrite, layout.engines};
+
+    if (HasDsMetadata())
+    {
+        const DepthStencilLayoutToState& layoutToState = LayoutToDepthCompressionState(subresId);
+
+        // If the given layout demands a higher compression state than shader writes can produce it's incompatible.
+        writeIncompatible = (ImageLayoutToDepthCompressionState(layoutToState, layout) >
+                             ImageLayoutToDepthCompressionState(layoutToState, writeLayout));
+    }
+    else if (HasColorMetaData())
+    {
+        // If the given layout demands a higher compression state than shader writes can produce it's incompatible.
+        writeIncompatible = (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) >
+                             ImageLayoutToColorCompressionState(m_layoutToState.color, writeLayout));
+    }
+
+    return writeIncompatible;
 }
 
 // =====================================================================================================================

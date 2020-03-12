@@ -229,6 +229,8 @@ public:
 
     virtual bool IsSubResourceLinear(const SubresId& subresource) const override;
 
+    virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const override;
+
     // Returns true if this Image has associated HTile data.
     virtual bool HasHtileData() const override { return (m_pHtile == nullptr) ? false : true; }
 

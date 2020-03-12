@@ -589,6 +589,7 @@ void UniversalCmdBuffer::SetGraphicsState(
     {
         m_graphicsState.gfxUserDataEntries.dirty[i] |= newGraphicsState.gfxUserDataEntries.touched[i];
     }
+
 }
 
 // =====================================================================================================================

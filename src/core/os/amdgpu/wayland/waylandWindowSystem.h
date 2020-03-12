@@ -156,6 +156,7 @@ private:
     wl_callback*              m_pFrameCallback;
     bool                      m_frameCompleted;
     uint32                    m_capabilities;
+    uint32                    m_surfaceVersion;
 
     PAL_DISALLOW_DEFAULT_CTOR(WaylandWindowSystem);
     PAL_DISALLOW_COPY_AND_ASSIGN(WaylandWindowSystem);

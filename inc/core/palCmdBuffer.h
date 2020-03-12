@@ -198,8 +198,19 @@ enum HwPipePoint : uint32
     HwPipeTop              = 0x0,                   ///< Earliest possible point in the GPU pipeline (CP PFP).
     HwPipePostIndexFetch   = 0x1,                   ///< Indirect arguments and index buffer data have been fetched for
                                                     ///  all prior draws/dispatches (CP ME).
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 577
     HwPipePreRasterization = 0x3,                   ///< All prior generated VS/HS/DS/GS waves have completed.
     HwPipePostPs           = 0x4,                   ///< All prior generated PS waves have completed.
+#else
+    HwPipePreRasterization = 0x2,                   ///< All prior generated VS/HS/DS/GS waves have completed.
+    HwPipePostPs           = 0x3,                   ///< All prior generated PS waves have completed.
+                                                    ///  Only valid as a pipe point to wait on (release point).
+    HwPipePreColorTarget   = 0x4,                   ///< Represents the same point in pipe to HwPipePostPs, but provides
+                                                    ///  clients with a better option to accurately specify the pipeline
+                                                    ///  sync request. And PAL uses it as entry-point to add partial
+                                                    ///  flushes to prevent write-after-read hazard from corner cases.
+                                                    ///  Only valid as a wait point (acquire point).
+#endif
     HwPipeBottom           = 0x7,                   ///< All prior GPU work (graphics, compute, or BLT) has completed.
 
     // The following points apply to compute-specific work:
@@ -553,6 +564,18 @@ struct DynamicGraphicsShaderInfos
     DynamicGraphicsShaderInfo ds;  ///< Dynamic Domain shader information.
     DynamicGraphicsShaderInfo gs;  ///< Dynamic Geometry shader information.
     DynamicGraphicsShaderInfo ps;  ///< Dynamic Pixel shader information.
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 579)
+    union
+    {
+        struct
+        {
+            uint32 reserved0                  :  6; ///< Reserved.
+            uint32 reserved                   : 26; ///< Reserved for future use.
+        };
+        uint32 u32All;                   ///< Flags packed as 32-bit uint.
+    } flags;                             ///< BindPipeline flags.
+#endif
 };
 
 /// Specifies parameters for binding a pipeline.

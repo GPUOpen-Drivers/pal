@@ -122,6 +122,7 @@ struct PipelineMetadata
     uint32                esGsLdsSize;
     uint32                streamOutTableAddress;
     uint32                indirectUserDataTableAddresses[3];
+    uint32                nggSubgroupSize;
     uint32                numInterpolants;
     char                  api[16];
     BinaryData            apiCreateInfo;
@@ -150,13 +151,13 @@ struct PipelineMetadata
             uint16 esGsLdsSize                    : 1;
             uint16 streamOutTableAddress          : 1;
             uint16 indirectUserDataTableAddresses : 1;
+            uint16 nggSubgroupSize                : 1;
             uint16 numInterpolants                : 1;
             uint16 placeholder0                   : 1;
             uint16 calcWaveBreakSizeAtDrawTime    : 1;
             uint16 placeholder1                   : 1;
             uint16 api                            : 1;
             uint16 apiCreateInfo                  : 1;
-            uint16 reserved                       : 1;
         };
         uint16 uAll;
     } hasEntry;
@@ -198,6 +199,7 @@ namespace PipelineMetadataKey
     static constexpr char EsGsLdsSize[]                    = ".es_gs_lds_size";
     static constexpr char StreamOutTableAddress[]          = ".stream_out_table_address";
     static constexpr char IndirectUserDataTableAddresses[] = ".indirect_user_data_table_addresses";
+    static constexpr char NggSubgroupSize[]                = ".nggSubgroupSize";
     static constexpr char NumInterpolants[]                = ".num_interpolants";
     static constexpr char CalcWaveBreakSizeAtDrawTime[]    = ".calc_wave_break_size_at_draw_time";
     static constexpr char Api[]                            = ".api";

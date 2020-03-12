@@ -252,6 +252,11 @@ extern int64 GetPerfCpuTime();
 /// @returns True if the specified key is currently pressed down.
 extern bool IsKeyPressed(KeyCode key, bool* pPrevState = nullptr);
 
+/// Determines if profiling is restricted
+///
+/// @returns true if the process is not restricted for profiling, otherwise, false will be returned.
+extern bool IsProfileRestricted();
+
 /// Retrieves the fully resolved file name of the application binary.
 ///
 /// @param [out] pBuffer      Character buffer to contain the application's executable and (fully-resolved) path

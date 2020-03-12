@@ -89,22 +89,25 @@ typedef void* (*WlProxyCreateWrapper)(
 typedef void (*WlProxyDestroy)(
             struct wl_proxy*  proxy);
 
+typedef uint32 (*WlProxyGetVersion)(
+            struct wl_proxy*  proxy);
+
 typedef void (*WlProxyMarshal)(
             struct wl_proxy*  p,
-            uint32_t          opcode,
+            uint32            opcode,
                               ...);
 
 typedef wl_proxy* (*WlProxyMarshalConstructor)(
             struct wl_proxy*              proxy,
-            uint32_t                      opcode,
+            uint32                        opcode,
             const struct wl_interface*    interface,
                                           ...);
 
 typedef wl_proxy* (*WlProxyMarshalConstructorVersioned)(
             struct wl_proxy*              proxy,
-            uint32_t                      opcode,
+            uint32                        opcode,
             const struct wl_interface*    interface,
-            uint32_t                      version,
+            uint32                        version,
                                           ...);
 
 typedef void (*WlProxySetQueue)(
@@ -174,6 +177,12 @@ struct WaylandLoaderFuncs
     bool pfnWlProxyDestroyisValid() const
     {
         return (pfnWlProxyDestroy != nullptr);
+    }
+
+    WlProxyGetVersion                     pfnWlProxyGetVersion;
+    bool pfnWlProxyGetVersionisValid() const
+    {
+        return (pfnWlProxyGetVersion != nullptr);
     }
 
     WlProxyMarshal                        pfnWlProxyMarshal;
@@ -298,9 +307,17 @@ public:
         return (m_pFuncs->pfnWlProxyDestroy != nullptr);
     }
 
+    uint32 pfnWlProxyGetVersion(
+            struct wl_proxy*  proxy) const;
+
+    bool pfnWlProxyGetVersionisValid() const
+    {
+        return (m_pFuncs->pfnWlProxyGetVersion != nullptr);
+    }
+
     void pfnWlProxyMarshal(
             struct wl_proxy*  p,
-            uint32_t          opcode,
+            uint32            opcode,
                               ...) const;
 
     bool pfnWlProxyMarshalisValid() const
@@ -310,7 +327,7 @@ public:
 
     wl_proxy* pfnWlProxyMarshalConstructor(
             struct wl_proxy*              proxy,
-            uint32_t                      opcode,
+            uint32                        opcode,
             const struct wl_interface*    interface,
                                           ...) const;
 
@@ -321,9 +338,9 @@ public:
 
     wl_proxy* pfnWlProxyMarshalConstructorVersioned(
             struct wl_proxy*              proxy,
-            uint32_t                      opcode,
+            uint32                        opcode,
             const struct wl_interface*    interface,
-            uint32_t                      version,
+            uint32                        version,
                                           ...) const;
 
     bool pfnWlProxyMarshalConstructorVersionedisValid() const

@@ -178,7 +178,6 @@ CiLib::CiLib(const Client* pClient)
     m_noOfMacroEntries(0),
     m_allowNonDispThickModes(FALSE)
 {
-    m_class = CI_ADDRLIB;
 }
 
 /**

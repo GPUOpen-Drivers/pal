@@ -713,7 +713,7 @@ private:
     const ComputePipelineSignature*   m_pSignatureCs;
     const GraphicsPipelineSignature*  m_pSignatureGfx;
 
-    uint64  m_pipelineCtxPm4Hash; // Hash of current pipeline's PM4 image for context registers.
+    uint32  m_pipelineCtxRegHash; // Hash of current pipeline's context registers.
 
     // Function pointers which validate all graphics user-data at Draw-time for the cases where the pipeline is
     // changing and cases where it is not.

@@ -631,7 +631,13 @@ public:
         size_t      tableBytes,
         gpusize     dataGpuVirtAddr) const override;
 
-    virtual uint32 GetVarBlockSize() const { return m_varBlockSize; }
+    virtual uint32 GetVarBlockSize() const override { return m_varBlockSize; }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // A helper function that asserts if the user accumulator registers in some ELF aren't in a disabled state.
+    // We always write these registers to the disabled state in our queue context preambles.
+    void AssertUserAccumRegsDisabled(const RegisterVector& registers, uint32 firstRegAddr) const;
+#endif
 
 private:
     Result InitOcclusionResetMem();

@@ -63,6 +63,19 @@ Result Device::CommitSettingsAndInit()
 
     m_pPublicSettings = GetNextLayer()->GetPublicSettings();
 
+    if (result == Result::Success)
+    {
+        // Create directory for log files.
+        const auto& platformSettings = GetPlatform()->PlatformSettings();
+
+        result = GetPlatform()->CreateLogDir(platformSettings.pm4InstrumentorConfig.logDirectory);
+
+        if (result != Result::Success)
+        {
+            PAL_DPWARN("Failed to create folder '%s'", platformSettings.pm4InstrumentorConfig.logDirectory);
+        }
+    }
+
     return result;
 }
 
@@ -171,16 +184,12 @@ Result Device::CreateQueue(
         if (enableLayer)
         {
             pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this);
-            result = static_cast<Queue*>(pQueue)->Init();
         }
-        else if (result == Result::Success)
+        else
         {
             pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) QueueDecorator(pNextQueue, this);
         }
-    }
 
-    if (result == Result::Success)
-    {
         pNextQueue->SetClientData(pPlacementAddr);
         (*ppQueue) = pQueue;
     }

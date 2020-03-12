@@ -128,7 +128,6 @@ Gfx10Lib::Gfx10Lib(const Client* pClient)
     m_xmaskBaseIndex(0),
     m_dccBaseIndex(0)
 {
-    m_class = AI_ADDRLIB;
     memset(&m_settings, 0, sizeof(m_settings));
     memcpy(m_swizzleModeTable, SwizzleModeTable, sizeof(SwizzleModeTable));
 }
@@ -2704,7 +2703,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
                     ADDR2_BLOCK_SET allowedBlockSet = GetAllowedBlockSet(allowedSwModeSet, pOut->resourceType);
 
-                    // Determine block size if there is 2 or more block type candidates
+                    // Determine block size if there are 2 or more block type candidates
                     if (IsPow2(allowedBlockSet.value) == FALSE)
                     {
                         AddrSwizzleMode swMode[AddrBlockMaxTiledType] = { ADDR_SW_LINEAR };
@@ -2828,7 +2827,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
                     ADDR2_SWTYPE_SET allowedSwSet = GetAllowedSwSet(allowedSwModeSet);
 
-                    // Determine swizzle type if there is 2 or more swizzle type candidates
+                    // Determine swizzle type if there are 2 or more swizzle type candidates
                     if (IsPow2(allowedSwSet.value) == FALSE)
                     {
                         if (ElemLib::IsBlockCompressed(pIn->format))
@@ -3610,57 +3609,57 @@ const ADDR_SW_PATINFO* Gfx10Lib::GetSwizzlePatternInfo(
     const ADDR_SW_PATINFO* patInfo     = NULL;
     const UINT_32          swizzleMask = 1 << swizzleMode;
 
-    if (IsLinear(swizzleMode) == FALSE)
+    if (IsBlockVariable(swizzleMode))
     {
-        if (IsBlockVariable(swizzleMode))
+        if (m_blockVarSizeLog2 != 0)
         {
-            if (m_blockVarSizeLog2 != 0)
-            {
-                ADDR_ASSERT(m_settings.supportRbPlus);
+            ADDR_ASSERT(m_settings.supportRbPlus);
 
-                if (IsRtOptSwizzle(swizzleMode))
+            if (IsRtOptSwizzle(swizzleMode))
+            {
+                if (numFrag == 1)
                 {
-                    if (numFrag == 1)
-                    {
-                        patInfo = SW_VAR_R_X_1xaa_RBPLUS_PATINFO;
-                    }
-                    else if (numFrag == 2)
-                    {
-                        patInfo = SW_VAR_R_X_2xaa_RBPLUS_PATINFO;
-                    }
-                    else if (numFrag == 4)
-                    {
-                        patInfo = SW_VAR_R_X_4xaa_RBPLUS_PATINFO;
-                    }
-                    else
-                    {
-                        ADDR_ASSERT(numFrag == 8);
-                        patInfo = SW_VAR_R_X_8xaa_RBPLUS_PATINFO;
-                    }
+                    patInfo = SW_VAR_R_X_1xaa_RBPLUS_PATINFO;
                 }
-                else if (IsZOrderSwizzle(swizzleMode))
+                else if (numFrag == 2)
                 {
-                    if (numFrag == 1)
-                    {
-                        patInfo = SW_VAR_Z_X_1xaa_RBPLUS_PATINFO;
-                    }
-                    else if (numFrag == 2)
-                    {
-                        patInfo = SW_VAR_Z_X_2xaa_RBPLUS_PATINFO;
-                    }
-                    else if (numFrag == 4)
-                    {
-                        patInfo = SW_VAR_Z_X_4xaa_RBPLUS_PATINFO;
-                    }
-                    else
-                    {
-                        ADDR_ASSERT(numFrag == 8);
-                        patInfo = SW_VAR_Z_X_8xaa_RBPLUS_PATINFO;
-                    }
+                    patInfo = SW_VAR_R_X_2xaa_RBPLUS_PATINFO;
+                }
+                else if (numFrag == 4)
+                {
+                    patInfo = SW_VAR_R_X_4xaa_RBPLUS_PATINFO;
+                }
+                else
+                {
+                    ADDR_ASSERT(numFrag == 8);
+                    patInfo = SW_VAR_R_X_8xaa_RBPLUS_PATINFO;
+                }
+            }
+            else if (IsZOrderSwizzle(swizzleMode))
+            {
+                if (numFrag == 1)
+                {
+                    patInfo = SW_VAR_Z_X_1xaa_RBPLUS_PATINFO;
+                }
+                else if (numFrag == 2)
+                {
+                    patInfo = SW_VAR_Z_X_2xaa_RBPLUS_PATINFO;
+                }
+                else if (numFrag == 4)
+                {
+                    patInfo = SW_VAR_Z_X_4xaa_RBPLUS_PATINFO;
+                }
+                else
+                {
+                    ADDR_ASSERT(numFrag == 8);
+                    patInfo = SW_VAR_Z_X_8xaa_RBPLUS_PATINFO;
                 }
             }
         }
-        else if (resourceType == ADDR_RSRC_TEX_3D)
+    }
+    else if (IsLinear(swizzleMode) == FALSE)
+    {
+        if (resourceType == ADDR_RSRC_TEX_3D)
         {
             ADDR_ASSERT(numFrag == 1);
 

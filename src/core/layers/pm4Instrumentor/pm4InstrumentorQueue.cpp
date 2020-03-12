@@ -101,6 +101,22 @@ Queue::Queue(
 {
     memset(&m_stats,    0, sizeof(m_stats));
     memset(&m_fileName, 0, sizeof(m_fileName));
+
+    const Pal::PalPlatformSettings& settings = m_pDevice->GetPlatform()->PlatformSettings();
+
+    if (settings.pm4InstrumentorConfig.dumpMode == Pm4InstrumentorDumpQueueSubmit)
+    {
+        m_dumpMode = Pm4InstrumentorDumpQueueSubmit;
+        m_dumpInterval = (GetPerfFrequency() * settings.pm4InstrumentorConfig.dumpInterval);
+    }
+
+    Snprintf(&m_fileName[0],
+        sizeof(m_fileName),
+        "%s/%sQueue-0x%p-%s",
+        m_pDevice->GetPlatform()->LogDirPath(),
+        QueueTypeToString(m_pNextLayer->Type()),
+        this,
+        &settings.pm4InstrumentorConfig.filenameSuffix[0]);
 }
 
 // =====================================================================================================================
@@ -110,39 +126,6 @@ Queue::~Queue()
     {
         DumpStatistics();
     }
-}
-
-// =====================================================================================================================
-Result Queue::Init()
-{
-    const Pal::PalPlatformSettings& settings = m_pDevice->GetPlatform()->PlatformSettings();
-
-    if (settings.pm4InstrumentorConfig.dumpMode == Pm4InstrumentorDumpQueueSubmit)
-    {
-        m_dumpMode     = Pm4InstrumentorDumpQueueSubmit;
-        m_dumpInterval = (GetPerfFrequency() * settings.pm4InstrumentorConfig.dumpInterval);
-    }
-
-    char* pExecName = nullptr;
-    char  execNameAndPath[512];
-    Result result = GetExecutableName(&execNameAndPath[0], &pExecName, sizeof(execNameAndPath));
-    if (result != Result::Success)
-    {
-        Strncpy(&execNameAndPath[0], "Unknown-App", sizeof(execNameAndPath));
-        pExecName = &execNameAndPath[0];
-        result    = Result::Success;  // Ignore the error and use a dummy application name.
-    }
-
-    Snprintf(&m_fileName[0],
-             sizeof(m_fileName),
-             "%s/%s__%sQueue-0x%p-%s",
-             &settings.pm4InstrumentorConfig.logDirectory[0],
-             pExecName,
-             QueueTypeToString(m_pNextLayer->Type()),
-             this,
-             &settings.pm4InstrumentorConfig.filenameSuffix[0]);
-
-    return result;
 }
 
 // =====================================================================================================================

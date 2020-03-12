@@ -1803,6 +1803,11 @@ static const char* HwPipePointToString(
     case HwPipePostPs:
         pString = "HwPipePostPs";
         break;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
+    case HwPipePreColorTarget:
+        pString = "HwPipePreColorTarget";
+        break;
+#endif
     case HwPipeBottom:
         pString = "HwPipeBottom";
         break;

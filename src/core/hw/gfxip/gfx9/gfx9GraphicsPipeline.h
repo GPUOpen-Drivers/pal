@@ -121,8 +121,9 @@ public:
 
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_regs.context.vgtGsOnchipCntl; }
 
-    bool IsNgg() const { return (m_regs.context.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
-    bool IsNggFastLaunch() const { return m_isNggFastLaunch; }
+    bool   IsNgg() const { return (m_regs.context.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
+    bool   IsNggFastLaunch() const { return m_isNggFastLaunch; }
+    uint32 NggSubgroupSize() const { return m_nggSubgroupSize; }
 
     bool UsesInnerCoverage() const { return m_chunkVsPs.UsesInnerCoverage(); }
     bool UsesOffchipParamCache() const { return (m_regs.other.spiPsInControl.bits.OFFCHIP_PARAM_EN != 0); }
@@ -139,8 +140,10 @@ public:
         const DynamicGraphicsShaderInfos& graphicsInfo) const;
 
     uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteConfigCommandsGfx10(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    uint64 GetContextPm4ImgHash() const { return m_contextRegHash; }
+    uint32 GetContextRegHash() const { return m_contextRegHash; }
+    uint32 GetConfigRegHash() const { return m_configRegHash; }
 
     void OverrideRbPlusRegistersForRpm(
         SwizzledFormat           swizzledFormat,
@@ -239,8 +242,10 @@ private:
 
     const GfxIpLevel  m_gfxLevel;
     Device*const      m_pDevice;
-    uint64            m_contextRegHash;
+    uint32            m_contextRegHash;
+    uint32            m_configRegHash;
     bool              m_isNggFastLaunch; ///< Is NGG fast launch enabled?
+    uint32            m_nggSubgroupSize;
     bool              m_uavExportRequiresFlush; // If false, must flush after each draw when UAV export is enabled
 
     // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not

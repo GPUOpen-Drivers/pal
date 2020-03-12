@@ -204,7 +204,7 @@ Result ShaderLibrary::GetShaderFunctionStats(
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
     PAL_ASSERT(pShaderStats != nullptr);
-    memset(pShaderStats, 0, sizeof(ShaderStats));
+    memset(pShaderStats, 0, sizeof(ShaderLibStats));
 
     // We can re-parse the saved pipeline ELF binary to extract shader statistics.
     AbiProcessor abiProcessor(m_pDevice->GetPlatform());

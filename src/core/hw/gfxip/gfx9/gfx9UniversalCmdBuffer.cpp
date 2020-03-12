@@ -265,7 +265,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                   IsNested()),
     m_pSignatureCs(&NullCsSignature),
     m_pSignatureGfx(&NullGfxSignature),
-    m_pipelineCtxPm4Hash(0),
+    m_pipelineCtxRegHash(0),
+    m_pipelineCfgRegHash(0),
     m_pfnValidateUserDataGfx(nullptr),
     m_pfnValidateUserDataGfxPipelineSwitch(nullptr),
     m_workaroundState(&device, createInfo.flags.nested, m_state),
@@ -280,6 +281,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_customBinSizeY(0),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform())
 {
+    const auto&                palDevice        = *(m_device.Parent());
     const PalPlatformSettings& platformSettings = m_device.Parent()->GetPlatform()->PlatformSettings();
     const PalSettings&         coreSettings     = m_device.Parent()->Settings();
     const Gfx9PalSettings&     settings         = m_device.Settings();
@@ -334,6 +336,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.rbPlusSupported           = m_device.Parent()->ChipProperties().gfx9.rbPlus;
 
     m_cachedSettings.waUtcL0InconsistentBigPage = settings.waUtcL0InconsistentBigPage;
+    m_cachedSettings.waClampGeCntlVertGrpSize   = settings.waClampGeCntlVertGrpSize;
 
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
@@ -412,7 +415,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     // Hardware detects binning transitions when this is set so SW can hardcode it.
     // This has no effect unless the KMD has also set PA_SC_ENHANCE_1.FLUSH_ON_BINNING_TRANSITION=1
-    if (IsGfx091xPlus(*(m_device.Parent())))
+    if (IsGfx091xPlus(palDevice))
     {
         m_paScBinnerCntl0.gfx09_1xPlus.FLUSH_ON_BINNING_TRANSITION = 1;
     }
@@ -650,9 +653,11 @@ void UniversalCmdBuffer::ResetState()
         m_vgtDmaIndexType.gfx09.RDREQ_POLICY = VGT_POLICY_STREAM;
     }
 
-    m_spiVsOutConfig.u32All    = 0;
-    m_spiPsInControl.u32All    = 0;
-    m_dbDfsmControl.u32All     = m_device.GetDbDfsmControl();
+    m_spiVsOutConfig.u32All = 0;
+    m_spiPsInControl.u32All = 0;
+    m_vgtLsHsConfig.u32All  = 0;
+    m_geCntl.u32All         = 0;
+    m_dbDfsmControl.u32All  = m_device.GetDbDfsmControl();
 
     // Disable PBB at the start of each command buffer unconditionally. Each draw can set the appropriate
     // PBB state at validate time.
@@ -731,7 +736,8 @@ void UniversalCmdBuffer::ResetState()
 
     m_pSignatureCs         = &NullCsSignature;
     m_pSignatureGfx        = &NullGfxSignature;
-    m_pipelineCtxPm4Hash   = 0;
+    m_pipelineCtxRegHash   = 0;
+    m_pipelineCfgRegHash   = 0;
     m_pipelinePsHash.lower = 0;
     m_pipelinePsHash.upper = 0;
     m_pipelineFlags.u32All = 0;
@@ -849,13 +855,24 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     const bool gsEnabled           = pCurrPipeline->IsGsEnabled();
     const bool isRasterKilled      = pCurrPipeline->IsRasterizationKilled();
 
-    const uint64 ctxPm4Hash = pCurrPipeline->GetContextPm4ImgHash();
-    if (wasPrevPipelineNull || (m_pipelineCtxPm4Hash != ctxPm4Hash))
+    const uint32 ctxRegHash = pCurrPipeline->GetContextRegHash();
+    if (wasPrevPipelineNull || (m_pipelineCtxRegHash != ctxRegHash))
     {
         pDeCmdSpace = pCurrPipeline->WriteContextCommands(&m_deCmdStream, pDeCmdSpace);
         m_deCmdStream.SetContextRollDetected<true>();
 
-        m_pipelineCtxPm4Hash = ctxPm4Hash;
+        m_pipelineCtxRegHash = ctxRegHash;
+    }
+
+    // Only gfx10+ pipelines need to set config registers.
+    if (IsGfx10(m_gfxIpLevel))
+    {
+        const uint32 cfgRegHash = pCurrPipeline->GetConfigRegHash();
+        if (wasPrevPipelineNull || (m_pipelineCfgRegHash != cfgRegHash))
+        {
+            pDeCmdSpace = pCurrPipeline->WriteConfigCommandsGfx10(&m_deCmdStream, pDeCmdSpace);
+            m_pipelineCfgRegHash = cfgRegHash;
+        }
     }
 
     if (m_cachedSettings.rbPlusSupported != 0)
@@ -3242,6 +3259,16 @@ Result UniversalCmdBuffer::AddPreamble()
                                                            m_paScConsRastCntl.u32All,
                                                            pDeCmdSpace);
 
+    // Initialize VGT_LS_HS_CONFIG. It will be rewritten at draw-time if its value changes.
+    if (m_deCmdStream.Pm4OptimizerEnabled())
+    {
+        pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<true>(m_vgtLsHsConfig, pDeCmdSpace);
+    }
+    else
+    {
+        pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<false>(m_vgtLsHsConfig, pDeCmdSpace);
+    }
+
     // With the PM4 optimizer enabled, certain registers are only updated via RMW packets and not having an initial
     // value causes the optimizer to skip optimizing redundant RMW packets.
     if (m_deCmdStream.Pm4OptimizerEnabled())
@@ -3472,6 +3499,14 @@ void UniversalCmdBuffer::WriteEventCmd(
         // HwPipePostBlt barrier optimization
         pipePoint = OptimizeHwPipePostBlit();
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
+    else if (pipePoint == HwPipePreColorTarget)
+    {
+        // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
+        // point to wait on, it's equivalent to HwPipePostPs.
+        pipePoint = HwPipePostPs;
+    }
+#endif
 
     // Prepare packet build info structs.
     WriteDataInfo writeData = {};
@@ -5055,14 +5090,22 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
         else if (IsGfx10(m_gfxIpLevel))
         {
-            const bool lineStippleEnabled = (pMsaaState != nullptr) ? pMsaaState->UsesLineStipple() : false;
-            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10::mmGE_CNTL,
-                                                             CalcGeCntl<IsNgg>(lineStippleEnabled,
-                                                                               iaMultiVgtParam),
-                                                             pDeCmdSpace);
+            const bool   lineStippleEnabled = (pMsaaState != nullptr) ? pMsaaState->UsesLineStipple() : false;
+            const uint32 geCntl             = CalcGeCntl<IsNgg>(lineStippleEnabled, iaMultiVgtParam);
+
+            // GE_CNTL tends to be the same so only bother writing it if the value has changed.
+            if (geCntl != m_geCntl.u32All)
+            {
+                m_geCntl.u32All = geCntl;
+                pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10::mmGE_CNTL, geCntl, pDeCmdSpace);
+            }
         }
 
-        pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<Pm4OptImmediate>(vgtLsHsConfig, pDeCmdSpace);
+        if (vgtLsHsConfig.u32All != m_vgtLsHsConfig.u32All)
+        {
+            m_vgtLsHsConfig = vgtLsHsConfig;
+            pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<Pm4OptImmediate>(vgtLsHsConfig, pDeCmdSpace);
+        }
     }
 
     // Underestimation may be used alone or as inner coverage.
@@ -5221,6 +5264,9 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         Indexed && m_graphicsState.inputAssemblyState.primitiveRestartEnable);
 
     m_state.primShaderCbLayout.renderStateCb.primitiveRestartEnable = vgtMultiPrimIbResetEn.bits.RESET_EN;
+
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+    pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
     if (IsGfx10(m_gfxIpLevel) &&
         (PipelineDirty || (StateDirty && dirtyFlags.triangleRasterState)))
@@ -5746,12 +5792,15 @@ void UniversalCmdBuffer::Gfx10GetDepthBinSize(
 // Fills in m_paScBinnerCntl0(PA_SC_BINNER_CNTL_0 register) with values that corresponds to the
 // specified binning mode and sizes.   For disabled binning the caller should pass a bin size of zero(0x0).
 // 'pBinSize' will be updated with the actual bin size configured.
-void UniversalCmdBuffer::SetPaScBinnerCntl0(
+// Returns: True if PA_SC_BINNER_CNTL_0 changed value, False otherwise.
+bool UniversalCmdBuffer::SetPaScBinnerCntl0(
     const GraphicsPipeline&  pipeline,
     const ColorBlendState*   pColorBlendState,
     Extent2d*                pBinSize,
     bool                     disableDfsm)
 {
+    const regPA_SC_BINNER_CNTL_0 prevPaScBinnerCntl0 = m_paScBinnerCntl0;
+
     // If the reported bin sizes are zero, then disable binning
     if ((pBinSize->width == 0) || (pBinSize->height == 0))
     {
@@ -5803,6 +5852,8 @@ void UniversalCmdBuffer::SetPaScBinnerCntl0(
             m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = 0;
         }
     }
+
+    return (prevPaScBinnerCntl0.u32All != m_paScBinnerCntl0.u32All);
 }
 
 // =====================================================================================================================
@@ -5863,7 +5914,7 @@ bool UniversalCmdBuffer::ShouldEnablePbb(
 
 // =====================================================================================================================
 // Updates the bin sizes and writes to the register.
-template <bool pm4OptImmediate>
+template <bool Pm4OptImmediate>
 uint32* UniversalCmdBuffer::ValidateBinSizes(
     const GraphicsPipeline&  pipeline,
     const ColorBlendState*   pColorBlendState,
@@ -5906,11 +5957,12 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
     }
 
     // Update our copy of m_paScBinnerCntl0 and write it out.
-    SetPaScBinnerCntl0(pipeline, pColorBlendState, &binSize, disableDfsm);
-
-    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmPA_SC_BINNER_CNTL_0,
-                                                                       m_paScBinnerCntl0.u32All,
-                                                                       pDeCmdSpace);
+    if (SetPaScBinnerCntl0(pipeline, pColorBlendState, &binSize, disableDfsm))
+    {
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmPA_SC_BINNER_CNTL_0,
+                                                                           m_paScBinnerCntl0.u32All,
+                                                                           pDeCmdSpace);
+    }
 
     // Update the current bin sizes chosen.
     m_currentBinSize = binSize;
@@ -6086,7 +6138,7 @@ uint32* UniversalCmdBuffer::ValidateCbColorInfo(
 
         uint8 cbColorInfoDirtyBlendOpt = 0;
 
-        if (blendOptDirty)
+        if ((pPipeline != nullptr) && blendOptDirty)
         {
             const auto*const pBlendState = static_cast<const ColorBlendState*>(m_graphicsState.pColorBlendState);
 
@@ -6335,7 +6387,9 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
     const     auto*  pPipeline            = static_cast<const GraphicsPipeline*>(pPalPipeline);
     const     bool   isTess               = pPipeline->IsTessEnabled();
     const     bool   isNggFastLaunch      = pPipeline->IsNggFastLaunch();
-    const     bool   disableVertGrouping  = (m_cachedSettings.disableVertGrouping && (isNggFastLaunch == false));
+    const     bool   disableVertGrouping  = (m_cachedSettings.disableVertGrouping &&
+                                             (isNggFastLaunch == false)           &&
+                                             (pPipeline->NggSubgroupSize() == 0));
     constexpr uint32 VertGroupingDisabled = 256;
 
     regGE_CNTL  geCntl = {};
@@ -6354,13 +6408,21 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
 
         geCntl.bits.PRIM_GRP_SIZE = vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP;
         geCntl.bits.VERT_GRP_SIZE =
-            (disableVertGrouping) ? VertGroupingDisabled : vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
+            (disableVertGrouping)                       ? VertGroupingDisabled :
+            (m_cachedSettings.waClampGeCntlVertGrpSize) ? vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP - 5 :
+                                                          vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
     }
+
+    //  These numbers below come from the hardware restrictions.
+    PAL_ASSERT((IsGfx101(*m_device.Parent()) == false) || (geCntl.bits.VERT_GRP_SIZE >= 24));
 
     // Only used for line-stipple
     geCntl.bits.PACKET_TO_ONE_PA = usesLineStipple;
 
-    geCntl.bits.BREAK_WAVE_AT_EOI = iaMultiVgtParam.bits.SWITCH_ON_EOI;
+    //  ... "the only time break_wave_at_eoi is needed, is for primitive_id/patch_id with tessellation."
+    //  ... "I think every DS requires a valid PatchId".
+    geCntl.bits.BREAK_WAVE_AT_EOI = isTess;
+
     geCntl.bits.PACKET_TO_ONE_PA  = (iaMultiVgtParam.bits.WD_SWITCH_ON_EOP && iaMultiVgtParam.bits.SWITCH_ON_EOP);
 
     return geCntl.u32All;
@@ -8052,7 +8114,8 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_spillTable.stateCs.dirty  |= cmdBuffer.m_spillTable.stateCs.dirty;
     m_spillTable.stateGfx.dirty |= cmdBuffer.m_spillTable.stateGfx.dirty;
 
-    m_pipelineCtxPm4Hash   = cmdBuffer.m_pipelineCtxPm4Hash;
+    m_pipelineCtxRegHash   = cmdBuffer.m_pipelineCtxRegHash;
+    m_pipelineCfgRegHash   = cmdBuffer.m_pipelineCfgRegHash;
     m_pipelinePsHash       = cmdBuffer.m_pipelinePsHash;
     m_pipelineFlags.u32All = cmdBuffer.m_pipelineFlags.u32All;
 
@@ -8061,6 +8124,8 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     {
         m_spiPsInControl = cmdBuffer.m_spiPsInControl;
         m_spiVsOutConfig = cmdBuffer.m_spiVsOutConfig;
+        m_vgtLsHsConfig  = cmdBuffer.m_vgtLsHsConfig;
+        m_geCntl         = cmdBuffer.m_geCntl;
     }
 
     m_nggState.flags.state.hasPrimShaderWorkload |= cmdBuffer.m_nggState.flags.state.hasPrimShaderWorkload;

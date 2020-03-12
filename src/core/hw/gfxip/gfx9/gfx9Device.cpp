@@ -4243,9 +4243,7 @@ void InitializeGpuChipProperties(
         {
             pInfo->gpuType               = GpuType::Discrete;
             pInfo->revision              = AsicRevision::Navi10;
-            {
-                pInfo->gfxStepping       = Abi::GfxIpSteppingNavi10;
-            }
+            pInfo->gfxStepping           = Abi::GfxIpSteppingNavi10;
             pInfo->gfx9.numShaderEngines = 2;
             pInfo->gfx9.maxNumCuPerSh    = 10;
             pInfo->gfx9.maxNumRbPerSe    = 8;
@@ -6528,6 +6526,33 @@ bool IsFmaskBigPageCompatible(
 
     return bigPage;
 }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+// =====================================================================================================================
+// A helper function that asserts if the user accumulator registers in some ELF aren't in a disabled state.
+// We always write these registers to the disabled state in our queue context preambles.
+void Device::AssertUserAccumRegsDisabled(
+    const RegisterVector& registers,
+    uint32                firstRegAddr
+    ) const
+{
+    if (Parent()->ChipProperties().gfx9.supportSpiPrefPriority)
+    {
+        // These registers all have the same layout across all shader stages and accumulators.
+        regSPI_SHADER_USER_ACCUM_VS_0 regValues[4] = {};
+
+        registers.HasEntry(firstRegAddr,     &regValues[0].u32All);
+        registers.HasEntry(firstRegAddr + 1, &regValues[1].u32All);
+        registers.HasEntry(firstRegAddr + 2, &regValues[2].u32All);
+        registers.HasEntry(firstRegAddr + 3, &regValues[3].u32All);
+
+        // Contributions of 0 and 1 are both valid "disabled" states. If someone builds an ELF that uses a higher
+        // contribution we should take note and figure out if we need to implement this feature.
+        PAL_ASSERT((regValues[0].bits.CONTRIBUTION <= 1) && (regValues[1].bits.CONTRIBUTION <= 1) &&
+                   (regValues[2].bits.CONTRIBUTION <= 1) && (regValues[3].bits.CONTRIBUTION <= 1));
+    }
+}
+#endif
 
 } // Gfx9
 } // Pal

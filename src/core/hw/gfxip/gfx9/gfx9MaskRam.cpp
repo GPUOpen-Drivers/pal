@@ -1165,9 +1165,25 @@ void Gfx9MaskRam::UploadEq(
         PAL_ASSERT (m_eqGpuAccess.offset != 0);
 
         const auto&    boundMem = pParentImg->GetBoundGpuMemory();
-        const gpusize  offset   = boundMem.Offset() + m_eqGpuAccess.offset;
+        const Gfx9PalSettings& settings = GetGfx9Settings(*pDevice);
 
-        m_meta.Upload(pDevice, pCmdBuffer, *boundMem.Memory(), offset, m_firstUploadBit);
+        if (settings.processMetaEquationViaCpu)
+        {
+            void*  pMappedAddr = nullptr;
+
+            boundMem.Memory()->Map(&pMappedAddr);
+            if ((pMappedAddr != nullptr))
+            {
+                CpuUploadEq(VoidPtrInc(pMappedAddr, LowPart(boundMem.Offset())));
+
+                boundMem.Memory()->Unmap();
+            }
+        }
+        else
+        {
+            const gpusize  offset = boundMem.Offset() + m_eqGpuAccess.offset;
+            m_meta.Upload(pDevice, pCmdBuffer, *boundMem.Memory(), offset, m_firstUploadBit);
+        }
     }
 }
 

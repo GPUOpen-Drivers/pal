@@ -54,20 +54,20 @@ public:
 
     virtual Result QueryAllocationInfo(
         size_t*                    pNumEntries,
-        GpuMemSubAllocInfo* const  pAllocInfoList)const;
+        GpuMemSubAllocInfo* const  pAllocInfoList) const override;
 
     virtual Result GetCodeObject(
         uint32*  pSize,
-        void*    pBuffer) const;
+        void*    pBuffer) const override;
 
     virtual Result GetShaderFunctionCode(
         const char*  pShaderExportName,
         size_t*      pSize,
-        void*        pBuffer) const;
+        void*        pBuffer) const override;
 
     virtual Result GetShaderFunctionStats(
         const char*      pShaderExportName,
-        ShaderLibStats*  pShaderStats) const;
+        ShaderLibStats*  pShaderStats) const override;
 
     static void GetFunctionGpuVirtAddrs(
         const AbiProcessor&             abiProcessor,

@@ -3072,6 +3072,8 @@ uint32* PerfExperiment::WriteWaitIdle(
                                                 FullSyncBaseAddr,
                                                 FullSyncSize,
                                                 pCmdSpace);
+
+        pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
     }
     else
     {

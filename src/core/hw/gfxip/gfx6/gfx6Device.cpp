@@ -873,7 +873,7 @@ Result Device::CreateQueueContext(
     Result result = Result::Success;
 
     const uint32 engineId = createInfo.engineIndex;
-    switch (createInfo.engineType)
+    switch (createInfo.queueType)
     {
     case QueueTypeCompute:
         {

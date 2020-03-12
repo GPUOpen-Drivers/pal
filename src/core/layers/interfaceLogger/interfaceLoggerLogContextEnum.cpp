@@ -668,9 +668,15 @@ void LogContext::Enum(
     {
         "HwPipeTop",              // 0x0,
         "HwPipePostIndexFetch",   // 0x1,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 577
         "",
         "HwPipePreRasterization", // 0x3,
         "HwPipePostPs",           // 0x4,
+#else
+        "HwPipePreRasterization", // 0x2,
+        "HwPipePostPs",           // 0x3,
+        "HwPipePreColorTarget",   // 0x4,
+#endif
         "HwPipePostCs",           // 0x5,
         "HwPipePostBlt",          // 0x6,
         "HwPipeBottom",           // 0x7,
@@ -998,7 +1004,6 @@ void LogContext::Enum(
         "Vega12",
         "Vega20",
         "Raven2",
-        nullptr,
         nullptr,
         "Navi10",
         nullptr,
@@ -1332,6 +1337,26 @@ void LogContext::Enum(
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < QueueTypeCount);
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
+    ReclaimResult value)
+{
+    const char*const StringTable[] =
+    {
+        "Ok",           // 0
+        "Discarded",    // 1
+        "NotCommitted", // 2
+    };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ReclaimResult::Count),
+                  "The ReclaimResult string table needs to be updated.");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < static_cast<uint32>(ReclaimResult::Count));
 
     Value(StringTable[idx]);
 }

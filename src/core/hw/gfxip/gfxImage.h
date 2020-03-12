@@ -135,6 +135,10 @@ public:
 
     virtual bool IsRestrictedTiledMultiMediaSurface() const;
 
+    // Answers the question: "If I do shader writes in this layout, will it break my metadata?". For example, this
+    // would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
+    virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const = 0;
+
     bool HasFastClearMetaData() const { return m_fastClearMetaDataOffset != 0; }
     gpusize FastClearMetaDataAddr(uint32 mipLevel) const;
     gpusize FastClearMetaDataOffset(uint32 mipLevel) const;

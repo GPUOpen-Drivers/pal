@@ -322,21 +322,13 @@ Result Queue::Submit(
     auto*const pPlatform     = m_pDevice->GetPlatform();
     bool       beginNewFrame = false;
 
-    PAL_ASSERT_MSG((submitInfo.perSubQueueInfoCount <= 1),
+    PAL_ASSERT_MSG(((submitInfo.perSubQueueInfoCount == 1) && (submitInfo.pPerSubQueueInfo != nullptr)),
                    "Multi-Queue support has not yet been implemented in GpuProfiler!", nullptr);
 
-    const bool   validSubmit     = (submitInfo.pPerSubQueueInfo != nullptr) &&
-                                   (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
-    const bool   hasCmdBufInfo   = (validSubmit && (submitInfo.pPerSubQueueInfo[0].pCmdBufInfoList != nullptr));
+    const bool   hasCmdBufInfo   = (submitInfo.pPerSubQueueInfo[0].pCmdBufInfoList != nullptr);
     const bool   breakBatches    = m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerConfig.breakSubmitBatches;
-    const uint32 batchCount =
-        (validSubmit)
-           ? (breakBatches) ? submitInfo.pPerSubQueueInfo[0].cmdBufferCount : 1
-           : 0;
-    const uint32 cmdBufsPerBatch =
-        (validSubmit)
-            ? (breakBatches) ? 1 : submitInfo.pPerSubQueueInfo[0].cmdBufferCount
-            : 0;
+    const uint32 batchCount      = (breakBatches) ? submitInfo.pPerSubQueueInfo[0].cmdBufferCount : 1;
+    const uint32 cmdBufsPerBatch = (breakBatches) ? 1 : submitInfo.pPerSubQueueInfo[0].cmdBufferCount;
     const uint32 maxNextCmdBufs  = cmdBufsPerBatch + 1; // One per recorded CmdBuffer plus the end-frame CmdBuffer.
 
     AutoBuffer<ICmdBuffer*, 32, PlatformDecorator>  nextCmdBuffers(maxNextCmdBufs, pPlatform);
@@ -819,6 +811,9 @@ Result Queue::AcquireGpaSession(
                                        m_pDevice,
                                        platform.ApiMajorVer(),
                                        platform.ApiMinorVer(),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 575
+                                       GpuUtil::ApiType::Generic,
+#endif
                                        0, 0,
                                        &m_availPerfExpMem);
         if (*ppGpaSession != nullptr)

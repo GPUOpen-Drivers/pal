@@ -363,7 +363,8 @@ WaylandWindowSystem::WaylandWindowSystem(
     m_pWaylandDrmWrapper(nullptr),
     m_pFrameCallback(nullptr),
     m_frameCompleted(false),
-    m_capabilities(0)
+    m_capabilities(0),
+    m_surfaceVersion(0)
 {
 
 }
@@ -502,6 +503,10 @@ Result WaylandWindowSystem::Init()
         {
             result = Result::ErrorInitializationFailed;
         }
+        else
+        {
+            m_surfaceVersion = m_waylandProcs.pfnWlProxyGetVersion(reinterpret_cast<wl_proxy*>(m_pSurfaceWrapper));
+        }
     }
 
     if (result == Result::Success)
@@ -623,12 +628,32 @@ Result WaylandWindowSystem::Present(
                                      0,
                                      0);
 
-    m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pSurfaceWrapper),
-                                     WL_SURFACE_DAMAGE,
-                                     0,
-                                     0,
-                                     srcImageCreateInfo.extent.width,
-                                     srcImageCreateInfo.extent.height);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 578
+    if ((m_surfaceVersion >= WL_SURFACE_DAMAGE_BUFFER_SINCE_VERSION) &&
+        (presentInfo.rectangleCount > 0) &&
+        (presentInfo.pRectangles != nullptr))
+    {
+        for (uint32 r = 0; r < presentInfo.rectangleCount; ++r)
+        {
+            const Rect& damageRect = presentInfo.pRectangles[r];
+            m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pSurfaceWrapper),
+                                             WL_SURFACE_DAMAGE_BUFFER,
+                                             damageRect.offset.x,
+                                             damageRect.offset.y,
+                                             damageRect.extent.width,
+                                             damageRect.extent.height);
+        }
+    }
+    else
+#endif
+    {
+        m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pSurfaceWrapper),
+                                         WL_SURFACE_DAMAGE,
+                                         0,
+                                         0,
+                                         srcImageCreateInfo.extent.width,
+                                         srcImageCreateInfo.extent.height);
+    }
 
     m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pSurfaceWrapper), WL_SURFACE_COMMIT);
     m_waylandProcs.pfnWlDisplayFlush(m_pDisplay);

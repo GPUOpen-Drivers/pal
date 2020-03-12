@@ -80,7 +80,6 @@ R800Lib::R800Lib(const Client* pClient)
     m_shaderEngineTileSize(0),
     m_lowerPipes(0)
 {
-    m_class = R800_ADDRLIB;
     memset(&m_settings, 0, sizeof(m_settings));
 }
 
@@ -1787,7 +1786,7 @@ UINT_64 R800Lib::ComputeSurfaceAddrFromCoordPowerSave(
     UINT_32*            pBitPosition            ///< [out] bit position, e.g. FMT_1 will use this
     ) const
 {
-    ADDR_ASSERT(m_class <= R800_ADDRLIB);
+    ADDR_ASSERT(m_chipFamily < ADDR_CHIP_FAMILY_SI);
     UINT_64 addr = 0;
 
     const UINT_32 pipeInterleaveBytes = m_pipeInterleaveBytes;

@@ -33,6 +33,7 @@
 #include "core/hw/gfxip/gfx6/gfx6GraphicsPipeline.h"
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
+#include "palMetroHash.h"
 #include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
@@ -378,8 +379,11 @@ Result GraphicsPipeline::HwlInit(
 
             if (result == Result::Success)
             {
+                MetroHash::Hash hash = {};
+
                 hasher.Update(m_regs.context);
-                hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextRegHash));
+                hasher.Finalize(hash.bytes);
+                m_contextRegHash = MetroHash::Compact32(&hash);
 
                 m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_prefetch);
 

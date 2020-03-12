@@ -75,7 +75,6 @@ public:
         Queue*         pQueue,
         uint64         value,
         volatile bool* pIsStalled) = 0;
-    virtual Result SignalSemaphoreValue(uint64  value) = 0;
 
     bool IsShareable()      const { return m_flags.shareable;      }
     bool IsShared()         const { return m_flags.shared;         }

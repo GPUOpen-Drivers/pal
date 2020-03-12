@@ -628,6 +628,7 @@ public:
     void Enum(QueryType value);
     void Enum(QueuePriority value);
     void Enum(QueueType value);
+    void Enum(ReclaimResult value);
     void Enum(ResolveMode value);
     void Enum(Result value);
     void Enum(ShadeMode value);
@@ -867,6 +868,7 @@ public:
     void KeyAndEnum(const char* pKey, QueryPoolType value)                { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, QueryType value)                    { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, QueueType value)                    { Key(pKey); Enum(value); }
+    void KeyAndEnum(const char* pKey, ReclaimResult value)                { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, ResolveMode value)                  { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, Result value)                       { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, ShadeMode value)                    { Key(pKey); Enum(value); }

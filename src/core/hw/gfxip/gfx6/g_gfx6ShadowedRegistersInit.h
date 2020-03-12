@@ -465,6 +465,11 @@ void InitializeContextRegistersGfx6(
         0x0       ,
         0x0
     };
+    constexpr uint32 VgtStrmoutDrawOpaqueOffsetGfx6[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
     constexpr uint32 VgtGsMaxVertOutGfx6[] = {
         0x0       ,
         0x0       ,
@@ -670,6 +675,7 @@ void InitializeContextRegistersGfx6(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_1, mmVGT_STRMOUT_VTX_STRIDE_1, VgtStrmoutBufferSize1Gfx6, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_2, mmVGT_STRMOUT_VTX_STRIDE_2, VgtStrmoutBufferSize2Gfx6, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_3, mmVGT_STRMOUT_VTX_STRIDE_3, VgtStrmoutBufferSize3Gfx6, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET, mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE, VgtStrmoutDrawOpaqueOffsetGfx6, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_MAX_VERT_OUT, mmVGT_STRMOUT_BUFFER_CONFIG, VgtGsMaxVertOutGfx6, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, mmCB_COLOR7_DCC_BASE__VI, PaScCentroidPriority0Gfx6, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
@@ -1106,6 +1112,11 @@ void InitializeContextRegistersGfx7(
         0x0       ,
         0x0
     };
+    constexpr uint32 VgtStrmoutDrawOpaqueOffsetGfx7[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
     constexpr uint32 VgtGsMaxVertOutGfx7[] = {
         0x0       ,
         0x0       ,
@@ -1311,6 +1322,7 @@ void InitializeContextRegistersGfx7(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_1, mmVGT_STRMOUT_VTX_STRIDE_1, VgtStrmoutBufferSize1Gfx7, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_2, mmVGT_STRMOUT_VTX_STRIDE_2, VgtStrmoutBufferSize2Gfx7, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_3, mmVGT_STRMOUT_VTX_STRIDE_3, VgtStrmoutBufferSize3Gfx7, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET, mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE, VgtStrmoutDrawOpaqueOffsetGfx7, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_MAX_VERT_OUT, mmVGT_STRMOUT_BUFFER_CONFIG, VgtGsMaxVertOutGfx7, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, mmCB_COLOR7_DCC_BASE__VI, PaScCentroidPriority0Gfx7, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
@@ -1747,6 +1759,11 @@ void InitializeContextRegistersGfx8(
         0x0       ,
         0x0
     };
+    constexpr uint32 VgtStrmoutDrawOpaqueOffsetGfx8[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
     constexpr uint32 VgtGsMaxVertOutGfx8[] = {
         0x0       ,
         0x0       ,
@@ -1952,6 +1969,7 @@ void InitializeContextRegistersGfx8(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_1, mmVGT_STRMOUT_VTX_STRIDE_1, VgtStrmoutBufferSize1Gfx8, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_2, mmVGT_STRMOUT_VTX_STRIDE_2, VgtStrmoutBufferSize2Gfx8, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_3, mmVGT_STRMOUT_VTX_STRIDE_3, VgtStrmoutBufferSize3Gfx8, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET, mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE, VgtStrmoutDrawOpaqueOffsetGfx8, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_MAX_VERT_OUT, mmVGT_STRMOUT_BUFFER_CONFIG, VgtGsMaxVertOutGfx8, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, mmCB_COLOR7_DCC_BASE__VI, PaScCentroidPriority0Gfx8, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);

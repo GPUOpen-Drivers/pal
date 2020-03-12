@@ -309,7 +309,7 @@ public:
 
     static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWMODE_SET validSwModeSet);
 
-    virtual uint32 GetBlockSize(AddrSwizzleMode swizzleMode) const;
+    virtual uint32 GetBlockSize(AddrSwizzleMode swizzleMode) const override;
 
 protected:
     virtual void ComputeTilesInMipTail(

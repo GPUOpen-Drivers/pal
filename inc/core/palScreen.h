@@ -122,8 +122,9 @@ struct ScreenColorCapabilities
 
             /// feature flags
             uint32 freeSyncBacklightSupport :  1; ///< True if FreeSync2 backlight control is supported
+            uint32 isHdrEnabled             :  1; ///< True if the OS is in HDR mode.
 
-            uint32 reserved                 : 28; ///< Reserved for future use.
+            uint32 reserved                 : 27; ///< Reserved for future use.
         };
         uint32 u32All;                            ///< Flags packed as 32-bit uint.
     };                                            ///< ScreenColorCapabilities property flags.

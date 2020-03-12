@@ -248,21 +248,13 @@ void SettingsLoader::ValidateSettings(
         // the "optimized" algorithm for processing the meta-equations.
         m_settings.optimizedFastClear = 0;
 
-        if (m_settings.waTessFactorBufferSizeLimitGeUtcl1Underflow)
-        {
-            // This workaround requires that the TF ring buffer is set to 1KB.
-            m_settings.tessFactorBufferSizePerSe = 0x80;
-        }
-        else
-        {
-            // The suggested size of the tessellation factor buffer per SE is 0x4000 DWORDs, to account for the
-            // multiples SA's per SE.
-            // More updates:  It is true that for Navi10 this value should be 0xC000. This translates to 128
-            //                threadgroups per SPI for 3 control point patches and 64 patches per threadgroup.
-            //                GE has internal FIFO limits and that prevents it from launching more work.
-            //                So there is no point in increasing the size of the buffer
-            m_settings.tessFactorBufferSizePerSe = Gfx10::mmVGT_TF_RING_SIZE_DEFAULT / gfx9Props.numShaderEngines;
-        }
+        // The suggested size of the tessellation factor buffer per SE is 0x4000 DWORDs, to account for the
+        // multiples SA's per SE.
+        // More updates:  It is true that for Navi10 this value should be 0xC000. This translates to 128
+        //                threadgroups per SPI for 3 control point patches and 64 patches per threadgroup.
+        //                GE has internal FIFO limits and that prevents it from launching more work.
+        //                So there is no point in increasing the size of the buffer
+        m_settings.tessFactorBufferSizePerSe = Gfx10::mmVGT_TF_RING_SIZE_DEFAULT / gfx9Props.numShaderEngines;
 
         if ((m_settings.tessFactorBufferSizePerSe * gfx9Props.numShaderEngines) > VGT_TF_RING_SIZE__SIZE_MASK)
         {
@@ -385,6 +377,10 @@ static void SetupGfx101Workarounds(
 
     pSettings->waUtcL0InconsistentBigPage = true;
 
+    pSettings->waLimitLateAllocGsNggFifo = true;
+
+    pSettings->waClampGeCntlVertGrpSize = true;
+
     {
         // The DB has a bug where an attempted depth expand of a Z16_UNORM 1xAA surface that has not had its
         // metadata initialized will cause the DBs to incorrectly calculate the amount of return data from the
@@ -437,7 +433,6 @@ static void SetupNavi10Workarounds(
     pSettings->waTessIncorrectRelativeIndex = true;
 
     pSettings->waForceZonlyHtileForMipmaps = true;
-
 } // PAL_BUILD_NAVI10
 
 // =====================================================================================================================
@@ -531,6 +526,21 @@ void SettingsLoader::OverrideDefaults(
         else if (IsNavi14(device))
         {
             SetupNavi14Workarounds(device, &m_settings, pSettings);
+        }
+
+        // For 4 or less RB parts, we expect some overlap for metadata requests across RBs.
+        if (device.ChipProperties().gfx9.numActiveRbs <= 4)
+        {
+            m_settings.cbDbCachePolicy = (Gfx10CbDbCachePolicyLruCmask | Gfx10CbDbCachePolicyLruDcc |
+                                          Gfx10CbDbCachePolicyLruFmask | Gfx10CbDbCachePolicyLruHtile);
+
+            // Additional default settings that are beneficial for smaller ASICs.
+            m_settings.disableBinningPsKill = false;
+            m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 33;
+            m_settings.gfx10GePcAllocNumLinesPerSeNggCulling = 32;
+            m_settings.depthStencilFastClearComputeThresholdSingleSampled = (1024 * 1024) - 1;
+            m_settings.binningContextStatesPerBin = 3;
+            m_settings.binningPersistentStatesPerBin = 8;
         }
 
     }

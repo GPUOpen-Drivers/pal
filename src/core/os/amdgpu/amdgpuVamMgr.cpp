@@ -389,8 +389,10 @@ void VamMgrSingleton::Cleanup(
     {
         if (--pVamMgrInfo->deviceRefCount == 0)
         {
+            GenericAllocator genericAllocator;
+
             pVamMgrInfo->pVamMgr->Cleanup(pDevice);
-            PAL_DELETE(pVamMgrInfo->pVamMgr, pDevice->GetPlatform());
+            PAL_DELETE(pVamMgrInfo->pVamMgr, &genericAllocator);
             pVamMgrSingleton->m_vamMgrMap.Erase(pDevice->DeviceHandle());
         }
     }
@@ -401,21 +403,22 @@ void VamMgrSingleton::Cleanup(
 Result VamMgrSingleton::InitVaRangesAndFinalizeVam(
     Device* const pDevice)
 {
-    Result result = Result::Success;
     PAL_ASSERT(pVamMgrSingleton != nullptr);
     MutexAuto lock(&pVamMgrSingleton->m_mutex);
 
     // Initialize reserved VA ranges on the GPU device.
     // Note: Each device requires a reservation, otherwise mem allocation will have an address conflict on VA reserve
-    result = pDevice->InitReservedVaRanges();
+    Result result = pDevice->InitReservedVaRanges();
 
     amdgpu_device_handle devHandle = pDevice->DeviceHandle();
     VamMgrInfo* pVamMgrInfo = pVamMgrSingleton->m_vamMgrMap.FindKey(devHandle);
 
     if (pVamMgrInfo == nullptr)
     {
+        GenericAllocator genericAllocator;
+
         VamMgrInfo vamMgrInfo = {};
-        VamMgr* pVamMgr = PAL_NEW(VamMgr, pDevice->GetPlatform(), AllocInternal);
+        VamMgr* pVamMgr = PAL_NEW(VamMgr, &genericAllocator, AllocInternal);
 
         if (result == Result::Success)
         {
@@ -637,6 +640,23 @@ void VamMgrSingleton::FreeReservedVaRange(
             pVamMgrSingleton->m_reservedVaMap.Erase(devHandle);
         }
     }
+}
+
+// =====================================================================================================================
+// Check if the partiton has already been allocated
+bool VamMgrSingleton::IsVamPartitionAllocated(
+    amdgpu_device_handle devHandle,
+    VaPartition          vaPartition,
+    gpusize              vaStart)
+{
+    PAL_ASSERT(pVamMgrSingleton != nullptr);
+    MutexAuto lock(&pVamMgrSingleton->m_vaMapLock);
+
+    auto* pInfo = pVamMgrSingleton->m_reservedVaMap.FindKey(devHandle);
+
+    return ((pInfo != nullptr) &&
+            (pInfo->allocatedVa[static_cast<uint32>(vaPartition)] != nullptr) &&
+            (pInfo->baseVirtualAddr[static_cast<uint32>(vaPartition)] == vaStart));
 }
 
 } // Amdgpu

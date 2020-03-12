@@ -2177,6 +2177,38 @@ bool Image::IsFormatReplaceable(
 }
 
 // =====================================================================================================================
+// Answers the question: "If I do shader writes in this layout, will it break my metadata?". For example, this
+// would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
+bool Image::ShaderWriteIncompatibleWithLayout(
+    const SubresId& subresId,
+    ImageLayout     layout
+    ) const
+{
+    bool writeIncompatible = false;
+
+    const ImageLayout writeLayout = {LayoutShaderWrite, layout.engines};
+
+    if (HasHtileData())
+    {
+        const DepthStencilLayoutToState& layoutToState = LayoutToDepthCompressionState(subresId);
+
+        // If the given layout demands a higher compression state than shader writes can produce it's incompatible.
+        writeIncompatible = (ImageLayoutToDepthCompressionState(layoutToState, layout) >
+                             ImageLayoutToDepthCompressionState(layoutToState, writeLayout));
+    }
+    else if (HasColorMetaData())
+    {
+        const ColorLayoutToState& layoutToState = LayoutToColorCompressionState(subresId);
+
+        // If the given layout demands a higher compression state than shader writes can produce it's incompatible.
+        writeIncompatible = (ImageLayoutToColorCompressionState(layoutToState, layout) >
+                             ImageLayoutToColorCompressionState(layoutToState, writeLayout));
+    }
+
+    return writeIncompatible;
+}
+
+// =====================================================================================================================
 // Determines the memory requirements for this query. CZ cannot immediate flip from local to non-local so we keep all
 // primaries for a swap chain (same size, same device) exclusively in non-local. The workaround is described in
 // detail in the DCE11_SDD_SCATTER_GATHER doc.

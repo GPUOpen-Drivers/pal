@@ -105,10 +105,10 @@ Result ComputePipeline::HwlInit(
 
     if (result ==  Result::Success)
     {
-        UpdateRingSizes(metadata);
-
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
+
+        UpdateRingSizes(metadata);
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
@@ -317,8 +317,18 @@ void ComputePipeline::UpdateRingSizes(
     const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
     if (csStageMetadata.hasEntry.scratchMemorySize != 0)
     {
+        uint32 stageScratchMemorySize = csStageMetadata.scratchMemorySize;
+
+        if (IsGfx10(m_pDevice->Parent()->ChipProperties().gfxLevel) && (IsWave32() == false))
+        {
+            // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
+            // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for
+            // a Wave64, we need to multiply by 2.
+            stageScratchMemorySize *= 2;
+        }
+
         ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
-            (csStageMetadata.scratchMemorySize / sizeof(uint32));
+            (stageScratchMemorySize / sizeof(uint32));
     }
 
     // Inform the device that this pipeline has some new ring-size requirements.

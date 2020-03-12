@@ -96,8 +96,6 @@ public:
     Queue(IQueue*  pNextQueue,
           Device*  pDevice);
 
-    Result Init();
-
     virtual Result Submit(
         const MultiSubmitInfo& submitInfo) override;
 

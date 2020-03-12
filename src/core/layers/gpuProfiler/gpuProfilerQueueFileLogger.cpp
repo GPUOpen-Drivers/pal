@@ -232,18 +232,18 @@ void Queue::OpenSqttFile(
         {
             if (settings.gpuProfilerConfig.useFullPipelineHash)
             {
-                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x-%.16I64x",
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%016llx-%016llx",
                                    logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable,
                                    logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.unique);
             }
             else if (settings.gpuProfilerSqttConfig.pipelineHashAsApiPsoHash)
             {
-                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x",
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%016llx",
                                    logItem.cmdBufCall.draw.apiPsoHash);
             }
             else
             {
-                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x",
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%016llx",
                                    logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable);
             }
         }
@@ -311,13 +311,13 @@ void Queue::OpenSpmFile(
         {
             if (settings.gpuProfilerConfig.useFullPipelineHash)
             {
-                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x-%.16I64x",
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%016llx-%016llx",
                                    logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable,
                                    logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.unique);
             }
             else
             {
-                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%.16I64x",
+                crcPos += Snprintf(crcInfo + crcPos, CrcInfoSize - crcPos, "_PIPELINE%016llx",
                                    logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable);
             }
         }

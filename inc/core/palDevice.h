@@ -617,6 +617,13 @@ struct PalPublicSettings
     PublicSettingIfhMode ifhMode;
 #endif
     bool depthClampBasedOnZExport;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
+    /// Force the PreColorTarget to an earlier PreRasterization point if used as a wait point. This is to prevent a
+    /// write-after-read hazard for a corner case: shader exports from distinct packers are not ordered. Advancing
+    /// wait point from PreColorTarget to PostIndexFetch could cause over-sync due to extra  VS/PS_PARTIAL_FLUSH
+    /// inserted. It is default to false, but client drivers may choose to app-detect to enable if see corruption.
+    bool forceWaitPointPreColorToPostIndexFetch;
+#endif
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -2391,6 +2398,15 @@ struct FlglState
     };
     FlglSupport support;         ///< The state of the FLGL support in current adapter
     uint32      firmwareVersion; ///< Firmware version number of the GLSync hardware (S400 board), if available
+};
+
+/// Reclaim allocation result enumeration.
+enum class ReclaimResult : uint8
+{
+    Ok           = 0, ///< Reclaim result is OK.
+    Discarded    = 1, ///< Reclaim result is discarded.
+    NotCommitted = 2, ///< Reclaim result is not committed.
+    Count
 };
 
 /**

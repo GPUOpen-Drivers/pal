@@ -29,6 +29,7 @@
 #include "core/os/nullDevice/ndPlatform.h"
 #include "palAssert.h"
 #include "palDbgPrint.h"
+#include "palSysUtil.h"
 #include "palSysMemory.h"
 
 #if PAL_BUILD_LAYERS

@@ -516,7 +516,7 @@ protected:
 
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) = 0;
 
-    virtual bool SupportsExecutionMarker() { return true; }
+    virtual bool SupportsExecutionMarker() override { return true; }
 
     uint32            m_engineSupport;       // Indicates which engines are supported by the command buffer.
                                              // Populated by the GFXIP-specific layer.

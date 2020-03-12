@@ -1083,6 +1083,22 @@ void Device::Barrier(
     // -- Stalls and global cache management.
     // -----------------------------------------------------------------------------------------------------------------
 
+    HwPipePoint waitPoint = barrier.waitPoint;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
+    if (barrier.waitPoint == HwPipePreColorTarget)
+    {
+        // PS exports from distinct packers are not ordered.  Therefore, it is possible for color target writes in an
+        // RB associated with one packer to start while pixel shader reads from the previous draw are still active on a
+        // different packer.  If the writes and reads in that scenario access the same data, the operations will not
+        // occur in the API-defined pipeline order.  This is a narrow data hazard, but to safely avoid it we need to
+        // adjust the pre color target wait point to be before any pixel shader waves launch. VS has same issue, so
+        // adjust the wait point to the latest before any pixel/vertex wave launches which is HwPipePostIndexFetch.
+        waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostIndexFetch) ? HwPipePostIndexFetch
+                                                                                            : HwPipePostPs;
+    }
+#endif
+
     // Determine sync requirements for global pipeline waits.
     for (uint32 i = 0; i < barrier.pipePointWaitCount; i++)
     {
@@ -1102,27 +1118,35 @@ void Device::Barrier(
             // HwPipePostBlt barrier optimization
             pipePoint = pCmdBuf->OptimizeHwPipePostBlit();
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
+        else if (pipePoint == HwPipePreColorTarget)
+        {
+            // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
+            // point to wait on, it's equivalent to HwPipePostPs.
+            pipePoint = HwPipePostPs;
+        }
+#endif
 
-        if (pipePoint > barrier.waitPoint)
+        if (pipePoint > waitPoint)
         {
             switch (pipePoint)
             {
             case HwPipePostIndexFetch:
-                PAL_ASSERT(barrier.waitPoint == HwPipeTop);
+                PAL_ASSERT(waitPoint == HwPipeTop);
                 globalSyncReqs.pfpSyncMe = 1;
                 break;
             case HwPipePreRasterization:
                 globalSyncReqs.vsPartialFlush = 1;
-                globalSyncReqs.pfpSyncMe = (barrier.waitPoint == HwPipeTop);
+                globalSyncReqs.pfpSyncMe = (waitPoint == HwPipeTop);
                 break;
             case HwPipePostPs:
                 globalSyncReqs.vsPartialFlush = 1;
                 globalSyncReqs.psPartialFlush = 1;
-                globalSyncReqs.pfpSyncMe = (barrier.waitPoint == HwPipeTop);
+                globalSyncReqs.pfpSyncMe = (waitPoint == HwPipeTop);
                 break;
             case HwPipePostCs:
                 globalSyncReqs.csPartialFlush = 1;
-                globalSyncReqs.pfpSyncMe = (barrier.waitPoint == HwPipeTop);
+                globalSyncReqs.pfpSyncMe = (waitPoint == HwPipeTop);
                 break;
             case HwPipeBottom:
                 globalSyncReqs.waitOnEopTs = 1;

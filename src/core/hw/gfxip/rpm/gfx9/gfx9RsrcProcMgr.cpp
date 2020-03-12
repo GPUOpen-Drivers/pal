@@ -1491,13 +1491,13 @@ bool RsrcProcMgr::HwlUseOptimizedImageCopy(
 // - For Fmask optimized MSAA copy where we we preserve fmask fragmentation, copy Cmask/Fmask from source image to dst.
 // - For image is created with fullCopyDstOnly=1, fix up Cmask/Fmask to uncompressed state.
 void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
-    GfxCmdBuffer*          pCmdBuffer,
-    const Pal::Image*      pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
-    const Pal::Image&      dstImage,
-    ImageLayout            dstImageLayout,
-    const ImageCopyRegion* pRegions,
-    uint32                 regionCount,
-    bool                   isFmaskCopyOptimized
+    GfxCmdBuffer*           pCmdBuffer,
+    const Pal::Image*       pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
+    const Pal::Image&       dstImage,
+    ImageLayout             dstImageLayout,
+    const ImageFixupRegion* pRegions,
+    uint32                  regionCount,
+    bool                    isFmaskCopyOptimized
     ) const
 {
     const auto&  gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
@@ -1553,16 +1553,16 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             // if the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
             for (uint32 idx = 0; idx < regionCount; ++idx)
             {
-                const auto& copyRegion  = pRegions[idx];
-                const auto* pSubResInfo = dstImage.SubresourceInfo(copyRegion.dstSubres);
+                const auto& clearRegion = pRegions[idx];
+                const auto* pSubResInfo = dstImage.SubresourceInfo(clearRegion.subres);
 
                 SubresRange range = {};
 
-                range.startSubres.aspect     = copyRegion.dstSubres.aspect;
-                range.startSubres.mipLevel   = copyRegion.dstSubres.mipLevel;
-                range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
+                range.startSubres.aspect     = clearRegion.subres.aspect;
+                range.startSubres.mipLevel   = clearRegion.subres.mipLevel;
+                range.startSubres.arraySlice = clearRegion.subres.arraySlice;
                 range.numMips                = 1;
-                range.numSlices              = copyRegion.numSlices;
+                range.numSlices              = clearRegion.numSlices;
 
                 // Since color data is no longer compressed set CMask and FMask to fully uncompressed.
                 InitCmask(pCmdBuffer, pStream, gfx9DstImage, range);
@@ -3426,6 +3426,19 @@ bool RsrcProcMgr::UsePixelCopy(
     return usePixelCopy;
 }
 
+// =====================================================================================================================
+// Some products need HW workarounds if the stencil buffer bound to the rendering pipeline is copied into via shader
+// image stores.
+bool RsrcProcMgr::CopyDstBoundStencilNeedsWa(
+    const GfxCmdBuffer* pCmdBuffer,
+    const Pal::Image&   dstImage
+    ) const
+{
+    bool  copyDstIsBoundStencil = false;
+
+    return copyDstIsBoundStencil;
+}
+
 // ====================================================================================================================
 void RsrcProcMgr::CmdCopyMemoryToImage(
     GfxCmdBuffer*                pCmdBuffer,
@@ -3437,15 +3450,15 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
     bool                         includePadding
     ) const
 {
-    const auto&  createInfo = dstImage.GetImageCreateInfo();
+    const auto& createInfo = dstImage.GetImageCreateInfo();
 
     Pal::RsrcProcMgr::CmdCopyMemoryToImage(pCmdBuffer,
-                                            srcGpuMemory,
-                                            dstImage,
-                                            dstImageLayout,
-                                            regionCount,
-                                            pRegions,
-                                            includePadding);
+                                           srcGpuMemory,
+                                           dstImage,
+                                           dstImageLayout,
+                                           regionCount,
+                                           pRegions,
+                                           includePadding);
 
     if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
         (createInfo.mipLevels > 1))
@@ -5326,13 +5339,13 @@ void Gfx9RsrcProcMgr::InitHtile(
 
 // =====================================================================================================================
 void Gfx9RsrcProcMgr::HwlFixupCopyDstImageMetaData(
-    GfxCmdBuffer*          pCmdBuffer,
-    const Pal::Image*      pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
-    const Pal::Image&      dstImage,
-    ImageLayout            dstImageLayout,
-    const ImageCopyRegion* pRegions,
-    uint32                 regionCount,
-    bool                   isFmaskCopyOptimized
+    GfxCmdBuffer*           pCmdBuffer,
+    const Pal::Image*       pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
+    const Pal::Image&       dstImage,
+    ImageLayout             dstImageLayout,
+    const ImageFixupRegion* pRegions,
+    uint32                  regionCount,
+    bool                    isFmaskCopyOptimized
     ) const
 {
     PAL_ASSERT((pSrcImage == nullptr) || isFmaskCopyOptimized);
@@ -5353,15 +5366,15 @@ void Gfx9RsrcProcMgr::HwlFixupCopyDstImageMetaData(
 
         for (uint32 idx = 0; idx < regionCount; ++idx)
         {
-            const auto& copyRegion = pRegions[idx];
+            const auto& clearRegion = pRegions[idx];
 
             SubresRange range = {};
 
-            range.startSubres.aspect     = copyRegion.dstSubres.aspect;
-            range.startSubres.mipLevel   = copyRegion.dstSubres.mipLevel;
-            range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
+            range.startSubres.aspect     = clearRegion.subres.aspect;
+            range.startSubres.mipLevel   = clearRegion.subres.mipLevel;
+            range.startSubres.arraySlice = clearRegion.subres.arraySlice;
             range.numMips                = 1;
-            range.numSlices              = copyRegion.numSlices;
+            range.numSlices              = clearRegion.numSlices;
 
             // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
             ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
@@ -5449,6 +5462,8 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
                 ClearDccComputeSetFirstPixelOfBlock(pCmdBuffer,
                                                     dstImage,
                                                     absMipLevel,
+                                                    startSlice,
+                                                    numSlices,
                                                     bytesPerPixel,
                                                     pPackedClearColor);
             }
@@ -5475,6 +5490,8 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     GfxCmdBuffer*      pCmdBuffer,
     const Image&       dstImage,
     uint32             absMipLevel,
+    uint32             startSlice,  // 0 for 3d or start array slice for 2d array.
+    uint32             numSlices,   // depth for 3d or number of array slices for 2d array.
     uint32             bytesPerPixel,
     const uint32*      pPackedClearColor
     ) const
@@ -5500,7 +5517,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     uint32 zInc = 0;
     pDcc->GetXyzInc(&xInc, &yInc, &zInc);
 
-    const SubresId subResId     = { ImageAspect::Color, absMipLevel, 0 };
+    const SubresId subResId     = { ImageAspect::Color, absMipLevel, startSlice };
     SwizzledFormat aspectFormat = {};
     aspectFormat.swizzle.r = ChannelSwizzle::X;
     aspectFormat.swizzle.g = ChannelSwizzle::Zero;
@@ -5544,7 +5561,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     const auto*    pSubResInfo    = pPalImage->SubresourceInfo(subResId);
     const uint32   mipLevelWidth  = pSubResInfo->extentTexels.width;
     const uint32   mipLevelHeight = pSubResInfo->extentTexels.height;
-    const uint32   mipLevelDepth  = pSubResInfo->extentTexels.depth;
+    const uint32   mipLevelDepth  = numSlices;
 
     // How many blocks are there for this miplevel in X/Y/Z dimension.
     // We'll need one thread for each block, which writes clear value to the first byte.
@@ -5580,7 +5597,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
                                                                0);
 
     ImageViewInfo  imageView    = {};
-    SubresRange    viewRange    = { subResId, 1, 1 };
+    SubresRange    viewRange    = { subResId, 1, (createInfo.imageType == ImageType::Tex3d) ? 1 : numSlices };
 
     RpmUtil::BuildImageViewInfo(&imageView,
                                 *dstImage.Parent(),
@@ -6328,13 +6345,13 @@ void Gfx10RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
 
 // =====================================================================================================================
 void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
-    GfxCmdBuffer*          pCmdBuffer,
-    const Pal::Image*      pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
-    const Pal::Image&      dstImage,
-    ImageLayout            dstImageLayout,
-    const ImageCopyRegion* pRegions,
-    uint32                 regionCount,
-    bool                   isFmaskCopyOptimized
+    GfxCmdBuffer*           pCmdBuffer,
+    const Pal::Image*       pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
+    const Pal::Image&       dstImage,
+    ImageLayout             dstImageLayout,
+    const ImageFixupRegion* pRegions,
+    uint32                  regionCount,
+    bool                    isFmaskCopyOptimized
     ) const
 {
     PAL_ASSERT((pSrcImage == nullptr) || isFmaskCopyOptimized);
@@ -6362,18 +6379,18 @@ void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
 
         for (uint32 idx = 0; idx < regionCount; ++idx)
         {
-            const auto& copyRegion = pRegions[idx];
-            const auto* pSubResInfo = dstImage.SubresourceInfo(copyRegion.dstSubres);
+            const auto& clearRegion = pRegions[idx];
+            const auto* pSubResInfo = dstImage.SubresourceInfo(clearRegion.subres);
 
             if (pSubResInfo->flags.supportMetaDataTexFetch == 0)
             {
                 SubresRange range = {};
 
-                range.startSubres.aspect     = copyRegion.dstSubres.aspect;
-                range.startSubres.mipLevel   = copyRegion.dstSubres.mipLevel;
-                range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
+                range.startSubres.aspect     = clearRegion.subres.aspect;
+                range.startSubres.mipLevel   = clearRegion.subres.mipLevel;
+                range.startSubres.arraySlice = clearRegion.subres.arraySlice;
                 range.numMips                = 1;
-                range.numSlices              = copyRegion.numSlices;
+                range.numSlices              = clearRegion.numSlices;
 
                 // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
                 ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);

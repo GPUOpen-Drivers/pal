@@ -558,6 +558,9 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.ifhMode = PublicSettingIfhMode::IfhModeDisabled;
 #endif
     m_publicSettings.depthClampBasedOnZExport = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
+    m_publicSettings.forceWaitPointPreColorToPostIndexFetch = false;
+#endif
     return ret;
 }
 
@@ -907,14 +910,50 @@ void Device::GetHwIpDeviceSizes(
 
 // =====================================================================================================================
 // Find a gpu VA range with size(vaSize) and base address between *pVaStart and (vaEnd - vaSize) that is not reserved.
+// It tries vaEnd-vaSize to vaEnd first, then vaEnd-vaSize-vaAlignment to vaEnd-vaAlignment. It's inverted order of
+// FindGpuVaRange.
+// If successfull, *pVaStart will be set to the base address of the found VA range.
+Result Device::FindGpuVaRangeReverse(
+    gpusize*    pVaStart,
+    gpusize     vaEnd,
+    gpusize     vaSize,
+    gpusize     vaAlignment,
+    VaPartition vaParttion
+    ) const
+{
+    Result result = Result::ErrorOutOfGpuMemory;
+
+    PAL_ASSERT(IsPowerOfTwo(vaAlignment));
+    PAL_ASSERT(vaEnd - *pVaStart >= vaSize);
+
+    *pVaStart = Pow2Align(*pVaStart, vaAlignment);
+    vaEnd     = Pow2AlignDown(vaEnd, vaAlignment);
+
+    for (gpusize vaAddr = (vaEnd - vaSize); vaAddr >= *pVaStart; vaAddr -= vaAlignment)
+    {
+        result = ProbeGpuVaRange(vaAddr, vaSize, vaParttion);
+
+        if (result == Result::Success)
+        {
+            *pVaStart = vaAddr;
+            break;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Find a gpu VA range with size(vaSize) and base address between *pVaStart and (vaEnd - vaSize) that is not reserved.
 // If reserveCpuVa is true, the equivalent VA range in host memory will tried to be reserved.
 // If successfull, *pVaStart will be set to the base address of the found VA range.
 Result Device::FindGpuVaRange(
-    gpusize* pVaStart,
-    gpusize  vaEnd,
-    gpusize  vaSize,
-    gpusize  vaAlignment,
-    bool     reserveCpuVa
+    gpusize*    pVaStart,
+    gpusize     vaEnd,
+    gpusize     vaSize,
+    gpusize     vaAlignment,
+    VaPartition vaParttion,
+    bool        reserveCpuVa
     ) const
 {
     Result result = Result::Success;
@@ -942,7 +981,7 @@ Result Device::FindGpuVaRange(
 
         if (result == Result::Success)
         {
-            result = ProbeGpuVaRange(vaAddr, vaSize);
+            result = ProbeGpuVaRange(vaAddr, vaSize, vaParttion);
 
             if (result == Result::Success)
             {
@@ -1060,14 +1099,15 @@ Result Device::FixupUsableGpuVirtualAddressRange(
     constexpr gpusize _16GB = (1ull << 34u);
 
     auto*const pVaRange = &m_memoryProperties.vaRange[0];
-    if ((usableVaEnd - usableVaStart) >= (3ull * _4GB))
+    if ((usableVaEnd - usableVaStart) >= (7ull * _4GB))
     {
         // Case #1
-        // This is the ideal scenario: we have more than 12 GB of address space, so we can use the first two 4 GB
-        // sections for the ShadowDescriptorTable and DescriptorTable ranges, and the leftovers for Capture Replay than Default.
+        // This is the ideal scenario: we have more than 28 GB of address space, so we can use the first two 4 GB
+        // sections for the ShadowDescriptorTable and DescriptorTable ranges, and the last 16GB for Capture Replay,
+        // the leftovers for Default.
         gpusize baseVirtAddr = usableVaStart;
 
-        result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _4GB, _4GB);
+        result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _4GB, _4GB, VaPartition::DescriptorTable);
 
         if (result == Result::Success)
         {
@@ -1077,7 +1117,7 @@ Result Device::FixupUsableGpuVirtualAddressRange(
 
         baseVirtAddr += _4GB;
 
-        result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _4GB, _4GB);
+        result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _4GB, _4GB, VaPartition::ShadowDescriptorTable);
 
         if (result == Result::Success)
         {
@@ -1090,7 +1130,7 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         if (result == Result::Success)
         {
             pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr = baseVirtAddr;
-            pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (usableVaEnd - baseVirtAddr - _16GB);
+            pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (usableVaEnd - baseVirtAddr);
 
             if (result == Result::Success)
             {
@@ -1098,16 +1138,20 @@ Result Device::FixupUsableGpuVirtualAddressRange(
                 {
                     if (m_chipProperties.gfxip.supportCaptureReplay == 1)
                     {
-                        // If a dedicated PRT VA range exists, adjust the default VA range to exclude it.
-                        pVaRange[static_cast<uint32>(VaPartition::Default)].size = (m_memoryProperties.vaStartPrt - baseVirtAddr - _16GB);
+                        result = FindGpuVaRangeReverse(&baseVirtAddr,
+                                                       m_memoryProperties.vaStartPrt,
+                                                       _16GB,
+                                                       _1GB,
+                                                       VaPartition::CaptureReplay);
+                        if (result == Result::Success)
+                        {
+                            gpusize virtAddr = pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr;
 
-                        baseVirtAddr += pVaRange[static_cast<uint32>(VaPartition::Default)].size;
+                            pVaRange[static_cast<uint32>(VaPartition::Default)].size = baseVirtAddr - virtAddr;
 
-                        result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _16GB, _16GB);
-                        PAL_ASSERT(result == Result::Success);
-
-                        pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].baseVirtAddr = baseVirtAddr;
-                        pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].size         = _16GB;
+                            pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].baseVirtAddr = baseVirtAddr;
+                            pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].size         = _16GB;
+                        }
                     }
                     else
                     {
@@ -1117,15 +1161,27 @@ Result Device::FixupUsableGpuVirtualAddressRange(
                     }
 
                     pVaRange[static_cast<uint32>(VaPartition::Prt)].baseVirtAddr = m_memoryProperties.vaStartPrt;
-                    pVaRange[static_cast<uint32>(VaPartition::Prt)].size         = (usableVaEnd - m_memoryProperties.vaStartPrt);
+                    pVaRange[static_cast<uint32>(VaPartition::Prt)].size         = (usableVaEnd -
+                                                                                    m_memoryProperties.vaStartPrt);
                 }
                 else if (m_chipProperties.gfxip.supportCaptureReplay == 1)
                 {
-                    baseVirtAddr += pVaRange[static_cast<uint32>(VaPartition::Default)].size;
-                    result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _16GB, _16GB);
+                    result = FindGpuVaRangeReverse(&baseVirtAddr,
+                                                   usableVaEnd,
+                                                   _16GB,
+                                                   _1GB,
+                                                   VaPartition::CaptureReplay);
+                    if (result == Result::Success)
+                    {
+                        gpusize virtAddr = pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr;
 
-                    pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].baseVirtAddr = baseVirtAddr;
-                    pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].size         = _16GB;
+                        PAL_ASSERT(baseVirtAddr - virtAddr >= _4GB);
+                        pVaRange[static_cast<uint32>(VaPartition::Default)].size = baseVirtAddr - virtAddr;
+
+                        pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].baseVirtAddr = baseVirtAddr;
+                        pVaRange[static_cast<uint32>(VaPartition::CaptureReplay)].size         = _16GB;
+                    }
+
                 }
             }
         }

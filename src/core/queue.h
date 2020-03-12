@@ -250,22 +250,22 @@ public:
 
     // This must be called right after initialization to allow the queue to perform any initialization work which
     // requires a fully initialized queue.
-    Result LateInit();
+    virtual Result LateInit();
 
     Result ReleaseFromStalledState();
 
-    uint32        EngineId() const { return m_pQueueInfos[0].createInfo.engineIndex; }
-    QueuePriority Priority() const { return m_pQueueInfos[0].createInfo.priority; }
+    virtual uint32 EngineId() const { return m_pQueueInfos[0].createInfo.engineIndex; }
+    virtual QueuePriority Priority() const { return m_pQueueInfos[0].createInfo.priority; }
     CmdBuffer*    DummyCmdBuffer() const { return m_pDummyCmdBuffer; }
     Result        DummySubmit(bool postBatching);
 
-    bool UsesDispatchTunneling()      const { return (m_pQueueInfos[0].createInfo.dispatchTunneling != 0); }
-    bool IsWindowedPriorBlit()        const { return (m_pQueueInfos[0].createInfo.windowedPriorBlit != 0); }
+    virtual bool UsesDispatchTunneling() const { return (m_pQueueInfos[0].createInfo.dispatchTunneling != 0); }
+    virtual bool IsWindowedPriorBlit()   const { return (m_pQueueInfos[0].createInfo.windowedPriorBlit != 0); }
     bool UsesPhysicalModeSubmission() const;
     bool IsPreemptionSupported()      const;
 
-    uint32 PersistentCeRamOffset() const { return m_pQueueInfos[0].createInfo.persistentCeRamOffset; }
-    uint32 PersistentCeRamSize()   const { return m_pQueueInfos[0].createInfo.persistentCeRamSize; }
+    virtual uint32 PersistentCeRamOffset() const { return m_pQueueInfos[0].createInfo.persistentCeRamOffset; }
+    virtual uint32 PersistentCeRamSize()   const { return m_pQueueInfos[0].createInfo.persistentCeRamSize; }
 
     IQueueSemaphore* WaitingSemaphore() const { return m_pWaitingSemaphore; }
     void SetWaitingSemaphore(IQueueSemaphore* pQueueSemaphore) { m_pWaitingSemaphore = pQueueSemaphore; }
@@ -281,7 +281,7 @@ public:
     static bool SupportsComputeShader(QueueType queueType)
         { return (queueType == QueueTypeUniversal) || (queueType == QueueTypeCompute); }
 
-    bool IsPresentModeSupported(PresentMode presentMode) const;
+    virtual bool IsPresentModeSupported(PresentMode presentMode) const;
 
     // Performs OS-specific Queue submission behavior.
     virtual Result OsSubmit(

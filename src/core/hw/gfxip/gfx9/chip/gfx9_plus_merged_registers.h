@@ -28075,7 +28075,7 @@ union SQ_WAVE_FLAT_SCRATCH_LO {
 union SQ_WAVE_FLAT_XNACK_MASK {
     struct {
         unsigned int MASK                                                         : 32;
-    } bits, bitfields;
+    } gfx101;
 
     unsigned int u32All;
     signed int   i32All;

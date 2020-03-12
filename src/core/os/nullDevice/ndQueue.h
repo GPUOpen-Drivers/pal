@@ -63,6 +63,29 @@ public:
         const QueueCreateInfo* pCreateInfo,
         void*                  pContextPlacementAddr) override;
 
+    virtual QueueType Type() const override { return QueueType::QueueTypeCount; }
+
+    virtual EngineType GetEngineType() const override { return EngineType::EngineTypeCount; }
+
+    virtual void Destroy() {}
+
+    virtual Result LateInit() { return Result::Success; }
+
+    virtual uint32 EngineId() const { return 0; }
+    virtual QueuePriority Priority() const { return QueuePriority::Realtime; }
+
+    virtual bool UsesDispatchTunneling() const { return false; }
+    virtual bool IsWindowedPriorBlit()   const { return false; }
+
+    virtual uint32 PersistentCeRamOffset() const { return 0; }
+    virtual uint32 PersistentCeRamSize()   const { return 0; }
+
+    virtual bool IsPresentModeSupported(PresentMode presentMode) const { return false; };
+
+    virtual Result OsSubmit(
+        const MultiSubmitInfo&    submitInfo,
+        const InternalSubmitInfo* pInternalSubmitInfos) override;
+
     virtual Result CopyVirtualMemoryPageMappings(
         uint32                                    rangeCount,
         const VirtualMemoryCopyPageMappingsRange* pRanges,
@@ -79,10 +102,6 @@ protected:
     virtual Result OsDelay(float delay, const IPrivateScreen* pScreen) override { return Result::ErrorUnavailable; }
 
     virtual Result OsPresentDirect(const PresentDirectInfo& presentInfo) override;
-
-    virtual Result OsSubmit(
-        const MultiSubmitInfo&    submitInfo,
-        const InternalSubmitInfo* pInternalSubmitInfos) override;
 
     virtual Result OsWaitIdle() override;
 

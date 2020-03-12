@@ -95,13 +95,8 @@ private:
             regSPI_SHADER_PGM_HI_LS     spiShaderPgmHiLs;
             regSPI_SHADER_PGM_RSRC1_HS  spiShaderPgmRsrc1Hs;
             regSPI_SHADER_PGM_RSRC2_HS  spiShaderPgmRsrc2Hs;
+            regSPI_SHADER_PGM_CHKSUM_HS spiShaderPgmChksumHs;
             uint32                      userDataInternalTable;
-
-            regSPI_SHADER_PGM_CHKSUM_HS      spiShaderPgmChksumHs;
-            regSPI_SHADER_USER_ACCUM_LSHS_0  spiShaderUserAccumLsHs0;
-            regSPI_SHADER_USER_ACCUM_LSHS_1  spiShaderUserAccumLsHs1;
-            regSPI_SHADER_USER_ACCUM_LSHS_2  spiShaderUserAccumLsHs2;
-            regSPI_SHADER_USER_ACCUM_LSHS_3  spiShaderUserAccumLsHs3;
         } sh;
         struct
         {

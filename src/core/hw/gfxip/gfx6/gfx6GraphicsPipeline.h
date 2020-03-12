@@ -132,7 +132,7 @@ public:
 
     uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    uint64 GetContextPm4ImgHash() const { return m_contextRegHash; }
+    uint32 GetContextRegHash() const { return m_contextRegHash; }
 
     void OverrideRbPlusRegistersForRpm(
         SwizzledFormat               swizzledFormat,
@@ -215,7 +215,7 @@ private:
         regSX_BLEND_OPT_CONTROL__VI* pSxBlendOptControl) const;
 
     Device*const  m_pDevice;
-    uint64        m_contextRegHash;
+    uint32        m_contextRegHash;
 
     // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
     // WD_SWITCH_ON_EOP is required.

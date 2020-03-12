@@ -36,6 +36,8 @@ namespace Pal
 namespace Gfx9
 {
 
+constexpr uint32 WaveSizeGranularityShift = 8;
+
 // =====================================================================================================================
 // On GFXIP 9 hardware, buffer SRD's which set the ADD_TID_ENABLE bit in word3 changes the meaning of the DATA_FORMAT
 // field to stride bits [17:14] used for scratch offset boundary checks instead of the format.
@@ -62,7 +64,8 @@ static PAL_INLINE size_t AdjustScratchWaveSize(
     // Clamp scratch wave size to be <= 2M - 256 per register spec requirement. This will ensure that the calculation
     // of number of waves below will not exceed what SPI can actually generate.
     constexpr size_t MaxWaveSize = ((1 << 21) - 256);
-    return Min(MaxWaveSize, scratchWaveSize);
+    const     size_t minWaveSize = (scratchWaveSize > 0) ? (1ull << WaveSizeGranularityShift) : 0;
+    return Max(Min(MaxWaveSize, scratchWaveSize), minWaveSize);
 }
 
 // =====================================================================================================================
@@ -128,23 +131,7 @@ Result ShaderRing::AllocateVideoMemory(
     createInfo.alignment = ShaderRingAlignment;
     createInfo.priority  = GpuMemPriority::Normal;
 
-    if ((ringType == ShaderRingType::TfBuffer) && m_pDevice->Settings().waTessFactorBufferSizeLimitGeUtcl1Underflow)
-    {
-        // For this workaround, the tessellation factor buffer must be limited to onchip memory and must not be
-        // suballocated in order to fit within one page entry.
-        createInfo.heaps[0]  = GpuHeapInvisible;
-        createInfo.heaps[1]  = GpuHeapLocal;
-        createInfo.heapCount = 2;
-        pMemOffset = nullptr;
-
-        if (m_pDevice->Settings().waTessFactorBufferSizeLimitGeUtcl1Underflow)
-        {
-            // This workaround requires that the tessellation factor buffer be limited to 1KB.
-            createInfo.size      = 0x400;
-            createInfo.alignment = 0x1000;
-        }
-    }
-    else if (ringType == ShaderRingType::SamplePos)
+    if (ringType == ShaderRingType::SamplePos)
     {
         createInfo.heaps[0]  = GpuHeapLocal;
         createInfo.heaps[1]  = GpuHeapGartUswc;
@@ -272,7 +259,7 @@ size_t ScratchRing::CalculateWaves() const
     if (m_itemSizeMax > 0)
     {
         const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-        const size_t waveSize              = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.maxWavefrontSize);
+        const size_t waveSize              = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.minWavefrontSize);
 
         // Attempt to allow as many waves in parallel as possible, but make sure we don't launch more waves than we
         // can handle in the scratch ring.
@@ -290,10 +277,9 @@ size_t ScratchRing::CalculateWaves() const
 // amount of space used by each wave in DWORDs.
 size_t ScratchRing::CalculateWaveSize() const
 {
-    const     GpuChipProperties& chipProps                = m_pDevice->Parent()->ChipProperties();
-    constexpr uint32             WaveSizeGranularityShift = 8;
+    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
-    return AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.maxWavefrontSize) >> WaveSizeGranularityShift;
+    return AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.minWavefrontSize) >> WaveSizeGranularityShift;
 }
 
 // =====================================================================================================================
@@ -304,7 +290,7 @@ gpusize ScratchRing::ComputeAllocationSize() const
     const PalSettings&       settings  = m_pDevice->Parent()->Settings();
 
     // Compute the adjusted scratch size required by each wave.
-    const size_t waveSize = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.maxWavefrontSize);
+    const size_t waveSize = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.minWavefrontSize);
 
     // The ideal size to allocate for this Ring is: threadsPerWavefront * maxWaves * itemSize DWORDs.
     // We clamp this allocation to a maximum size to prevent the driver from using an unreasonable amount of scratch.

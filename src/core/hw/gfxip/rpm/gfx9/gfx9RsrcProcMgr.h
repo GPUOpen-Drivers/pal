@@ -169,6 +169,10 @@ protected:
         void*                 pSrdTable) const override;
 #endif
 
+    virtual bool CopyDstBoundStencilNeedsWa(
+        const GfxCmdBuffer* pCmdBuffer,
+        const Pal::Image&   dstImage) const override;
+
     virtual const Pal::GraphicsPipeline* GetGfxPipelineByTargetIndexAndFormat(
         RpmGfxPipeline basePipeline,
         uint32         targetIndex,
@@ -224,16 +228,16 @@ protected:
         const Pal::Image&  dstImage) const override;
 
     // On gfx9/gfx10, we need to use single z range for single subresource view.
-    virtual bool HwlNeedSinglezRangeAccess() const { return true; }
+    virtual bool HwlNeedSinglezRangeAccess() const override { return true; }
 
     virtual void HwlFixupCopyDstImageMetaData(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image*      pSrcImage,
-        const Pal::Image&      dstImage,
-        ImageLayout            dstImageLayout,
-        const ImageCopyRegion* pRegions,
-        uint32                 regionCount,
-        bool                   isFmaskCopyOptimized) const override;
+        GfxCmdBuffer*           pCmdBuffer,
+        const Pal::Image*       pSrcImage,
+        const Pal::Image&       dstImage,
+        ImageLayout             dstImageLayout,
+        const ImageFixupRegion* pRegions,
+        uint32                  regionCount,
+        bool                    isFmaskCopyOptimized) const override;
 
     virtual void HwlFixupResolveDstImage(
         GfxCmdBuffer*             pCmdBuffer,
@@ -523,13 +527,13 @@ private:
         bool                      computeResolve) const override;
 
     virtual void HwlFixupCopyDstImageMetaData(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image*      pSrcImage,
-        const Pal::Image&      dstImage,
-        ImageLayout            dstImageLayout,
-        const ImageCopyRegion* pRegions,
-        uint32                 regionCount,
-        bool                   isFmaskCopyOptimized) const override;
+        GfxCmdBuffer*           pCmdBuffer,
+        const Pal::Image*       pSrcImage,
+        const Pal::Image&       dstImage,
+        ImageLayout             dstImageLayout,
+        const ImageFixupRegion* pRegions,
+        uint32                  regionCount,
+        bool                    isFmaskCopyOptimized) const override;
 
     virtual uint32 HwlBeginGraphicsCopy(
         Pal::GfxCmdBuffer*           pCmdBuffer,
@@ -637,6 +641,8 @@ private:
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
         uint32             absMipLevel,
+        uint32             startSlice,
+        uint32             numSlices,
         uint32             bytesPerPixel,
         const uint32*      pPackedClearColor) const;
 
@@ -656,13 +662,13 @@ private:
         bool                      computeResolve) const override;
 
     virtual void HwlFixupCopyDstImageMetaData(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image*      pSrcImage,
-        const Pal::Image&      dstImage,
-        ImageLayout            dstImageLayout,
-        const ImageCopyRegion* pRegions,
-        uint32                 regionCount,
-        bool                   isFmaskCopyOptimized) const override;
+        GfxCmdBuffer*           pCmdBuffer,
+        const Pal::Image*       pSrcImage,
+        const Pal::Image&       dstImage,
+        ImageLayout             dstImageLayout,
+        const ImageFixupRegion* pRegions,
+        uint32                  regionCount,
+        bool                    isFmaskCopyOptimized) const override;
 
     virtual uint32 HwlBeginGraphicsCopy(
         Pal::GfxCmdBuffer*           pCmdBuffer,

@@ -128,7 +128,6 @@ Gfx9Lib::Gfx9Lib(const Client* pClient)
     :
     Lib(pClient)
 {
-    m_class = AI_ADDRLIB;
     memset(&m_settings, 0, sizeof(m_settings));
     memcpy(m_swizzleModeTable, SwizzleModeTable, sizeof(SwizzleModeTable));
     memset(m_cachedMetaEqKey, 0, sizeof(m_cachedMetaEqKey));
@@ -3624,7 +3623,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
 
                 ADDR2_BLOCK_SET allowedBlockSet = GetAllowedBlockSet(allowedSwModeSet, pOut->resourceType);
 
-                // Determine block size if there is 2 or more block type candidates
+                // Determine block size if there are 2 or more block type candidates
                 if (IsPow2(allowedBlockSet.value) == FALSE)
                 {
                     AddrSwizzleMode swMode[AddrBlockMaxTiledType] = { ADDR_SW_LINEAR };
@@ -3719,7 +3718,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
 
                 ADDR2_SWTYPE_SET allowedSwSet = GetAllowedSwSet(allowedSwModeSet);
 
-                // Determine swizzle type if there is 2 or more swizzle type candidates
+                // Determine swizzle type if there are 2 or more swizzle type candidates
                 if (IsPow2(allowedSwSet.value) == FALSE)
                 {
                     if (ElemLib::IsBlockCompressed(pIn->format))

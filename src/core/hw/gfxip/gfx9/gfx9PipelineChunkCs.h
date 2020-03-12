@@ -54,10 +54,6 @@ struct HwRegInfo
     regCOMPUTE_PGM_RSRC3     computePgmRsrc3;
     regCOMPUTE_USER_DATA_0   userDataInternalTable;
     regCOMPUTE_SHADER_CHKSUM computeShaderChksum;
-    regCOMPUTE_USER_ACCUM_0  computeUserAccum0;
-    regCOMPUTE_USER_ACCUM_1  computeUserAccum1;
-    regCOMPUTE_USER_ACCUM_2  computeUserAccum2;
-    regCOMPUTE_USER_ACCUM_3  computeUserAccum3;
 
     struct
     {

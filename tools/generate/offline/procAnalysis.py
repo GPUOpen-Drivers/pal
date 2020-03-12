@@ -358,6 +358,8 @@ class ProcMgr:
                 argument = ''
                 strfmt = ''
                 for pa in params:
+                    if '[' in pa.GetValue():
+                        pa.value = pa.GetValue()[:pa.GetValue().index('[')]
                     argument += indent + pa.GetValue() + ",\n"
                     indent = ' ' * paramIndent
                     strfmt += GetFmtType(pa.GetType()) + ', '
@@ -422,8 +424,8 @@ class ProcMgr:
         fp.write("Result " + name + "::Init(\n")
         fp.write("    Platform* pPlatform)\n")
         fp.write("{\n")
-        fp.write("    Result result                   = Result::Success;\n")
-        fp.write("    constexpr uint32_t LibNameSize  = 64;\n")
+        fp.write("    Result           result      = Result::Success;\n")
+        fp.write("    constexpr uint32 LibNameSize = 64;\n")
         fp.write("    char LibNames[" + name + "LibrariesCount][LibNameSize] = {\n")
         for key in self.libraries.keys():
             fp.write("        \"" + key + "\",\n")

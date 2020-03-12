@@ -629,6 +629,30 @@ bool IsKeyPressed(
 }
 
 // =====================================================================================================================
+// Determines if profiling is restricted
+bool IsProfileRestricted()
+{
+    bool result = false;
+
+    char buffer[2];
+
+    // Attempt to determine whether the process is debuggable by checking the contents of /proc/self/debuggable.
+    if (readlink("/proc/self/debuggable", &buffer[0], (sizeof(buffer) - sizeof(char))) >= 0)
+    {
+        // Check whether there will be 0 or 1.
+        // Set connection unavailable when content is '0'.
+        result = static_cast<int32>(buffer[0]) - 48;
+    }
+    else
+    {
+        PAL_ALERT_ALWAYS();
+        result = false;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Retrieves the path and filename of the current executable.
 Result GetExecutableName(
     char*  pBuffer,

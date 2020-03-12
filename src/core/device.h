@@ -1875,16 +1875,25 @@ protected:
     void FinalizeMemoryHeapProperties();
 
     virtual Result ProbeGpuVaRange(
-        gpusize vaStart,
-        gpusize vaSize) const
+        gpusize     vaStart,
+        gpusize     vaSize,
+        VaPartition vaPartition) const
         { return Result::Success; }
 
+    Result FindGpuVaRangeReverse(
+        gpusize*    pVaStart,
+        gpusize     vaEnd,
+        gpusize     vaSize,
+        gpusize     vaAlignment,
+        VaPartition vaParttion) const;
+
     Result FindGpuVaRange(
-        gpusize* pStartVaAddr,
-        gpusize  vaEnd,
-        gpusize  vaSize,
-        gpusize  vaAlignment,
-        bool     reserveCpuVa = false) const;
+        gpusize*    pStartVaAddr,
+        gpusize     vaEnd,
+        gpusize     vaSize,
+        gpusize     vaAlignment,
+        VaPartition vaParttion,
+        bool        reserveCpuVa = false) const;
 
     Result FixupUsableGpuVirtualAddressRange(uint32 vaRangeNumBits);
 

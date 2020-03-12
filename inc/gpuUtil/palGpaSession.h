@@ -332,6 +332,15 @@ struct SampleTraceApiInfo
     InstructionTraceModeData instructionTraceModeData;  ///< Instruction trace mode data.
 };
 
+/// An enumeration of the API types.
+enum class ApiType : Pal::uint32
+{
+    DirectX12 = 0,    ///< Represents DirectX12 API type.
+    Vulkan    = 1,    ///< Represents Vulkan API type.
+    Generic   = 2,    ///< Represents Generic API type.
+    OpenCl    = 3,    ///< Represents OpenCL API type.
+};
+
 /**
 ***********************************************************************************************************************
 * @class GpaSession
@@ -379,6 +388,9 @@ public:
         Pal::IDevice*        pDevice,
         Pal::uint16          apiMajorVer,
         Pal::uint16          apiMinorVer,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 575
+        ApiType              apiType,
+#endif
         Pal::uint16          rgpInstrumentationSpecVer = 0,
         Pal::uint16          rgpInstrumentationApiVer  = 0,
         PerfExpMemDeque*     pAvailablePerfExpMem      = nullptr);
@@ -684,6 +696,7 @@ private:
     Pal::DeviceProperties         m_deviceProps;
     Pal::PerfExperimentProperties m_perfExperimentProps;
     Pal::uint32                   m_timestampAlignment;         // Pre-calculated timestamp data alignment.
+    ApiType                       m_apiType;                    // API type, e.g. Vulkan, used in RGP dumps.
     Pal::uint16                   m_apiMajorVer;                // API major version, used in RGP dumps.
     Pal::uint16                   m_apiMinorVer;                // API minor version, used in RGP dumps.
     Pal::uint16                   m_instrumentationSpecVersion; // Spec version of RGP instrumetation.

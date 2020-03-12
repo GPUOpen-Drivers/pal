@@ -393,12 +393,20 @@ GpaSession::GpaSession(
     IDevice*             pDevice,
     uint16               apiMajorVer,
     uint16               apiMinorVer,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 575
+    ApiType              apiType,
+#endif
     uint16               rgpInstrumentationSpecVer,
     uint16               rgpInstrumentationApiVer,
     PerfExpMemDeque*     pAvailablePerfExpMem)
     :
     m_pDevice(pDevice),
     m_timestampAlignment(0),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 575
+    m_apiType(apiType),
+#else
+    m_apiType(ApiType::Vulkan),
+#endif
     m_apiMajorVer(apiMajorVer),
     m_apiMinorVer(apiMinorVer),
     m_instrumentationSpecVersion(rgpInstrumentationSpecVer),
@@ -564,6 +572,7 @@ GpaSession::GpaSession(
     :
     m_pDevice(src.m_pDevice),
     m_timestampAlignment(0),
+    m_apiType(src.m_apiType),
     m_apiMajorVer(src.m_apiMajorVer),
     m_apiMinorVer(src.m_apiMinorVer),
     m_instrumentationSpecVersion(src.m_instrumentationSpecVersion),
@@ -3045,6 +3054,11 @@ Result GpaSession::AcquireGpuMem(
             createInfo.heapCount = 1;
             createInfo.heaps[0]  = heapType;
             createInfo.priority  = (heapType == GpuHeapInvisible) ? GpuMemPriority::High : GpuMemPriority::Normal;
+            if (heapType == GpuHeapInvisible)
+            {
+                // Having perf data in caches thrashes more for the real GPU work, and it won't be read back till later.
+                createInfo.flags.gl2Uncached = 1;
+            }
 
             void* pMemory = PAL_MALLOC(m_pDevice->GetGpuMemorySize(createInfo, nullptr),
                                        m_pPlatform,
@@ -3460,6 +3474,13 @@ Result GpaSession::DumpRgpData(
     static_assert((sizeof(SqttFileChunkHeader) == 16U) && (sizeof(SqttFileChunkIsaDatabase) == 28U),
         "The sizes of the chunk parameters in sqtt_file_format has been changed. Update GpaSession::DumRgpData.");
 
+    // Check PAL and SQTT API type enum parity.
+    static_assert((static_cast<uint32>(ApiType::DirectX12) == SQTT_API_TYPE_DIRECTX_12) &&
+                  (static_cast<uint32>(ApiType::Vulkan)    == SQTT_API_TYPE_VULKAN)     &&
+                  (static_cast<uint32>(ApiType::Generic)   == SQTT_API_TYPE_GENERIC)    &&
+                  (static_cast<uint32>(ApiType::OpenCl)    == SQTT_API_TYPE_OPENCL),
+                  "Unexpected mismatch between PAL and SQTT ApiType enums!");
+
     Result result = Result::Success;
 
     gpusize curFileOffset = 0;
@@ -3551,15 +3572,15 @@ Result GpaSession::DumpRgpData(
     curFileOffset += sizeof(gpuInfo);
 
     // Get api info for rgp dump
-    SqttFileChunkApiInfo apiInfo = {};
+    SqttFileChunkApiInfo apiInfo              = {};
     apiInfo.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_API_INFO;
     apiInfo.header.chunkIdentifier.chunkIndex = 0;
-    apiInfo.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_API_INFO].majorVersion;
-    apiInfo.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_API_INFO].minorVersion;
-    apiInfo.header.sizeInBytes = sizeof(apiInfo);
-    apiInfo.apiType = SQTT_API_TYPE_VULKAN;
-    apiInfo.versionMajor = m_apiMajorVer;
-    apiInfo.versionMinor = m_apiMinorVer;
+    apiInfo.header.majorVersion               = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_API_INFO].majorVersion;
+    apiInfo.header.minorVersion               = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_API_INFO].minorVersion;
+    apiInfo.header.sizeInBytes                = sizeof(apiInfo);
+    apiInfo.apiType                           = static_cast<SqttApiType>(m_apiType);
+    apiInfo.versionMajor                      = m_apiMajorVer;
+    apiInfo.versionMinor                      = m_apiMinorVer;
 
     // Add the API specific trace info
     const SampleTraceApiInfo& traceApiInfo = pTraceSample->GetSampleTraceApiInfo();

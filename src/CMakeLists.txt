@@ -246,6 +246,8 @@ if(PAL_BUILD_CORE)
         core/dmaCmdBuffer.cpp
     )
 
+    target_include_directories(pal PRIVATE core/)
+
     if(PAL_BUILD_GPUOPEN)
         target_sources(pal
             PRIVATE
@@ -404,13 +406,13 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_GFX9)
             # Add the GFX9 files here, only if the client wants GFXIP 9 support.
-            target_compile_definitions(pal PRIVATE PAL_BUILD_GFX9)
+            target_compile_definitions(pal PUBLIC PAL_BUILD_GFX9)
             if(PAL_BUILD_VEGA20)
-                target_compile_definitions(pal PRIVATE PAL_BUILD_VEGA20)
+                target_compile_definitions(pal PUBLIC PAL_BUILD_VEGA20)
                 target_compile_definitions(pal PRIVATE CHIP_HDR_VEGA20)
             endif()
             if(PAL_BUILD_RAVEN2)
-                target_compile_definitions(pal PRIVATE PAL_BUILD_RAVEN2)
+                target_compile_definitions(pal PUBLIC PAL_BUILD_RAVEN2)
                 target_compile_definitions(pal PRIVATE CHIP_HDR_RAVEN2)
             endif()
             target_compile_definitions(pal PUBLIC PAL_BUILD_GFX10)
@@ -644,6 +646,7 @@ target_sources(pal PRIVATE
     util/sysUtil.cpp
     util/trackingCacheLayer.cpp
     util/platformKey.cpp
+    util/systemEvent.cpp
 )
 
 if(UNIX)

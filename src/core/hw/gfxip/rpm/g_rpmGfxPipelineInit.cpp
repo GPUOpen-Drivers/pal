@@ -76,19 +76,16 @@ Result CreateRpmGraphicsPipelines(
     case AsicRevision::Carrizo:
     case AsicRevision::Bristol:
     case AsicRevision::Stoney:
+    case AsicRevision::Fiji:
     case AsicRevision::Polaris10:
+    case AsicRevision::Polaris11:
+    case AsicRevision::Polaris12:
         pTable = rpmGfxBinaryTableCarrizo;
         break;
 
     case AsicRevision::Iceland:
     case AsicRevision::Tonga:
         pTable = rpmGfxBinaryTableIceland;
-        break;
-
-    case AsicRevision::Fiji:
-    case AsicRevision::Polaris11:
-    case AsicRevision::Polaris12:
-        pTable = rpmGfxBinaryTableFiji;
         break;
 
     case AsicRevision::Vega10:

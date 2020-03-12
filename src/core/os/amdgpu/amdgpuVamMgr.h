@@ -148,6 +148,11 @@ public:
     static bool IsVamPartition(
         VaPartition vaPartition);
 
+    static bool IsVamPartitionAllocated(
+        amdgpu_device_handle devHandle,
+        VaPartition          vaPartition,
+        gpusize              vaStart);
+
 private:
     VamMgrSingleton();
     ~VamMgrSingleton();

@@ -120,6 +120,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.gfx9RbPlusEnable = true;
     m_settings.gfx10SpiShaderLateAllocVsNumLines = 255;
     m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 0x80;
+    m_settings.allowNggOnAllCusWgps = false;
     m_settings.gfx10GePcAllocNumLinesPerSeNggCulling = 0x100;
     m_settings.numPsWavesSoftGroupedPerCu = 4;
     m_settings.numVsWavesSoftGroupedPerCu = 0;
@@ -192,7 +193,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.waMetaAliasingFixEnabled = true;
     m_settings.waForce256bCbFetch = false;
     m_settings.waCmaskImageSyncs = false;
-    m_settings.waTessFactorBufferSizeLimitGeUtcl1Underflow = false;
     m_settings.waSdmaPreventCompressedSurfUse = false;
     m_settings.waVgtFlushNggToLegacyGs = false;
     m_settings.waVgtFlushNggToLegacy = false;
@@ -206,6 +206,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.waUtcL0InconsistentBigPage = false;
     m_settings.waTwoPlanesIterate256 = false;
     m_settings.waTessIncorrectRelativeIndex = false;
+    m_settings.waLimitLateAllocGsNggFifo = false;
+    m_settings.waClampGeCntlVertGrpSize = false;
 
     m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
@@ -521,6 +523,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx10GePcAllocNumLinesPerSeLegacyNggPassthruStr,
                            Util::ValueType::Uint,
                            &m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllowNggOnAllCusWgpsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.allowNggOnAllCusWgps,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx10GePcAllocNumLinesPerSeNggCullingStr,
@@ -878,11 +885,6 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waCmaskImageSyncs,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaTessFactorBufferSizeLimitGeUtcl1UnderflowStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.waTessFactorBufferSizeLimitGeUtcl1Underflow,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaSdmaPreventCompressedSurfUseStr,
                            Util::ValueType::Boolean,
                            &m_settings.waSdmaPreventCompressedSurfUse,
@@ -941,6 +943,16 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaTessIncorrectRelativeIndexStr,
                            Util::ValueType::Boolean,
                            &m_settings.waTessIncorrectRelativeIndex,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLimitLateAllocGsNggFifoStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waLimitLateAllocGsNggFifo,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaClampGeCntlVertGrpSizeStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waClampGeCntlVertGrpSize,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdSingleSampledStr,
@@ -1112,11 +1124,6 @@ void SettingsLoader::RereadSettings()
                            &m_settings.waCmaskImageSyncs,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaTessFactorBufferSizeLimitGeUtcl1UnderflowStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.waTessFactorBufferSizeLimitGeUtcl1Underflow,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaVgtFlushNggToLegacyGsStr,
                            Util::ValueType::Boolean,
                            &m_settings.waVgtFlushNggToLegacyGs,
@@ -1170,6 +1177,16 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaTessIncorrectRelativeIndexStr,
                            Util::ValueType::Boolean,
                            &m_settings.waTessIncorrectRelativeIndex,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLimitLateAllocGsNggFifoStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waLimitLateAllocGsNggFifo,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaClampGeCntlVertGrpSizeStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waClampGeCntlVertGrpSize,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDepthStencilFastClearComputeThresholdSingleSampledStr,
@@ -1494,6 +1511,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru;
     info.valueSize = sizeof(m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru);
     m_settingsInfoMap.Insert(2459292446, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.allowNggOnAllCusWgps;
+    info.valueSize = sizeof(m_settings.allowNggOnAllCusWgps);
+    m_settingsInfoMap.Insert(101765188, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gfx10GePcAllocNumLinesPerSeNggCulling;
@@ -1851,11 +1873,6 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(3002384369, info);
 
     info.type      = SettingType::Boolean;
-    info.pValuePtr = &m_settings.waTessFactorBufferSizeLimitGeUtcl1Underflow;
-    info.valueSize = sizeof(m_settings.waTessFactorBufferSizeLimitGeUtcl1Underflow);
-    m_settingsInfoMap.Insert(1289747262, info);
-
-    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waSdmaPreventCompressedSurfUse;
     info.valueSize = sizeof(m_settings.waSdmaPreventCompressedSurfUse);
     m_settingsInfoMap.Insert(1236556278, info);
@@ -1915,6 +1932,16 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.waTessIncorrectRelativeIndex);
     m_settingsInfoMap.Insert(3815932601, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waLimitLateAllocGsNggFifo;
+    info.valueSize = sizeof(m_settings.waLimitLateAllocGsNggFifo);
+    m_settingsInfoMap.Insert(3170186115, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waClampGeCntlVertGrpSize;
+    info.valueSize = sizeof(m_settings.waClampGeCntlVertGrpSize);
+    m_settingsInfoMap.Insert(4183598840, info);
+
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.depthStencilFastClearComputeThresholdSingleSampled;
     info.valueSize = sizeof(m_settings.depthStencilFastClearComputeThresholdSingleSampled);
@@ -1951,7 +1978,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 764522785;
+            component.settingsDataHash = 2715017244;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

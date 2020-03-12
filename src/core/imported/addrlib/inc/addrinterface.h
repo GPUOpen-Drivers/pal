@@ -307,7 +307,7 @@ typedef union _ADDR_CREATE_FLAGS
         UINT_32 useHtileSliceAlign     : 1;    ///< Do htile single slice alignment
         UINT_32 allowLargeThickTile    : 1;    ///< Allow 64*thickness*bytesPerPixel > rowSize
         UINT_32 forceDccAndTcCompat    : 1;    ///< Force enable DCC and TC compatibility
-        UINT_32 nonPower2MemConfig     : 1;    ///< Physical video memory size is not power of 2
+        UINT_32 nonPower2MemConfig     : 1;    ///< Video memory bit width is not power of 2
         UINT_32 reserved               : 23;   ///< Reserved bits for future use
     };
 

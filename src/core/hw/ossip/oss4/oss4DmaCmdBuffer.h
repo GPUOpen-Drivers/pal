@@ -64,7 +64,7 @@ protected:
     virtual Result AddPreamble() override;
     virtual Result AddPostamble() override;
 
-    virtual bool SupportsExecutionMarker() { return true; }
+    virtual bool SupportsExecutionMarker() override { return true; }
     virtual void BeginExecutionMarker(uint64 clientHandle) override;
     virtual void EndExecutionMarker() override;
 

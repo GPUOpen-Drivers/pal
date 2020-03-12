@@ -100,7 +100,10 @@ Result CreateRpmComputePipelines(
     case AsicRevision::Carrizo:
     case AsicRevision::Bristol:
     case AsicRevision::Stoney:
+    case AsicRevision::Fiji:
     case AsicRevision::Polaris10:
+    case AsicRevision::Polaris11:
+    case AsicRevision::Polaris12:
         pTable = rpmComputeBinaryTableCarrizo;
         break;
 
@@ -109,19 +112,10 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTableIceland;
         break;
 
-    case AsicRevision::Fiji:
-    case AsicRevision::Polaris11:
-    case AsicRevision::Polaris12:
-        pTable = rpmComputeBinaryTableFiji;
-        break;
-
     case AsicRevision::Vega10:
+    case AsicRevision::Vega12:
     case AsicRevision::Raven:
         pTable = rpmComputeBinaryTableVega10;
-        break;
-
-    case AsicRevision::Vega12:
-        pTable = rpmComputeBinaryTableVega12;
         break;
 
     case AsicRevision::Vega20:
@@ -710,12 +704,6 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::YuvToRgb, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ScaledCopyImageCas, pDevice, pTable, pPipelineMem);
-    }
-
     if ((properties.gfxLevel >= GfxIpLevel::GfxIp6) &&
         (properties.gfxLevel <= GfxIpLevel::GfxIp8_1) &&
         (result == Result::Success))
@@ -838,12 +826,6 @@ Result CreateRpmComputePipelines(
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10GenerateCmdDraw, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ScaledCopyImageUsu, pDevice, pTable, pPipelineMem);
     }
 
     return result;

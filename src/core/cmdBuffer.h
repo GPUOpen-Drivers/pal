@@ -924,7 +924,7 @@ protected:
 
     virtual void CmdNop(
         const void* pPayload,
-        uint32      payloadSize)
+        uint32      payloadSize) override
         { PAL_NEVER_CALLED(); }
 
     const CmdBufferCreateInfo     m_createInfo;

@@ -51,7 +51,6 @@ namespace Addr
 ****************************************************************************************************
 */
 Lib::Lib() :
-    m_class(BASE_ADDRLIB),
     m_chipFamily(ADDR_CHIP_FAMILY_IVLD),
     m_chipRevision(0),
     m_version(ADDRLIB_VERSION),
@@ -77,7 +76,6 @@ Lib::Lib() :
 */
 Lib::Lib(const Client* pClient) :
     Object(pClient),
-    m_class(BASE_ADDRLIB),
     m_chipFamily(ADDR_CHIP_FAMILY_IVLD),
     m_chipRevision(0),
     m_version(ADDRLIB_VERSION),
@@ -178,26 +176,25 @@ ADDR_E_RETURNCODE Lib::Create(
                 }
                 break;
 #endif
-#if ADDR_GFX9_BUILD
             case CIASICIDGFXENGINE_ARCTICISLAND:
                 switch (pCreateIn->chipFamily)
                 {
+#if ADDR_GFX9_BUILD
                     case FAMILY_AI:
 #if ADDR_RAVEN1_BUILD
                     case FAMILY_RV:
 #endif
                         pLib = Gfx9HwlInit(&client);
                         break;
+#endif
                     case FAMILY_NV:
                         pLib = Gfx10HwlInit(&client);
                         break;
-
                     default:
                         ADDR_ASSERT_ALWAYS();
                         break;
                 }
                 break;
-#endif
             default:
                 ADDR_ASSERT_ALWAYS();
                 break;

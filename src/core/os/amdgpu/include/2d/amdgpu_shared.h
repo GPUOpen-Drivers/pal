@@ -324,7 +324,8 @@ typedef struct _amdgpu_bo_umd_metadata
             uint32_t                  depth_stencil:    1;
             uint32_t                  cubemap:          1;
             uint32_t                  optimal_shareable:1;
-            uint32_t                  reserved:        15;
+            uint32_t                  samples:          7;
+            uint32_t                  reserved:         8;
         };
         uint32_t    all32;
     } flags;

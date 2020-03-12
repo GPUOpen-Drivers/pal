@@ -3547,6 +3547,8 @@ uint32* PerfExperiment::WriteWaitIdle(
         // NOTE: ACQUIRE_MEM has an implicit context roll if the current context is busy. Since we won't be aware
         //       of a busy context, we must assume all ACQUIRE_MEM's come with a context roll.
         pCmdStream->SetContextRollDetected<false>();
+
+        pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
     }
     else
     {

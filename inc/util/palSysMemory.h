@@ -175,8 +175,13 @@ extern void PAL_CDECL operator delete(
 ///
 /// For non-POD types, the default constructor will be called.  Default constructor is not available for POD types
 /// (i.e., PAL_NEW_ARRAY(int, 3, AllocInternal)() won't work.
+#if PAL_MEMTRACK
+#define PAL_NEW_ARRAY(_className, _arrayCnt, _allocator, _allocType) \
+    Util::NewArray<_className>((_arrayCnt), (_allocator), (_allocType), __FILE__, __LINE__)
+#else
 #define PAL_NEW_ARRAY(_className, _arrayCnt, _allocator, _allocType) \
     Util::NewArray<_className>((_arrayCnt), (_allocator), (_allocType))
+#endif
 
 /// Destroys an array of the specified object type.
 ///
@@ -625,10 +630,21 @@ void static Destructor(T* p)
 /// @param [in] arrayCnt   Number of entries in the array.
 /// @param [in] pAllocator The allocator that will allocate the memory for the array.
 /// @param [in] allocType  Hint to client on the lifetime/type of allocation.
+/// @param [in] pFilename  Source filename that requested the new array.
+/// @param [in] lineNumber Line number in the source file that requested the new array.
 ///
 /// @returns Pointer to the allocated array, nullptr if the allocation failed.
 template<typename T, typename Allocator>
-static T* NewArray(size_t arrayCnt, Allocator* pAllocator, SystemAllocType allocType)
+static T* NewArray(
+    size_t          arrayCnt,
+    Allocator*      pAllocator,
+    SystemAllocType allocType
+#if PAL_MEMTRACK
+    ,
+    const char*     pFilename,
+    uint32          lineNumber
+#endif
+    )
 {
     size_t align      = alignof(T);
     size_t allocSize  = sizeof(T) * arrayCnt;
@@ -641,7 +657,13 @@ static T* NewArray(size_t arrayCnt, Allocator* pAllocator, SystemAllocType alloc
         allocSize += headerSize;
     }
 
-    T* pRet = static_cast<T*>(PAL_MALLOC_BASE(allocSize, align, pAllocator, allocType, MemBlkType::NewArray));
+#if PAL_MEMTRACK
+    const Util::AllocInfo info(allocSize, align, false, allocType, MemBlkType::NewArray, pFilename, lineNumber);
+#else
+    const Util::AllocInfo info(allocSize, align, false, allocType);
+#endif
+
+    T* pRet = static_cast<T*>(pAllocator->Alloc(info));
 
     if ((!std::is_pod<T>::value) && (pRet != nullptr))
     {
@@ -686,7 +708,13 @@ void static DeleteArray(T* p, Allocator* pAllocator)
         p = static_cast<T*>(Util::VoidPtrDec(p, headerSize));
     }
 
-    PAL_FREE_BASE(p, pAllocator, MemBlkType::NewArray);
+#if PAL_MEMTRACK
+    const Util::FreeInfo info(const_cast<void*>(static_cast<const void*>(p)), MemBlkType::NewArray);
+#else
+    const Util::FreeInfo info(const_cast<void*>(static_cast<const void*>(p)));
+#endif
+
+    pAllocator->Free(info);
 }
 
 constexpr size_t FastMemCpyMaxSmallSize = 64;

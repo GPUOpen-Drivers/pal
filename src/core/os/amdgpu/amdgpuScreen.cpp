@@ -198,6 +198,9 @@ Result Screen::GetFormats(
 Result Screen::GetColorCapabilities(
     ScreenColorCapabilities* pCapabilities)
 {
+    // Clear properties prior to populating any fields
+    memset(pCapabilities, 0, sizeof(pCapabilities[0]));
+
     uint32* pRefColorSpaces = reinterpret_cast<uint32*>(&pCapabilities->supportedColorSpaces);
 
     *pRefColorSpaces |= ScreenColorSpace::CsSrgb; // It's always supported

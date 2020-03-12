@@ -47,7 +47,9 @@
 #if defined(__unix__)
 #include <stdint.h>
 #include <stddef.h>
+#ifndef VAM_CLIENT_DX12_LINUX
 #define DEFINE_MSWIN_DATATYPES        1 // For Linux we need to define datatypes
+#endif
 #elif (defined (BUILDING_CMMQSLIB) || defined(BUILDING_CMM))
 #endif                                  // #if defined(__unix__)
 

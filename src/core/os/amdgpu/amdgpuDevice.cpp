@@ -360,10 +360,11 @@ Device::Device(
     m_supportQueuePriority(false),
     m_supportVmAlwaysValid(false),
 #if defined(PAL_DEBUG_PRINTS)
-    m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTableProxy())
+    m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTableProxy()),
 #else
-    m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTable())
+    m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTable()),
 #endif
+    m_attachedToVamMgrSingleton(false)
 {
     Util::Strncpy(m_busId, constructorParams.pBusId, MaxBusIdStringLen);
     Util::Strncpy(m_renderNodeName, constructorParams.pRenderNode, MaxNodeNameLen);
@@ -393,8 +394,10 @@ Device::~Device()
     {
         m_drmProcs.pfnAmdgpuCsUnreservedVmid(m_hDevice);
     }
-
-    VamMgrSingleton::Cleanup(this);
+    if (m_attachedToVamMgrSingleton)
+    {
+        VamMgrSingleton::Cleanup(this);
+    }
     if (m_hDevice != nullptr)
     {
         m_drmProcs.pfnAmdgpuDeviceDeinitialize(m_hDevice);
@@ -434,7 +437,10 @@ Result Device::Cleanup()
 
     // Note: Pal::Device::Cleanup() uses m_memoryProperties.vaRanges to find VAM sections for memory release.
     // If ranges aren't provided, then VAM silently leaks virtual addresses.
-    VamMgrSingleton::FreeReservedVaRange(GetPlatform()->GetDrmLoader().GetProcsTable(), m_hDevice);
+    if (m_attachedToVamMgrSingleton)
+    {
+        VamMgrSingleton::FreeReservedVaRange(GetPlatform()->GetDrmLoader().GetProcsTable(), m_hDevice);
+    }
     memset(&m_memoryProperties.vaRange, 0, sizeof(m_memoryProperties.vaRange));
     return result;
 }
@@ -579,11 +585,6 @@ Result Device::EarlyInit(
 
     Result result = VamMgrSingleton::Init();
 
-    if (result == Result::Success)
-    {
-        result = InitGpuProperties();
-    }
-
     // Init paths
     InitOutputPaths();
 
@@ -629,7 +630,7 @@ Result Device::EarlyInit(
 
     if (result == Result::Success)
     {
-        result = InitSettings();
+        result = InitGpuProperties();
     }
 
     if (result == Result::Success)
@@ -645,7 +646,10 @@ Result Device::EarlyInit(
     m_disableSwapChainAcquireBeforeSignaling = true;
 
     // get the attached screen count
-    GetScreens(&m_attachedScreenCount, nullptr, nullptr);
+    if (result == Result::Success)
+    {
+        result = GetScreens(&m_attachedScreenCount, nullptr, nullptr);
+    }
 
     return result;
 }
@@ -870,11 +874,25 @@ Result Device::InitGpuProperties()
         break;
     }
 
-    Result result = InitMemQueueInfo();
+    Result result = InitMemInfo();
+
+    // InitSettings() relies on chipProperties because of heapPerf, so it must be called after chipProperties is
+    // initialized. InitQueueInfo() relies on settings to disable DMA, so InitSettings() must be called prior to
+    // set engine information.
+    // InitSettings() relies on m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes to set
+    // m_publicSettings.largePageMinSizeForAlignmentInBytes. So it must be called afeter InitMemInfo.
+    if (result == Result::Success)
+    {
+        result = InitSettings();
+    }
 
     if (result == Result::Success)
     {
+        result = InitQueueInfo();
+    }
 
+    if (result == Result::Success)
+    {
         if (m_gpuInfo.ce_ram_size != 0)
         {
             PAL_ASSERT(m_gpuInfo.ce_ram_size >= m_engineProperties.perEngine[EngineTypeUniversal].reservedCeRamSize);
@@ -986,7 +1004,7 @@ void Device::InitGfx6ChipProperties()
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaSize                     = 0;
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaAlignment                = 0;
 
-    m_chipProperties.gfxip.supportCaptureReplay = false;
+    m_chipProperties.gfxip.supportCaptureReplay = true;
 }
 
 // =====================================================================================================================
@@ -1111,7 +1129,7 @@ void Device::InitGfx9ChipProperties()
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaSize                     = 0;
     m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaAlignment                = 0;
 
-    m_chipProperties.gfxip.supportCaptureReplay = false;
+    m_chipProperties.gfxip.supportCaptureReplay = true;
 }
 
 // =====================================================================================================================
@@ -1247,8 +1265,8 @@ static LocalMemoryType TranslateMemoryType(
 }
 
 // =====================================================================================================================
-// Helper method which initializes the GPU memory and queue properties.
-Result Device::InitMemQueueInfo()
+// Helper method which initializes the GPU memory properties.
+Result Device::InitMemInfo()
 {
     Result                        result  = Result::Success;
     struct drm_amdgpu_memory_info memInfo = {};
@@ -1293,7 +1311,6 @@ Result Device::InitMemQueueInfo()
     }
     else
     {
-
         m_memoryProperties.vaInitialEnd = m_memoryProperties.vaEnd;
         m_memoryProperties.vaUsableEnd  = m_memoryProperties.vaEnd;
 
@@ -1352,6 +1369,8 @@ Result Device::InitMemQueueInfo()
         if (result == Result::Success)
         {
             result = VamMgrSingleton::InitVaRangesAndFinalizeVam(this);
+
+            m_attachedToVamMgrSingleton = (result == Result::Success) ? true : false;
         }
 
         if (result == Result::Success)
@@ -1419,16 +1438,22 @@ Result Device::InitMemQueueInfo()
         }
     }
 
-    if (result == Result::Success)
+    return result;
+}
+
+// =====================================================================================================================
+// Helper method which initializes the queue properties.
+Result Device::InitQueueInfo()
+{
+    Result result = Result::Success;
+
+    for (uint32 i = 0; i < EngineTypeCount; ++i)
     {
+        auto*const                   pEngineInfo = &m_engineProperties.perEngine[i];
+        struct drm_amdgpu_info_hw_ip engineInfo  = {};
 
-        for (uint32 i = 0; i < EngineTypeCount; ++i)
+        switch (static_cast<EngineType>(i))
         {
-            auto*const                   pEngineInfo = &m_engineProperties.perEngine[i];
-            struct drm_amdgpu_info_hw_ip engineInfo  = {};
-
-            switch (static_cast<EngineType>(i))
-            {
             case EngineTypeUniversal:
                 if (m_chipProperties.gfxLevel != GfxIpLevel::None)
                 {
@@ -1468,7 +1493,8 @@ Result Device::InitMemQueueInfo()
 
             case EngineTypeDma:
                 // GFX10 parts have the DMA engine in the GFX block, not in the OSS
-                if ((m_chipProperties.ossLevel != OssIpLevel::None) || IsGfx10(m_chipProperties.gfxLevel))
+                if ((Settings().disableSdmaEngine == false) &&
+                    ((m_chipProperties.ossLevel != OssIpLevel::None) || IsGfx10(m_chipProperties.gfxLevel)))
                 {
                     if (m_drmProcs.pfnAmdgpuQueryHwIpInfo(m_hDevice, AMDGPU_HW_IP_DMA, 0, &engineInfo) != 0)
                     {
@@ -1499,7 +1525,6 @@ Result Device::InitMemQueueInfo()
             default:
                 PAL_ASSERT_ALWAYS();
                 break;
-            }
         }
     }
 
@@ -2359,15 +2384,17 @@ Result Device::CreateCommandSubmissionContext(
             {
                 AMDGPU_CTX_PRIORITY_NORMAL,     // QueuePriority::Normal     = 0,
                 AMDGPU_CTX_PRIORITY_LOW,        // QueuePriority::Idle       = 1,
-                AMDGPU_CTX_PRIORITY_HIGH,       // QueuePriority::Medium     = 2,
-                AMDGPU_CTX_PRIORITY_VERY_HIGH,  // QueuePriority::High       = 3,
+                AMDGPU_CTX_PRIORITY_NORMAL,     // QueuePriority::Medium     = 2,
+                AMDGPU_CTX_PRIORITY_HIGH,       // QueuePriority::High       = 3,
+                AMDGPU_CTX_PRIORITY_VERY_HIGH,  // QueuePriority::Realtime   = 4,
             };
 
-            static_assert((static_cast<uint32>(QueuePriority::Normal) == 0) &&
-                          (static_cast<uint32>(QueuePriority::Idle)   == 1) &&
-                          (static_cast<uint32>(QueuePriority::Medium) == 2) &&
-                          (static_cast<uint32>(QueuePriority::High)   == 3),
-                          "The QueuePriorityToAmdgpuPriority table needs to be updated.");
+            static_assert((static_cast<uint32>(QueuePriority::Normal)   == 0) &&
+                          (static_cast<uint32>(QueuePriority::Idle)     == 1) &&
+                          (static_cast<uint32>(QueuePriority::Medium)   == 2) &&
+                          (static_cast<uint32>(QueuePriority::High)     == 3) &&
+                          (static_cast<uint32>(QueuePriority::Realtime) == 4),
+                "The QueuePriorityToAmdgpuPriority table needs to be updated.");
 #else
             constexpr int32 QueuePriorityToAmdgpuPriority[] =
             {
@@ -3253,6 +3280,7 @@ void Device::UpdateMetaData(
     pUmdMetaData->flags.unodered_access   = imageCreateInfo.usageFlags.shaderWrite;
     pUmdMetaData->flags.resource_type     = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
     pUmdMetaData->flags.optimal_shareable = imageCreateInfo.flags.optimalShareable;
+    pUmdMetaData->flags.samples           = imageCreateInfo.samples;
 
     if (pUmdMetaData->flags.optimal_shareable)
     {
@@ -4115,6 +4143,7 @@ Result Device::AssignVirtualAddress(
         const auto&      memoryDesc    = pGpuMemory->Desc();
         gpusize          baseAllocated = 0;
         amdgpu_va_handle hVaRange      = nullptr;
+
         ret = CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(m_hDevice,
                                              amdgpu_gpu_va_range_general,
                                              memoryDesc.size,
@@ -4181,35 +4210,41 @@ void Device::FreeVirtualAddress(
 
 // =====================================================================================================================
 Result Device::ProbeGpuVaRange(
-    gpusize vaStart,
-    gpusize vaSize
+    gpusize     vaStart,
+    gpusize     vaSize,
+    VaPartition vaPartition
     ) const
 {
-    Result result = Result::Success;
-    gpusize vaAllocated = 0u;
-    amdgpu_va_handle vaHandle;
+    Result           result      = Result::Success;
+    gpusize          vaAllocated = 0u;
+    amdgpu_va_handle vaHandle    = nullptr;
 
-    result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(
-                                            m_hDevice,
-                                            amdgpu_gpu_va_range_general,
-                                            vaSize,
-                                            0u,
-                                            vaStart,
-                                            &vaAllocated,
-                                            &vaHandle,
-                                            0u),
-                         Result::ErrorUnknown);
-
-    if (result == Result::Success)
+    // While there are two instances created simultaneously, the VA range has been reserved by the first
+    // instance. The second instance fails to allocate the VA range here as a consequence. So need to check
+    // if it's been allocated first.
+    if (!VamMgrSingleton::IsVamPartitionAllocated(m_hDevice, vaPartition, vaStart))
     {
-        result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeFree(vaHandle),
+        result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(m_hDevice,
+                                                             amdgpu_gpu_va_range_general,
+                                                             vaSize,
+                                                             0u,
+                                                             vaStart,
+                                                             &vaAllocated,
+                                                             &vaHandle,
+                                                             0u),
                              Result::ErrorUnknown);
-    }
 
-    if ((result == Result::Success) &&
-        (vaAllocated != vaStart))
-    {
-        result = Result::ErrorOutOfGpuMemory;
+        if (result == Result::Success)
+        {
+            result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeFree(vaHandle),
+                                 Result::ErrorUnknown);
+        }
+
+        if ((result == Result::Success) &&
+                (vaAllocated != vaStart))
+        {
+            result = Result::ErrorOutOfGpuMemory;
+        }
     }
 
     return result;
@@ -4236,15 +4271,14 @@ Result Device::ReserveGpuVirtualAddress(
         {
             ReservedVaRangeInfo info = {};
 
-            result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(
-                                                    m_hDevice,
-                                                    amdgpu_gpu_va_range_general,
-                                                    size,
-                                                    0u,
-                                                    baseVirtAddr,
-                                                    pGpuVirtAddr,
-                                                    &info.vaHandle,
-                                                    0u),
+            result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(m_hDevice,
+                                                                  amdgpu_gpu_va_range_general,
+                                                                  size,
+                                                                  0u,
+                                                                  baseVirtAddr,
+                                                                  pGpuVirtAddr,
+                                                                  &info.vaHandle,
+                                                                  0u),
                                  Result::ErrorUnknown);
             info.size = size;
 

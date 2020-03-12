@@ -58,8 +58,6 @@ static constexpr uint32 BaseLoadedShRegCountVs =
     1 + // mmSPI_SHADER_PGM_RSRC1_VS
     1 + // mmSPI_SHADER_PGM_RSRC2_VS
     0 + // SPI_SHADER_PGM_CHKSUM_VS is not included because it is not present on all HW
-    0 + // mmSPI_SHADER_REQ_CTRL_PS is gfx10 only
-    0 + // mmSPI_SHADER_REQ_CTRL_VS is gfx10 only
     1;  // mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg
 
 // Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
@@ -77,7 +75,6 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmVGT_PRIMITIVEID_EN
     0 + // mmSPI_PS_INPUT_CNTL_0...31 are not included because the number of interpolants depends on the pipeline
     1 + // mmVGT_STRMOUT_CONFIG
-    0 + // mmSPI_SHADER_USER_ACCUM_PS/VS0...3 are not included because it is not present on all HW
     1;  // mmVGT_STRMOUT_BUFFER_CONFIG
 
 // Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer when
@@ -146,22 +143,6 @@ void PipelineChunkVsPs::EarlyInit(
             pInfo->loadedCtxRegCount += BaseLoadedCntxRegCountStreamOut;
         }
 
-        if (IsGfx10(chipProps.gfxLevel))
-        {
-            // mmSPI_SHADER_REQ_CTRL_PS & mmSPI_SHADE_REQ_CTRL_VS
-            pInfo->loadedShRegCount += (pInfo->enableNgg ? 1 : 2);
-        }
-
-        if (chipProps.gfx9.supportSpiPrefPriority != 0)
-        {
-            if (pInfo->enableNgg == false)
-            {
-                // mmSPI_SHADER_USER_ACCUM_VS_0...3
-                pInfo->loadedShRegCount += 4;
-            }
-            // mmSPI_SHADER_USER_ACCUM_PS_0...3
-            pInfo->loadedShRegCount += 4;
-        }
     }
 }
 
@@ -221,32 +202,13 @@ void PipelineChunkVsPs::LateInit(
     {
         m_regs.dynamic.spiShaderPgmRsrc4Ps.bits.CU_EN = m_device.GetCuEnableMaskHi(0, settings.psCuEnLimitMask);
 
-        if (chipProps.gfx9.supportSpiPrefPriority != 0)
+#if PAL_ENABLE_PRINTS_ASSERTS
+        m_device.AssertUserAccumRegsDisabled(registers, Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0);
+        if (loadInfo.enableNgg == false)
         {
-            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0, &m_regs.sh.spiShaderUserAccumPs0.u32All);
-            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_1, &m_regs.sh.spiShaderUserAccumPs1.u32All);
-            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_2, &m_regs.sh.spiShaderUserAccumPs2.u32All);
-            registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_3, &m_regs.sh.spiShaderUserAccumPs3.u32All);
-            if (loadInfo.enableNgg == false)
-            {
-                registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0, &m_regs.sh.spiShaderUserAccumVs0.u32All);
-                registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_1, &m_regs.sh.spiShaderUserAccumVs1.u32All);
-                registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_2, &m_regs.sh.spiShaderUserAccumVs2.u32All);
-                registers.HasEntry(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3, &m_regs.sh.spiShaderUserAccumVs3.u32All);
-            }
+            m_device.AssertUserAccumRegsDisabled(registers, Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0);
         }
-
-        if (settings.numPsWavesSoftGroupedPerCu > 0)
-        {
-            m_regs.sh.spiShaderReqCtrlPs.bits.SOFT_GROUPING_EN = 1;
-            m_regs.sh.spiShaderReqCtrlPs.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
-        }
-
-        if (settings.numVsWavesSoftGroupedPerCu > 0)
-        {
-            m_regs.sh.spiShaderReqCtrlVs.bits.SOFT_GROUPING_EN = 1;
-            m_regs.sh.spiShaderReqCtrlVs.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numVsWavesSoftGroupedPerCu - 1;
-        }
+#endif
     }
 
     if (loadInfo.enableNgg == false)
@@ -389,25 +351,6 @@ void PipelineChunkVsPs::LateInit(
             pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS, m_regs.sh.spiShaderPgmChksumPs);
         }
 
-        if (IsGfx10(chipProps.gfxLevel))
-        {
-            pUploader->AddShReg(Gfx10::mmSPI_SHADER_REQ_CTRL_PS, m_regs.sh.spiShaderReqCtrlPs);
-        }
-
-        if (chipProps.gfx9.supportSpiPrefPriority != 0)
-        {
-            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0, m_regs.sh.spiShaderUserAccumPs0);
-            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_1, m_regs.sh.spiShaderUserAccumPs1);
-            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_2, m_regs.sh.spiShaderUserAccumPs2);
-            pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_3, m_regs.sh.spiShaderUserAccumPs3);
-            if (loadInfo.enableNgg == false)
-            {
-                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0, m_regs.sh.spiShaderUserAccumVs0);
-                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_1, m_regs.sh.spiShaderUserAccumVs1);
-                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_2, m_regs.sh.spiShaderUserAccumVs2);
-                pUploader->AddShReg(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3, m_regs.sh.spiShaderUserAccumVs3);
-            }
-        }
         if (loadInfo.enableNgg == false)
         {
             pUploader->AddShReg(mmSPI_SHADER_PGM_LO_VS,    m_regs.sh.spiShaderPgmLoVs);
@@ -420,11 +363,6 @@ void PipelineChunkVsPs::LateInit(
             if (chipProps.gfx9.supportSpp != 0)
             {
                 pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS, m_regs.sh.spiShaderPgmChksumVs);
-            }
-
-            if (IsGfx10(chipProps.gfxLevel))
-            {
-                pUploader->AddShReg(Gfx10::mmSPI_SHADER_REQ_CTRL_VS, m_regs.sh.spiShaderReqCtrlVs);
             }
         } // if enableNgg == false
 
@@ -682,22 +620,6 @@ uint32* PipelineChunkVsPs::WriteShCommandsSetPathVs(
                                                                  pCmdSpace);
     }
 
-    if (IsGfx10(chipProps.gfxLevel))
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_VS,
-                                                                 m_regs.sh.spiShaderReqCtrlVs.u32All,
-                                                                 pCmdSpace);
-    }
-
-    if (chipProps.gfx9.supportSpiPrefPriority != 0)
-    {
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0,
-                                                  Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3,
-                                                  ShaderGraphics,
-                                                  &m_regs.sh.spiShaderUserAccumVs0,
-                                                  pCmdSpace);
-    }
-
     return pCmdSpace;
 }
 
@@ -725,22 +647,6 @@ uint32* PipelineChunkVsPs::WriteShCommandsSetPathPs(
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS,
                                                                  m_regs.sh.spiShaderPgmChksumPs.u32All,
                                                                  pCmdSpace);
-    }
-
-    if (IsGfx10(chipProps.gfxLevel))
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_PS,
-                                                                 m_regs.sh.spiShaderReqCtrlPs.u32All,
-                                                                 pCmdSpace);
-    }
-
-    if (chipProps.gfx9.supportSpiPrefPriority != 0)
-    {
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0,
-                                                  Gfx10::mmSPI_SHADER_USER_ACCUM_PS_3,
-                                                  ShaderGraphics,
-                                                  &m_regs.sh.spiShaderUserAccumPs0,
-                                                  pCmdSpace);
     }
 
     return pCmdSpace;

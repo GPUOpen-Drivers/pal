@@ -111,7 +111,6 @@ SiLib::SiLib(const Client* pClient)
     m_noOfEntries(0),
     m_numEquations(0)
 {
-    m_class = SI_ADDRLIB;
     memset(&m_settings, 0, sizeof(m_settings));
 }
 

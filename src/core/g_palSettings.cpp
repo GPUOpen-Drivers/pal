@@ -1064,7 +1064,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 3147251323;
+            component.settingsDataHash = 825374683;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

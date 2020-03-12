@@ -375,8 +375,8 @@ void Image::GetExternalSharedImageCreateInfo(
     pCreateInfo->mipLevels = Util::Max(1u, static_cast<uint32>(pMetadata->flags.mip_levels));
     pCreateInfo->arraySize = Util::Max(1u, static_cast<uint32>(pMetadata->array_size));
 
-    pCreateInfo->samples   = 1;
-    pCreateInfo->fragments = 1;
+    pCreateInfo->samples   = Util::Max(1u, static_cast<uint32>(pMetadata->flags.samples));
+    pCreateInfo->fragments = pCreateInfo->samples;
 
     pCreateInfo->flags.cubemap = (pMetadata->flags.cubemap != 0);
 

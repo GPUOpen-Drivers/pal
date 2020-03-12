@@ -266,6 +266,7 @@ Result Queue::Init(
 
     // Note that the presence of the command upload ring will be used later to determine if these conditions are true.
     if ((result == Result::Success)                               &&
+        (m_device.Settings().disableSdmaEngine == false)          &&
         (m_device.ChipProperties().ossLevel != OssIpLevel::_None) &&
         (m_pQueueInfos[0].createInfo.submitOptMode != SubmitOptMode::Disabled))
     {

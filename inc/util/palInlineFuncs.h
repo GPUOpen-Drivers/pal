@@ -679,7 +679,7 @@ PAL_INLINE char* Strtok(
 {
     PAL_ASSERT((delim != nullptr) && (buf != nullptr));
 
-    char* pToken = NULL;
+    char* pToken = nullptr;
 
 #if   defined(__unix__)
     pToken = strtok_r(str, delim, buf);
@@ -852,8 +852,8 @@ PAL_INLINE void Mbstowcs(
     const char*   pSrc,           ///< [in] src string
     size_t        dstSizeInWords) ///< size of the destination buffer in words
 {
-    PAL_ASSERT(pDst != NULL);
-    PAL_ASSERT(pSrc != NULL);
+    PAL_ASSERT(pDst != nullptr);
+    PAL_ASSERT(pSrc != nullptr);
 
     bool result = false;
     // clamp the conversion to the size of the dst buffer (1 char reserved for the NULL terminator)
@@ -884,8 +884,8 @@ PAL_INLINE void Wcstombs(
     const wchar_t* pSrc,           ///< [in] src string
     size_t         dstSizeInBytes) ///< size of the destination buffer in bytes
 {
-    PAL_ASSERT(pDst != NULL);
-    PAL_ASSERT(pSrc != NULL);
+    PAL_ASSERT(pDst != nullptr);
+    PAL_ASSERT(pSrc != nullptr);
 
     bool result = false;
     // clamp the conversion to the size of the dst buffer (1 char reserved for the NULL terminator)

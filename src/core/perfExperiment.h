@@ -54,6 +54,8 @@ public:
 
     virtual void UpdateSqttTokenMask(CmdStream* pPalCmdStream, const ThreadTraceTokenConfig& sqttTokenConfig) const = 0;
 
+    virtual bool HasSpmTrace() const { return m_hasSpmTrace; };
+
 protected:
     PerfExperiment(Device* pDevice, const PerfExperimentCreateInfo& createInfo, gpusize memAlignment);
     virtual ~PerfExperiment();

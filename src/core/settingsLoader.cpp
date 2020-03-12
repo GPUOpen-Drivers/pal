@@ -225,6 +225,11 @@ void SettingsLoader::ValidateSettings()
                  sizeof(pPlatformSettings->interfaceLoggerConfig.logDirectory),
                  "%s/%s", pRootPath, subDir);
 
+        Strncpy(subDir, pPlatformSettings->pm4InstrumentorConfig.logDirectory, sizeof(subDir));
+        Snprintf(pPlatformSettings->pm4InstrumentorConfig.logDirectory,
+                 sizeof(pPlatformSettings->pm4InstrumentorConfig.logDirectory),
+                 "%s/%s", pRootPath, subDir);
+
         Strncpy(subDir, pPlatformSettings->eventLogDirectory, sizeof(subDir));
         Snprintf(pPlatformSettings->eventLogDirectory,
             sizeof(pPlatformSettings->eventLogDirectory),

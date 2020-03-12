@@ -48,7 +48,6 @@ constexpr uint32 BaseLoadedShRegCount =
     1 + // mmCOMPUTE_PGM_RSRC1
     0 + // mmCOMPUTE_PGM_RSRC2 is not included because it partially depends on bind-time state
     0 + // mmCOMPUTE_PGM_RSRC3 is not included because it is not present on all HW
-    0 + // mmCOMPUTE_USER_ACCUM_0...3 is not included because it is not present on all HW
     0 + // mmCOMPUTE_RESOURCE_LIMITS is not included because it partially depends on bind-time state
     1 + // mmCOMPUTE_NUM_THREAD_X
     1 + // mmCOMPUTE_NUM_THREAD_Y
@@ -93,10 +92,6 @@ uint32 PipelineChunkCs::EarlyInit()
         if (IsGfx10(chipProps.gfxLevel))
         {
             count += 1; //  mmCOMPUTE_PGM_RSRC3
-            if (chipProps.gfx9.supportSpiPrefPriority)
-            {
-                count += 4; // mmCOMPUTE_USER_ACCUM_0...3
-            }
         }
     }
 
@@ -160,14 +155,9 @@ void PipelineChunkCs::LateInit(
     {
         m_regs.computePgmRsrc3.u32All = registers.At(Gfx10::mmCOMPUTE_PGM_RSRC3);
 
-        if (chipProps.gfx9.supportSpiPrefPriority)
-        {
-            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_0, &m_regs.computeUserAccum0.u32All);
-            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_1, &m_regs.computeUserAccum1.u32All);
-            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_2, &m_regs.computeUserAccum2.u32All);
-            registers.HasEntry(Gfx10::mmCOMPUTE_USER_ACCUM_3, &m_regs.computeUserAccum3.u32All);
-        }
-
+#if PAL_ENABLE_PRINTS_ASSERTS
+        m_device.AssertUserAccumRegsDisabled(registers, Gfx10::mmCOMPUTE_USER_ACCUM_0);
+#endif
     }
 
     if (chipProps.gfx9.supportSpp == 1)
@@ -198,14 +188,6 @@ void PipelineChunkCs::LateInit(
         if (IsGfx10(chipProps.gfxLevel))
         {
             pUploader->AddShReg(Gfx10::mmCOMPUTE_PGM_RSRC3, m_regs.computePgmRsrc3);
-
-            if (chipProps.gfx9.supportSpiPrefPriority != 0)
-            {
-                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_0, m_regs.computeUserAccum0);
-                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_1, m_regs.computeUserAccum1);
-                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_2, m_regs.computeUserAccum2);
-                pUploader->AddShReg(Gfx10::mmCOMPUTE_USER_ACCUM_3, m_regs.computeUserAccum3);
-            }
         }
 
         if (chipProps.gfx9.supportSpp != 0)
@@ -507,15 +489,6 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10::mmCOMPUTE_PGM_RSRC3,
                                                                 m_regs.computePgmRsrc3.u32All,
                                                                 pCmdSpace);
-
-        if (chipProps.gfx9.supportSpiPrefPriority != 0)
-        {
-            pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10::mmCOMPUTE_USER_ACCUM_0,
-                                                      Gfx10::mmCOMPUTE_USER_ACCUM_3,
-                                                      ShaderCompute,
-                                                      &m_regs.computeUserAccum0,
-                                                      pCmdSpace);
-        }
     }
 
     return pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,

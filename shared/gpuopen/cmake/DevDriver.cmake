@@ -50,7 +50,6 @@ option(DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS
 unset(DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS_HELP_TEXT)
 
 # Unity builds are only supported starting in 3.16, but significantly improve Windows build times
-# VERSION_GREATER_EQUAL was introduced in CMake 3.7. We use NOT ${X} VERSION_LESS for compatibility with CMake 3.5.
 if (NOT ${CMAKE_VERSION} VERSION_LESS "3.16.0")
     set(DEVDRIVER_UNITY_BUILDS_DEFAULT ON)
 else()

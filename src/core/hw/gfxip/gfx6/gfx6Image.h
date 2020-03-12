@@ -187,6 +187,8 @@ public:
 
     virtual bool IsFormatReplaceable(const SubresId& subresId, ImageLayout layout, bool isDst) const override;
 
+    virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const override;
+
     virtual void OverrideGpuMemHeaps(GpuMemoryRequirements* pMemReqs) const override;
 
     // Returns true if this Image has associated HTile data.

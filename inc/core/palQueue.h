@@ -365,6 +365,10 @@ struct PresentSwapChainInfo
     ISwapChain* pSwapChain;       ///< The swap chain associated with the source image.
     uint32      imageIndex;       ///< The index of the source image within the swap chain. Owership of this image
                                   ///  index will be released back to the swap chain if this call succeeds.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 578
+    uint32      rectangleCount;   ///< Number of valid rectangles in the pRectangles array.
+    const Rect* pRectangles;      ///< Array of rectangles defining the regions which will be updated.
+#endif
     union
     {
         struct

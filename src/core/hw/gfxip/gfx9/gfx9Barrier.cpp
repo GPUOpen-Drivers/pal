@@ -810,12 +810,6 @@ void Device::IssueSyncs(
         pOperations->pipelineStalls.syncCpDma = 1;
     }
 
-    // We can't flush or invalidate CB metadata using an ACQUIRE_MEM so we must force a wait-on-eop-ts.
-    if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbMd))
-    {
-        syncReqs.waitOnEopTs = 1;
-    }
-
     // The CmdUtil might not permit us to use a CS_PARTIAL_FLUSH on this engine. If so we must fall back to a EOP TS.
     // Typically we just hide this detail behind BuildWaitCsIdle but the barrier code might generate more efficient
     // commands if we force it down the waitOnEopTs path preemptively.
@@ -887,6 +881,27 @@ void Device::IssueSyncs(
             // Waits in the CP ME for all previously issued CS waves to complete.
             pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
             pOperations->pipelineStalls.csPartialFlush = 1;
+        }
+    }
+
+    // We can't flush or invalidate CB metadata using an ACQUIRE_MEM so we must use an event. By now we would have
+    // rolled this event into an EOP stall if one was required.
+    if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbMd))
+    {
+        if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvDb))
+        {
+            // If any DB caches also need to be hit we can get everything at once using this event.
+            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
+            syncReqs.cacheFlags &= ~CacheSyncFlushAndInvRb;
+        }
+        else
+        {
+            // Otherwise we need two events to clear all of the CB metadata caches. The CMask and FMask caches are
+            // cleared by the CB_META event but the DCC keys are only cleared when we use CB_PIXEL_DATA which also
+            // will clear the CB data cache. Thus, we are forced to clear all CB caches.
+            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_CB_PIXEL_DATA, engineType, pCmdSpace);
+            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_CB_META, engineType, pCmdSpace);
+            syncReqs.cacheFlags &= ~CacheSyncFlushAndInvCb;
         }
     }
 
@@ -1061,6 +1076,22 @@ void Device::Barrier(
     // -- Stalls and global cache management.
     // -----------------------------------------------------------------------------------------------------------------
 
+    HwPipePoint waitPoint = barrier.waitPoint;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
+    if (barrier.waitPoint == HwPipePreColorTarget)
+    {
+        // PS exports from distinct packers are not ordered.  Therefore, it is possible for color target writes in an
+        // RB associated with one packer to start while pixel shader reads from the previous draw are still active on a
+        // different packer.  If the writes and reads in that scenario access the same data, the operations will not
+        // occur in the API-defined pipeline order.  This is a narrow data hazard, but to safely avoid it we need to
+        // adjust the pre color target wait point to be before any pixel shader waves launch. VS has same issue, so
+        // adjust the wait point to the latest before any pixel/vertex wave launches which is HwPipePostIndexFetch.
+        waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostIndexFetch) ? HwPipePostIndexFetch
+                                                                                            : HwPipePostPs;
+    }
+#endif
+
     // Determine sync requirements for global pipeline waits.
     for (uint32 i = 0; i < barrier.pipePointWaitCount; i++)
     {
@@ -1080,27 +1111,35 @@ void Device::Barrier(
             // HwPipePostBlt barrier optimization
             pipePoint = pCmdBuf->OptimizeHwPipePostBlit();
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
+        else if (pipePoint == HwPipePreColorTarget)
+        {
+            // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
+            // point to wait on, it's equivalent to HwPipePostPs.
+            pipePoint = HwPipePostPs;
+        }
+#endif
 
-        if (pipePoint > barrier.waitPoint)
+        if (pipePoint > waitPoint)
         {
             switch (pipePoint)
             {
             case HwPipePostIndexFetch:
-                PAL_ASSERT(barrier.waitPoint == HwPipeTop);
+                PAL_ASSERT(waitPoint == HwPipeTop);
                 globalSyncReqs.pfpSyncMe      = 1;
                 break;
             case HwPipePreRasterization:
                 globalSyncReqs.vsPartialFlush = 1;
-                globalSyncReqs.pfpSyncMe      = (barrier.waitPoint == HwPipeTop);
+                globalSyncReqs.pfpSyncMe      = (waitPoint == HwPipeTop);
                 break;
             case HwPipePostPs:
                 globalSyncReqs.vsPartialFlush = 1;
                 globalSyncReqs.psPartialFlush = 1;
-                globalSyncReqs.pfpSyncMe      = (barrier.waitPoint == HwPipeTop);
+                globalSyncReqs.pfpSyncMe      = (waitPoint == HwPipeTop);
                 break;
             case HwPipePostCs:
                 globalSyncReqs.csPartialFlush = 1;
-                globalSyncReqs.pfpSyncMe      = (barrier.waitPoint == HwPipeTop);
+                globalSyncReqs.pfpSyncMe      = (waitPoint == HwPipeTop);
                 break;
             case HwPipeBottom:
                 globalSyncReqs.waitOnEopTs    = 1;
@@ -1187,12 +1226,19 @@ void Device::Barrier(
         if (TestAnyFlagSet(srcCacheMask, CoherColorTarget) &&
             (TestAnyFlagSet(srcCacheMask, ~CoherColorTarget) || TestAnyFlagSet(dstCacheMask, ~CoherColorTarget)))
         {
-            // CB metadata caches can only be flushed with a pipelined VGT event, like CACHE_FLUSH_AND_INV.  In order to
-            // ensure the cache flush finishes before continuing, we must wait on a timestamp.  Catch those cases early
-            // here so that we can perform it along with the rest of the stalls so that we might hide the bubble this
-            // will introduce.
-            globalSyncReqs.waitOnEopTs = 1;
             globalSyncReqs.cacheFlags |= CacheSyncFlushAndInvRb;
+
+            // CB metadata caches can only be flushed with a pipelined VGT event, like CACHE_FLUSH_AND_INV. In order to
+            // ensure the cache flush finishes before continuing, we must wait on a timestamp. We're only required to
+            // wait if the client asked for a wait on color rendering, like if they used a bottom of pipe wait point
+            // or if they used a target stall. The IssueSyncs logic will already combine CB cache flushes and TS waits
+            // but it can't handle the target stall case because events aren't context state and thus target stalls
+            // will not wait for them. Thus we must force an EOP wait if we need a CB metadata cache flush/inv and
+            // the client specified some range-checked target stalls.
+            if (barrier.rangeCheckedTargetWaitCount > 0)
+            {
+                globalSyncReqs.waitOnEopTs = 1;
+            }
         }
 
         constexpr uint32 MaybeTccMdShaderMask = CoherShader | CoherCopy | CoherResolve | CoherClear;

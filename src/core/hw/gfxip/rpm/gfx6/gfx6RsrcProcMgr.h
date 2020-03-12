@@ -143,13 +143,13 @@ private:
         const SubresRange& clearRange) const override;
 
     virtual void HwlFixupCopyDstImageMetaData(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image*      pSrcImage,
-        const Pal::Image&      dstImage,
-        ImageLayout            dstImageLayout,
-        const ImageCopyRegion* pRegions,
-        uint32                 regionCount,
-        bool                   isFmaskCopyOptimized) const override;
+        GfxCmdBuffer*           pCmdBuffer,
+        const Pal::Image*       pSrcImage,
+        const Pal::Image&       dstImage,
+        ImageLayout             dstImageLayout,
+        const ImageFixupRegion* pRegions,
+        uint32                  regionCount,
+        bool                    isFmaskCopyOptimized) const override;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 478
     virtual void HwlCreateDecompressResolveSafeImageViewSrds(

@@ -917,6 +917,12 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.indirectUserDataTableAddresses = (result == Result::Success);
                 break;
 
+            case HashLiteralString(PipelineMetadataKey::NggSubgroupSize):
+                PAL_ASSERT(pMetadata->hasEntry.nggSubgroupSize == 0);
+                result = pReader->UnpackNext(&pMetadata->nggSubgroupSize);
+                pMetadata->hasEntry.nggSubgroupSize = (result == Result::Success);
+                break;
+
             case HashLiteralString(PipelineMetadataKey::NumInterpolants):
                 PAL_ASSERT(pMetadata->hasEntry.numInterpolants == 0);
                 result = pReader->UnpackNext(&pMetadata->numInterpolants);

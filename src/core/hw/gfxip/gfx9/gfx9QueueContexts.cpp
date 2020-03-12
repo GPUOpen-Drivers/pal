@@ -87,6 +87,16 @@ static uint32* WriteCommonPreamble(
                                                        index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                        pCmdSpace);
 
+        // Set every user accumulator contribution to a default "disabled" value (zero).
+        if (chipProps.gfx9.supportSpiPrefPriority != 0)
+        {
+            constexpr uint32 FourZeros[4] = {};
+            pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10::mmCOMPUTE_USER_ACCUM_0,
+                                                      Gfx10::mmCOMPUTE_USER_ACCUM_3,
+                                                      ShaderCompute,
+                                                      &FourZeros,
+                                                      pCmdSpace);
+        }
     } // if compute supported
 
     // Give the CP_COHER register (used by acquire-mem packet) a chance to think a little bit before actually
@@ -1217,6 +1227,49 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         regPA_CL_NGG_CNTL paClNggCntl = { };
 
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_NGG_CNTL, paClNggCntl.u32All, pCmdSpace);
+
+        // We use the same programming for VS and PS.
+        regSPI_SHADER_REQ_CTRL_VS spiShaderReqCtrl = {};
+
+        if (settings.numPsWavesSoftGroupedPerCu > 0)
+        {
+            spiShaderReqCtrl.bits.SOFT_GROUPING_EN = 1;
+            spiShaderReqCtrl.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
+        }
+
+        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_VS,
+                                                                   spiShaderReqCtrl.u32All,
+                                                                   pCmdSpace);
+
+        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_PS,
+                                                                   spiShaderReqCtrl.u32All,
+                                                                   pCmdSpace);
+
+        // Set every user accumulator contribution to a default "disabled" value (zero).
+        if (chipProps.gfx9.supportSpiPrefPriority != 0)
+        {
+            constexpr uint32 FourZeros[4] = {};
+            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_0,
+                                                        Gfx10::mmSPI_SHADER_USER_ACCUM_ESGS_3,
+                                                        ShaderGraphics,
+                                                        &FourZeros,
+                                                        pCmdSpace);
+            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_0,
+                                                        Gfx10::mmSPI_SHADER_USER_ACCUM_LSHS_3,
+                                                        ShaderGraphics,
+                                                        &FourZeros,
+                                                        pCmdSpace);
+            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0,
+                                                        Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3,
+                                                        ShaderGraphics,
+                                                        &FourZeros,
+                                                        pCmdSpace);
+            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_PS_0,
+                                                        Gfx10::mmSPI_SHADER_USER_ACCUM_PS_3,
+                                                        ShaderGraphics,
+                                                        &FourZeros,
+                                                        pCmdSpace);
+        }
     } // if Gfx10.x
 
     return WriteCommonPreamble(*m_pDevice, EngineTypeUniversal, &m_deCmdStream, pCmdSpace);

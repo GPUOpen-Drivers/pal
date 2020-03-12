@@ -208,7 +208,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                   IsNested()),
     m_pSignatureCs(&NullCsSignature),
     m_pSignatureGfx(&NullGfxSignature),
-    m_pipelineCtxPm4Hash(0),
+    m_pipelineCtxRegHash(0),
     m_pfnValidateUserDataGfx(nullptr),
     m_pfnValidateUserDataGfxPipelineSwitch(nullptr),
     m_vertexOffsetReg(UserDataNotMapped),
@@ -547,7 +547,7 @@ void UniversalCmdBuffer::ResetState()
 
     m_pSignatureCs       = &NullCsSignature;
     m_pSignatureGfx      = &NullGfxSignature;
-    m_pipelineCtxPm4Hash = 0;
+    m_pipelineCtxRegHash = 0;
 
     ResetUserDataTable(&m_spillTable.stateCs);
     ResetUserDataTable(&m_spillTable.stateGfx);
@@ -653,12 +653,12 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
 
     const bool wasPrevPipelineNull = (pPrevSignature == &NullGfxSignature);
 
-    const uint64 ctxPm4Hash = pCurrPipeline->GetContextPm4ImgHash();
-    if (wasPrevPipelineNull || (m_pipelineCtxPm4Hash != ctxPm4Hash))
+    const uint32 ctxRegHash = pCurrPipeline->GetContextRegHash();
+    if (wasPrevPipelineNull || (m_pipelineCtxRegHash != ctxRegHash))
     {
         pDeCmdSpace = pCurrPipeline->WriteContextCommands(&m_deCmdStream, pDeCmdSpace);
 
-        m_pipelineCtxPm4Hash = ctxPm4Hash;
+        m_pipelineCtxRegHash = ctxRegHash;
     }
 
     if (m_cachedSettings.rbPlusSupported != 0)
@@ -2797,6 +2797,14 @@ void UniversalCmdBuffer::WriteEventCmd(
         // HwPipePostBlt barrier optimization
         pipePoint = OptimizeHwPipePostBlit();
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 577
+    else if (pipePoint == HwPipePreColorTarget)
+    {
+        // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
+        // point to wait on, it's equivalent to HwPipePostPs.
+        pipePoint = HwPipePostPs;
+    }
+#endif
 
     WriteDataInfo writeData = {};
 
@@ -6007,7 +6015,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_spiVsOutConfig = cmdBuffer.m_spiVsOutConfig;
     }
 
-    m_pipelineCtxPm4Hash = cmdBuffer.m_pipelineCtxPm4Hash;
+    m_pipelineCtxRegHash = cmdBuffer.m_pipelineCtxRegHash;
 
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
     m_gfxCmdBufState.flags.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.flags.gfxBltActive;

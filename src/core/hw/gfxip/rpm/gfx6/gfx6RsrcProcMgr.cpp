@@ -1061,13 +1061,13 @@ void RsrcProcMgr::HwlFastColorClear(
 
 // =====================================================================================================================
 void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
-    GfxCmdBuffer*          pCmdBuffer,
-    const Pal::Image*      pSrcImage,
-    const Pal::Image&      dstImage,
-    ImageLayout            dstImageLayout,
-    const ImageCopyRegion* pRegions,
-    uint32                 regionCount,
-    bool                   isFmaskCopyOptimized
+    GfxCmdBuffer*           pCmdBuffer,
+    const Pal::Image*       pSrcImage,
+    const Pal::Image&       dstImage,
+    ImageLayout             dstImageLayout,
+    const ImageFixupRegion* pRegions,
+    uint32                  regionCount,
+    bool                    isFmaskCopyOptimized
     ) const
 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 562
@@ -1092,15 +1092,15 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
 
         for (uint32 idx = 0; idx < regionCount; ++idx)
         {
-            const auto& copyRegion = pRegions[idx];
+            const auto& clearRegion = pRegions[idx];
 
             SubresRange range = {};
 
-            range.startSubres.aspect     = copyRegion.dstSubres.aspect;
-            range.startSubres.mipLevel   = copyRegion.dstSubres.mipLevel;
-            range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
+            range.startSubres.aspect     = clearRegion.subres.aspect;
+            range.startSubres.mipLevel   = clearRegion.subres.mipLevel;
+            range.startSubres.arraySlice = clearRegion.subres.arraySlice;
             range.numMips                = 1;
-            range.numSlices              = copyRegion.numSlices;
+            range.numSlices              = clearRegion.numSlices;
 
             // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
             ClearDcc(pCmdBuffer, pStream, gfx6DstImage, range, Gfx6Dcc::InitialValue, DccClearPurpose::FastClear);
@@ -1111,16 +1111,16 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     {
         for (uint32 idx = 0; (idx < regionCount); ++idx)
         {
-            const auto& copyRegion  = pRegions[idx];
-            const auto* pSubResInfo = dstImage.SubresourceInfo(copyRegion.dstSubres);
+            const auto& clearRegion = pRegions[idx];
+            const auto* pSubResInfo = dstImage.SubresourceInfo(clearRegion.subres);
 
             SubresRange range = {};
 
-            range.startSubres.aspect     = copyRegion.dstSubres.aspect;
-            range.startSubres.mipLevel   = copyRegion.dstSubres.mipLevel;
-            range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
+            range.startSubres.aspect     = clearRegion.subres.aspect;
+            range.startSubres.mipLevel   = clearRegion.subres.mipLevel;
+            range.startSubres.arraySlice = clearRegion.subres.arraySlice;
             range.numMips                = 1;
-            range.numSlices              = copyRegion.numSlices;
+            range.numSlices              = clearRegion.numSlices;
 
             // Since color data is no longer compressed set Cmask and Fmask to fully uncompressed.
             ClearCmask(pCmdBuffer, gfx6DstImage, range, Gfx6Cmask::GetInitialValue(gfx6DstImage));

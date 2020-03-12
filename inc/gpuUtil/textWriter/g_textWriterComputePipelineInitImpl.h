@@ -78,19 +78,16 @@ Pal::Result CreateTextWriterComputePipelines(
     case Pal::AsicRevision::Carrizo:
     case Pal::AsicRevision::Bristol:
     case Pal::AsicRevision::Stoney:
+    case Pal::AsicRevision::Fiji:
     case Pal::AsicRevision::Polaris10:
+    case Pal::AsicRevision::Polaris11:
+    case Pal::AsicRevision::Polaris12:
         pTable = textWriterComputeBinaryTableCarrizo;
         break;
 
     case Pal::AsicRevision::Iceland:
     case Pal::AsicRevision::Tonga:
         pTable = textWriterComputeBinaryTableIceland;
-        break;
-
-    case Pal::AsicRevision::Fiji:
-    case Pal::AsicRevision::Polaris11:
-    case Pal::AsicRevision::Polaris12:
-        pTable = textWriterComputeBinaryTableFiji;
         break;
 
     case Pal::AsicRevision::Vega10:

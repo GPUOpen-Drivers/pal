@@ -1268,7 +1268,10 @@ void GfxCmdBuffer::CmdBeginPerfExperiment(
 
     // Indicates that this command buffer is used for enabling a perf experiment. This is used to write any VCOPs that
     // may be needed during submit time.
-    EnableSpmTrace();
+    if (pExperiment->HasSpmTrace())
+    {
+        EnableSpmTrace();
+    }
 
     pExperiment->IssueBegin(this, pCmdStream);
     m_pCurrentExperiment = pExperiment;

@@ -123,25 +123,13 @@ private:
             regSPI_SHADER_PGM_HI_VS     spiShaderPgmHiVs;
             regSPI_SHADER_PGM_RSRC1_VS  spiShaderPgmRsrc1Vs;
             regSPI_SHADER_PGM_RSRC2_VS  spiShaderPgmRsrc2Vs;
+            regSPI_SHADER_PGM_CHKSUM_VS spiShaderPgmChksumVs;
+
             regSPI_SHADER_PGM_LO_PS     spiShaderPgmLoPs;
             regSPI_SHADER_PGM_HI_PS     spiShaderPgmHiPs;
             regSPI_SHADER_PGM_RSRC1_PS  spiShaderPgmRsrc1Ps;
             regSPI_SHADER_PGM_RSRC2_PS  spiShaderPgmRsrc2Ps;
-
-            regSPI_SHADER_REQ_CTRL_PS  spiShaderReqCtrlPs;
-            regSPI_SHADER_REQ_CTRL_VS  spiShaderReqCtrlVs;
-
-            regSPI_SHADER_PGM_CHKSUM_PS    spiShaderPgmChksumPs;
-            regSPI_SHADER_USER_ACCUM_PS_0  spiShaderUserAccumPs0;
-            regSPI_SHADER_USER_ACCUM_PS_1  spiShaderUserAccumPs1;
-            regSPI_SHADER_USER_ACCUM_PS_2  spiShaderUserAccumPs2;
-            regSPI_SHADER_USER_ACCUM_PS_3  spiShaderUserAccumPs3;
-
-            regSPI_SHADER_PGM_CHKSUM_VS    spiShaderPgmChksumVs;
-            regSPI_SHADER_USER_ACCUM_VS_0  spiShaderUserAccumVs0;
-            regSPI_SHADER_USER_ACCUM_VS_1  spiShaderUserAccumVs1;
-            regSPI_SHADER_USER_ACCUM_VS_2  spiShaderUserAccumVs2;
-            regSPI_SHADER_USER_ACCUM_VS_3  spiShaderUserAccumVs3;
+            regSPI_SHADER_PGM_CHKSUM_PS spiShaderPgmChksumPs;
 
             regSPI_SHADER_USER_DATA_VS_0  userDataInternalTableVs;
             regSPI_SHADER_USER_DATA_PS_0  userDataInternalTablePs;

@@ -675,8 +675,9 @@ public:
         Pal::GpuMemory*         pGpuMemory);
 
     virtual Result ProbeGpuVaRange(
-        gpusize vaStart,
-        gpusize vaSize) const override;
+        gpusize     vaStart,
+        gpusize     vaSize,
+        VaPartition vaPartition) const override;
 
     // Reserve gpu virtual address range. This function is called by SVM manager 'SvmMgr'
     virtual Result ReserveGpuVirtualAddress(VaPartition             vaPartition,
@@ -740,8 +741,6 @@ public:
     {
         return m_drmProcs.pfnAmdgpuCsSubmitRawisValid();
     }
-
-    const DrmLoaderFuncs& GetDrmLoaderFuncs() const { return m_drmProcs; }
 
     SemaphoreType GetSemaphoreType() const { return m_semType; }
     FenceType     GetFenceType()     const { return m_fenceType; }
@@ -866,7 +865,8 @@ private:
         ) const;
 
     Result InitGpuProperties();
-    Result InitMemQueueInfo();
+    Result InitMemInfo();
+    Result InitQueueInfo();
 
     Result InitScreen();
 #if PAL_BUILD_GFX6
@@ -986,6 +986,8 @@ private:
 #else
     const DrmLoaderFuncs& m_drmProcs;
 #endif
+    // Indicates this device is added to VamMgrSingleton with InitVaRangesAndFinalizeVam
+    bool m_attachedToVamMgrSingleton;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

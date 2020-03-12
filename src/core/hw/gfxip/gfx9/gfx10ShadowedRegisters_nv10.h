@@ -37,27 +37,19 @@ namespace Gfx9
 const RegisterRange Nv10ContextShadowRange[] =
 {
     {
-        (mmDB_RENDER_CONTROL - CONTEXT_SPACE_START),
+        (mmDB_RENDER_CONTROL - CONTEXT_SPACE_START),                            // 0xA000 - 0xA021
         (mmTA_BC_BASE_ADDR_HI - mmDB_RENDER_CONTROL + 1),
     },
     {
-        (mmCOHER_DEST_BASE_HI_0 - CONTEXT_SPACE_START),
-        (mmCOHER_DEST_BASE_3 - mmCOHER_DEST_BASE_HI_0 + 1),
+        (mmCOHER_DEST_BASE_HI_0 - CONTEXT_SPACE_START),                         // 0xA07A - 0xA0D7
+        (mmPA_SC_TILE_STEERING_OVERRIDE - mmCOHER_DEST_BASE_HI_0 + 1),
     },
     {
-        (mmPA_SC_WINDOW_OFFSET - CONTEXT_SPACE_START),
-        (mmPA_SC_TILE_STEERING_OVERRIDE - mmPA_SC_WINDOW_OFFSET + 1),
+        (mmVGT_MULTI_PRIM_IB_RESET_INDX - CONTEXT_SPACE_START),                 // 0xA103 - 0xA186
+        (mmPA_CL_UCP_5_W - mmVGT_MULTI_PRIM_IB_RESET_INDX + 1),
     },
     {
-        (mmVGT_MULTI_PRIM_IB_RESET_INDX - CONTEXT_SPACE_START),
-        (Gfx10::mmCB_RMI_GL2_CACHE_CONTROL - mmVGT_MULTI_PRIM_IB_RESET_INDX + 1),
-    },
-    {
-        (mmCB_BLEND_RED - CONTEXT_SPACE_START),
-        (mmPA_CL_UCP_5_W - mmCB_BLEND_RED + 1),
-    },
-    {
-        (mmSPI_PS_INPUT_CNTL_0 - CONTEXT_SPACE_START),
+        (mmSPI_PS_INPUT_CNTL_0 - CONTEXT_SPACE_START),                          // 0xA191 - 0xA1C5
         (mmSPI_SHADER_COL_FORMAT - mmSPI_PS_INPUT_CNTL_0 + 1),
     },
     {

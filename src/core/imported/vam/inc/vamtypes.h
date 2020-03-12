@@ -34,6 +34,12 @@
 
 #if defined(__GNUC__)
     #include <vambasictypes.h>
+#if defined(VAM_CLIENT_DX12_LINUX)
+#ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN 1
+#endif
+    #include <windows.h>
+#endif
 #else
 #ifndef WIN32_LEAN_AND_MEAN
     #define WIN32_LEAN_AND_MEAN 1

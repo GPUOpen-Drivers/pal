@@ -2759,7 +2759,7 @@ public:
 
     virtual Result GetShaderFunctionStats(
         const char*      pShaderExportName,
-        ShaderLibStats*  pShaderStats) const
+        ShaderLibStats*  pShaderStats) const override
     {
         return m_pNextLayer->GetShaderFunctionStats(pShaderExportName, pShaderStats);
     }

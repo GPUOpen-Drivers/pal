@@ -28,7 +28,7 @@
 //
 // This code has been generated automatically. Do not hand-modify this code.
 //
-// Modify the procsAnalysis.py and drmLoader.py in the tools/generate directory OR drmLoader.proc instead
+// Modify the procAnalysis.py and drmLoader.py in the tools/generate directory OR drmLoader.proc instead
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2489,9 +2489,9 @@ int32 DrmLoaderFuncsProxy::pfnDrmModeAddFB2(
                                            width,
                                            height,
                                            pixelFormat,
-                                           boHandles[4],
-                                           pitches[4],
-                                           offsets[4],
+                                           boHandles,
+                                           pitches,
+                                           offsets,
                                            pBufId,
                                            flags);
     const int64 end = Util::GetPerfCpuTime();
@@ -2505,9 +2505,9 @@ int32 DrmLoaderFuncsProxy::pfnDrmModeAddFB2(
         width,
         height,
         pixelFormat,
-        boHandles[4],
-        pitches[4],
-        offsets[4],
+        boHandles,
+        pitches,
+        offsets,
         pBufId,
         flags);
     m_paramLogger.Flush();
