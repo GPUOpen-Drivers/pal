@@ -73,7 +73,12 @@ enum RMT_PROCESS_EVENT_TYPE
 };
 
 // For string userdata event types (Name and Snapshot) we define a reasonable max size
-#define RMT_MAX_USERDATA_STRING_SIZE 1024
+// This size is chosen to have plenty of room for data that we might need.
+// Including, but not limited to:
+//      pointers for a callstack
+//      one or more file paths
+//      long debug resource names
+#define RMT_MAX_USERDATA_STRING_SIZE 1024u
 
 // Enumeration of Userdata event types
 enum RMT_USERDATA_EVENT_TYPE
@@ -246,7 +251,7 @@ struct RMT_MSG_USERDATA : RMT_TOKEN_DATA
     RMT_MSG_USERDATA(uint8 delta, RMT_USERDATA_EVENT_TYPE type, uint32 payloadSize)
     {
         sizeInBytes = sizeof(bytes);
-        pByteData = &bytes[0];
+        pByteData   = &bytes[0];
 
         // RMT_TOKEN_TYPE [3:0] Token type (see Table 2). Encoded to RMT_TOKEN_TYPE_ALLOCATE.
         // DELTA      [7:4] The delta from the last token. In increments of 32-time units.
@@ -258,6 +263,40 @@ struct RMT_MSG_USERDATA : RMT_TOKEN_DATA
 
         // PAYLOAD_SIZE[31:12] The size of the payload that immediately follows this token, expressed in bytes.
         SetBits(payloadSize, 31, 12);
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// RMT_MSG_USERDATA with an embedded NULL-terminated string value
+struct RMT_MSG_USERDATA_EMBEDDED_STRING : RMT_TOKEN_DATA
+{
+    uint8 bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + RMT_MAX_USERDATA_STRING_SIZE];
+
+    // Initializes the token fields
+    RMT_MSG_USERDATA_EMBEDDED_STRING(uint8 delta, RMT_USERDATA_EVENT_TYPE type, const char* pString)
+    {
+        // Store the string and a NULL byte
+        uint32 payloadSize = static_cast<uint32>(strlen(pString) + 1);
+
+        // Truncate long payloads so that they fit
+        DD_WARN(payloadSize <= RMT_MAX_USERDATA_STRING_SIZE);
+        payloadSize = Platform::Min(payloadSize, RMT_MAX_USERDATA_STRING_SIZE);
+
+        sizeInBytes = RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + payloadSize;
+        pByteData   = &bytes[0];
+
+        // RMT_TOKEN_TYPE [3:0] Token type (see Table 2). Encoded to RMT_TOKEN_TYPE_ALLOCATE.
+        // DELTA      [7:4] The delta from the last token. In increments of 32-time units.
+        RMT_TOKEN_HEADER header(RMT_TOKEN_USERDATA, delta);
+        SetBits(header.byteVal, 7, 0);
+
+        // TYPE[11:8] The type of the user data being emitted encoded as RMT_USERDATAYPE.
+        SetBits(type, 11, 8);
+
+        // PAYLOAD_SIZE[31:12] The size of the payload that immediately follows this token, expressed in bytes.
+        SetBits(payloadSize, 31, 12);
+
+        memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE], pString, payloadSize);
     }
 };
 

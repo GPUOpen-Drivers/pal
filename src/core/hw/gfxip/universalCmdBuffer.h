@@ -58,9 +58,8 @@ union GraphicsStateFlags
                 uint16 lineStippleState       : 1; // Gfx6 & Gfx9
                 uint16 colorTargetView        : 1; // Gfx9 only
                 uint16 depthStencilView       : 1; // Gfx9 only
-                uint16 reservedForFutureHw1   : 2;
+                uint16 reservedForFutureHw1   : 3;
                 uint16 depthClampOverride     : 1; // All Gfx
-                uint16 reservedValidationBits : 1;
             };
 
             uint16 u16All;

@@ -55,7 +55,7 @@ public:
     virtual Result Open(const QueueSemaphoreOpenInfo& openInfo);
     virtual Result OpenExternal(const ExternalQueueSemaphoreOpenInfo& openInfo);
 
-#if (PAL_KMT_BUILD || PAL_AMDGPU_BUILD)
+#if ( PAL_AMDGPU_BUILD)
     virtual OsExternalHandle ExportExternalHandle(
         const QueueSemaphoreExportInfo& exportInfo) const override;
 #endif

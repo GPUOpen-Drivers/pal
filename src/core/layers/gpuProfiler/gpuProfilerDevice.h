@@ -100,6 +100,15 @@ public:
         const QueueCreateInfo& createInfo,
         void*                  pPlacementAddr,
         IQueue**               ppQueue) override;
+    virtual size_t GetMultiQueueSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        Result*                pResult) const override;
+    virtual Result CreateMultiQueue(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        void*                  pPlacementAddr,
+        IQueue**               ppQueue) override;
     virtual size_t GetCmdBufferSize(
         const CmdBufferCreateInfo& createInfo,
         Result*                    pResult) const override;
@@ -113,7 +122,8 @@ public:
     Result CreateTargetCmdBuffer(
         const CmdBufferCreateInfo& createInfo,
         void*                      pPlacementAddr,
-        TargetCmdBuffer**          ppCmdBuffer);
+        TargetCmdBuffer**          ppCmdBuffer,
+        uint32                     subQueueIdx);
     virtual size_t GetGraphicsPipelineSize(
         const GraphicsPipelineCreateInfo& createInfo,
         Result*                           pResult) const override;

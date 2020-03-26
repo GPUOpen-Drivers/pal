@@ -60,8 +60,10 @@ namespace DevDriver
                     pName = "UDP Socket";
                     break;
                 case SocketType::Local:
+#if !defined(DD_PLATFORM_WINDOWS_UM)
                     pName = "Unix Domain Socket";
                     break;
+#endif
                 default:
                     break;
             }

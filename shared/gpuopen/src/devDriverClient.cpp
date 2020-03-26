@@ -39,6 +39,10 @@
 #include "protocols/rgpClient.h"
 #include "protocols/etwClient.h"
 
+#if DD_PLATFORM_WINDOWS_UM
+    #include "win/ddWinPipeMsgTransport.h"
+#endif
+
 namespace DevDriver
 {
     DevDriverClient::DevDriverClient(const AllocCb&          allocCb,
@@ -58,6 +62,22 @@ namespace DevDriver
     Result DevDriverClient::Initialize()
     {
         Result result = Result::Error;
+#if defined(DD_PLATFORM_WINDOWS_UM)
+        if (m_createInfo.connectionInfo.type == TransportType::Local)
+        {
+            using MsgChannelPipe = MessageChannel<WinPipeMsgTransport>;
+            m_pMsgChannel = DD_NEW(MsgChannelPipe, m_allocCb)(m_allocCb,
+                                                              m_createInfo,
+                                                              m_createInfo.connectionInfo);
+        }
+        else if (m_createInfo.connectionInfo.type == TransportType::Remote)
+        {
+            using MsgChannelSocket = MessageChannel<SocketMsgTransport>;
+            m_pMsgChannel = DD_NEW(MsgChannelSocket, m_allocCb)(m_allocCb,
+                                                                m_createInfo,
+                                                                m_createInfo.connectionInfo);
+        }
+#else
         if ((m_createInfo.connectionInfo.type == TransportType::Remote) |
             (m_createInfo.connectionInfo.type == TransportType::Local))
         {
@@ -66,6 +86,7 @@ namespace DevDriver
                                                                 m_createInfo,
                                                                 m_createInfo.connectionInfo);
         }
+#endif
         else
         {
             // Invalid transport type

@@ -96,8 +96,6 @@ void EventServer::UpdateSession(const SharedPointer<ISession>& pSession)
 
     m_eventProvidersMutex.Unlock();
 
-    Platform::LockGuard<Platform::Mutex> queueLock(m_eventQueueMutex);
-
     pEventSession->UpdateSession();
 }
 
@@ -106,6 +104,15 @@ void EventServer::SessionTerminated(const SharedPointer<ISession>& pSession, Res
     DD_UNUSED(terminationReason);
     EventServerSession* pEventSession = reinterpret_cast<EventServerSession*>(pSession->SetUserData(nullptr));
     DD_ASSERT(pEventSession == m_pActiveSession);
+
+    m_eventProvidersMutex.Lock();
+
+    for (auto providerIter : m_eventProviders)
+    {
+        providerIter.value->Disable();
+    }
+
+    m_eventProvidersMutex.Unlock();
 
     // Free the session data
     if (pEventSession != nullptr)
@@ -124,7 +131,7 @@ Result EventServer::RegisterProvider(BaseEventProvider* pProvider)
     {
         const EventProviderId providerId = pProvider->GetId();
 
-        Platform::LockGuard<Platform::Mutex> providersLock(m_eventProvidersMutex);
+        Platform::LockGuard<Platform::AtomicLock> providersLock(m_eventProvidersMutex);
 
         if (m_eventProviders.Contains(providerId) == false)
         {
@@ -151,13 +158,15 @@ Result EventServer::UnregisterProvider(BaseEventProvider* pProvider)
     {
         const EventProviderId providerId = pProvider->GetId();
 
-        Platform::LockGuard<Platform::Mutex> providersLock(m_eventProvidersMutex);
+        Platform::LockGuard<Platform::AtomicLock> providersLock(m_eventProvidersMutex);
 
         const auto providerIter = m_eventProviders.Find(providerId);
         if (providerIter != m_eventProviders.End())
         {
             m_eventProviders.Remove(providerIter);
             providerIter->value->SetEventServer(nullptr);
+
+            result = Result::Success;
         }
         else
         {
@@ -172,7 +181,7 @@ Result EventServer::AllocateEventChunk(EventChunk** ppChunk)
 {
     DD_ASSERT(ppChunk != nullptr);
 
-    Platform::LockGuard<Platform::Mutex> poolLock(m_eventPoolMutex);
+    Platform::LockGuard<Platform::AtomicLock> poolLock(m_eventPoolMutex);
 
     Result result = Result::Success;
 
@@ -188,25 +197,33 @@ Result EventServer::AllocateEventChunk(EventChunk** ppChunk)
     }
     else
     {
-        EventChunk* pChunk = reinterpret_cast<EventChunk*>(DD_CALLOC(sizeof(EventChunk),
-                                                                     alignof(EventChunk),
-                                                                     m_pMsgChannel->GetAllocCb()));
-        if (pChunk != nullptr)
+        // Restrict the number of allocated event chunks in order to limit our total memory usage.
+        if (m_eventChunkAllocList.Size() < kMaxAllocatedEventChunks)
         {
-            if (m_eventChunkAllocList.PushBack(pChunk))
+            EventChunk* pChunk = reinterpret_cast<EventChunk*>(DD_CALLOC(sizeof(EventChunk),
+                                                                         alignof(EventChunk),
+                                                                         m_pMsgChannel->GetAllocCb()));
+            if (pChunk != nullptr)
             {
-                *ppChunk = pChunk;
+                if (m_eventChunkAllocList.PushBack(pChunk))
+                {
+                    *ppChunk = pChunk;
+                }
+                else
+                {
+                    DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
+
+                    result = Result::InsufficientMemory;
+                }
             }
             else
             {
-                DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
-
                 result = Result::InsufficientMemory;
             }
         }
         else
         {
-            result = Result::InsufficientMemory;
+            result = Result::LimitReached;
         }
     }
 
@@ -217,34 +234,44 @@ void EventServer::FreeEventChunk(EventChunk* pChunk)
 {
     DD_ASSERT(pChunk != nullptr);
 
-    Platform::LockGuard<Platform::Mutex> poolLock(m_eventPoolMutex);
+    Platform::LockGuard<Platform::AtomicLock> poolLock(m_eventPoolMutex);
 
     DD_UNHANDLED_RESULT(m_eventChunkPool.PushBack(pChunk) ? Result::Success : Result::InsufficientMemory);
 }
 
-Result EventServer::EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks)
+void EventServer::EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks)
 {
     DD_ASSERT(ppChunks != nullptr);
 
-    Platform::LockGuard<Platform::Mutex> queueLock(m_eventQueueMutex);
+    Platform::LockGuard<Platform::AtomicLock> queueLock(m_eventQueueMutex);
 
     Result result = Result::Success;
 
     for (size_t chunkIndex = 0; chunkIndex < numChunks; ++chunkIndex)
     {
-        EventChunkInfo chunkInfo = {};
-        chunkInfo.pChunk         = ppChunks[chunkIndex];
-        chunkInfo.bytesSent      = 0;
-
-        result = (m_eventChunkQueue.PushBack(chunkInfo) ? Result::Success : Result::InsufficientMemory);
+        result = (m_eventChunkQueue.PushBack(ppChunks[chunkIndex]) ? Result::Success : Result::InsufficientMemory);
 
         if (result != Result::Success)
         {
+            // The only way PushBack will fail is if we run out of memory.  We can't do anything useful at that point
+            // so just assert and break out of the loop.
+            DD_ASSERT_ALWAYS();
             break;
         }
     }
+}
 
-    return result;
+EventChunk* EventServer::DequeueEventChunk()
+{
+    Platform::LockGuard<Platform::AtomicLock> queueLock(m_eventQueueMutex);
+
+    EventChunk* pChunk = nullptr;
+
+    // Attempt to pop the next chunk from the queue.
+    // It's okay if this fails since it just means we don't have any chunks available and we should return nullptr.
+    m_eventChunkQueue.PopFront(&pChunk);
+
+    return pChunk;
 }
 
 Result EventServer::BuildQueryProvidersResponse(BlockId* pBlockId)
@@ -256,7 +283,7 @@ Result EventServer::BuildQueryProvidersResponse(BlockId* pBlockId)
         auto pServerBlock = m_pMsgChannel->GetTransferManager().OpenServerBlock();
         if (pServerBlock.IsNull() == false)
         {
-            Platform::LockGuard<Platform::Mutex> providersLock(m_eventProvidersMutex);
+            Platform::LockGuard<Platform::AtomicLock> providersLock(m_eventProvidersMutex);
 
             // Write the response header
             const QueryProvidersResponseHeader responseHeader(static_cast<uint32>(m_eventProviders.Size()));
@@ -302,11 +329,13 @@ Result EventServer::ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate)
     {
         const EventProviderId providerId = pUpdate->providerId;
 
-        Platform::LockGuard<Platform::Mutex> providersLock(m_eventProvidersMutex);
+        Platform::LockGuard<Platform::AtomicLock> providersLock(m_eventProvidersMutex);
 
         const auto providerIter = m_eventProviders.Find(providerId);
         if (providerIter != m_eventProviders.End())
         {
+            result = Result::Success;
+
             BaseEventProvider* pProvider = providerIter->value;
             if (pUpdate->isEnabled)
             {
@@ -317,9 +346,21 @@ Result EventServer::ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate)
                 pProvider->Disable();
             }
 
-            pProvider->UpdateEventData(VoidPtrInc(pUpdate, pUpdate->GetEventDataOffset()), pUpdate->GetEventDataSize());
-
-            result = Result::Success;
+            // If the client provides a valid event data update, attempt to apply it.
+            if (pUpdate->GetEventDataSize() > 0)
+            {
+                // Calculate the number of bits in the event data update
+                // The client should have sent at least enough bits
+                const size_t numEventDataBits = (pUpdate->GetEventDataSize() * 8);
+                if (numEventDataBits >= pProvider->GetNumEvents())
+                {
+                    pProvider->UpdateEventData(VoidPtrInc(pUpdate, pUpdate->GetEventDataOffset()), pUpdate->GetEventDataSize());
+                }
+                else
+                {
+                    result = Result::Error;
+                }
+            }
         }
         else
         {

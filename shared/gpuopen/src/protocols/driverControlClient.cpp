@@ -112,17 +112,86 @@ namespace DevDriver
                 result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    const StepDriverResponsePayload& response =
-                        container.GetPayload<StepDriverResponsePayload>();
-                    if (response.header.command == DriverControlMessage::StepDriverResponse)
+                    if (m_pSession->GetVersion() >= DRIVERCONTROL_STEP_RETURN_STATUS_VERSION)
                     {
-                        result = response.result;
+                        const StepDriverResponsePayloadV2& response =
+                            container.GetPayload<StepDriverResponsePayloadV2>();
+                        if (response.header.command == DriverControlMessage::StepDriverResponseV2)
+                        {
+                            result = response.result;
+                        }
+                        else
+                        {
+                            result = Result::Error;
+                        }
                     }
                     else
                     {
-                        // Invalid response payload
-                        result = Result::Error;
+                        const StepDriverResponsePayload& response =
+                            container.GetPayload<StepDriverResponsePayload>();
+                        if (response.header.command == DriverControlMessage::StepDriverResponse)
+                        {
+                            result = response.result;
+                        }
+                        else
+                        {
+                            result = Result::Error;
+                        }
                     }
+                }
+            }
+
+            return result;
+        }
+
+        Result DriverControlClient::AdvanceDriverState(DriverStatus* pNewState)
+        {
+            Result result = Result::Unavailable;
+
+            if (IsConnected())
+            {
+                if (pNewState != nullptr)
+                {
+                    if (m_pSession->GetVersion() >= DRIVERCONTROL_STEP_RETURN_STATUS_VERSION)
+                    {
+                        SizedPayloadContainer container = {};
+                        container.CreatePayload<StepDriverRequestPayload>(1);
+
+                        result = TransactDriverControlPayload(&container);
+                        if (result == Result::Success)
+                        {
+                            const StepDriverResponsePayloadV2& response =
+                                container.GetPayload<StepDriverResponsePayloadV2>();
+                            if (response.header.command == DriverControlMessage::StepDriverResponseV2)
+                            {
+                                result = response.result;
+                                *pNewState = response.status;
+                            }
+                            else
+                            {
+                                result = Result::Error;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Backwards Compatibility Path
+                        // On older drivers, we can emulate this functionality by performing a Step operation followed
+                        // by a QueryDriverStatus operation.
+
+                        // Step to the next state
+                        result = StepDriver(1);
+
+                        // Query the current state from the driver
+                        if (result == Result::Success)
+                        {
+                            result = QueryDriverStatus(pNewState);
+                        }
+                    }
+                }
+                else
+                {
+                    result = Result::InvalidParameter;
                 }
             }
 

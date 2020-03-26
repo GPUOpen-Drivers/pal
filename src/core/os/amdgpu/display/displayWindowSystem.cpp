@@ -36,7 +36,6 @@
 #include <poll.h>
 
 using namespace Util;
-
 namespace Pal
 {
 namespace Amdgpu
@@ -106,7 +105,7 @@ Result DisplayPresentFence::Create(
 Result DisplayPresentFence::Init(
     bool initiallySignaled)
 {
-    return m_imageIdle.Init(1, 1);
+    return m_imageIdle.Init(1, initiallySignaled ? 1 : 0);
 }
 
 // =====================================================================================================================
@@ -126,12 +125,10 @@ Result DisplayPresentFence::Trigger()
 Result DisplayPresentFence::WaitForCompletion(
     bool doWait)
 {
-    Result result = Result::Success;
-    if (doWait)
-    {
-        uint32 timeoutMsec = -1;
-        result = m_imageIdle.Wait(timeoutMsec);
-    }
+    uint32 timeoutMsec = doWait ? -1 : 0;
+
+    Result result = m_imageIdle.Wait(timeoutMsec);
+
     return result;
 }
 
@@ -186,8 +183,7 @@ DisplayWindowSystem::DisplayWindowSystem(
     m_drmProcs(m_drmLoader.GetProcsTable()),
     m_crtcId(0),
     m_drmMasterFd(createInfo.drmMasterFd),
-    m_connectorId(createInfo.connectorId),
-    m_waitMutex()
+    m_connectorId(createInfo.connectorId)
 {
 
 }
@@ -207,10 +203,7 @@ Result DisplayWindowSystem::Init()
     {
         m_waitEventThread.Begin(&EventPolling, this);
     }
-    if (result == Result::Success)
-    {
-        result = m_waitMutex.Init();
-    }
+
     if (result == Result::Success)
     {
         result = m_flipSemaphore.Init(1, 0);
@@ -329,31 +322,69 @@ Result DisplayWindowSystem::Present(
 {
     Image* pImage = static_cast<Image*>(presentInfo.pSrcImage);
 
-    DisplayPresentFence* pFence = static_cast<DisplayPresentFence*>(pIdleFence);
-    SwapChain* pSwapChain = static_cast<SwapChain*>(presentInfo.pSwapChain);
-
-    m_waitMutex.Lock();
-    pSwapChain->SetFlipImageIdx(presentInfo.imageIndex);
-    m_waitMutex.Unlock();
-
-    int32 ret = m_drmProcs.pfnDrmModePageFlip(m_drmMasterFd, m_crtcId, pImage->GetFrameBufferId(),
-                                              DRM_MODE_PAGE_FLIP_EVENT, pSwapChain);
+    DisplayPresentFence* pFence        = static_cast<DisplayPresentFence*>(pIdleFence);
+    SwapChain*const      pSwapChain    = static_cast<SwapChain*>(presentInfo.pSwapChain);
+    const SwapChainMode  swapChainMode = pSwapChain->CreateInfo().swapChainMode;
+    uint32               flipFlag      = (swapChainMode == SwapChainMode::Immediate) ? DRM_MODE_PAGE_FLIP_ASYNC : 0;
 
     Result result = Result::ErrorUnknown;
-    if (ret == 0)
+
+    if (pImage->GetImageIndex() == InvalidImageIndex)
     {
-        result = Result::Success;
+        pImage->SetImageIndex(presentInfo.imageIndex);
     }
-    else if (ret == -EINVAL)
+    PAL_ASSERT(pImage->GetImageIndex() == presentInfo.imageIndex);
+
+    if (pImage->GetSwapChain() == nullptr)
     {
-        // If DrmModePageFlip is called, the flip is not executed until VSync happened. And the DrmModePageFlip will
-        // fail if the mode deson't match between FrameBuffer and CRTC, so the mode will be reset and image will be
-        // flipped without waitting for VSync by called DrmModeSetCrtc. DrmModeSetCrtc does not generate a Flip event
-        // into FD, so we need to post the semaphore here in case deadlock.
-        // This exception probably cause tearing, but it will not break present or the other normal work of application.
-        ModeSet(pImage);
-        m_flipSemaphore.Post();
-        result = Result::ErrorIncompatibleDisplayMode;
+        pImage->SetSwapChain(pSwapChain);
+    }
+    PAL_ASSERT(pImage->GetSwapChain() == pSwapChain);
+
+    while (result != Result::Success)
+    {
+        int32 ret = m_drmProcs.pfnDrmModePageFlip(m_drmMasterFd,
+                                                  m_crtcId,
+                                                  pImage->GetFrameBufferId(),
+                                                  flipFlag | DRM_MODE_PAGE_FLIP_EVENT,
+                                                  pImage);
+
+        if (ret == 0)
+        {
+            result = Result::Success;
+            break;
+        }
+        else if (ret == -EINVAL)
+        {
+            // If DrmModePageFlip is called, the flip is not executed until VSync happened. And the DrmModePageFlip will
+            // fail if the mode deson't match between FrameBuffer and CRTC, so the mode will be reset and image will be
+            // flipped without waitting for VSync by called DrmModeSetCrtc. DrmModeSetCrtc does not generate a Flip
+            // event into FD, so we need to post the semaphore here in case deadlock.
+            // This exception probably cause tearing, but it will not break present or the other normal work of
+            // application.
+            ModeSet(pImage);
+            m_flipSemaphore.Post();
+
+            result = Result::ErrorIncompatibleDisplayMode;
+            break;
+        }
+        else if (ret == -EBUSY)
+        {
+            // Discard this frame if it's mailbox mode
+            if (swapChainMode == SwapChainMode::Mailbox)
+            {
+                pFence->SetPresentState(PresentState::Idle);
+                pFence->Trigger();
+                break;
+            }
+            // For aync mode, it's possible that the old pageflip request is not handled by the KMD yet. It gets EBUSY
+            // for this case. sleep for a while and try again.
+            usleep(1);
+        }
+        else
+        {
+            break;
+        }
     }
 
     return result;
@@ -410,16 +441,23 @@ void DisplayWindowSystem::DisplayPageFlip2Cb(
     uint32 crtcId,
     void*  pUserData)
 {
-    SwapChain* pSwapChain = static_cast<SwapChain*>(pUserData);
-    const uint32 curIdx = pSwapChain->GetFlipImageIdx();
-    DisplayPresentFence* pFence = static_cast<DisplayPresentFence*> (pSwapChain->PresentIdleFence(curIdx));
+    Image*               pImage     = static_cast<Image*>(pUserData);
+    SwapChain*           pSwapChain = pImage->GetSwapChain();
+    const uint32         imageIndex = pImage->GetImageIndex();
+    DisplayPresentFence* pFence     = static_cast<DisplayPresentFence*>(pSwapChain->PresentIdleFence(imageIndex));
+
+    // Now the image is being scanned out.
     pFence->SetPresentState(PresentState::Flip);
+
+    // Idle the previous flipped image
     for (uint32 i = 0; i < pSwapChain->CreateInfo().imageCount; i++)
     {
-        if (i != pSwapChain->GetFlipImageIdx())
+        if (i != imageIndex)
         {
-            pFence = static_cast<DisplayPresentFence*> (pSwapChain->PresentIdleFence(i));
-            if ((pFence != nullptr) && (pFence->GetPresentState() == PresentState::Flip))
+            pFence = static_cast<DisplayPresentFence*>(pSwapChain->PresentIdleFence(i));
+
+            if ((pFence != nullptr) &&
+                (pFence->GetPresentState() == PresentState::Flip))
             {
                 pFence->SetPresentState(PresentState::Idle);
                 pFence->Trigger();
@@ -453,9 +491,7 @@ void DisplayWindowSystem::EventPolling(
         {
             if ((pfd[0].revents & POLLIN) != 0)
             {
-                pWindowSystem->m_waitMutex.Lock();
                 pWindowSystem->m_drmProcs.pfnDrmHandleEvent(pWindowSystem->GetMasterFd(), &eventContext);
-                pWindowSystem->m_waitMutex.Unlock();
                 pWindowSystem->m_flipSemaphore.Post();
             }
             if ((pfd[1].revents & POLLIN) != 0)

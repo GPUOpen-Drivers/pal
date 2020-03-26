@@ -59,13 +59,26 @@ namespace DevDriver
     enum class BusEventType : uint32
     {
         Unknown = 0,
-        ClientHalted
+        ClientHalted,
+        PongRequest,
     };
 
     /// Event data structure for the ClientHalted bus event
     struct BusEventClientHalted
     {
-        ClientId clientId; /// Id of the client that is currently halted
+        ClientId         clientId;   /// Id of the client that is currently halted
+        ClientInfoStruct clientInfo; /// Additional information about the client
+    };
+
+    /// Event data structure for the PongRequest bus event
+    struct BusEventPongRequest
+    {
+        ClientId                clientId;       /// Id of the client that is requesting a pong message
+        const ClientInfoStruct* pClientInfo;    /// Additional information about the client
+                                                /// Note: May be nullptr for older clients
+        bool*                   pShouldRespond; /// Set this to false if a pong should not be sent
+                                                /// The default value is true.
+                                                /// Note: This will never be nullptr
     };
 
     // Callback function used to handle bus events
@@ -108,9 +121,18 @@ namespace DevDriver
     {
         ClientId       id;       /// Id of the client
         ClientMetadata metadata; /// Metadata for the client
+
+        // Structure that contains additional information about the discovered client
+        // This information may or may not be valid depending on the value of the "valid" field.
+        struct
+        {
+            bool             valid;
+            ClientInfoStruct data;
+        } clientInfo;
     };
 
     // Callback function used to handle client discovery
+    // Return true from this callback to indicate that the discovery process should be continued.
     typedef bool (*PFN_ClientDiscoveredCallback)(void* pUserdata, const DiscoveredClientInfo& clientInfo);
 
     // Data structure that describes how a client discovery operation should be performed

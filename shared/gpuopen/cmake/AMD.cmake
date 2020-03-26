@@ -89,11 +89,23 @@ function(amd_target_options name)
         #   https://gcc.gnu.org/wiki/Visibility
         target_compile_options(${name}
             PRIVATE
-                -fno-exceptions             # Disable exception handling support.
-                -fno-rtti                   # Disable run-time type information support.
-                -fno-math-errno             # Single instruction math operations do not set ERRNO.
-                -fvisibility=hidden         # Hide export symbols by default
-                -fvisibility-inlines-hidden # Also hide inline export symbols
+                # Disable exception handling support.
+                -fno-exceptions
+
+                # Disable run-time type information support.
+                -fno-rtti
+
+                # Single instruction math operations do not set ERRNO.
+                -fno-math-errno
+
+                # Disable aggressive type aliasing rules
+                -fno-strict-aliasing
+
+                # Hide export symbols by default
+                -fvisibility=hidden
+
+                # Also hide inline export symbols
+                -fvisibility-inlines-hidden
         )
 
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -123,14 +135,12 @@ function(amd_target_warnings name)
             PRIVATE
                 -Wall   # Enable warnings about questionable language constructs.
                 -Wextra # Enable extra warnings that are not enabled by -Wall.
-                -Werror # Turn warnings into errors.
         )
 
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(${name}
             PRIVATE
                 /W4 # Enable warning level 4.
-                /WX # Treat warnings as errors.
         )
 
     else()

@@ -67,22 +67,25 @@ class ShaderLibrary : public Pal::ShaderLibrary
 public:
     explicit ShaderLibrary(Device* pDevice);
 
-    virtual ~ShaderLibrary() { }
+    virtual ~ShaderLibrary();
 
     void SetIsWave32(const CodeObjectMetadata& metadata);
     bool IsWave32() const { return m_hwInfo.flags.isWave32; }
 
-    const LibraryHwInfo& HwInfo() const {  return m_hwInfo; };
+    const LibraryHwInfo& HwInfo() const {  return m_hwInfo; }
 
-     virtual Result GetShaderFunctionCode(
+    virtual Result GetShaderFunctionCode(
         const char*  pShaderExportName,
         size_t*      pSize,
         void*        pBuffer) const override;
 
-     virtual Result GetShaderFunctionStats(
+    virtual Result GetShaderFunctionStats(
         const char*      pShaderExportName,
         ShaderLibStats*  pShaderStats) const override;
 
+    virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const override { return m_pFunctionList; }
+
+    virtual uint32 GetShaderLibFunctionCount() const override { return m_funcCount; }
 protected:
 
     virtual Result HwlInit(
@@ -98,9 +101,12 @@ private:
     /// @internal Client data pointer.
     void*  m_pClientData;
 
-    Device*const        m_pDevice;
-    LibraryChunkCs      m_chunkCs;
-    LibraryHwInfo       m_hwInfo;
+    Device*const       m_pDevice;
+    LibraryChunkCs     m_chunkCs;
+    LibraryHwInfo      m_hwInfo;
+
+    ShaderLibraryFunctionInfo*  m_pFunctionList;
+    uint32                      m_funcCount;
 
     // disable the default constructor and assignment operator
     PAL_DISALLOW_DEFAULT_CTOR(ShaderLibrary);

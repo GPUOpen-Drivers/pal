@@ -201,22 +201,12 @@ void RmtWriter::BeginDataChunk(
 {
     DD_ASSERT(m_state == RmtWriterState::Initialized);
 
-    // First create the chunk header and add it to the stream
-    RmtFileChunkRmtData chunkHeader = {};
-    chunkHeader.header.chunkIdentifier.chunkType  = RMT_FILE_CHUNK_TYPE_RMT_DATA;
-    chunkHeader.header.chunkIdentifier.chunkIndex = 1;
-    chunkHeader.header.versionMinor               = 1;
-    chunkHeader.header.versionMajor               = 0;
-    chunkHeader.header.sizeInBytes                = 0;
-    chunkHeader.header.padding                    = 0;
-    chunkHeader.processId                         = processId;
-    chunkHeader.threadId                          = threadId;
-
     // Save the current data offset, so we can revisit the data chunk header to update the size once we know how many
     // bytes of token data has been written.
     m_dataChunkHeaderOffset = m_rmtFileData.Size();
 
-    WriteBytes(&chunkHeader, sizeof(chunkHeader));
+    // Create the chunk header with a zero byte size and add it to the stream
+    WriteDataChunkHeader(processId, threadId, 0, 0);
 
     m_state = RmtWriterState::WritingDataChunk;
 }
@@ -298,11 +288,30 @@ void RmtWriter::EndDataChunk()
 }
 
 //=====================================================================================================================
-void RmtWriter::WriteData(const void* pData, size_t dataSize)
+void RmtWriter::WriteDataChunk(const void* pData, size_t dataSize)
 {
     DD_ASSERT((m_state == RmtWriterState::Initialized) || (m_state == RmtWriterState::WritingDataChunk));
 
     WriteBytes(pData, dataSize);
+}
+
+//=====================================================================================================================
+void RmtWriter::WriteDataChunkHeader(uint64 processId, uint64 threadId, size_t dataSize, uint32 chunkIndex)
+{
+    DD_ASSERT(m_state == RmtWriterState::Initialized);
+
+    // First create the chunk header and add it to the stream
+    RmtFileChunkRmtData chunkHeader = {};
+    chunkHeader.header.chunkIdentifier.chunkType  = RMT_FILE_CHUNK_TYPE_RMT_DATA;
+    chunkHeader.header.chunkIdentifier.chunkIndex = chunkIndex;
+    chunkHeader.header.versionMinor               = 1;
+    chunkHeader.header.versionMajor               = 0;
+    chunkHeader.header.sizeInBytes                = static_cast<int32>(dataSize) + sizeof(chunkHeader);
+    chunkHeader.header.padding                    = 0;
+    chunkHeader.processId                         = processId;
+    chunkHeader.threadId                          = threadId;
+
+    WriteBytes(&chunkHeader, sizeof(chunkHeader));
 }
 
 //=====================================================================================================================

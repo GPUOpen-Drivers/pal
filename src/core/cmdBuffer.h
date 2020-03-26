@@ -100,19 +100,6 @@ struct CmdBufferDumpHeader
     uint32      subEngineId;        // Sub-engine. (0 = DE, 1 = CE)
 };
 
-// Comment types used in special comment NOP packets.
-enum class CmdBufferCommentType : uint32
-{
-    Integer             = 0,
-    UnsignedInteger     = 1,
-    Integer64           = 2,
-    UnsignedInteger64   = 3,
-    Float               = 4,
-    Double              = 5,
-    Pointer             = 6,
-    String              = 7
-};
-
 // The available states of command buffer recording.
 enum class CmdBufferRecordState : uint32
 {
@@ -718,11 +705,6 @@ public:
     virtual void CmdFlglDisable() override { PAL_NEVER_CALLED(); }
 
     virtual void CmdFlglEnable() override { PAL_NEVER_CALLED(); }
-    // Magic number tag for comments in command buffer dumps
-    static constexpr uint32 CommentSignature = 0x1337F77D;
-
-    // Maximum length of a string comment in command buffer dumps
-    static constexpr uint32 MaxCommentStringLength = 256;
 
     virtual void CmdCommentString(
         const char* pComment) override { PAL_NEVER_CALLED(); }

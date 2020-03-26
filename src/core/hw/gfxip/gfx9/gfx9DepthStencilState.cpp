@@ -74,12 +74,12 @@ void DepthStencilState::Init(
 
     m_flags.isStencilWriteEnabled =
         dsState.stencilEnable           &&
-        ((dsState.front.stencilFailOp != StencilOp::Keep)      ||
-         (dsState.front.stencilPassOp != StencilOp::Keep)      ||
-         (dsState.front.stencilDepthFailOp != StencilOp::Keep) ||
-         (dsState.back.stencilFailOp != StencilOp::Keep)       ||
-         (dsState.back.stencilPassOp != StencilOp::Keep)       ||
-         (dsState.back.stencilDepthFailOp != StencilOp::Keep));
+        ((dsState.front.stencilFailOp != Pal::StencilOp::Keep)      ||
+         (dsState.front.stencilPassOp != Pal::StencilOp::Keep)      ||
+         (dsState.front.stencilDepthFailOp != Pal::StencilOp::Keep) ||
+         (dsState.back.stencilFailOp != Pal::StencilOp::Keep)       ||
+         (dsState.back.stencilPassOp != Pal::StencilOp::Keep)       ||
+         (dsState.back.stencilDepthFailOp != Pal::StencilOp::Keep));
 
     m_flags.canDepthRunOutOfOrder =
         (dsState.depthEnable == false)         ||
@@ -143,10 +143,10 @@ uint32* DepthStencilState::WriteCommands(
 
 // =====================================================================================================================
 // Converts a Pal::StencilOp enum value to a Gfx9 hardware StencilOp enum.
-::StencilOp DepthStencilState::HwStencilOp(
+Gfx9::StencilOp DepthStencilState::HwStencilOp(
     Pal::StencilOp stencilOp)
 {
-    constexpr ::StencilOp StencilOpTbl[] =
+    constexpr Gfx9::StencilOp StencilOpTbl[] =
     {
         STENCIL_KEEP,         // Keep
         STENCIL_ZERO,         // Zero

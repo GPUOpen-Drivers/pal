@@ -1,0 +1,166 @@
+##
+ #######################################################################################################################
+ #
+ #  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ #
+ #  Permission is hereby granted, free of charge, to any person obtaining a copy
+ #  of this software and associated documentation files (the "Software"), to deal
+ #  in the Software without restriction, including without limitation the rights
+ #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ #  copies of the Software, and to permit persons to whom the Software is
+ #  furnished to do so, subject to the following conditions:
+ #
+ #  The above copyright notice and this permission notice shall be included in all
+ #  copies or substantial portions of the Software.
+ #
+ #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ #  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ #  SOFTWARE.
+ #
+ #######################################################################################################################
+DEVDRIVER_DEPTH = $(GPUOPEN_DEPTH)
+
+# Propagate the AMD branch definition string from the higher level makefiles
+ifneq ($(AMD_BRDEFS_BRANCH_STRING),)
+    LCXXDEFS += -DDD_BRANCH_STRING=\"$(AMD_BRDEFS_BRANCH_STRING)\"
+else
+    LCXXDEFS += -DDD_BRANCH_STRING=\"unknown\"
+endif
+
+ifeq ($(PLATFORM_FLAVOR), win)
+    LCXXDEFS += -DDD_PLATFORM_WINDOWS_UM=1 -DDD_PLATFORM_IS_UM=1
+    LCXXDEFS += -DDD_PLATFORM_STRING=\"Windows_User_Mode\"
+else
+    LCXXDEFS += -DDD_PLATFORM_LINUX_UM=1 -DDD_PLATFORM_IS_UM=1 -DDD_PLATFORM_IS_GNU=1 -DDD_PLATFORM_IS_POSIX=1
+    LCXXDEFS += -DDD_PLATFORM_STRING=\"Linux_User_Mode\"
+endif
+
+ifeq ($(BUILD_TYPE),dbg)
+    LCXXDEFS += -DDEVDRIVER_SHOW_DEBUG_LABELS
+endif
+
+ifneq ($(DEVDRIVER_LOG_LEVEL),)
+    LCXXDEFS += -DDEVDRIVER_LOG_LEVEL=$(DEVDRIVER_LOG_LEVEL)
+endif
+
+LCXXINCS += -I$(DEVDRIVER_DEPTH)/inc                           \
+            -I$(DEVDRIVER_DEPTH)/src                           \
+            -I$(DEVDRIVER_DEPTH)/third_party/rapidjson/include \
+            -I$(DEVDRIVER_DEPTH)/third_party/mpack
+
+## ddCore
+vpath %.cpp $(DEVDRIVER_DEPTH)/core/src
+CPPFILES += ddcPlatform.cpp \
+            ddcMemory.cpp
+
+## Core Components
+# Server, Protocol, and Platform support
+vpath %.cpp $(DEVDRIVER_DEPTH)/src
+CPPFILES += ddVersion.cpp             \
+            session.cpp               \
+            sessionManager.cpp        \
+            messageChannel.cpp        \
+            baseProtocolServer.cpp    \
+            baseProtocolClient.cpp    \
+            ddTransferManager.cpp     \
+            ddClientURIService.cpp    \
+            ddURIRequestContext.cpp
+
+# Drivers always get devdriverServer objects
+CPPFILES += devDriverServer.cpp
+
+# Build support for protocols
+vpath %.cpp $(DEVDRIVER_DEPTH)/src/protocols
+CPPFILES += ddTransferServer.cpp      \
+            ddTransferClient.cpp      \
+            ddURIServer.cpp           \
+            ddEventServer.cpp         \
+            ddEventProvider.cpp       \
+            ddEventServerSession.cpp  \
+            ddInternalService.cpp     \
+            ddSettingsService.cpp     \
+            ddInfoService.cpp         \
+            ddPipelineUriService.cpp  \
+            settingsServer.cpp        \
+            driverControlServer.cpp   \
+            loggingServer.cpp         \
+            rgpServer.cpp             \
+            etwClient.cpp
+
+# Utility Classes
+vpath %.cpp $(DEVDRIVER_DEPTH)/src/util
+CPPFILES += ddTextWriter.cpp          \
+            ddStructuredReader.cpp    \
+            ddJsonWriter.cpp          \
+            rmtWriter.cpp             \
+            ddEventTimer.cpp
+
+ifeq ($(COMPILE_TYPE),32)
+    LCXXDEFS += -DAMD_TARGET_ARCH_BITS=32
+endif
+
+ifeq ($(COMPILE_TYPE),64a)
+    LCXXDEFS += -DAMD_TARGET_ARCH_BITS=64
+endif
+
+ifeq ($(PLATFORM_FLAVOR), win)
+
+    vpath %.cpp $(DEVDRIVER_DEPTH)/core/src/platforms
+    CPPFILES += ddcWinPlatform.cpp
+
+    vpath %.cpp $(DEVDRIVER_DEPTH)/src/win
+    CPPFILES += ddWinPipeMsgTransport.cpp  \
+                ddLocalNgMsgTransport.cpp  \
+                ddDevModeControlDevice.cpp \
+                ddWinKmIoCtlDevice.cpp     \
+                ddWinUmIoCtlDevice.cpp     \
+                ddDevModeQueue.cpp
+
+    ifneq ($(GPUOPEN_UWP_SUPPORT),)
+        LCXXDEFS += -DGPUOPEN_UWP_SUPPORT=1
+        LCXXINCS += -I$(DEVDRIVER_DEPTH)/message/inc
+
+        ifeq ($(GPUOPEN_USE_MESSAGE_LIB),)
+            # Build local message support as well
+            LCXXINCS += -I$(DEPTH)/drivers/inc/shared/   \
+                        -I$(DEPTH)/drivers/pxproxy/inc/
+
+            vpath %.cpp $(DEVDRIVER_DEPTH)/message/src
+            CPPFILES += kmdEscapeProxy.cpp      \
+                        message.cpp             \
+                        localMsgTransport.cpp   \
+                        ddWindowsAmdGpuInfo.cpp
+
+            ifeq ($(BUILD_TYPE),dbg)
+                LCXXDEFS += -DDEVDRIVER_FAKEIOCTL
+                CPPFILES += umEscapeProxy.cpp
+            endif
+        endif
+    endif
+
+else
+
+    vpath %.cpp $(DEVDRIVER_DEPTH)/core/src/platforms
+    CPPFILES += ddcPosixPlatform.cpp
+
+    vpath %.cpp $(DEVDRIVER_DEPTH)/src/posix
+    CPPFILES += socketMsgTransport.cpp \
+                ddPosixSocket.cpp
+
+endif
+
+# Build a local copy of MetroHash if it hasn't already been built
+ifndef METROHASH_DEPTH
+    METROHASH_DEPTH = $(DEVDRIVER_DEPTH)/third_party/metrohash
+    include $(METROHASH_DEPTH)/make/Makefile.metrohash
+endif
+
+# Build a local copy of MPack if it hasn't already been built
+ifndef MPACK_DEPTH
+    MPACK_DEPTH = $(DEVDRIVER_DEPTH)/third_party/mpack
+    include $(MPACK_DEPTH)/Makefile.mpack
+endif

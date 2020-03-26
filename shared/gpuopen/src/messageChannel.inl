@@ -126,11 +126,16 @@ namespace DevDriver
         // Once we finish processing all the available messages, handle client discovery if necessary.
         if ((result == Result::NotReady) && (m_discoveredClientsQueue.active))
         {
+            using namespace DevDriver::SystemProtocol;
+
             // We're in the middle of a client discovery operation, so keep sending out pings until we finish
             // the operation.
-            result = SendSystem(kBroadcastClientId,
-                SystemProtocol::SystemMessage::Ping,
-                m_discoveredClientsQueue.filter);
+            result = Send(kBroadcastClientId,
+                          Protocol::System,
+                          static_cast<MessageCode>(SystemMessage::Ping),
+                          m_discoveredClientsQueue.filter,
+                          sizeof(m_clientInfoResponse),
+                          &m_clientInfoResponse);
 
             // Make sure to change the result back to NotReady if we successfully send out the ping.
             // We should still allow errors to propagate out though.
@@ -462,9 +467,43 @@ namespace DevDriver
                 {
                 case SystemMessage::Ping:
                 {
-                    SendSystem(srcClientId,
-                               SystemMessage::Pong,
-                               m_clientInfoResponse.metadata);
+                    bool shouldRespond = true;
+
+                    // If we have an event handler callback installed, give the application a chance to
+                    // decide if we should respond to this message.
+                    if (m_createInfo.pfnEventCallback != nullptr)
+                    {
+                        const ClientInfoStruct* pClientInfo = nullptr;
+
+                        // Older versions of the ping packet didn't include the client info structure so
+                        // it may not always be available.
+                        if (messageBuffer.header.payloadSize != 0)
+                        {
+                            pClientInfo = reinterpret_cast<const ClientInfoStruct*>(messageBuffer.payload);
+                        }
+
+                        BusEventPongRequest pongRequest = {};
+
+                        pongRequest.clientId       = srcClientId;
+                        pongRequest.pClientInfo    = pClientInfo;
+                        pongRequest.pShouldRespond = &shouldRespond;
+
+                        m_createInfo.pfnEventCallback(m_createInfo.pUserdata,
+                                                      BusEventType::PongRequest,
+                                                      &pongRequest,
+                                                      sizeof(pongRequest));
+                    }
+
+                    // Send a response if necessary
+                    if (shouldRespond)
+                    {
+                        Send(srcClientId,
+                            Protocol::System,
+                            static_cast<MessageCode>(SystemMessage::Pong),
+                            m_clientInfoResponse.metadata,
+                            sizeof(m_clientInfoResponse),
+                            &m_clientInfoResponse);
+                    }
 
                     break;
                 }
@@ -481,6 +520,23 @@ namespace DevDriver
                             DiscoveredClientInfo clientInfo = {};
                             clientInfo.id                   = srcClientId;
                             clientInfo.metadata             = metadata;
+
+                            if (messageBuffer.header.payloadSize == 0)
+                            {
+                                // Older versions of the pong packet didn't include the client info structure so
+                                // it may not always be available.
+                            }
+                            else if (messageBuffer.header.payloadSize == sizeof(clientInfo.clientInfo.data))
+                            {
+                                // Valid, but this new version includes client info to aid discovery.
+                                // Copy it out, only if the sizes match exactly.
+                                clientInfo.clientInfo.valid = true;
+                                memcpy(&clientInfo.clientInfo.data, messageBuffer.payload, sizeof(clientInfo.clientInfo.data));
+                            }
+                            else
+                            {
+                                DD_ASSERT_REASON("Pong packet with wrong size");
+                            }
 
                             if (m_discoveredClientsQueue.clients.PushBack(clientInfo))
                             {
@@ -509,28 +565,33 @@ namespace DevDriver
                 case SystemMessage::ClientDisconnected:
                 {
                     m_sessionManager.HandleClientDisconnection(srcClientId);
+
                     break;
                 }
                 case SystemMessage::Halted:
                 {
-                    // If the application has an event callback set up, forward the halted event and consider it handled.
-                    // If there's no callback handler set up, this event is placed into the receive queue along with any
-                    // other unhandled messages.
+                    // Forward this message to the installed event handler if we have one
                     if (m_createInfo.pfnEventCallback != nullptr)
                     {
+                        const ClientInfoStruct& clientInfo = *reinterpret_cast<const ClientInfoStruct*>(messageBuffer.payload);
+
                         BusEventClientHalted clientHalted = {};
-                        clientHalted.clientId = srcClientId;
+
+                        clientHalted.clientId   = srcClientId;
+                        clientHalted.clientInfo = clientInfo;
 
                         m_createInfo.pfnEventCallback(m_createInfo.pUserdata,
                                                       BusEventType::ClientHalted,
                                                       &clientHalted,
                                                       sizeof(clientHalted));
                     }
+
                     break;
                 }
                 default:
                 {
                     // Unhandled system message
+
                     break;
                 }
                 }
@@ -642,6 +703,10 @@ namespace DevDriver
                             if (recvBuffer.header.protocolId == Protocol::ClientManagement)
                             {
                                 registerResult = Result::VersionMismatch;
+
+                                // @TODO: If we receive a regular broadcast packet here, we should ignore it instead of assuming that
+                                //        we have a version mismatch here.
+
                                 if (IsOutOfBandMessage(recvBuffer) &
                                     IsValidOutOfBandMessage(recvBuffer) &
                                     (static_cast<ManagementMessage>(recvBuffer.header.messageId) == ManagementMessage::ConnectResponse))

@@ -179,7 +179,7 @@ public:
     virtual Result SignalSemaphoreValue(
         uint64                   value) = 0;
 
-#if PAL_KMT_BUILD || PAL_AMDGPU_BUILD
+#if  PAL_AMDGPU_BUILD
     /// Returns an OS-specific handle which can be used to refer to this semaphore object across processes. This will
     /// return a null or invalid handle if the object was not created with the external create flag set.
     ///

@@ -888,6 +888,15 @@ ADDR_E_RETURNCODE Lib::ComputeSlicePipeBankXor(
     {
         returnCode = ADDR_NOTSUPPORTED;
     }
+    else if ((pIn->bpe != 0) &&
+             (pIn->bpe != 8) &&
+             (pIn->bpe != 16) &&
+             (pIn->bpe != 32) &&
+             (pIn->bpe != 64) &&
+             (pIn->bpe != 128))
+    {
+        returnCode = ADDR_INVALIDPARAMS;
+    }
     else
     {
         returnCode = HwlComputeSlicePipeBankXor(pIn, pOut);

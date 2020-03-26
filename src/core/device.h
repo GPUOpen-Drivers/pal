@@ -184,12 +184,12 @@ enum class SchedulerMode : uint32
 
 struct HwsInfo
 {
-    SchedulerMode                             mode;            // Indicates which scheduler mode is active
-    HwsContextInfo                            gfx;             // Graphics HWS context info
-    HwsContextInfo                            compute;         // Compute HWS context info
-    HwsContextInfo                            sdma;            // SDMA HWS context info
-    uint32                                    gdsSaveAreaSize; // GDS save area size in bytes
-    uint64                                    engineMask;      // Indicates which engines support HWS
+    SchedulerMode                             mode;              // Indicates which scheduler mode is active
+    HwsContextInfo                            gfx;               // Graphics HWS context info
+    HwsContextInfo                            compute;           // Compute HWS context info
+    HwsContextInfo                            sdma;              // SDMA HWS context info
+    uint32                                    gdsSaveAreaSize;   // GDS save area size in bytes
+    uint64                                    engineOrdinalMask; // Indicates which engines (by ordinal) support HWS
     // Indicates whether this engine instance can be used for gang submission workloads via a multi-queue.
     GangSubmitEngineSupportFlags              gangSubmitEngineFlags;
     // Indicates the number of available pipes for each engine type.

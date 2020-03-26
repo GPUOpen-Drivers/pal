@@ -27,9 +27,10 @@ cmake_minimum_required(VERSION 3.5)
 project(PAL LANGUAGES C CXX)
 
 ### CMake Includes #####################################################################################################
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake/Modules)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 include(CMakeDependentOption)
 include(AmdCmakeHelper)
+include(PalVersionHelper NO_POLICY_SCOPE)
 
 ### Cached Project Options #############################################################################################
 # CMAKE-TODO: To support multiple configurations for Visual Studio we can't use CMAKE_BUILD_TYPE
@@ -162,19 +163,7 @@ endif()
 option(PAL_ENABLE_DEVDRIVER_USAGE "Enables developer driver suppport." ON)
 
 ### Generator Dependencies #############################################################################################
-if(${CMAKE_VERSION} VERSION_GREATER "3.12")
-    # If we have a newer cmake, the new FindPython scripts are much more reliable
-    find_package(Python3 REQUIRED COMPONENTS Interpreter)
-    set(PYTHON_CMD ${Python3_EXECUTABLE})
-else()
-    find_package(PythonInterp 3)
-    if(NOT PYTHONINTERP_FOUND)
-        if(UNIX)
-            message(FATAL_ERROR "Python 3 is needed to generate some source files.")
-        endif()
-    endif()
-    set(PYTHON_CMD ${PYTHON_EXECUTABLE})
-endif() # cmake version
+pal_find_python()
 
 find_package(Perl 5)
 if(NOT PERL_FOUND)

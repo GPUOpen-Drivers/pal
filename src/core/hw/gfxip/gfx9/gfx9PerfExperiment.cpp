@@ -289,13 +289,13 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
     // activity could cause GPU hang or generate lot of thread trace traffic.
     PAL_ALERT(grbmCsDataRegs || regReads);
 
-    value.gfx10.REG_INCLUDE = ((sqdecRegs       << SQ_TT_TOKEN_MASK_SQDEC_SHIFT)   |
-                               (shdecRegs       << SQ_TT_TOKEN_MASK_SHDEC_SHIFT)   |
-                               (gfxudecRegs     << SQ_TT_TOKEN_MASK_GFXUDEC_SHIFT) |
-                               (compRegs        << SQ_TT_TOKEN_MASK_COMP_SHIFT)    |
-                               (contextRegs     << SQ_TT_TOKEN_MASK_CONTEXT_SHIFT) |
-                               (otherConfigRegs << SQ_TT_TOKEN_MASK_CONFIG_SHIFT)  |
-                               (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT)   |
+    value.gfx10.REG_INCLUDE = ((sqdecRegs       << SQ_TT_TOKEN_MASK_SQDEC_SHIFT)            |
+                               (shdecRegs       << SQ_TT_TOKEN_MASK_SHDEC_SHIFT)            |
+                               (gfxudecRegs     << SQ_TT_TOKEN_MASK_GFXUDEC_SHIFT)          |
+                               (compRegs        << SQ_TT_TOKEN_MASK_COMP_SHIFT)             |
+                               (contextRegs     << SQ_TT_TOKEN_MASK_CONTEXT_SHIFT)          |
+                               (otherConfigRegs << SQ_TT_TOKEN_MASK_CONFIG_SHIFT)           |
+                               (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10CORE) |
                                (regReads        << SQ_TT_TOKEN_MASK_READS_SHIFT));
 
     return value;
@@ -491,6 +491,15 @@ Result PerfExperiment::AddCounter(
         result = AllocateGenericStructs(info.block, info.instance);
     }
 
+    InstanceMapping instanceMapping = {};
+
+    if (result == Result::Success)
+    {
+        // Get an instance mapping for this counter. We don't really need to do this once per AddCounter call but
+        // doing it up-front here makes things a bit simpler below.
+        result = BuildInstanceMapping(info.block, info.instance, &instanceMapping);
+    }
+
     // Enable a global perf counter select and update the mapping's counterId.
     if (result == Result::Success)
     {
@@ -505,48 +514,44 @@ Result PerfExperiment::AddCounter(
             if (m_select.sqg[info.instance].hasCounters == false)
             {
                 // Turn on this instance and populate its GRBM_GFX_INDEX.
-                m_select.sqg[info.instance].hasCounters = true;
-
-                result = BuildGrbmGfxIndex(info.block, info.instance, &m_select.sqg[info.instance].grbmGfxIndex);
+                m_select.sqg[info.instance].hasCounters  = true;
+                m_select.sqg[info.instance].grbmGfxIndex = BuildGrbmGfxIndex(instanceMapping, info.block);
             }
 
-            if (result == Result::Success)
+            bool searching = true;
+
+            for (uint32 idx = 0; searching && (idx < ArrayLen(m_select.sqg[info.instance].perfmon)); ++idx)
             {
-                bool searching = true;
-
-                for (uint32 idx = 0; searching && (idx < ArrayLen(m_select.sqg[info.instance].perfmon)); ++idx)
+                if (m_select.sqg[info.instance].perfmonInUse[idx] == false)
                 {
-                    if (m_select.sqg[info.instance].perfmonInUse[idx] == false)
+                    // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
+                    PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
+
+                    m_select.sqg[info.instance].perfmonInUse[idx]           = true;
+                    m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
+                    m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_OFF;
+                    m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
+
+                    // The SQC client mask and SIMD mask only exist on gfx9.
+                    if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
                     {
-                        // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
-                        PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
-
-                        m_select.sqg[info.instance].perfmonInUse[idx]           = true;
-                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
-                        m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_OFF;
-                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
-
-                        // The SQC client mask and SIMD mask only exist on gfx9.
-                        if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-                        {
-                            m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = DefaultSqSelectClientMask;
-                            m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = DefaultSqSelectSimdMask;
-                        }
-
-                        {
-                            m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
-                        }
-
-                        mapping.counterId = idx;
-                        searching         = false;
+                        m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = DefaultSqSelectClientMask;
+                        m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = DefaultSqSelectSimdMask;
                     }
-                }
 
-                if (searching)
-                {
-                    // There are no more global counters in this instance.
-                    result = Result::ErrorInvalidValue;
+                    {
+                        m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
+                    }
+
+                    mapping.counterId = idx;
+                    searching         = false;
                 }
+            }
+
+            if (searching)
+            {
+                // There are no more global counters in this instance.
+                result = Result::ErrorInvalidValue;
             }
         }
         else if (info.block == GpuBlock::GrbmSe)
@@ -648,72 +653,68 @@ Result PerfExperiment::AddCounter(
             if (m_select.pGeneric[block][info.instance].hasCounters == false)
             {
                 // Turn on this instance and populate its GRBM_GFX_INDEX.
-                pSelect->hasCounters = true;
-
-                result = BuildGrbmGfxIndex(info.block, info.instance, &pSelect->grbmGfxIndex);
+                pSelect->hasCounters  = true;
+                pSelect->grbmGfxIndex = BuildGrbmGfxIndex(instanceMapping, info.block);
             }
 
-            if (result == Result::Success)
+            // Find and enable a global counter. All of the counter user guides say that the modules need to be
+            // enabled in counter register# order. This ordering is different between cfg and select styles but
+            // we already abstracted that using the module type.
+            bool searching = true;
+
+            for (uint32 moduleIdx = 0; searching && (moduleIdx < pSelect->numModules); ++moduleIdx)
             {
-                // Find and enable a global counter. All of the counter user guides say that the modules need to be
-                // enabled in counter register# order. This ordering is different between cfg and select styles but
-                // we already abstracted that using the module type.
-                bool searching = true;
-
-                for (uint32 moduleIdx = 0; searching && (moduleIdx < pSelect->numModules); ++moduleIdx)
+                if (pSelect->pModules[moduleIdx].inUse == 0)
                 {
-                    if (pSelect->pModules[moduleIdx].inUse == 0)
+                    switch (pSelect->pModules[moduleIdx].type)
                     {
-                        switch (pSelect->pModules[moduleIdx].type)
-                        {
-                        case SelectType::Perfmon:
-                            // Our generic select PERF_SEL fields are 10 bits. Verify that our event ID can fit.
-                            PAL_ASSERT(info.eventId <= ((1 << 10) - 1));
+                    case SelectType::Perfmon:
+                        // Our generic select PERF_SEL fields are 10 bits. Verify that our event ID can fit.
+                        PAL_ASSERT(info.eventId <= ((1 << 10) - 1));
 
-                            // A global counter uses the whole perfmon module (0xF).
-                            pSelect->pModules[moduleIdx].inUse                       = 0xF;
-                            pSelect->pModules[moduleIdx].perfmon.sel0.bits.PERF_SEL  = info.eventId;
-                            pSelect->pModules[moduleIdx].perfmon.sel0.bits.CNTR_MODE = PERFMON_SPM_MODE_OFF;
-                            pSelect->pModules[moduleIdx].perfmon.sel0.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
-                            break;
+                        // A global counter uses the whole perfmon module (0xF).
+                        pSelect->pModules[moduleIdx].inUse                       = 0xF;
+                        pSelect->pModules[moduleIdx].perfmon.sel0.bits.PERF_SEL  = info.eventId;
+                        pSelect->pModules[moduleIdx].perfmon.sel0.bits.CNTR_MODE = PERFMON_SPM_MODE_OFF;
+                        pSelect->pModules[moduleIdx].perfmon.sel0.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
+                        break;
 
-                        case SelectType::LegacySel:
-                            // Our generic select PERF_SEL fields are 10 bits. Verify that our event ID can fit.
-                            PAL_ASSERT(info.eventId <= ((1 << 10) - 1));
+                    case SelectType::LegacySel:
+                        // Our generic select PERF_SEL fields are 10 bits. Verify that our event ID can fit.
+                        PAL_ASSERT(info.eventId <= ((1 << 10) - 1));
 
-                            // A global counter uses the whole legacy module (0xF).
-                            pSelect->pModules[moduleIdx].inUse                    = 0xF;
-                            pSelect->pModules[moduleIdx].legacySel.bits.PERF_SEL  = info.eventId;
-                            pSelect->pModules[moduleIdx].legacySel.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
-                            break;
+                        // A global counter uses the whole legacy module (0xF).
+                        pSelect->pModules[moduleIdx].inUse                    = 0xF;
+                        pSelect->pModules[moduleIdx].legacySel.bits.PERF_SEL  = info.eventId;
+                        pSelect->pModules[moduleIdx].legacySel.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
+                        break;
 
-                        case SelectType::LegacyCfg:
-                            // Our cfg PERF_SEL fields are 8 bits. Verify that our event ID can fit.
-                            PAL_ASSERT(info.eventId <= ((1 << 8) - 1));
+                    case SelectType::LegacyCfg:
+                        // Our cfg PERF_SEL fields are 8 bits. Verify that our event ID can fit.
+                        PAL_ASSERT(info.eventId <= ((1 << 8) - 1));
 
-                            // A global counter uses the whole legacy module (0xF).
-                            pSelect->pModules[moduleIdx].inUse                    = 0xF;
-                            pSelect->pModules[moduleIdx].legacyCfg.bits.PERF_SEL  = info.eventId;
-                            pSelect->pModules[moduleIdx].legacyCfg.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
-                            pSelect->pModules[moduleIdx].legacyCfg.bits.ENABLE    = 1;
-                            break;
+                        // A global counter uses the whole legacy module (0xF).
+                        pSelect->pModules[moduleIdx].inUse                    = 0xF;
+                        pSelect->pModules[moduleIdx].legacyCfg.bits.PERF_SEL  = info.eventId;
+                        pSelect->pModules[moduleIdx].legacyCfg.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
+                        pSelect->pModules[moduleIdx].legacyCfg.bits.ENABLE    = 1;
+                        break;
 
-                        default:
-                            // What is this?
-                            PAL_ASSERT_ALWAYS();
-                            break;
-                        }
-
-                        mapping.counterId = moduleIdx;
-                        searching         = false;
+                    default:
+                        // What is this?
+                        PAL_ASSERT_ALWAYS();
+                        break;
                     }
-                }
 
-                if (searching)
-                {
-                    // There are no more global counters in this instance.
-                    result = Result::ErrorInvalidValue;
+                    mapping.counterId = moduleIdx;
+                    searching         = false;
                 }
+            }
+
+            if (searching)
+            {
+                // There are no more global counters in this instance.
+                result = Result::ErrorInvalidValue;
             }
         }
         else
@@ -771,12 +772,19 @@ Result PerfExperiment::AddSpmCounter(
         result = AllocateGenericStructs(info.block, info.instance);
     }
 
+    InstanceMapping instanceMapping = {};
+
+    if (result == Result::Success)
+    {
+        // Get an instance mapping for this counter.
+        result = BuildInstanceMapping(info.block, info.instance, &instanceMapping);
+    }
+
     // Enable a select register and finish building our counter mapping within some SPM segment. We need to track which
     // SPM wire is hooked up to the current module and which 16-bit sub-counter we selected within that wire.
-    const uint32      block           = static_cast<uint32>(info.block);
-    uint32            spmWire         = 0;
-    uint32            subCounter      = 0;
-    regGRBM_GFX_INDEX spmGrbmGfxIndex = {};
+    const uint32 block      = static_cast<uint32>(info.block);
+    uint32       spmWire    = 0;
+    uint32       subCounter = 0;
 
     if (result == Result::Success)
     {
@@ -786,54 +794,48 @@ Result PerfExperiment::AddSpmCounter(
             if (m_select.sqg[info.instance].hasCounters == false)
             {
                 // Turn on this instance and populate its GRBM_GFX_INDEX.
-                m_select.sqg[info.instance].hasCounters = true;
-
-                result = BuildGrbmGfxIndex(info.block, info.instance, &m_select.sqg[info.instance].grbmGfxIndex);
+                m_select.sqg[info.instance].hasCounters  = true;
+                m_select.sqg[info.instance].grbmGfxIndex = BuildGrbmGfxIndex(instanceMapping, info.block);
             }
 
-            spmGrbmGfxIndex = m_select.sqg[info.instance].grbmGfxIndex;
+            bool searching = true;
 
-            if (result == Result::Success)
+            for (uint32 idx = 0; searching && (idx < ArrayLen(m_select.sqg[info.instance].perfmon)); ++idx)
             {
-                bool searching = true;
-
-                for (uint32 idx = 0; searching && (idx < ArrayLen(m_select.sqg[info.instance].perfmon)); ++idx)
+                if (m_select.sqg[info.instance].perfmonInUse[idx] == false)
                 {
-                    if (m_select.sqg[info.instance].perfmonInUse[idx] == false)
+                    // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
+                    PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
+
+                    // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
+                    // As long as the counter doesn't wrap over 16 bits we can enable a 32-bit counter and treat
+                    // it exactly like a 16-bit counter and still get useful data.
+                    m_select.sqg[info.instance].perfmonInUse[idx]           = true;
+                    m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
+                    m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_32BIT_CLAMP;
+                    m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
+
+                    // The SQC client mask and SIMD mask only exist on gfx9.
+                    if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
                     {
-                        // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
-                        PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
-
-                        // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
-                        // As long as the counter doesn't wrap over 16 bits we can enable a 32-bit counter and treat
-                        // it exactly like a 16-bit counter and still get useful data.
-                        m_select.sqg[info.instance].perfmonInUse[idx]           = true;
-                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
-                        m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_32BIT_CLAMP;
-                        m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
-
-                        // The SQC client mask and SIMD mask only exist on gfx9.
-                        if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-                        {
-                            m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = DefaultSqSelectClientMask;
-                            m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = DefaultSqSelectSimdMask;
-                        }
-
-                        {
-                            m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
-                        }
-
-                        // Each SQ module gets a single wire with one sub-counter (use the default value of zero).
-                        spmWire   = idx;
-                        searching = false;
+                        m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = DefaultSqSelectClientMask;
+                        m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = DefaultSqSelectSimdMask;
                     }
-                }
 
-                if (searching)
-                {
-                    // There are no more compatible SPM counters in this instance.
-                    result = Result::ErrorInvalidValue;
+                    {
+                        m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
+                    }
+
+                    // Each SQ module gets a single wire with one sub-counter (use the default value of zero).
+                    spmWire   = idx;
+                    searching = false;
                 }
+            }
+
+            if (searching)
+            {
+                // There are no more compatible SPM counters in this instance.
+                result = Result::ErrorInvalidValue;
             }
         }
         else if (m_select.pGeneric[block] != nullptr)
@@ -844,87 +846,81 @@ Result PerfExperiment::AddSpmCounter(
             if (m_select.pGeneric[block][info.instance].hasCounters == false)
             {
                 // Turn on this instance and populate its GRBM_GFX_INDEX.
-                pSelect->hasCounters = true;
-
-                result = BuildGrbmGfxIndex(info.block, info.instance, &pSelect->grbmGfxIndex);
+                pSelect->hasCounters  = true;
+                pSelect->grbmGfxIndex = BuildGrbmGfxIndex(instanceMapping, info.block);
             }
 
-            spmGrbmGfxIndex = pSelect->grbmGfxIndex;
+            // Search for an unused 16-bit sub-counter. This will need to be reworked when we add 32-bit support.
+            bool searching = true;
 
-            if (result == Result::Success)
+            for (uint32 idx = 0; idx < pSelect->numModules; idx++)
             {
-                // Search for an unused 16-bit sub-counter. This will need to be reworked when we add 32-bit support.
-                bool searching = true;
-
-                for (uint32 idx = 0; idx < pSelect->numModules; idx++)
+                if (pSelect->pModules[idx].type == SelectType::Perfmon)
                 {
-                    if (pSelect->pModules[idx].type == SelectType::Perfmon)
+                    // Our generic select PERF_SEL fields are 10 bits. Verify that our event ID can fit.
+                    PAL_ASSERT(info.eventId <= ((1 << 10) - 1));
+
+                    // Each write holds two 16-bit sub-counters. We must check each wire individually because
+                    // some blocks look like they have a whole perfmon module but only use half of it.
+                    if (spmWire < m_counterInfo.block[block].numSpmWires)
                     {
-                        // Our generic select PERF_SEL fields are 10 bits. Verify that our event ID can fit.
-                        PAL_ASSERT(info.eventId <= ((1 << 10) - 1));
-
-                        // Each write holds two 16-bit sub-counters. We must check each wire individually because
-                        // some blocks look like they have a whole perfmon module but only use half of it.
-                        if (spmWire < m_counterInfo.block[block].numSpmWires)
+                        if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x1) == false)
                         {
-                            if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x1) == false)
-                            {
-                                pSelect->pModules[idx].inUse                      |= 0x1;
-                                pSelect->pModules[idx].perfmon.sel0.bits.PERF_SEL  = info.eventId;
-                                pSelect->pModules[idx].perfmon.sel0.bits.CNTR_MODE = PERFMON_SPM_MODE_16BIT_CLAMP;
-                                pSelect->pModules[idx].perfmon.sel0.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
+                            pSelect->pModules[idx].inUse                      |= 0x1;
+                            pSelect->pModules[idx].perfmon.sel0.bits.PERF_SEL  = info.eventId;
+                            pSelect->pModules[idx].perfmon.sel0.bits.CNTR_MODE = PERFMON_SPM_MODE_16BIT_CLAMP;
+                            pSelect->pModules[idx].perfmon.sel0.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
-                                subCounter = 0;
-                                searching  = false;
-                                break;
-                            }
-                            else if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x2) == false)
-                            {
-                                pSelect->pModules[idx].inUse                       |= 0x2;
-                                pSelect->pModules[idx].perfmon.sel0.bits.PERF_SEL1  = info.eventId;
-                                pSelect->pModules[idx].perfmon.sel0.bits.PERF_MODE1 = PERFMON_COUNTER_MODE_ACCUM;
+                            subCounter = 0;
+                            searching  = false;
+                            break;
+                        }
+                        else if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x2) == false)
+                        {
+                            pSelect->pModules[idx].inUse                       |= 0x2;
+                            pSelect->pModules[idx].perfmon.sel0.bits.PERF_SEL1  = info.eventId;
+                            pSelect->pModules[idx].perfmon.sel0.bits.PERF_MODE1 = PERFMON_COUNTER_MODE_ACCUM;
 
-                                subCounter = 1;
-                                searching  = false;
-                                break;
-                            }
-
-                            spmWire++;
+                            subCounter = 1;
+                            searching  = false;
+                            break;
                         }
 
-                        if (spmWire < m_counterInfo.block[block].numSpmWires)
+                        spmWire++;
+                    }
+
+                    if (spmWire < m_counterInfo.block[block].numSpmWires)
+                    {
+                        if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x4) == false)
                         {
-                            if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x4) == false)
-                            {
-                                pSelect->pModules[idx].inUse                       |= 0x4;
-                                pSelect->pModules[idx].perfmon.sel1.bits.PERF_SEL2  = info.eventId;
-                                pSelect->pModules[idx].perfmon.sel1.bits.PERF_MODE2 = PERFMON_COUNTER_MODE_ACCUM;
+                            pSelect->pModules[idx].inUse                       |= 0x4;
+                            pSelect->pModules[idx].perfmon.sel1.bits.PERF_SEL2  = info.eventId;
+                            pSelect->pModules[idx].perfmon.sel1.bits.PERF_MODE2 = PERFMON_COUNTER_MODE_ACCUM;
 
-                                subCounter = 0;
-                                searching  = false;
-                                break;
-                            }
-                            else if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x8) == false)
-                            {
-                                pSelect->pModules[idx].inUse                       |= 0x8;
-                                pSelect->pModules[idx].perfmon.sel1.bits.PERF_SEL3  = info.eventId;
-                                pSelect->pModules[idx].perfmon.sel1.bits.PERF_MODE3 = PERFMON_COUNTER_MODE_ACCUM;
-
-                                subCounter = 1;
-                                searching  = false;
-                                break;
-                            }
-
-                            spmWire++;
+                            subCounter = 0;
+                            searching  = false;
+                            break;
                         }
+                        else if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x8) == false)
+                        {
+                            pSelect->pModules[idx].inUse                       |= 0x8;
+                            pSelect->pModules[idx].perfmon.sel1.bits.PERF_SEL3  = info.eventId;
+                            pSelect->pModules[idx].perfmon.sel1.bits.PERF_MODE3 = PERFMON_COUNTER_MODE_ACCUM;
+
+                            subCounter = 1;
+                            searching  = false;
+                            break;
+                        }
+
+                        spmWire++;
                     }
                 }
+            }
 
-                if (searching)
-                {
-                    // There are no more SPM counters in this instance.
-                    result = Result::ErrorInvalidValue;
-                }
+            if (searching)
+            {
+                // There are no more SPM counters in this instance.
+                result = Result::ErrorInvalidValue;
             }
         }
         else
@@ -952,7 +948,7 @@ Result PerfExperiment::AddSpmCounter(
             {
                 pMapping->segment = (m_counterInfo.block[block].distribution == PerfCounterDistribution::GlobalBlock)
                                         ? SpmDataSegmentType::Global
-                                        : static_cast<SpmDataSegmentType>(spmGrbmGfxIndex.bits.SE_INDEX);
+                                        : static_cast<SpmDataSegmentType>(instanceMapping.seIndex);
             }
 
             // For now we only support 16-bit counters so this counter is either even or odd. 32-bit counters will
@@ -969,13 +965,13 @@ Result PerfExperiment::AddSpmCounter(
             if (pMapping->isEven)
             {
                 // We want the lower 16 bits of this wire.
-                pMapping->evenMuxsel = BuildMuxselEncoding(info.block, 2 * spmWire, spmGrbmGfxIndex);
+                pMapping->evenMuxsel = BuildMuxselEncoding(instanceMapping, info.block, 2 * spmWire);
             }
 
             if (pMapping->isOdd)
             {
                 // We want the upper 16 bits of this wire.
-                pMapping->oddMuxsel = BuildMuxselEncoding(info.block, 2 * spmWire + 1, spmGrbmGfxIndex);
+                pMapping->oddMuxsel = BuildMuxselEncoding(instanceMapping, info.block, 2 * spmWire + 1);
             }
         }
     }
@@ -2223,20 +2219,18 @@ Result PerfExperiment::BuildCounterMapping(
 }
 
 // =====================================================================================================================
-// Fills out a GRBM_GFX_INDEX for some block based on a global instance value. It will also validate that the global
+// Fills out an InstanceMapping for some block based on a global instance value. It will also validate that the global
 // instance has a valid internal instance index.
-Result PerfExperiment::BuildGrbmGfxIndex(
-    GpuBlock           block,
-    uint32             globalInstance,
-    regGRBM_GFX_INDEX* pGrbmGfxIndex
+Result PerfExperiment::BuildInstanceMapping(
+    GpuBlock         block,
+    uint32           globalInstance,
+    InstanceMapping* pMapping
     ) const
 {
     Result result        = Result::Success;
     uint32 seIndex       = 0;
     uint32 saIndex       = 0;
     uint32 instanceIndex = 0;
-    bool   broadcastSe   = false;
-    bool   broadcastSa   = false;
 
     const PerfCounterBlockInfo& blockInfo = m_counterInfo.block[static_cast<uint32>(block)];
 
@@ -2244,15 +2238,12 @@ Result PerfExperiment::BuildGrbmGfxIndex(
     {
         // Global blocks have a one-to-one instance mapping.
         instanceIndex = globalInstance;
-        broadcastSe   = true;
-        broadcastSa   = true;
     }
     else if (blockInfo.distribution == PerfCounterDistribution::PerShaderEngine)
     {
         // We want the SE index to be the outer index and the local instance to be the inner index.
         seIndex       = globalInstance / blockInfo.numInstances;
         instanceIndex = globalInstance % blockInfo.numInstances;
-        broadcastSa   = true;
     }
     else if (blockInfo.distribution == PerfCounterDistribution::PerShaderArray)
     {
@@ -2284,76 +2275,92 @@ Result PerfExperiment::BuildGrbmGfxIndex(
         // This instance doesn't exist on our device.
         result = Result::ErrorInvalidValue;
     }
-    else if (IsGfx10(m_chipProps.gfxLevel))
+    else
     {
-        // Update the instance index, some gfx10 blocks have special encodings.
-        instanceIndex = Gfx10CalcInstanceIndex(block, instanceIndex);
-    }
+        PAL_ASSERT(pMapping != nullptr);
 
-    if (result == Result::Success)
-    {
-        pGrbmGfxIndex->bits.SE_INDEX             = seIndex;
-        pGrbmGfxIndex->gfx09.SH_INDEX            = saIndex;
-        pGrbmGfxIndex->bits.INSTANCE_INDEX       = instanceIndex;
-        pGrbmGfxIndex->bits.SE_BROADCAST_WRITES  = broadcastSe;
-        pGrbmGfxIndex->gfx09.SH_BROADCAST_WRITES = broadcastSa;
+        pMapping->seIndex       = seIndex;
+        pMapping->saIndex       = saIndex;
+        pMapping->instanceIndex = instanceIndex;
     }
 
     return result;
 }
 
 // =====================================================================================================================
-// Some gfx10 blocks use a different instance index format that requires some bit swizzling.
-uint32 PerfExperiment::Gfx10CalcInstanceIndex(
-    GpuBlock block,
-    uint32   flatIndex // A flat instance index mapping (0, 1, 2, 3, etc.), no weird gaps.
+// Fills out a GRBM_GFX_INDEX for some block based on an InstanceMapping
+regGRBM_GFX_INDEX PerfExperiment::BuildGrbmGfxIndex(
+    const InstanceMapping& mapping,
+    GpuBlock               block
     ) const
 {
-    // The shader array hardware defines this instance index format.
-    union
+    regGRBM_GFX_INDEX grbmGfxIndex = {};
+    grbmGfxIndex.bits.SE_INDEX  = mapping.seIndex;
+    grbmGfxIndex.gfx09.SH_INDEX = mapping.saIndex;
+
+    switch (m_counterInfo.block[static_cast<uint32>(block)].distribution)
     {
-        struct
-        {
-            uint32 blockIndex :  2; // The index of the block within the WGP.
-            uint32 wgpIndex   :  3; // The WGP index within the SPI side of this shader array.
-            uint32 isBelowSpi :  1; // 0 - The side with lower WGP numbers, 1 - the side with higher WGP numbers.
-            uint32 reserved   : 26;
-        } bits;
+    case PerfCounterDistribution::GlobalBlock:
+        // Global block writes should broadcast to SEs and SAs.
+        grbmGfxIndex.bits.SE_BROADCAST_WRITES  = 1;
+        // Intentional fall through
+    case PerfCounterDistribution::PerShaderEngine:
+        // Per-SE block writes should broadcast to SAs.
+        grbmGfxIndex.gfx09.SH_BROADCAST_WRITES = 1;
+        break;
 
-        uint32 u32All;
-    } instanceIndex = {};
+    default:
+        // Otherwise no broadcast bits should be set.
+        break;
+    }
 
+    // Some gfx10 blocks use a different instance index format that requires some bit swizzling.
     // Note that SQ registers would normally require a special per-SIMD instance index format but the SQ perf counter
     // registers are special. All SQ and SQC perf counters are implemented in the per-SE SQG block. Thus we don't
     // need any special handing for the SQ or SQC here, we can just pass along our flat index.
-
-    if ((block == GpuBlock::Ta) || (block == GpuBlock::Td) || (block == GpuBlock::Tcp))
+    if (IsGfx10(m_chipProps.gfxLevel) &&
+        ((block == GpuBlock::Ta) || (block == GpuBlock::Td) || (block == GpuBlock::Tcp)))
     {
+        // The shader array hardware defines this instance index format.
+        union
+        {
+            struct
+            {
+                uint32 blockIndex :  2; // The index of the block within the WGP.
+                uint32 wgpIndex   :  3; // The WGP index within the SPI side of this shader array.
+                uint32 isBelowSpi :  1; // 0 - The side with lower WGP numbers, 1 - the side with higher WGP numbers.
+                uint32 reserved   : 26;
+            } bits;
+
+            uint32 u32All;
+        } instanceIndex = {};
+
         // These blocks are per-CU.
         constexpr uint32 NumCuPerWgp    = 2;
         const     uint32 numWgpAboveSpi = m_chipProps.gfx9.gfx10.numWgpAboveSpi;
-        const     uint32 flatWgpIndex   = flatIndex / NumCuPerWgp;
+        const     uint32 flatWgpIndex   = mapping.instanceIndex / NumCuPerWgp;
         const     bool   isBelowSpi     = (flatWgpIndex >= numWgpAboveSpi);
 
-        instanceIndex.bits.blockIndex = flatIndex % NumCuPerWgp;
+        instanceIndex.bits.blockIndex = mapping.instanceIndex % NumCuPerWgp;
         instanceIndex.bits.wgpIndex   = isBelowSpi ? (flatWgpIndex - numWgpAboveSpi) : flatWgpIndex;
         instanceIndex.bits.isBelowSpi = isBelowSpi;
+
+        grbmGfxIndex.bits.INSTANCE_INDEX = instanceIndex.u32All;
     }
     else
     {
-        // Otherwise the hardware uses a flat index.
-        instanceIndex.u32All = flatIndex;
+        grbmGfxIndex.bits.INSTANCE_INDEX = mapping.instanceIndex;
     }
 
-    return instanceIndex.u32All;
+    return grbmGfxIndex;
 }
 
 // =====================================================================================================================
 // A helper function for AddSpmCounter which builds a muxsel struct given some counter information.
 MuxselEncoding PerfExperiment::BuildMuxselEncoding(
-    GpuBlock          block,
-    uint32            counter,
-    regGRBM_GFX_INDEX grbmGfxIndex
+    const InstanceMapping& mapping,
+    GpuBlock               block,
+    uint32                 counter
     ) const
 {
     MuxselEncoding              muxsel    = {};
@@ -2364,7 +2371,7 @@ MuxselEncoding PerfExperiment::BuildMuxselEncoding(
     {
         muxsel.gfx9.counter  = counter;
         muxsel.gfx9.block    = blockInfo.spmBlockSelect;
-        muxsel.gfx9.instance = grbmGfxIndex.bits.INSTANCE_INDEX;
+        muxsel.gfx9.instance = mapping.instanceIndex;
     }
     else
     {
@@ -2381,8 +2388,8 @@ MuxselEncoding PerfExperiment::BuildMuxselEncoding(
         // Gfx10 per-SE muxsels use a slightly different encoding.
         muxsel.gfx10Se.counter     = counterId;
         muxsel.gfx10Se.block       = blockInfo.spmBlockSelect;
-        muxsel.gfx10Se.shaderArray = grbmGfxIndex.gfx10.SA_INDEX;
-        muxsel.gfx10Se.instance    = grbmGfxIndex.bits.INSTANCE_INDEX;
+        muxsel.gfx10Se.shaderArray = mapping.saIndex;
+        muxsel.gfx10Se.instance    = mapping.instanceIndex;
     }
 
     return muxsel;

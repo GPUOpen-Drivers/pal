@@ -27,6 +27,7 @@
 
 #include "core/queueContext.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
+#include "core/hw/gfxip/gfx9/gfx9ShaderRingSet.h"
 #include "core/hw/gfxip/gfx9/gfx9ShadowedRegisters.h"
 
 namespace Pal
@@ -50,12 +51,16 @@ public:
     virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount) override;
     virtual void PostProcessSubmit() override;
 
+    ComputeRingSet* RingSet() { return &m_ringSet; }
+    Result UpdateRingSet(bool* pHasChanged);
+
 private:
     Result RebuildCommandStreams();
 
     Device*const        m_pDevice;
     ComputeEngine*const m_pEngine;
     uint32              m_queueId;
+    ComputeRingSet      m_ringSet;
 
     // Current watermark for the device-initiated context updates which have been processed by this queue context.
     uint32  m_currentUpdateCounter;
@@ -87,6 +92,9 @@ public:
     virtual void PostProcessSubmit() override;
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
+    UniversalRingSet* RingSet() { return &m_ringSet; }
+    Result UpdateRingSet(bool* pHasChanged);
+
 private:
     Result BuildShadowPreamble();
     Result RebuildCommandStreams();
@@ -102,6 +110,7 @@ private:
     const bool            m_isPreemptionSupported;
     UniversalEngine*const m_pEngine;
     uint32                m_queueId;
+    UniversalRingSet      m_ringSet;
 
     // Current watermark for the device-initiated context updates which have been processed by this queue context.
     uint32  m_currentUpdateCounter;

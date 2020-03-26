@@ -369,8 +369,10 @@ void AddrMgr2::InitTilingCaps(
     ADDR2_BLOCK_SET*    pBlockSettings
     ) const
 {
-    const PalSettings&     settings   = m_pDevice->Settings();
-    const ImageCreateInfo& createInfo = pImage->GetImageCreateInfo();
+    const PalSettings&     settings       = m_pDevice->Settings();
+    const ImageCreateInfo& createInfo     = pImage->GetImageCreateInfo();
+    const bool             isRenderTarget = pImage->IsRenderTarget();
+    const bool             isDepthStencil = pImage->IsDepthStencil();
 
     pBlockSettings->value = 0; // All modes (4kb, 64kb) are valid...
     pBlockSettings->micro = 1; // but don't ever allow the 256b swizzle modes,
@@ -420,8 +422,8 @@ void AddrMgr2::InitTilingCaps(
         const bool disable3D = ((imageType == ImageType::Tex3d) &&
                                 TestAnyFlagSet(disable4KBSwizzleMode, Addr2Disable4kBSwizzleColor3D));
 
-        if ((pImage->IsDepthStencil() && TestAnyFlagSet(disable4KBSwizzleMode, Addr2Disable4kBSwizzleDepth)) ||
-            (pImage->IsRenderTarget() && (disable1D || disable2D || disable3D)))
+        if ((isDepthStencil && TestAnyFlagSet(disable4KBSwizzleMode, Addr2Disable4kBSwizzleDepth)) ||
+            (isRenderTarget && (disable1D || disable2D || disable3D)))
         {
             pBlockSettings->macroThin4KB  = 1;
             pBlockSettings->macroThick4KB = 1;

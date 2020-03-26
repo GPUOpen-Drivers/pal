@@ -61,7 +61,7 @@ private:
     void Init(const DepthStencilStateCreateInfo& dsState);
 
     static CompareFrag HwDepthCompare(CompareFunc func);
-    static ::StencilOp HwStencilOp(StencilOp stencilOp);
+    static Gfx6::StencilOp HwStencilOp(Pal::StencilOp stencilOp);
 
     union
     {

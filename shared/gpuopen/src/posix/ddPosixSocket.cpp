@@ -151,6 +151,22 @@ namespace DevDriver
             }
         }
 
+#if defined(DD_PLATFORM_DARWIN_UM)
+        // On macOS we have to deliberately adjust the send/receive buffer sizes with AF_UNIX sockets for best performance
+        if ((result == Result::Success) & (socketType == SocketType::Local)) {
+            // This is a bit of a magic number. Initial testing shows that having enough space for 16 messages provided
+            // good performance, but there is likely room to optimize it
+            DD_STATIC_CONST int kNumberOfMessagesInBuffer = 16;
+            DD_STATIC_CONST int kBufferSize = sizeof(MessageBuffer) * kNumberOfMessagesInBuffer;
+
+            if ((setsockopt(m_osSocket, SOL_SOCKET, SO_SNDBUF, &kBufferSize, sizeof(kBufferSize)) != 0) ||
+                (setsockopt(m_osSocket, SOL_SOCKET, SO_RCVBUF, &kBufferSize, sizeof(kBufferSize)) != 0))
+            {
+                result = Result::Error;
+            }
+        }
+#endif
+
         DD_ASSERT(result != Result::Error);
         return result;
     }
@@ -412,10 +428,16 @@ namespace DevDriver
                 sockaddr_un* DD_RESTRICT pAddr = reinterpret_cast<sockaddr_un *>(pAddressInfo);
                 pAddr->sun_family = AF_UNIX;
 
+#if defined(DD_PLATFORM_DARWIN_UM)
+                // Copy the path into the address info struct
+                Platform::Strncpy(pAddr->sun_path, pAddress, sizeof(pAddr->sun_path) - 1);
+                *pAddressSize = SUN_LEN(pAddr);
+#else
                 // Start the path with a null byte to bind as an abstract socket.
                 pAddr->sun_path[0] = '\0';
                 Platform::Strncpy(pAddr->sun_path + 1, pAddress, sizeof(pAddr->sun_path) - 2);
                 *pAddressSize = sizeof(sockaddr_un);
+#endif
                 result = Result::Success;
                 break;
             }

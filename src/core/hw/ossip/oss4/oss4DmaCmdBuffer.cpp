@@ -1209,7 +1209,7 @@ uint32 DmaCmdBuffer::GetLinearRowPitchForTiledCopy(
 {
     PAL_ASSERT((rowPitchInBytes % bytesPerPixel) == 0);
 
-#if PAL_ENABLE_PRINTS_ASSERTS && PAL_BUILD_GFX9
+#if PAL_ENABLE_PRINTS_ASSERTS
     const uint32  rowPitchInPixels = static_cast<uint32>(rowPitchInBytes / bytesPerPixel);
 
     //  The alignment restriction of linear pitch (which no longer applies to Raven) is:

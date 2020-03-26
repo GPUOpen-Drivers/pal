@@ -52,7 +52,9 @@ Image::Image(
     m_presentImageHandle(NullImageHandle),
     m_pWindowSystem(nullptr),
     m_framebufferId(0),
-    m_idle(true)
+    m_idle(true),
+    m_pSwapChain(nullptr),
+    m_imageIndex(InvalidImageIndex)
 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 567
     // Pip swap-chain is only supported on Windows platforms.

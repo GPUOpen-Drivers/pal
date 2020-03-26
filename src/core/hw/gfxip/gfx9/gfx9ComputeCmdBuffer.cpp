@@ -1356,8 +1356,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
     pCmdSpace += m_cmdUtil.BuildWaitCsIdle(m_engineType, TimestampGpuVirtAddr(), pCmdSpace);
     pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
 
-    // PFP_SYNC_ME cannot be used on an async compute engine
-    // so we need to use REWIND packet instead.
+    // PFP_SYNC_ME cannot be used on an async compute engine so we need to use REWIND packet instead.
     pCmdSpace += m_cmdUtil.BuildRewind(false, true, pCmdSpace);
 
     // Just like a normal direct/indirect dispatch, we need to perform state validation before executing the

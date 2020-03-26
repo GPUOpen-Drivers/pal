@@ -55,8 +55,8 @@ union LibraryCreateFlags
 /// structure to IDevice::CreateShaderLibrary().
 struct ShaderLibraryFunctionInfo
 {
-    const char*  pSymbolName; ///< ELF Symbol name for the associated function.  Must not be null.
-    gpusize      gpuVirtAddr; ///< [out] GPU virtual address of the function.  This is computed by PAL during
+    char*     pSymbolName; ///< ELF Symbol name for the associated function.  Must not be null.
+    gpusize   gpuVirtAddr; ///< [out] GPU virtual address of the function.  This is computed by PAL during
                               ///  library creation.
 };
 
@@ -206,6 +206,17 @@ public:
     virtual Result GetShaderFunctionStats(
         const char*      pShaderExportName,
         ShaderLibStats*  pShaderStats) const = 0;
+
+    /// Returns the function list owned by this shader library
+    ///
+    /// @returns A list of ShaderLibraryFunctionInfo if number of functions is not zero.
+    ///          Null is number of functions is zero.
+    virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const = 0;
+
+    /// Returns the function count owned by this shader library
+    ///
+    /// @returns function count
+    virtual uint32 GetShaderLibFunctionCount() const = 0;
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

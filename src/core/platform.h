@@ -162,9 +162,6 @@ public:
         const void* pEventData,
         uint32      eventDataSize) override;
 
-    void EnableEventLoggingToFile();
-    void DisableEventLoggingToFile() { m_eventProvider.DisableFileLogging(); }
-
 protected:
     Platform(const PlatformCreateInfo& createInfo, const Util::AllocCallbacks& allocCb);
 

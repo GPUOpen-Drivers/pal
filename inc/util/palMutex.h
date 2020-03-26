@@ -248,6 +248,22 @@ private:
 /// Yields the current thread to another thread in the ready state (if available).
 extern void YieldThread();
 
+/// Atomic write of 64-bit unsigned integer, using a relaxed memory ordering policy.
+/// If you need to synchronize more than just pTarget, you may need a new function.
+///
+/// @param [in] pTarget Pointer to the value to be read.
+///
+/// @returns The original value of *pTarget.
+extern void AtomicWriteRelaxed64(volatile uint64* pTarget, uint64 newValue);
+
+/// Atomic read of 64-bit unsigned integer, using a relaxed memory ordering policy.
+/// If you need to synchronize more than just pTarget, you may need a new function.
+///
+/// @param [in] pTarget Pointer to the value to be read.
+///
+/// @returns The original value of *pTarget.
+extern uint64 AtomicReadRelaxed64(const volatile uint64* pTarget);
+
 /// Atomically increments the specified 32-bit unsigned integer.
 ///
 /// @param [in,out] pValue Pointer to the value to be incremented.

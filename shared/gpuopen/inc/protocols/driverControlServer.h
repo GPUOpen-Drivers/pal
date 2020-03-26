@@ -132,7 +132,7 @@ namespace DevDriver
             SessionState HandleQueryMaxDeviceClockRequest(SizedPayloadContainer& container);
             SessionState HandleQueryNumGpusRequest(SizedPayloadContainer& container);
             SessionState HandleQueryDriverStatusRequest(SizedPayloadContainer& container, const Version sessionVersion);
-            SessionState HandleStepDriverRequest(SizedPayloadContainer& container);
+            SessionState HandleStepDriverRequest(SizedPayloadContainer& container, const Version sessionVersion);
 
             Platform::Mutex m_mutex;
             DriverStatus m_driverStatus;

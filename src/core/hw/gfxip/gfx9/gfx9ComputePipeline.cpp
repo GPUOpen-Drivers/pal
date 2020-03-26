@@ -108,7 +108,11 @@ Result ComputePipeline::HwlInit(
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
 
-        UpdateRingSizes(metadata);
+        const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+        if (csStageMetadata.hasEntry.scratchMemorySize != 0)
+        {
+            UpdateRingSizes(csStageMetadata.scratchMemorySize);
+        }
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
@@ -253,6 +257,13 @@ Result ComputePipeline::LinkWithLibraries(
             computePgmRsrc3.bits.SHARED_VGPR_CNT =
                 Max(computePgmRsrc3.bits.SHARED_VGPR_CNT, libObjRegInfo.libRegs.computePgmRsrc3.bits.SHARED_VGPR_CNT);
         }
+
+        const uint32 stackSizeNeededInBytes = pLibObj->GetMaxStackFrameSizeInBytes() * m_maxFunctionCallDepth;
+        if (stackSizeNeededInBytes > m_stackSizeInBytes)
+        {
+            m_stackSizeInBytes = stackSizeNeededInBytes;
+            UpdateRingSizes(stackSizeNeededInBytes);
+        }
     }
 
     // Update m_chunCs with updated register values
@@ -301,34 +312,62 @@ Result ComputePipeline::GetShaderStats(
             pShaderStats->cs.numThreadsPerGroupZ       = m_threadsPerTgZ;
             pShaderStats->common.gpuVirtAddress        = m_chunkCs.CsProgramGpuVa();
             pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
+
+            AbiProcessor abiProcessor(m_pDevice->GetPlatform());
+            result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
+
+            MsgPackReader      metadataReader;
+            CodeObjectMetadata metadata;
+
+            if (result == Result::Success)
+            {
+                result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+            }
+
+            if (result == Result::Success)
+            {
+                const auto& csStageMetadata =
+                    metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+                pShaderStats->common.stackFrameSizeInBytes = csStageMetadata.scratchMemorySize;
+#endif
+            }
         }
     }
 
     return result;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+// =====================================================================================================================
+// Sets the total stack frame size for indirect shaders in the pipeline
+void ComputePipeline::SetStackSizeInBytes(
+    uint32 stackSizeInBytes)
+{
+    m_stackSizeInBytes = stackSizeInBytes;
+    UpdateRingSizes(stackSizeInBytes);
+}
+#endif
+
 // =====================================================================================================================
 // Update the device that this compute pipeline has some new ring-size requirements.
 void ComputePipeline::UpdateRingSizes(
-    const CodeObjectMetadata& metadata)
+    uint32 scratchMemorySize)
 {
     ShaderRingItemSizes ringSizes = { };
 
-    const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-    if (csStageMetadata.hasEntry.scratchMemorySize != 0)
+    if (scratchMemorySize != 0)
     {
-        uint32 stageScratchMemorySize = csStageMetadata.scratchMemorySize;
-
         if (IsGfx10(m_pDevice->Parent()->ChipProperties().gfxLevel) && (IsWave32() == false))
         {
             // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
             // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for
             // a Wave64, we need to multiply by 2.
-            stageScratchMemorySize *= 2;
+            scratchMemorySize *= 2;
         }
 
         ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
-            (stageScratchMemorySize / sizeof(uint32));
+            (scratchMemorySize / sizeof(uint32));
     }
 
     // Inform the device that this pipeline has some new ring-size requirements.

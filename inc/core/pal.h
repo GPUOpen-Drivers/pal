@@ -651,6 +651,9 @@ struct CommonShaderStats
     uint32  ldsSizePerThreadGroup;     ///< LDS size per thread group in bytes.
     size_t  ldsUsageSizeInBytes;       ///< LDS usage by this shader.
     size_t  scratchMemUsageInBytes;    ///< Amount of scratch mem used by this shader.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+    size_t  stackFrameSizeInBytes;     ///< Amount of stack size used by this shader.
+#endif
     gpusize gpuVirtAddress;            ///< Gpu mem address of shader ISA code.
 };
 

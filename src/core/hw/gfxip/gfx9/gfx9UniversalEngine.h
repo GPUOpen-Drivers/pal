@@ -44,15 +44,8 @@ public:
 
     virtual Result Init() override;
 
-    UniversalRingSet* RingSet() { return &m_ringSet; }
-
-    Result UpdateRingSet(uint32* pCounterVal, bool* pHasChanged);
-
 private:
     Device*          m_pDevice;
-    UniversalRingSet m_ringSet;
-    uint32           m_currentUpdateCounter;  // Current watermark for the device-initiated context updates that have
-                                              // been processed by this engine.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalEngine);
     PAL_DISALLOW_DEFAULT_CTOR(UniversalEngine);

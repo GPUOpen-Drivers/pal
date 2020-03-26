@@ -37,15 +37,12 @@
 // We'd use DD_WARN, but we want the parent function's location....
 #define ResetInternalErrorState() ResetInternalErrorStateImpl(__FILE__, __LINE__, __FUNCTION__)
 
-#if DD_PLATFORM_IS_UM
-
 #define RAPIDJSON_PARSE_DEFAULT_FLAGS (kParseTrailingCommasFlag | kParseNanAndInfFlag)
 #define RAPIDJSON_ASSERT(x) DD_ASSERT(x)
 #if defined(__clang__)
     #pragma clang diagnostic ignored "-Wunknown-warning-option"
 #endif
 #include "rapidjson/reader.h"
-#endif
 
 namespace DevDriver
 {
@@ -622,7 +619,6 @@ namespace DevDriver
         return m_allocCb;
     }
 
-#if DD_PLATFORM_IS_UM
     static const char* ParseErrorCodeToString(rapidjson::ParseErrorCode code)
     {
         switch (code)
@@ -900,7 +896,6 @@ namespace DevDriver
 
         return result;
     }
-#endif
 
     Result IStructuredReader::CreateFromMessagePack(
         const uint8*        pBuffer,

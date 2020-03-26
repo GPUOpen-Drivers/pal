@@ -37,6 +37,8 @@ class Device;
 class GpuMemory;
 class WindowSystem;
 
+constexpr uint32 InvalidImageIndex = -1;
+
 // =====================================================================================================================
 // Linux flavor of the Image class: primarily handles details regarding presentable and shared images
 class Image : public Pal::Image
@@ -117,6 +119,11 @@ public:
 
     void SetWindowSystem(WindowSystem* pWindowSystem) { m_pWindowSystem = pWindowSystem; }
 
+    SwapChain* GetSwapChain() { return m_pSwapChain; }
+    void       SetSwapChain(SwapChain* pSwapChain) { m_pSwapChain = pSwapChain; }
+    uint32     GetImageIndex() { return m_imageIndex; }
+    void       SetImageIndex(uint32 imageIndex) { m_imageIndex = imageIndex; }
+
 protected:
     virtual void UpdateMetaDataInfo(IGpuMemory* pGpuMemory) override;
 
@@ -129,6 +136,9 @@ private:
 
     uint32        m_framebufferId;    // Framebuffer ID of the framebuffer to be presented.
     volatile bool m_idle;             // True indicates the image is not owned by Window System
+
+    SwapChain*    m_pSwapChain;  // The swapchain the image is attached to.
+    uint32        m_imageIndex;  // The image index in the swapchain.
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);

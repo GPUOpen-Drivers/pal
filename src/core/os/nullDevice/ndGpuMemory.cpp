@@ -93,7 +93,7 @@ Result NdGpuMemory::AllocateOrPinMemory(
     return result;
 }
 
-#if PAL_KMT_BUILD || PAL_AMDGPU_BUILD
+#if  PAL_AMDGPU_BUILD
 // =====================================================================================================================
 
 OsExternalHandle NdGpuMemory::ExportExternalHandle(

@@ -34,6 +34,12 @@
 #error "LITTLEENDIAN_CPU must be defined"
 #endif
 
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 union ATC_L2_PERFCOUNTER0_CFG {
     struct {
         unsigned int PERF_SEL                                                     :  8;
@@ -432,7 +438,7 @@ union CB_CGTT_SCLK_CTRL {
         unsigned int SOFT_OVERRIDE2                                               :  1;
         unsigned int SOFT_OVERRIDE1                                               :  1;
         unsigned int SOFT_OVERRIDE0                                               :  1;
-    } bits, bitfields;
+    } core;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13873,7 +13879,7 @@ union PA_SC_ENHANCE_1 {
         unsigned int                                                              : 13;
         unsigned int DEBUG_PIXEL_PICKER_COUNT_PIXELS                              :  1;
         unsigned int                                                              : 18;
-    } gfx10;
+    } gfx10Core;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18171,9 +18177,7 @@ union SPI_CONFIG_CNTL_1 {
         unsigned int INTERP_ONE_PRIM_PER_ROW                                      :  1;
         unsigned int                                                              :  2;
         unsigned int PC_LIMIT_STRICT                                              :  1;
-        unsigned int                                                              :  1;
-        unsigned int LBPW_CU_CHK_MODE                                             :  1;
-        unsigned int LBPW_CU_CHK_CNT                                              :  4;
+        unsigned int                                                              :  6;
         unsigned int CSC_PWR_SAVE_DISABLE                                         :  1;
         unsigned int CSG_PWR_SAVE_DISABLE                                         :  1;
         unsigned int                                                              : 16;
@@ -18181,7 +18185,9 @@ union SPI_CONFIG_CNTL_1 {
     struct {
         unsigned int                                                              :  8;
         unsigned int CRC_SIMD_ID_WADDR_DISABLE                                    :  1;
-        unsigned int                                                              : 23;
+        unsigned int LBPW_CU_CHK_MODE                                             :  1;
+        unsigned int LBPW_CU_CHK_CNT                                              :  4;
+        unsigned int                                                              : 18;
     } core;
     struct {
         unsigned int                                                              :  5;
@@ -29378,7 +29384,7 @@ union TA_CGTT_CTRL {
         unsigned int SOFT_OVERRIDE2                                               :  1;
         unsigned int SOFT_OVERRIDE1                                               :  1;
         unsigned int SOFT_OVERRIDE0                                               :  1;
-    } bits, bitfields;
+    } core;
 
     unsigned int u32All;
     signed int   i32All;
@@ -29389,13 +29395,16 @@ union TA_CNTL {
     struct {
         unsigned int                                                              : 16;
         unsigned int ALIGNER_CREDIT                                               :  5;
-        unsigned int                                                              :  1;
-        unsigned int TD_FIFO_CREDIT                                               : 10;
+        unsigned int                                                              : 11;
     } bits, bitfields;
     struct {
         unsigned int FX_XNACK_CREDIT                                              :  7;
         unsigned int                                                              : 25;
     } most;
+    struct {
+        unsigned int                                                              : 22;
+        unsigned int TD_FIFO_CREDIT                                               : 10;
+    } core;
     struct {
         unsigned int                                                              :  9;
         unsigned int SQ_XNACK_CREDIT                                              :  4;
@@ -29653,12 +29662,17 @@ union TA_PERFCOUNTER1_SELECT {
 union TA_POWER_CNTL {
     struct {
         unsigned int SAMPLER_CLK_VALID_DELAY                                      :  3;
-        unsigned int SAMPLER_CLK_EN_MODE                                          :  1;
-        unsigned int                                                              : 12;
+        unsigned int                                                              : 13;
         unsigned int NOSAMPLER_CLK_VALID_DELAY                                    :  3;
+        unsigned int                                                              : 13;
+    } bits, bitfields;
+    struct {
+        unsigned int                                                              :  3;
+        unsigned int SAMPLER_CLK_EN_MODE                                          :  1;
+        unsigned int                                                              : 15;
         unsigned int NOSAMPLER_CLK_EN_MODE                                        :  1;
         unsigned int                                                              : 12;
-    } bits, bitfields;
+    } gfx10Core;
 
     unsigned int u32All;
     signed int   i32All;
@@ -40040,3 +40054,6 @@ union XDMA_SLV_FLIP_PENDING {
     float        f32All;
 };
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

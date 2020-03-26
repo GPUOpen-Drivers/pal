@@ -719,6 +719,17 @@ Result Queue::SubmitPm4(
     uint32            numNextCmdBuffers = submitInfo.pPerSubQueueInfo[0].cmdBufferCount;
     ICmdBuffer*const* ppNextCmdBuffers  = submitInfo.pPerSubQueueInfo[0].ppCmdBuffers;
 
+    // If spm enabled commands included, reserve a vmid so that the SPM_VMID could be updated
+    // by KMD.
+    for (uint32 idx = 0; idx < numNextCmdBuffers; ++idx)
+    {
+        if (static_cast<GfxCmdBuffer*>(ppNextCmdBuffers[idx])->SpmTraceEnabled())
+        {
+            result = static_cast<Device*>(m_pDevice)->ReserveVmid();
+            break;
+        }
+    }
+
     while ((result == Result::Success) && (numNextCmdBuffers > 0))
     {
         uint32           batchSize          = 0;

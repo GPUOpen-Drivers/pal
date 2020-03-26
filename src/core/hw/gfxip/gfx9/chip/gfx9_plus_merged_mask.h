@@ -27,6 +27,12 @@
 
 
 
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 constexpr unsigned int CB_BLEND0_CONTROL__ALPHA_COMB_FCN_MASK             = 0x00e00000L;
 constexpr unsigned int CB_BLEND0_CONTROL__ALPHA_DESTBLEND_MASK            = 0x1f000000L;
 constexpr unsigned int CB_BLEND0_CONTROL__ALPHA_SRCBLEND_MASK             = 0x001f0000L;
@@ -103,24 +109,6 @@ constexpr unsigned int CB_BLEND_ALPHA__BLEND_ALPHA_MASK                   = 0xff
 constexpr unsigned int CB_BLEND_BLUE__BLEND_BLUE_MASK                     = 0xffffffffL;
 constexpr unsigned int CB_BLEND_GREEN__BLEND_GREEN_MASK                   = 0xffffffffL;
 constexpr unsigned int CB_BLEND_RED__BLEND_RED_MASK                       = 0xffffffffL;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__OFF_HYSTERESIS_MASK             = 0x00000ff0L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__ON_DELAY_MASK                   = 0x0000000fL;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE0_MASK             = 0x80000000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE1_MASK             = 0x40000000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE2_MASK             = 0x20000000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE3_MASK             = 0x10000000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE4_MASK             = 0x08000000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE5_MASK             = 0x04000000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE6_MASK             = 0x02000000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE7_MASK             = 0x01000000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE0_MASK       = 0x00800000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE1_MASK       = 0x00400000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE2_MASK       = 0x00200000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE3_MASK       = 0x00100000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE4_MASK       = 0x00080000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE5_MASK       = 0x00040000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE6_MASK       = 0x00020000L;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE7_MASK       = 0x00010000L;
 constexpr unsigned int CB_COLOR0_ATTRIB2__MAX_MIP_MASK                    = 0xf0000000L;
 constexpr unsigned int CB_COLOR0_ATTRIB2__MIP0_HEIGHT_MASK                = 0x00003fffL;
 constexpr unsigned int CB_COLOR0_ATTRIB2__MIP0_WIDTH_MASK                 = 0x0fffc000L;
@@ -2142,8 +2130,6 @@ constexpr unsigned int SPI_COMPUTE_WF_CTX_SAVE__SAVE_BUSY_MASK            = 0x80
 constexpr unsigned int SPI_CONFIG_CNTL_1__CSC_PWR_SAVE_DISABLE_MASK       = 0x00004000L;
 constexpr unsigned int SPI_CONFIG_CNTL_1__CSG_PWR_SAVE_DISABLE_MASK       = 0x00008000L;
 constexpr unsigned int SPI_CONFIG_CNTL_1__INTERP_ONE_PRIM_PER_ROW_MASK    = 0x00000010L;
-constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_CNT_MASK            = 0x00003c00L;
-constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_MODE_MASK           = 0x00000200L;
 constexpr unsigned int SPI_CONFIG_CNTL_1__PC_LIMIT_STRICT_MASK            = 0x00000080L;
 constexpr unsigned int SPI_CONFIG_CNTL_1__VTX_DONE_DELAY_MASK             = 0x0000000fL;
 constexpr unsigned int SPI_CONFIG_CNTL_2__CONTEXT_SAVE_WAIT_GDS_GRANT_CYCLE_OVHD_MASK = 0x000000f0L;
@@ -3153,11 +3139,6 @@ constexpr unsigned int SQ_WAVE_TTMP12__DATA_MASK                          = 0xff
 constexpr unsigned int SQ_WAVE_TTMP13__DATA_MASK                          = 0xffffffffL;
 constexpr unsigned int SQ_WAVE_TTMP14__DATA_MASK                          = 0xffffffffL;
 constexpr unsigned int SQ_WAVE_TTMP15__DATA_MASK                          = 0xffffffffL;
-constexpr unsigned int SQ_WREXEC_EXEC_HI__ADDR_HI_MASK                    = 0x0000ffffL;
-constexpr unsigned int SQ_WREXEC_EXEC_HI__FIRST_WAVE_MASK                 = 0x04000000L;
-constexpr unsigned int SQ_WREXEC_EXEC_HI__MSB_MASK                        = 0x80000000L;
-constexpr unsigned int SQ_WREXEC_EXEC_HI__MTYPE_MASK                      = 0x70000000L;
-constexpr unsigned int SQ_WREXEC_EXEC_LO__ADDR_LO_MASK                    = 0xffffffffL;
 constexpr unsigned int SX_BLEND_OPT_CONTROL__MRT0_ALPHA_OPT_DISABLE_MASK  = 0x00000002L;
 constexpr unsigned int SX_BLEND_OPT_CONTROL__MRT0_COLOR_OPT_DISABLE_MASK  = 0x00000001L;
 constexpr unsigned int SX_BLEND_OPT_CONTROL__MRT1_ALPHA_OPT_DISABLE_MASK  = 0x00000020L;
@@ -3253,24 +3234,6 @@ constexpr unsigned int SX_PS_DOWNCONVERT__MRT6_MASK                       = 0x0f
 constexpr unsigned int SX_PS_DOWNCONVERT__MRT7_MASK                       = 0xf0000000L;
 constexpr unsigned int TA_BC_BASE_ADDR_HI__ADDRESS_MASK                   = 0x000000ffL;
 constexpr unsigned int TA_BC_BASE_ADDR__ADDRESS_MASK                      = 0xffffffffL;
-constexpr unsigned int TA_CGTT_CTRL__OFF_HYSTERESIS_MASK                  = 0x00000ff0L;
-constexpr unsigned int TA_CGTT_CTRL__ON_DELAY_MASK                        = 0x0000000fL;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE0_MASK                  = 0x80000000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE1_MASK                  = 0x40000000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE2_MASK                  = 0x20000000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE3_MASK                  = 0x10000000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE4_MASK                  = 0x08000000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE5_MASK                  = 0x04000000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE6_MASK                  = 0x02000000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE7_MASK                  = 0x01000000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE0_MASK            = 0x00800000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE1_MASK            = 0x00400000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE2_MASK            = 0x00200000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE3_MASK            = 0x00100000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE4_MASK            = 0x00080000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE5_MASK            = 0x00040000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE6_MASK            = 0x00020000L;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE7_MASK            = 0x00010000L;
 constexpr unsigned int TA_CNTL_AUX__ANISO_ERROR_FP_VBIAS_MASK             = 0x00001000L;
 constexpr unsigned int TA_CNTL_AUX__ANISO_HALF_THRESH_MASK                = 0x00000c00L;
 constexpr unsigned int TA_CNTL_AUX__ANISO_RATIO_LUT_MASK                  = 0x00020000L;
@@ -3294,7 +3257,6 @@ constexpr unsigned int TA_CNTL_AUX__SCOAL_DSWIZZLE_N_MASK                 = 0x00
 constexpr unsigned int TA_CNTL_AUX__TFAULT_EN_OVERRIDE_MASK               = 0x00000020L;
 constexpr unsigned int TA_CNTL_AUX__TRUNC_SMALL_NEG_MASK                  = 0x20000000L;
 constexpr unsigned int TA_CNTL__ALIGNER_CREDIT_MASK                       = 0x001f0000L;
-constexpr unsigned int TA_CNTL__TD_FIFO_CREDIT_MASK                       = 0xffc00000L;
 constexpr unsigned int TA_CS_BC_BASE_ADDR_HI__ADDRESS_MASK                = 0x000000ffL;
 constexpr unsigned int TA_CS_BC_BASE_ADDR__ADDRESS_MASK                   = 0xffffffffL;
 constexpr unsigned int TA_PERFCOUNTER0_HI__PERFCOUNTER_HI_MASK            = 0xffffffffL;
@@ -3308,7 +3270,6 @@ constexpr unsigned int TA_PERFCOUNTER1_HI__PERFCOUNTER_HI_MASK            = 0xff
 constexpr unsigned int TA_PERFCOUNTER1_LO__PERFCOUNTER_LO_MASK            = 0xffffffffL;
 constexpr unsigned int TA_PERFCOUNTER1_SELECT__CNTR_MODE_MASK             = 0x00f00000L;
 constexpr unsigned int TA_PERFCOUNTER1_SELECT__PERF_MODE_MASK             = 0xf0000000L;
-constexpr unsigned int TA_RESERVED_010C__Unused_MASK                      = 0xffffffffL;
 constexpr unsigned int TA_SCRATCH__SCRATCH_MASK                           = 0xffffffffL;
 constexpr unsigned int TA_STATUS__AL_BUSY_MASK                            = 0x40000000L;
 constexpr unsigned int TA_STATUS__BUSY_MASK                               = 0x80000000L;
@@ -3688,6 +3649,24 @@ namespace Core
     constexpr unsigned int ATC_PERFCOUNTER_RSLT_CNTL__START_TRIGGER_MASK      = 0x0000ff00L;
     constexpr unsigned int ATC_PERFCOUNTER_RSLT_CNTL__STOP_ALL_ON_SATURATE_MASK = 0x04000000L;
     constexpr unsigned int ATC_PERFCOUNTER_RSLT_CNTL__STOP_TRIGGER_MASK       = 0x00ff0000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__OFF_HYSTERESIS_MASK             = 0x00000ff0L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__ON_DELAY_MASK                   = 0x0000000fL;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE0_MASK             = 0x80000000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE1_MASK             = 0x40000000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE2_MASK             = 0x20000000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE3_MASK             = 0x10000000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE4_MASK             = 0x08000000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE5_MASK             = 0x04000000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE6_MASK             = 0x02000000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE7_MASK             = 0x01000000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE0_MASK       = 0x00800000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE1_MASK       = 0x00400000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE2_MASK       = 0x00200000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE3_MASK       = 0x00100000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE4_MASK       = 0x00080000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE5_MASK       = 0x00040000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE6_MASK       = 0x00020000L;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE7_MASK       = 0x00010000L;
     constexpr unsigned int CB_COLOR0_ATTRIB__FORCE_DST_ALPHA_1_MASK           = 0x00020000L;
     constexpr unsigned int CB_COLOR0_ATTRIB__NUM_FRAGMENTS_MASK               = 0x00018000L;
     constexpr unsigned int CB_COLOR0_ATTRIB__NUM_SAMPLES_MASK                 = 0x00007000L;
@@ -3802,6 +3781,8 @@ namespace Core
     constexpr unsigned int RPB_PERFCOUNTER_RSLT_CNTL__STOP_TRIGGER_MASK       = 0x00ff0000L;
     constexpr unsigned int RPB_PERF_COUNTER_CNTL__PERF_COUNTER_SELECT_MASK    = 0x00000003L;
     constexpr unsigned int SPI_CONFIG_CNTL_1__CRC_SIMD_ID_WADDR_DISABLE_MASK  = 0x00000100L;
+    constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_CNT_MASK            = 0x00003c00L;
+    constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_MODE_MASK           = 0x00000200L;
     constexpr unsigned int SPI_RESOURCE_RESERVE_CU_6__BARRIERS_MASK           = 0x00078000L;
     constexpr unsigned int SPI_RESOURCE_RESERVE_CU_6__LDS_MASK                = 0x00000f00L;
     constexpr unsigned int SPI_RESOURCE_RESERVE_CU_6__SGPR_MASK               = 0x000000f0L;
@@ -3840,7 +3821,32 @@ namespace Core
     constexpr unsigned int SQ_WAVE_INST_DW0__INST_DW0_MASK                    = 0xffffffffL;
     constexpr unsigned int SQ_WAVE_MODE__DEBUG_EN_MASK                        = 0x00000800L;
     constexpr unsigned int SQ_WAVE_TRAPSTS__DP_RATE_MASK                      = 0xe0000000L;
+    constexpr unsigned int SQ_WREXEC_EXEC_HI__ADDR_HI_MASK                    = 0x0000ffffL;
+    constexpr unsigned int SQ_WREXEC_EXEC_HI__FIRST_WAVE_MASK                 = 0x04000000L;
+    constexpr unsigned int SQ_WREXEC_EXEC_HI__MSB_MASK                        = 0x80000000L;
+    constexpr unsigned int SQ_WREXEC_EXEC_HI__MTYPE_MASK                      = 0x70000000L;
+    constexpr unsigned int SQ_WREXEC_EXEC_LO__ADDR_LO_MASK                    = 0xffffffffL;
+    constexpr unsigned int TA_CGTT_CTRL__OFF_HYSTERESIS_MASK                  = 0x00000ff0L;
+    constexpr unsigned int TA_CGTT_CTRL__ON_DELAY_MASK                        = 0x0000000fL;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE0_MASK                  = 0x80000000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE1_MASK                  = 0x40000000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE2_MASK                  = 0x20000000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE3_MASK                  = 0x10000000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE4_MASK                  = 0x08000000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE5_MASK                  = 0x04000000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE6_MASK                  = 0x02000000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE7_MASK                  = 0x01000000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE0_MASK            = 0x00800000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE1_MASK            = 0x00400000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE2_MASK            = 0x00200000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE3_MASK            = 0x00100000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE4_MASK            = 0x00080000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE5_MASK            = 0x00040000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE6_MASK            = 0x00020000L;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE7_MASK            = 0x00010000L;
     constexpr unsigned int TA_CNTL_AUX__GATHERH_DST_SEL_MASK                  = 0x00000040L;
+    constexpr unsigned int TA_CNTL__TD_FIFO_CREDIT_MASK                       = 0xffc00000L;
+    constexpr unsigned int TA_RESERVED_010C__Unused_MASK                      = 0xffffffffL;
 } // namespace Core
 
 namespace Gfx09
@@ -5659,12 +5665,6 @@ namespace Gfx10
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__FMASK_BIG_PAGE_MASK      = 0x40000000L;
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__FMASK_RD_POLICY_MASK     = 0x000c0000L;
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__FMASK_WR_POLICY_MASK     = 0x0000000cL;
-    constexpr unsigned int CB_STUTTER_CONTROL_CMASK_RDLAT__THRESHOLD_MASK     = 0x000000ffL;
-    constexpr unsigned int CB_STUTTER_CONTROL_CMASK_RDLAT__TIMEOUT_MASK       = 0x0000ff00L;
-    constexpr unsigned int CB_STUTTER_CONTROL_COLOR_RDLAT__THRESHOLD_MASK     = 0x000000ffL;
-    constexpr unsigned int CB_STUTTER_CONTROL_COLOR_RDLAT__TIMEOUT_MASK       = 0x0000ff00L;
-    constexpr unsigned int CB_STUTTER_CONTROL_FMASK_RDLAT__THRESHOLD_MASK     = 0x000000ffL;
-    constexpr unsigned int CB_STUTTER_CONTROL_FMASK_RDLAT__TIMEOUT_MASK       = 0x0000ff00L;
     constexpr unsigned int CHA_PERFCOUNTER0_HI__PERFCOUNTER_HI_MASK           = 0xffffffffL;
     constexpr unsigned int CHA_PERFCOUNTER0_LO__PERFCOUNTER_LO_MASK           = 0xffffffffL;
     constexpr unsigned int CHA_PERFCOUNTER0_SELECT1__PERF_MODE2_MASK          = 0x0f000000L;
@@ -6223,7 +6223,6 @@ namespace Gfx10
     constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_3__THREAD_TRACE_DRAW_MASK  = 0x00003000L;
     constexpr unsigned int PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__UNCERTAINTY_REGION_MULT_MASK = 0x06000000L;
     constexpr unsigned int PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__UNCERTAINTY_REGION_PBB_MULT_MASK = 0x18000000L;
-    constexpr unsigned int PA_SC_ENHANCE_1__DEBUG_PIXEL_PICKER_COUNT_PIXELS_MASK = 0x00002000L;
     constexpr unsigned int PA_SC_ENHANCE_2__BREAK_WHEN_ONE_NULL_PRIM_BATCH_MASK = 0x04000000L;
     constexpr unsigned int PA_SC_ENHANCE_2__DISABLE_BREAK_BATCH_ON_GFX_PIPELINE_RESET_MASK = 0x00040000L;
     constexpr unsigned int PA_SC_ENHANCE_2__DISABLE_BREAK_BATCH_ON_GFX_PIPE_SWITCH_MASK = 0x00000100L;
@@ -6628,9 +6627,7 @@ namespace Gfx10
     constexpr unsigned int SQ_WAVE_TRAPSTS__BUFFER_OOB_MASK                   = 0x00008000L;
     constexpr unsigned int TA_CNTL_AUX__ANISO_MAG_STEP_CLAMP_MASK             = 0x00000100L;
     constexpr unsigned int TA_CNTL_AUX__AUTO_ALIGN_FORMAT_MASK                = 0x00000200L;
-    constexpr unsigned int TA_POWER_CNTL__NOSAMPLER_CLK_EN_MODE_MASK          = 0x00080000L;
     constexpr unsigned int TA_POWER_CNTL__NOSAMPLER_CLK_VALID_DELAY_MASK      = 0x00070000L;
-    constexpr unsigned int TA_POWER_CNTL__SAMPLER_CLK_EN_MODE_MASK            = 0x00000008L;
     constexpr unsigned int TA_POWER_CNTL__SAMPLER_CLK_VALID_DELAY_MASK        = 0x00000007L;
     constexpr unsigned int TCP_PERFCOUNTER_FILTER2__REQ_MODE_MASK             = 0x00000007L;
     constexpr unsigned int TCP_PERFCOUNTER_FILTER_EN__COMPRESSION_ENABLE_MASK = 0x00000800L;
@@ -7461,6 +7458,12 @@ namespace Gfx10Core
     constexpr unsigned int CB_RMI_BC_GL2_CACHE_CONTROL__FMASK_RD_POLICY_MASK  = 0x000c0000L;
     constexpr unsigned int CB_RMI_BC_GL2_CACHE_CONTROL__FMASK_WR_POLICY_MASK  = 0x0000000cL;
     constexpr unsigned int CB_RMI_BC_GL2_CACHE_CONTROL__VOLAT_MASK            = 0x80000000L;
+    constexpr unsigned int CB_STUTTER_CONTROL_CMASK_RDLAT__THRESHOLD_MASK     = 0x000000ffL;
+    constexpr unsigned int CB_STUTTER_CONTROL_CMASK_RDLAT__TIMEOUT_MASK       = 0x0000ff00L;
+    constexpr unsigned int CB_STUTTER_CONTROL_COLOR_RDLAT__THRESHOLD_MASK     = 0x000000ffL;
+    constexpr unsigned int CB_STUTTER_CONTROL_COLOR_RDLAT__TIMEOUT_MASK       = 0x0000ff00L;
+    constexpr unsigned int CB_STUTTER_CONTROL_FMASK_RDLAT__THRESHOLD_MASK     = 0x000000ffL;
+    constexpr unsigned int CB_STUTTER_CONTROL_FMASK_RDLAT__TIMEOUT_MASK       = 0x0000ff00L;
     constexpr unsigned int DB_DFSM_CONFIG__OUTPUT_WATCHDOG_MASK               = 0xff000000L;
     constexpr unsigned int DB_DFSM_CONFIG__SQUAD_WATERMARK_MASK               = 0x00003ff0L;
     constexpr unsigned int DB_DFSM_FLUSH_ENABLE__PRIMARY_EVENTS_MASK          = 0x000007ffL;
@@ -7516,6 +7519,7 @@ namespace Gfx10Core
     constexpr unsigned int GRBM_PERFCOUNTER0_SELECT_HI__PMM_BUSY_USER_DEFINED_MASK_MASK = 0x00000040L;
     constexpr unsigned int GRBM_PERFCOUNTER1_SELECT_HI__GUS_BUSY_USER_DEFINED_MASK_MASK = 0x00000080L;
     constexpr unsigned int GRBM_PERFCOUNTER1_SELECT_HI__PMM_BUSY_USER_DEFINED_MASK_MASK = 0x00000040L;
+    constexpr unsigned int PA_SC_ENHANCE_1__DEBUG_PIXEL_PICKER_COUNT_PIXELS_MASK = 0x00002000L;
     constexpr unsigned int PA_SC_ENHANCE_2__ENABLE_BLOCKING_WRITES_OF_GEN2_REG_MASK = 0x00100000L;
     constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_BC_MASK                   = 0x00001000L;
     constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_VOL_MASK                  = 0x00004000L;
@@ -7568,6 +7572,8 @@ namespace Gfx10Core
     constexpr unsigned int SQ_WAVE_VGPR_OFFSET__SRC1_MASK                     = 0x00000fc0L;
     constexpr unsigned int SQ_WAVE_VGPR_OFFSET__SRC2_MASK                     = 0x0003f000L;
     constexpr unsigned int TA_CNTL_AUX__DERIV_ADJUST_DIS_MASK                 = 0x00000010L;
+    constexpr unsigned int TA_POWER_CNTL__NOSAMPLER_CLK_EN_MODE_MASK          = 0x00080000L;
+    constexpr unsigned int TA_POWER_CNTL__SAMPLER_CLK_EN_MODE_MASK            = 0x00000008L;
 } // namespace Gfx10Core
 
 namespace Nv10
@@ -8142,3 +8148,6 @@ namespace Vg20
     constexpr unsigned int TA_EDC_CNT__TA_FX_LFIFO_SED_COUNT_MASK             = 0x00000300L;
 } // namespace Vg20
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

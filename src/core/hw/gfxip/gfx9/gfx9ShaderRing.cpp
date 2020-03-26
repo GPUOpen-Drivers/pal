@@ -36,7 +36,8 @@ namespace Pal
 namespace Gfx9
 {
 
-constexpr uint32 WaveSizeGranularityShift = 8;
+constexpr size_t ScratchWaveSizeGranularityShift = 8;
+constexpr size_t ScratchWaveSizeGranularity      = (1ull << ScratchWaveSizeGranularityShift);
 
 // =====================================================================================================================
 // On GFXIP 9 hardware, buffer SRD's which set the ADD_TID_ENABLE bit in word3 changes the meaning of the DATA_FORMAT
@@ -63,9 +64,12 @@ static PAL_INLINE size_t AdjustScratchWaveSize(
 {
     // Clamp scratch wave size to be <= 2M - 256 per register spec requirement. This will ensure that the calculation
     // of number of waves below will not exceed what SPI can actually generate.
-    constexpr size_t MaxWaveSize = ((1 << 21) - 256);
-    const     size_t minWaveSize = (scratchWaveSize > 0) ? (1ull << WaveSizeGranularityShift) : 0;
-    return Max(Min(MaxWaveSize, scratchWaveSize), minWaveSize);
+    constexpr size_t MaxWaveSize        = ((1 << 21) - ScratchWaveSizeGranularity);
+    const     size_t minWaveSize        = (scratchWaveSize > 0) ? ScratchWaveSizeGranularity : 0;
+    const     size_t adjScratchWaveSize =
+        (scratchWaveSize > 0) ? RoundUpToMultiple(scratchWaveSize, ScratchWaveSizeGranularity) : scratchWaveSize;
+
+    return Max(Min(MaxWaveSize, adjScratchWaveSize), minWaveSize);
 }
 
 // =====================================================================================================================
@@ -105,14 +109,16 @@ gpusize ShaderRing::ComputeAllocationSize() const
 // =====================================================================================================================
 Result ShaderRing::AllocateVideoMemory(
     gpusize        memorySizeBytes,
-    ShaderRingType ringType)
+    ShaderRingType ringType,
+    ShaderRingMemory* pDeferredMem)
 {
     InternalMemMgr*const pMemMgr = m_pDevice->Parent()->MemMgr();
 
     if (m_ringMem.IsBound())
     {
-        // Need to release any preexisting memory allocation.
-        pMemMgr->FreeGpuMem(m_ringMem.Memory(), m_ringMem.Offset());
+        // store m_ringMem for later cleanup
+        pDeferredMem->pGpuMemory = m_ringMem.Memory();
+        pDeferredMem->offset     = m_ringMem.Offset();
         m_ringMem.Update(nullptr, 0);
     }
 
@@ -159,8 +165,9 @@ Result ShaderRing::AllocateVideoMemory(
 // =====================================================================================================================
 // Performs submit-time validation on this shader Ring so that any dirty state can be updated.
 Result ShaderRing::Validate(
-    size_t         itemSize, // Item size of the Ring to validate against (in DWORDs)
-    ShaderRingType ringType)
+    size_t            itemSize, // Item size of the Ring to validate against (in DWORDs)
+    ShaderRingType    ringType,
+    ShaderRingMemory* pDeferredMem)
 {
     Result result = Result::Success;
 
@@ -171,7 +178,7 @@ Result ShaderRing::Validate(
         const gpusize sizeNeeded = ComputeAllocationSize();
 
         // Attempt to allocate the video memory for this Ring.
-        result = AllocateVideoMemory(sizeNeeded, ringType);
+        result = AllocateVideoMemory(sizeNeeded, ringType, pDeferredMem);
         if (result == Result::Success)
         {
             // Track our current allocation size.
@@ -279,7 +286,7 @@ size_t ScratchRing::CalculateWaveSize() const
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
-    return AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.minWavefrontSize) >> WaveSizeGranularityShift;
+    return AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.minWavefrontSize) >> ScratchWaveSizeGranularityShift;
 }
 
 // =====================================================================================================================

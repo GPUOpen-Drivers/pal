@@ -35,7 +35,7 @@
 
 #include <limits.h>
 
-#if   defined(__unix__)
+#if defined(__unix__)
 #include <semaphore.h>
 
 // Define the POSIX SEM_VALUE_MAX constant to the required minimum value if the compiler didn't do it for us.
@@ -92,7 +92,7 @@ public:
 
 private:
 #if   defined(__unix__)
-    sem_t   m_osSemaphore;  // Linux-specific semaphore handle.
+    sem_t m_osSemaphore;  // Linux-specific semaphore handle.
 #endif
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Semaphore);

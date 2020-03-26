@@ -274,7 +274,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_drawIndexReg(UserDataNotMapped),
     m_log2NumSes(Log2(m_device.Parent()->ChipProperties().gfx9.numShaderEngines)),
     m_log2NumRbPerSe(Log2(m_device.Parent()->ChipProperties().gfx9.maxNumRbPerSe)),
-    m_log2NumSamples(0),
     m_pbbStateOverride(BinningOverride::Default),
     m_enabledPbb(false),
     m_customBinSizeX(0),
@@ -429,6 +428,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_sxBlendOptControl.u32All    = 0;
     m_cbRmiGl2CacheControl.u32All = 0;
     m_dbRenderOverride.u32All     = 0;
+    m_paScAaConfigNew.u32All      = 0;
+    m_paScAaConfigLast.u32All     = 0;
 
     SwitchDrawFunctions(false, false);
 }
@@ -653,11 +654,13 @@ void UniversalCmdBuffer::ResetState()
         m_vgtDmaIndexType.gfx09.RDREQ_POLICY = VGT_POLICY_STREAM;
     }
 
-    m_spiVsOutConfig.u32All = 0;
-    m_spiPsInControl.u32All = 0;
-    m_vgtLsHsConfig.u32All  = 0;
-    m_geCntl.u32All         = 0;
-    m_dbDfsmControl.u32All  = m_device.GetDbDfsmControl();
+    m_spiVsOutConfig.u32All   = 0;
+    m_spiPsInControl.u32All   = 0;
+    m_vgtLsHsConfig.u32All    = 0;
+    m_geCntl.u32All           = 0;
+    m_dbDfsmControl.u32All    = m_device.GetDbDfsmControl();
+    m_paScAaConfigNew.u32All  = 0;
+    m_paScAaConfigLast.u32All = 0;
 
     // Disable PBB at the start of each command buffer unconditionally. Each draw can set the appropriate
     // PBB state at validate time.
@@ -741,6 +744,10 @@ void UniversalCmdBuffer::ResetState()
     m_pipelinePsHash.lower = 0;
     m_pipelinePsHash.upper = 0;
     m_pipelineFlags.u32All = 0;
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    m_pipelineFlagsValid = false;
+#endif
 
     // Set this flag at command buffer Begin/Reset, in case the last draw of the previous chained command buffer has
     // rasterization killed.
@@ -833,6 +840,10 @@ void UniversalCmdBuffer::CmdBindPipeline(
         {
             m_state.flags.cbTargetMaskChanged = true;
         }
+
+        // Pipeline owns COVERAGE_TO_SHADER_SELECT
+        m_paScAaConfigNew.bits.COVERAGE_TO_SHADER_SELECT =
+            (pNewPipeline == nullptr) ? 0 : pNewPipeline->PaScAaConfig().bits.COVERAGE_TO_SHADER_SELECT;
     }
 
      Pal::UniversalCmdBuffer::CmdBindPipeline(params);
@@ -1006,6 +1017,9 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
     m_graphicsState.numSamplesPerPixel                               = numSamplesPerPixel;
     m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
 
+    // MsaaQuadSamplePattern owns MAX_SAMPLE_DIST
+    m_paScAaConfigNew.bits.MAX_SAMPLE_DIST = MsaaState::ComputeMaxSampleDistance(numSamplesPerPixel, quadSamplePattern);
+
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
     pDeCmdSpace = MsaaState::WriteSamplePositions(quadSamplePattern, numSamplesPerPixel, &m_deCmdStream, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -1092,10 +1106,15 @@ void UniversalCmdBuffer::CmdBindMsaaState(
         m_deCmdStream.CommitCommands(pDeCmdSpace);
 
         m_nggState.numSamples = pNewState->NumSamples();
+
+        // MSAA State owns MSAA_EXPOSED_SAMPLES and AA_MASK_CENTROID_DTMN
+        m_paScAaConfigNew.u32All = ((m_paScAaConfigNew.u32All         & (~MsaaState::PcScAaConfigMask)) |
+                                    (pNewState->PaScAaConfig().u32All &   MsaaState::PcScAaConfigMask));
     }
     else
     {
-        m_nggState.numSamples = 1;
+        m_nggState.numSamples    = 1;
+        m_paScAaConfigNew.u32All = (m_paScAaConfigNew.u32All & (~MsaaState::PcScAaConfigMask));
     }
 
     m_graphicsState.pMsaaState                          = pNewState;
@@ -3200,6 +3219,9 @@ Result UniversalCmdBuffer::AddPreamble()
 
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_OVERRIDE, dbRenderOverride.u32All, pDeCmdSpace);
 
+    // The draw-time validation will get confused unless we set PA_SC_AA_CONFIG to a known last value.
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_AA_CONFIG, m_paScAaConfigLast.u32All, pDeCmdSpace);
+
     if (isNested)
     {
         // Clear out the blend optimizations explicitly here as the chained command buffers don't have a way to check
@@ -3277,11 +3299,6 @@ Result UniversalCmdBuffer::AddPreamble()
         {
             // Nested command buffers inherit parts of the following registers and hence must not be reset
             // in the preamble.
-
-            // PA_SC_AA_CONFIG bits are updated based on MSAA state, pipeline state, CmdSetMsaaQuadSamplePattern
-            // and draw time validation based on dirty query state via RMW packets.
-            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_AA_CONFIG, 0, pDeCmdSpace);
-
             constexpr uint32 ZeroStencilRefMasks[] = { 0, 0 };
             pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_STENCILREFMASK,
                                                                mmDB_STENCILREFMASK_BF,
@@ -4649,6 +4666,10 @@ void UniversalCmdBuffer::ValidateDraw(
 
         pDeCmdSpace = SwitchGraphicsPipeline(pPrevSignature, pNewPipeline, pDeCmdSpace);
 
+#if PAL_ENABLE_PRINTS_ASSERTS
+        m_pipelineFlagsValid = true; ///< Setup in SwitchGraphicsPipeline()
+#endif
+
         // NOTE: Switching a graphics pipeline can result in a large amount of commands being written, so start a new
         // reserve/commit region before proceeding with validation.
         m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -4683,6 +4704,10 @@ void UniversalCmdBuffer::ValidateDraw(
     }
     else
     {
+#if PAL_ENABLE_PRINTS_ASSERTS
+        m_pipelineFlagsValid = true; ///< Valid for all for draw-time when pipeline isn't dirty.
+#endif
+
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfx)(nullptr, pDeCmdSpace);
@@ -4710,6 +4735,10 @@ void UniversalCmdBuffer::ValidateDraw(
         const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
         m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
     }
+#endif
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    m_pipelineFlagsValid = false;
 #endif
 }
 
@@ -4741,7 +4770,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo,
     uint32*                 pDeCmdSpace)
 {
-    if (static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline)->IsNgg())
+    if (IsNggEnabled())
     {
         pDeCmdSpace = ValidateDraw<Indexed,
                                    Indirect,
@@ -5108,66 +5137,68 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    // Underestimation may be used alone or as inner coverage.
-    bool onlyUnderestimation = false;
-
-    // Set the conservative rasterization register state.
-    // The final setting depends on whether inner coverage was used in the PS.
-    if ((PipelineDirty || (StateDirty && dirtyFlags.msaaState)) &&
-        (pMsaaState != nullptr))
+    if (PipelineDirty || (StateDirty && dirtyFlags.msaaState))
     {
-        auto paScConsRastCntl = pMsaaState->PaScConsRastCntl();
+        // Underestimation may be used alone or as inner coverage.
+        bool onlyUnderestimation = false;
 
-        if (pPipeline->UsesInnerCoverage())
+        // Set the conservative rasterization register state.
+        // The final setting depends on whether inner coverage was used in the PS.
+        if (pMsaaState != nullptr)
         {
-            paScConsRastCntl.bits.UNDER_RAST_ENABLE       = 1; // Inner coverage requires underestimating CR.
-            paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE = 0;
-        }
-        else
-        {
-            onlyUnderestimation = ((paScConsRastCntl.bits.UNDER_RAST_ENABLE == 1) &&
-                                   (paScConsRastCntl.bits.OVER_RAST_ENABLE  == 0));
+            auto paScConsRastCntl = pMsaaState->PaScConsRastCntl();
+
+            if (pPipeline->UsesInnerCoverage())
+            {
+                paScConsRastCntl.bits.UNDER_RAST_ENABLE       = 1; // Inner coverage requires underestimating CR.
+                paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE = 0;
+            }
+            else
+            {
+                onlyUnderestimation = ((paScConsRastCntl.bits.UNDER_RAST_ENABLE == 1) &&
+                                       (paScConsRastCntl.bits.OVER_RAST_ENABLE  == 0));
+            }
+
+            // Since the vast majority of pipelines do not use ConservativeRast, only update if it changed.
+            if (m_paScConsRastCntl.u32All != paScConsRastCntl.u32All)
+            {
+                pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
+                                                                       paScConsRastCntl.u32All,
+                                                                       pDeCmdSpace);
+                m_paScConsRastCntl.u32All = paScConsRastCntl.u32All;
+            }
         }
 
-        // Since the vast majority of pipelines do not use ConservativeRast, only update if it changed.
-        if (m_paScConsRastCntl.u32All != paScConsRastCntl.u32All)
+        // MSAA num samples are associated with the MSAA state object, but inner coverage affects how many samples are
+        // required. We need to update the value of this register.
+        // When the pixel shader uses inner coverage the rasterizer needs another "sample" to hold the inner coverage
+        // result.
+        const uint32 log2MsaaStateSamples = (pMsaaState != nullptr) ? pMsaaState->Log2NumSamples() : 0;
+        uint32       log2TotalSamples     = 0;
+
+        if (onlyUnderestimation == false)
         {
-            pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
-                                                                   paScConsRastCntl.u32All,
-                                                                   pDeCmdSpace);
-            m_paScConsRastCntl.u32All = paScConsRastCntl.u32All;
+            log2TotalSamples = log2MsaaStateSamples + pPipeline->UsesInnerCoverage();
         }
+
+        // The draw-time validation code owns MSAA_NUM_SAMPLES
+        m_paScAaConfigNew.bits.MSAA_NUM_SAMPLES = log2TotalSamples;
     }
 
-    // MSAA num samples are associated with the MSAA state object, but inner coverage affects how many samples are
-    // required. We need to update the value of this register.
-    // When the pixel shader uses inner coverage the rasterizer needs another "sample" to hold the inner coverage
-    // result.
-    const uint32 log2MsaaStateSamples = (pMsaaState != nullptr) ? pMsaaState->Log2NumSamples() : 0;
-    uint32       log2TotalSamples     = 0;
+    // Rewrite PA_SC_AA_CONFIG if any of its fields have changed. There are lots of state binds that can cause this
+    // in addition to the draw-time validation code above.
+    bool newAaConfigSamples = false;
 
-    if (!onlyUnderestimation)
+    if ((PipelineDirty || StateDirty) &&
+        (m_paScAaConfigNew.u32All != m_paScAaConfigLast.u32All))
     {
-        log2TotalSamples = log2MsaaStateSamples + (pPipeline->UsesInnerCoverage() ? 1 : 0);
-    }
+        newAaConfigSamples = (m_paScAaConfigNew.bits.MSAA_NUM_SAMPLES != m_paScAaConfigLast.bits.MSAA_NUM_SAMPLES);
 
-    // Else, use the underestimation result directly as the only covered sample.
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_AA_CONFIG,
+                                                               m_paScAaConfigNew.u32All,
+                                                               pDeCmdSpace);
 
-    const bool newAaConfigSamples = (m_log2NumSamples != log2TotalSamples);
-
-    if ((StateDirty && dirtyFlags.msaaState) ||
-        newAaConfigSamples                   ||
-        (m_state.flags.paScAaConfigUpdated == 0))
-    {
-        m_state.flags.paScAaConfigUpdated = 1;
-        m_log2NumSamples = log2TotalSamples;
-
-        regPA_SC_AA_CONFIG paScAaConfig = {};
-        paScAaConfig.bits.MSAA_NUM_SAMPLES = log2TotalSamples;
-        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<Pm4OptImmediate>(mmPA_SC_AA_CONFIG,
-                                                                        PA_SC_AA_CONFIG__MSAA_NUM_SAMPLES_MASK,
-                                                                        paScAaConfig.u32All,
-                                                                        pDeCmdSpace);
+        m_paScAaConfigLast.u32All = m_paScAaConfigNew.u32All;
     }
 
     bool disableDfsm = m_cachedSettings.disableDfsm;
@@ -5190,7 +5221,8 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         // If we're in EQAA for the purposes of this workaround then we have to kill DFSM.
         // Remember that the register is programmed in terms of log2, while the create info struct is in terms of
         // actual samples.
-        if (checkDfsmEqaaWa && (1u << m_log2NumSamples) != pDepthImage->Parent()->GetImageCreateInfo().samples)
+        if (checkDfsmEqaaWa &&
+            (1u << m_paScAaConfigLast.bits.MSAA_NUM_SAMPLES) != pDepthImage->Parent()->GetImageCreateInfo().samples)
         {
             disableDfsm = true;
         }
@@ -5321,11 +5353,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                                               drawInfo,
                                                                               pDeCmdSpace);
 
-    pDeCmdSpace = m_workaroundState.PreDraw<Indirect, StateDirty, Pm4OptImmediate>(m_graphicsState,
-                                                                                   &m_deCmdStream,
-                                                                                   this,
-                                                                                   drawInfo,
-                                                                                   pDeCmdSpace);
+    pDeCmdSpace = m_workaroundState.PreDraw<StateDirty, Pm4OptImmediate>(m_graphicsState,
+                                                                         &m_deCmdStream,
+                                                                         this,
+                                                                         pDeCmdSpace);
 
     if (IsNgg && (m_pSignatureGfx->nggCullingDataAddr != UserDataNotMapped))
     {
@@ -6377,7 +6408,7 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
 
 // =====================================================================================================================
 // Translates the supplied IA_MULTI_VGT_PARAM register to its equivalent GE_CNTL value
-template <bool isNgg>
+template <bool IsNgg>
 uint32 UniversalCmdBuffer::CalcGeCntl(
     bool                  usesLineStipple,
     regIA_MULTI_VGT_PARAM iaMultiVgtParam
@@ -6385,7 +6416,7 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
 {
     const     auto*  pPalPipeline         = m_graphicsState.pipelineState.pPipeline;
     const     auto*  pPipeline            = static_cast<const GraphicsPipeline*>(pPalPipeline);
-    const     bool   isTess               = pPipeline->IsTessEnabled();
+    const     bool   isTess               = IsTessEnabled();
     const     bool   isNggFastLaunch      = pPipeline->IsNggFastLaunch();
     const     bool   disableVertGrouping  = (m_cachedSettings.disableVertGrouping &&
                                              (isNggFastLaunch == false)           &&
@@ -6394,7 +6425,7 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
 
     regGE_CNTL  geCntl = {};
 
-    if ((isNgg == false) || isTess)
+    if ((IsNgg == false) || isTess)
     {
         // PRIMGROUP_SIZE is zero-based (i.e., zero means one) but PRIM_GRP_SIZE is one based (i.e., one means one).
         geCntl.bits.PRIM_GRP_SIZE = iaMultiVgtParam.bits.PRIMGROUP_SIZE + 1;
@@ -8100,6 +8131,10 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     // at draw-time based on Pipeline, MsaaState and DepthStencil Buffer. Always leak back since the nested
     // cmd buffer always updated the register.
     m_dbDfsmControl.u32All = cmdBuffer.m_dbDfsmControl.u32All;
+
+    // This state is also always updated by the nested command buffer and should leak back.
+    m_paScAaConfigNew.u32All  = cmdBuffer.m_paScAaConfigNew.u32All;
+    m_paScAaConfigLast.u32All = cmdBuffer.m_paScAaConfigLast.u32All;
 
     if (cmdBuffer.HasStreamOutBeenSet())
     {

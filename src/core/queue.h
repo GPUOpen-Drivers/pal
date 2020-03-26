@@ -283,6 +283,8 @@ public:
 
     virtual bool IsPresentModeSupported(PresentMode presentMode) const;
 
+    SubmissionContext* GetSubmissionContext() const { return m_pSubmissionContext; }
+
     // Performs OS-specific Queue submission behavior.
     virtual Result OsSubmit(
         const MultiSubmitInfo&    submitInfo,

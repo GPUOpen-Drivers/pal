@@ -374,12 +374,6 @@ namespace DevDriver
             {
                 memset(&m_pData[m_size], 0, (newSize - m_size) * sizeof(T));
             }
-            else if (newSize < m_size)
-            {
-                // This function only makes sense when increasing the size (or leaving the size as-is).
-                // If you're decreasing the size, prefer calling Resize directly.
-                DD_WARN_REASON("Calling ResizeAndZero to shrink acts just like Resize() - prefer calling Vector::Resize instead");
-            }
 
             m_size = newSize;
         }

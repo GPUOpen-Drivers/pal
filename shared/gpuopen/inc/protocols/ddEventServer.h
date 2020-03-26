@@ -47,12 +47,6 @@ class BaseEventProvider;
 struct EventChunk;
 class EventServerSession;
 
-struct EventChunkInfo
-{
-    EventChunk* pChunk;
-    size_t      bytesSent;
-};
-
 class EventServer final : public BaseProtocolServer
 {
     friend class BaseEventProvider;
@@ -73,17 +67,22 @@ public:
 private:
     Result AllocateEventChunk(EventChunk** ppChunk);
     void FreeEventChunk(EventChunk* pChunk);
-    Result EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks);
+    void EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks);
+    EventChunk* DequeueEventChunk();
     Result BuildQueryProvidersResponse(BlockId* pBlockId);
     Result ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate);
 
+    /// Limit the max amount of chunks that can be allocated at any one time
+    static constexpr size_t kMaxEventMemoryUsage = (128 * 1024 * 1024); // 128 MB
+    static constexpr size_t kMaxAllocatedEventChunks = (kMaxEventMemoryUsage / kEventChunkMaxDataSize);
+
     HashMap<EventProviderId, BaseEventProvider*, 16u> m_eventProviders;
-    Platform::Mutex                                   m_eventProvidersMutex;
-    Platform::Mutex                                   m_eventPoolMutex;
+    Platform::AtomicLock                              m_eventProvidersMutex;
+    Platform::AtomicLock                              m_eventPoolMutex;
     Vector<EventChunk*>                               m_eventChunkPool;
     Vector<EventChunk*>                               m_eventChunkAllocList;
-    Platform::Mutex                                   m_eventQueueMutex;
-    Queue<EventChunkInfo>                             m_eventChunkQueue;
+    Platform::AtomicLock                              m_eventQueueMutex;
+    Vector<EventChunk*>                               m_eventChunkQueue;
     EventServerSession*                               m_pActiveSession;
 };
 

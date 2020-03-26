@@ -220,6 +220,7 @@ static GfxBlendOptimizer::BlendOp HwEnumToBlendOp(
     uint32 hwEnum)
 {
     using namespace GfxBlendOptimizer;
+    using GfxBlendOptimizer::BlendOp;
 
     constexpr BlendOp ConversionTable[] =
     {
@@ -409,6 +410,7 @@ void ColorBlendState::InitBlendOpts(
     const ColorBlendStateCreateInfo& blend)
 {
     using namespace GfxBlendOptimizer;
+    using GfxBlendOptimizer::BlendOpt;
 
     for (uint32 ct = 0; ct < Pal::MaxColorTargets; ct++)
     {
@@ -504,6 +506,7 @@ uint8 ColorBlendState::WriteBlendOptimizations(
     ) const
 {
     using namespace GfxBlendOptimizer;
+    using GfxBlendOptimizer::BlendOpt;
 
     uint8 blendOptDirtyMask = 0;
 

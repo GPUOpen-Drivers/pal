@@ -71,7 +71,7 @@ static Result ParseExclusionFlags(ExclusionFlags* pFlags, const char* pString)
 PipelineRecordsIterator::PipelineRecordsIterator(const void* pBlobBegin, size_t blobSize)
     :
     m_record(),
-    m_reader(pBlobBegin, VoidPtrInc(pBlobBegin, blobSize)),
+    m_reader(pBlobBegin, blobSize),
     m_lastResult(Result::Success)
 {
     // Try and read the first item now, so that calls to Get() work immediately.
@@ -102,8 +102,7 @@ void PipelineRecordsIterator::Next()
 
         if (m_lastResult == Result::Success)
         {
-            record.pBinary = m_reader.Get();
-            m_lastResult = m_reader.Skip(record.header.size);
+            m_lastResult = m_reader.GetBytes(&record.pBinary, static_cast<size_t>(record.header.size));
         }
 
         if (m_lastResult == Result::Success)

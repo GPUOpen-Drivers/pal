@@ -25,6 +25,12 @@
 
 #pragma once
 
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 typedef union ATC_L2_PERFCOUNTER0_CFG                            regATC_L2_PERFCOUNTER0_CFG;
 typedef union ATC_L2_PERFCOUNTER1_CFG                            regATC_L2_PERFCOUNTER1_CFG;
 typedef union ATC_L2_PERFCOUNTER_HI                              regATC_L2_PERFCOUNTER_HI;
@@ -2958,3 +2964,6 @@ typedef union WD_QOS                                             regWD_QOS;
 typedef union WD_UTCL1_CNTL                                      regWD_UTCL1_CNTL;
 typedef union WD_UTCL1_STATUS                                    regWD_UTCL1_STATUS;
 typedef union XDMA_SLV_FLIP_PENDING                              regXDMA_SLV_FLIP_PENDING;
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

@@ -291,7 +291,6 @@ namespace DevDriver
 
                 // The Windows kernel platform does not have access to std::is_empty or std::is_union
 
-
                 // We need to make sure the caller has passed an acceptable type for the key.
                 // The point of the key is to provide some data we can use to calculate a hash. Empty types don't have data that
                 // uniquely identifies them when compared to another copy of that type. Unions are combinations of multiple types

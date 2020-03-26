@@ -41,10 +41,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(DD_PLATFORM_LINUX_UM)
+#if defined(DD_PLATFORM_DARWIN_UM)
+    #include <dispatch/dispatch.h>
+#elif defined(DD_PLATFORM_LINUX_UM)
     #include <semaphore.h>
 #else
-    static_assert(false, "Unknown platform detected")
+    static_assert(false, "Unknown platform detected");
 #endif
 
 #define DD_RESTRICT __restrict__
@@ -130,6 +132,8 @@ namespace DevDriver
 
 #if defined(DD_PLATFORM_LINUX_UM)
         typedef sem_t SemaphoreStorage;
+#elif defined(DD_PLATFORM_DARWIN_UM)
+        typedef dispatch_semaphore_t SemaphoreStorage;
 #endif
 
         typedef pthread_t ThreadHandle;

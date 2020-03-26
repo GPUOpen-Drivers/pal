@@ -323,55 +323,8 @@ Result GraphicsPipeline::HwlInit(
 
         if (result == Result::Success)
         {
-            MetroHash64 hasher;
-
-            if (IsTessEnabled())
-            {
-                m_chunkHs.LateInit(abiProcessor, registers, &uploader, &hasher);
-            }
-            if (IsGsEnabled() || IsNgg())
-            {
-                m_chunkGs.LateInit(abiProcessor, metadata, registers, loadInfo, &uploader, &hasher);
-            }
-            m_chunkVsPs.LateInit(abiProcessor, metadata, registers, loadInfo, createInfo, &uploader, &hasher);
-
-            SetupCommonRegisters(createInfo, registers, &uploader);
-            SetupNonShaderRegisters(createInfo, registers, &uploader);
-            SetupStereoRegisters();
-
-            if (uploader.EnableLoadIndexPath())
-            {
-                m_loadPath.gpuVirtAddrCtx = uploader.CtxRegGpuVirtAddr();
-                m_loadPath.countCtx       = uploader.CtxRegisterCount();
-                m_loadPath.gpuVirtAddrSh  = uploader.ShRegGpuVirtAddr();
-                m_loadPath.countSh        = uploader.ShRegisterCount();
-            }
-
+            LateInit(createInfo, abiProcessor, metadata, registers, loadInfo, &uploader);
             result = uploader.End();
-
-            if (result == Result::Success)
-            {
-                MetroHash::Hash hash = {};
-
-                hasher.Update(m_regs.context);
-                hasher.Finalize(hash.bytes);
-                m_contextRegHash = MetroHash::Compact32(&hash);
-
-                // We write our config registers in a separate function so they get their own hash.
-                // Also, we only set config registers on gfx10+.
-                if (IsGfx10(m_gfxLevel))
-                {
-                    hasher.Initialize();
-                    hasher.Update(m_regs.uconfig);
-                    hasher.Finalize(hash.bytes);
-                    m_configRegHash = MetroHash::Compact32(&hash);
-                }
-
-                m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_prefetch);
-
-                // Updating the ring sizes expects that all of the register state has been set up.
-                UpdateRingSizes(metadata);
-            }
         }
     }
 
@@ -396,6 +349,61 @@ Result GraphicsPipeline::HwlInit(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+void GraphicsPipeline::LateInit(
+    const GraphicsPipelineCreateInfo& createInfo,
+    const AbiProcessor&               abiProcessor,
+    const CodeObjectMetadata&         metadata,
+    const RegisterVector&             registers,
+    const GraphicsPipelineLoadInfo&   loadInfo,
+    GraphicsPipelineUploader*         pUploader)
+{
+    MetroHash64 hasher;
+
+    if (IsTessEnabled())
+    {
+        m_chunkHs.LateInit(abiProcessor, registers, pUploader, &hasher);
+    }
+    if (IsGsEnabled() || IsNgg())
+    {
+        m_chunkGs.LateInit(abiProcessor, metadata, registers, loadInfo, pUploader, &hasher);
+    }
+    m_chunkVsPs.LateInit(abiProcessor, metadata, registers, loadInfo, createInfo, pUploader, &hasher);
+
+    SetupCommonRegisters(createInfo, registers, pUploader);
+    SetupNonShaderRegisters(createInfo, registers, pUploader);
+    SetupStereoRegisters();
+
+    if (pUploader->EnableLoadIndexPath())
+    {
+        m_loadPath.gpuVirtAddrCtx = pUploader->CtxRegGpuVirtAddr();
+        m_loadPath.countCtx       = pUploader->CtxRegisterCount();
+        m_loadPath.gpuVirtAddrSh  = pUploader->ShRegGpuVirtAddr();
+        m_loadPath.countSh        = pUploader->ShRegisterCount();
+    }
+
+    MetroHash::Hash hash = {};
+
+    hasher.Update(m_regs.context);
+    hasher.Finalize(hash.bytes);
+    m_contextRegHash = MetroHash::Compact32(&hash);
+
+    // We write our config registers in a separate function so they get their own hash.
+    // Also, we only set config registers on gfx10+.
+    if (IsGfx10(m_gfxLevel))
+    {
+        hasher.Initialize();
+        hasher.Update(m_regs.uconfig);
+        hasher.Finalize(hash.bytes);
+        m_configRegHash = MetroHash::Compact32(&hash);
+    }
+
+    m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(*pUploader, &m_prefetch);
+
+    // Updating the ring sizes expects that all of the register state has been setup.
+    UpdateRingSizes(metadata);
 }
 
 // =====================================================================================================================

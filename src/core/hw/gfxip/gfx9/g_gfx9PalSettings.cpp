@@ -81,12 +81,13 @@ void SettingsLoader::SetupDefaults()
     m_settings.fmaskCompressDisable = false;
     m_settings.fmaskAllowPipeBankXor = false;
     m_settings.dccOnComputeEnable = 0x3;
-    m_settings.useDcc = 0x9ff;
+    m_settings.useDcc = 0x19ff;
     m_settings.cbDbCachePolicy = 0x0;
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
     m_settings.csSimdDestCntl = CsSimdDestCntlDefault;
     m_settings.htileEnable = true;
+    m_settings.forceEnableIterate256 = false;
     m_settings.allowDepthCopyResolve = true;
     m_settings.depthCompressEnable = true;
     m_settings.stencilCompressEnable = true;
@@ -358,6 +359,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pHtileEnableStr,
                            Util::ValueType::Boolean,
                            &m_settings.htileEnable,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceEnableIterate256Str,
+                           Util::ValueType::Boolean,
+                           &m_settings.forceEnableIterate256,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllowDepthCopyResolveStr,
@@ -994,6 +1000,11 @@ void SettingsLoader::RereadSettings()
                            &m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAllowNggOnAllCusWgpsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.allowNggOnAllCusWgps,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfx10GePcAllocNumLinesPerSeNggCullingStr,
                            Util::ValueType::Uint,
                            &m_settings.gfx10GePcAllocNumLinesPerSeNggCulling,
@@ -1002,6 +1013,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSupportedStr,
                            Util::ValueType::Boolean,
                            &m_settings.nggSupported,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggLateAllocGsStr,
+                           Util::ValueType::Uint,
+                           &m_settings.nggLateAllocGs,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableBinningPsKillStr,
@@ -1346,6 +1362,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.htileEnable;
     info.valueSize = sizeof(m_settings.htileEnable);
     m_settingsInfoMap.Insert(2379988876, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.forceEnableIterate256;
+    info.valueSize = sizeof(m_settings.forceEnableIterate256);
+    m_settingsInfoMap.Insert(3775486764, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.allowDepthCopyResolve;
@@ -1978,7 +1999,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 2715017244;
+            component.settingsDataHash = 841052370;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

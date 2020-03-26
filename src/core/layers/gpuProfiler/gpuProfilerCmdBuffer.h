@@ -805,7 +805,8 @@ public:
     TargetCmdBuffer(
         const CmdBufferCreateInfo& createInfo,
         ICmdBuffer*                pNextCmdBuffer,
-        const DeviceDecorator*     pNextDevice);
+        const DeviceDecorator*     pNextDevice,
+        uint32                     subQueueIdx);
 
     Result Init();
 
@@ -827,6 +828,9 @@ public:
     Result GetLastResult() const { return m_result; }
     void SetLastResult(Result result);
 
+    bool IsFromMasterSubQue() const { return m_subQueueIdx == 0; }
+    uint32 GetSubQueueIdx() const { return m_subQueueIdx; }
+
 protected:
     virtual ~TargetCmdBuffer() {}
 
@@ -845,6 +849,9 @@ private:
     GpuUtil::GpaSession*         m_pGpaSession;
 
     Result                       m_result; // Result from attempted operations.
+
+    // The subQueue to which this tgtCmdBuf belongs. This won't change onced the tgtCmdBuf is created.
+    const uint32                 m_subQueueIdx;
 
     PAL_DISALLOW_DEFAULT_CTOR(TargetCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(TargetCmdBuffer);

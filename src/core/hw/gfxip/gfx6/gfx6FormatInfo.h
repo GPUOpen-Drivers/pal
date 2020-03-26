@@ -35,6 +35,7 @@ namespace Formats
 {
 namespace Gfx6
 {
+namespace Chip = Pal::Gfx6::Chip;
 
 // The maximum number of channel/swizzle pairs that can correspond to a HW image format and a HW buffer format.
 constexpr uint32 MaxImgDataMappings = 4;
@@ -46,21 +47,21 @@ constexpr uint32 MaxBufNumFormats = 8;
 // Stores each channel format and its corresponding HW enums.  Format for ChannelFmtInfoTbl .
 struct MergedFmtInfo
 {
-    ChNumFormat     format;        // PAL channel format enum.
-    ColorFormat     hwColorFmt;    // Corresponding HW color block (CB) format enum.
-    SurfaceNumber   hwColorNumFmt; // Corresponding HW color block (CB) numeric format enum.
-    IMG_DATA_FORMAT hwImgDataFmt;  // Corresponding HW texture block image descriptor format enum.
-    IMG_NUM_FORMAT  hwImgNumFmt;   // Corresponding HW texture block image descriptor numeric format enum.
-    BUF_DATA_FORMAT hwBufDataFmt;  // Corresponding HW texture block buffer descriptor format enum.
-    BUF_NUM_FORMAT  hwBufNumFmt;   // Corresponding HW texture block buffer descriptor numeric format enum.
-    ZFormat         hwZFmt;        // Corresponding HW depth block (DB) Z format enum.
-    StencilFormat   hwStencilFmt;  // Corresponding HW depth block (DB) stencil format enum.
+    ChNumFormat           format;        // PAL channel format enum.
+    Chip::ColorFormat     hwColorFmt;    // Corresponding HW color block (CB) format enum.
+    Chip::SurfaceNumber   hwColorNumFmt; // Corresponding HW color block (CB) numeric format enum.
+    Chip::IMG_DATA_FORMAT hwImgDataFmt;  // Corresponding HW texture block image descriptor format enum.
+    Chip::IMG_NUM_FORMAT  hwImgNumFmt;   // Corresponding HW texture block image descriptor numeric format enum.
+    Chip::BUF_DATA_FORMAT hwBufDataFmt;  // Corresponding HW texture block buffer descriptor format enum.
+    Chip::BUF_NUM_FORMAT  hwBufNumFmt;   // Corresponding HW texture block buffer descriptor numeric format enum.
+    Chip::ZFormat         hwZFmt;        // Corresponding HW depth block (DB) Z format enum.
+    Chip::StencilFormat   hwStencilFmt;  // Corresponding HW depth block (DB) stencil format enum.
 };
 
 // Stores each HW texture block image descriptor format and its corresponding formats.
 struct MergedImgDataFmtInfo
 {
-    IMG_DATA_FORMAT imgDataFmt; // HW texture block image descriptor format enum.
+    Chip::IMG_DATA_FORMAT imgDataFmt; // HW texture block image descriptor format enum.
     // All valid channel formats for imgDataFmt (or Undefined).
     ChNumFormat     mappings[MaxImgNumFormats][MaxImgDataMappings];
 };
@@ -68,30 +69,30 @@ struct MergedImgDataFmtInfo
 // Stores each HW texture block buffer descriptor format and its corresponding formats.
 struct MergedBufDataFmtInfo
 {
-    BUF_DATA_FORMAT bufDataFmt; // HW texture block buffer descriptor format enum.
+    Chip::BUF_DATA_FORMAT bufDataFmt; // HW texture block buffer descriptor format enum.
     // All valid channel formats for imgDataFmt (or Undefined).
     ChNumFormat     mappings[MaxBufNumFormats][MaxImgDataMappings];
 };
 
 extern const MergedFmtInfo*  MergedChannelFmtInfoTbl(GfxIpLevel gfxIpLevel);
 
-extern SQ_SEL_XYZW01 HwSwizzle(ChannelSwizzle swizzle);
-extern ChannelSwizzle ChannelSwizzleFromHwSwizzle(SQ_SEL_XYZW01 hwSwizzle);
+extern Chip::SQ_SEL_XYZW01 HwSwizzle(ChannelSwizzle swizzle);
+extern ChannelSwizzle ChannelSwizzleFromHwSwizzle(Chip::SQ_SEL_XYZW01 hwSwizzle);
 
-extern IMG_DATA_FORMAT HwImgDataFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
-extern IMG_NUM_FORMAT  HwImgNumFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
-extern ChNumFormat FmtFromHwImgFmt(IMG_DATA_FORMAT imgDataFmt, IMG_NUM_FORMAT imgNumFmt, GfxIpLevel gfxIpLevel);
+extern Chip::IMG_DATA_FORMAT HwImgDataFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
+extern Chip::IMG_NUM_FORMAT  HwImgNumFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
+extern ChNumFormat FmtFromHwImgFmt(Chip::IMG_DATA_FORMAT imgDataFmt, Chip::IMG_NUM_FORMAT imgNumFmt, GfxIpLevel gfxIpLevel);
 
-extern BUF_DATA_FORMAT HwBufDataFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
-extern BUF_NUM_FORMAT  HwBufNumFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
-extern ChNumFormat FmtFromHwBufFmt(BUF_DATA_FORMAT bufDataFmt, BUF_NUM_FORMAT bufNumFmt, GfxIpLevel gfxIpLevel);
+extern Chip::BUF_DATA_FORMAT HwBufDataFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
+extern Chip::BUF_NUM_FORMAT  HwBufNumFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
+extern ChNumFormat FmtFromHwBufFmt(Chip::BUF_DATA_FORMAT bufDataFmt, Chip::BUF_NUM_FORMAT bufNumFmt, GfxIpLevel gfxIpLevel);
 
-extern ColorFormat HwColorFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
-extern SurfaceNumber ColorSurfNum(const MergedFmtInfo fmtInfo[], ChNumFormat format);
-extern SurfaceSwap ColorCompSwap(SwizzledFormat swizzledFormat);
+extern Chip::ColorFormat HwColorFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
+extern Chip::SurfaceNumber ColorSurfNum(const MergedFmtInfo fmtInfo[], ChNumFormat format);
+extern Chip::SurfaceSwap ColorCompSwap(SwizzledFormat swizzledFormat);
 
-extern ZFormat HwZFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
-extern StencilFormat HwStencilFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
+extern Chip::ZFormat HwZFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
+extern Chip::StencilFormat HwStencilFmt(const MergedFmtInfo fmtInfo[], ChNumFormat format);
 
 constexpr uint32 FastColorClearBppLimit = 64;
 extern bool SupportsFastColorClear(ChNumFormat format);

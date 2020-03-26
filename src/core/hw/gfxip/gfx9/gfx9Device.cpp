@@ -4227,7 +4227,6 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numShaderArrays                = 2;
         pInfo->gfx9.maxGsWavesPerVgt               = 32;
         pInfo->gfx9.parameterCacheLines            = 1024;
-        pInfo->gfx9.numTccBlocks                   = 40;
         pInfo->gfx9.supportSpp                     = 1;
         pInfo->gfx9.supportMsaaCoverageOut         = 1;
         pInfo->gfx9.supportReleaseAcquireInterface = 1;
@@ -4237,7 +4236,8 @@ void InitializeGpuChipProperties(
         pInfo->imageProperties.flags.supportsCornerSampling = 1;
 
         // This is the common gl2 config for most gfx10 ASICs.
-        pInfo->gfx9.gfx10.numGl2a                  = 4;
+        pInfo->gfx9.gfx10.numGl2a = 4;
+        pInfo->gfx9.gfx10.numGl2c = 16;
 
         if (AMDGPU_IS_NAVI10(pInfo->familyId, pInfo->eRevId))
         {
@@ -4262,6 +4262,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numSdpInterfaces    = 8;
             pInfo->gfx9.parameterCacheLines = 512;
             pInfo->gfx9.gfx10.numGl2a       = 2;
+            pInfo->gfx9.gfx10.numGl2c       = 8;
         }
         else
         {

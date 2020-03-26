@@ -3447,21 +3447,21 @@ size_t CmdUtil::BuildCommentString(
     const char* pComment,
     void*       pBuffer) const
 {
-    const size_t stringLength         = strlen(pComment) + 1;
-    const size_t packetSize           = PM4_CMD_NOP_DWORDS + 3 + (stringLength + 3) / sizeof(uint32);
-    auto*const   pPacket              = static_cast<PM4CMDNOP*>(pBuffer);
-    uint32*      pData                = reinterpret_cast<uint32*>(pPacket + 1);
+    const size_t      stringLength = strlen(pComment) + 1;
+    const size_t      packetSize   = PM4_CMD_NOP_DWORDS + 3 + (stringLength + 3) / sizeof(uint32);
+    auto*const        pPacket      = static_cast<PM4CMDNOP*>(pBuffer);
+    CmdBufferPayload* pData        = reinterpret_cast<CmdBufferPayload*>(pPacket + 1);
 
-    PAL_ASSERT(stringLength < CmdBuffer::MaxCommentStringLength);
+    PAL_ASSERT(stringLength < MaxPayloadSize);
 
     // Build header (NOP, signature, size, type)
     pPacket->header.u32All = Type3Header(IT_NOP, static_cast<uint32>(packetSize));
-    pData[0]               = CmdBuffer::CommentSignature;
-    pData[1]               = static_cast<uint32>(packetSize);
-    pData[2]               = static_cast<uint32>(CmdBufferCommentType::String);
+    pData->signature       = CmdBufferPayloadSignature;
+    pData->payloadSize     = static_cast<uint32>(packetSize);
+    pData->type            = CmdBufferPayloadType::String;
 
     // Append data
-    memcpy(pData + 3, pComment, stringLength);
+    memcpy(&pData->payload[0], pComment, stringLength);
 
     return packetSize;
 }

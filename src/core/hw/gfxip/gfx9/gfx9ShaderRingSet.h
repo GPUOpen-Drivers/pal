@@ -82,6 +82,15 @@ struct ShaderRingItemSizes
                   "The compute ring set must be a subset of the universal ring set.");
 };
 
+struct ShaderRingMemory
+{
+    GpuMemory*  pGpuMemory;
+    gpusize     offset;
+    uint64      timestamp;      // last submitted timestamp value
+};
+
+typedef Util::Vector<ShaderRingMemory, 8, Platform> ShaderRingMemList;
+
 // =====================================================================================================================
 // A ShaderRingSet object contains all of the shader Rings used by command buffers which run on a particular Queue.
 // Additionally, each Ring Set also manages the PM4 image of commands which write the ring state to hardware.
@@ -92,7 +101,8 @@ public:
 
     virtual Result Init();
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            const SamplePatternPalette& samplePatternPalette);
+                            const SamplePatternPalette& samplePatternPalette,
+                            const uint64                lastTimeStamp);
 
     // Writes the per-Ring-Set register state into the specified command stream.
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
@@ -101,6 +111,8 @@ public:
 
     size_t SrdTableSize() const { return (sizeof(BufferSrd) * m_numSrds); }
     size_t TotalMemSize() const { return SrdTableSize(); }
+
+    void ClearDeferredFreeMemory(SubmissionContext* pSubmissionCtx);
 
 protected:
     ShaderRingSet(Device* pDevice, size_t numRings, size_t numSrds);
@@ -112,6 +124,9 @@ protected:
     BufferSrd*        m_pSrdTable;
     const GfxIpLevel  m_gfxLevel;
     BoundGpuMemory    m_srdTableMem;
+
+    ShaderRingMemList m_deferredFreeMemList;
+    uint32            m_freedItemCount;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(ShaderRingSet);
@@ -128,7 +143,8 @@ public:
 
     virtual Result Init() override;
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            const SamplePatternPalette& samplePatternPalette) override;
+                            const SamplePatternPalette& samplePatternPalette,
+                            uint64                      lastTimeStamp) override;
 
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
 
@@ -159,7 +175,8 @@ public:
 
     virtual Result Init() override;
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            const SamplePatternPalette& samplePatternPalette) override;
+                            const SamplePatternPalette& samplePatternPalette,
+                            uint64                      lastTimeStamp) override;
 
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
 

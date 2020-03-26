@@ -56,12 +56,11 @@ public:
         const UniversalCmdBufferState& universalState);
     ~WorkaroundState() {}
 
-    template <bool indirect, bool stateDirty, bool pm4OptImmediate>
+    template <bool StateDirty, bool Pm4OptImmediate>
     uint32* PreDraw(
         const GraphicsState&    gfxState,
         CmdStream*              pDeCmdStream,
         UniversalCmdBuffer*     pCmdBuffer,
-        const ValidateDrawInfo& drawInfo,
         uint32*                 pCmdSpace);
     uint32* SwitchFromNggPipelineToLegacy(
         bool    nextPipelineUsesGs,

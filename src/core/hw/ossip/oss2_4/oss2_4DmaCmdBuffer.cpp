@@ -34,6 +34,7 @@ namespace Pal
 {
 namespace Oss2_4
 {
+using namespace Pal::Gfx6::Chip;
 
 #include "core/hw/ossip/oss2_4/sdma24_pkt_struct.h"
 

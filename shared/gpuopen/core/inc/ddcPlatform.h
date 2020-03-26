@@ -108,11 +108,18 @@ typedef void (*ThreadFunction)(void* pThreadParameter);
 
 } // namespace DevDriver
 
-#if   defined(DD_PLATFORM_LINUX_UM)
+#if defined(DD_PLATFORM_WINDOWS_UM)
+    #include <platforms/ddWinPlatform.h>
+#elif defined(DD_PLATFORM_DARWIN_UM)
+    #include <platforms/ddPosixPlatform.h>
+#elif defined(DD_PLATFORM_LINUX_UM)
     #include <platforms/ddPosixPlatform.h>
 #else
     // Legacy system for Ati Make
-    #if   defined(__linux__)
+    #if defined(_WIN32) && !defined(_KERNEL_MODE)
+        #define DD_PLATFORM_WINDOWS_UM
+        #include <platforms/ddWinPlatform.h>
+    #elif defined(__linux__)
         #define DD_PLATFORM_LINUX_UM
         #include <platforms/ddPosixPlatform.h>
     #else
@@ -720,6 +727,9 @@ static inline const char* ResultToString(Result result)
         case Result::FunctionNotFound:   return "FunctionNotFound";
         case Result::InterfaceNotFound:  return "InterfaceNotFound";
         case Result::EntryExists:        return "EntryExists";
+        case Result::FileAccessError:    return "FileAccessError";
+        case Result::FileIoError:        return "FileIoError";
+        case Result::LimitReached:       return "LimitReached";
 
         //// URI PROTOCOL  ////
         case Result::UriServiceRegistrationError:  return "UriServiceRegistrationError";

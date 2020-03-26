@@ -27,9 +27,20 @@
 #include "core/queue.h"
 #include "core/platform.h"
 #include "core/gpuMemory.h"
-#include "palSysUtil.h"
 #include "core/devDriverUtil.h"
+
+#include "palSysUtil.h"
 #include "devDriverServer.h"
+
+#include "core/devDriverEventService.h"
+#include "core/devDriverEventServiceConv.h"
+#include "core/eventDefs.h"
+#include "core/gpuMemory.h"
+
+#include "palSysUtil.h"
+
+#include "util/rmtTokens.h"
+#include "util/rmtResourceDescriptions.h"
 
 using namespace Util;
 using namespace DevDriver;
@@ -37,112 +48,87 @@ using namespace DevDriver;
 namespace Pal
 {
 
+static constexpr uint32 kEventFlushTimeoutInMs = 10;
+
+static const char kEventDescription[] = "All available events are RmtTokens directly embedded.";
+
+const void* EventProvider::GetEventDescriptionData() const
+{
+    return kEventDescription;
+}
+
+uint32 EventProvider::GetEventDescriptionDataSize() const
+{
+    return sizeof(kEventDescription);
+}
+
 EventProvider::EventProvider(Platform* pPlatform)
         :
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        DevDriver::EventProtocol::EventProvider(),
-#endif
+        DevDriver::EventProtocol::BaseEventProvider(
+            { pPlatform, DevDriverAlloc, DevDriverFree },
+            static_cast<uint32>(PalEvent::Count),
+            kEventFlushTimeoutInMs
+        ),
         m_pPlatform(pPlatform),
-        m_isFileLoggingActive(false),
-        m_eventStream(pPlatform),
-        m_jsonWriter(&m_eventStream),
-        m_eventService({ pPlatform, DevDriverAlloc, DevDriverFree })
+        m_eventService({ pPlatform, DevDriverAlloc, DevDriverFree }),
+        m_eventTimer()
         {}
 
 // =====================================================================================================================
 Result EventProvider::Init()
 {
-    Result result = m_jsonWriterMutex.Init();
+    Result result = Result::Success;
 
-    if (result == Result::Success)
+    // The event provider runs in a no-op mode when developer mode is not enabled
+    if (m_pPlatform->IsDeveloperModeEnabled())
     {
-        result = m_eventStreamMutex.Init();
-    }
+        DevDriverServer* pServer = m_pPlatform->GetDevDriverServer();
+        PAL_ASSERT(pServer != nullptr);
 
-    if ((result == Result::Success) && (m_pPlatform->GetDevDriverServer() != nullptr))
-    {
-        result = (m_pPlatform->GetDevDriverServer()->GetMessageChannel()->RegisterService(&m_eventService) ==
-                  DevDriver::Result::Success) ? Result::Success : Result::ErrorUnknown;
+        IMsgChannel* pMsgChannel = pServer->GetMessageChannel();
+        PAL_ASSERT(pMsgChannel != nullptr);
+
+        EventProtocol::EventServer* pEventServer = pServer->GetEventServer();
+        PAL_ASSERT(pEventServer != nullptr);
+
+        result =
+            (pMsgChannel->RegisterService(&m_eventService) == DevDriver::Result::Success) ? Result::Success
+                                                                                          : Result::ErrorUnknown;
+
+        if (result == Result::Success)
+        {
+            result =
+                (pEventServer->RegisterProvider(this) == DevDriver::Result::Success) ? Result::Success
+                                                                                     : Result::ErrorUnknown;
+
+            if (result != Result::Success)
+            {
+                DD_UNHANDLED_RESULT(pMsgChannel->UnregisterService(&m_eventService));
+            }
+        }
     }
 
     return result;
 }
 
 // =====================================================================================================================
-// Destroys this EventProvider, flushing and closing the event log file if necessary.
 void EventProvider::Destroy()
 {
-    MutexAuto lock(&m_eventStreamMutex);
-    if (m_isFileLoggingActive)
+    // The event provider runs in a no-op mode when developer mode is not enabled
+    if (m_pPlatform->IsDeveloperModeEnabled())
     {
-        EndEventLogStream(&m_jsonWriter);
-        m_eventStream.CloseFile();
+        DevDriverServer* pServer = m_pPlatform->GetDevDriverServer();
+        PAL_ASSERT(pServer != nullptr);
+
+        IMsgChannel* pMsgChannel = pServer->GetMessageChannel();
+        PAL_ASSERT(pMsgChannel != nullptr);
+
+        EventProtocol::EventServer* pEventServer = pServer->GetEventServer();
+        PAL_ASSERT(pEventServer != nullptr);
+
+        DD_UNHANDLED_RESULT(pEventServer->UnregisterProvider(this));
+        DD_UNHANDLED_RESULT(pMsgChannel->UnregisterService(&m_eventService));
     }
-}
-
-// =====================================================================================================================
-// Enables logging of events to the specified file
-Result EventProvider::EnableFileLogging(
-    const char* pFilePath)
-{
-    MutexAuto lock(&m_eventStreamMutex);
-
-    m_isFileLoggingActive = true;
-
-    // Try to open the file
-    Result result = Result::Success;
-    if (pFilePath != nullptr)
-    {
-        result = m_eventStream.OpenFile(pFilePath);
-    }
-
-    if (result == Result::Success)
-    {
-        BeginEventLogStream(&m_jsonWriter);
-        PalEventFileHeader header = {};
-        header.version = PAL_EVENT_LOG_VERSION;
-        header.headerSize = sizeof(PalEventFileHeader);
-        SerializeEventLogFileHeader(&m_jsonWriter, header);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Enables logging of events to the specified file
-Result EventProvider::OpenLogFile(
-    const char* pFilePath)
-{
-    MutexAuto lock(&m_eventStreamMutex);
-
-    return m_eventStream.OpenFile(pFilePath);
-}
-
-// =====================================================================================================================
-// Disables logging of events to file, flushing and closing the open file.
-void EventProvider::DisableFileLogging()
-{
-    MutexAuto lock(&m_eventStreamMutex);
-
-    // Close the log file
-    EndEventLogStream(&m_jsonWriter);
-    m_eventStream.CloseFile();
-    m_isFileLoggingActive = false;
-}
-
-// =====================================================================================================================
-// Writes an event header to the log file.
-// NOTE: It is assumed the caller has taken the file stream mutex
-void EventProvider::WriteEventHeader(
-    PalEvent eventId,
-    uint32   dataSize)
-{
-    PalEventHeader eventHeader = {};
-    eventHeader.eventId = eventId;
-    eventHeader.eventDataSize = dataSize;
-    eventHeader.timestamp = GetPerfCpuTime();
-
-    SerializeEventHeader(&m_jsonWriter, eventHeader);
 }
 
 // =====================================================================================================================
@@ -152,12 +138,8 @@ bool EventProvider::ShouldLog(
     PalEvent eventId
     ) const
 {
-    bool shouldLog = (m_isFileLoggingActive || m_eventService.IsMemoryProfilingEnabled());
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-    // If the event provider and event ID are active, set shouldLog to true
-#endif
-
-    return shouldLog;
+    return (m_eventService.IsMemoryProfilingEnabled() ||
+           (QueryEventWriteStatus(static_cast<uint32>(eventId)) == DevDriver::Result::Success));
 }
 
 // =====================================================================================================================
@@ -168,32 +150,21 @@ void EventProvider::LogCreateGpuMemoryEvent(
     // We only want to log new allocations
     if ((pGpuMemory != nullptr) && (pGpuMemory->IsGpuVaPreReserved() == false))
     {
-        static constexpr PalEvent EventId = PalEvent::CreateGpuMemory;
-        if (ShouldLog(EventId))
+        static constexpr PalEvent eventId = PalEvent::CreateGpuMemory;
+        if (ShouldLog(eventId))
         {
             const GpuMemoryDesc desc = pGpuMemory->Desc();
             CreateGpuMemoryData data = {};
-            data.handle = reinterpret_cast<GpuMemHandle>(pGpuMemory);
-            data.size = desc.size;
-            data.alignment = desc.alignment;
-            data.preferredHeap = desc.preferredHeap;
-            data.isVirtual = desc.flags.isVirtual;
-            data.isInternal = pGpuMemory->IsClient();
-            data.isExternalShared = desc.flags.isExternal;
-            data.gpuVirtualAddr = desc.gpuVirtAddr;
+            data.handle              = reinterpret_cast<GpuMemHandle>(pGpuMemory);
+            data.size                = desc.size;
+            data.alignment           = desc.alignment;
+            data.preferredHeap       = desc.preferredHeap;
+            data.isVirtual           = desc.flags.isVirtual;
+            data.isInternal          = pGpuMemory->IsClient();
+            data.isExternalShared    = desc.flags.isExternal;
+            data.gpuVirtualAddr      = desc.gpuVirtAddr;
 
-    #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-            // Call the EventServer
-    #endif
-
-            m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-            if (m_isFileLoggingActive)
-            {
-                MutexAuto lock(&m_jsonWriterMutex);
-                WriteEventHeader(EventId, sizeof(CreateGpuMemoryData));
-                SerializeCreateGpuMemoryData(&m_jsonWriter, data);
-            }
+            LogEvent(eventId, &data, sizeof(data));
         }
     }
 }
@@ -203,24 +174,14 @@ void EventProvider::LogCreateGpuMemoryEvent(
 void EventProvider::LogDestroyGpuMemoryEvent(
     const GpuMemory* pGpuMemory)
 {
-    static constexpr PalEvent EventId = PalEvent::DestroyGpuMemory;
-    if (ShouldLog(EventId))
+    static constexpr PalEvent eventId = PalEvent::DestroyGpuMemory;
+    if (ShouldLog(eventId))
     {
         DestroyGpuMemoryData data = {};
-        data.handle = reinterpret_cast<GpuMemHandle>(pGpuMemory);
-        data.gpuVirtualAddr = pGpuMemory->Desc().gpuVirtAddr;
+        data.handle               = reinterpret_cast<GpuMemHandle>(pGpuMemory);
+        data.gpuVirtualAddr       = pGpuMemory->Desc().gpuVirtAddr;
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        // Call the EventServer
-#endif
-        m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-        if (m_isFileLoggingActive)
-        {
-            MutexAuto lock(&m_jsonWriterMutex);
-            WriteEventHeader(EventId, sizeof(DestroyGpuMemoryData));
-            SerializeDestroyGpuMemoryData(&m_jsonWriter, data);
-        }
+        LogEvent(eventId, &data, sizeof(data));
     }
 }
 
@@ -229,30 +190,20 @@ void EventProvider::LogDestroyGpuMemoryEvent(
 void EventProvider::LogGpuMemoryResourceBindEvent(
     const GpuMemoryResourceBindEventData& eventData)
 {
-    static constexpr PalEvent EventId = PalEvent::GpuMemoryResourceBind;
-    if (ShouldLog(EventId))
+    static constexpr PalEvent eventId = PalEvent::GpuMemoryResourceBind;
+    if (ShouldLog(eventId))
     {
-        GpuMemoryResourceBindData data = {};
-        data.handle = reinterpret_cast<GpuMemHandle>(eventData.pGpuMemory);
-        data.gpuVirtualAddr = (eventData.pGpuMemory != nullptr) ? eventData.pGpuMemory->Desc().gpuVirtAddr : 0;
         PAL_ASSERT(eventData.pObj != nullptr);
-        data.resourceHandle = reinterpret_cast<ResourceHandle>(eventData.pObj);
-        data.requiredSize = eventData.requiredGpuMemSize;
-        data.offset = eventData.offset;
-        data.isSystemMemory = eventData.isSystemMemory;
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        // Call the EventServer
-#endif
+        GpuMemoryResourceBindData data = {};
+        data.handle                    = reinterpret_cast<GpuMemHandle>(eventData.pGpuMemory);
+        data.gpuVirtualAddr            = (eventData.pGpuMemory != nullptr) ? eventData.pGpuMemory->Desc().gpuVirtAddr : 0;
+        data.resourceHandle            = reinterpret_cast<ResourceHandle>(eventData.pObj);
+        data.requiredSize              = eventData.requiredGpuMemSize;
+        data.offset                    = eventData.offset;
+        data.isSystemMemory            = eventData.isSystemMemory;
 
-        m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-        if (m_isFileLoggingActive)
-        {
-            MutexAuto lock(&m_jsonWriterMutex);
-            WriteEventHeader(EventId, sizeof(GpuMemoryResourceBindData));
-            SerializeGpuMemoryResourceBindData(&m_jsonWriter, data);
-        }
+        LogEvent(eventId, &data, sizeof(data));
     }
 }
 
@@ -261,25 +212,14 @@ void EventProvider::LogGpuMemoryResourceBindEvent(
 void EventProvider::LogGpuMemoryCpuMapEvent(
     const GpuMemory* pGpuMemory)
 {
-    static constexpr PalEvent EventId = PalEvent::GpuMemoryCpuMap;
-    if (ShouldLog(EventId))
+    static constexpr PalEvent eventId = PalEvent::GpuMemoryCpuMap;
+    if (ShouldLog(eventId))
     {
         GpuMemoryCpuMapData data = {};
-        data.handle = reinterpret_cast<GpuMemHandle>(pGpuMemory);
-        data.gpuVirtualAddr = pGpuMemory->Desc().gpuVirtAddr;
+        data.handle              = reinterpret_cast<GpuMemHandle>(pGpuMemory);
+        data.gpuVirtualAddr      = pGpuMemory->Desc().gpuVirtAddr;
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        // Call the EventServer
-#endif
-
-        m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-        if (m_isFileLoggingActive)
-        {
-            MutexAuto lock(&m_jsonWriterMutex);
-            WriteEventHeader(EventId, sizeof(GpuMemoryCpuMapData));
-            SerializeGpuMemoryCpuMapData(&m_jsonWriter, data);
-        }
+        LogEvent(eventId, &data, sizeof(data));
     }
 }
 
@@ -288,25 +228,14 @@ void EventProvider::LogGpuMemoryCpuMapEvent(
 void EventProvider::LogGpuMemoryCpuUnmapEvent(
     const GpuMemory* pGpuMemory)
 {
-    static constexpr PalEvent EventId = PalEvent::GpuMemoryCpuUnmap;
-    if (ShouldLog(EventId))
+    static constexpr PalEvent eventId = PalEvent::GpuMemoryCpuUnmap;
+    if (ShouldLog(eventId))
     {
         GpuMemoryCpuUnmapData data = {};
-        data.handle = reinterpret_cast<GpuMemHandle>(pGpuMemory);
-        data.gpuVirtualAddr = pGpuMemory->Desc().gpuVirtAddr;
+        data.handle                = reinterpret_cast<GpuMemHandle>(pGpuMemory);
+        data.gpuVirtualAddr        = pGpuMemory->Desc().gpuVirtAddr;
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        // Call the EventServer
-#endif
-
-        m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-        if (m_isFileLoggingActive)
-        {
-            MutexAuto lock(&m_jsonWriterMutex);
-            WriteEventHeader(EventId, sizeof(GpuMemoryCpuUnmapData));
-            SerializeGpuMemoryCpuUnmapData(&m_jsonWriter, data);
-        }
+        LogEvent(eventId, &data, sizeof(data));
     }
 }
 
@@ -320,29 +249,18 @@ void EventProvider::LogGpuMemoryAddReferencesEvent(
     IQueue*             pQueue,
     uint32              flags)
 {
-    static constexpr PalEvent EventId = PalEvent::GpuMemoryAddReference;
-    if (ShouldLog(EventId))
+    static constexpr PalEvent eventId = PalEvent::GpuMemoryAddReference;
+    if (ShouldLog(eventId))
     {
         for (uint32 i=0; i < gpuMemRefCount; i++)
         {
             GpuMemoryAddReferenceData data = {};
-            data.handle = reinterpret_cast<GpuMemHandle>(pGpuMemoryRefs[i].pGpuMemory);
-            data.gpuVirtualAddr = pGpuMemoryRefs[i].pGpuMemory->Desc().gpuVirtAddr;
-            data.queueHandle = reinterpret_cast<QueueHandle>(pQueue);
-            data.flags = flags;
+            data.handle                    = reinterpret_cast<GpuMemHandle>(pGpuMemoryRefs[i].pGpuMemory);
+            data.gpuVirtualAddr            = pGpuMemoryRefs[i].pGpuMemory->Desc().gpuVirtAddr;
+            data.queueHandle               = reinterpret_cast<QueueHandle>(pQueue);
+            data.flags                     = flags;
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-            // Call the EventServer
-#endif
-
-            m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-            if (m_isFileLoggingActive)
-            {
-                MutexAuto lock(&m_jsonWriterMutex);
-                WriteEventHeader(EventId, sizeof(GpuMemoryAddReferenceData));
-                SerializeGpuMemoryAddReferenceData(&m_jsonWriter, data);
-            }
+            LogEvent(eventId, &data, sizeof(data));
         }
     }
 }
@@ -355,28 +273,17 @@ void EventProvider::LogGpuMemoryRemoveReferencesEvent(
     IGpuMemory*const* ppGpuMemory,
     IQueue*           pQueue)
 {
-    static constexpr PalEvent EventId = PalEvent::GpuMemoryRemoveReference;
-    if (ShouldLog(EventId))
+    static constexpr PalEvent eventId = PalEvent::GpuMemoryRemoveReference;
+    if (ShouldLog(eventId))
     {
         for (uint32 i = 0; i < gpuMemoryCount; i++)
         {
             GpuMemoryRemoveReferenceData data = {};
-            data.handle = reinterpret_cast<GpuMemHandle>(ppGpuMemory[i]);
-            data.gpuVirtualAddr = ppGpuMemory[i]->Desc().gpuVirtAddr;
-            data.queueHandle = reinterpret_cast<QueueHandle>(pQueue);
+            data.handle                       = reinterpret_cast<GpuMemHandle>(ppGpuMemory[i]);
+            data.gpuVirtualAddr               = ppGpuMemory[i]->Desc().gpuVirtAddr;
+            data.queueHandle                  = reinterpret_cast<QueueHandle>(pQueue);
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-            // Call the EventServer
-#endif
-
-            m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-            if (m_isFileLoggingActive)
-            {
-                MutexAuto lock(&m_jsonWriterMutex);
-                WriteEventHeader(EventId, sizeof(GpuMemoryRemoveReferenceData));
-                SerializeGpuMemoryRemoveReferenceData(&m_jsonWriter, data);
-            }
+            LogEvent(eventId, &data, sizeof(data));
         }
     }
 }
@@ -387,32 +294,19 @@ void EventProvider::LogGpuMemoryRemoveReferencesEvent(
 void EventProvider::LogGpuMemoryResourceCreateEvent(
     const ResourceCreateEventData& eventData)
 {
-    static constexpr PalEvent EventId = PalEvent::GpuMemoryResourceCreate;
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-    // Call the EventServer
-#endif
+    static constexpr PalEvent eventId = PalEvent::GpuMemoryResourceCreate;
 
-    if (ShouldLog(EventId))
+    if (ShouldLog(eventId))
     {
-        GpuMemoryResourceCreateData data = {};
         PAL_ASSERT(eventData.pObj != nullptr);
-        data.handle = reinterpret_cast<ResourceHandle>(eventData.pObj);
-        data.type = eventData.type;
-        data.descriptionSize = eventData.resourceDescSize;
-        data.pDescription = eventData.pResourceDescData;
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        // Call the EventServer
-#endif
+        GpuMemoryResourceCreateData data = {};
+        data.handle                      = reinterpret_cast<ResourceHandle>(eventData.pObj);
+        data.type                        = eventData.type;
+        data.descriptionSize             = eventData.resourceDescSize;
+        data.pDescription                = eventData.pResourceDescData;
 
-        m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-        if (m_isFileLoggingActive)
-        {
-            MutexAuto lock(&m_jsonWriterMutex);
-            WriteEventHeader(EventId, sizeof(GpuMemoryResourceCreateData) + data.descriptionSize);
-            SerializeGpuMemoryResourceCreate(&m_jsonWriter, data);
-        }
+        LogEvent(eventId, &data, sizeof(data));
     }
 }
 
@@ -422,26 +316,16 @@ void EventProvider::LogGpuMemoryResourceCreateEvent(
 void EventProvider::LogGpuMemoryResourceDestroyEvent(
     const ResourceDestroyEventData& eventData)
 {
-    static constexpr PalEvent EventId = PalEvent::GpuMemoryResourceDestroy;
+    static constexpr PalEvent eventId = PalEvent::GpuMemoryResourceDestroy;
 
-    if (ShouldLog(EventId))
+    if (ShouldLog(eventId))
     {
-        GpuMemoryResourceDestroyData data = {};
         PAL_ASSERT(eventData.pObj != nullptr);
-        data.handle = reinterpret_cast<ResourceHandle>(eventData.pObj);
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        // Call the EventServer
-#endif
+        GpuMemoryResourceDestroyData data = {};
+        data.handle                       = reinterpret_cast<ResourceHandle>(eventData.pObj);
 
-        m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-        if (m_isFileLoggingActive)
-        {
-            MutexAuto lock(&m_jsonWriterMutex);
-            WriteEventHeader(EventId, sizeof(GpuMemoryResourceDestroyData));
-            SerializeGpuMemoryResourceDestroy(&m_jsonWriter, data);
-        }
+        LogEvent(eventId, &data, sizeof(data));
     }
 }
 
@@ -450,28 +334,18 @@ void EventProvider::LogGpuMemoryResourceDestroyEvent(
 void EventProvider::LogDebugNameEvent(
     const DebugNameEventData& eventData)
 {
-    static constexpr PalEvent EventId = PalEvent::DebugName;
+    static constexpr PalEvent eventId = PalEvent::DebugName;
 
-    if (ShouldLog(EventId))
+    if (ShouldLog(eventId))
     {
-        DebugNameData data = {};
         PAL_ASSERT(eventData.pObj != nullptr);
-        data.handle = reinterpret_cast<ResourceHandle>(eventData.pObj);
-        data.pDebugName = eventData.pDebugName;
-        data.nameSize = static_cast<uint32>(strlen(eventData.pDebugName));
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        // Call the EventServer
-#endif
+        DebugNameData data = {};
+        data.handle        = reinterpret_cast<ResourceHandle>(eventData.pObj);
+        data.pDebugName    = eventData.pDebugName;
+        data.nameSize      = static_cast<uint32>(strlen(eventData.pDebugName));
 
-        m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-        if (m_isFileLoggingActive)
-        {
-            MutexAuto lock(&m_jsonWriterMutex);
-            WriteEventHeader(EventId, sizeof(DebugNameData));
-            SerializeDebugName(&m_jsonWriter, data);
-        }
+        LogEvent(eventId, &data, sizeof(data));
     }
 }
 
@@ -480,26 +354,15 @@ void EventProvider::LogDebugNameEvent(
 void EventProvider::LogGpuMemoryMiscEvent(
     const MiscEventData& eventData)
 {
-    static constexpr PalEvent EventId = PalEvent::GpuMemoryMisc;
+    static constexpr PalEvent eventId = PalEvent::GpuMemoryMisc;
 
-    if (ShouldLog(EventId))
+    if (ShouldLog(eventId))
     {
         GpuMemoryMiscData data = {};
-        data.type = eventData.eventType;
-        data.engine = eventData.engine;
+        data.type              = eventData.eventType;
+        data.engine            = eventData.engine;
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        // Call the EventServer
-#endif
-
-        m_eventService.LogEvent(EventId, &data, sizeof(data));
-
-        if (m_isFileLoggingActive)
-        {
-            MutexAuto lock(&m_jsonWriterMutex);
-            WriteEventHeader(EventId, sizeof(GpuMemoryMiscData));
-            SerializeGpuMemoryMisc(&m_jsonWriter, data);
-        }
+        LogEvent(eventId, &data, sizeof(data));
     }
 }
 
@@ -509,162 +372,549 @@ void EventProvider::LogGpuMemoryMiscEvent(
 void EventProvider::LogGpuMemorySnapshotEvent(
     const GpuMemorySnapshotEventData& eventData)
 {
-    static constexpr PalEvent EventId = PalEvent::GpuMemorySnapshot;
+    static constexpr PalEvent eventId = PalEvent::GpuMemorySnapshot;
 
-    if (ShouldLog(EventId))
+    if (ShouldLog(eventId))
     {
         GpuMemorySnapshotData data = {};
-        data.pSnapshotName = eventData.pSnapshotName;
+        data.pSnapshotName         = eventData.pSnapshotName;
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-        // Call the EventServer
+        LogEvent(eventId, &data, sizeof(data));
+    }
+}
+
+// =====================================================================================================================
+void EventProvider::LogEvent(
+    PalEvent    eventId,
+    const void* pEventData,
+    size_t      eventDataSize)
+{
+    if (ShouldLog(eventId))
+    {
+        // The RMT format requires that certain tokens strictly follow each other (e.g. resource create + description),
+        // so we need to lock to ensure another event isn't inserted into the stream while writing dependent tokens.
+        DevDriver::Platform::LockGuard<DevDriver::Platform::Mutex> providerLock(m_providerLock);
+
+        const EventTimestamp timestamp = m_eventTimer.CreateTimestamp();
+        uint8 delta = 0;
+
+        if (timestamp.type == EventTimestampType::Full)
+        {
+            RMT_MSG_TIMESTAMP tsToken(timestamp.full.timestamp, timestamp.full.frequency);
+            WriteTokenData(tsToken);
+        }
+        else if (timestamp.type == EventTimestampType::LargeDelta)
+        {
+            RMT_MSG_TIME_DELTA tdToken(timestamp.largeDelta.delta, timestamp.largeDelta.numBytes);
+            WriteTokenData(tdToken);
+        }
+        else
+        {
+            delta = timestamp.smallDelta.delta;
+        }
+
+        switch (eventId)
+        {
+            case PalEvent::Count:
+            case PalEvent::Invalid:
+            {
+                PAL_ASSERT_ALWAYS();
+                break;
+            }
+            case PalEvent::RmtToken:
+            {
+                // RmtTokens should not be logged throug this function
+                PAL_ASSERT_ALWAYS();
+                break;
+            }
+            case PalEvent::CreateGpuMemory:
+            {
+                PAL_ASSERT(sizeof(CreateGpuMemoryData) == eventDataSize);
+
+                const CreateGpuMemoryData* pData = reinterpret_cast<const CreateGpuMemoryData*>(pEventData);
+
+                RMT_MSG_VIRTUAL_ALLOCATE eventToken(
+                    delta,
+                    pData->size,
+                    pData->isInternal ? RMT_OWNER_CLIENT_DRIVER : RMT_OWNER_APP, // For now we only distinguish between driver
+                                                                                 // app ownership
+                    pData->gpuVirtualAddr,
+                    PalToRmtHeapType(pData->preferredHeap),
+                    RMT_HEAP_TYPE_LOCAL,
+                    RMT_HEAP_TYPE_LOCAL,
+                    RMT_HEAP_TYPE_LOCAL);
+
+                WriteTokenData(eventToken);
+
+                break;
+            }
+            case PalEvent::DestroyGpuMemory:
+            {
+                PAL_ASSERT(sizeof(DestroyGpuMemoryData) == eventDataSize);
+
+                const DestroyGpuMemoryData* pData = reinterpret_cast<const DestroyGpuMemoryData*>(pEventData);
+
+                RMT_MSG_FREE_VIRTUAL eventToken(delta, pData->gpuVirtualAddr);
+
+                WriteTokenData(eventToken);
+
+                break;
+            }
+            case PalEvent::GpuMemoryResourceCreate:
+            {
+                LogResourceCreateEvent(delta, pEventData, eventDataSize);
+                break;
+            }
+            case PalEvent::GpuMemoryResourceDestroy:
+            {
+                PAL_ASSERT(sizeof(GpuMemoryResourceDestroyData) == eventDataSize);
+                const GpuMemoryResourceDestroyData* pData = reinterpret_cast<const GpuMemoryResourceDestroyData*>(pEventData);
+
+                RMT_MSG_RESOURCE_DESTROY eventToken(delta, static_cast<uint32>(pData->handle));
+
+                WriteTokenData(eventToken);
+
+                break;
+            }
+            case PalEvent::GpuMemoryMisc:
+            {
+                PAL_ASSERT(sizeof(GpuMemoryMiscData) == eventDataSize);
+                const GpuMemoryMiscData* pData = reinterpret_cast<const GpuMemoryMiscData*>(pEventData);
+
+                RMT_MSG_MISC eventToken(delta, PalToRmtMiscEventType(pData->type));
+
+                WriteTokenData(eventToken);
+                break;
+            }
+            case PalEvent::GpuMemorySnapshot:
+            {
+                PAL_ASSERT(sizeof(GpuMemorySnapshotData) == eventDataSize);
+                const GpuMemorySnapshotData* pData = reinterpret_cast<const GpuMemorySnapshotData*>(pEventData);
+
+                WriteUserdataStringToken(delta, pData->pSnapshotName, true);
+                break;
+            }
+            case PalEvent::DebugName:
+            {
+                PAL_ASSERT(sizeof(DebugNameData) == eventDataSize);
+                const DebugNameData* pData = reinterpret_cast<const DebugNameData*>(pEventData);
+
+                WriteUserdataStringToken(delta, pData->pDebugName, false);
+                break;
+            }
+            case PalEvent::GpuMemoryResourceBind:
+            {
+                PAL_ASSERT(sizeof(GpuMemoryResourceBindData) == eventDataSize);
+                const GpuMemoryResourceBindData* pData =
+                    reinterpret_cast<const GpuMemoryResourceBindData*>(pEventData);
+
+                RMT_MSG_RESOURCE_BIND eventToken(
+                    delta,
+                    pData->gpuVirtualAddr + pData->offset,
+                    pData->requiredSize,
+                    static_cast<uint32>(pData->resourceHandle),
+                    pData->isSystemMemory);
+
+                WriteTokenData(eventToken);
+
+                GpuMemory* pGpuMemory = reinterpret_cast<GpuMemory*>(pData->handle);
+                if (pGpuMemory != nullptr)
+                {
+                    if (pData->requiredSize > pGpuMemory->Desc().size)
+                    {
+                        // GPU memory smaller than resource size
+                        DD_ASSERT_ALWAYS();
+                    }
+                }
+                break;
+            }
+            case PalEvent::GpuMemoryCpuMap:
+            {
+                PAL_ASSERT(sizeof(GpuMemoryCpuMapData) == eventDataSize);
+                const GpuMemoryCpuMapData* pData = reinterpret_cast<const GpuMemoryCpuMapData*>(pEventData);
+
+                RMT_MSG_CPU_MAP eventToken(delta, pData->gpuVirtualAddr, false);
+
+                WriteTokenData(eventToken);
+                break;
+            }
+            case PalEvent::GpuMemoryCpuUnmap:
+            {
+                PAL_ASSERT(sizeof(GpuMemoryCpuUnmapData) == eventDataSize);
+                const GpuMemoryCpuUnmapData* pData = reinterpret_cast<const GpuMemoryCpuUnmapData*>(pEventData);
+
+                RMT_MSG_CPU_MAP eventToken(delta, pData->gpuVirtualAddr, true);
+
+                WriteTokenData(eventToken);
+                break;
+            }
+            case PalEvent::GpuMemoryAddReference:
+            {
+                PAL_ASSERT(sizeof(GpuMemoryAddReferenceData) == eventDataSize);
+                const GpuMemoryAddReferenceData* pData = reinterpret_cast<const GpuMemoryAddReferenceData*>(pEventData);
+
+                RMT_MSG_RESOURCE_REFERENCE eventToken(
+                    delta,
+                    false,   // isRemove
+                    pData->gpuVirtualAddr,
+                    static_cast<uint8>(pData->queueHandle));
+
+                WriteTokenData(eventToken);
+                break;
+            }
+            case PalEvent::GpuMemoryRemoveReference:
+            {
+                PAL_ASSERT(sizeof(GpuMemoryRemoveReferenceData) == eventDataSize);
+                const GpuMemoryRemoveReferenceData* pData = reinterpret_cast<const GpuMemoryRemoveReferenceData*>(pEventData);
+
+                RMT_MSG_RESOURCE_REFERENCE eventToken(
+                    delta,
+                    true,   // isRemove
+                    pData->gpuVirtualAddr,
+                    static_cast<uint8>(pData->queueHandle));
+
+                WriteTokenData(eventToken);
+                break;
+            }
+        }
+    }
+}
+
+// =====================================================================================================================
+void EventProvider::LogResourceCreateEvent(
+    uint8       delta,
+    const void* pEventData,
+    size_t      eventDataSize)
+{
+    PAL_ASSERT(eventDataSize == sizeof(GpuMemoryResourceCreateData));
+    const auto* pRsrcCreateData = reinterpret_cast<const GpuMemoryResourceCreateData*>(pEventData);
+
+    RMT_MSG_RESOURCE_CREATE rsrcCreateToken(
+        delta,
+        static_cast<uint32>(pRsrcCreateData->handle),
+        RMT_OWNER_KMD,
+        0,
+        RMT_COMMIT_TYPE_COMMITTED,
+        PalToRmtResourceType(pRsrcCreateData->type));
+    WriteTokenData(rsrcCreateToken);
+
+    switch (pRsrcCreateData->type)
+    {
+    case ResourceType::Image:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionImage));
+        const auto* pImageData = reinterpret_cast<const ResourceDescriptionImage*>(pRsrcCreateData->pDescription);
+        RMT_IMAGE_DESC_CREATE_INFO imgCreateInfo = {};
+        imgCreateInfo.createFlags = PalToRmtImgCreateFlags(pImageData->pCreateInfo->flags);
+        imgCreateInfo.usageFlags = PalToRmtImgUsageFlags(pImageData->pCreateInfo->usageFlags);
+        imgCreateInfo.imageType = PalToRmtImageType(pImageData->pCreateInfo->imageType);
+        imgCreateInfo.dimensions.dimension_X = static_cast<uint16>(pImageData->pCreateInfo->extent.width);
+        imgCreateInfo.dimensions.dimension_Y = static_cast<uint16>(pImageData->pCreateInfo->extent.height);
+        imgCreateInfo.dimensions.dimension_Z = static_cast<uint16>(pImageData->pCreateInfo->extent.depth);
+        imgCreateInfo.format = PalToRmtImageFormat(pImageData->pCreateInfo->swizzledFormat);
+        imgCreateInfo.mips = static_cast<uint8>(pImageData->pCreateInfo->mipLevels);
+        imgCreateInfo.slices = static_cast<uint8>(pImageData->pCreateInfo->arraySize);
+        imgCreateInfo.samples = static_cast<uint8>(pImageData->pCreateInfo->samples);
+        imgCreateInfo.fragments = static_cast<uint8>(pImageData->pCreateInfo->fragments);
+        imgCreateInfo.tilingType = PalToRmtTilingType(pImageData->pCreateInfo->tiling);
+        imgCreateInfo.tilingOptMode = PalToRmtTilingOptMode(pImageData->pCreateInfo->tilingOptMode);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
+        imgCreateInfo.metadataMode = PalToRmtMetadataMode(pImageData->pCreateInfo->metadataMode);
+#else
+        imgCreateInfo.metadataMode = RMT_IMAGE_METADATA_MODE_DEFAULT;
+#endif
+        imgCreateInfo.maxBaseAlignment = pImageData->pCreateInfo->maxBaseAlign;
+        imgCreateInfo.isPresentable = pImageData->isPresentable;
+        imgCreateInfo.imageSize = static_cast<uint32>(pImageData->pMemoryLayout->dataSize);
+        imgCreateInfo.metadataOffset = static_cast<uint32>(pImageData->pMemoryLayout->metadataOffset);
+        imgCreateInfo.metadataSize = static_cast<uint32>(pImageData->pMemoryLayout->metadataSize);
+        imgCreateInfo.metadataHeaderOffset = static_cast<uint32>(pImageData->pMemoryLayout->metadataHeaderOffset);
+        imgCreateInfo.metadataHeaderSize = static_cast<uint32>(pImageData->pMemoryLayout->metadataHeaderSize);
+        imgCreateInfo.imageAlignment = pImageData->pMemoryLayout->dataAlignment;
+        imgCreateInfo.metadataAlignment = pImageData->pMemoryLayout->metadataAlignment;
+        imgCreateInfo.metadataHeaderAlignment = pImageData->pMemoryLayout->metadataHeaderAlignment;
+        imgCreateInfo.isFullscreen = pImageData->isFullscreen;
+
+        RMT_RESOURCE_TYPE_IMAGE_TOKEN imgDesc(imgCreateInfo);
+
+        WriteTokenData(imgDesc);
+        break;
+    }
+
+    case ResourceType::Buffer:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionBuffer));
+        const auto* pBufferData = reinterpret_cast<const ResourceDescriptionBuffer*>(pRsrcCreateData->pDescription);
+
+        // @TODO - add static asserts to make sure the bit positions in RMT_BUFFER_CREATE/USAGE_FLAGS match Pal values
+        RMT_RESOURCE_TYPE_BUFFER_TOKEN bufferDesc(
+            static_cast<uint8>(pBufferData->createFlags),
+            static_cast<uint16>(pBufferData->usageFlags),
+            pBufferData->size);
+
+        WriteTokenData(bufferDesc);
+        break;
+    }
+
+    case ResourceType::Pipeline:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionPipeline));
+        const auto* pPipelineData = reinterpret_cast<const ResourceDescriptionPipeline*>(pRsrcCreateData->pDescription);
+
+        RMT_PIPELINE_CREATE_FLAGS flags;
+        flags.CLIENT_INTERNAL   = pPipelineData->pCreateFlags->clientInternal;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 488) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 502)
+        flags.OVERRIDE_GPU_HEAP = 0;
+#else
+        flags.OVERRIDE_GPU_HEAP = pPipelineData->pCreateFlags->overrideGpuHeap;
+#endif
+#else
+        flags.OVERRIDE_GPU_HEAP = 0;
 #endif
 
-        m_eventService.LogEvent(EventId, &data, sizeof(data));
+        RMT_PIPELINE_HASH hash;
+        hash.hashUpper = pPipelineData->pPipelineInfo->internalPipelineHash.unique;
+        hash.hashLower = pPipelineData->pPipelineInfo->internalPipelineHash.stable;
 
-        if (m_isFileLoggingActive)
+        const auto& shaderHashes = pPipelineData->pPipelineInfo->shader;
+        RMT_PIPELINE_STAGES stages;
+        stages.PS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Pixel)].hash);
+        stages.HS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Hull)].hash);
+        stages.DS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Domain)].hash);
+        stages.VS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Vertex)].hash);
+        stages.GS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Geometry)].hash);
+        stages.CS_STAGE = ShaderHashIsNonzero(shaderHashes[static_cast<uint32>(ShaderType::Compute)].hash);
+
+        RMT_RESOURCE_TYPE_PIPELINE_TOKEN pipelineDesc(flags, hash, stages, false);
+
+        WriteTokenData(pipelineDesc);
+        break;
+    }
+
+    case ResourceType::Heap:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionHeap));
+        const auto* pHeapData = reinterpret_cast<const ResourceDescriptionHeap*>(pRsrcCreateData->pDescription);
+
+        RMT_HEAP_FLAGS rmtFlags = {};
+        if (Util::TestAnyFlagSet(pHeapData->flags,
+            static_cast<uint32>(ResourceDescriptionHeapFlags::NonRenderTargetDepthStencilTextures)))
         {
-            MutexAuto lock(&m_jsonWriterMutex);
-            WriteEventHeader(EventId, sizeof(GpuMemorySnapshotData));
-            SerializeGpuMemorySnapshot(&m_jsonWriter, data);
+            rmtFlags.NON_RT_DS_TEXTURES = 1;
         }
-    }
-}
 
-// =====================================================================================================================
-EventLogStream::EventLogStream(
-    Platform* pPlatform)
-    :
-    m_pPlatform(pPlatform),
-    m_pBuffer(nullptr),
-    m_bufferSize(0),
-    m_bufferUsed(0),
-    m_flushSize(0)
-{
-}
-
-// =====================================================================================================================
-EventLogStream::~EventLogStream()
-{
-    PAL_SAFE_FREE(m_pBuffer, m_pPlatform);
-}
-
-// =====================================================================================================================
-Result EventLogStream::OpenFile(
-    const char* pFilePath)
-{
-    Result result = m_file.Open(pFilePath, Util::FileAccessWrite);
-
-    if (result == Result::Success)
-    {
-        // Write out anything that was logged before now.
-        result = WriteBufferedData();
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-void EventLogStream::CloseFile()
-{
-    if (m_file.IsOpen())
-    {
-        m_file.Flush();
-        m_file.Close();
-    }
-}
-
-// =====================================================================================================================
-Result EventLogStream::WriteBufferedData()
-{
-    Result result = Result::Success;
-
-    if (m_bufferUsed > 0)
-    {
-        result = m_file.Write(m_pBuffer, m_bufferUsed * sizeof(char));
-        m_bufferUsed = 0;
-
-        if (result == Result::Success)
+        if (Util::TestAnyFlagSet(pHeapData->flags,
+            static_cast<uint32>(ResourceDescriptionHeapFlags::Buffers)))
         {
-            // Flush to disk to make the logs more useful if the application crashes.
-            result = m_file.Flush();
+            rmtFlags.BUFFERS = 1;
         }
-    }
 
-    return result;
-}
-
-// =====================================================================================================================
-void EventLogStream::WriteString(
-    const char* pString,
-    uint32      length)
-{
-    // If we've already opened the log file, just write directly to it
-    if (m_file.IsOpen())
-    {
-        if (m_file.Write(pString, length) == Result::Success)
+        if (Util::TestAnyFlagSet(pHeapData->flags,
+            static_cast<uint32>(ResourceDescriptionHeapFlags::CoherentSystemWide)))
         {
-            m_flushSize += length;
-            if (m_flushSize >= FlushThreshold)
-            {
-                // Flush to disk periodically to make the logs more useful if the application crashes.
-                m_file.Flush();
-                m_flushSize = 0;
-            }
+            rmtFlags.COHERENT_SYSTEM_WIDE = 1;
         }
-    }
-    else
-    {
-        // Otherwise buffer up the event data
-        VerifyUnusedSpace(length);
-        memcpy(m_pBuffer + m_bufferUsed, pString, length * sizeof(char));
-        m_bufferUsed += length;
-    }
-}
-
-// =====================================================================================================================
-void EventLogStream::WriteCharacter(
-    char character)
-{
-    // If we've already opened the log file, just write directly to it
-    if (m_file.IsOpen())
-    {
-        if (m_file.Write(&character, 1) == Result::Success)
+        if (Util::TestAnyFlagSet(pHeapData->flags,
+            static_cast<uint32>(ResourceDescriptionHeapFlags::Primary)))
         {
-            m_flushSize += 1;
-            if (m_flushSize >= FlushThreshold)
-            {
-                // Flush to disk periodically to make the logs more useful if the application crashes.
-                m_file.Flush();
-                m_flushSize = 0;
-            }
+            rmtFlags.PRIMARY = 1;
         }
+
+        if (Util::TestAnyFlagSet(pHeapData->flags,
+            static_cast<uint32>(ResourceDescriptionHeapFlags::RenderTargetDepthStencilTextures)))
+        {
+            rmtFlags.RT_DS_TEXTURES = 1;
+        }
+
+        if (Util::TestAnyFlagSet(pHeapData->flags,
+            static_cast<uint32>(ResourceDescriptionHeapFlags::DenyL0Demotion)))
+        {
+            rmtFlags.DENY_L0_PROMOTION = 1;
+        }
+
+        RMT_RESOURCE_TYPE_HEAP_TOKEN heapDesc(
+            rmtFlags,
+            pHeapData->size,
+            RMT_PAGE_SIZE_4KB,  //< @TODO - we don't currently have this info, so just set to 4KB
+            static_cast<uint8>(pHeapData->preferredGpuHeap));
+
+        WriteTokenData(heapDesc);
+        break;
     }
-    else
+
+    case ResourceType::GpuEvent:
     {
-        VerifyUnusedSpace(1);
-        m_pBuffer[m_bufferUsed++] = character;
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionGpuEvent));
+        const auto* pGpuEventData = reinterpret_cast<const ResourceDescriptionGpuEvent*>(pRsrcCreateData->pDescription);
+
+        const bool isGpuOnly = (pGpuEventData->pCreateInfo->flags.gpuAccessOnly == 1);
+        RMT_RESOURCE_TYPE_GPU_EVENT_TOKEN gpuEventDesc(isGpuOnly);
+
+        WriteTokenData(gpuEventDesc);
+        break;
+    }
+
+    case ResourceType::BorderColorPalette:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionBorderColorPalette));
+        const auto* pBcpData = reinterpret_cast<const ResourceDescriptionBorderColorPalette*>(pRsrcCreateData->pDescription);
+
+        RMT_RESOURCE_TYPE_BORDER_COLOR_PALETTE_TOKEN bcpDesc(static_cast<uint8>(pBcpData->pCreateInfo->paletteSize));
+
+        WriteTokenData(bcpDesc);
+        break;
+    }
+
+    case ResourceType::PerfExperiment:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionPerfExperiment));
+        const auto* pPerfExperimentData =
+            reinterpret_cast<const ResourceDescriptionPerfExperiment*>(pRsrcCreateData->pDescription);
+
+        RMT_RESOURCE_TYPE_PERF_EXPERIMENT_TOKEN perfExperimentDesc(
+            static_cast<uint32>(pPerfExperimentData->spmSize),
+            static_cast<uint32>(pPerfExperimentData->sqttSize),
+            static_cast<uint32>(pPerfExperimentData->perfCounterSize));
+
+        WriteTokenData(perfExperimentDesc);
+        break;
+    }
+
+    case ResourceType::QueryPool:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionQueryPool));
+        const auto* pQueryPoolData = reinterpret_cast<const ResourceDescriptionQueryPool*>(pRsrcCreateData->pDescription);
+
+        RMT_RESOURCE_TYPE_QUERY_HEAP_TOKEN queryHeapDesc(
+            PalToRmtQueryHeapType(pQueryPoolData->pCreateInfo->queryPoolType),
+            (pQueryPoolData->pCreateInfo->flags.enableCpuAccess == 1));
+
+        WriteTokenData(queryHeapDesc);
+        break;
+    }
+
+    case ResourceType::VideoEncoder:
+    {
+        break;
+    }
+
+    case ResourceType::VideoDecoder:
+    {
+        break;
+    }
+
+    case ResourceType::DescriptorHeap:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionDescriptorHeap));
+        const auto* pDescriptorHeapData =
+            reinterpret_cast<const ResourceDescriptionDescriptorHeap*>(pRsrcCreateData->pDescription);
+
+        RMT_RESOURCE_TYPE_DESCRIPTOR_HEAP_TOKEN descriptorHeapDesc(
+            PalToRmtDescriptorType(pDescriptorHeapData->type),
+            pDescriptorHeapData->isShaderVisible,
+            static_cast<uint8>(pDescriptorHeapData->nodeMask),
+            static_cast<uint16>(pDescriptorHeapData->numDescriptors));
+
+        WriteTokenData(descriptorHeapDesc);
+        break;
+    }
+
+    case ResourceType::DescriptorPool:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionDescriptorPool));
+        const auto* pDescriptorPoolData =
+            reinterpret_cast<const ResourceDescriptionDescriptorPool*>(pRsrcCreateData->pDescription);
+
+        RMT_RESOURCE_TYPE_POOL_SIZE_TOKEN poolSizeDesc(
+            static_cast<uint16>(pDescriptorPoolData->maxSets),
+            static_cast<uint8>(pDescriptorPoolData->numPoolSize));
+
+        WriteTokenData(poolSizeDesc);
+
+        // Then loop through writing RMT_POOL_SIZE_DESCs
+        for (uint32 i = 0; i < pDescriptorPoolData->numPoolSize; ++i)
+        {
+            RMT_POOL_SIZE_DESC poolSize(
+                PalToRmtDescriptorType(pDescriptorPoolData->pPoolSizes[i].type),
+                static_cast<uint16>(pDescriptorPoolData->pPoolSizes[i].numDescriptors));
+
+            WriteTokenData(poolSize);
+        }
+        break;
+    }
+
+    case ResourceType::CmdAllocator:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionCmdAllocator));
+        const auto* pCmdAllocatorData =
+            reinterpret_cast<const ResourceDescriptionCmdAllocator*>(pRsrcCreateData->pDescription);
+
+        RMT_RESOURCE_TYPE_CMD_ALLOCATOR_TOKEN cmdAllocatorDesc(
+            PalToRmtCmdAllocatorCreateFlags(pCmdAllocatorData->pCreateInfo->flags),
+            PalToRmtHeapType(pCmdAllocatorData->pCreateInfo->allocInfo[CmdAllocType::CommandDataAlloc].allocHeap),
+            pCmdAllocatorData->pCreateInfo->allocInfo[CmdAllocType::CommandDataAlloc].allocSize,
+            pCmdAllocatorData->pCreateInfo->allocInfo[CmdAllocType::CommandDataAlloc].suballocSize,
+            PalToRmtHeapType(pCmdAllocatorData->pCreateInfo->allocInfo[CmdAllocType::EmbeddedDataAlloc].allocHeap),
+            pCmdAllocatorData->pCreateInfo->allocInfo[CmdAllocType::EmbeddedDataAlloc].allocSize,
+            pCmdAllocatorData->pCreateInfo->allocInfo[CmdAllocType::EmbeddedDataAlloc].suballocSize,
+            PalToRmtHeapType(pCmdAllocatorData->pCreateInfo->allocInfo[CmdAllocType::GpuScratchMemAlloc].allocHeap),
+            pCmdAllocatorData->pCreateInfo->allocInfo[CmdAllocType::GpuScratchMemAlloc].allocSize,
+            pCmdAllocatorData->pCreateInfo->allocInfo[CmdAllocType::GpuScratchMemAlloc].suballocSize);
+
+        WriteTokenData(cmdAllocatorDesc);
+        break;
+    }
+
+    case ResourceType::MiscInternal:
+    {
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionMiscInternal));
+        const auto* pMiscInternalData =
+            reinterpret_cast<const ResourceDescriptionMiscInternal*>(pRsrcCreateData->pDescription);
+
+        RMT_RESOURCE_TYPE_MISC_INTERNAL_TOKEN miscInternalDesc(PalToRmtMiscInternalType(pMiscInternalData->type));
+
+        WriteTokenData(miscInternalDesc);
+        break;
+    }
+
+    case ResourceType::IndirectCmdGenerator:
+        // IndirectCmdGenerator has no description data
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == 0);
+        break;
+
+    case ResourceType::MotionEstimator:
+        // MotionEstimator has no description data
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == 0);
+        break;
+
+    case ResourceType::Timestamp:
+        // Timestamp has no description data
+        PAL_ASSERT(pRsrcCreateData->descriptionSize == 0);
+        break;
+
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
     }
 }
 
 // =====================================================================================================================
-// Verifies that the buffer has enough space for an additional "size" characters, reallocating if necessary.
-void EventLogStream::VerifyUnusedSpace(
-    uint32 size)
+void EventProvider::WriteUserdataStringToken(
+    uint8       delta,
+    const char* pSnapshotName,
+    bool        isSnapshot)
 {
-    if (m_bufferSize - m_bufferUsed < size)
-    {
-        const char* pOldBuffer = m_pBuffer;
+    const RMT_USERDATA_EVENT_TYPE type = (isSnapshot
+        ? RMT_USERDATA_EVENT_TYPE_SNAPSHOT
+        : RMT_USERDATA_EVENT_TYPE_NAME);
 
-        // Bump up the size of the buffer to the next multiple of 4K that fits the current contents plus "size".
-        m_bufferSize = Pow2Align(m_bufferSize + size, 4096);
-        m_pBuffer = static_cast<char*>(PAL_MALLOC(m_bufferSize * sizeof(char), m_pPlatform, AllocInternal));
+    RMT_MSG_USERDATA_EMBEDDED_STRING eventToken(
+        delta,
+        type,
+        pSnapshotName);
 
-        PAL_ASSERT(m_pBuffer != nullptr);
-
-        memcpy(m_pBuffer, pOldBuffer, m_bufferUsed);
-        PAL_SAFE_FREE(pOldBuffer, m_pPlatform);
-    }
+    WriteTokenData(eventToken);
 }
 
 } // Pal

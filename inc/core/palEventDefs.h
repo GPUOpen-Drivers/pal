@@ -51,18 +51,25 @@ struct QueryPoolCreateInfo;
 /// Enumeration of events that PAL clients can log through the @IPlatform::LogEvent() call.
 enum class PalEvent : uint32
 {
-    CreateGpuMemory          = 0,
-    DestroyGpuMemory         = 1,
-    GpuMemoryResourceCreate  = 2,
-    GpuMemoryResourceDestroy = 3,
-    GpuMemoryMisc            = 4,
-    GpuMemorySnapshot        = 5,
-    DebugName                = 6,
-    GpuMemoryResourceBind    = 7,
-    GpuMemoryCpuMap          = 8,
-    GpuMemoryCpuUnmap        = 9,
-    GpuMemoryAddReference    = 10,
-    GpuMemoryRemoveReference = 11,
+    Invalid                  = 0,
+
+    CreateGpuMemory          = 1,
+    DestroyGpuMemory         = 2,
+    GpuMemoryResourceCreate  = 3,
+    GpuMemoryResourceDestroy = 4,
+    GpuMemoryMisc            = 5,
+    GpuMemorySnapshot        = 6,
+    DebugName                = 7,
+    GpuMemoryResourceBind    = 8,
+    GpuMemoryCpuMap          = 9,
+    GpuMemoryCpuUnmap        = 10,
+    GpuMemoryAddReference    = 11,
+    GpuMemoryRemoveReference = 12,
+
+    // Sends fully processed Rmt Tokens for the previous PalEvent types
+    RmtToken                 = 13,
+
+    Count
 };
 
 typedef uint64 GpuMemHandle;

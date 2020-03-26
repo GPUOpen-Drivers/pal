@@ -2389,7 +2389,7 @@ public:
     virtual Result Unmap() override
         { return m_pNextLayer->Unmap(); }
 
-#if PAL_KMT_BUILD || PAL_AMDGPU_BUILD
+#if  PAL_AMDGPU_BUILD
     virtual OsExternalHandle ExportExternalHandle(const GpuMemoryExportInfo& handleInfo) const override
         { return m_pNextLayer->ExportExternalHandle(handleInfo); }
 #endif
@@ -2636,6 +2636,11 @@ public:
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+    virtual void SetStackSizeInBytes(uint32 stackSizeInBytes) override
+        { m_pNextLayer->SetStackSizeInBytes(stackSizeInBytes); }
+#endif
+
     virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) const override
         { return m_pNextLayer->QueryAllocationInfo(pNumEntries, pAllocInfoList); }
 
@@ -2762,6 +2767,16 @@ public:
         ShaderLibStats*  pShaderStats) const override
     {
         return m_pNextLayer->GetShaderFunctionStats(pShaderExportName, pShaderStats);
+    }
+
+    virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const
+    {
+        return m_pNextLayer->GetShaderLibFunctionList();
+    }
+
+    virtual uint32 GetShaderLibFunctionCount() const
+    {
+        return m_pNextLayer->GetShaderLibFunctionCount();
     }
 
     // Part of the IDestroyable public interface.
@@ -2898,7 +2913,7 @@ public:
     virtual bool HasStalledQueues() override
         { return m_pNextLayer->HasStalledQueues(); }
 
-#if PAL_KMT_BUILD  || PAL_AMDGPU_BUILD
+#if  PAL_AMDGPU_BUILD
     virtual OsExternalHandle ExportExternalHandle(
         const QueueSemaphoreExportInfo& exportInfo) const override
         { return m_pNextLayer->ExportExternalHandle(exportInfo); }

@@ -180,7 +180,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         endif()
     endif()
 
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+elseif((CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang")
+      )
 
     # [Clang] Command Line Argument Reference
     #    https://clang.llvm.org/docs/ClangCommandLineReference.html
@@ -203,7 +204,8 @@ else()
     message(FATAL_ERROR "IPO is not supported!")
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|[Cc]lang")
+  )
 
     # [GCC] Exceptions
     #   https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_exceptions.html

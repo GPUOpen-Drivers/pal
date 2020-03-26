@@ -72,6 +72,9 @@ protected:
     uint32  m_threadsPerTgY;
     uint32  m_threadsPerTgZ;
 
+    uint32  m_maxFunctionCallDepth;  ///< Maximum depth for indirect function calls
+    uint32  m_stackSizeInBytes;      ///< Total stack size for indirect functions
+
     ShaderStageInfo  m_stageInfo;
 
 private:

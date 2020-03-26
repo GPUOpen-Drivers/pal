@@ -25,20 +25,19 @@
 
 #pragma once
 
-// This is temporary. Eventually this will be defined by devDriver
-#define GPUOPEN_EVENT_PROVIDER_VERSION 999
-
 #include "palFile.h"
 #include "palGpuMemoryBindable.h"
 #include "palJsonWriter.h"
 #include "palMutex.h"
 #include "palPlatform.h"
-#include "core/eventDefs.h"
-#include "core/devDriverEventService.h"
 
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
+#include "core/devDriverEventService.h"
+#include "core/eventDefs.h"
+
 #include "protocols/ddEventServer.h"
-#endif
+#include "protocols/ddEventProvider.h"
+
+#include "util/ddEventTimer.h"
 
 namespace Pal
 {
@@ -49,63 +48,21 @@ class Platform;
 class Queue;
 
 // =====================================================================================================================
-// JSON stream that records the text stream using a staging buffer and a log file. WriteFile must be called explicitly
-// to flush all buffered text. Note that this makes it possible to generate JSON text before OpenFile has been called.
-class EventLogStream : public Util::JsonStream
-{
-public:
-    explicit EventLogStream(Platform* pPlatform);
-    virtual ~EventLogStream();
-
-    Result OpenFile(const char* pFilePath);
-    void CloseFile();
-    Result WriteBufferedData();
-
-    // Returns true if the log file has already been opened.
-    bool IsFileOpen() const { return m_file.IsOpen(); }
-
-    virtual void WriteString(const char* pString, uint32 length) override;
-    virtual void WriteCharacter(char character) override;
-
-private:
-    void VerifyUnusedSpace(uint32 size);
-
-    Platform*const m_pPlatform;
-    Util::File     m_file;       // The text stream is being written here.
-    char*          m_pBuffer;    // Buffered text data that needs to be written to the file.
-    uint32         m_bufferSize; // The size of the buffer in characters.
-    uint32         m_bufferUsed; // How many characters of the buffer are in use.
-    uint32         m_flushSize;  // How many bytes have been written since the last flush to disk.
-
-    // Determines how many bytes should be written to the file between each flush to disk
-    static constexpr uint32 FlushThreshold = 4096;
-
-    PAL_DISALLOW_DEFAULT_CTOR(EventLogStream);
-    PAL_DISALLOW_COPY_AND_ASSIGN(EventLogStream);
-};
-
-// =====================================================================================================================
 // The PalEventProvider class is a class derived from DevDriver EventProvider that is be responsible for logging
 // developer mode events in PAL.
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_EVENT_PROVIDER_VERSION
-class EventProvider : public DevDriver::EventProtocol::EventProvider
-#else
-class EventProvider
-#endif
+class EventProvider : public DevDriver::EventProtocol::BaseEventProvider
 {
 public:
     EventProvider(Platform* pPlatform);
-    virtual ~EventProvider() {}
+    ~EventProvider() override {}
 
     Result Init();
-
     void Destroy();
 
-    Result EnableFileLogging(const char* pFilePath);
-    void DisableFileLogging();
-    Result OpenLogFile(const char* pFilePath);
-
-    bool IsMemoryProfilingEnabled() const { return m_eventService.IsMemoryProfilingEnabled(); }
+    bool IsMemoryProfilingEnabled() const
+    {
+        return (IsProviderEnabled() || m_eventService.IsMemoryProfilingEnabled());
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Event Log Functions
@@ -146,17 +103,44 @@ public:
     // End of Event Log Functions
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // BaseEventProvider overrides
+
+    static constexpr DevDriver::EventProtocol::EventProviderId kProviderId = 0x50616C45; // 'PalE'
+    DevDriver::EventProtocol::EventProviderId GetId() const override { return kProviderId; }
+
+    const void* GetEventDescriptionData()     const;
+    uint32      GetEventDescriptionDataSize() const;
+
+    // End of BaseEventProvider overrides
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 private:
-    void WriteEventHeader(PalEvent eventId, uint32 dataSize);
     bool ShouldLog(PalEvent eventId) const;
 
-    Platform*        m_pPlatform;
-    bool             m_isFileLoggingActive;
-    Util::Mutex      m_eventStreamMutex;
-    EventLogStream   m_eventStream;
-    Util::Mutex      m_jsonWriterMutex;
-    Util::JsonWriter m_jsonWriter;
-    EventService     m_eventService;
+    // Logs a PalEvent by translating it into one or more RMT Tokens and passing it into WriteTokenData
+    void LogEvent(PalEvent eventId, const void* pEventData, size_t eventDataSize);
+
+    // Hepler method for LogEvent
+    void LogResourceCreateEvent(uint8 delta, const void* pEventData, size_t eventDataSize);
+    // Helper method for LogEvent
+    void WriteUserdataStringToken(uint8 delta, const char* pSnapshotName, bool isSnapshot);
+
+    // Write an RMT token to both the service and event protocol
+    void WriteTokenData(const DevDriver::RMT_TOKEN_DATA& token)
+    {
+        WriteEvent(
+            static_cast<uint32>(PalEvent::RmtToken),
+            token.Data(),
+            token.Size()
+        );
+        m_eventService.WriteTokenData(token);
+    }
+
+    Platform*                  m_pPlatform;
+    EventService               m_eventService;
+    DevDriver::EventTimer      m_eventTimer;
+    DevDriver::Platform::Mutex m_providerLock;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(EventProvider);
 };

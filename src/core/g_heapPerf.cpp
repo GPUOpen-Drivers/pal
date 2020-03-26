@@ -202,8 +202,7 @@ void SettingsLoader::SetupHeapPerfRatings(
         pSettings->gpuWritePerfForGartCacheable = 3.6f;
         pSettings->gpuReadPerfForGartCacheable = 6.6f;
     }
-    else
-    if (IsNavi10(*(static_cast<Pal::Device*>(m_pDevice))))
+    else if (IsNavi10(*(static_cast<Pal::Device*>(m_pDevice))))
     {
         pSettings->cpuWritePerfForLocal = 6.6f;
         pSettings->cpuReadPerfForLocal = 0.019f;

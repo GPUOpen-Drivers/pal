@@ -197,7 +197,11 @@ Result ComputePipeline::HwlInit(
 
     if (result == Result::Success)
     {
-        UpdateRingSizes(metadata);
+        const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+        if (csStageMetadata.hasEntry.scratchMemorySize != 0)
+        {
+            UpdateRingSizes(csStageMetadata.scratchMemorySize);
+        }
 
         // Next, update our PM4 image with the now-known GPU virtual addresses for the shader entrypoints and
         // internal SRD table addresses:
@@ -478,6 +482,26 @@ Result ComputePipeline::GetShaderStats(
                                                                       m_regs.computePgmHi.bits.DATA);
 
             pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
+
+            AbiProcessor abiProcessor(m_pDevice->GetPlatform());
+            result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
+
+            MsgPackReader      metadataReader;
+            CodeObjectMetadata metadata;
+
+            if (result == Result::Success)
+            {
+                result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+            }
+
+            if (result == Result::Success)
+            {
+                const auto& csStageMetadata =
+                    metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+                pShaderStats->common.stackFrameSizeInBytes = csStageMetadata.scratchMemorySize;
+#endif
+            }
         }
     }
 
@@ -513,18 +537,27 @@ uint32* ComputePipeline::WriteShCommandsSetPath(
                                                        pCmdSpace);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+// =====================================================================================================================
+// Sets the total stack frame size for indirect shaders in the pipeline
+void ComputePipeline::SetStackSizeInBytes(
+    uint32 stackSizeInBytes)
+{
+    m_stackSizeInBytes = stackSizeInBytes;
+    UpdateRingSizes(stackSizeInBytes);
+}
+#endif
+
 // =====================================================================================================================
 // Update the device that this compute pipeline has some new ring-size requirements.
 void ComputePipeline::UpdateRingSizes(
-    const CodeObjectMetadata& metadata)
+    uint32 scratchMemorySize)
 {
     ShaderRingItemSizes ringSizes = { };
 
-    const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-    if (csStageMetadata.hasEntry.scratchMemorySize != 0)
+    if (scratchMemorySize != 0)
     {
-        ringSizes.itemSize[static_cast<uint32>(ShaderRingType::ComputeScratch)] = (csStageMetadata.scratchMemorySize /
-                                                                                   sizeof(uint32));
+        ringSizes.itemSize[static_cast<uint32>(ShaderRingType::ComputeScratch)] = (scratchMemorySize / sizeof(uint32));
     }
 
     // Inform the device that this pipeline has some new ring-size requirements.

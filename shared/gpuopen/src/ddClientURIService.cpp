@@ -69,6 +69,9 @@ namespace DevDriver
                     // Write the gpuopen library version string
                     pResponse->Write("\nClient Version String: %s", GetVersionString());
 
+                    // Write the branch definition string
+                    pResponse->Write("\nClient Branch String: %s", DD_BRANCH_STRING);
+
                     // Write the gpuopen library interface version
                     pResponse->Write("\nClient Available Interface Version: %u.%u", GPUOPEN_INTERFACE_MAJOR_VERSION, GPUOPEN_INTERFACE_MINOR_VERSION);
 

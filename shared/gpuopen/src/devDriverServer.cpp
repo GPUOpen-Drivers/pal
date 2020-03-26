@@ -42,7 +42,11 @@
 #include "protocols/ddEventServer.h"
 #include "protocols/typemap.h"
 
+#if defined(DD_PLATFORM_WINDOWS_UM)
+    #include "win/ddWinPipeMsgTransport.h"
+#else
     #include "socketMsgTransport.h"
+#endif
 
 namespace DevDriver
 {
@@ -65,6 +69,15 @@ namespace DevDriver
     {
         Result result = Result::Error;
 
+#if defined(DD_PLATFORM_WINDOWS_UM)
+        if (m_createInfo.connectionInfo.type == TransportType::Local)
+        {
+            using MsgChannelPipe = MessageChannel<WinPipeMsgTransport>;
+            m_pMsgChannel = DD_NEW(MsgChannelPipe, m_allocCb)(m_allocCb,
+                                                              m_createInfo,
+                                                              m_createInfo.connectionInfo);
+        }
+#else
         if (m_createInfo.connectionInfo.type == TransportType::Local)
         {
             using MsgChannelSocket = MessageChannel<SocketMsgTransport>;
@@ -72,6 +85,7 @@ namespace DevDriver
                                                                 m_createInfo,
                                                                 m_createInfo.connectionInfo);
         }
+#endif
         else
         {
             // Invalid transport type
@@ -355,8 +369,13 @@ namespace DevDriver
         switch (hostInfo.type)
         {
             case TransportType::Local:
+#if !defined(DD_PLATFORM_WINDOWS_UM)
                 // On non windows platforms we try to use an AF_UNIX socket for communication
                 result = SocketMsgTransport::TestConnection(hostInfo, timeout);
+#else
+                // Winsock doesn't support AF_UNIX style sockets, so we use a custom named pipe transport instead
+                result = WinPipeMsgTransport::TestConnection(hostInfo, timeout);
+#endif
                 break;
             default:
                 // Invalid value passed to the function
@@ -402,7 +421,11 @@ namespace DevDriver
         // Note: This function should probably be marked const, but it calls IsTraceRunning which takes the RGPServer
         // mutex to check trace state which is not a const operation.  A read/write lock might solve the problem.
         RGPProtocol::RGPServer* pRgpServer = GetServer<Protocol::RGP>();
+#if defined(DD_PLATFORM_WINDOWS_UM)
+        static const char* const pRenderDocAppName = "qrenderdoc.exe";
+#else
         static const char* const pRenderDocAppName = "qrenderdoc";
+#endif
         static const char* const pPixAppName = "WinPixEngineHost.exe";
         char clientName[128] = {};
         Platform::GetProcessName(&clientName[0], sizeof(clientName));

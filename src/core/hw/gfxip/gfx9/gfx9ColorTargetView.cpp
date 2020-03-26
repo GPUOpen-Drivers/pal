@@ -77,6 +77,8 @@ ColorTargetView::ColorTargetView(
 
         const ImageCreateInfo& imageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
 
+        m_flags.hasMultipleFragments = (imageCreateInfo.fragments > 1);
+
         // If this assert triggers the caller is probably trying to select z slices using the subresource range
         // instead of the zRange as required by the PAL interface.
         PAL_ASSERT((imageCreateInfo.imageType != ImageType::Tex3d) ||

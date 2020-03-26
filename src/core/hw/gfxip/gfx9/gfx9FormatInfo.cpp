@@ -29,6 +29,7 @@
 #include "palDevice.h"
 
 using namespace Util;
+using namespace Pal::Gfx9::Chip;
 
 namespace Pal
 {

@@ -677,9 +677,15 @@ Result Dri3WindowSystem::Present(
     {
         // The setting below means if XCB_PRESENT_OPTION_ASYNC is set, display the image immediately, otherwise display
         // the image on next vblank.
-        constexpr uint32 TargetMsc  = 0;
-        constexpr uint32 Remainder  = 0;
-        constexpr uint32 Divisor    = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 582
+        uint64 targetMsc            = presentInfo.mscInfo.targetMsc;
+        uint64 remainder            = presentInfo.mscInfo.remainder;
+        uint64 divisor              = presentInfo.mscInfo.divisor;
+#else
+        uint64 targetMsc  = 0;
+        uint64 remainder  = 0;
+        uint64 divisor    = 1;
+#endif
 
         uint32 options = XCB_PRESENT_OPTION_NONE;
 
@@ -689,7 +695,8 @@ Result Dri3WindowSystem::Present(
         }
         // PresentOptionAsync: the present will be performed as soon as possible, not necessarily waiting for
         // next vertical blank interval
-        if (m_swapChainMode == SwapChainMode::Immediate)
+        if ((m_swapChainMode == SwapChainMode::Immediate) &&
+            (targetMsc == 0))
         {
             options |= XCB_PRESENT_OPTION_ASYNC;
         }
@@ -707,9 +714,9 @@ Result Dri3WindowSystem::Present(
                                           waitSyncFence,                  // wait-fence
                                           idleSyncFence,                  // idle-fence
                                           options,
-                                          TargetMsc,
-                                          Divisor,
-                                          Remainder,
+                                          targetMsc,
+                                          divisor,
+                                          remainder,
                                           0,                              // notifies_len
                                           nullptr);                       // notifies
 

@@ -76,19 +76,9 @@ target_link_libraries(${GPUOPEN_LIB_NAME} PRIVATE mpack)
 target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  rapidjson)
 target_link_libraries(${GPUOPEN_LIB_NAME} PUBLIC  metrohash)
 
-# TODO: Should be in DevDriver.cmake
-if(WIN32)
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        # Only apply static analysis warnings to the gpuopen library itself. This can break external projects
-        # so it is dangerous to add to apply_gpuopen_warnings above. We also only build it on debug, as
-        # Release does not include the various static analysis hints (e.g., noreturn) necessary for it to
-        # compile without errors.
-        target_compile_options(${GPUOPEN_LIB_NAME} PRIVATE $<$<CONFIG:Debug>:/analyze>)
-    endif()
-endif()
-
 ### Build Defines ######################################################################################################
 target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION})
+target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DD_BRANCH_STRING=\"unknown\")
 
 # Add NDEBUG flag in release builds since several code files depend on it.
 target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE $<$<CONFIG:Release>:NDEBUG>)

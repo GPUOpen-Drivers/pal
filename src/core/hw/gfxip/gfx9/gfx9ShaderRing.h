@@ -43,7 +43,7 @@ class ShaderRing
 public:
     virtual ~ShaderRing();
 
-    Result Validate(size_t itemSize, ShaderRingType ringType);
+    Result Validate(size_t itemSize, ShaderRingType ringType, ShaderRingMemory* pDeferredMem);
 
     bool IsMemoryValid() const { return m_ringMem.IsBound(); }
 
@@ -73,7 +73,7 @@ protected:
     const GfxIpLevel  m_gfxLevel;
 
 private:
-    Result AllocateVideoMemory(gpusize memorySizeBytes, ShaderRingType ringType);
+    Result AllocateVideoMemory(gpusize memorySizeBytes, ShaderRingType ringType, ShaderRingMemory* pDeferredMem);
 
     PAL_DISALLOW_DEFAULT_CTOR(ShaderRing);
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderRing);

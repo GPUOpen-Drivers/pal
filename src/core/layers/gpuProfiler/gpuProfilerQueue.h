@@ -75,6 +75,8 @@ struct LogItem
         {
             CmdBufCallId callId;              // Identifies exactly which call is logged (e.g., CmdDrawIndexed).
 
+            uint32 subQueueIdx;               // Identifies which subQueue this cmdBuf call is submitted to.
+
             struct
             {
                 uint32 draw        :  1;      // Draw call (should track graphics shaders, vertex/instance count, etc.).
@@ -149,6 +151,24 @@ struct NestedInfo
     ICmdAllocator*   pCmdAllocator; // This is a GpuProfiler CmdAllocator.
 };
 
+// This struct tracks per subQueue info when we do gang submission.
+struct SubQueueInfo
+{
+    QueueType  queueType;
+    EngineType engineType;
+    uint32     engineIndex;
+    // For each subQueue, track 2 lists of various objects.  Objects that may still be queued for hardware access are
+    // in the busy list, others are in the available list.
+    Util::Deque<TargetCmdBuffer*, Platform>* pAvailableCmdBufs;
+    Util::Deque<TargetCmdBuffer*, Platform>* pBusyCmdBufs;
+
+    Util::Deque<NestedInfo, Platform>* pAvailableNestedCmdBufs;
+    Util::Deque<NestedInfo, Platform>* pBusyNestedCmdBufs;
+};
+
+typedef Util::Deque<TargetCmdBuffer*, Platform> CmdBufDeque;
+typedef Util::Deque<NestedInfo, Platform> NestedCmdBufDeque;
+
 // =====================================================================================================================
 // GpuProfiler implementation of the IQueue interface.  Resposible for generating instrumented versions of the
 // recorded ICmdBuffer objects the client submits and gathering/reporting performance data.
@@ -157,17 +177,15 @@ class Queue : public QueueDecorator
 public:
     Queue(IQueue*    pNextQueue,
           Device*    pDevice,
-          QueueType  queueType,
-          EngineType engineType,
-          uint32     engineId,
-          uint32     queueId);
+          uint32     queueCount,
+          uint32     masterQueueId);
 
-    Result Init();
+    Result Init(const QueueCreateInfo* pCreateInfo);
 
     // Acquire methods return corresponding objects for use by a command buffer being replayed from reusable pools
     // managed by the Queue.
-    TargetCmdBuffer* AcquireCmdBuf();
-    TargetCmdBuffer* AcquireNestedCmdBuf();
+    TargetCmdBuffer* AcquireCmdBuf(uint32 subQueueIdx);
+    TargetCmdBuffer* AcquireNestedCmdBuf(uint32 subQueueIdx);
     Result AcquireGpaSession(GpuUtil::GpaSession** ppGpaSession);
 
     void AddLogItem(const LogItem& logItem);
@@ -245,11 +263,13 @@ private:
     void ProfilingClockMode(bool enable);
 
     Device*const     m_pDevice;
-    const QueueType  m_queueType;
-    const EngineType m_engineType;
-    const uint32     m_engineIndex;
-    const uint32     m_queueId;            // Unique ID for the queue to differentiate cases where the client creates
-                                           // multiple queues for the same engine.
+
+    uint32           m_queueCount;
+
+    SubQueueInfo*    m_pQueueInfos;
+
+    uint32           m_queueId;
+
     uint32           m_shaderEngineCount;
 
     ICmdAllocator*   m_pCmdAllocator;  // Allocator for the instrumented version of the non-nested command buffers this
@@ -259,14 +279,6 @@ private:
 
     // Each replayed nested command buffer needs its own allocator which will be created from this create info.
     CmdAllocatorCreateInfo m_nestedAllocatorCreateInfo;
-
-    // Track 2 lists of various objects owned by this queue.  Objects that may still be queued for hardware access are
-    // in the busy list, others are in the available list.
-    Util::Deque<TargetCmdBuffer*, Platform>     m_availableCmdBufs;
-    Util::Deque<TargetCmdBuffer*, Platform>     m_busyCmdBufs;
-
-    Util::Deque<NestedInfo, Platform>           m_availableNestedCmdBufs;
-    Util::Deque<NestedInfo, Platform>           m_busyNestedCmdBufs;
 
     // GpaSession config info for the queue
     GpuUtil::GpaSampleConfig                    m_gpaSessionSampleConfig;
@@ -291,12 +303,12 @@ private:
     //     - Reclaim that fence as available.
     struct PendingSubmitInfo
     {
-        IFence* pFence;
-        uint32  cmdBufCount;
-        uint32  nestedCmdBufCount;
-        uint32  gpuMemCount;
-        uint32  logItemCount;
-        uint32  gpaSessionCount;
+        IFence*  pFence;
+        uint32*  pCmdBufCount;
+        uint32*  pNestedCmdBufCount;
+        uint32   gpuMemCount;
+        uint32   logItemCount;
+        uint32   gpaSessionCount;
     };
     Util::Deque<PendingSubmitInfo, Platform> m_pendingSubmits;
 

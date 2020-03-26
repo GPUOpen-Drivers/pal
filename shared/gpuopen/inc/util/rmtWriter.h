@@ -83,7 +83,14 @@ public:
     void EndDataChunk();
 
     // Writes a chunk into the RMT file from an external source
-    void WriteData(const void* pData, size_t dataSize);
+    void WriteDataChunk(const void* pData, size_t dataSize);
+
+    // Alias for WriteDataChunk
+    // This function exists to maintain backwards compatibility with older code.
+    void WriteData(const void* pData, size_t dataSize) { WriteDataChunk(pData, dataSize); }
+
+    // Writes a chunk header into the RMT file
+    void WriteDataChunkHeader(uint64 processId, uint64 threadId, size_t dataSize, uint32 chunkIndex);
 
     void Finalize();
 

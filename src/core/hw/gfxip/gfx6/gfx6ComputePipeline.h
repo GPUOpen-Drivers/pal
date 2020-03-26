@@ -61,6 +61,11 @@ public:
 
     const ComputePipelineSignature& Signature() const { return m_signature; }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+    virtual void SetStackSizeInBytes(
+        uint32 stackSizeInBytes) override;
+#endif
+
 protected:
     virtual Result HwlInit(
         const ComputePipelineCreateInfo& createInfo,
@@ -73,7 +78,7 @@ private:
 
     uint32 CalcMaxWavesPerSh(uint32 maxWavesPerCu) const;
 
-    void UpdateRingSizes(const CodeObjectMetadata& metadata);
+    void UpdateRingSizes(uint32 scratchMemorySize);
 
     void SetupSignatureFromElf(
         const CodeObjectMetadata& metadata,

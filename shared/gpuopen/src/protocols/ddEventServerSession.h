@@ -55,6 +55,12 @@ namespace DevDriver
             void UpdateSession();
 
         private:
+            struct EventChunkInfo
+            {
+                EventChunk* pChunk;
+                size_t      bytesSent;
+            };
+
             // Protocol message handlers
             SessionState HandleQueryProvidersRequest(SizedPayloadContainer& container);
             SessionState HandleAllocateProviderUpdatesRequest(SizedPayloadContainer& container);
@@ -71,6 +77,7 @@ namespace DevDriver
             SharedPointer<TransferProtocol::ServerBlock> m_pUpdateBlock;
             SizedPayloadContainer                        m_eventPayloadContainer;
             bool                                         m_eventPayloadPending;
+            EventChunkInfo                               m_eventChunkInfo;
         };
     }
 }

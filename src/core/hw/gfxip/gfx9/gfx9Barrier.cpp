@@ -1243,10 +1243,12 @@ void Device::Barrier(
 
         constexpr uint32 MaybeTccMdShaderMask = CoherShader | CoherCopy | CoherResolve | CoherClear;
 
+        const IImage* pImage            = transition.imageInfo.pImage;
+        const bool    couldHaveMetadata = ((pImage == nullptr) || (pImage->GetMemoryLayout().metadataSize > 0));
+
         // Invalidate TCC's meta data cache to prevent future threads from reading stale data, since TCC's meta data
         // cache is non-coherent and read-only.
-        const IImage* pImage = transition.imageInfo.pImage;
-        if (((pImage == nullptr) || (pImage->GetMemoryLayout().metadataSize > 0)) &&
+        if (couldHaveMetadata &&
             (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) || TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask)))
         {
             globalSyncReqs.cacheFlags |= CacheSyncInvTccMd;

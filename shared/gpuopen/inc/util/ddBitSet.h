@@ -140,10 +140,13 @@ public:
         uint8* pBytes = reinterpret_cast<uint8*>(m_bits.Dwords());
 
         const size_t fullBytes = SizeInBits() / 8;
-        memset(pBytes, 0xFF, fullBytes);
+        if (fullBytes > 0)
+        {
+            memset(pBytes, 0xFF, fullBytes);
+        }
 
         const size_t bits = SizeInBits() % 8;
-        if (bits != 0)
+        if (bits > 0)
         {
             pBytes[fullBytes] = (1 << bits) - 1;
         }

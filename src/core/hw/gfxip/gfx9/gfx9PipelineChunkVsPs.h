@@ -88,7 +88,7 @@ public:
     regSPI_SHADER_Z_FORMAT SpiShaderZFormat() const { return m_regs.context.spiShaderZFormat; }
     regDB_SHADER_CONTROL DbShaderControl() const { return m_regs.context.dbShaderControl; }
     regPA_CL_VS_OUT_CNTL PaClVsOutCntl() const { return m_regs.context.paClVsOutCntl; }
-    regPA_SC_AA_CONFIG PaScAaConfig() const { return m_regs.context.paScAaConfig; }
+    regPA_SC_AA_CONFIG PaScAaConfig() const { return m_paScAaConfig; }
 
     // Shortcut for checking if the shader has enabled INNER_COVERAGE mode.
     bool UsesInnerCoverage() const
@@ -144,7 +144,6 @@ private:
             regSPI_PS_INPUT_ENA       spiPsInputEna;
             regSPI_PS_INPUT_ADDR      spiPsInputAddr;
             regDB_SHADER_CONTROL      dbShaderControl;
-            regPA_SC_AA_CONFIG        paScAaConfig;
             regPA_SC_SHADER_CONTROL   paScShaderControl;
             regPA_SC_BINNER_CNTL_1    paScBinnerCntl1;
             regPA_CL_VS_OUT_CNTL      paClVsOutCntl;
@@ -170,8 +169,9 @@ private:
     const PerfDataInfo*const  m_pVsPerfDataInfo;   // VS performance data information.
     const PerfDataInfo*const  m_pPsPerfDataInfo;   // PS performance data information.
 
-    ShaderStageInfo  m_stageInfoVs;
-    ShaderStageInfo  m_stageInfoPs;
+    ShaderStageInfo    m_stageInfoVs;
+    ShaderStageInfo    m_stageInfoPs;
+    regPA_SC_AA_CONFIG m_paScAaConfig; // This register is only written in the draw-time validation code.
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkVsPs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkVsPs);

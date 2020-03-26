@@ -2019,6 +2019,7 @@ struct GpuTimestampCalibration
     {
         uint64   cpuWinPerfCounter;  ///< Current CPU performance counter value at the time of the corresponding GPU
                                      ///  timestamp.  This is a Windows-specific value as returned by
+                                     ///  QueryPerformanceCounter.
     };
 };
 #endif

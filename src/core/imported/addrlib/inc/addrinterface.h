@@ -3461,6 +3461,7 @@ typedef struct _ADDR2_COMPUTE_SLICE_PIPEBANKXOR_INPUT
     UINT_32             size;               ///< Size of this structure in bytes
     AddrSwizzleMode     swizzleMode;        ///< Surface swizzle mode
     AddrResourceType    resourceType;       ///< Surface resource type
+    UINT_32             bpe;                ///< bits per element (e.g. block size for BCn format)
     UINT_32             basePipeBankXor;    ///< Base pipe bank xor
     UINT_32             slice;              ///< Slice id
     UINT_32             numSamples;         ///< Number of samples

@@ -26,9 +26,8 @@
 #pragma once
 
 #include "ddUriInterface.h"
-#include "util/rmtWriter.h"
 #include "palEventDefs.h"
-#include "util/hashMap.h"
+#include "util/rmtWriter.h"
 
 namespace Pal
 {
@@ -50,16 +49,17 @@ namespace Pal
         // Handles an incoming URI request
         DevDriver::Result HandleRequest(DevDriver::IURIRequestContext* pContext) override final;
 
-        // Logs a Pal event
-        void LogEvent(PalEvent eventId, const void* pEventData, size_t eventDataSize);
-
         // Returns true if memory profiling has been enabled
         bool IsMemoryProfilingEnabled() const { return m_isMemoryProfilingEnabled; }
 
-    private:
-        void LogResourceCreateEvent(uint8 delta, const void* pEventData, size_t eventDataSize);
-        void WriteUserdataStringToken(uint8 delta, const char* pSnapshotName, bool isSnapshot);
+        uint8 CalculateDelta()
+        {
+            return m_rmtWriter.CalculateDelta();
+        }
 
+        void WriteTokenData(const DevDriver::RMT_TOKEN_DATA& token);
+
+    private:
         DevDriver::Platform::Mutex m_mutex;
         DevDriver::RmtWriter       m_rmtWriter;
         bool                       m_isMemoryProfilingEnabled;

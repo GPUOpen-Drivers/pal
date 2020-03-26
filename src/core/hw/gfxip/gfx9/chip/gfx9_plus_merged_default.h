@@ -27,7 +27,12 @@
 
 
 
-constexpr unsigned int mmCB_CGTT_SCLK_CTRL_DEFAULT                        = 0x0100;
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 constexpr unsigned int mmCB_HW_MEM_ARBITER_RD_DEFAULT                     = 0x29000;
 constexpr unsigned int mmCB_HW_MEM_ARBITER_WR_DEFAULT                     = 0x29000;
 constexpr unsigned int mmCB_PERFCOUNTER0_SELECT1_DEFAULT                  = 0x0000;
@@ -304,8 +309,6 @@ constexpr unsigned int mmSQ_SHADER_TMA_HI_DEFAULT                         = 0x00
 constexpr unsigned int mmSQ_SHADER_TMA_LO_DEFAULT                         = 0x0000;
 constexpr unsigned int mmSQ_TEX_CLK_CTRL_DEFAULT                          = 0x0000;
 constexpr unsigned int mmSQ_THREAD_TRACE_STATUS_DEFAULT                   = 0x0000;
-constexpr unsigned int mmTA_CGTT_CTRL_DEFAULT                             = 0x0100;
-constexpr unsigned int mmTA_RESERVED_010C_DEFAULT                         = 0x0000;
 constexpr unsigned int mmTA_SCRATCH_DEFAULT                               = 0x0000;
 constexpr unsigned int mmTCP_PERFCOUNTER0_HI_DEFAULT                      = 0x0000;
 constexpr unsigned int mmTCP_PERFCOUNTER0_LO_DEFAULT                      = 0x0000;
@@ -384,6 +387,7 @@ namespace Core
     constexpr unsigned int mmCB_BLEND_BLUE_DEFAULT                            = 0xCDCDCDCD;
     constexpr unsigned int mmCB_BLEND_GREEN_DEFAULT                           = 0xCDCDCDCD;
     constexpr unsigned int mmCB_BLEND_RED_DEFAULT                             = 0xCDCDCDCD;
+    constexpr unsigned int mmCB_CGTT_SCLK_CTRL_DEFAULT                        = 0x0100;
     constexpr unsigned int mmCB_COLOR0_ATTRIB2_DEFAULT                        = 0xCDCDCDCD;
     constexpr unsigned int mmCB_COLOR0_BASE_DEFAULT                           = 0xCDCDCDCD;
     constexpr unsigned int mmCB_COLOR0_BASE_EXT_DEFAULT                       = 0x00CD;
@@ -1067,8 +1071,10 @@ namespace Core
     constexpr unsigned int mmSX_PS_DOWNCONVERT_DEFAULT                        = 0xCDCDCDCD;
     constexpr unsigned int mmTA_BC_BASE_ADDR_DEFAULT                          = 0xCDCDCDCD;
     constexpr unsigned int mmTA_BC_BASE_ADDR_HI_DEFAULT                       = 0x00CD;
+    constexpr unsigned int mmTA_CGTT_CTRL_DEFAULT                             = 0x0100;
     constexpr unsigned int mmTA_CS_BC_BASE_ADDR_DEFAULT                       = 0xCDCDCDCD;
     constexpr unsigned int mmTA_CS_BC_BASE_ADDR_HI_DEFAULT                    = 0x00CD;
+    constexpr unsigned int mmTA_RESERVED_010C_DEFAULT                         = 0x0000;
     constexpr unsigned int mmTCP_PERFCOUNTER_FILTER_DEFAULT                   = 0x4DCDCDCD;
     constexpr unsigned int mmVGT_DMA_BASE_DEFAULT                             = 0xCDCDCDCD;
     constexpr unsigned int mmVGT_DMA_BASE_HI_DEFAULT                          = 0xCDCD;
@@ -1779,9 +1785,6 @@ namespace Gfx09_1xPlus
 namespace Gfx10
 {
     constexpr unsigned int mmCB_DCC_CONFIG_DEFAULT                            = 0x0000;
-    constexpr unsigned int mmCB_STUTTER_CONTROL_CMASK_RDLAT_DEFAULT           = 0x0000;
-    constexpr unsigned int mmCB_STUTTER_CONTROL_COLOR_RDLAT_DEFAULT           = 0x0000;
-    constexpr unsigned int mmCB_STUTTER_CONTROL_FMASK_RDLAT_DEFAULT           = 0x0000;
     constexpr unsigned int mmCHA_PERFCOUNTER0_HI_DEFAULT                      = 0x0000;
     constexpr unsigned int mmCHA_PERFCOUNTER0_LO_DEFAULT                      = 0x0000;
     constexpr unsigned int mmCHA_PERFCOUNTER0_SELECT1_DEFAULT                 = 0xFFFFF;
@@ -2408,6 +2411,9 @@ namespace Gfx10Core
     constexpr unsigned int mmCB_COVERAGE_OUT_CONTROL_DEFAULT                  = 0x0D0D;
     constexpr unsigned int mmCB_DCC_CONTROL_DEFAULT                           = 0x454D;
     constexpr unsigned int mmCB_RMI_BC_GL2_CACHE_CONTROL_DEFAULT              = 0x550055;
+    constexpr unsigned int mmCB_STUTTER_CONTROL_CMASK_RDLAT_DEFAULT           = 0x0000;
+    constexpr unsigned int mmCB_STUTTER_CONTROL_COLOR_RDLAT_DEFAULT           = 0x0000;
+    constexpr unsigned int mmCB_STUTTER_CONTROL_FMASK_RDLAT_DEFAULT           = 0x0000;
     constexpr unsigned int mmCOMPUTE_DDID_INDEX_DEFAULT                       = 0x05CD;
     constexpr unsigned int mmCOMPUTE_DISPATCH_END_DEFAULT                     = 0xCDCDCDCD;
     constexpr unsigned int mmCOMPUTE_DISPATCH_INITIATOR_DEFAULT               = 0xCC4D;
@@ -3274,3 +3280,6 @@ namespace Vg20
     constexpr unsigned int mmVGT_GS_MAX_WAVE_ID_DEFAULT                       = 0x03FF;
 } // namespace Vg20
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

@@ -40,7 +40,9 @@ ComputePipeline::ComputePipeline(
     Pipeline(pDevice, isInternal),
     m_threadsPerTgX(0),
     m_threadsPerTgY(0),
-    m_threadsPerTgZ(0)
+    m_threadsPerTgZ(0),
+    m_maxFunctionCallDepth(0),
+    m_stackSizeInBytes(0)
 {
     memset(&m_stageInfo, 0, sizeof(m_stageInfo));
     m_stageInfo.stageId = Abi::HardwareStage::Cs;
@@ -129,6 +131,15 @@ Result ComputePipeline::InitFromPipelineBinary(
         if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsDisassembly, &symbol))
         {
             m_stageInfo.disassemblyLength = static_cast<size_t>(symbol.size);
+        }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+        m_maxFunctionCallDepth = createInfo.maxFunctionCallDepth;
+#endif
+        const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+        if (csStageMetadata.hasEntry.scratchMemorySize != 0)
+        {
+            m_stackSizeInBytes = csStageMetadata.scratchMemorySize;
         }
 
         result = HwlInit(createInfo,

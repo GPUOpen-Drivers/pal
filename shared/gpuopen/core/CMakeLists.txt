@@ -57,17 +57,6 @@ endif()
 # Support for dynamic library loading
 target_link_libraries(ddCore PRIVATE ${CMAKE_DL_LIBS})
 
-# TODO: Should be in DevDriver.cmake
-if(WIN32)
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        # Only apply static analysis warnings to the gpuopen library itself. This can break external projects
-        # so it is dangerous to add to apply_gpuopen_warnings above. We also only build it on debug, as
-        # Release does not include the various static analysis hints (e.g., noreturn) necessary for it to
-        # compile without errors.
-        target_compile_options(ddCore PRIVATE $<$<CONFIG:Debug>:/analyze>)
-    endif()
-endif()
-
 ### Build Defines ######################################################################################################
 
 # Also enable these features from CMake
@@ -134,6 +123,17 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
             src/platforms/ddcPosixPlatform.cpp
             inc/platforms/ddcPosixPlatform.h)
 
+elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+
+    target_compile_definitions(ddCore
+        PUBLIC
+            "DD_PLATFORM_DARWIN_UM=1"
+            "DD_PLATFORM_IS_UM=1"
+            "DD_PLATFORM_IS_POSIX=1")
+    target_sources(ddCore
+        PRIVATE
+            src/platforms/ddcPosixPlatform.cpp
+            inc/platforms/ddcPosixPlatform.h)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
 
         target_compile_definitions(ddCore

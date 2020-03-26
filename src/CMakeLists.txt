@@ -22,6 +22,10 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+
+include(PalVersionHelper NO_POLICY_SCOPE)
+
+### Create PAL Library #################################################################################################
 add_library(pal STATIC "")
 install(TARGETS pal DESTINATION ${CMAKE_SOURCE_DIR}/lib/${CMAKE_BUILD_TYPE}${TARGET_ARCHITECTURE_BITS})
 
@@ -33,25 +37,17 @@ if(UNIX)
         target_compile_options(pal PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-pthread -fPIC -fcheck-new -fno-rtti -fno-math-errno>)
         target_compile_options(pal PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-unused -Wno-unused-parameter -Wno-ignored-qualifiers -Wno-missing-field-initializers>)
         target_compile_options(pal PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions -std=c++0x -Wno-error=comment -Wno-comment -Wno-error=pointer-arith -Wno-pointer-arith -mpreferred-stack-boundary=6 -fno-threadsafe-statics -fmerge-all-constants -fms-extensions>)
-        if(CMAKE_BUILD_TYPE_RELEASE)
-            execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
-            if (GCC_VERSION VERSION_GREATER 5.3 OR GCC_VERSION VERSION_EQUAL 5.3)
-                # CMAKE-TODO: Use check_ipo_supported macro when CMake >= 3.9
-                target_compile_options(pal PRIVATE $<$<CONFIG:Release>:-flto  -fuse-linker-plugin -Wno-odr>)
-                message(WARNING "LTO enabled for Pal")
-            endif()
-        endif()
+
+        pal_setup_gcc_ipo()
 
         message(STATUS "Configured ${PROJECT_NAME} compiler options for GCC.")
     elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-        #message(STATUS "Configured compiler options for Clang.")
         message(WARNING "Clang is untested.")
     else()
         message(FATAL_ERROR "Using unknown compiler.")
     endif()
 
     set(PAL_USE_PTHREAD TRUE)
-
 endif()
 
 # CMAKE-TODO: Where is this used?

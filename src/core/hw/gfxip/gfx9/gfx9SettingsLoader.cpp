@@ -536,11 +536,13 @@ void SettingsLoader::OverrideDefaults(
 
             // Additional default settings that are beneficial for smaller ASICs.
             m_settings.disableBinningPsKill = false;
-            m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 33;
-            m_settings.gfx10GePcAllocNumLinesPerSeNggCulling = 32;
+            m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 0;
+            m_settings.gfx10GePcAllocNumLinesPerSeNggCulling = 0;
             m_settings.depthStencilFastClearComputeThresholdSingleSampled = (1024 * 1024) - 1;
             m_settings.binningContextStatesPerBin = 3;
             m_settings.binningPersistentStatesPerBin = 8;
+            m_settings.allowNggOnAllCusWgps = true;
+            m_settings.nggLateAllocGs = 0;
         }
 
     }

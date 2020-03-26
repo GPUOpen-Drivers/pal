@@ -118,6 +118,7 @@ public:
     regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_chunkVsPs.VgtStrmoutConfig(); }
     regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_chunkVsPs.VgtStrmoutBufferConfig(); }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const { return m_chunkVsPs.VgtStrmoutVtxStride(idx); }
+    regPA_SC_AA_CONFIG PaScAaConfig() const { return m_chunkVsPs.PaScAaConfig(); }
 
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_regs.context.vgtGsOnchipCntl; }
 
@@ -174,12 +175,18 @@ protected:
         Util::MsgPackReader*              pMetadataReader) override;
 
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
+    void EarlyInit(const CodeObjectMetadata& metadata,
+                   const RegisterVector&     registers,
+                   GraphicsPipelineLoadInfo* pInfo);
+    void LateInit(
+        const GraphicsPipelineCreateInfo& createInfo,
+        const AbiProcessor&               abiProcessor,
+        const CodeObjectMetadata&         metadata,
+        const RegisterVector&             registers,
+        const GraphicsPipelineLoadInfo&   loadInfo,
+        GraphicsPipelineUploader*         pUploader);
 
 private:
-    void EarlyInit(
-        const CodeObjectMetadata& metadata,
-        const RegisterVector&     registers,
-        GraphicsPipelineLoadInfo* pInfo);
 
     uint32 CalcMaxWavesPerSh(
         uint32 maxWavesPerCu1,

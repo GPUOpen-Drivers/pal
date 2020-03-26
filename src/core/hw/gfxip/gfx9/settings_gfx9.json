@@ -633,6 +633,11 @@
             "Name": "Gfx9UseDccAllowForceEnable",
             "Value": 2048,
             "Description": "Allows the client driver to force-enable DCC on particular images"
+          },
+          {
+            "Name": "Gfx9UseDccMipMappedArrays",
+            "Value": 4096,
+            "Description": "Surfaces which have Arrays and MipMaps"
           }
         ],
         "Name": "Gfx9UseDcc"
@@ -647,7 +652,7 @@
         "IsHex": true
       },
       "Defaults": {
-        "Default": 2559
+        "Default": 6655
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
@@ -820,6 +825,20 @@
       "Type": "bool",
       "VariableName": "htileEnable",
       "Name": "HtileEnable"
+    },
+    {
+      "Description": "If true, the ITERATE_256 bit will always be set (safe setting).  Pertains to GFX10 only",
+      "Tags": [
+        "Depth/Stencil",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "forceEnableIterate256",
+      "Name": "ForceEnableIterate256"
     },
     {
       "Description": "If true, allow depth copy resolve.",
@@ -1505,7 +1524,10 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
       "VariableName": "allowNggOnAllCusWgps",
-      "Name": "AllowNggOnAllCusWgps"
+      "Name": "AllowNggOnAllCusWgps",
+      "Flags": {
+        "RereadSetting": true
+      }
     },
     {
       "Description": "Value to program GE_PC_ALLOC::NUM_PC_LINES to for NGG-culling pipelines. The value in this setting is per shader-engine. The driver multiplies this value by the number of shader engines and then subtracts 1.",
@@ -1892,7 +1914,10 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
       "VariableName": "nggLateAllocGs",
-      "Name": "NggLateAllocGs"
+      "Name": "NggLateAllocGs",
+      "Flags": {
+        "RereadSetting": true
+      }
     },
     {
       "Description": "Controls how many instances of the NGG shader-data tables will be contained in the ring buffer managed by Universal Command Buffers. At most, the constant engine will be able to get that many draws ahead of the draw engine. This must be either zero, or divisible by four. If zero, any pipeline which requires NGG will fail to compile because no SRD table is present.",

@@ -1681,6 +1681,39 @@ struct GenMipmapsInfo
                                    ///  specified at image-creation time, otherwise the result might be incorrect.
 };
 
+/// Magic number tag for payloads in command buffer dumps
+constexpr uint32 CmdBufferPayloadSignature = 0x1337F77D;
+
+/// Maximum size, in DWORDs, of payload data in command buffer dumps.
+constexpr uint32 MaxPayloadSize = 256;
+
+/// Payload types used in special embedded NOP packets.
+enum class CmdBufferPayloadType : uint32
+{
+    Integer             = 0,    ///< Payload consists of a single 32-bit signed integer.
+    UnsignedInteger     = 1,    ///< Payload consists of a single 32-bit unsigned integer.
+    Integer64           = 2,    ///< Payload consists of a single 64-bit signed integer.
+    UnsignedInteger64   = 3,    ///< Payload consists of a single 64-bit unsigned integer.
+    Float               = 4,    ///< Payload consists of a single 32-bit floating point number.
+    Double              = 5,    ///< Payload consists of a single 64-bit double precision floating point number.
+    Pointer             = 6,    ///< Payload consists of a single 64-bit pointer address.
+    String              = 7,    ///< Payload consists of a variable length string. Must contain null-terminator.
+    Binary              = 8,    ///< Payload consists of DWORD-aligned binary data.
+};
+
+/// Structure layout for embedded CmdBuffer payloads. This can be embedded into the command stream with the
+/// @ref ICmdBuffer::CmdNop() function.
+struct CmdBufferPayload
+{
+    uint32               signature;     ///< Magic number tag indicating the structure to follow.
+    uint32               payloadSize;   ///< Size of the NOP packet (one DWORD) plus the sizeof this structure and the
+                                        ///  payload data to follow.
+                                        ///  This value is in DWORDs. Payload size is expected to be under
+                                        ///  MaxPayloadSize.
+    CmdBufferPayloadType type;          ///< The type of payload.
+    uint32               payload[1];    ///< Initial DWORD of payload data with the other data to follow.
+};
+
 /**
  ***********************************************************************************************************************
  * @interface ICmdBuffer
@@ -3275,9 +3308,9 @@ public:
     /// like the "caller", while the nested ones are the "callees".
     ///
     /// State inheritance/leakage between the caller and callee(s) has the following behavior:
-    /// + The callee inherits all current render and resource-binding state from the caller rather than starting from
-    ///   a blank slate like root command buffers do.  It was up to the client to bind any default state necessary when
-    ///   they called @ref ICmdBuffer::Begin() to begin building the callee.
+    /// + The callee only inherits the state specified in the callee CmdBufferBuildInfo.  It is up to the client to
+    ///   bind any default state necessary when they called @ref ICmdBuffer::Begin() to begin building the callee.
+    ///   By default no state is inherited and all state must be specified by the client.
     /// + The callee leaks any render and resource-binding state back into the caller after it completes.  It is up to
     ///   the client to rebind the caller's state after this operation completes if they don't want state leakage.
     /// + Both of the above points apply in between callees, if more than one command buffer is being executed by this

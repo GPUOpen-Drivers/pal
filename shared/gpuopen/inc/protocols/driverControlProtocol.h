@@ -27,7 +27,7 @@
 
 #include "gpuopen.h"
 
-#define DRIVERCONTROL_PROTOCOL_VERSION 7
+#define DRIVERCONTROL_PROTOCOL_VERSION 8
 
 #define DRIVERCONTROL_PROTOCOL_MINIMUM_VERSION 1
 
@@ -35,6 +35,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  8.0    | Added a new version of the step driver response that contains the current driver status.                 |
 *|  7.0    | Corrected a back-compat issue related to the new device clock query code.                                |
 *|  6.0    | Added ability to query device clock frequencies for a given clock mode.                                  |
 *|  5.0    | Cleaned up the driver facing interface.                                                                  |
@@ -46,8 +47,9 @@
 ***********************************************************************************************************************
 */
 
-#define DRIVERCONTROL_QUERY_BY_MODE_BACK_COMPAT_VERSION  7
-#define DRIVERCONTROL_QUERY_DEVICE_CLOCKS_BY_MODE_VERSION  6
+#define DRIVERCONTROL_STEP_RETURN_STATUS_VERSION 8
+#define DRIVERCONTROL_QUERY_BY_MODE_BACK_COMPAT_VERSION 7
+#define DRIVERCONTROL_QUERY_DEVICE_CLOCKS_BY_MODE_VERSION 6
 #define DRIVERCONTROL_DRIVER_INTERFACE_CLEANUP_VERSION 5
 #define DRIVERCONTROL_HALTEDPOSTDEVICEINIT_VERSION 4
 #define DRIVERCONTROL_QUERYCLIENTINFO_VERSION 3
@@ -89,6 +91,7 @@ namespace DevDriver
             QueryClientInfoResponse,
             QueryDeviceClockByModeRequest,
             QueryDeviceClockByModeResponse,
+            StepDriverResponseV2,
             Count
         };
 
@@ -446,6 +449,22 @@ namespace DevDriver
         };
 
         DD_CHECK_SIZE(StepDriverResponsePayload, sizeof(DriverControlHeader) + 4);
+
+        DD_NETWORK_STRUCT(StepDriverResponsePayloadV2, 4)
+        {
+            DriverControlHeader header;
+            Result result;
+            DriverStatus status;
+
+            constexpr StepDriverResponsePayloadV2(Result result, DriverStatus status)
+                : header(DriverControlMessage::StepDriverResponseV2)
+                , result(result)
+                , status(status)
+            {
+            }
+        };
+
+        DD_CHECK_SIZE(StepDriverResponsePayloadV2, sizeof(DriverControlHeader) + 8);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Query Client Info Request/Response

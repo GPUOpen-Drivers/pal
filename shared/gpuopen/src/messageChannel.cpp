@@ -38,6 +38,10 @@
     #include "socketMsgTransport.h"
 #endif
 
+#if defined(DD_PLATFORM_WINDOWS_UM)
+    #include "win/ddWinPipeMsgTransport.h"
+#endif
+
 namespace DevDriver
 {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,7 +50,18 @@ namespace DevDriver
     {
         Result result = Result::Unavailable;
 
-#if   DD_PLATFORM_IS_POSIX
+#if defined(DD_PLATFORM_WINDOWS_UM)
+        if (hostInfo.type == TransportType::Local)
+        {
+            result = WinPipeMsgTransport::TestConnection(hostInfo, timeoutInMs);
+        }
+        else if (hostInfo.type == TransportType::Remote)
+        {
+#if DD_SUPPORT_SOCKET_TRANSPORT
+            result = SocketMsgTransport::TestConnection(hostInfo, timeoutInMs);
+#endif
+        }
+#elif DD_PLATFORM_IS_POSIX
         if ((hostInfo.type == TransportType::Remote) |
             (hostInfo.type == TransportType::Local))
         {
@@ -80,7 +95,24 @@ namespace DevDriver
             DD_ASSERT(createInfo.allocCb.pfnAlloc != nullptr);
             DD_ASSERT(createInfo.allocCb.pfnFree != nullptr);
 
-#if   DD_PLATFORM_IS_POSIX
+#if defined(DD_PLATFORM_WINDOWS_UM)
+            if (createInfo.hostInfo.type == TransportType::Local)
+            {
+                using MsgChannelPipe = MessageChannel<WinPipeMsgTransport>;
+                pMsgChannel = DD_NEW(MsgChannelPipe, createInfo.allocCb)(createInfo.allocCb,
+                    createInfo.channelInfo,
+                    createInfo.hostInfo);
+            }
+            else if (createInfo.hostInfo.type == TransportType::Remote)
+            {
+#if DD_SUPPORT_SOCKET_TRANSPORT
+                using MsgChannelSocket = MessageChannel<SocketMsgTransport>;
+                pMsgChannel = DD_NEW(MsgChannelSocket, createInfo.allocCb)(createInfo.allocCb,
+                    createInfo.channelInfo,
+                    createInfo.hostInfo);
+#endif
+            }
+#elif DD_PLATFORM_IS_POSIX
             if ((createInfo.hostInfo.type == TransportType::Remote) |
                 (createInfo.hostInfo.type == TransportType::Local))
             {

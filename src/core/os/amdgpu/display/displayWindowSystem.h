@@ -184,7 +184,6 @@ private:
     uint32  m_connectorId;
 
     Util::Thread  m_waitEventThread;
-    Util::Mutex   m_waitMutex;
 
     // Todo: Sean suggested we should use Util::Event instead.
     // This Semaphore will be signaled if vsync happened, this means a presentable image is going to be scan-out.

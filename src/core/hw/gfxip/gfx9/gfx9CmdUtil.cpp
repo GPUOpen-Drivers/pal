@@ -2987,7 +2987,7 @@ size_t CmdUtil::BuildRewind(
     constexpr size_t PacketSize = sizeof(PM4_MEC_REWIND) / sizeof(uint32);
     auto*const       pPacket    = static_cast<PM4_MEC_REWIND*>(pBuffer);
 
-    pPacket->header.u32All             = Type3Header(IT_REWIND__CORE, PacketSize, false, ShaderCompute);
+    pPacket->header.u32All             = Type3Header(IT_REWIND, PacketSize, false, ShaderCompute);
     pPacket->ordinal2                  = 0;
     pPacket->bitfields2.offload_enable = offloadEnable;
     pPacket->bitfields2.valid          = valid;
@@ -3863,22 +3863,22 @@ size_t CmdUtil::BuildCommentString(
     const char* pComment,
     void*       pBuffer)
 {
-    const size_t stringLength         = strlen(pComment) + 1;
-    const size_t packetSize           =
+    const size_t stringLength    = strlen(pComment) + 1;
+    const size_t packetSize      =
         (Util::RoundUpToMultiple(sizeof(PM4PFP_NOP) + stringLength, sizeof(uint32)) / sizeof(uint32)) + 3;
-    PM4PFP_NOP*  pPacket              = static_cast<PM4PFP_NOP*>(pBuffer);
-    uint32*      pData                = reinterpret_cast<uint32*>(pPacket + 1);
+    PM4PFP_NOP*         pPacket  = static_cast<PM4PFP_NOP*>(pBuffer);
+    CmdBufferPayload*   pData    = reinterpret_cast<CmdBufferPayload*>(pPacket + 1);
 
-    PAL_ASSERT(stringLength < CmdBuffer::MaxCommentStringLength);
+    PAL_ASSERT(stringLength < MaxPayloadSize);
 
     // Build header (NOP, signature, size, type)
     pPacket->header.u32All = Type3Header(IT_NOP, static_cast<uint32>(packetSize));
-    pData[0]               = CmdBuffer::CommentSignature;
-    pData[1]               = static_cast<uint32>(packetSize);
-    pData[2]               = static_cast<uint32>(CmdBufferCommentType::String);
+    pData->signature       = CmdBufferPayloadSignature;
+    pData->payloadSize     = static_cast<uint32>(packetSize);
+    pData->type            = CmdBufferPayloadType::String;
 
     // Append data
-    memcpy(pData + 3, pComment, stringLength);
+    memcpy(&pData->payload[0], pComment, stringLength);
 
     return packetSize;
 }

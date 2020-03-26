@@ -230,8 +230,12 @@ struct ComputePipelineCreateInfo
     /// creation.  These GPU addresses can then be passed as shader arguments for a later dispatch operation to
     /// allow the pipeline's shaders to jump to that function.  Similar to a function pointer on the GPU.
     ComputePipelineIndirectFuncInfo*  pIndirectFuncList;
-    uint32                            indirectFuncCount; ///< Number of entries in the pIndirectFuncList array.  Must
-                                                         ///  be zero if pIndirectFuncList is null.
+    uint32                            indirectFuncCount;    ///< Number of entries in the pIndirectFuncList array.  Must
+                                                            ///  be zero if pIndirectFuncList is null.
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+    uint32                            maxFunctionCallDepth; ///< Maximum depth for indirect function calls
 #endif
 };
 
@@ -570,6 +574,20 @@ public:
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+    /// Sets the stack size for indirect function calls made by this pipeline. This may be smaller than or equal to the
+    /// stack size already determined during pipeline creation or during an earlier call to LinkWithLibraries() because
+    /// the client has access to more information about which functions contained in those libraries (or in the pipeline
+    /// itself) are actually going to be called.
+    ///
+    /// Note that a future call to LinkWithLibraries() will invalidate this value and this should
+    /// be called again.
+    ///
+    /// @param [in] stackSizeInBytes  Client-specified stack size, in bytes.
+    virtual void SetStackSizeInBytes(
+        uint32 stackSizeInBytes) = 0;
+#endif
 
     /// Returns the API shader type to hardware stage mapping for the pipeline.
     ///

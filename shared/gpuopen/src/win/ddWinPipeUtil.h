@@ -24,39 +24,37 @@
  **********************************************************************************************************************/
 /**
 ***********************************************************************************************************************
-* @file  ddIoCtlDevice.h
-* @brief Abstract interface to control the developer mode message bus
+* @file  ddWinPipeUtil.h
+* @brief Utility Functions for Windows Pipes
 ***********************************************************************************************************************
 */
+
 #pragma once
 
-#include <gpuopen.h>
 #include <ddPlatform.h>
 
 namespace DevDriver
 {
+    inline void LogPipeError(DWORD pipeErrorCode)
+    {
+        const char* pPipeErrorString = nullptr;
 
-/// Abstract interface to control the developer mode message bus
-class IIoCtlDevice
-{
-public:
-    virtual ~IIoCtlDevice() {}
+        switch (pipeErrorCode)
+        {
+            case ERROR_IO_INCOMPLETE:      pPipeErrorString = "IO Incomplete";      break;
+            case ERROR_BROKEN_PIPE:        pPipeErrorString = "Broken Pipe";        break;
+            case ERROR_OPERATION_ABORTED:  pPipeErrorString = "Operation Aborted";  break;
+            case ERROR_PIPE_NOT_CONNECTED: pPipeErrorString = "Pipe Not Connected"; break;
+            default: /* Leave the error string as nullptr */                        break;
+        }
 
-    DD_NODISCARD
-    virtual Result Initialize() = 0;
-
-    virtual void Destroy() = 0;
-
-    /// Executes an IoCtl command on the device
-    DD_NODISCARD
-    virtual Result IoCtl(
-        uint32 ioCtlCode,
-        size_t bufferSize,
-        void*  pBuffer
-    ) = 0;
-
-protected:
-    IIoCtlDevice() {}
-};
-
+        if (pPipeErrorString != nullptr)
+        {
+            DD_PRINT(LogLevel::Warn, "Pipe Error: %s", pPipeErrorString);
+        }
+        else
+        {
+            DD_PRINT(LogLevel::Warn, "Pipe Error: Unknown (0x%x)", pipeErrorCode);
+        }
+    }
 }

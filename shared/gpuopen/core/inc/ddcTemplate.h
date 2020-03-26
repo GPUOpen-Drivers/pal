@@ -31,7 +31,9 @@
 
 #pragma once
 
+#if !defined(_MSC_VER)
 #include <type_traits>
+#endif
 
 namespace DevDriver
 {
@@ -274,6 +276,60 @@ namespace DevDriver
         {
         };
 
+#if defined(_MSC_VER)
+        // If we are building with MSVC we want to use the compiler intrinsics here. This is primarily because building with
+        // the /kernel precludes the use of the C++ type traits library. For all other compilers we simply implement this
+        // using the standard C++ library.
+
+        // Struct whose ::Value member is equal to true if you can cast from T to U, and false otherwise.
+        template <class T, class U>
+        struct IsConvertible : BoolType<__is_convertible_to(T, U)>
+        {
+        };
+
+        // Struct whose ::Value member is equal to true if you can construct an object of type T using the arguments
+        // provided.
+        template<typename T, typename... Args>
+        struct IsConstructible : BoolType<__is_constructible(T, Args...)>
+        {
+
+        };
+
+        // Struct whose ::Value member is equal to true if T is an abstract class, and false otherwise.
+        template<typename T>
+        struct IsAbstract : BoolType<__is_abstract(T)>
+        {
+
+        };
+
+        // Struct whose ::Value member is equal to true if T is an abstract class, and false otherwise.
+        template<typename T>
+        struct IsPod : BoolType<__is_pod(T)>
+        {
+
+        };
+
+        // Struct whose ::Value member is equal to true if T is has a standard layout, and false otherwise.
+        template<typename T>
+        struct IsStandardLayout : BoolType<__is_standard_layout(T)>
+        {
+
+        };
+
+        // Struct whose ::Value member is equal to true if T is trivially destructable, and false otherwise.
+        template<typename T>
+        struct IsTriviallyDestructible : BoolType<__has_trivial_destructor(T)>
+        {
+
+        };
+
+        // Struct whose ::Value member is equal to true if T is an enumeration type, and false otherwise.
+        template<typename T>
+        struct IsEnum : BoolType<__is_enum(T)>
+        {
+
+        };
+#else
         // Struct whose ::Value member is equal to true if you can cast from T to U, and false otherwise.
         template <class T, class U>
         struct IsConvertible : BoolType<std::is_convertible<T, U>::value>
@@ -323,5 +379,6 @@ namespace DevDriver
         {
 
         };
+#endif
     }
 } // DevDriver

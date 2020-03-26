@@ -57,8 +57,8 @@ if(scalar(@ARGV) < 2)
 {
     print "ERROR:  Please specify the path to the directroy to search for perf logs ".
           "followed by the output file name prefix and output directory.\n".
-          "Example: perl genSettingsMain.pl ../../icd/platform/settings/perf ".
-          "g_heapPerf ../../icd/platform/settings\n";
+          "Example: perl genSettingsMain.pl ../../src/core/hw/heapPerf ".
+          "g_heapPerf ../../src/core\n";
     die "Error";
 }
 

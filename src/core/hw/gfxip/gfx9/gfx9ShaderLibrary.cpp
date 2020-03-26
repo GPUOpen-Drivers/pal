@@ -43,8 +43,23 @@ ShaderLibrary::ShaderLibrary(Device* pDevice)
     Pal::ShaderLibrary(pDevice->Parent()),
     m_pClientData(nullptr),
     m_pDevice(pDevice),
-    m_chunkCs(*pDevice)
+    m_chunkCs(*pDevice),
+    m_pFunctionList(nullptr),
+    m_funcCount(0)
 {
+}
+
+// =====================================================================================================================
+ShaderLibrary::~ShaderLibrary()
+{
+    if (m_pFunctionList != nullptr)
+    {
+        for (uint32 i = 0; i < m_funcCount; ++i)
+        {
+            PAL_FREE(m_pFunctionList[i].pSymbolName, m_pDevice->GetPlatform());
+        }
+        PAL_SAFE_DELETE_ARRAY(m_pFunctionList, m_pDevice->GetPlatform());
+    }
 }
 
 // =====================================================================================================================
@@ -75,7 +90,6 @@ Result ShaderLibrary::HwlInit(
     const CodeObjectMetadata&      metadata,
     Util::MsgPackReader*           pMetadataReader)
 {
-    // ToDo -- move down to gfx9ShaderLibrary impl
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
     const CmdUtil&           cmdUtil   = m_pDevice->CmdUtil();
     const auto&              regInfo   = cmdUtil.GetRegInfo();
@@ -131,6 +145,40 @@ Result ShaderLibrary::HwlInit(
         bindData.requiredGpuMemSize = m_gpuMemSize;
         bindData.offset = m_gpuMem.Offset();
         m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+    }
+
+    if (result == Result::Success)
+    {
+        m_funcCount = createInfo.funcCount;
+        m_pFunctionList = PAL_NEW_ARRAY(ShaderLibraryFunctionInfo,
+                                        m_funcCount,
+                                        m_pDevice->GetPlatform(),
+                                        AllocInternal);
+        if (m_pFunctionList == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+
+        if (result == Result::Success)
+        {
+            for (uint32 i = 0; i < m_funcCount; ++i)
+            {
+                memset(&m_pFunctionList[i], 0, sizeof(ShaderLibraryFunctionInfo));
+                m_pFunctionList[i].gpuVirtAddr = createInfo.pFuncList[i].gpuVirtAddr;
+
+                size_t nameLength = strlen(createInfo.pFuncList[i].pSymbolName) + 1;
+                m_pFunctionList[i].pSymbolName =
+                    static_cast<char*>(PAL_MALLOC(nameLength, m_pDevice->GetPlatform(), AllocInternal));
+                if (m_pFunctionList[i].pSymbolName != nullptr)
+                {
+                    strncpy(m_pFunctionList[i].pSymbolName, createInfo.pFuncList[i].pSymbolName, nameLength);
+                }
+                else
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
+            }
+        }
     }
 
     return result;
@@ -206,10 +254,6 @@ Result ShaderLibrary::GetShaderFunctionStats(
     PAL_ASSERT(pShaderStats != nullptr);
     memset(pShaderStats, 0, sizeof(ShaderLibStats));
 
-    // We can re-parse the saved pipeline ELF binary to extract shader statistics.
-    AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-    result = abiProcessor.LoadFromBuffer(m_pCodeObjectBinary, m_codeObjectBinaryLen);
-
     const auto&  gpuInfo       = m_pDevice->Parent()->ChipProperties();
 
     pShaderStats->common.numUsedSgprs          = m_hwInfo.libRegs.computePgmRsrc1.bits.SGPRS;
@@ -218,6 +262,8 @@ Result ShaderLibrary::GetShaderFunctionStats(
     pShaderStats->palInternalLibraryHash       = m_info.internalLibraryHash;
     pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
 
+    // We can re-parse the saved pipeline ELF binary to extract shader statistics.
+    AbiProcessor abiProcessor(m_pDevice->GetPlatform());
     result = abiProcessor.LoadFromBuffer(m_pCodeObjectBinary, m_codeObjectBinaryLen);
     if (result == Result::Success)
     {

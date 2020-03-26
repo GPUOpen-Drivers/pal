@@ -403,7 +403,7 @@ PAL_INLINE bool IsComboKey(KeyCode key, KeyCode* pKeys)
 // Issue a full memory barrier.
 PAL_INLINE void MemoryBarrier()
 {
-#if defined(_WIN32) || defined(__unix__)
+#if  defined(__unix__)
     atomic_thread_fence(std::memory_order_acq_rel);
 #else
 #error "Not implemented for the current platform"

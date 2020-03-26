@@ -46,6 +46,10 @@
 #include "palIntrusiveListImpl.h"
 #include "core/addrMgr/addrMgr1/addrMgr1.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
+#if PAL_BUILD_GFX6
+//  NOTE: We need this for address pipe config.
+#include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_enum.h"
+#endif
 // NOTE: We need this chip header for reading registers.
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_offset.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_mask.h"
@@ -1106,9 +1110,6 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gfx10.numTcpPerSa    = 10; // GPU__GC__NUM_TCP_PER_SA
         pChipInfo->gfx10.numWgpAboveSpi =  3; // GPU__GC__NUM_WGP0_PER_SA
         pChipInfo->gfx10.numWgpBelowSpi =  2; // GPU__GC__NUM_WGP1_PER_SA
-
-        // The number of instances of gl2c is dependent on the number of memory channels.
-        pChipInfo->gfx10.numGl2c = (m_gpuInfo.vram_bit_width / 16);
     }
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
@@ -1973,6 +1974,7 @@ uint32 Device::GetSupportedSwapChainModes(
     // DirectDisplay can directly render to a display without using intermediate window system, the display is exclusive
     // to a process, so it only has full screen mode. FIFO is the basic requirement for now, and it's the only mode
     // implemented by PAL, but immediate and mailbox modes can also be supported if necessary.
+
     uint32 swapchainModes = 0;
     if (mode == PresentMode::Windowed)
     {
@@ -1983,14 +1985,7 @@ uint32 Device::GetSupportedSwapChainModes(
     }
     else
     {
-        if (wsiPlatform != DirectDisplay)
-        {
-            swapchainModes = SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
-        }
-        else
-        {
-            swapchainModes = SupportFifoSwapChain;
-        }
+        swapchainModes = SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
     }
 
     return swapchainModes;
@@ -2042,6 +2037,17 @@ Result Device::FreeBuffer(
     Result result = Result::Success;
     result = CheckResult(m_drmProcs.pfnAmdgpuBoFree(hBuffer),
                          Result::ErrorInvalidValue);
+    return result;
+}
+
+// =====================================================================================================================
+// Call amdgpu to reserve vmid. The SPM_VMID will be updated right before any job is submitted to GPU if there is any
+// VMID reserved.
+Result Device::ReserveVmid() const
+{
+    Result result = CheckResult(m_drmProcs.pfnAmdgpuCsReservedVmid(m_hDevice),
+                                Result::ErrorOutOfMemory);
+
     return result;
 }
 
@@ -3003,55 +3009,81 @@ static AMDGPU_MICRO_TILE_MODE PalToAmdGpuTileTypeConversion(
 static uint32 AmdGpuToPalPipeConfigConversion(
     AMDGPU_PIPE_CFG pipeConfig)
 {
-    uint32 palPipeConfig = ADDR_SURF_P2;
+    uint32 palPipeConfig = 0;
+    namespace Chip = Pal::Gfx9::Chip;
+
     switch (pipeConfig)
     {
         case AMDGPU_PIPE_CFG__P2:
-            palPipeConfig = ADDR_SURF_P2;
+            palPipeConfig = Chip::ADDR_SURF_P2;
             break;
         case AMDGPU_PIPE_CFG__P4_8x16:
-            palPipeConfig = ADDR_SURF_P4_8x16;
+            palPipeConfig = Chip::ADDR_SURF_P4_8x16;
             break;
         case AMDGPU_PIPE_CFG__P4_16x16:
-            palPipeConfig = ADDR_SURF_P4_16x16;
+            palPipeConfig = Chip::ADDR_SURF_P4_16x16;
             break;
         case AMDGPU_PIPE_CFG__P4_16x32:
-            palPipeConfig = ADDR_SURF_P4_16x32;
+            palPipeConfig = Chip::ADDR_SURF_P4_16x32;
             break;
         case AMDGPU_PIPE_CFG__P4_32x32:
-            palPipeConfig = ADDR_SURF_P4_32x32;
+            palPipeConfig = Chip::ADDR_SURF_P4_32x32;
             break;
         case AMDGPU_PIPE_CFG__P8_16x16_8x16:
-            palPipeConfig = ADDR_SURF_P8_16x16_8x16;
+            palPipeConfig = Chip::ADDR_SURF_P8_16x16_8x16;
             break;
         case AMDGPU_PIPE_CFG__P8_16x32_8x16:
-            palPipeConfig = ADDR_SURF_P8_16x32_8x16;
+            palPipeConfig = Chip::ADDR_SURF_P8_16x32_8x16;
             break;
         case AMDGPU_PIPE_CFG__P8_32x32_8x16:
-            palPipeConfig = ADDR_SURF_P8_32x32_8x16;
+            palPipeConfig = Chip::ADDR_SURF_P8_32x32_8x16;
             break;
         case AMDGPU_PIPE_CFG__P8_16x32_16x16:
-            palPipeConfig = ADDR_SURF_P8_16x32_16x16;
+            palPipeConfig = Chip::ADDR_SURF_P8_16x32_16x16;
             break;
         case AMDGPU_PIPE_CFG__P8_32x32_16x16:
-            palPipeConfig = ADDR_SURF_P8_32x32_16x16;
+            palPipeConfig = Chip::ADDR_SURF_P8_32x32_16x16;
             break;
         case AMDGPU_PIPE_CFG__P8_32x32_16x32:
-            palPipeConfig = ADDR_SURF_P8_32x32_16x32;
+            palPipeConfig = Chip::ADDR_SURF_P8_32x32_16x32;
             break;
         case AMDGPU_PIPE_CFG__P8_32x64_32x32:
-            palPipeConfig = ADDR_SURF_P8_32x64_32x32;
+            palPipeConfig = Chip::ADDR_SURF_P8_32x64_32x32;
             break;
         case AMDGPU_PIPE_CFG__P16_32x32_8x16:
-            palPipeConfig = ADDR_SURF_P16_32x32_8x16;
+            palPipeConfig = Chip::ADDR_SURF_P16_32x32_8x16;
             break;
         case AMDGPU_PIPE_CFG__P16_32x32_16x16:
-            palPipeConfig = ADDR_SURF_P16_32x32_16x16;
+            palPipeConfig = Chip::ADDR_SURF_P16_32x32_16x16;
             break;
         default:
-            palPipeConfig = ADDR_SURF_P2;
+            palPipeConfig = Chip::ADDR_SURF_P2;
             break;
     }
+
+#if PAL_BUILD_GFX6
+    namespace Gfx6 = Pal::Gfx6::Chip;
+    namespace Gfx9 = Pal::Gfx9::Chip;
+
+    // clang-format off
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P2)             == static_cast<uint32>(Gfx9::ADDR_SURF_P2),             "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P4_8x16)        == static_cast<uint32>(Gfx9::ADDR_SURF_P4_8x16),        "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P4_16x16)       == static_cast<uint32>(Gfx9::ADDR_SURF_P4_16x16),       "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P4_16x32)       == static_cast<uint32>(Gfx9::ADDR_SURF_P4_16x32),       "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P4_32x32)       == static_cast<uint32>(Gfx9::ADDR_SURF_P4_32x32),       "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_16x16_8x16)  == static_cast<uint32>(Gfx9::ADDR_SURF_P8_16x16_8x16),  "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_16x32_8x16)  == static_cast<uint32>(Gfx9::ADDR_SURF_P8_16x32_8x16),  "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_32x32_8x16)  == static_cast<uint32>(Gfx9::ADDR_SURF_P8_32x32_8x16),  "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_16x32_16x16) == static_cast<uint32>(Gfx9::ADDR_SURF_P8_16x32_16x16), "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_32x32_16x16) == static_cast<uint32>(Gfx9::ADDR_SURF_P8_32x32_16x16), "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_32x32_16x32) == static_cast<uint32>(Gfx9::ADDR_SURF_P8_32x32_16x32), "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_32x64_32x32) == static_cast<uint32>(Gfx9::ADDR_SURF_P8_32x64_32x32), "Enums need updating!");
+
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P16_32x32_8x16__CI__VI)  == static_cast<uint32>(Gfx9::ADDR_SURF_P16_32x32_8x16),  "Enums need updating!");
+    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P16_32x32_16x16__CI__VI) == static_cast<uint32>(Gfx9::ADDR_SURF_P16_32x32_16x16), "Enums need updating!");
+    // clang-format on
+#endif // PAL_BUILD_GFX6 && PAL_BUILD_GFX9
+
     return palPipeConfig;
 }
 

@@ -3530,8 +3530,8 @@ bool Gfx9Dcc::UseDccForImage(
             useDcc = image.ImageSupportsShaderReadsAndWrites();
         }
 
-        // According to DXX engineers, using DCC for mipmapped arrays has worse performance, so just disable it.
-        if (useDcc && (createInfo.arraySize > 1) && (createInfo.mipLevels > 1))
+        if (useDcc && (createInfo.arraySize > 1) && (createInfo.mipLevels > 1) &&
+            (TestAnyFlagSet(settings.useDcc, Gfx9UseDccMipMappedArrays) == false))
         {
             useDcc = false;
         }

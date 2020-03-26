@@ -219,9 +219,9 @@ SX_OPT_COMB_FCN GetSxBlendFcn(
 static GfxBlendOptimizer::BlendOp HwEnumToBlendOp(
     uint32 hwEnum)
 {
-    using namespace GfxBlendOptimizer;
+    using GfxBlendOptimizer::BlendOp;
 
-    constexpr BlendOp ConversionTable[] =
+    constexpr GfxBlendOptimizer::BlendOp ConversionTable[] =
     {
         BlendOp::BlendZero,
         BlendOp::BlendOne,
@@ -410,6 +410,7 @@ void ColorBlendState::InitBlendOpts(
     const ColorBlendStateCreateInfo& blend)
 {
     using namespace GfxBlendOptimizer;
+    using GfxBlendOptimizer::BlendOpt;
 
     for (uint32 ct = 0; ct < Pal::MaxColorTargets; ++ct)
     {
@@ -511,6 +512,7 @@ uint32* ColorBlendState::WriteBlendOptimizations(
     ) const
 {
     using namespace GfxBlendOptimizer;
+    using GfxBlendOptimizer::BlendOpt;
 
     for (uint32 idx = 0; idx < MaxColorTargets; idx++)
     {

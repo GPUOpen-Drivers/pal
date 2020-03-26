@@ -26,6 +26,13 @@
 #if !defined (__SI__CI__VI_MERGED_ENUM_HEADER)
 #define __SI__CI__VI_MERGED_ENUM_HEADER
 
+namespace Pal
+{
+namespace Gfx6
+{
+inline namespace Chip
+{
+
 typedef enum ArrayMode {
 ARRAY_LINEAR_GENERAL                     = 0x00000000,
 ARRAY_LINEAR_ALIGNED                     = 0x00000001,
@@ -10166,5 +10173,9 @@ WD_IA_DRAW_SOURCE_OPAQ                   = 0x00000003,
 #define SQ_XLATE_VOP3_TO_VOPC_OFFSET__VI                0x00000000
 #define SQ_XNACK_MASK_HI__VI                            0x00000069
 #define SQ_XNACK_MASK_LO__VI                            0x00000068
+
+} // inline namespace Chip
+} // namespace Gfx6
+} // namespace Pal
 
 #endif

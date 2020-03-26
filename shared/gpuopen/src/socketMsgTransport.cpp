@@ -37,9 +37,11 @@ namespace DevDriver
         SocketType result = SocketType::Unknown;
         switch (type)
         {
+#if !defined(DD_PLATFORM_WINDOWS_UM)
         case TransportType::Local:
             result = SocketType::Local;
             break;
+#endif
         case TransportType::Remote:
             result = SocketType::Udp;
             break;
@@ -201,6 +203,9 @@ namespace DevDriver
                                 // the remote server didn't understand the request or that there was a logical bug on the server.
                                 // In either case we treat this as a version mismatch since we can't tell the difference.
                                 result = Result::VersionMismatch;
+
+                                // @TODO: If we receive a regular broadcast packet here, we should ignore it instead of assuming that
+                                //        we have a version mismatch here.
 
                                 // check packet validity and set success if true
                                 if (IsOutOfBandMessage(responseMessage) &

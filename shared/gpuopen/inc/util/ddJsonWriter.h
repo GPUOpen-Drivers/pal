@@ -43,6 +43,11 @@
 #define RAPIDJSON_WRITE_DEFAULT_FLAGS (kWriteValidateEncodingFlag | kWriteNanAndInfFlag)
 
 #define RAPIDJSON_ASSERT(x) DD_ASSERT(x)
+#if DD_PLATFORM_WINDOWS_UM && defined(__clang__)
+    // When building on Windows, RapidJson turns off a number of VisualStudio warnings.
+    // This causes unknown-warning-option to fail when compiling with Clang, so we disable that only for this file.
+    #pragma clang diagnostic ignored "-Wunknown-warning-option"
+#endif
 #include "rapidjson/writer.h"
 
 namespace DevDriver

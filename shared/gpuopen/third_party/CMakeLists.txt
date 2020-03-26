@@ -39,6 +39,31 @@ function(dd_third_party_disable_warnings name)
 
 endfunction()
 
+function(dd_mark_third_party_target target)
+
+    amd_target_options(${target})
+    dd_third_party_disable_warnings(${target})
+
+    # Only libraries need PIC enabled
+    get_target_property(target_type ${target} TYPE)
+    if (target_type STREQUAL "STATIC_LIBRARY")
+
+        set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+    endif()
+
+    # INTERFACE_LIBRARY targets have restricted properties, so we skip them.
+    if (NOT target_type STREQUAL "INTERFACE_LIBRARY")
+
+        set_target_properties(${target}
+            PROPERTIES
+                FOLDER "Third Party"
+        )
+
+    endif()
+
+endfunction()
+
 # dd_third_party_add_lib: Add a third party library.
 #   This function is a no-op if the target in question already exists,
 #   otherwise it creates it by calling `add_subdirectory()` on the directory specified with DIRECTORY, or by TARGET.
@@ -93,26 +118,7 @@ function(dd_third_party_add_lib)
     foreach(target ${third_party_TARGETS})
         if (TARGET ${target})
 
-            amd_target_options(${target})
-            dd_third_party_disable_warnings(${target})
-
-            # Only libraries need PIC enabled
-            get_target_property(target_type ${target} TYPE)
-            if (target_type STREQUAL "STATIC_LIBRARY")
-
-                set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-            endif()
-
-            # INTERFACE_LIBRARY targets have restricted properties, so we skip them.
-            if (NOT target_type STREQUAL "INTERFACE_LIBRARY")
-
-                set_target_properties(${target}
-                    PROPERTIES
-                        FOLDER "Third Party"
-                )
-
-            endif()
+            dd_mark_third_party_target(${target})
 
         else()
 
@@ -173,6 +179,7 @@ if (NOT TARGET lz4)
 endif()
 
 ### C++ Unit Tests ###
+# WA: Check that these targets haven't already been added (Only until we have a global CMake context)
 if (NOT TARGET gtest)
 
     dd_third_party_add_lib(

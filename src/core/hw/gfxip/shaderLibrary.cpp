@@ -44,6 +44,7 @@ ShaderLibrary::ShaderLibrary(
     m_codeObjectBinaryLen(0),
     m_gpuMem(),
     m_gpuMemSize(0),
+    m_maxStackFrameSizeInBytes(0),
     m_pClientData(nullptr),
     m_perfDataMem(),
     m_perfDataGpuMemSize(0)
@@ -107,6 +108,12 @@ Result ShaderLibrary::InitFromCodeObjectBinary(
     if (result == Result::Success)
     {
         ExtractLibraryInfo(metadata);
+
+        const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+        if (csStageMetadata.hasEntry.scratchMemorySize != 0)
+        {
+            m_maxStackFrameSizeInBytes = csStageMetadata.scratchMemorySize;
+        }
 
         result = HwlInit(createInfo,
                 abiProcessor,

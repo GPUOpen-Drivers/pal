@@ -27,6 +27,13 @@
 
 
 
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
+
 typedef enum IT_OpCodeType {
     IT_NOP                                             = 0x00000010,
     IT_SET_BASE                                        = 0x00000011,
@@ -88,6 +95,7 @@ typedef enum IT_OpCodeType {
     IT_BLK_CNTX_UPDATE                                 = 0x00000053,
     IT_INCR_UPDT_STATE                                 = 0x00000055,
     IT_ACQUIRE_MEM                                     = 0x00000058,
+    IT_REWIND                                          = 0x00000059,
     IT_INTERRUPT                                       = 0x0000005a,
     IT_GEN_PDEPTE                                      = 0x0000005b,
     IT_INDIRECT_BUFFER_PASID                           = 0x0000005c,
@@ -141,7 +149,6 @@ typedef enum IT_OpCodeType {
     IT_QUERY_STATUS                                    = 0x000000a4,
     IT_RUN_LIST                                        = 0x000000a5,
     IT_MAP_PROCESS_VM                                  = 0x000000a6,
-    IT_REWIND__CORE                                    = 0x00000059,
     IT_DISPATCH_DRAW_PREAMBLE__GFX09                   = 0x0000008c,
     IT_DISPATCH_DRAW_PREAMBLE_ACE__GFX09               = 0x0000008c,
     IT_DISPATCH_DRAW__GFX09                            = 0x0000008d,
@@ -161,3 +168,6 @@ constexpr unsigned int PM4_TYPE_0                                         = 0;
 constexpr unsigned int PM4_TYPE_2                                         = 2;
 constexpr unsigned int PM4_TYPE_3                                         = 3;
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

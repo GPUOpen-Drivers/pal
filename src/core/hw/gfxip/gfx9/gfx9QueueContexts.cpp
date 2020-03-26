@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/cmdAllocator.h"
+#include "core/engine.h"
 #include "core/platform.h"
 #include "core/queue.h"
 #include "palAssert.h"
@@ -124,6 +125,7 @@ ComputeQueueContext::ComputeQueueContext(
     m_pDevice(pDevice),
     m_pEngine(static_cast<ComputeEngine*>(pEngine)),
     m_queueId(queueId),
+    m_ringSet(pDevice),
     m_currentUpdateCounter(0),
     m_cmdStream(*pDevice,
                 pDevice->Parent()->InternalUntrackedCmdAllocator(),
@@ -151,6 +153,11 @@ ComputeQueueContext::ComputeQueueContext(
 Result ComputeQueueContext::Init()
 {
     Result result = m_cmdStream.Init();
+
+    if (result == Result::Success)
+    {
+        result = m_ringSet.Init();
+    }
 
     if (result == Result::Success)
     {
@@ -184,7 +191,7 @@ Result ComputeQueueContext::PreProcessSubmit(
     uint32              cmdBufferCount)
 {
     bool   hasUpdated = false;
-    Result result     = m_pEngine->UpdateRingSet(&m_currentUpdateCounter, &hasUpdated);
+    Result result     = UpdateRingSet(&hasUpdated);
 
     if ((result == Result::Success) && hasUpdated)
     {
@@ -216,6 +223,13 @@ void ComputeQueueContext::PostProcessSubmit()
         // The next time this Queue is submitted-to, the KMD can safely skip the execution of the command stream since
         // the GPU already has received the latest updates.
         m_cmdStream.EnableDropIfSameContext(true);
+    }
+
+    PAL_ASSERT(m_pParentQueue != nullptr);
+    SubmissionContext* pSubContext = m_pParentQueue->GetSubmissionContext();
+    if (pSubContext != nullptr)
+    {
+        m_ringSet.ClearDeferredFreeMemory(pSubContext);
     }
 }
 
@@ -254,7 +268,7 @@ Result ComputeQueueContext::RebuildCommandStreams()
 
         // Write the shader ring-set's commands before the command stream's normal preamble. If the ring sizes have
         // changed, the hardware requires a CS idle to operate properly.
-        pCmdSpace  = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
+        pCmdSpace  = m_ringSet.WriteCommands(&m_cmdStream, pCmdSpace);
         pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, m_waitForIdleTs.GpuVirtAddr(), pCmdSpace);
         pCmdSpace  = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, &m_cmdStream, pCmdSpace);
 
@@ -365,6 +379,48 @@ Result ComputeQueueContext::RebuildCommandStreams()
 }
 
 // =====================================================================================================================
+Result ComputeQueueContext::UpdateRingSet(
+    bool*   pHasChanged)  // [out]     Whether or not the ring set has updated. If true the ring set must rewrite its
+                          //           registers.
+{
+    PAL_ALERT(pHasChanged == nullptr);
+    PAL_ASSERT(m_pParentQueue != nullptr);
+
+    Result result = Result::Success;
+
+    // Check if the queue context associated with this Queue is dirty, and obtain the ring item-sizes to validate
+    // against.
+    const uint32 currentCounter = m_pDevice->QueueContextUpdateCounter();
+
+    if (currentCounter > m_currentUpdateCounter)
+    {
+        m_currentUpdateCounter = currentCounter;
+
+        ShaderRingItemSizes ringSizes = {};
+        m_pDevice->GetLargestRingSizes(&ringSizes);
+
+        SamplePatternPalette samplePatternPalette;
+        m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
+
+        // The queues are idle, so it is safe to validate the rest of the RingSet.
+        if (result == Result::Success)
+        {
+            result = m_ringSet.Validate(ringSizes,
+                                        samplePatternPalette,
+                                        m_pParentQueue->GetSubmissionContext()->LastTimestamp());
+        }
+
+         (*pHasChanged) = true;
+    }
+    else
+    {
+         (*pHasChanged) = false;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 UniversalQueueContext::UniversalQueueContext(
     Device* pDevice,
     bool    isPreemptionSupported,
@@ -380,6 +436,7 @@ UniversalQueueContext::UniversalQueueContext(
     m_isPreemptionSupported(isPreemptionSupported),
     m_pEngine(static_cast<UniversalEngine*>(pEngine)),
     m_queueId(queueId),
+    m_ringSet(pDevice),
     m_currentUpdateCounter(0),
     m_useShadowing(Device::ForceStateShadowing || isPreemptionSupported),
     m_shadowGpuMemSizeInBytes(0),
@@ -437,7 +494,12 @@ UniversalQueueContext::~UniversalQueueContext()
 // Initializes this QueueContext by creating its internal command streams and rebuilding the command streams' contents.
 Result UniversalQueueContext::Init()
 {
-    Result result = m_deCmdStream.Init();
+    Result result = m_ringSet.Init();
+
+    if (result == Result::Success)
+    {
+        result = m_deCmdStream.Init();
+    }
 
     if (result == Result::Success)
     {
@@ -739,7 +801,7 @@ Result UniversalQueueContext::PreProcessSubmit(
     // We only need to rebuild the command stream if the user submits at least one command buffer.
     if (cmdBufferCount != 0)
     {
-        result = m_pEngine->UpdateRingSet(&m_currentUpdateCounter, &hasUpdated);
+        result = UpdateRingSet(&hasUpdated);
 
         if ((result == Result::Success) && hasUpdated)
         {
@@ -801,6 +863,14 @@ void UniversalQueueContext::PostProcessSubmit()
         // We can skip the CE preamble if our context runs back-to-back because the CE preamble is used to implement
         // persistent CE RAM and no other context has come in and dirtied CE RAM.
         m_cePreambleCmdStream.EnableDropIfSameContext(true);
+    }
+
+    PAL_ASSERT(m_pParentQueue != nullptr);
+    SubmissionContext* pSubContext = m_pParentQueue->GetSubmissionContext();
+    if (pSubContext != nullptr)
+    {
+        // Time to free the deferred memory
+        m_ringSet.ClearDeferredFreeMemory(pSubContext);
     }
 }
 
@@ -882,7 +952,7 @@ Result UniversalQueueContext::RebuildCommandStreams()
 
         // Write the shader ring-set's commands after the command stream's normal preamble.  If the ring sizes have
         // changed, the hardware requires a CS/VS/PS partial flush to operate properly.
-        pCmdSpace  = m_pEngine->RingSet()->WriteCommands(&m_deCmdStream, pCmdSpace);
+        pCmdSpace  = m_ringSet.WriteCommands(&m_deCmdStream, pCmdSpace);
         pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
         pCmdSpace += CmdUtil::BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
         pCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
@@ -1273,6 +1343,48 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     } // if Gfx10.x
 
     return WriteCommonPreamble(*m_pDevice, EngineTypeUniversal, &m_deCmdStream, pCmdSpace);
+}
+
+// =====================================================================================================================
+Result UniversalQueueContext::UpdateRingSet(
+    bool*   pHasChanged)  // [out]     Whether or not the ring set has updated. If true the ring set must rewrite its
+                          //           registers.
+{
+    PAL_ALERT(pHasChanged == nullptr);
+    PAL_ASSERT(m_pParentQueue != nullptr);
+
+    Result result = Result::Success;
+
+    // Check if the queue context associated with this Queue is dirty, and obtain the ring item-sizes to validate
+    // against.
+    const uint32 currentCounter = m_pDevice->QueueContextUpdateCounter();
+
+    if (currentCounter > m_currentUpdateCounter)
+    {
+        m_currentUpdateCounter = currentCounter;
+
+        ShaderRingItemSizes ringSizes = {};
+        m_pDevice->GetLargestRingSizes(&ringSizes);
+
+        SamplePatternPalette samplePatternPalette;
+        m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
+
+        // The queues are idle, so it is safe to validate the rest of the RingSet.
+        if (result == Result::Success)
+        {
+            result = m_ringSet.Validate(ringSizes,
+                                        samplePatternPalette,
+                                        m_pParentQueue->GetSubmissionContext()->LastTimestamp());
+        }
+
+        *pHasChanged = true;
+    }
+    else
+    {
+        *pHasChanged = false;
+    }
+
+    return result;
 }
 
 } // Gfx9

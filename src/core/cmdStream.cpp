@@ -297,38 +297,39 @@ CmdStreamChunk* CmdStream::GetNextChunk(
 {
     CmdStreamChunk* pChunk = nullptr;
 
-    // First search the retained chunk list
-    if (m_retainedChunkList.IsEmpty() == false)
+    if (m_status == Result::Success)
     {
-        // The command allocator always allocates uniformly-sized chunks, so any retained chunk should be big enough
-        m_retainedChunkList.PopBack(&pChunk);
+        // First search the retained chunk list
+        if (m_retainedChunkList.IsEmpty() == false)
+        {
+            // The command allocator always allocates uniformly-sized chunks, so any retained chunk should be big enough
+            m_retainedChunkList.PopBack(&pChunk);
+        }
+
+        // If a retained chunk could not be found then allocate a new one from the command allocator
+        if (pChunk == nullptr)
+        {
+            // It's either the first time we're requesting space for this stream, or the "most recent" chunk for this
+            // stream doesn't have enough space to accomodate this request.  Either way, we need to obtain a new chunk.
+            // The allocator adds a reference for us automatically. If the chunk list is empty, then the new chunk will
+            // be the root.
+            m_status = m_pCmdAllocator->GetNewChunk(CommandDataAlloc, (m_flags.buildInSysMem != 0), &pChunk);
+
+            if (m_status != Result::Success)
+            {
+                // Something bad happen and the stream will always be in error status ever after
+                PAL_ALERT_ALWAYS();
+            }
+            else
+            {
+                // Make sure that the start address of this chunk work with the requirements of this command stream if
+                // the stream isn't being assembled in system memory.
+                PAL_ASSERT(pChunk->UsesSystemMemory() || IsPow2Aligned(pChunk->GpuVirtAddr(), m_startAlignBytes));
+            }
+        }
     }
 
-    // If a retained chunk could not be found then allocate a new one from the command allocator
-    if (pChunk == nullptr)
-    {
-        // It's either the first time we're requesting space for this stream, or the "most recent" chunk for this stream
-        // doesn't have enough space to accomodate this request.  Either way, we need to obtain a new chunk. The
-        // allocator adds a reference for us automatically. If the chunk list is empty, then the new chunk will be the
-        // root.
-        m_status = m_pCmdAllocator->GetNewChunk(CommandDataAlloc, (m_flags.buildInSysMem != 0), &pChunk);
-
-        // When GetNewChunk failed either because GPU reset or out of GPU memory, to make driver go on running without
-        // seqfault, we should create a dummy memory for the command buffer, and meanwhile set m_status to clarify
-        // that the command stream's content is undefined.
-        if (m_status != Result::Success)
-        {
-            pChunk = m_pCmdAllocator->GetDummyChunk();
-        }
-        else
-        {
-            // Make sure that the start address of this chunk work with the requirements of this command stream if the
-            // stream isn't being assembled in system memory.
-            PAL_ASSERT(pChunk->UsesSystemMemory() || IsPow2Aligned(pChunk->GpuVirtAddr(), m_startAlignBytes));
-        }
-    }
-
-    PAL_ASSERT(pChunk != nullptr);
+    PAL_ASSERT((pChunk != nullptr) || (m_status != Result::Success));
 
     if (m_chunkList.IsEmpty() == false)
     {
@@ -338,14 +339,32 @@ CmdStreamChunk* CmdStream::GetNextChunk(
         // Add in the total DWORDs allocated to compute an upper-bound on total command size.
         m_totalChunkDwords += m_chunkList.Back()->DwordsAllocated();
     }
-    else if (m_pCmdAllocator->TrackBusyChunks())
+    else if ((m_status == Result::Success) && m_pCmdAllocator->TrackBusyChunks())
     {
         // This is the first chunk in the list so we have to initialize the busy tracker
         const Result result = pChunk->InitRootBusyTracker(m_pCmdAllocator);
+
         if (result != Result::Success)
         {
+            // Something bad happen and the stream will always be in error status ever after
+            PAL_ALERT_ALWAYS();
+
             m_status = result;
         }
+    }
+
+    if (m_status != Result::Success)
+    {
+        // Always pop up and use dummy chunk in error status.
+        pChunk = m_pCmdAllocator->GetDummyChunk();
+
+        // Make sure there is only one reference of dummy chunk at back of chunk list
+        if (m_chunkList.Back() == pChunk)
+        {
+            m_chunkList.PopBack(nullptr);
+        }
+
+        pChunk->Reset(true);
     }
 
     // And just add this chunk to the end of our list.

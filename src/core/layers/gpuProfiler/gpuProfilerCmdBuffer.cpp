@@ -226,9 +226,10 @@ void CmdBuffer::ReplayBegin(
         m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
     {
         memset(&m_cmdBufLogItem, 0, sizeof(m_cmdBufLogItem));
-        m_cmdBufLogItem.type              = CmdBufferCall;
-        m_cmdBufLogItem.frameId           = m_curLogFrame;
-        m_cmdBufLogItem.cmdBufCall.callId = CmdBufCallId::Begin;
+        m_cmdBufLogItem.type                   = CmdBufferCall;
+        m_cmdBufLogItem.frameId                = m_curLogFrame;
+        m_cmdBufLogItem.cmdBufCall.callId      = CmdBufCallId::Begin;
+        m_cmdBufLogItem.cmdBufCall.subQueueIdx = pTgtCmdBuffer->GetSubQueueIdx();
 
         // Begin a GPA session.
         pTgtCmdBuffer->BeginGpaSession(pQueue);
@@ -243,7 +244,8 @@ void CmdBuffer::ReplayBegin(
                 enablePerfExp    = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
                                    (m_pDevice->NumStreamingPerfCounters() > 0) ||
                                    (m_flags.enableSqThreadTrace != 0);
-                enablePipeStats  = m_flags.logPipeStats;
+                enablePerfExp   &= pTgtCmdBuffer->IsFromMasterSubQue();
+                enablePipeStats  = m_flags.logPipeStats && pTgtCmdBuffer->IsFromMasterSubQue();
             }
 
             m_sampleFlags.sqThreadTraceActive = (enablePerfExp && m_flags.enableSqThreadTrace);
@@ -296,10 +298,11 @@ void CmdBuffer::ReplayEnd(
         }
         pTgtCmdBuffer->EndGpaSession(&m_cmdBufLogItem);
 
-        LogItem logItem = { };
-        logItem.type              = CmdBufferCall;
-        logItem.frameId           = m_curLogFrame;
-        logItem.cmdBufCall.callId = CmdBufCallId::End;
+        LogItem logItem                = { };
+        logItem.type                   = CmdBufferCall;
+        logItem.frameId                = m_curLogFrame;
+        logItem.cmdBufCall.callId      = CmdBufCallId::End;
+        logItem.cmdBufCall.subQueueIdx = pTgtCmdBuffer->GetSubQueueIdx();
         pQueue->AddLogItem(logItem);
     }
 
@@ -2900,9 +2903,8 @@ void CmdBuffer::ReplayCmdExecuteNestedCmdBuffers(
         for (uint32 i = 0; i < cmdBufferCount; i++)
         {
             auto*const pNestedCmdBuffer    = static_cast<CmdBuffer*>(ppCmdBuffers[i]);
-            auto*const pNestedTgtCmdBuffer = pQueue->AcquireNestedCmdBuf();
-
-            tgtCmdBuffers[i] = pNestedTgtCmdBuffer;
+            auto*const pNestedTgtCmdBuffer = pQueue->AcquireNestedCmdBuf(pTgtCmdBuffer->GetSubQueueIdx());
+            tgtCmdBuffers[i]               = pNestedTgtCmdBuffer;
             pNestedCmdBuffer->Replay(pQueue, pNestedTgtCmdBuffer, m_curLogFrame);
         }
 
@@ -3686,9 +3688,10 @@ void CmdBuffer::LogPreTimedCall(
 {
     if (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) || m_forceDrawGranularityLogging)
     {
-        pLogItem->type              = CmdBufferCall;
-        pLogItem->frameId           = m_curLogFrame;
-        pLogItem->cmdBufCall.callId = callId;
+        pLogItem->type                   = CmdBufferCall;
+        pLogItem->frameId                = m_curLogFrame;
+        pLogItem->cmdBufCall.callId      = callId;
+        pLogItem->cmdBufCall.subQueueIdx = pTgtCmdBuffer->GetSubQueueIdx();
 
         // Should we enable SQ thread traces for this call?
         bool enableSqThreadTrace = false;
@@ -3729,10 +3732,11 @@ void CmdBuffer::LogPreTimedCall(
 
         if (m_disableDataGathering == false)
         {
-            const bool enablePerfExp   = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
-                                         (m_pDevice->NumStreamingPerfCounters() > 0) ||
-                                         enableSqThreadTrace;
-            const bool enablePipeStats = m_flags.logPipeStats;
+            bool enablePerfExp   = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
+                                   (m_pDevice->NumStreamingPerfCounters() > 0) ||
+                                   enableSqThreadTrace;
+            enablePerfExp       &= pTgtCmdBuffer->IsFromMasterSubQue();
+            bool enablePipeStats = m_flags.logPipeStats && pTgtCmdBuffer->IsFromMasterSubQue();
 
             m_sampleFlags.sqThreadTraceActive = (enablePerfExp && enableSqThreadTrace);
             pTgtCmdBuffer->BeginSample(pQueue, pLogItem, enablePipeStats, enablePerfExp);
@@ -3818,7 +3822,8 @@ void CmdBuffer::ReplayCmdSetViewInstanceMask(
 TargetCmdBuffer::TargetCmdBuffer(
     const CmdBufferCreateInfo& createInfo,
     ICmdBuffer*                pNextCmdBuffer,
-    const DeviceDecorator*     pNextDevice)
+    const DeviceDecorator*     pNextDevice,
+    uint32                     subQueueIdx)
     :
     CmdBufferFwdDecorator(pNextCmdBuffer, pNextDevice),
 #if (PAL_COMPILE_TYPE == 32)
@@ -3833,7 +3838,8 @@ TargetCmdBuffer::TargetCmdBuffer(
     m_engineType(createInfo.engineType),
     m_supportTimestamps(false),
     m_pGpaSession(nullptr),
-    m_result(Result::Success)
+    m_result(Result::Success),
+    m_subQueueIdx(subQueueIdx)
 {
 }
 

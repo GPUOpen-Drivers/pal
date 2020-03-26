@@ -448,6 +448,10 @@ Result Queue::Init(
                                 m_pQueueInfos[qIndex].pEngine,
                                 pNextQueueContextPlacementAddr,
                                 &m_pQueueInfos[qIndex].pQueueContext);
+                    if ((result == Result::Success) && (m_pQueueInfos[qIndex].pQueueContext != nullptr))
+                    {
+                        m_pQueueInfos[qIndex].pQueueContext->SetParentQueue(this);
+                    }
                 }
                 else
                 {
@@ -1793,7 +1797,7 @@ Result Queue::ValidateSubmit(
                         result = Result::ErrorIncompleteCommandBuffer;
                         break;
                     }
-                    else if (pCmdBuffer->GetQueueType() != Type())
+                    else if (pCmdBuffer->GetQueueType() != m_pQueueInfos[qIndex].createInfo.queueType)
                     {
                         result = Result::ErrorIncompatibleQueue;
                         break;

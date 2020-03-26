@@ -163,6 +163,41 @@ void YieldThread()
 }
 
 // =====================================================================================================================
+// Thread-safe method to write a 64-bit value, using relaxed memory ordering.
+void AtomicWriteRelaxed64(
+    volatile uint64* pTarget,
+    uint64 newValue)
+{
+    // The variable pointed to by the Addend parameter must be aligned on a 64 - bit boundary;
+    // otherwise, this function will behave unpredictably on multiprocessor x86 systems and any non - x86 systems.
+    PAL_ASSERT(IsPow2Aligned(reinterpret_cast<size_t>(pTarget), sizeof(uint64)));
+
+#ifdef __x86_64__
+    // This is atomic on x64 CPUs.
+    *pTarget = newValue;
+#else
+    __atomic_store_n(pTarget, newValue, __ATOMIC_RELAXED);
+#endif
+}
+
+// =====================================================================================================================
+// Thread-safe method to read a 64-bit value, using relaxed memory ordering.
+uint64 AtomicReadRelaxed64(
+    const volatile uint64* pTarget)
+{
+    // The variable pointed to by the Addend parameter must be aligned on a 64 - bit boundary;
+    // otherwise, this function will behave unpredictably on multiprocessor x86 systems and any non - x86 systems.
+    PAL_ASSERT(IsPow2Aligned(reinterpret_cast<size_t>(pTarget), sizeof(uint64)));
+
+#ifdef __x86_64__
+    // This is atomic on x64 CPUs.
+    return *pTarget;
+#else
+    return __atomic_load_n(pTarget, __ATOMIC_RELAXED);
+#endif
+}
+
+// =====================================================================================================================
 // Atomically increments a 32-bit unsigned integer, returning the new value.
 uint32 AtomicIncrement(
     volatile uint32* pValue)

@@ -35,7 +35,7 @@ namespace Pal
 {
 
 // =====================================================================================================================
-uint32 PalToRmtImgCreateFlags(
+static uint32 PalToRmtImgCreateFlags(
     ImageCreateFlags palFlags)
 {
     DevDriver::RMT_IMAGE_CREATE_FLAGS rmtFlags = {};
@@ -68,7 +68,7 @@ uint32 PalToRmtImgCreateFlags(
 }
 
 // =====================================================================================================================
-uint16 PalToRmtImgUsageFlags(
+static uint16 PalToRmtImgUsageFlags(
     ImageUsageFlags palUsageFlags)
 {
     DevDriver::RMT_IMAGE_USAGE_FLAGS rmtUsageFlags = {};
@@ -90,7 +90,7 @@ uint16 PalToRmtImgUsageFlags(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_IMAGE_TYPE PalToRmtImageType(
+static DevDriver::RMT_IMAGE_TYPE PalToRmtImageType(
     ImageType palType)
 {
     DevDriver::RMT_IMAGE_TYPE retType = DevDriver::RMT_IMAGE_TYPE_1D;
@@ -117,7 +117,7 @@ DevDriver::RMT_IMAGE_TYPE PalToRmtImageType(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_SWIZZLE PalToRmtSwizzle(
+static DevDriver::RMT_SWIZZLE PalToRmtSwizzle(
     ChannelSwizzle palSwizzle)
 {
     DevDriver::RMT_SWIZZLE retSwizzle = DevDriver::RMT_SWIZZLE_0;
@@ -157,7 +157,7 @@ DevDriver::RMT_SWIZZLE PalToRmtSwizzle(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_NUM_FORMAT PalToRmtNumFormat(
+static DevDriver::RMT_NUM_FORMAT PalToRmtNumFormat(
     ChNumFormat palFormat)
 {
     DevDriver::RMT_NUM_FORMAT retFormat = DevDriver::RMT_NUM_FORMAT::RMT_FORMAT_UNDEFINED;
@@ -186,7 +186,7 @@ DevDriver::RMT_NUM_FORMAT PalToRmtNumFormat(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_IMAGE_FORMAT PalToRmtImageFormat(
+static DevDriver::RMT_IMAGE_FORMAT PalToRmtImageFormat(
     SwizzledFormat palFormat)
 {
     DevDriver::RMT_IMAGE_FORMAT retFormat = {};
@@ -201,7 +201,7 @@ DevDriver::RMT_IMAGE_FORMAT PalToRmtImageFormat(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_IMAGE_TILING_TYPE PalToRmtTilingType(
+static DevDriver::RMT_IMAGE_TILING_TYPE PalToRmtTilingType(
     ImageTiling palTiling)
 {
     DevDriver::RMT_IMAGE_TILING_TYPE retType = DevDriver::RMT_IMAGE_TILING_TYPE_LINEAR;
@@ -229,7 +229,7 @@ DevDriver::RMT_IMAGE_TILING_TYPE PalToRmtTilingType(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_IMAGE_TILING_OPT_MODE PalToRmtTilingOptMode(
+static DevDriver::RMT_IMAGE_TILING_OPT_MODE PalToRmtTilingOptMode(
     TilingOptMode palTilingOptMode)
 {
     DevDriver::RMT_IMAGE_TILING_OPT_MODE retMode = DevDriver::RMT_IMAGE_TILING_OPT_MODE_BALANCED;
@@ -258,7 +258,7 @@ DevDriver::RMT_IMAGE_TILING_OPT_MODE PalToRmtTilingOptMode(
 
 // =====================================================================================================================
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 481
-DevDriver::RMT_IMAGE_METADATA_MODE PalToRmtMetadataMode(
+static DevDriver::RMT_IMAGE_METADATA_MODE PalToRmtMetadataMode(
     MetadataMode palMetadataMode)
 {
     DevDriver::RMT_IMAGE_METADATA_MODE retMode = DevDriver::RMT_IMAGE_METADATA_MODE_DEFAULT;
@@ -287,7 +287,7 @@ DevDriver::RMT_IMAGE_METADATA_MODE PalToRmtMetadataMode(
 #endif
 
 // =====================================================================================================================
-DevDriver::RMT_QUERY_HEAP_TYPE PalToRmtQueryHeapType(
+static DevDriver::RMT_QUERY_HEAP_TYPE PalToRmtQueryHeapType(
     QueryPoolType palType)
 {
     DevDriver::RMT_QUERY_HEAP_TYPE retType = DevDriver::RMT_QUERY_HEAP_TYPE_OCCLUSION;
@@ -314,7 +314,7 @@ DevDriver::RMT_QUERY_HEAP_TYPE PalToRmtQueryHeapType(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_VIDEO_ENCODER_TYPE PalToRmtEncoderType(
+static DevDriver::RMT_VIDEO_ENCODER_TYPE PalToRmtEncoderType(
     VideoEncodeCodec palType)
 {
     DevDriver::RMT_VIDEO_ENCODER_TYPE retType = DevDriver::RMT_VIDEO_ENCODER_TYPE_H264;
@@ -338,7 +338,7 @@ DevDriver::RMT_VIDEO_ENCODER_TYPE PalToRmtEncoderType(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_VIDEO_DECODER_TYPE PalToRmtDecoderType(
+static DevDriver::RMT_VIDEO_DECODER_TYPE PalToRmtDecoderType(
     VideoDecodeType palType)
 {
     DevDriver::RMT_VIDEO_DECODER_TYPE retType = DevDriver::RMT_VIDEO_DECODER_TYPE_H264;
@@ -398,7 +398,7 @@ DevDriver::RMT_VIDEO_DECODER_TYPE PalToRmtDecoderType(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_DESCRIPTOR_TYPE PalToRmtDescriptorType(
+static DevDriver::RMT_DESCRIPTOR_TYPE PalToRmtDescriptorType(
     ResourceDescriptionDescriptorType palType)
 {
     DevDriver::RMT_DESCRIPTOR_TYPE retType = DevDriver::RMT_DESCRIPTOR_TYPE_CSV_SRV_UAV;
@@ -478,7 +478,7 @@ DevDriver::RMT_DESCRIPTOR_TYPE PalToRmtDescriptorType(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_CMD_ALLOCATOR_CREATE_FLAGS PalToRmtCmdAllocatorCreateFlags(
+static DevDriver::RMT_CMD_ALLOCATOR_CREATE_FLAGS PalToRmtCmdAllocatorCreateFlags(
     CmdAllocatorCreateFlags palFlags)
 {
     DevDriver::RMT_CMD_ALLOCATOR_CREATE_FLAGS retFlags;
@@ -492,7 +492,7 @@ DevDriver::RMT_CMD_ALLOCATOR_CREATE_FLAGS PalToRmtCmdAllocatorCreateFlags(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_HEAP_TYPE PalToRmtHeapType(
+static DevDriver::RMT_HEAP_TYPE PalToRmtHeapType(
     GpuHeap palType)
 {
     DevDriver::RMT_HEAP_TYPE retType = DevDriver::RMT_HEAP_TYPE_LOCAL;
@@ -524,7 +524,7 @@ DevDriver::RMT_HEAP_TYPE PalToRmtHeapType(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_MISC_INTERNAL_TYPE PalToRmtMiscInternalType(
+static DevDriver::RMT_MISC_INTERNAL_TYPE PalToRmtMiscInternalType(
     MiscInternalAllocType palType)
 {
     // The Pal type matches the RMT type
@@ -533,7 +533,7 @@ DevDriver::RMT_MISC_INTERNAL_TYPE PalToRmtMiscInternalType(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_MISC_EVENT_TYPE PalToRmtMiscEventType(
+static DevDriver::RMT_MISC_EVENT_TYPE PalToRmtMiscEventType(
     MiscEventType palType)
 {
      DevDriver::RMT_MISC_EVENT_TYPE retType = DevDriver::RMT_MISC_EVENT_TYPE_SUBMIT_GFX;
@@ -573,7 +573,7 @@ DevDriver::RMT_MISC_EVENT_TYPE PalToRmtMiscEventType(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_RESOURCE_TYPE PalToRmtResourceType(
+static DevDriver::RMT_RESOURCE_TYPE PalToRmtResourceType(
     ResourceType palType)
 {
     DevDriver::RMT_RESOURCE_TYPE retType = DevDriver::RMT_RESOURCE_TYPE_IMAGE;
@@ -641,7 +641,7 @@ DevDriver::RMT_RESOURCE_TYPE PalToRmtResourceType(
 }
 
 // =====================================================================================================================
-DevDriver::RMT_ENGINE_TYPE PalToRmtEngineType(
+static DevDriver::RMT_ENGINE_TYPE PalToRmtEngineType(
     EngineType palType)
 {
     DevDriver::RMT_ENGINE_TYPE retType = DevDriver::RMT_ENGINE_TYPE_UNIVERSAL;

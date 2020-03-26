@@ -800,6 +800,8 @@ public:
         int32 presentDeviceFd,
         bool* pIsSame) const;
 
+    Result ReserveVmid() const;
+
 protected:
     virtual void FinalizeQueueProperties() override;
 

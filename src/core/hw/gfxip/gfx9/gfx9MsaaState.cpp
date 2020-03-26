@@ -67,6 +67,8 @@ MsaaState::MsaaState(
     m_pixelShaderSamples(0),
     m_log2OcclusionQuerySamples(0)
 {
+    m_paScAaConfig.u32All = 0;
+
     m_flags.u32All = 0;
     m_flags.waFixPostZConservativeRasterization = device.Settings().waFixPostZConservativeRasterization;
     m_flags.flushDfsm = (device.Settings().disableDfsm == false);
@@ -82,10 +84,6 @@ uint32* MsaaState::WriteCommands(
     uint32*    pCmdSpace
     ) const
 {
-    uint32 paScAaConfigMask  = static_cast<uint32>(~(PA_SC_AA_CONFIG__COVERAGE_TO_SHADER_SELECT_MASK |
-                                                     PA_SC_AA_CONFIG__MSAA_NUM_SAMPLES_MASK          |
-                                                     PA_SC_AA_CONFIG__MAX_SAMPLE_DIST_MASK));
-
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_EQAA, m_regs.dbEqaa.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_AA_MASK_X0Y0_X1Y0,
                                                    mmPA_SC_AA_MASK_X0Y1_X1Y1,
@@ -93,11 +91,6 @@ uint32* MsaaState::WriteCommands(
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_MODE_CNTL_0, m_regs.paScModeCntl0.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_ALPHA_TO_MASK, m_regs.dbAlphaToMask.u32All, pCmdSpace);
-
-    pCmdSpace = pCmdStream->WriteContextRegRmw(mmPA_SC_AA_CONFIG,
-                                               paScAaConfigMask,
-                                               m_regs.paScAaConfig.u32All,
-                                               pCmdSpace);
 
     if (m_flags.waFixPostZConservativeRasterization != 0)
     {
@@ -171,10 +164,7 @@ void MsaaState::Init(
     {
         const uint32 log2ShaderExportSamples = Log2(msaaState.shaderExportMaskSamples);
 
-        // MAX_SAMPLE_DIST bits are written at CmdSetMsaaQuadSamplePattern based on the quadSamplePattern
-        // via RMW packet.
-        m_regs.paScAaConfig.bits.MAX_SAMPLE_DIST      = 0;
-        m_regs.paScAaConfig.bits.MSAA_EXPOSED_SAMPLES = Log2(msaaState.exposedSamples);
+        m_paScAaConfig.bits.MSAA_EXPOSED_SAMPLES = Log2(msaaState.exposedSamples);
 
         m_regs.dbEqaa.bits.MAX_ANCHOR_SAMPLES        = Log2(msaaState.depthStencilSamples);
         m_regs.dbEqaa.bits.PS_ITER_SAMPLES           = Log2(msaaState.pixelShaderSamples);
@@ -215,7 +205,7 @@ void MsaaState::Init(
 
     if (msaaState.flags.enableConservativeRasterization)
     {
-        m_regs.paScAaConfig.bits.AA_MASK_CENTROID_DTMN = 1;
+        m_paScAaConfig.bits.AA_MASK_CENTROID_DTMN = 1;
 
         m_regs.paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 0;
         m_regs.paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 1;
@@ -252,8 +242,6 @@ void MsaaState::Init(
     }
     else
     {
-        m_regs.paScAaConfig.bits.AA_MASK_CENTROID_DTMN = 0;
-
         m_regs.paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
         m_regs.paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
         m_regs.paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
@@ -288,6 +276,9 @@ void MsaaState::Init(
         m_regs.paScAaMask2.bits.AA_MASK_X0Y1 = 1;
         m_regs.paScAaMask2.bits.AA_MASK_X1Y1 = 1;
     }
+
+    // Make sure we don't write outside of the state this class owns.
+    PAL_ASSERT((m_paScAaConfig.u32All & (~PcScAaConfigMask)) == 0);
 }
 
 // =====================================================================================================================
@@ -424,7 +415,7 @@ static void SetQuadSamplePattern(
 // =====================================================================================================================
 // Helper function which computes the maximum sample distance (from pixel center) based on the specified sample
 // positions.
-static uint32 ComputeMaxSampleDistance(
+uint32 MsaaState::ComputeMaxSampleDistance(
     uint32                       numSamples,
     const MsaaQuadSamplePattern& quadSamplePattern)
 {
@@ -461,13 +452,7 @@ uint32* MsaaState::WriteSamplePositions(
                                                    &paScSampleQuad,
                                                    pCmdSpace);
 
-    regPA_SC_AA_CONFIG paScAaConfig = { };
-    paScAaConfig.bits.MAX_SAMPLE_DIST = ComputeMaxSampleDistance(numSamples, samplePattern);
-
-    return pCmdStream->WriteContextRegRmw(mmPA_SC_AA_CONFIG,
-                                          static_cast<uint32>(PA_SC_AA_CONFIG__MAX_SAMPLE_DIST_MASK),
-                                          paScAaConfig.u32All,
-                                          pCmdSpace);
+    return pCmdSpace;
 }
 
 } // Gfx9

@@ -1225,25 +1225,39 @@ CmdStreamChunk* GfxCmdBuffer::GetNextGeneratedChunk()
 {
     CmdStreamChunk* pChunk = nullptr;
 
-    // First search the retained chunk list
-    if (m_retainedGeneratedChunkList.NumElements() > 0)
+    if (m_status == Result::Success)
     {
-        // When the chunk was retained the reference count was not modified so no need to add a reference here.
-        m_retainedGeneratedChunkList.PopBack(&pChunk);
+        // First search the retained chunk list
+        if (m_retainedGeneratedChunkList.NumElements() > 0)
+        {
+            // When the chunk was retained the reference count was not modified so no need to add a reference here.
+            m_retainedGeneratedChunkList.PopBack(&pChunk);
+        }
+
+        // If a retained chunk could not be found then allocate a new chunk and put it on our list. The allocator adds a
+        // reference for us automatically. Embedded data chunks cannot be root chunks.
+        if (pChunk == nullptr)
+        {
+            m_status = m_pCmdAllocator->GetNewChunk(EmbeddedDataAlloc, false, &pChunk);
+
+            // Something bad happen and the GfxCmdBuffer will always be in error status ever after
+            PAL_ALERT(m_status != Result::Success);
+        }
     }
 
-    // If a retained chunk could not be found then allocate a new chunk and put it on our list. The allocator adds a
-    // reference for us automatically. Embedded data chunks cannot be root chunks.
-    if (pChunk == nullptr)
+    // If we fail to get a new Chunk from GPU memory either because we ran out of GPU memory or DeviceLost, get a dummy
+    // chunk to allow the program to proceed until the error is progagated back to the client.
+    if (m_status != Result::Success)
     {
-        m_status = m_pCmdAllocator->GetNewChunk(EmbeddedDataAlloc, false, &pChunk);
+        pChunk = m_pCmdAllocator->GetDummyChunk();
 
-        // If we fail to get a new Chunk from GPU memory either because we ran out of GPU memory or DeviceLost, get a
-        // dummy chunk to allow the program to proceed until the error is progagated back to the client.
-        if (m_status != Result::Success)
+        // Make sure there is only one reference of dummy chunk at back of chunk list
+        if (m_generatedChunkList.Back() == pChunk)
         {
-            pChunk = m_pCmdAllocator->GetDummyChunk();
+            m_generatedChunkList.PopBack(nullptr);
         }
+
+        pChunk->Reset(true);
     }
 
     PAL_ASSERT(pChunk != nullptr);

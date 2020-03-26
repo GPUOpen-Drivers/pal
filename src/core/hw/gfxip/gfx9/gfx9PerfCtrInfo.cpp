@@ -1168,7 +1168,7 @@ static void Gfx10InitBasicBlockInfo(
     pCb->numGenericLegacyModules   = 3; // CB_PERFCOUNTER1-3
     pCb->numSpmWires               = 2;
     pCb->spmBlockSelect            = Gfx10SpmSeBlockSelectCb;
-    pCb->maxEventId                = MaxCBPerfSelGfx10;
+    pCb->maxEventId                = maxIds[CBPerfSelId];
 
     pCb->regAddr = { 0, {
         { mmCB_PERFCOUNTER0_SELECT, mmCB_PERFCOUNTER0_SELECT1, mmCB_PERFCOUNTER0_LO, mmCB_PERFCOUNTER0_HI },
@@ -1372,7 +1372,7 @@ static void Gfx10InitBasicBlockInfo(
     PerfCounterBlockInfo*const pRmi = &pInfo->block[static_cast<uint32>(GpuBlock::Rmi)];
     pRmi->distribution              = PerfCounterDistribution::PerShaderArray;
     pRmi->spmBlockSelect            = Gfx10SpmSeBlockSelectRmi;
-    pRmi->maxEventId                = MaxRMIPerfSelGfx10;
+    pRmi->maxEventId                = maxIds[RMIPerfSelId];
 
     {
         // Each instance of RMI in a shader array connects to two RBs. There are two sets of perf counters which

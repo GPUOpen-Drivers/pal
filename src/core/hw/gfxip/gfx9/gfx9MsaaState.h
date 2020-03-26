@@ -46,6 +46,10 @@ public:
 
     uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
+    static uint32 ComputeMaxSampleDistance(
+        uint32                       numSamples,
+        const MsaaQuadSamplePattern& quadSamplePattern);
+
     static uint32* WriteSamplePositions(
         const MsaaQuadSamplePattern& samplePattern,
         uint32                       numSamples,
@@ -62,16 +66,22 @@ public:
     uint32 Log2OcclusionQuerySamples() const { return m_log2OcclusionQuerySamples; }
 
     regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL PaScConsRastCntl() const { return m_regs.paScConsRastCntl; }
+    regPA_SC_AA_CONFIG PaScAaConfig() const { return m_paScAaConfig; }
+
+    // THis class only owns these bits in PA_SC_AA_CONFIG.
+    static const uint32 PcScAaConfigMask = (PA_SC_AA_CONFIG__MSAA_EXPOSED_SAMPLES_MASK |
+                                            PA_SC_AA_CONFIG__AA_MASK_CENTROID_DTMN_MASK);
 
 protected:
     virtual ~MsaaState() { }
 
     void Init(const Device& device, const MsaaStateCreateInfo& msaaState);
 
-    uint32  m_log2Samples;
-    uint32  m_sampleMask;
-    uint32  m_pixelShaderSamples;
-    uint32  m_log2OcclusionQuerySamples;
+    uint32             m_log2Samples;
+    uint32             m_sampleMask;
+    uint32             m_pixelShaderSamples;
+    uint32             m_log2OcclusionQuerySamples;
+    regPA_SC_AA_CONFIG m_paScAaConfig; // This register is only written in the draw-time validation code.
 
     union
     {
@@ -91,7 +101,6 @@ protected:
         regPA_SC_AA_MASK_X0Y0_X1Y0                paScAaMask1;
         regPA_SC_AA_MASK_X0Y1_X1Y1                paScAaMask2;
         regPA_SC_MODE_CNTL_0                      paScModeCntl0;
-        regPA_SC_AA_CONFIG                        paScAaConfig;
         regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL  paScConsRastCntl;
 
     }  m_regs;

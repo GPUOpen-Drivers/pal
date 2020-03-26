@@ -410,9 +410,20 @@ Result Pipeline::LinkWithLibraries(
     const IShaderLibrary*const* ppLibraryList,
     uint32                      libraryCount)
 {
-    // To be Implemented in needed Pipiline classes
+    // To be Implemented in needed Pipeline classes
     return Result::Unsupported;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+// =====================================================================================================================
+// Sets the total stack size for indirect shaders in the pipeline
+void Pipeline::SetStackSizeInBytes(
+    uint32 stackSizeInBytes)
+{
+    // To be Implemented in needed Pipeline classes
+    PAL_ASSERT_ALWAYS();
+}
+#endif
 
 // =====================================================================================================================
 // Helper method which extracts shader statistics from the pipeline ELF binary for a particular hardware stage.

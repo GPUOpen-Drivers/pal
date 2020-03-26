@@ -27,6 +27,12 @@
 
 
 
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 constexpr unsigned int mmCB_BLEND0_CONTROL                                = 0xA1E0;
 constexpr unsigned int mmCB_BLEND1_CONTROL                                = 0xA1E1;
 constexpr unsigned int mmCB_BLEND2_CONTROL                                = 0xA1E2;
@@ -1028,8 +1034,6 @@ constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_0                       = 0xC3
 constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_1                       = 0xC341;
 constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_2                       = 0xC342;
 constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_3                       = 0xC343;
-constexpr unsigned int mmSQ_WREXEC_EXEC_HI                                = 0x23B1;
-constexpr unsigned int mmSQ_WREXEC_EXEC_LO                                = 0x23B1;
 constexpr unsigned int mmSX_BLEND_OPT_CONTROL                             = 0xA1D7;
 constexpr unsigned int mmSX_BLEND_OPT_EPSILON                             = 0xA1D6;
 constexpr unsigned int mmSX_MRT0_BLEND_OPT                                = 0xA1D8;
@@ -1069,7 +1073,6 @@ constexpr unsigned int mmTA_PERFCOUNTER0_SELECT1                          = 0xDA
 constexpr unsigned int mmTA_PERFCOUNTER1_HI                               = 0xD2C3;
 constexpr unsigned int mmTA_PERFCOUNTER1_LO                               = 0xD2C2;
 constexpr unsigned int mmTA_PERFCOUNTER1_SELECT                           = 0xDAC2;
-constexpr unsigned int mmTA_RESERVED_010C                                 = 0x2543;
 constexpr unsigned int mmTA_SCRATCH                                       = 0x2564;
 constexpr unsigned int mmTA_STATUS                                        = 0x2548;
 constexpr unsigned int mmTCP_PERFCOUNTER0_HI                              = 0xD341;
@@ -1242,6 +1245,9 @@ namespace Core
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_5                          = 0x24B0;
     constexpr unsigned int mmSQ_TIME_HI                                       = 0x237C;
     constexpr unsigned int mmSQ_TIME_LO                                       = 0x237D;
+    constexpr unsigned int mmSQ_WREXEC_EXEC_HI                                = 0x23B1;
+    constexpr unsigned int mmSQ_WREXEC_EXEC_LO                                = 0x23B1;
+    constexpr unsigned int mmTA_RESERVED_010C                                 = 0x2543;
     constexpr unsigned int mmUMCCH0_PerfMonCtl1                               = 0x14341;
     constexpr unsigned int mmUMCCH0_PerfMonCtl2                               = 0x14342;
     constexpr unsigned int mmUMCCH0_PerfMonCtl3                               = 0x14343;
@@ -1822,9 +1828,6 @@ namespace Gfx10
     constexpr unsigned int mmCB_HW_MEM_ARBITER_RD                             = 0x2688;
     constexpr unsigned int mmCB_HW_MEM_ARBITER_WR                             = 0x2689;
     constexpr unsigned int mmCB_RMI_GL2_CACHE_CONTROL                         = 0xA104;
-    constexpr unsigned int mmCB_STUTTER_CONTROL_CMASK_RDLAT                   = 0x268B;
-    constexpr unsigned int mmCB_STUTTER_CONTROL_COLOR_RDLAT                   = 0x268D;
-    constexpr unsigned int mmCB_STUTTER_CONTROL_FMASK_RDLAT                   = 0x268C;
     constexpr unsigned int mmCHA_PERFCOUNTER0_HI                              = 0xD601;
     constexpr unsigned int mmCHA_PERFCOUNTER0_LO                              = 0xD600;
     constexpr unsigned int mmCHA_PERFCOUNTER0_SELECT                          = 0xDDE0;
@@ -2584,6 +2587,9 @@ namespace Gfx10Core
     constexpr unsigned int mmCB_COLOR7_PITCH                                  = 0xA382;
     constexpr unsigned int mmCB_COLOR7_SLICE                                  = 0xA383;
     constexpr unsigned int mmCB_RMI_BC_GL2_CACHE_CONTROL                      = 0x268A;
+    constexpr unsigned int mmCB_STUTTER_CONTROL_CMASK_RDLAT                   = 0x268B;
+    constexpr unsigned int mmCB_STUTTER_CONTROL_COLOR_RDLAT                   = 0x268D;
+    constexpr unsigned int mmCB_STUTTER_CONTROL_FMASK_RDLAT                   = 0x268C;
     constexpr unsigned int mmDB_DFSM_CONTROL                                  = 0xA00E;
     constexpr unsigned int mmDB_RMI_BC_GL2_CACHE_CONTROL                      = 0x261E;
     constexpr unsigned int mmGCEA_PERFCOUNTER2_HI                             = 0xD261;
@@ -3693,3 +3699,6 @@ namespace Vg20
     constexpr unsigned int mmUMCCH31_PerfMonCtrClk_Lo                         = 0x1D5B48;
 } // namespace Vg20
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

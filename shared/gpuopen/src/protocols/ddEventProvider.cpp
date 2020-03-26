@@ -52,9 +52,9 @@ size_t CalculateWorstCaseSize(size_t eventDataSize)
     return bytesRequired;
 }
 
-BaseEventProvider::BaseEventProvider(const AllocCb& allocCb, uint32 numEvents, uint32 flushFrequency)
+BaseEventProvider::BaseEventProvider(const AllocCb& allocCb, uint32 numEvents, uint32 flushFrequencyInMs)
     : m_eventState(allocCb)
-    , m_flushFrequency(flushFrequency)
+    , m_flushFrequencyInMs(flushFrequencyInMs)
     , m_nextFlushTime(0)
     , m_eventChunks(allocCb)
 {
@@ -65,24 +65,16 @@ BaseEventProvider::~BaseEventProvider()
 {
 }
 
-Result BaseEventProvider::Flush()
+void BaseEventProvider::Flush()
 {
-    Result result = Result::Success;
-
-    Platform::LockGuard<Platform::Mutex> chunkLock(m_chunkMutex);
+    Platform::LockGuard<Platform::AtomicLock> chunkLock(m_chunkMutex);
 
     if (m_eventChunks.IsEmpty() == false)
     {
         // Flush all chunks in our current stream into the event server's queue
-        result = m_pServer->EnqueueEventChunks(m_eventChunks.Size(), m_eventChunks.Data());
-
-        if (result == Result::Success)
-        {
-            m_eventChunks.Reset();
-        }
+        m_pServer->EnqueueEventChunks(m_eventChunks.Size(), m_eventChunks.Data());
+        m_eventChunks.Reset();
     }
-
-    return result;
 }
 
 Result BaseEventProvider::QueryEventWriteStatus(uint32 eventId) const
@@ -108,7 +100,7 @@ Result BaseEventProvider::WriteEvent(uint32 eventId, const void* pEventData, siz
         const size_t requiredSize = CalculateWorstCaseSize(eventDataSize);
         if (requiredSize <= kEventChunkMaxDataSize)
         {
-            Platform::LockGuard<Platform::Mutex> chunkLock(m_chunkMutex);
+            Platform::LockGuard<Platform::AtomicLock> chunkLock(m_chunkMutex);
 
             // Attempt to allocate a chunk from the server and write the data into it
             EventChunk* pChunk = nullptr;
@@ -133,6 +125,16 @@ Result BaseEventProvider::WriteEvent(uint32 eventId, const void* pEventData, siz
             // @TODO: Support large event payloads by linking together multiple chunks
             result = Result::InsufficientMemory;
         }
+
+        if (result != Result::Success)
+        {
+            DD_PRINT(LogLevel::Warn,
+                "Provider 0x%x failed with result \"%s\" when attempting to write event with id %u and size %u!",
+                GetId(),
+                ResultToString(result),
+                eventId,
+                static_cast<uint32>(eventDataSize));
+        }
     }
 
     return result;
@@ -148,13 +150,13 @@ ProviderDescriptionHeader BaseEventProvider::GetHeader() const
 
 void BaseEventProvider::Update(uint64 currentTime)
 {
-    if (m_flushFrequency > 0)
+    if (m_flushFrequencyInMs > 0)
     {
         if (currentTime >= m_nextFlushTime)
         {
-            m_nextFlushTime = currentTime + m_flushFrequency;
+            m_nextFlushTime = currentTime + m_flushFrequencyInMs;
 
-            DD_UNHANDLED_RESULT(Flush());
+            Flush();
         }
     }
 }

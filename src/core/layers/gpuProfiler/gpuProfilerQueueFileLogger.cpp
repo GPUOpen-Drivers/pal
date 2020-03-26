@@ -157,15 +157,15 @@ void Queue::OpenLogFile(
              m_pDevice->GetPlatform()->LogDirPath(),
              frameId,
              m_pDevice->Id(),
-             EngineTypeStrings[static_cast<uint32>(m_engineType)],
-             m_engineIndex,
+             EngineTypeStrings[static_cast<uint32>(m_pQueueInfos[0].engineType)],
+             m_pQueueInfos[0].engineIndex,
              m_queueId);
 
     Result result = m_logFile.Open(&tempString[0], FileAccessWrite);
     PAL_ASSERT(result == Result::Success);
 
     // Write the CSV column headers to the newly opened file.
-    const char* pCsvHeader = "Queue Call,CmdBuffer Index,CmdBuffer Call,Start Clock,End Clock,Time (us) "
+    const char* pCsvHeader = "Queue Call,CmdBuffer Index,CmdBuffer Call,SubQueueIdx,Start Clock,End Clock,Time (us) "
                              "[Frequency: %llu],PipelineHash,CompilerHash,VS/CS,HS,DS,GS,PS,"
                              "Verts/ThreadGroups,Instances,Comments,";
     Snprintf(&tempString[0], sizeof(tempString), pCsvHeader, m_pDevice->TimestampFreq());
@@ -267,8 +267,8 @@ void Queue::OpenSqttFile(
              m_pDevice->GetPlatform()->LogDirPath(),
              m_curLogFrame,
              m_pDevice->Id(),
-             EngineTypeStrings[static_cast<uint32>(m_engineType)],
-             m_engineIndex,
+             EngineTypeStrings[static_cast<uint32>(m_pQueueInfos[0].engineType)],
+             m_pQueueInfos[0].engineIndex,
              m_queueId,
              m_curLogCmdBufIdx,
              traceId,
@@ -338,8 +338,8 @@ void Queue::OpenSpmFile(
              m_pDevice->GetPlatform()->LogDirPath(),
              m_curLogFrame,
              m_pDevice->Id(),
-             EngineTypeStrings[static_cast<uint32>(m_engineType)],
-             m_engineIndex,
+             EngineTypeStrings[static_cast<uint32>(m_pQueueInfos[0].engineType)],
+             m_pQueueInfos[0].engineIndex,
              m_queueId,
              m_curLogCmdBufIdx,
              crcInfo);
@@ -404,7 +404,7 @@ void Queue::OutputQueueCallToFile(
 {
     PAL_ASSERT(logItem.type == QueueCall);
 
-    m_logFile.Printf("%s,,,,,,,,,,,,,,,,", QueueCallIdStrings[static_cast<uint32>(logItem.queueCall.callId)]);
+    m_logFile.Printf("%s,,,,,,,,,,,,,,,,,", QueueCallIdStrings[static_cast<uint32>(logItem.queueCall.callId)]);
 
     if (m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerConfig.recordPipelineStats)
     {
@@ -438,10 +438,11 @@ void Queue::OutputCmdBufCallToFile(
     const auto& settings   = m_pDevice->GetPlatform()->PlatformSettings();
     const auto& cmdBufItem = logItem.cmdBufCall;
 
-    m_logFile.Printf(",%d,%s%s,",
+    m_logFile.Printf(",%d,%s%s,%d,",
                      m_curLogCmdBufIdx,
                      pNestedCmdBufPrefix,
-                     CmdBufCallIdStrings[static_cast<uint32>(cmdBufItem.callId)]);
+                     CmdBufCallIdStrings[static_cast<uint32>(cmdBufItem.callId)],
+                     cmdBufItem.subQueueIdx);
 
     OutputTimestampsToFile(logItem);
 

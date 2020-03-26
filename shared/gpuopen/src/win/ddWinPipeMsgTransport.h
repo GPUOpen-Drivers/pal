@@ -24,11 +24,60 @@
  **********************************************************************************************************************/
 /**
 ***********************************************************************************************************************
-* @file  ddWinKernelPlatform.h
-* @brief Windows Kernel Platform Layer Header Proxy
+* @file  ddWinPipeMsgTransport.h
+* @brief Class declaration for WinPipeMsgTransport
 ***********************************************************************************************************************
 */
 
 #pragma once
 
-#include "../../core/inc/platforms/ddcWinKernelPlatform.h"
+#include "msgTransport.h"
+#include "ddPlatform.h"
+
+namespace DevDriver
+{
+    class WinPipeMsgTransport : public IMsgTransport
+    {
+    public:
+        explicit WinPipeMsgTransport(const HostInfo& hostInfo);
+        ~WinPipeMsgTransport();
+
+        Result Connect(ClientId* pClientId, uint32 timeoutInMs) override;
+        Result Disconnect() override;
+
+        Result ReadMessage(MessageBuffer& messageBuffer, uint32 timeoutInMs) override;
+        Result WriteMessage(const MessageBuffer& messageBuffer) override;
+
+        const char* GetTransportName() const override
+        {
+            return "Named Pipe";
+        }
+
+        DD_STATIC_CONST bool RequiresKeepAlive()
+        {
+            return false;
+        }
+
+        DD_STATIC_CONST bool RequiresClientRegistration()
+        {
+            return true;
+        }
+
+        static Result TestConnection(const HostInfo& hostInfo, uint32 timeoutInMs);
+    private:
+        HostInfo        m_hostInfo;
+        HANDLE          m_pipeHandle;
+
+        struct PendingTransaction
+        {
+            OVERLAPPED oOverlap;
+            MessageBuffer message;
+            DWORD cbSize;
+            bool ioPending;
+        };
+
+        PendingTransaction m_readTransaction;
+        PendingTransaction m_writeTransaction;
+    };
+
+} // DevDriver

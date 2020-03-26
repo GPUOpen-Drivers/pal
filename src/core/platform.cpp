@@ -382,19 +382,6 @@ Result Platform::Init()
 }
 
 // =====================================================================================================================
-void Platform::EnableEventLoggingToFile()
-{
-    const auto& settings = PlatformSettings();
-    char fileNameAndPath[1024] = {};
-    Util::Snprintf(&fileNameAndPath[0],
-        sizeof(fileNameAndPath),
-        "%s%s",
-        &settings.eventLogDirectory[0],
-        &settings.eventLogFilename);
-    m_eventProvider.EnableFileLogging(&fileNameAndPath[0]);
-}
-
-// =====================================================================================================================
 // Initializes a connection with the developer driver message bus if it's currently enabled on the system.
 // This function should be called before device enumeration.
 Result Platform::EarlyInitDevDriver()
@@ -429,10 +416,11 @@ Result Platform::EarlyInitDevDriver()
             sizeof(createInfo.clientDescription));
 
         // Enable all supported protocols
-        createInfo.servers.logging = true;
-        createInfo.servers.settings = true;
+        createInfo.servers.logging       = true;
+        createInfo.servers.settings      = true;
         createInfo.servers.driverControl = true;
-        createInfo.servers.rgp = true;
+        createInfo.servers.rgp           = true;
+        createInfo.servers.event         = true;
 
         m_pDevDriverServer = PAL_NEW(DevDriver::DevDriverServer, this, AllocInternal) (allocCb, createInfo);
         if (m_pDevDriverServer != nullptr)
@@ -489,20 +477,11 @@ Result Platform::EarlyInitDevDriver()
     }
 
     // Initialize Platform settings and the event provider
-    Result ret = m_settingsLoader.Init();
+    Result result = m_settingsLoader.Init();
 
-    if (ret == Result::Success)
+    if (result == Result::Success)
     {
-        ret = m_eventProvider.Init();
-
-        // Check the setting to determine if we should turn on event logging to file
-        if (ret == Result::Success)
-        {
-            if (PlatformSettings().enableEventLogFile == true)
-            {
-                EnableEventLoggingToFile();
-            }
-        }
+        result = m_eventProvider.Init();
     }
 
     if (m_pDevDriverServer != nullptr)
@@ -519,7 +498,7 @@ Result Platform::EarlyInitDevDriver()
 #endif
     }
 
-    return ret;
+    return result;
 }
 
 // =====================================================================================================================
@@ -606,6 +585,8 @@ void Platform::LateInitDevDriver()
 // Destroys the connection to the developer driver message bus if it was previously initialized.
 void Platform::DestroyDevDriver()
 {
+    m_eventProvider.Destroy();
+
     if (m_pDevDriverServer != nullptr)
     {
         // Null out cached pointers

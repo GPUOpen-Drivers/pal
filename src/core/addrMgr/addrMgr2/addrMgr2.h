@@ -101,9 +101,10 @@ static bool IsLinearSwizzleMode(
 
 // =====================================================================================================================
 // Returns the HW tiling / swizzle mode that corresponds to the specified subresource.
-static SWIZZLE_MODE_ENUM GetHwSwizzleMode(
+static Pal::Gfx9::SWIZZLE_MODE_ENUM GetHwSwizzleMode(
     AddrSwizzleMode  swizzleMode)
 {
+    using namespace Pal::Gfx9;
     static constexpr SWIZZLE_MODE_ENUM  hwSwizzleMode[]=
     {
         SW_LINEAR,        // ADDR_SW_LINEAR

@@ -215,6 +215,16 @@ union SpmLineMapping
     uint32         u32Array[MuxselLineSizeInDwords];
 };
 
+// A SE/SA/instance triplet that corresponds to some global instance. This is similar to GRBM_GFX_INDEX but the
+// indices follow the same abstract ordering as the global instances. This information is needed in some cases where
+// GRBM_GFX_INDEX has a special bit encoding that reorders the instances, preventing us from reusing the information.
+struct InstanceMapping
+{
+    uint32 seIndex;       // The shader engine index or zero if the instance is global.
+    uint32 saIndex;       // The shader array index or zero if the instance is global or per-SE.
+    uint32 instanceIndex; // The block's hardware instance within the block's PerfCounterDistribution.
+};
+
 // Stores general information we need for a single counter of any type.
 struct CounterMapping
 {
@@ -294,13 +304,11 @@ private:
     Result AllocateGenericStructs(GpuBlock block, uint32 globalInstance);
     Result AddSpmCounter(const PerfCounterInfo& counterInfo, SpmCounterMapping* pMapping);
     Result BuildCounterMapping(const PerfCounterInfo& info, CounterMapping* pMapping) const;
+    Result BuildInstanceMapping(GpuBlock block, uint32 globalInstance, InstanceMapping* pMapping) const;
 
-    Result BuildGrbmGfxIndex(GpuBlock block, uint32 globalInstance, regGRBM_GFX_INDEX* pGrbmGfxIndex) const;
-
-    uint32 Gfx10CalcInstanceIndex(GpuBlock block, uint32 flatIndex) const;
+    regGRBM_GFX_INDEX BuildGrbmGfxIndex(const InstanceMapping& mapping, GpuBlock block) const;
+    MuxselEncoding BuildMuxselEncoding(const InstanceMapping& mapping, GpuBlock block, uint32 counter) const;
     bool HasRmiSubInstances(GpuBlock block) const;
-
-    MuxselEncoding BuildMuxselEncoding(GpuBlock block, uint32 counter, regGRBM_GFX_INDEX grbmGfxIndex) const;
 
     // Here are a few helper functions which write into reserved command space.
     uint32* WriteSpmSetup(CmdStream* pCmdStream, uint32* pCmdSpace) const;

@@ -52,7 +52,11 @@ namespace DevDriver
             // Resumes execution inside the driver
             Result ResumeDriver();
 
+            // Steps the driver the requested number of steps
             Result StepDriver(uint32 numSteps);
+
+            // Advances the current driver state to the next state in the initialization sequence.
+            Result AdvanceDriverState(DriverStatus* pNewState);
 
             // Returns the number of gpus the driver is managing.
             Result QueryNumGpus(uint32* pNumGpus);

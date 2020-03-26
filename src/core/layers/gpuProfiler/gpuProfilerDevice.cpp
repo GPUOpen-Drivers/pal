@@ -239,12 +239,65 @@ Result Device::CreateQueue(
 
         pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue,
                                                          this,
-                                                         createInfo.queueType,
-                                                         engineType,
-                                                         createInfo.engineIndex,
+                                                         1,
                                                          queueId);
 
-        result = pQueue->Init();
+        result = pQueue->Init(&createInfo);
+    }
+
+    if (result == Result::Success)
+    {
+        (*ppQueue) = pQueue;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t Device::GetMultiQueueSize(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    Result*                pResult
+    ) const
+{
+    return m_pNextLayer->GetMultiQueueSize(queueCount, pCreateInfo, pResult) + sizeof(Queue);
+}
+
+// =====================================================================================================================
+Result Device::CreateMultiQueue(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    void*                  pPlacementAddr,
+    IQueue**               ppQueue)
+{
+    IQueue* pNextQueue = nullptr;
+    Queue*  pQueue = nullptr;
+
+    Result result = m_pNextLayer->CreateMultiQueue(
+                                        queueCount,
+                                        pCreateInfo,
+                                        NextObjectAddr<Queue>(pPlacementAddr),
+                                        &pNextQueue);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextQueue != nullptr);
+        PAL_ASSERT(pCreateInfo[0].engineIndex < MaxEngineCount);
+        pNextQueue->SetClientData(pPlacementAddr);
+
+        const uint32 masterQueueId = m_queueIds[pCreateInfo[0].engineType][pCreateInfo[0].engineIndex];
+
+        for (uint32 i = 0; i < queueCount; i++)
+        {
+            m_queueIds[pCreateInfo[i].engineType][pCreateInfo[i].engineIndex]++;
+        }
+
+        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue,
+                                                         this,
+                                                         queueCount,
+                                                         masterQueueId);
+
+        result = pQueue->Init(pCreateInfo);
     }
 
     if (result == Result::Success)
@@ -313,7 +366,8 @@ size_t Device::GetTargetCmdBufferSize(
 Result Device::CreateTargetCmdBuffer(
     const CmdBufferCreateInfo& createInfo,
     void*                      pPlacementAddr,
-    TargetCmdBuffer**          ppCmdBuffer)
+    TargetCmdBuffer**          ppCmdBuffer,
+    uint32                     subQueueIdx)
 {
     ICmdBuffer*      pNextCmdBuffer = nullptr;
     TargetCmdBuffer* pCmdBuffer     = nullptr;
@@ -330,7 +384,7 @@ Result Device::CreateTargetCmdBuffer(
         PAL_ASSERT(pNextCmdBuffer != nullptr);
         pNextCmdBuffer->SetClientData(pPlacementAddr);
 
-        pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) TargetCmdBuffer(createInfo, pNextCmdBuffer, this);
+        pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) TargetCmdBuffer(createInfo, pNextCmdBuffer, this, subQueueIdx);
         result = pCmdBuffer->Init();
     }
 
@@ -452,14 +506,14 @@ Result Device::ExtractPerfCounterInfo(
                 char  blockName[BlockNameSize];
                 char  instanceName[InstanceNameSize];
                 char  eventName[EventNameSize];
-                int32 eventId;
+                char  eventIdStr[8];
                 int32 optData;
 
                 // Read a line of the form "BlockName EventId InstanceName CounterName OptionalData".
                 const int scanfRet = sscanf(&buf[0],
-                                            "%31s %i %7s %127s %i",
+                                            "%31s %7s %7s %127s %i",
                                             &blockName[0],
-                                            &eventId,
+                                            &eventIdStr[0],
                                             &instanceName[0],
                                             &eventName[0],
                                             &optData);
@@ -471,68 +525,99 @@ Result Device::ExtractPerfCounterInfo(
                     const GpuBlock block = StringToGpuBlock(&blockName[0]);
                     const uint32   blockIdx = static_cast<uint32>(block);
 
-                    if (strcmp(instanceName, "EACH") == 0)
+                    // Convert eventIdStr(decimal or hex) to eventId integer
+                    uint32 eventId;
+                    if ((eventIdStr[0] == '0') && (eventIdStr[1] == 'x')) // hex value
                     {
-                        const uint32 instanceCount = perfExpProps.blocks[blockIdx].instanceCount;
-                        for (uint32 i = 0; i < instanceCount; i++)
+                        char* endChar;
+                        eventId = strtol(eventIdStr + 2, &endChar, 16);
+                        if (endChar == (eventIdStr + 2))
                         {
-                            pPerfCounters[counterIdx].block         = block;
-                            pPerfCounters[counterIdx].eventId       = eventId;
-                            pPerfCounters[counterIdx].instanceId    = i;
-                            pPerfCounters[counterIdx].instanceCount = 1;
-                            Snprintf(
-                                &pPerfCounters[counterIdx].name[0],
-                                EventInstanceNameSize,
-                                "%s_INSTANCE_%d",
-                                &eventName[0],
-                                i);
-                            counterIdx++;
-                        }
-                    }
-                    else if (strcmp(instanceName, "ALL") == 0)
-                    {
-                        const uint32 instanceCount              = perfExpProps.blocks[blockIdx].instanceCount;
-                        pPerfCounters[counterIdx].block         = block;
-                        pPerfCounters[counterIdx].eventId       = eventId;
-                        pPerfCounters[counterIdx].instanceId    = 0;
-                        pPerfCounters[counterIdx].instanceCount = instanceCount;
-                        Snprintf(
-                            &pPerfCounters[counterIdx].name[0],
-                            EventInstanceNameSize,
-                            "%s_INSTANCE_ALL",
-                            &eventName[0]);
-                        counterIdx++;
-                        if (instanceCount == 0)
-                        {
-                            PAL_DPERROR("Bad perfcounter config (%d): Block %s not available.", lineNum, blockName);
+                            // strtol failed
+                            PAL_DPERROR("Bad perfcounter config (%d): eventId '%s' is not a hex number.",
+                                        lineNum, eventIdStr);
                             result = Result::ErrorInitializationFailed;
                         }
                     }
-                    else
+                    else // decimal value
                     {
                         char* endChar;
-                        uint32 instanceId = strtol(instanceName, &endChar, 10);
-                        if (endChar != instanceName)
+                        eventId = strtol(eventIdStr, &endChar, 10);
+                        if (endChar == eventIdStr)
                         {
-                            // strtol succeeded
+                            // strtol failed
+                            PAL_DPERROR("Bad perfcounter config (%d): eventId '%s' is not a valid integer.",
+                                        lineNum, eventIdStr);
+                            result = Result::ErrorInitializationFailed;
+                        }
+                    }
+
+                    if (result == Result::Success)
+                    {
+                        // Handle instanceName(EACH, ALL, or number)
+                        if (strcmp(instanceName, "EACH") == 0)
+                        {
+                            const uint32 instanceCount = perfExpProps.blocks[blockIdx].instanceCount;
+                            for (uint32 i = 0; i < instanceCount; i++)
+                            {
+                                pPerfCounters[counterIdx].block         = block;
+                                pPerfCounters[counterIdx].eventId       = eventId;
+                                pPerfCounters[counterIdx].instanceId    = i;
+                                pPerfCounters[counterIdx].instanceCount = 1;
+                                Snprintf(
+                                    &pPerfCounters[counterIdx].name[0],
+                                    EventInstanceNameSize,
+                                    "%s_INSTANCE_%d",
+                                    &eventName[0],
+                                    i);
+                                counterIdx++;
+                            }
+                        }
+                        else if (strcmp(instanceName, "ALL") == 0)
+                        {
+                            const uint32 instanceCount              = perfExpProps.blocks[blockIdx].instanceCount;
                             pPerfCounters[counterIdx].block         = block;
                             pPerfCounters[counterIdx].eventId       = eventId;
-                            pPerfCounters[counterIdx].instanceId    = instanceId;
-                            pPerfCounters[counterIdx].instanceCount = 1;
+                            pPerfCounters[counterIdx].instanceId    = 0;
+                            pPerfCounters[counterIdx].instanceCount = instanceCount;
                             Snprintf(
                                 &pPerfCounters[counterIdx].name[0],
                                 EventInstanceNameSize,
-                                "%s_INSTANCE_%s",
-                                &eventName[0],
-                                &instanceName[0]);
+                                "%s_INSTANCE_ALL",
+                                &eventName[0]);
                             counterIdx++;
+                            if (instanceCount == 0)
+                            {
+                                PAL_DPERROR("Bad perfcounter config (%d): Block %s not available.", lineNum, blockName);
+                                result = Result::ErrorInitializationFailed;
+                            }
                         }
                         else
                         {
-                            // strtol failed
-                            PAL_DPERROR("Bad perfcounter config (%d): instanceId '%s' is not a number, EACH, or ALL.",
-                                        lineNum, instanceName);
-                            result = Result::ErrorInitializationFailed;
+                            char* endChar;
+                            uint32 instanceId = strtol(instanceName, &endChar, 10);
+                            if (endChar != instanceName)
+                            {
+                                // strtol succeeded
+                                pPerfCounters[counterIdx].block         = block;
+                                pPerfCounters[counterIdx].eventId       = eventId;
+                                pPerfCounters[counterIdx].instanceId    = instanceId;
+                                pPerfCounters[counterIdx].instanceCount = 1;
+                                Snprintf(
+                                    &pPerfCounters[counterIdx].name[0],
+                                    EventInstanceNameSize,
+                                    "%s_INSTANCE_%s",
+                                    &eventName[0],
+                                    &instanceName[0]);
+                                counterIdx++;
+                            }
+                            else
+                            {
+                                // strtol failed
+                                PAL_DPERROR("Bad perfcounter config (%d): instanceId '%s' is not a number, EACH, or ALL.",
+                                            lineNum, instanceName);
+                                result = Result::ErrorInitializationFailed;
+                            }
                         }
                     }
                 }
@@ -602,7 +687,8 @@ Result Device::ExtractPerfCounterInfo(
                 if (++count[blockIdx][instanceId] > maxCounters)
                 {
                     // Too many counters enabled for this block instance.
-                    PAL_DPERROR("PerfCounter[%s]: too many counters enabled for this block", pPerfCounters[i].name);
+                    PAL_DPERROR("PerfCounter[%s]: too many counters enabled for this block (count %u > max %u)",
+                                pPerfCounters[i].name, count[blockIdx][instanceId], maxCounters);
                     result = Result::ErrorInitializationFailed;
                 }
             }

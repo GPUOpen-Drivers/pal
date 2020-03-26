@@ -1067,8 +1067,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
     }
     else
     {
-        // On GFXIP 7+, PFP_SYNC_ME cannot be used on an async compute engine
-        // so we need to use REWIND packet instead.
+        // On GFXIP 7+, PFP_SYNC_ME cannot be used on an async compute engine so we need to use REWIND packet instead.
         pCmdSpace += m_cmdUtil.BuildRewind(false, true, pCmdSpace);
     }
 

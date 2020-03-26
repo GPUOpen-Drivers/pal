@@ -2011,42 +2011,32 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputePipeBankXor(
 {
     if (IsNonPrtXor(pIn->swizzleMode))
     {
-        const UINT_32 blockBits  = GetBlockSizeLog2(pIn->swizzleMode);
-        const UINT_32 pipeBits   = GetPipeXorBits(blockBits);
-        const UINT_32 bankBits   = GetBankXorBits(blockBits);
+        const UINT_32 bankBits = GetBankXorBits(GetBlockSizeLog2(pIn->swizzleMode));
 
-        UINT_32 pipeXor = 0;
-        UINT_32 bankXor = 0;
+        // No pipe xor...
+        const UINT_32 pipeXor = 0;
+        UINT_32       bankXor = 0;
 
-        if (bankBits != 0)
+        const UINT_32         XorPatternLen = 8;
+        static const UINT_32  XorBankRot1b[XorPatternLen] = {0,  1,  0,  1,  0,  1,  0,  1};
+        static const UINT_32  XorBankRot2b[XorPatternLen] = {0,  2,  1,  3,  2,  0,  3,  1};
+        static const UINT_32  XorBankRot3b[XorPatternLen] = {0,  4,  2,  6,  1,  5,  3,  7};
+        static const UINT_32  XorBankRot4b[XorPatternLen] = {0,  8,  4, 12,  2, 10,  6, 14};
+        static const UINT_32* XorBankRotPat[] = {XorBankRot1b, XorBankRot2b, XorBankRot3b, XorBankRot4b};
+
+        switch (bankBits)
         {
-            if (blockBits == 16)
-            {
-                const UINT_32        XorPatternLen = 8;
-                static const UINT_32 XorBank1b[XorPatternLen] = {0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80};
-                static const UINT_32 XorBank2b[XorPatternLen] = {0x00, 0x80, 0x40, 0xC0, 0x80, 0x00, 0xC0, 0x40};
-                static const UINT_32 XorBank3b[XorPatternLen] = {0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0};
-
-                const UINT_32 index = pIn->surfIndex % XorPatternLen;
-
-                if (bankBits == 1)
-                {
-                    bankXor = XorBank1b[index];
-                }
-                else if (bankBits == 2)
-                {
-                    bankXor = XorBank2b[index];
-                }
-                else
-                {
-                    bankXor = XorBank3b[index];
-
-                    if (bankBits == 4)
-                    {
-                        bankXor >>= (2 - pipeBits);
-                    }
-                }
-            }
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+                bankXor = XorBankRotPat[bankBits - 1][pIn->surfIndex % XorPatternLen] << (m_pipesLog2 + ColumnBits);
+                break;
+            default:
+                // valid bank bits should be 0~4
+                ADDR_ASSERT_ALWAYS();
+            case 0:
+                break;
         }
 
         pOut->pipeBankXor = bankXor | pipeXor;
@@ -2082,6 +2072,38 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeSlicePipeBankXor(
         const UINT_32 pipeXor   = ReverseBitVector(pIn->slice, pipeBits);
 
         pOut->pipeBankXor = pIn->basePipeBankXor ^ pipeXor;
+
+        if (pIn->bpe != 0)
+        {
+            const ADDR_SW_PATINFO* pPatInfo = GetSwizzlePatternInfo(pIn->swizzleMode,
+                                                                    pIn->resourceType,
+                                                                    Log2(pIn->bpe >> 3),
+                                                                    1);
+
+            if (pPatInfo != NULL)
+            {
+                ADDR_BIT_SETTING fullSwizzlePattern[20];
+                GetSwizzlePatternFromPatternInfo(pPatInfo, fullSwizzlePattern);
+
+                const UINT_32 pipeBankXorOffset =
+                    ComputeOffsetFromSwizzlePattern(reinterpret_cast<const UINT_64*>(fullSwizzlePattern),
+                                                    blockBits,
+                                                    0,
+                                                    0,
+                                                    pIn->slice,
+                                                    0);
+
+                const UINT_32 pipeBankXor = pipeBankXorOffset >> m_pipeInterleaveLog2;
+
+                // Should have no bit set under pipe interleave
+                ADDR_ASSERT((pipeBankXor << m_pipeInterleaveLog2) == pipeBankXorOffset);
+
+                // This assertion firing means old approach doesn't calculate a correct sliceXor value...
+                ADDR_ASSERT(pipeBankXor == pipeXor);
+
+                pOut->pipeBankXor = pIn->basePipeBankXor ^ pipeBankXor;
+            }
+        }
     }
     else
     {

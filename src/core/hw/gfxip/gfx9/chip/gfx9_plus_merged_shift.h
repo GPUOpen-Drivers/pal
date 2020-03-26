@@ -27,6 +27,12 @@
 
 
 
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 constexpr unsigned int CB_BLEND0_CONTROL__ALPHA_COMB_FCN__SHIFT           = 0x00000015;
 constexpr unsigned int CB_BLEND0_CONTROL__ALPHA_DESTBLEND__SHIFT          = 0x00000018;
 constexpr unsigned int CB_BLEND0_CONTROL__ALPHA_SRCBLEND__SHIFT           = 0x00000010;
@@ -103,24 +109,6 @@ constexpr unsigned int CB_BLEND_ALPHA__BLEND_ALPHA__SHIFT                 = 0x00
 constexpr unsigned int CB_BLEND_BLUE__BLEND_BLUE__SHIFT                   = 0x00000000;
 constexpr unsigned int CB_BLEND_GREEN__BLEND_GREEN__SHIFT                 = 0x00000000;
 constexpr unsigned int CB_BLEND_RED__BLEND_RED__SHIFT                     = 0x00000000;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__OFF_HYSTERESIS__SHIFT           = 0x00000004;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__ON_DELAY__SHIFT                 = 0x00000000;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE0__SHIFT           = 0x0000001f;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE1__SHIFT           = 0x0000001e;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE2__SHIFT           = 0x0000001d;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE3__SHIFT           = 0x0000001c;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE4__SHIFT           = 0x0000001b;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE5__SHIFT           = 0x0000001a;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE6__SHIFT           = 0x00000019;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE7__SHIFT           = 0x00000018;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE0__SHIFT     = 0x00000017;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE1__SHIFT     = 0x00000016;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE2__SHIFT     = 0x00000015;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE3__SHIFT     = 0x00000014;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE4__SHIFT     = 0x00000013;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE5__SHIFT     = 0x00000012;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE6__SHIFT     = 0x00000011;
-constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE7__SHIFT     = 0x00000010;
 constexpr unsigned int CB_COLOR0_ATTRIB2__MAX_MIP__SHIFT                  = 0x0000001c;
 constexpr unsigned int CB_COLOR0_ATTRIB2__MIP0_HEIGHT__SHIFT              = 0x00000000;
 constexpr unsigned int CB_COLOR0_ATTRIB2__MIP0_WIDTH__SHIFT               = 0x0000000e;
@@ -2175,8 +2163,6 @@ constexpr unsigned int SPI_COMPUTE_WF_CTX_SAVE__SAVE_BUSY__SHIFT          = 0x00
 constexpr unsigned int SPI_CONFIG_CNTL_1__CSC_PWR_SAVE_DISABLE__SHIFT     = 0x0000000e;
 constexpr unsigned int SPI_CONFIG_CNTL_1__CSG_PWR_SAVE_DISABLE__SHIFT     = 0x0000000f;
 constexpr unsigned int SPI_CONFIG_CNTL_1__INTERP_ONE_PRIM_PER_ROW__SHIFT  = 0x00000004;
-constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_CNT__SHIFT          = 0x0000000a;
-constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_MODE__SHIFT         = 0x00000009;
 constexpr unsigned int SPI_CONFIG_CNTL_1__PC_LIMIT_STRICT__SHIFT          = 0x00000007;
 constexpr unsigned int SPI_CONFIG_CNTL_1__VTX_DONE_DELAY__SHIFT           = 0x00000000;
 constexpr unsigned int SPI_CONFIG_CNTL_2__CONTEXT_SAVE_WAIT_GDS_GRANT_CYCLE_OVHD__SHIFT = 0x00000004;
@@ -3198,11 +3184,6 @@ constexpr unsigned int SQ_WAVE_TTMP12__DATA__SHIFT                        = 0x00
 constexpr unsigned int SQ_WAVE_TTMP13__DATA__SHIFT                        = 0x00000000;
 constexpr unsigned int SQ_WAVE_TTMP14__DATA__SHIFT                        = 0x00000000;
 constexpr unsigned int SQ_WAVE_TTMP15__DATA__SHIFT                        = 0x00000000;
-constexpr unsigned int SQ_WREXEC_EXEC_HI__ADDR_HI__SHIFT                  = 0x00000000;
-constexpr unsigned int SQ_WREXEC_EXEC_HI__FIRST_WAVE__SHIFT               = 0x0000001a;
-constexpr unsigned int SQ_WREXEC_EXEC_HI__MSB__SHIFT                      = 0x0000001f;
-constexpr unsigned int SQ_WREXEC_EXEC_HI__MTYPE__SHIFT                    = 0x0000001c;
-constexpr unsigned int SQ_WREXEC_EXEC_LO__ADDR_LO__SHIFT                  = 0x00000000;
 constexpr unsigned int SX_BLEND_OPT_CONTROL__MRT0_ALPHA_OPT_DISABLE__SHIFT = 0x00000001;
 constexpr unsigned int SX_BLEND_OPT_CONTROL__MRT0_COLOR_OPT_DISABLE__SHIFT = 0x00000000;
 constexpr unsigned int SX_BLEND_OPT_CONTROL__MRT1_ALPHA_OPT_DISABLE__SHIFT = 0x00000005;
@@ -3298,24 +3279,6 @@ constexpr unsigned int SX_PS_DOWNCONVERT__MRT6__SHIFT                     = 0x00
 constexpr unsigned int SX_PS_DOWNCONVERT__MRT7__SHIFT                     = 0x0000001c;
 constexpr unsigned int TA_BC_BASE_ADDR_HI__ADDRESS__SHIFT                 = 0x00000000;
 constexpr unsigned int TA_BC_BASE_ADDR__ADDRESS__SHIFT                    = 0x00000000;
-constexpr unsigned int TA_CGTT_CTRL__OFF_HYSTERESIS__SHIFT                = 0x00000004;
-constexpr unsigned int TA_CGTT_CTRL__ON_DELAY__SHIFT                      = 0x00000000;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE0__SHIFT                = 0x0000001f;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE1__SHIFT                = 0x0000001e;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE2__SHIFT                = 0x0000001d;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE3__SHIFT                = 0x0000001c;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE4__SHIFT                = 0x0000001b;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE5__SHIFT                = 0x0000001a;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE6__SHIFT                = 0x00000019;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE7__SHIFT                = 0x00000018;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE0__SHIFT          = 0x00000017;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE1__SHIFT          = 0x00000016;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE2__SHIFT          = 0x00000015;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE3__SHIFT          = 0x00000014;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE4__SHIFT          = 0x00000013;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE5__SHIFT          = 0x00000012;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE6__SHIFT          = 0x00000011;
-constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE7__SHIFT          = 0x00000010;
 constexpr unsigned int TA_CNTL_AUX__ANISO_ERROR_FP_VBIAS__SHIFT           = 0x0000000c;
 constexpr unsigned int TA_CNTL_AUX__ANISO_HALF_THRESH__SHIFT              = 0x0000000a;
 constexpr unsigned int TA_CNTL_AUX__ANISO_RATIO_LUT__SHIFT                = 0x00000011;
@@ -3339,7 +3302,6 @@ constexpr unsigned int TA_CNTL_AUX__SCOAL_DSWIZZLE_N__SHIFT               = 0x00
 constexpr unsigned int TA_CNTL_AUX__TFAULT_EN_OVERRIDE__SHIFT             = 0x00000005;
 constexpr unsigned int TA_CNTL_AUX__TRUNC_SMALL_NEG__SHIFT                = 0x0000001d;
 constexpr unsigned int TA_CNTL__ALIGNER_CREDIT__SHIFT                     = 0x00000010;
-constexpr unsigned int TA_CNTL__TD_FIFO_CREDIT__SHIFT                     = 0x00000016;
 constexpr unsigned int TA_CS_BC_BASE_ADDR_HI__ADDRESS__SHIFT              = 0x00000000;
 constexpr unsigned int TA_CS_BC_BASE_ADDR__ADDRESS__SHIFT                 = 0x00000000;
 constexpr unsigned int TA_PERFCOUNTER0_HI__PERFCOUNTER_HI__SHIFT          = 0x00000000;
@@ -3358,7 +3320,6 @@ constexpr unsigned int TA_PERFCOUNTER1_LO__PERFCOUNTER_LO__SHIFT          = 0x00
 constexpr unsigned int TA_PERFCOUNTER1_SELECT__CNTR_MODE__SHIFT           = 0x00000014;
 constexpr unsigned int TA_PERFCOUNTER1_SELECT__PERF_MODE__SHIFT           = 0x0000001c;
 constexpr unsigned int TA_PERFCOUNTER1_SELECT__PERF_SEL__SHIFT            = 0x00000000;
-constexpr unsigned int TA_RESERVED_010C__Unused__SHIFT                    = 0x00000000;
 constexpr unsigned int TA_SCRATCH__SCRATCH__SHIFT                         = 0x00000000;
 constexpr unsigned int TA_STATUS__AL_BUSY__SHIFT                          = 0x0000001e;
 constexpr unsigned int TA_STATUS__BUSY__SHIFT                             = 0x0000001f;
@@ -3751,6 +3712,24 @@ namespace Core
     constexpr unsigned int ATC_PERFCOUNTER_RSLT_CNTL__START_TRIGGER__SHIFT    = 0x00000008;
     constexpr unsigned int ATC_PERFCOUNTER_RSLT_CNTL__STOP_ALL_ON_SATURATE__SHIFT = 0x0000001a;
     constexpr unsigned int ATC_PERFCOUNTER_RSLT_CNTL__STOP_TRIGGER__SHIFT     = 0x00000010;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__OFF_HYSTERESIS__SHIFT           = 0x00000004;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__ON_DELAY__SHIFT                 = 0x00000000;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE0__SHIFT           = 0x0000001f;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE1__SHIFT           = 0x0000001e;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE2__SHIFT           = 0x0000001d;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE3__SHIFT           = 0x0000001c;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE4__SHIFT           = 0x0000001b;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE5__SHIFT           = 0x0000001a;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE6__SHIFT           = 0x00000019;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_OVERRIDE7__SHIFT           = 0x00000018;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE0__SHIFT     = 0x00000017;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE1__SHIFT     = 0x00000016;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE2__SHIFT     = 0x00000015;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE3__SHIFT     = 0x00000014;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE4__SHIFT     = 0x00000013;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE5__SHIFT     = 0x00000012;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE6__SHIFT     = 0x00000011;
+    constexpr unsigned int CB_CGTT_SCLK_CTRL__SOFT_STALL_OVERRIDE7__SHIFT     = 0x00000010;
     constexpr unsigned int CB_COLOR0_ATTRIB__FORCE_DST_ALPHA_1__SHIFT         = 0x00000011;
     constexpr unsigned int CB_COLOR0_ATTRIB__NUM_FRAGMENTS__SHIFT             = 0x0000000f;
     constexpr unsigned int CB_COLOR0_ATTRIB__NUM_SAMPLES__SHIFT               = 0x0000000c;
@@ -3865,6 +3844,8 @@ namespace Core
     constexpr unsigned int RPB_PERFCOUNTER_RSLT_CNTL__STOP_TRIGGER__SHIFT     = 0x00000010;
     constexpr unsigned int RPB_PERF_COUNTER_CNTL__PERF_COUNTER_SELECT__SHIFT  = 0x00000000;
     constexpr unsigned int SPI_CONFIG_CNTL_1__CRC_SIMD_ID_WADDR_DISABLE__SHIFT = 0x00000008;
+    constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_CNT__SHIFT          = 0x0000000a;
+    constexpr unsigned int SPI_CONFIG_CNTL_1__LBPW_CU_CHK_MODE__SHIFT         = 0x00000009;
     constexpr unsigned int SPI_RESOURCE_RESERVE_CU_6__BARRIERS__SHIFT         = 0x0000000f;
     constexpr unsigned int SPI_RESOURCE_RESERVE_CU_6__LDS__SHIFT              = 0x00000008;
     constexpr unsigned int SPI_RESOURCE_RESERVE_CU_6__SGPR__SHIFT             = 0x00000004;
@@ -3905,7 +3886,32 @@ namespace Core
     constexpr unsigned int SQ_WAVE_MODE__DEBUG_EN__SHIFT                      = 0x0000000b;
     constexpr unsigned int SQ_WAVE_TRAPSTS__DP_RATE__SHIFT                    = 0x0000001d;
     constexpr unsigned int SQ_WAVE_TRAPSTS__EXCP_CYCLE__SHIFT                 = 0x00000010;
+    constexpr unsigned int SQ_WREXEC_EXEC_HI__ADDR_HI__SHIFT                  = 0x00000000;
+    constexpr unsigned int SQ_WREXEC_EXEC_HI__FIRST_WAVE__SHIFT               = 0x0000001a;
+    constexpr unsigned int SQ_WREXEC_EXEC_HI__MSB__SHIFT                      = 0x0000001f;
+    constexpr unsigned int SQ_WREXEC_EXEC_HI__MTYPE__SHIFT                    = 0x0000001c;
+    constexpr unsigned int SQ_WREXEC_EXEC_LO__ADDR_LO__SHIFT                  = 0x00000000;
+    constexpr unsigned int TA_CGTT_CTRL__OFF_HYSTERESIS__SHIFT                = 0x00000004;
+    constexpr unsigned int TA_CGTT_CTRL__ON_DELAY__SHIFT                      = 0x00000000;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE0__SHIFT                = 0x0000001f;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE1__SHIFT                = 0x0000001e;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE2__SHIFT                = 0x0000001d;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE3__SHIFT                = 0x0000001c;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE4__SHIFT                = 0x0000001b;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE5__SHIFT                = 0x0000001a;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE6__SHIFT                = 0x00000019;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_OVERRIDE7__SHIFT                = 0x00000018;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE0__SHIFT          = 0x00000017;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE1__SHIFT          = 0x00000016;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE2__SHIFT          = 0x00000015;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE3__SHIFT          = 0x00000014;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE4__SHIFT          = 0x00000013;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE5__SHIFT          = 0x00000012;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE6__SHIFT          = 0x00000011;
+    constexpr unsigned int TA_CGTT_CTRL__SOFT_STALL_OVERRIDE7__SHIFT          = 0x00000010;
     constexpr unsigned int TA_CNTL_AUX__GATHERH_DST_SEL__SHIFT                = 0x00000006;
+    constexpr unsigned int TA_CNTL__TD_FIFO_CREDIT__SHIFT                     = 0x00000016;
+    constexpr unsigned int TA_RESERVED_010C__Unused__SHIFT                    = 0x00000000;
 } // namespace Core
 
 namespace Gfx09
@@ -5641,12 +5647,6 @@ namespace Gfx10
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__FMASK_BIG_PAGE__SHIFT    = 0x0000001e;
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__FMASK_RD_POLICY__SHIFT   = 0x00000012;
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__FMASK_WR_POLICY__SHIFT   = 0x00000002;
-    constexpr unsigned int CB_STUTTER_CONTROL_CMASK_RDLAT__THRESHOLD__SHIFT   = 0x00000000;
-    constexpr unsigned int CB_STUTTER_CONTROL_CMASK_RDLAT__TIMEOUT__SHIFT     = 0x00000008;
-    constexpr unsigned int CB_STUTTER_CONTROL_COLOR_RDLAT__THRESHOLD__SHIFT   = 0x00000000;
-    constexpr unsigned int CB_STUTTER_CONTROL_COLOR_RDLAT__TIMEOUT__SHIFT     = 0x00000008;
-    constexpr unsigned int CB_STUTTER_CONTROL_FMASK_RDLAT__THRESHOLD__SHIFT   = 0x00000000;
-    constexpr unsigned int CB_STUTTER_CONTROL_FMASK_RDLAT__TIMEOUT__SHIFT     = 0x00000008;
     constexpr unsigned int CHA_PERFCOUNTER0_HI__PERFCOUNTER_HI__SHIFT         = 0x00000000;
     constexpr unsigned int CHA_PERFCOUNTER0_LO__PERFCOUNTER_LO__SHIFT         = 0x00000000;
     constexpr unsigned int CHA_PERFCOUNTER0_SELECT1__PERF_MODE2__SHIFT        = 0x00000018;
@@ -6203,7 +6203,6 @@ namespace Gfx10
     constexpr unsigned int PA_SC_BINNER_EVENT_CNTL_3__THREAD_TRACE_DRAW__SHIFT = 0x0000000c;
     constexpr unsigned int PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__UNCERTAINTY_REGION_MULT__SHIFT = 0x00000019;
     constexpr unsigned int PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__UNCERTAINTY_REGION_PBB_MULT__SHIFT = 0x0000001b;
-    constexpr unsigned int PA_SC_ENHANCE_1__DEBUG_PIXEL_PICKER_COUNT_PIXELS__SHIFT = 0x0000000d;
     constexpr unsigned int PA_SC_ENHANCE_2__BREAK_WHEN_ONE_NULL_PRIM_BATCH__SHIFT = 0x0000001a;
     constexpr unsigned int PA_SC_ENHANCE_2__DISABLE_BREAK_BATCH_ON_GFX_PIPELINE_RESET__SHIFT = 0x00000012;
     constexpr unsigned int PA_SC_ENHANCE_2__DISABLE_BREAK_BATCH_ON_GFX_PIPE_SWITCH__SHIFT = 0x00000008;
@@ -6593,9 +6592,7 @@ namespace Gfx10
     constexpr unsigned int SQ_WAVE_TRAPSTS__BUFFER_OOB__SHIFT                 = 0x0000000f;
     constexpr unsigned int TA_CNTL_AUX__ANISO_MAG_STEP_CLAMP__SHIFT           = 0x00000008;
     constexpr unsigned int TA_CNTL_AUX__AUTO_ALIGN_FORMAT__SHIFT              = 0x00000009;
-    constexpr unsigned int TA_POWER_CNTL__NOSAMPLER_CLK_EN_MODE__SHIFT        = 0x00000013;
     constexpr unsigned int TA_POWER_CNTL__NOSAMPLER_CLK_VALID_DELAY__SHIFT    = 0x00000010;
-    constexpr unsigned int TA_POWER_CNTL__SAMPLER_CLK_EN_MODE__SHIFT          = 0x00000003;
     constexpr unsigned int TA_POWER_CNTL__SAMPLER_CLK_VALID_DELAY__SHIFT      = 0x00000000;
     constexpr unsigned int TCP_PERFCOUNTER_FILTER2__REQ_MODE__SHIFT           = 0x00000000;
     constexpr unsigned int TCP_PERFCOUNTER_FILTER_EN__COMPRESSION_ENABLE__SHIFT = 0x0000000b;
@@ -7412,6 +7409,12 @@ namespace Gfx10Core
     constexpr unsigned int CB_RMI_BC_GL2_CACHE_CONTROL__FMASK_RD_POLICY__SHIFT = 0x00000012;
     constexpr unsigned int CB_RMI_BC_GL2_CACHE_CONTROL__FMASK_WR_POLICY__SHIFT = 0x00000002;
     constexpr unsigned int CB_RMI_BC_GL2_CACHE_CONTROL__VOLAT__SHIFT          = 0x0000001f;
+    constexpr unsigned int CB_STUTTER_CONTROL_CMASK_RDLAT__THRESHOLD__SHIFT   = 0x00000000;
+    constexpr unsigned int CB_STUTTER_CONTROL_CMASK_RDLAT__TIMEOUT__SHIFT     = 0x00000008;
+    constexpr unsigned int CB_STUTTER_CONTROL_COLOR_RDLAT__THRESHOLD__SHIFT   = 0x00000000;
+    constexpr unsigned int CB_STUTTER_CONTROL_COLOR_RDLAT__TIMEOUT__SHIFT     = 0x00000008;
+    constexpr unsigned int CB_STUTTER_CONTROL_FMASK_RDLAT__THRESHOLD__SHIFT   = 0x00000000;
+    constexpr unsigned int CB_STUTTER_CONTROL_FMASK_RDLAT__TIMEOUT__SHIFT     = 0x00000008;
     constexpr unsigned int DB_DFSM_CONFIG__CAM_WATERMARK__SHIFT               = 0x00000010;
     constexpr unsigned int DB_DFSM_CONFIG__OUTPUT_WATCHDOG__SHIFT             = 0x00000018;
     constexpr unsigned int DB_DFSM_CONFIG__SQUAD_WATERMARK__SHIFT             = 0x00000004;
@@ -7467,6 +7470,7 @@ namespace Gfx10Core
     constexpr unsigned int GRBM_PERFCOUNTER0_SELECT_HI__PMM_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000006;
     constexpr unsigned int GRBM_PERFCOUNTER1_SELECT_HI__GUS_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000007;
     constexpr unsigned int GRBM_PERFCOUNTER1_SELECT_HI__PMM_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000006;
+    constexpr unsigned int PA_SC_ENHANCE_1__DEBUG_PIXEL_PICKER_COUNT_PIXELS__SHIFT = 0x0000000d;
     constexpr unsigned int PA_SC_ENHANCE_2__ENABLE_BLOCKING_WRITES_OF_GEN2_REG__SHIFT = 0x00000014;
     constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_BC__SHIFT                 = 0x0000000c;
     constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_VOL__SHIFT                = 0x0000000e;
@@ -7517,6 +7521,8 @@ namespace Gfx10Core
     constexpr unsigned int SQ_WAVE_VGPR_OFFSET__SRC1__SHIFT                   = 0x00000006;
     constexpr unsigned int SQ_WAVE_VGPR_OFFSET__SRC2__SHIFT                   = 0x0000000c;
     constexpr unsigned int TA_CNTL_AUX__DERIV_ADJUST_DIS__SHIFT               = 0x00000004;
+    constexpr unsigned int TA_POWER_CNTL__NOSAMPLER_CLK_EN_MODE__SHIFT        = 0x00000013;
+    constexpr unsigned int TA_POWER_CNTL__SAMPLER_CLK_EN_MODE__SHIFT          = 0x00000003;
 } // namespace Gfx10Core
 
 namespace Nv10
@@ -8077,3 +8083,6 @@ namespace Vg20
     constexpr unsigned int TA_EDC_CNT__TA_FX_LFIFO_SED_COUNT__SHIFT           = 0x00000008;
 } // namespace Vg20
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

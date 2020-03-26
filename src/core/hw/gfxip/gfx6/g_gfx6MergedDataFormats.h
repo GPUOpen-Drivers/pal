@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2020 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -461,2025 +461,2025 @@ constexpr MergedFmtInfo Gfx6MergedChannelFmtInfoTbl[] =
     // ChNumFormat::Undefined
     {
         ChNumFormat::Undefined,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1_Unorm
     {
         ChNumFormat::X1_Unorm,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_1,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1_Uscaled
     {
         ChNumFormat::X1_Uscaled,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_1,                 // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4_Unorm
     {
         ChNumFormat::X4Y4_Unorm,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4_Uscaled
     {
         ChNumFormat::X4Y4_Uscaled,         // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L4A4_Unorm
     {
         ChNumFormat::L4A4_Unorm,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4Z4W4_Unorm
     {
         ChNumFormat::X4Y4Z4W4_Unorm,       // ChNumFormat
-        COLOR_4_4_4_4,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4_4_4,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_4_4_4_4,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4_4_4,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4Z4W4_Uscaled
     {
         ChNumFormat::X4Y4Z4W4_Uscaled,     // ChNumFormat
-        COLOR_4_4_4_4,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_4_4_4_4,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_4_4_4_4,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4_4_4,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y6Z5_Unorm
     {
         ChNumFormat::X5Y6Z5_Unorm,         // ChNumFormat
-        COLOR_5_6_5,                       // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_6_5,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_6_5,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_6_5,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y6Z5_Uscaled
     {
         ChNumFormat::X5Y6Z5_Uscaled,       // ChNumFormat
-        COLOR_5_6_5,                       // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_5_6_5,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_6_5,                 // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_6_5,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y5Z5W1_Unorm
     {
         ChNumFormat::X5Y5Z5W1_Unorm,       // ChNumFormat
-        COLOR_1_5_5_5,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_1_5_5_5,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_1_5_5_5,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1_5_5_5,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y5Z5W1_Uscaled
     {
         ChNumFormat::X5Y5Z5W1_Uscaled,     // ChNumFormat
-        COLOR_1_5_5_5,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_1_5_5_5,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_1_5_5_5,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1_5_5_5,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1Y5Z5W5_Unorm
     {
         ChNumFormat::X1Y5Z5W5_Unorm,       // ChNumFormat
-        COLOR_5_5_5_1,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_5_5_1,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_5_5_1,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_5_5_1,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1Y5Z5W5_Uscaled
     {
         ChNumFormat::X1Y5Z5W5_Uscaled,     // ChNumFormat
-        COLOR_5_5_5_1,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_5_5_5_1,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_5_5_1,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_5_5_1,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Unorm
     {
         ChNumFormat::X8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Snorm
     {
         ChNumFormat::X8_Snorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Uscaled
     {
         ChNumFormat::X8_Uscaled,           // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Sscaled
     {
         ChNumFormat::X8_Sscaled,           // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Uint
     {
         ChNumFormat::X8_Uint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::X8_Sint
     {
         ChNumFormat::X8_Sint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Srgb
     {
         ChNumFormat::X8_Srgb,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::A8_Unorm
     {
         ChNumFormat::A8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L8_Unorm
     {
         ChNumFormat::L8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P8_Uint
     {
         ChNumFormat::P8_Uint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Unorm
     {
         ChNumFormat::X8Y8_Unorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Snorm
     {
         ChNumFormat::X8Y8_Snorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Uscaled
     {
         ChNumFormat::X8Y8_Uscaled,         // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Sscaled
     {
         ChNumFormat::X8Y8_Sscaled,         // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Uint
     {
         ChNumFormat::X8Y8_Uint,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Sint
     {
         ChNumFormat::X8Y8_Sint,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Srgb
     {
         ChNumFormat::X8Y8_Srgb,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L8A8_Unorm
     {
         ChNumFormat::L8A8_Unorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Unorm
     {
         ChNumFormat::X8Y8Z8W8_Unorm,       // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Snorm
     {
         ChNumFormat::X8Y8Z8W8_Snorm,       // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Uscaled
     {
         ChNumFormat::X8Y8Z8W8_Uscaled,     // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Sscaled
     {
         ChNumFormat::X8Y8Z8W8_Sscaled,     // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Uint
     {
         ChNumFormat::X8Y8Z8W8_Uint,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Sint
     {
         ChNumFormat::X8Y8Z8W8_Sint,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Srgb
     {
         ChNumFormat::X8Y8Z8W8_Srgb,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::U8V8_Snorm_L8W8_Unorm
     {
         ChNumFormat::U8V8_Snorm_L8W8_Unorm, // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y11Z11_Float
     {
         ChNumFormat::X10Y11Z11_Float,      // ChNumFormat
-        COLOR_11_11_10,                    // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_11_11_10,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_11_11_10,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_11_11_10,              // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_11_11_10,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_11_11_10,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X11Y11Z10_Float
     {
         ChNumFormat::X11Y11Z10_Float,      // ChNumFormat
-        COLOR_10_11_11,                    // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_10_11_11,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_10_11_11,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_10_11_11,              // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_10_11_11,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_10_11_11,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Unorm
     {
         ChNumFormat::X10Y10Z10W2_Unorm,    // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Snorm
     {
         ChNumFormat::X10Y10Z10W2_Snorm,    // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Uscaled
     {
         ChNumFormat::X10Y10Z10W2_Uscaled,  // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Sscaled
     {
         ChNumFormat::X10Y10Z10W2_Sscaled,  // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Uint
     {
         ChNumFormat::X10Y10Z10W2_Uint,     // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Sint
     {
         ChNumFormat::X10Y10Z10W2_Sint,     // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2Bias_Unorm
     {
         ChNumFormat::X10Y10Z10W2Bias_Unorm, // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::U10V10W10_Snorm_A2_Unorm
     {
         ChNumFormat::U10V10W10_Snorm_A2_Unorm, // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Unorm
     {
         ChNumFormat::X16_Unorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_16,                              // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_16,                        // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Snorm
     {
         ChNumFormat::X16_Snorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Uscaled
     {
         ChNumFormat::X16_Uscaled,          // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Sscaled
     {
         ChNumFormat::X16_Sscaled,          // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Uint
     {
         ChNumFormat::X16_Uint,             // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Sint
     {
         ChNumFormat::X16_Sint,             // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Float
     {
         ChNumFormat::X16_Float,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L16_Unorm
     {
         ChNumFormat::L16_Unorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Unorm
     {
         ChNumFormat::X16Y16_Unorm,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Snorm
     {
         ChNumFormat::X16Y16_Snorm,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Uscaled
     {
         ChNumFormat::X16Y16_Uscaled,       // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Sscaled
     {
         ChNumFormat::X16Y16_Sscaled,       // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Uint
     {
         ChNumFormat::X16Y16_Uint,          // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Sint
     {
         ChNumFormat::X16Y16_Sint,          // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Float
     {
         ChNumFormat::X16Y16_Float,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Unorm
     {
         ChNumFormat::X16Y16Z16W16_Unorm,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Snorm
     {
         ChNumFormat::X16Y16Z16W16_Snorm,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Uscaled
     {
         ChNumFormat::X16Y16Z16W16_Uscaled, // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Sscaled
     {
         ChNumFormat::X16Y16Z16W16_Sscaled, // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Uint
     {
         ChNumFormat::X16Y16Z16W16_Uint,    // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Sint
     {
         ChNumFormat::X16Y16Z16W16_Sint,    // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Float
     {
         ChNumFormat::X16Y16Z16W16_Float,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Uint
     {
         ChNumFormat::X32_Uint,             // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Sint
     {
         ChNumFormat::X32_Sint,             // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Float
     {
         ChNumFormat::X32_Float,            // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_32_FLOAT,                        // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_32_FLOAT,                  // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Uint
     {
         ChNumFormat::X32Y32_Uint,          // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Sint
     {
         ChNumFormat::X32Y32_Sint,          // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Float
     {
         ChNumFormat::X32Y32_Float,         // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Uint
     {
         ChNumFormat::X32Y32Z32_Uint,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Sint
     {
         ChNumFormat::X32Y32Z32_Sint,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Float
     {
         ChNumFormat::X32Y32Z32_Float,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Uint
     {
         ChNumFormat::X32Y32Z32W32_Uint,    // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Sint
     {
         ChNumFormat::X32Y32Z32W32_Sint,    // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Float
     {
         ChNumFormat::X32Y32Z32W32_Float,   // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::D16_Unorm_S8_Uint
     {
         ChNumFormat::D16_Unorm_S8_Uint,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_16,                              // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_16,                        // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::D32_Float_S8_Uint
     {
         ChNumFormat::D32_Float_S8_Uint,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_32_FLOAT,                        // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_32_FLOAT,                  // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::X9Y9Z9E5_Float
     {
         ChNumFormat::X9Y9Z9E5_Float,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_9_9_9,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_9_9_9,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc1_Unorm
     {
         ChNumFormat::Bc1_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC1,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC1,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc1_Srgb
     {
         ChNumFormat::Bc1_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC1,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC1,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc2_Unorm
     {
         ChNumFormat::Bc2_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC2,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC2,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc2_Srgb
     {
         ChNumFormat::Bc2_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC2,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC2,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc3_Unorm
     {
         ChNumFormat::Bc3_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC3,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC3,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc3_Srgb
     {
         ChNumFormat::Bc3_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC3,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC3,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc4_Unorm
     {
         ChNumFormat::Bc4_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc4_Snorm
     {
         ChNumFormat::Bc4_Snorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC4,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc5_Unorm
     {
         ChNumFormat::Bc5_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC5,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC5,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc5_Snorm
     {
         ChNumFormat::Bc5_Snorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC5,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC5,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc6_Ufloat
     {
         ChNumFormat::Bc6_Ufloat,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC6,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC6,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc6_Sfloat
     {
         ChNumFormat::Bc6_Sfloat,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC6,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC6,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc7_Unorm
     {
         ChNumFormat::Bc7_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC7,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC7,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc7_Srgb
     {
         ChNumFormat::Bc7_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC7,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC7,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W1_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8W1_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W1_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8W1_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W8_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8W8_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W8_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8W8_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11_Unorm
     {
         ChNumFormat::Etc2X11_Unorm,        // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11_Snorm
     {
         ChNumFormat::Etc2X11_Snorm,        // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11Y11_Unorm
     {
         ChNumFormat::Etc2X11Y11_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11Y11_Snorm
     {
         ChNumFormat::Etc2X11Y11_Snorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr4x4_Unorm
     {
         ChNumFormat::AstcLdr4x4_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr4x4_Srgb
     {
         ChNumFormat::AstcLdr4x4_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x4_Unorm
     {
         ChNumFormat::AstcLdr5x4_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x4_Srgb
     {
         ChNumFormat::AstcLdr5x4_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x5_Unorm
     {
         ChNumFormat::AstcLdr5x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x5_Srgb
     {
         ChNumFormat::AstcLdr5x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x5_Unorm
     {
         ChNumFormat::AstcLdr6x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x5_Srgb
     {
         ChNumFormat::AstcLdr6x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x6_Unorm
     {
         ChNumFormat::AstcLdr6x6_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x6_Srgb
     {
         ChNumFormat::AstcLdr6x6_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x5_Unorm
     {
         ChNumFormat::AstcLdr8x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x5_Srgb
     {
         ChNumFormat::AstcLdr8x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x6_Unorm
     {
         ChNumFormat::AstcLdr8x6_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x6_Srgb
     {
         ChNumFormat::AstcLdr8x6_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x8_Unorm
     {
         ChNumFormat::AstcLdr8x8_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x8_Srgb
     {
         ChNumFormat::AstcLdr8x8_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x5_Unorm
     {
         ChNumFormat::AstcLdr10x5_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x5_Srgb
     {
         ChNumFormat::AstcLdr10x5_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x6_Unorm
     {
         ChNumFormat::AstcLdr10x6_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x6_Srgb
     {
         ChNumFormat::AstcLdr10x6_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x8_Unorm
     {
         ChNumFormat::AstcLdr10x8_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x8_Srgb
     {
         ChNumFormat::AstcLdr10x8_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x10_Unorm
     {
         ChNumFormat::AstcLdr10x10_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x10_Srgb
     {
         ChNumFormat::AstcLdr10x10_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x10_Unorm
     {
         ChNumFormat::AstcLdr12x10_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x10_Srgb
     {
         ChNumFormat::AstcLdr12x10_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x12_Unorm
     {
         ChNumFormat::AstcLdr12x12_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x12_Srgb
     {
         ChNumFormat::AstcLdr12x12_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr4x4_Float
     {
         ChNumFormat::AstcHdr4x4_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr5x4_Float
     {
         ChNumFormat::AstcHdr5x4_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr5x5_Float
     {
         ChNumFormat::AstcHdr5x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr6x5_Float
     {
         ChNumFormat::AstcHdr6x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr6x6_Float
     {
         ChNumFormat::AstcHdr6x6_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x5_Float
     {
         ChNumFormat::AstcHdr8x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x6_Float
     {
         ChNumFormat::AstcHdr8x6_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x8_Float
     {
         ChNumFormat::AstcHdr8x8_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x5_Float
     {
         ChNumFormat::AstcHdr10x5_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x6_Float
     {
         ChNumFormat::AstcHdr10x6_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x8_Float
     {
         ChNumFormat::AstcHdr10x8_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x10_Float
     {
         ChNumFormat::AstcHdr10x10_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr12x10_Float
     {
         ChNumFormat::AstcHdr12x10_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr12x12_Float
     {
         ChNumFormat::AstcHdr12x12_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Z8Y8_Unorm
     {
         ChNumFormat::X8Y8_Z8Y8_Unorm,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_GB_GR,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_GB_GR,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Z8Y8_Uscaled
     {
         ChNumFormat::X8Y8_Z8Y8_Uscaled,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_GB_GR,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_GB_GR,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Y8X8_Y8Z8_Unorm
     {
         ChNumFormat::Y8X8_Y8Z8_Unorm,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BG_RG,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BG_RG,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Y8X8_Y8Z8_Uscaled
     {
         ChNumFormat::Y8X8_Y8Z8_Uscaled,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_BG_RG,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BG_RG,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AYUV
     {
         ChNumFormat::AYUV,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::UYVY
     {
         ChNumFormat::UYVY,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::VYUY
     {
         ChNumFormat::VYUY,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YUY2
     {
         ChNumFormat::YUY2,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YVY2
     {
         ChNumFormat::YVY2,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YV12
     {
         ChNumFormat::YV12,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV11
     {
         ChNumFormat::NV11,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV12
     {
         ChNumFormat::NV12,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV21
     {
         ChNumFormat::NV21,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P016
     {
         ChNumFormat::P016,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P010
     {
         ChNumFormat::P010,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
 };
 
 // Stores a MergedImgDataFmtInfo struct for each HW image format up to the last format known to the spreadsheet.
 constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
 {
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -2533,7 +2533,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8,
+    { Chip::IMG_DATA_FORMAT_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8_Unorm,
@@ -2587,7 +2587,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16,
+    { Chip::IMG_DATA_FORMAT_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16_Unorm,
@@ -2641,7 +2641,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8_8,
+    { Chip::IMG_DATA_FORMAT_8_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Unorm,
@@ -2695,7 +2695,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32,
+    { Chip::IMG_DATA_FORMAT_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -2749,7 +2749,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16_16,
+    { Chip::IMG_DATA_FORMAT_16_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16_Unorm,
@@ -2803,7 +2803,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_10_11_11,
+    { Chip::IMG_DATA_FORMAT_10_11_11,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -2857,7 +2857,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_11_11_10,
+    { Chip::IMG_DATA_FORMAT_11_11_10,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -2911,7 +2911,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -2965,7 +2965,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_2_10_10_10,
+    { Chip::IMG_DATA_FORMAT_2_10_10_10,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X10Y10Z10W2_Unorm,
@@ -3019,7 +3019,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8_8_8_8,
+    { Chip::IMG_DATA_FORMAT_8_8_8_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8Z8W8_Unorm,
@@ -3073,7 +3073,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3127,7 +3127,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16_16_16_16,
+    { Chip::IMG_DATA_FORMAT_16_16_16_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16Z16W16_Unorm,
@@ -3181,7 +3181,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3235,7 +3235,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3289,7 +3289,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3343,7 +3343,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_6_5,
+    { Chip::IMG_DATA_FORMAT_5_6_5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X5Y6Z5_Unorm,
@@ -3397,7 +3397,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_1_5_5_5,
+    { Chip::IMG_DATA_FORMAT_1_5_5_5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X5Y5Z5W1_Unorm,
@@ -3451,7 +3451,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_5_5_1,
+    { Chip::IMG_DATA_FORMAT_5_5_5_1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X1Y5Z5W5_Unorm,
@@ -3505,7 +3505,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_4_4_4_4,
+    { Chip::IMG_DATA_FORMAT_4_4_4_4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X4Y4Z4W4_Unorm,
@@ -3559,7 +3559,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3613,7 +3613,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3667,7 +3667,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3721,7 +3721,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3775,7 +3775,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3829,7 +3829,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3883,7 +3883,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3937,7 +3937,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -3991,7 +3991,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -4045,7 +4045,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -4099,7 +4099,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -4153,7 +4153,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -4207,7 +4207,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_GB_GR,
+    { Chip::IMG_DATA_FORMAT_GB_GR,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Z8Y8_Unorm,
@@ -4261,7 +4261,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BG_RG,
+    { Chip::IMG_DATA_FORMAT_BG_RG,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Y8X8_Y8Z8_Unorm,
@@ -4315,7 +4315,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_9_9_9,
+    { Chip::IMG_DATA_FORMAT_5_9_9_9,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -4369,7 +4369,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC1,
+    { Chip::IMG_DATA_FORMAT_BC1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc1_Unorm,
@@ -4423,7 +4423,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC2,
+    { Chip::IMG_DATA_FORMAT_BC2,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc2_Unorm,
@@ -4477,7 +4477,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC3,
+    { Chip::IMG_DATA_FORMAT_BC3,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc3_Unorm,
@@ -4531,7 +4531,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC4,
+    { Chip::IMG_DATA_FORMAT_BC4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc4_Unorm,
@@ -4585,7 +4585,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC5,
+    { Chip::IMG_DATA_FORMAT_BC5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc5_Unorm,
@@ -4639,7 +4639,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC6,
+    { Chip::IMG_DATA_FORMAT_BC6,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc6_Ufloat,
@@ -4693,7 +4693,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC7,
+    { Chip::IMG_DATA_FORMAT_BC7,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc7_Unorm,
@@ -4747,7 +4747,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -4801,7 +4801,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -4855,7 +4855,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -4909,7 +4909,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -4963,7 +4963,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5017,7 +5017,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5071,7 +5071,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5125,7 +5125,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5179,7 +5179,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5233,7 +5233,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5287,7 +5287,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5341,7 +5341,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5395,7 +5395,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5449,7 +5449,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5503,7 +5503,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5557,7 +5557,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_4_4,
+    { Chip::IMG_DATA_FORMAT_4_4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X4Y4_Unorm,
@@ -5611,7 +5611,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5665,7 +5665,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_1,
+    { Chip::IMG_DATA_FORMAT_1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X1_Unorm,
@@ -5726,7 +5726,7 @@ constexpr uint32 Gfx6MergedImgDataFmtCount = sizeof(Gfx6MergedImgDataFmtTbl) / s
 // Stores a MergedBufDataFmtInfo struct for each HW buffer format up to the last format known to the spreadsheet.
 constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
 {
-    { BUF_DATA_FORMAT_INVALID,
+    { Chip::BUF_DATA_FORMAT_INVALID,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5770,7 +5770,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8,
+    { Chip::BUF_DATA_FORMAT_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8_Unorm,
@@ -5814,7 +5814,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16,
+    { Chip::BUF_DATA_FORMAT_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16_Unorm,
@@ -5858,7 +5858,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8_8,
+    { Chip::BUF_DATA_FORMAT_8_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Unorm,
@@ -5902,7 +5902,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32,
+    { Chip::BUF_DATA_FORMAT_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -5946,7 +5946,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16_16,
+    { Chip::BUF_DATA_FORMAT_16_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16_Unorm,
@@ -5990,7 +5990,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_10_11_11,
+    { Chip::BUF_DATA_FORMAT_10_11_11,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -6034,7 +6034,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_11_11_10,
+    { Chip::BUF_DATA_FORMAT_11_11_10,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -6078,7 +6078,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_INVALID,
+    { Chip::BUF_DATA_FORMAT_INVALID,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -6122,7 +6122,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_2_10_10_10,
+    { Chip::BUF_DATA_FORMAT_2_10_10_10,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X10Y10Z10W2_Unorm,
@@ -6166,7 +6166,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8_8_8_8,
+    { Chip::BUF_DATA_FORMAT_8_8_8_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8Z8W8_Unorm,
@@ -6210,7 +6210,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -6254,7 +6254,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16_16_16_16,
+    { Chip::BUF_DATA_FORMAT_16_16_16_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16Z16W16_Unorm,
@@ -6298,7 +6298,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -6342,7 +6342,7 @@ constexpr MergedBufDataFmtInfo Gfx6MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -6573,2025 +6573,2025 @@ constexpr MergedFmtInfo Gfx7MergedChannelFmtInfoTbl[] =
     // ChNumFormat::Undefined
     {
         ChNumFormat::Undefined,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1_Unorm
     {
         ChNumFormat::X1_Unorm,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_1,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1_Uscaled
     {
         ChNumFormat::X1_Uscaled,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_1,                 // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4_Unorm
     {
         ChNumFormat::X4Y4_Unorm,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4_Uscaled
     {
         ChNumFormat::X4Y4_Uscaled,         // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L4A4_Unorm
     {
         ChNumFormat::L4A4_Unorm,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4Z4W4_Unorm
     {
         ChNumFormat::X4Y4Z4W4_Unorm,       // ChNumFormat
-        COLOR_4_4_4_4,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4_4_4,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_4_4_4_4,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4_4_4,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4Z4W4_Uscaled
     {
         ChNumFormat::X4Y4Z4W4_Uscaled,     // ChNumFormat
-        COLOR_4_4_4_4,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_4_4_4_4,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_4_4_4_4,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4_4_4,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y6Z5_Unorm
     {
         ChNumFormat::X5Y6Z5_Unorm,         // ChNumFormat
-        COLOR_5_6_5,                       // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_6_5,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_6_5,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_6_5,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y6Z5_Uscaled
     {
         ChNumFormat::X5Y6Z5_Uscaled,       // ChNumFormat
-        COLOR_5_6_5,                       // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_5_6_5,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_6_5,                 // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_6_5,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y5Z5W1_Unorm
     {
         ChNumFormat::X5Y5Z5W1_Unorm,       // ChNumFormat
-        COLOR_1_5_5_5,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_1_5_5_5,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_1_5_5_5,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1_5_5_5,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y5Z5W1_Uscaled
     {
         ChNumFormat::X5Y5Z5W1_Uscaled,     // ChNumFormat
-        COLOR_1_5_5_5,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_1_5_5_5,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_1_5_5_5,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1_5_5_5,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1Y5Z5W5_Unorm
     {
         ChNumFormat::X1Y5Z5W5_Unorm,       // ChNumFormat
-        COLOR_5_5_5_1,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_5_5_1,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_5_5_1,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_5_5_1,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1Y5Z5W5_Uscaled
     {
         ChNumFormat::X1Y5Z5W5_Uscaled,     // ChNumFormat
-        COLOR_5_5_5_1,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_5_5_5_1,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_5_5_1,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_5_5_1,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Unorm
     {
         ChNumFormat::X8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Snorm
     {
         ChNumFormat::X8_Snorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Uscaled
     {
         ChNumFormat::X8_Uscaled,           // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Sscaled
     {
         ChNumFormat::X8_Sscaled,           // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Uint
     {
         ChNumFormat::X8_Uint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::X8_Sint
     {
         ChNumFormat::X8_Sint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Srgb
     {
         ChNumFormat::X8_Srgb,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::A8_Unorm
     {
         ChNumFormat::A8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L8_Unorm
     {
         ChNumFormat::L8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P8_Uint
     {
         ChNumFormat::P8_Uint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Unorm
     {
         ChNumFormat::X8Y8_Unorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Snorm
     {
         ChNumFormat::X8Y8_Snorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Uscaled
     {
         ChNumFormat::X8Y8_Uscaled,         // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Sscaled
     {
         ChNumFormat::X8Y8_Sscaled,         // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Uint
     {
         ChNumFormat::X8Y8_Uint,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Sint
     {
         ChNumFormat::X8Y8_Sint,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Srgb
     {
         ChNumFormat::X8Y8_Srgb,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L8A8_Unorm
     {
         ChNumFormat::L8A8_Unorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Unorm
     {
         ChNumFormat::X8Y8Z8W8_Unorm,       // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Snorm
     {
         ChNumFormat::X8Y8Z8W8_Snorm,       // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Uscaled
     {
         ChNumFormat::X8Y8Z8W8_Uscaled,     // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Sscaled
     {
         ChNumFormat::X8Y8Z8W8_Sscaled,     // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Uint
     {
         ChNumFormat::X8Y8Z8W8_Uint,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Sint
     {
         ChNumFormat::X8Y8Z8W8_Sint,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Srgb
     {
         ChNumFormat::X8Y8Z8W8_Srgb,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::U8V8_Snorm_L8W8_Unorm
     {
         ChNumFormat::U8V8_Snorm_L8W8_Unorm, // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y11Z11_Float
     {
         ChNumFormat::X10Y11Z11_Float,      // ChNumFormat
-        COLOR_11_11_10,                    // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_11_11_10,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_11_11_10,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_11_11_10,              // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_11_11_10,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_11_11_10,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X11Y11Z10_Float
     {
         ChNumFormat::X11Y11Z10_Float,      // ChNumFormat
-        COLOR_10_11_11,                    // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_10_11_11,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_10_11_11,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_10_11_11,              // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_10_11_11,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_10_11_11,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Unorm
     {
         ChNumFormat::X10Y10Z10W2_Unorm,    // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Snorm
     {
         ChNumFormat::X10Y10Z10W2_Snorm,    // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Uscaled
     {
         ChNumFormat::X10Y10Z10W2_Uscaled,  // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Sscaled
     {
         ChNumFormat::X10Y10Z10W2_Sscaled,  // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Uint
     {
         ChNumFormat::X10Y10Z10W2_Uint,     // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Sint
     {
         ChNumFormat::X10Y10Z10W2_Sint,     // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2Bias_Unorm
     {
         ChNumFormat::X10Y10Z10W2Bias_Unorm, // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::U10V10W10_Snorm_A2_Unorm
     {
         ChNumFormat::U10V10W10_Snorm_A2_Unorm, // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Unorm
     {
         ChNumFormat::X16_Unorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_16,                              // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_16,                        // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Snorm
     {
         ChNumFormat::X16_Snorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Uscaled
     {
         ChNumFormat::X16_Uscaled,          // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Sscaled
     {
         ChNumFormat::X16_Sscaled,          // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Uint
     {
         ChNumFormat::X16_Uint,             // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Sint
     {
         ChNumFormat::X16_Sint,             // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Float
     {
         ChNumFormat::X16_Float,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L16_Unorm
     {
         ChNumFormat::L16_Unorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Unorm
     {
         ChNumFormat::X16Y16_Unorm,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Snorm
     {
         ChNumFormat::X16Y16_Snorm,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Uscaled
     {
         ChNumFormat::X16Y16_Uscaled,       // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Sscaled
     {
         ChNumFormat::X16Y16_Sscaled,       // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Uint
     {
         ChNumFormat::X16Y16_Uint,          // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Sint
     {
         ChNumFormat::X16Y16_Sint,          // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Float
     {
         ChNumFormat::X16Y16_Float,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Unorm
     {
         ChNumFormat::X16Y16Z16W16_Unorm,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Snorm
     {
         ChNumFormat::X16Y16Z16W16_Snorm,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Uscaled
     {
         ChNumFormat::X16Y16Z16W16_Uscaled, // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Sscaled
     {
         ChNumFormat::X16Y16Z16W16_Sscaled, // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Uint
     {
         ChNumFormat::X16Y16Z16W16_Uint,    // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Sint
     {
         ChNumFormat::X16Y16Z16W16_Sint,    // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Float
     {
         ChNumFormat::X16Y16Z16W16_Float,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Uint
     {
         ChNumFormat::X32_Uint,             // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Sint
     {
         ChNumFormat::X32_Sint,             // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Float
     {
         ChNumFormat::X32_Float,            // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_32_FLOAT,                        // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_32_FLOAT,                  // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Uint
     {
         ChNumFormat::X32Y32_Uint,          // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Sint
     {
         ChNumFormat::X32Y32_Sint,          // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Float
     {
         ChNumFormat::X32Y32_Float,         // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Uint
     {
         ChNumFormat::X32Y32Z32_Uint,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Sint
     {
         ChNumFormat::X32Y32Z32_Sint,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Float
     {
         ChNumFormat::X32Y32Z32_Float,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Uint
     {
         ChNumFormat::X32Y32Z32W32_Uint,    // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Sint
     {
         ChNumFormat::X32Y32Z32W32_Sint,    // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Float
     {
         ChNumFormat::X32Y32Z32W32_Float,   // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::D16_Unorm_S8_Uint
     {
         ChNumFormat::D16_Unorm_S8_Uint,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_16,                              // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_16,                        // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::D32_Float_S8_Uint
     {
         ChNumFormat::D32_Float_S8_Uint,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_32_FLOAT,                        // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_32_FLOAT,                  // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::X9Y9Z9E5_Float
     {
         ChNumFormat::X9Y9Z9E5_Float,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_9_9_9,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_9_9_9,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc1_Unorm
     {
         ChNumFormat::Bc1_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC1,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC1,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc1_Srgb
     {
         ChNumFormat::Bc1_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC1,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC1,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc2_Unorm
     {
         ChNumFormat::Bc2_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC2,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC2,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc2_Srgb
     {
         ChNumFormat::Bc2_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC2,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC2,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc3_Unorm
     {
         ChNumFormat::Bc3_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC3,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC3,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc3_Srgb
     {
         ChNumFormat::Bc3_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC3,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC3,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc4_Unorm
     {
         ChNumFormat::Bc4_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc4_Snorm
     {
         ChNumFormat::Bc4_Snorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC4,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc5_Unorm
     {
         ChNumFormat::Bc5_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC5,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC5,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc5_Snorm
     {
         ChNumFormat::Bc5_Snorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC5,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC5,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc6_Ufloat
     {
         ChNumFormat::Bc6_Ufloat,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC6,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC6,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc6_Sfloat
     {
         ChNumFormat::Bc6_Sfloat,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC6,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC6,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc7_Unorm
     {
         ChNumFormat::Bc7_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC7,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC7,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc7_Srgb
     {
         ChNumFormat::Bc7_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC7,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC7,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W1_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8W1_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W1_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8W1_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W8_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8W8_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W8_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8W8_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11_Unorm
     {
         ChNumFormat::Etc2X11_Unorm,        // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11_Snorm
     {
         ChNumFormat::Etc2X11_Snorm,        // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11Y11_Unorm
     {
         ChNumFormat::Etc2X11Y11_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11Y11_Snorm
     {
         ChNumFormat::Etc2X11Y11_Snorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr4x4_Unorm
     {
         ChNumFormat::AstcLdr4x4_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr4x4_Srgb
     {
         ChNumFormat::AstcLdr4x4_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x4_Unorm
     {
         ChNumFormat::AstcLdr5x4_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x4_Srgb
     {
         ChNumFormat::AstcLdr5x4_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x5_Unorm
     {
         ChNumFormat::AstcLdr5x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x5_Srgb
     {
         ChNumFormat::AstcLdr5x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x5_Unorm
     {
         ChNumFormat::AstcLdr6x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x5_Srgb
     {
         ChNumFormat::AstcLdr6x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x6_Unorm
     {
         ChNumFormat::AstcLdr6x6_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x6_Srgb
     {
         ChNumFormat::AstcLdr6x6_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x5_Unorm
     {
         ChNumFormat::AstcLdr8x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x5_Srgb
     {
         ChNumFormat::AstcLdr8x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x6_Unorm
     {
         ChNumFormat::AstcLdr8x6_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x6_Srgb
     {
         ChNumFormat::AstcLdr8x6_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x8_Unorm
     {
         ChNumFormat::AstcLdr8x8_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x8_Srgb
     {
         ChNumFormat::AstcLdr8x8_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x5_Unorm
     {
         ChNumFormat::AstcLdr10x5_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x5_Srgb
     {
         ChNumFormat::AstcLdr10x5_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x6_Unorm
     {
         ChNumFormat::AstcLdr10x6_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x6_Srgb
     {
         ChNumFormat::AstcLdr10x6_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x8_Unorm
     {
         ChNumFormat::AstcLdr10x8_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x8_Srgb
     {
         ChNumFormat::AstcLdr10x8_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x10_Unorm
     {
         ChNumFormat::AstcLdr10x10_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x10_Srgb
     {
         ChNumFormat::AstcLdr10x10_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x10_Unorm
     {
         ChNumFormat::AstcLdr12x10_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x10_Srgb
     {
         ChNumFormat::AstcLdr12x10_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x12_Unorm
     {
         ChNumFormat::AstcLdr12x12_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x12_Srgb
     {
         ChNumFormat::AstcLdr12x12_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr4x4_Float
     {
         ChNumFormat::AstcHdr4x4_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr5x4_Float
     {
         ChNumFormat::AstcHdr5x4_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr5x5_Float
     {
         ChNumFormat::AstcHdr5x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr6x5_Float
     {
         ChNumFormat::AstcHdr6x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr6x6_Float
     {
         ChNumFormat::AstcHdr6x6_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x5_Float
     {
         ChNumFormat::AstcHdr8x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x6_Float
     {
         ChNumFormat::AstcHdr8x6_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x8_Float
     {
         ChNumFormat::AstcHdr8x8_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x5_Float
     {
         ChNumFormat::AstcHdr10x5_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x6_Float
     {
         ChNumFormat::AstcHdr10x6_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x8_Float
     {
         ChNumFormat::AstcHdr10x8_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x10_Float
     {
         ChNumFormat::AstcHdr10x10_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr12x10_Float
     {
         ChNumFormat::AstcHdr12x10_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr12x12_Float
     {
         ChNumFormat::AstcHdr12x12_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Z8Y8_Unorm
     {
         ChNumFormat::X8Y8_Z8Y8_Unorm,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_GB_GR,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_GB_GR,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Z8Y8_Uscaled
     {
         ChNumFormat::X8Y8_Z8Y8_Uscaled,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_GB_GR,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_GB_GR,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Y8X8_Y8Z8_Unorm
     {
         ChNumFormat::Y8X8_Y8Z8_Unorm,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BG_RG,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BG_RG,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Y8X8_Y8Z8_Uscaled
     {
         ChNumFormat::Y8X8_Y8Z8_Uscaled,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_BG_RG,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BG_RG,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AYUV
     {
         ChNumFormat::AYUV,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::UYVY
     {
         ChNumFormat::UYVY,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::VYUY
     {
         ChNumFormat::VYUY,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YUY2
     {
         ChNumFormat::YUY2,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YVY2
     {
         ChNumFormat::YVY2,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YV12
     {
         ChNumFormat::YV12,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV11
     {
         ChNumFormat::NV11,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV12
     {
         ChNumFormat::NV12,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV21
     {
         ChNumFormat::NV21,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P016
     {
         ChNumFormat::P016,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P010
     {
         ChNumFormat::P010,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
 };
 
 // Stores a MergedImgDataFmtInfo struct for each HW image format up to the last format known to the spreadsheet.
 constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
 {
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -8645,7 +8645,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8,
+    { Chip::IMG_DATA_FORMAT_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8_Unorm,
@@ -8699,7 +8699,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16,
+    { Chip::IMG_DATA_FORMAT_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16_Unorm,
@@ -8753,7 +8753,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8_8,
+    { Chip::IMG_DATA_FORMAT_8_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Unorm,
@@ -8807,7 +8807,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32,
+    { Chip::IMG_DATA_FORMAT_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -8861,7 +8861,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16_16,
+    { Chip::IMG_DATA_FORMAT_16_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16_Unorm,
@@ -8915,7 +8915,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_10_11_11,
+    { Chip::IMG_DATA_FORMAT_10_11_11,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -8969,7 +8969,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_11_11_10,
+    { Chip::IMG_DATA_FORMAT_11_11_10,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9023,7 +9023,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9077,7 +9077,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_2_10_10_10,
+    { Chip::IMG_DATA_FORMAT_2_10_10_10,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X10Y10Z10W2_Unorm,
@@ -9131,7 +9131,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8_8_8_8,
+    { Chip::IMG_DATA_FORMAT_8_8_8_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8Z8W8_Unorm,
@@ -9185,7 +9185,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9239,7 +9239,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16_16_16_16,
+    { Chip::IMG_DATA_FORMAT_16_16_16_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16Z16W16_Unorm,
@@ -9293,7 +9293,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9347,7 +9347,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9401,7 +9401,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9455,7 +9455,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_6_5,
+    { Chip::IMG_DATA_FORMAT_5_6_5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X5Y6Z5_Unorm,
@@ -9509,7 +9509,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_1_5_5_5,
+    { Chip::IMG_DATA_FORMAT_1_5_5_5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X5Y5Z5W1_Unorm,
@@ -9563,7 +9563,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_5_5_1,
+    { Chip::IMG_DATA_FORMAT_5_5_5_1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X1Y5Z5W5_Unorm,
@@ -9617,7 +9617,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_4_4_4_4,
+    { Chip::IMG_DATA_FORMAT_4_4_4_4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X4Y4Z4W4_Unorm,
@@ -9671,7 +9671,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9725,7 +9725,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9779,7 +9779,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9833,7 +9833,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9887,7 +9887,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9941,7 +9941,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -9995,7 +9995,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -10049,7 +10049,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -10103,7 +10103,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -10157,7 +10157,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -10211,7 +10211,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -10265,7 +10265,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -10319,7 +10319,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_GB_GR,
+    { Chip::IMG_DATA_FORMAT_GB_GR,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Z8Y8_Unorm,
@@ -10373,7 +10373,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BG_RG,
+    { Chip::IMG_DATA_FORMAT_BG_RG,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Y8X8_Y8Z8_Unorm,
@@ -10427,7 +10427,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_9_9_9,
+    { Chip::IMG_DATA_FORMAT_5_9_9_9,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -10481,7 +10481,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC1,
+    { Chip::IMG_DATA_FORMAT_BC1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc1_Unorm,
@@ -10535,7 +10535,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC2,
+    { Chip::IMG_DATA_FORMAT_BC2,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc2_Unorm,
@@ -10589,7 +10589,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC3,
+    { Chip::IMG_DATA_FORMAT_BC3,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc3_Unorm,
@@ -10643,7 +10643,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC4,
+    { Chip::IMG_DATA_FORMAT_BC4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc4_Unorm,
@@ -10697,7 +10697,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC5,
+    { Chip::IMG_DATA_FORMAT_BC5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc5_Unorm,
@@ -10751,7 +10751,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC6,
+    { Chip::IMG_DATA_FORMAT_BC6,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc6_Ufloat,
@@ -10805,7 +10805,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC7,
+    { Chip::IMG_DATA_FORMAT_BC7,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc7_Unorm,
@@ -10859,7 +10859,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -10913,7 +10913,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -10967,7 +10967,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11021,7 +11021,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11075,7 +11075,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11129,7 +11129,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11183,7 +11183,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11237,7 +11237,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11291,7 +11291,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11345,7 +11345,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11399,7 +11399,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11453,7 +11453,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11507,7 +11507,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11561,7 +11561,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11615,7 +11615,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11669,7 +11669,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_4_4,
+    { Chip::IMG_DATA_FORMAT_4_4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X4Y4_Unorm,
@@ -11723,7 +11723,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11777,7 +11777,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_1,
+    { Chip::IMG_DATA_FORMAT_1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X1_Unorm,
@@ -11838,7 +11838,7 @@ constexpr uint32 Gfx7MergedImgDataFmtCount = sizeof(Gfx7MergedImgDataFmtTbl) / s
 // Stores a MergedBufDataFmtInfo struct for each HW buffer format up to the last format known to the spreadsheet.
 constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
 {
-    { BUF_DATA_FORMAT_INVALID,
+    { Chip::BUF_DATA_FORMAT_INVALID,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -11882,7 +11882,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8,
+    { Chip::BUF_DATA_FORMAT_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8_Unorm,
@@ -11926,7 +11926,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16,
+    { Chip::BUF_DATA_FORMAT_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16_Unorm,
@@ -11970,7 +11970,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8_8,
+    { Chip::BUF_DATA_FORMAT_8_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Unorm,
@@ -12014,7 +12014,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32,
+    { Chip::BUF_DATA_FORMAT_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -12058,7 +12058,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16_16,
+    { Chip::BUF_DATA_FORMAT_16_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16_Unorm,
@@ -12102,7 +12102,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_10_11_11,
+    { Chip::BUF_DATA_FORMAT_10_11_11,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -12146,7 +12146,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_11_11_10,
+    { Chip::BUF_DATA_FORMAT_11_11_10,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -12190,7 +12190,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_INVALID,
+    { Chip::BUF_DATA_FORMAT_INVALID,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -12234,7 +12234,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_2_10_10_10,
+    { Chip::BUF_DATA_FORMAT_2_10_10_10,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X10Y10Z10W2_Unorm,
@@ -12278,7 +12278,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8_8_8_8,
+    { Chip::BUF_DATA_FORMAT_8_8_8_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8Z8W8_Unorm,
@@ -12322,7 +12322,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -12366,7 +12366,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16_16_16_16,
+    { Chip::BUF_DATA_FORMAT_16_16_16_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16Z16W16_Unorm,
@@ -12410,7 +12410,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -12454,7 +12454,7 @@ constexpr MergedBufDataFmtInfo Gfx7MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -12685,2025 +12685,2025 @@ constexpr MergedFmtInfo Gfx8MergedChannelFmtInfoTbl[] =
     // ChNumFormat::Undefined
     {
         ChNumFormat::Undefined,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1_Unorm
     {
         ChNumFormat::X1_Unorm,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_1,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1_Uscaled
     {
         ChNumFormat::X1_Uscaled,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_1,                 // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4_Unorm
     {
         ChNumFormat::X4Y4_Unorm,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4_Uscaled
     {
         ChNumFormat::X4Y4_Uscaled,         // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L4A4_Unorm
     {
         ChNumFormat::L4A4_Unorm,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4Z4W4_Unorm
     {
         ChNumFormat::X4Y4Z4W4_Unorm,       // ChNumFormat
-        COLOR_4_4_4_4,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4_4_4,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_4_4_4_4,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4_4_4,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4Z4W4_Uscaled
     {
         ChNumFormat::X4Y4Z4W4_Uscaled,     // ChNumFormat
-        COLOR_4_4_4_4,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_4_4_4_4,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_4_4_4_4,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4_4_4,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y6Z5_Unorm
     {
         ChNumFormat::X5Y6Z5_Unorm,         // ChNumFormat
-        COLOR_5_6_5,                       // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_6_5,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_6_5,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_6_5,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y6Z5_Uscaled
     {
         ChNumFormat::X5Y6Z5_Uscaled,       // ChNumFormat
-        COLOR_5_6_5,                       // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_5_6_5,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_6_5,                 // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_6_5,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y5Z5W1_Unorm
     {
         ChNumFormat::X5Y5Z5W1_Unorm,       // ChNumFormat
-        COLOR_1_5_5_5,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_1_5_5_5,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_1_5_5_5,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1_5_5_5,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y5Z5W1_Uscaled
     {
         ChNumFormat::X5Y5Z5W1_Uscaled,     // ChNumFormat
-        COLOR_1_5_5_5,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_1_5_5_5,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_1_5_5_5,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1_5_5_5,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1Y5Z5W5_Unorm
     {
         ChNumFormat::X1Y5Z5W5_Unorm,       // ChNumFormat
-        COLOR_5_5_5_1,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_5_5_1,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_5_5_1,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_5_5_1,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1Y5Z5W5_Uscaled
     {
         ChNumFormat::X1Y5Z5W5_Uscaled,     // ChNumFormat
-        COLOR_5_5_5_1,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_5_5_5_1,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_5_5_1,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_5_5_1,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Unorm
     {
         ChNumFormat::X8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Snorm
     {
         ChNumFormat::X8_Snorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Uscaled
     {
         ChNumFormat::X8_Uscaled,           // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Sscaled
     {
         ChNumFormat::X8_Sscaled,           // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Uint
     {
         ChNumFormat::X8_Uint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::X8_Sint
     {
         ChNumFormat::X8_Sint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Srgb
     {
         ChNumFormat::X8_Srgb,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::A8_Unorm
     {
         ChNumFormat::A8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L8_Unorm
     {
         ChNumFormat::L8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P8_Uint
     {
         ChNumFormat::P8_Uint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Unorm
     {
         ChNumFormat::X8Y8_Unorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Snorm
     {
         ChNumFormat::X8Y8_Snorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Uscaled
     {
         ChNumFormat::X8Y8_Uscaled,         // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Sscaled
     {
         ChNumFormat::X8Y8_Sscaled,         // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Uint
     {
         ChNumFormat::X8Y8_Uint,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Sint
     {
         ChNumFormat::X8Y8_Sint,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Srgb
     {
         ChNumFormat::X8Y8_Srgb,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L8A8_Unorm
     {
         ChNumFormat::L8A8_Unorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Unorm
     {
         ChNumFormat::X8Y8Z8W8_Unorm,       // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Snorm
     {
         ChNumFormat::X8Y8Z8W8_Snorm,       // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Uscaled
     {
         ChNumFormat::X8Y8Z8W8_Uscaled,     // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Sscaled
     {
         ChNumFormat::X8Y8Z8W8_Sscaled,     // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Uint
     {
         ChNumFormat::X8Y8Z8W8_Uint,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Sint
     {
         ChNumFormat::X8Y8Z8W8_Sint,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Srgb
     {
         ChNumFormat::X8Y8Z8W8_Srgb,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::U8V8_Snorm_L8W8_Unorm
     {
         ChNumFormat::U8V8_Snorm_L8W8_Unorm, // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y11Z11_Float
     {
         ChNumFormat::X10Y11Z11_Float,      // ChNumFormat
-        COLOR_11_11_10,                    // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_11_11_10,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_11_11_10,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_11_11_10,              // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_11_11_10,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_11_11_10,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X11Y11Z10_Float
     {
         ChNumFormat::X11Y11Z10_Float,      // ChNumFormat
-        COLOR_10_11_11,                    // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_10_11_11,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_10_11_11,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_10_11_11,              // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_10_11_11,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_10_11_11,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Unorm
     {
         ChNumFormat::X10Y10Z10W2_Unorm,    // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Snorm
     {
         ChNumFormat::X10Y10Z10W2_Snorm,    // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Uscaled
     {
         ChNumFormat::X10Y10Z10W2_Uscaled,  // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Sscaled
     {
         ChNumFormat::X10Y10Z10W2_Sscaled,  // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Uint
     {
         ChNumFormat::X10Y10Z10W2_Uint,     // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Sint
     {
         ChNumFormat::X10Y10Z10W2_Sint,     // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2Bias_Unorm
     {
         ChNumFormat::X10Y10Z10W2Bias_Unorm, // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::U10V10W10_Snorm_A2_Unorm
     {
         ChNumFormat::U10V10W10_Snorm_A2_Unorm, // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Unorm
     {
         ChNumFormat::X16_Unorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_16,                              // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_16,                        // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Snorm
     {
         ChNumFormat::X16_Snorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Uscaled
     {
         ChNumFormat::X16_Uscaled,          // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Sscaled
     {
         ChNumFormat::X16_Sscaled,          // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Uint
     {
         ChNumFormat::X16_Uint,             // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Sint
     {
         ChNumFormat::X16_Sint,             // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Float
     {
         ChNumFormat::X16_Float,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L16_Unorm
     {
         ChNumFormat::L16_Unorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Unorm
     {
         ChNumFormat::X16Y16_Unorm,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Snorm
     {
         ChNumFormat::X16Y16_Snorm,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Uscaled
     {
         ChNumFormat::X16Y16_Uscaled,       // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Sscaled
     {
         ChNumFormat::X16Y16_Sscaled,       // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Uint
     {
         ChNumFormat::X16Y16_Uint,          // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Sint
     {
         ChNumFormat::X16Y16_Sint,          // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Float
     {
         ChNumFormat::X16Y16_Float,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Unorm
     {
         ChNumFormat::X16Y16Z16W16_Unorm,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Snorm
     {
         ChNumFormat::X16Y16Z16W16_Snorm,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Uscaled
     {
         ChNumFormat::X16Y16Z16W16_Uscaled, // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Sscaled
     {
         ChNumFormat::X16Y16Z16W16_Sscaled, // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Uint
     {
         ChNumFormat::X16Y16Z16W16_Uint,    // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Sint
     {
         ChNumFormat::X16Y16Z16W16_Sint,    // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Float
     {
         ChNumFormat::X16Y16Z16W16_Float,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Uint
     {
         ChNumFormat::X32_Uint,             // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Sint
     {
         ChNumFormat::X32_Sint,             // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Float
     {
         ChNumFormat::X32_Float,            // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_32_FLOAT,                        // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_32_FLOAT,                  // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Uint
     {
         ChNumFormat::X32Y32_Uint,          // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Sint
     {
         ChNumFormat::X32Y32_Sint,          // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Float
     {
         ChNumFormat::X32Y32_Float,         // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Uint
     {
         ChNumFormat::X32Y32Z32_Uint,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Sint
     {
         ChNumFormat::X32Y32Z32_Sint,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Float
     {
         ChNumFormat::X32Y32Z32_Float,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Uint
     {
         ChNumFormat::X32Y32Z32W32_Uint,    // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Sint
     {
         ChNumFormat::X32Y32Z32W32_Sint,    // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Float
     {
         ChNumFormat::X32Y32Z32W32_Float,   // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::D16_Unorm_S8_Uint
     {
         ChNumFormat::D16_Unorm_S8_Uint,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_16,                              // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_16,                        // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::D32_Float_S8_Uint
     {
         ChNumFormat::D32_Float_S8_Uint,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_32_FLOAT,                        // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_32_FLOAT,                  // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::X9Y9Z9E5_Float
     {
         ChNumFormat::X9Y9Z9E5_Float,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_9_9_9,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_9_9_9,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc1_Unorm
     {
         ChNumFormat::Bc1_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC1,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC1,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc1_Srgb
     {
         ChNumFormat::Bc1_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC1,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC1,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc2_Unorm
     {
         ChNumFormat::Bc2_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC2,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC2,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc2_Srgb
     {
         ChNumFormat::Bc2_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC2,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC2,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc3_Unorm
     {
         ChNumFormat::Bc3_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC3,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC3,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc3_Srgb
     {
         ChNumFormat::Bc3_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC3,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC3,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc4_Unorm
     {
         ChNumFormat::Bc4_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc4_Snorm
     {
         ChNumFormat::Bc4_Snorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC4,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc5_Unorm
     {
         ChNumFormat::Bc5_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC5,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC5,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc5_Snorm
     {
         ChNumFormat::Bc5_Snorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC5,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC5,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc6_Ufloat
     {
         ChNumFormat::Bc6_Ufloat,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC6,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC6,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc6_Sfloat
     {
         ChNumFormat::Bc6_Sfloat,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC6,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC6,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc7_Unorm
     {
         ChNumFormat::Bc7_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC7,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC7,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc7_Srgb
     {
         ChNumFormat::Bc7_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC7,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC7,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W1_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8W1_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W1_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8W1_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W8_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8W8_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W8_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8W8_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11_Unorm
     {
         ChNumFormat::Etc2X11_Unorm,        // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11_Snorm
     {
         ChNumFormat::Etc2X11_Snorm,        // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11Y11_Unorm
     {
         ChNumFormat::Etc2X11Y11_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11Y11_Snorm
     {
         ChNumFormat::Etc2X11Y11_Snorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr4x4_Unorm
     {
         ChNumFormat::AstcLdr4x4_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr4x4_Srgb
     {
         ChNumFormat::AstcLdr4x4_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x4_Unorm
     {
         ChNumFormat::AstcLdr5x4_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x4_Srgb
     {
         ChNumFormat::AstcLdr5x4_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x5_Unorm
     {
         ChNumFormat::AstcLdr5x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x5_Srgb
     {
         ChNumFormat::AstcLdr5x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x5_Unorm
     {
         ChNumFormat::AstcLdr6x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x5_Srgb
     {
         ChNumFormat::AstcLdr6x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x6_Unorm
     {
         ChNumFormat::AstcLdr6x6_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x6_Srgb
     {
         ChNumFormat::AstcLdr6x6_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x5_Unorm
     {
         ChNumFormat::AstcLdr8x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x5_Srgb
     {
         ChNumFormat::AstcLdr8x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x6_Unorm
     {
         ChNumFormat::AstcLdr8x6_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x6_Srgb
     {
         ChNumFormat::AstcLdr8x6_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x8_Unorm
     {
         ChNumFormat::AstcLdr8x8_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x8_Srgb
     {
         ChNumFormat::AstcLdr8x8_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x5_Unorm
     {
         ChNumFormat::AstcLdr10x5_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x5_Srgb
     {
         ChNumFormat::AstcLdr10x5_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x6_Unorm
     {
         ChNumFormat::AstcLdr10x6_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x6_Srgb
     {
         ChNumFormat::AstcLdr10x6_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x8_Unorm
     {
         ChNumFormat::AstcLdr10x8_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x8_Srgb
     {
         ChNumFormat::AstcLdr10x8_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x10_Unorm
     {
         ChNumFormat::AstcLdr10x10_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x10_Srgb
     {
         ChNumFormat::AstcLdr10x10_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x10_Unorm
     {
         ChNumFormat::AstcLdr12x10_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x10_Srgb
     {
         ChNumFormat::AstcLdr12x10_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x12_Unorm
     {
         ChNumFormat::AstcLdr12x12_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x12_Srgb
     {
         ChNumFormat::AstcLdr12x12_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr4x4_Float
     {
         ChNumFormat::AstcHdr4x4_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr5x4_Float
     {
         ChNumFormat::AstcHdr5x4_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr5x5_Float
     {
         ChNumFormat::AstcHdr5x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr6x5_Float
     {
         ChNumFormat::AstcHdr6x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr6x6_Float
     {
         ChNumFormat::AstcHdr6x6_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x5_Float
     {
         ChNumFormat::AstcHdr8x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x6_Float
     {
         ChNumFormat::AstcHdr8x6_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x8_Float
     {
         ChNumFormat::AstcHdr8x8_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x5_Float
     {
         ChNumFormat::AstcHdr10x5_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x6_Float
     {
         ChNumFormat::AstcHdr10x6_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x8_Float
     {
         ChNumFormat::AstcHdr10x8_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x10_Float
     {
         ChNumFormat::AstcHdr10x10_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr12x10_Float
     {
         ChNumFormat::AstcHdr12x10_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr12x12_Float
     {
         ChNumFormat::AstcHdr12x12_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Z8Y8_Unorm
     {
         ChNumFormat::X8Y8_Z8Y8_Unorm,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_GB_GR,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_GB_GR,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Z8Y8_Uscaled
     {
         ChNumFormat::X8Y8_Z8Y8_Uscaled,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_GB_GR,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_GB_GR,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Y8X8_Y8Z8_Unorm
     {
         ChNumFormat::Y8X8_Y8Z8_Unorm,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BG_RG,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BG_RG,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Y8X8_Y8Z8_Uscaled
     {
         ChNumFormat::Y8X8_Y8Z8_Uscaled,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_BG_RG,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BG_RG,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AYUV
     {
         ChNumFormat::AYUV,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::UYVY
     {
         ChNumFormat::UYVY,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::VYUY
     {
         ChNumFormat::VYUY,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YUY2
     {
         ChNumFormat::YUY2,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YVY2
     {
         ChNumFormat::YVY2,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YV12
     {
         ChNumFormat::YV12,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV11
     {
         ChNumFormat::NV11,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV12
     {
         ChNumFormat::NV12,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV21
     {
         ChNumFormat::NV21,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P016
     {
         ChNumFormat::P016,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P010
     {
         ChNumFormat::P010,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
 };
 
 // Stores a MergedImgDataFmtInfo struct for each HW image format up to the last format known to the spreadsheet.
 constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
 {
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -14757,7 +14757,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8,
+    { Chip::IMG_DATA_FORMAT_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8_Unorm,
@@ -14811,7 +14811,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16,
+    { Chip::IMG_DATA_FORMAT_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16_Unorm,
@@ -14865,7 +14865,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8_8,
+    { Chip::IMG_DATA_FORMAT_8_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Unorm,
@@ -14919,7 +14919,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32,
+    { Chip::IMG_DATA_FORMAT_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -14973,7 +14973,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16_16,
+    { Chip::IMG_DATA_FORMAT_16_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16_Unorm,
@@ -15027,7 +15027,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_10_11_11,
+    { Chip::IMG_DATA_FORMAT_10_11_11,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15081,7 +15081,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_11_11_10,
+    { Chip::IMG_DATA_FORMAT_11_11_10,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15135,7 +15135,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15189,7 +15189,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_2_10_10_10,
+    { Chip::IMG_DATA_FORMAT_2_10_10_10,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X10Y10Z10W2_Unorm,
@@ -15243,7 +15243,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8_8_8_8,
+    { Chip::IMG_DATA_FORMAT_8_8_8_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8Z8W8_Unorm,
@@ -15297,7 +15297,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15351,7 +15351,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16_16_16_16,
+    { Chip::IMG_DATA_FORMAT_16_16_16_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16Z16W16_Unorm,
@@ -15405,7 +15405,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15459,7 +15459,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15513,7 +15513,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15567,7 +15567,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_6_5,
+    { Chip::IMG_DATA_FORMAT_5_6_5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X5Y6Z5_Unorm,
@@ -15621,7 +15621,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_1_5_5_5,
+    { Chip::IMG_DATA_FORMAT_1_5_5_5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X5Y5Z5W1_Unorm,
@@ -15675,7 +15675,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_5_5_1,
+    { Chip::IMG_DATA_FORMAT_5_5_5_1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X1Y5Z5W5_Unorm,
@@ -15729,7 +15729,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_4_4_4_4,
+    { Chip::IMG_DATA_FORMAT_4_4_4_4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X4Y4Z4W4_Unorm,
@@ -15783,7 +15783,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15837,7 +15837,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15891,7 +15891,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15945,7 +15945,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -15999,7 +15999,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -16053,7 +16053,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -16107,7 +16107,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -16161,7 +16161,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -16215,7 +16215,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -16269,7 +16269,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -16323,7 +16323,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -16377,7 +16377,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -16431,7 +16431,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_GB_GR,
+    { Chip::IMG_DATA_FORMAT_GB_GR,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Z8Y8_Unorm,
@@ -16485,7 +16485,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BG_RG,
+    { Chip::IMG_DATA_FORMAT_BG_RG,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Y8X8_Y8Z8_Unorm,
@@ -16539,7 +16539,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_9_9_9,
+    { Chip::IMG_DATA_FORMAT_5_9_9_9,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -16593,7 +16593,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC1,
+    { Chip::IMG_DATA_FORMAT_BC1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc1_Unorm,
@@ -16647,7 +16647,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC2,
+    { Chip::IMG_DATA_FORMAT_BC2,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc2_Unorm,
@@ -16701,7 +16701,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC3,
+    { Chip::IMG_DATA_FORMAT_BC3,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc3_Unorm,
@@ -16755,7 +16755,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC4,
+    { Chip::IMG_DATA_FORMAT_BC4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc4_Unorm,
@@ -16809,7 +16809,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC5,
+    { Chip::IMG_DATA_FORMAT_BC5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc5_Unorm,
@@ -16863,7 +16863,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC6,
+    { Chip::IMG_DATA_FORMAT_BC6,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc6_Ufloat,
@@ -16917,7 +16917,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC7,
+    { Chip::IMG_DATA_FORMAT_BC7,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc7_Unorm,
@@ -16971,7 +16971,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17025,7 +17025,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17079,7 +17079,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17133,7 +17133,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17187,7 +17187,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17241,7 +17241,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17295,7 +17295,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17349,7 +17349,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17403,7 +17403,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17457,7 +17457,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17511,7 +17511,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17565,7 +17565,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17619,7 +17619,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17673,7 +17673,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17727,7 +17727,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17781,7 +17781,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_4_4,
+    { Chip::IMG_DATA_FORMAT_4_4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X4Y4_Unorm,
@@ -17835,7 +17835,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17889,7 +17889,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_1,
+    { Chip::IMG_DATA_FORMAT_1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X1_Unorm,
@@ -17950,7 +17950,7 @@ constexpr uint32 Gfx8MergedImgDataFmtCount = sizeof(Gfx8MergedImgDataFmtTbl) / s
 // Stores a MergedBufDataFmtInfo struct for each HW buffer format up to the last format known to the spreadsheet.
 constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
 {
-    { BUF_DATA_FORMAT_INVALID,
+    { Chip::BUF_DATA_FORMAT_INVALID,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -17994,7 +17994,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8,
+    { Chip::BUF_DATA_FORMAT_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8_Unorm,
@@ -18038,7 +18038,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16,
+    { Chip::BUF_DATA_FORMAT_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16_Unorm,
@@ -18082,7 +18082,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8_8,
+    { Chip::BUF_DATA_FORMAT_8_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Unorm,
@@ -18126,7 +18126,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32,
+    { Chip::BUF_DATA_FORMAT_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -18170,7 +18170,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16_16,
+    { Chip::BUF_DATA_FORMAT_16_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16_Unorm,
@@ -18214,7 +18214,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_10_11_11,
+    { Chip::BUF_DATA_FORMAT_10_11_11,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -18258,7 +18258,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_11_11_10,
+    { Chip::BUF_DATA_FORMAT_11_11_10,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -18302,7 +18302,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_INVALID,
+    { Chip::BUF_DATA_FORMAT_INVALID,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -18346,7 +18346,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_2_10_10_10,
+    { Chip::BUF_DATA_FORMAT_2_10_10_10,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X10Y10Z10W2_Unorm,
@@ -18390,7 +18390,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8_8_8_8,
+    { Chip::BUF_DATA_FORMAT_8_8_8_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8Z8W8_Unorm,
@@ -18434,7 +18434,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -18478,7 +18478,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16_16_16_16,
+    { Chip::BUF_DATA_FORMAT_16_16_16_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16Z16W16_Unorm,
@@ -18522,7 +18522,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -18566,7 +18566,7 @@ constexpr MergedBufDataFmtInfo Gfx8MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -18797,2025 +18797,2025 @@ constexpr MergedFmtInfo Gfx8_1MergedChannelFmtInfoTbl[] =
     // ChNumFormat::Undefined
     {
         ChNumFormat::Undefined,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1_Unorm
     {
         ChNumFormat::X1_Unorm,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_1,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1_Uscaled
     {
         ChNumFormat::X1_Uscaled,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_1,                 // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4_Unorm
     {
         ChNumFormat::X4Y4_Unorm,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4_Uscaled
     {
         ChNumFormat::X4Y4_Uscaled,         // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L4A4_Unorm
     {
         ChNumFormat::L4A4_Unorm,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4Z4W4_Unorm
     {
         ChNumFormat::X4Y4Z4W4_Unorm,       // ChNumFormat
-        COLOR_4_4_4_4,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_4_4_4_4,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_4_4_4_4,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4_4_4,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X4Y4Z4W4_Uscaled
     {
         ChNumFormat::X4Y4Z4W4_Uscaled,     // ChNumFormat
-        COLOR_4_4_4_4,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_4_4_4_4,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_4_4_4_4,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_4_4_4_4,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y6Z5_Unorm
     {
         ChNumFormat::X5Y6Z5_Unorm,         // ChNumFormat
-        COLOR_5_6_5,                       // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_6_5,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_6_5,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_6_5,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y6Z5_Uscaled
     {
         ChNumFormat::X5Y6Z5_Uscaled,       // ChNumFormat
-        COLOR_5_6_5,                       // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_5_6_5,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_6_5,                 // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_6_5,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y5Z5W1_Unorm
     {
         ChNumFormat::X5Y5Z5W1_Unorm,       // ChNumFormat
-        COLOR_1_5_5_5,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_1_5_5_5,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_1_5_5_5,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1_5_5_5,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X5Y5Z5W1_Uscaled
     {
         ChNumFormat::X5Y5Z5W1_Uscaled,     // ChNumFormat
-        COLOR_1_5_5_5,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_1_5_5_5,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_1_5_5_5,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_1_5_5_5,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1Y5Z5W5_Unorm
     {
         ChNumFormat::X1Y5Z5W5_Unorm,       // ChNumFormat
-        COLOR_5_5_5_1,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_5_5_1,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_5_5_1,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_5_5_1,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X1Y5Z5W5_Uscaled
     {
         ChNumFormat::X1Y5Z5W5_Uscaled,     // ChNumFormat
-        COLOR_5_5_5_1,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_5_5_5_1,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_5_5_5_1,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_5_5_1,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Unorm
     {
         ChNumFormat::X8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Snorm
     {
         ChNumFormat::X8_Snorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Uscaled
     {
         ChNumFormat::X8_Uscaled,           // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Sscaled
     {
         ChNumFormat::X8_Sscaled,           // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Uint
     {
         ChNumFormat::X8_Uint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::X8_Sint
     {
         ChNumFormat::X8_Sint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8_Srgb
     {
         ChNumFormat::X8_Srgb,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::A8_Unorm
     {
         ChNumFormat::A8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L8_Unorm
     {
         ChNumFormat::L8_Unorm,             // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P8_Uint
     {
         ChNumFormat::P8_Uint,              // ChNumFormat
-        COLOR_8,                           // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8,                 // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8,                 // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8,                     // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8,           // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8,           // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Unorm
     {
         ChNumFormat::X8Y8_Unorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Snorm
     {
         ChNumFormat::X8Y8_Snorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Uscaled
     {
         ChNumFormat::X8Y8_Uscaled,         // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Sscaled
     {
         ChNumFormat::X8Y8_Sscaled,         // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Uint
     {
         ChNumFormat::X8Y8_Uint,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Sint
     {
         ChNumFormat::X8Y8_Sint,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Srgb
     {
         ChNumFormat::X8Y8_Srgb,            // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L8A8_Unorm
     {
         ChNumFormat::L8A8_Unorm,           // ChNumFormat
-        COLOR_8_8,                         // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8,               // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8,                   // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8,         // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Unorm
     {
         ChNumFormat::X8Y8Z8W8_Unorm,       // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Snorm
     {
         ChNumFormat::X8Y8Z8W8_Snorm,       // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Uscaled
     {
         ChNumFormat::X8Y8Z8W8_Uscaled,     // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Sscaled
     {
         ChNumFormat::X8Y8Z8W8_Sscaled,     // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Uint
     {
         ChNumFormat::X8Y8Z8W8_Uint,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Sint
     {
         ChNumFormat::X8Y8Z8W8_Sint,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8Z8W8_Srgb
     {
         ChNumFormat::X8Y8Z8W8_Srgb,        // ChNumFormat
-        COLOR_8_8_8_8,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_8_8_8_8,           // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_8_8_8_8,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_8_8_8_8,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_8_8_8_8,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_8_8_8_8,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::U8V8_Snorm_L8W8_Unorm
     {
         ChNumFormat::U8V8_Snorm_L8W8_Unorm, // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y11Z11_Float
     {
         ChNumFormat::X10Y11Z11_Float,      // ChNumFormat
-        COLOR_11_11_10,                    // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_11_11_10,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_11_11_10,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_11_11_10,              // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_11_11_10,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_11_11_10,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X11Y11Z10_Float
     {
         ChNumFormat::X11Y11Z10_Float,      // ChNumFormat
-        COLOR_10_11_11,                    // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_10_11_11,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_10_11_11,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_10_11_11,              // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_10_11_11,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_10_11_11,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Unorm
     {
         ChNumFormat::X10Y10Z10W2_Unorm,    // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Snorm
     {
         ChNumFormat::X10Y10Z10W2_Snorm,    // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Uscaled
     {
         ChNumFormat::X10Y10Z10W2_Uscaled,  // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Sscaled
     {
         ChNumFormat::X10Y10Z10W2_Sscaled,  // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Uint
     {
         ChNumFormat::X10Y10Z10W2_Uint,     // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2_Sint
     {
         ChNumFormat::X10Y10Z10W2_Sint,     // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X10Y10Z10W2Bias_Unorm
     {
         ChNumFormat::X10Y10Z10W2Bias_Unorm, // ChNumFormat
-        COLOR_2_10_10_10,                  // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_2_10_10_10,        // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_2_10_10_10,        // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_2_10_10_10,  // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::U10V10W10_Snorm_A2_Unorm
     {
         ChNumFormat::U10V10W10_Snorm_A2_Unorm, // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Unorm
     {
         ChNumFormat::X16_Unorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_16,                              // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_16,                        // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Snorm
     {
         ChNumFormat::X16_Snorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Uscaled
     {
         ChNumFormat::X16_Uscaled,          // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Sscaled
     {
         ChNumFormat::X16_Sscaled,          // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Uint
     {
         ChNumFormat::X16_Uint,             // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Sint
     {
         ChNumFormat::X16_Sint,             // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16_Float
     {
         ChNumFormat::X16_Float,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::L16_Unorm
     {
         ChNumFormat::L16_Unorm,            // ChNumFormat
-        COLOR_16,                          // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16,                // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16,                // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16,                    // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Unorm
     {
         ChNumFormat::X16Y16_Unorm,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Snorm
     {
         ChNumFormat::X16Y16_Snorm,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Uscaled
     {
         ChNumFormat::X16Y16_Uscaled,       // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Sscaled
     {
         ChNumFormat::X16Y16_Sscaled,       // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Uint
     {
         ChNumFormat::X16Y16_Uint,          // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Sint
     {
         ChNumFormat::X16Y16_Sint,          // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16_Float
     {
         ChNumFormat::X16Y16_Float,         // ChNumFormat
-        COLOR_16_16,                       // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16,             // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16,             // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16,                 // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Unorm
     {
         ChNumFormat::X16Y16Z16W16_Unorm,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Snorm
     {
         ChNumFormat::X16Y16Z16W16_Snorm,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Uscaled
     {
         ChNumFormat::X16Y16Z16W16_Uscaled, // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Sscaled
     {
         ChNumFormat::X16Y16Z16W16_Sscaled, // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SSCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SSCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SSCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SSCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SSCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SSCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Uint
     {
         ChNumFormat::X16Y16Z16W16_Uint,    // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Sint
     {
         ChNumFormat::X16Y16Z16W16_Sint,    // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X16Y16Z16W16_Float
     {
         ChNumFormat::X16Y16Z16W16_Float,   // ChNumFormat
-        COLOR_16_16_16_16,                 // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_16_16_16_16,       // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_16_16_16_16,       // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_16_16_16_16,           // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_16_16_16_16, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_16_16_16_16, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Uint
     {
         ChNumFormat::X32_Uint,             // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Sint
     {
         ChNumFormat::X32_Sint,             // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32_Float
     {
         ChNumFormat::X32_Float,            // ChNumFormat
-        COLOR_32,                          // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32,                // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32,                // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_32_FLOAT,                        // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32,                    // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32,          // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32,          // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_32_FLOAT,                  // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Uint
     {
         ChNumFormat::X32Y32_Uint,          // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Sint
     {
         ChNumFormat::X32Y32_Sint,          // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32_Float
     {
         ChNumFormat::X32Y32_Float,         // ChNumFormat
-        COLOR_32_32,                       // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32,             // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32,             // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32,                 // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32,       // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Uint
     {
         ChNumFormat::X32Y32Z32_Uint,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Sint
     {
         ChNumFormat::X32Y32Z32_Sint,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32_Float
     {
         ChNumFormat::X32Y32Z32_Float,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32,          // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32,          // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32,    // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32,    // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Uint
     {
         ChNumFormat::X32Y32Z32W32_Uint,    // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_UINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_UINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_UINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_UINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Sint
     {
         ChNumFormat::X32Y32Z32W32_Sint,    // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_SINT,                       // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_SINT,               // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_SINT,               // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_SINT,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SINT,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SINT,         // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X32Y32Z32W32_Float
     {
         ChNumFormat::X32Y32Z32W32_Float,   // ChNumFormat
-        COLOR_32_32_32_32,                 // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_32_32_32_32,       // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_32_32_32_32,       // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_32_32_32_32,           // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_32_32_32_32, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_32_32_32_32, // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::D16_Unorm_S8_Uint
     {
         ChNumFormat::D16_Unorm_S8_Uint,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_16,                              // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_16,                        // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::D32_Float_S8_Uint
     {
         ChNumFormat::D32_Float_S8_Uint,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_32_FLOAT,                        // ZFormat
-        STENCIL_8,                         // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_32_FLOAT,                  // ZFormat
+        Chip::STENCIL_8,                   // StencilFormat
     },
     // ChNumFormat::X9Y9Z9E5_Float
     {
         ChNumFormat::X9Y9Z9E5_Float,       // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_5_9_9_9,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_5_9_9_9,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc1_Unorm
     {
         ChNumFormat::Bc1_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC1,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC1,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc1_Srgb
     {
         ChNumFormat::Bc1_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC1,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC1,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc2_Unorm
     {
         ChNumFormat::Bc2_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC2,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC2,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc2_Srgb
     {
         ChNumFormat::Bc2_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC2,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC2,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc3_Unorm
     {
         ChNumFormat::Bc3_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC3,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC3,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc3_Srgb
     {
         ChNumFormat::Bc3_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC3,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC3,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc4_Unorm
     {
         ChNumFormat::Bc4_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC4,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc4_Snorm
     {
         ChNumFormat::Bc4_Snorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC4,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC4,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc5_Unorm
     {
         ChNumFormat::Bc5_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC5,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC5,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc5_Snorm
     {
         ChNumFormat::Bc5_Snorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC5,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC5,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc6_Ufloat
     {
         ChNumFormat::Bc6_Ufloat,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC6,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC6,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc6_Sfloat
     {
         ChNumFormat::Bc6_Sfloat,           // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC6,               // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC6,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc7_Unorm
     {
         ChNumFormat::Bc7_Unorm,            // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BC7,               // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC7,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Bc7_Srgb
     {
         ChNumFormat::Bc7_Srgb,             // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_BC7,               // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BC7,         // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_ETC2_RGB__VI,      // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_ETC2_RGB__VI, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_ETC2_RGB__VI,      // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_ETC2_RGB__VI, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W1_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8W1_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_ETC2_RGBA1__VI,    // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_ETC2_RGBA1__VI, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W1_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8W1_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_ETC2_RGBA1__VI,    // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_ETC2_RGBA1__VI, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W8_Unorm
     {
         ChNumFormat::Etc2X8Y8Z8W8_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_ETC2_RGBA__VI,     // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_ETC2_RGBA__VI, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X8Y8Z8W8_Srgb
     {
         ChNumFormat::Etc2X8Y8Z8W8_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SRGB,                       // CB Numeric Format
-        IMG_DATA_FORMAT_ETC2_RGBA__VI,     // Image Channel Format
-        IMG_NUM_FORMAT_SRGB,               // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SRGB,                 // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_ETC2_RGBA__VI, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SRGB,         // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11_Unorm
     {
         ChNumFormat::Etc2X11_Unorm,        // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_ETC2_R__VI,        // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_ETC2_R__VI,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11_Snorm
     {
         ChNumFormat::Etc2X11_Snorm,        // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_ETC2_R__VI,        // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_ETC2_R__VI,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11Y11_Unorm
     {
         ChNumFormat::Etc2X11Y11_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_ETC2_RG__VI,       // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_ETC2_RG__VI, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Etc2X11Y11_Snorm
     {
         ChNumFormat::Etc2X11Y11_Snorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_SNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_ETC2_RG__VI,       // Image Channel Format
-        IMG_NUM_FORMAT_SNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_SNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_SNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_ETC2_RG__VI, // Image Channel Format
+        Chip::IMG_NUM_FORMAT_SNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_SNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr4x4_Unorm
     {
         ChNumFormat::AstcLdr4x4_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr4x4_Srgb
     {
         ChNumFormat::AstcLdr4x4_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x4_Unorm
     {
         ChNumFormat::AstcLdr5x4_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x4_Srgb
     {
         ChNumFormat::AstcLdr5x4_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x5_Unorm
     {
         ChNumFormat::AstcLdr5x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr5x5_Srgb
     {
         ChNumFormat::AstcLdr5x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x5_Unorm
     {
         ChNumFormat::AstcLdr6x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x5_Srgb
     {
         ChNumFormat::AstcLdr6x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x6_Unorm
     {
         ChNumFormat::AstcLdr6x6_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr6x6_Srgb
     {
         ChNumFormat::AstcLdr6x6_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x5_Unorm
     {
         ChNumFormat::AstcLdr8x5_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x5_Srgb
     {
         ChNumFormat::AstcLdr8x5_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x6_Unorm
     {
         ChNumFormat::AstcLdr8x6_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x6_Srgb
     {
         ChNumFormat::AstcLdr8x6_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x8_Unorm
     {
         ChNumFormat::AstcLdr8x8_Unorm,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr8x8_Srgb
     {
         ChNumFormat::AstcLdr8x8_Srgb,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x5_Unorm
     {
         ChNumFormat::AstcLdr10x5_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x5_Srgb
     {
         ChNumFormat::AstcLdr10x5_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x6_Unorm
     {
         ChNumFormat::AstcLdr10x6_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x6_Srgb
     {
         ChNumFormat::AstcLdr10x6_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x8_Unorm
     {
         ChNumFormat::AstcLdr10x8_Unorm,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x8_Srgb
     {
         ChNumFormat::AstcLdr10x8_Srgb,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x10_Unorm
     {
         ChNumFormat::AstcLdr10x10_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr10x10_Srgb
     {
         ChNumFormat::AstcLdr10x10_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x10_Unorm
     {
         ChNumFormat::AstcLdr12x10_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x10_Srgb
     {
         ChNumFormat::AstcLdr12x10_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x12_Unorm
     {
         ChNumFormat::AstcLdr12x12_Unorm,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcLdr12x12_Srgb
     {
         ChNumFormat::AstcLdr12x12_Srgb,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr4x4_Float
     {
         ChNumFormat::AstcHdr4x4_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr5x4_Float
     {
         ChNumFormat::AstcHdr5x4_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr5x5_Float
     {
         ChNumFormat::AstcHdr5x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr6x5_Float
     {
         ChNumFormat::AstcHdr6x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr6x6_Float
     {
         ChNumFormat::AstcHdr6x6_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x5_Float
     {
         ChNumFormat::AstcHdr8x5_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x6_Float
     {
         ChNumFormat::AstcHdr8x6_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr8x8_Float
     {
         ChNumFormat::AstcHdr8x8_Float,     // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x5_Float
     {
         ChNumFormat::AstcHdr10x5_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x6_Float
     {
         ChNumFormat::AstcHdr10x6_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x8_Float
     {
         ChNumFormat::AstcHdr10x8_Float,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr10x10_Float
     {
         ChNumFormat::AstcHdr10x10_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr12x10_Float
     {
         ChNumFormat::AstcHdr12x10_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AstcHdr12x12_Float
     {
         ChNumFormat::AstcHdr12x12_Float,   // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Z8Y8_Unorm
     {
         ChNumFormat::X8Y8_Z8Y8_Unorm,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_GB_GR,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_GB_GR,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::X8Y8_Z8Y8_Uscaled
     {
         ChNumFormat::X8Y8_Z8Y8_Uscaled,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_GB_GR,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_GB_GR,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Y8X8_Y8Z8_Unorm
     {
         ChNumFormat::Y8X8_Y8Z8_Unorm,      // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_UNORM,                      // CB Numeric Format
-        IMG_DATA_FORMAT_BG_RG,             // Image Channel Format
-        IMG_NUM_FORMAT_UNORM,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_UNORM,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_UNORM,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BG_RG,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_UNORM,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_UNORM,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::Y8X8_Y8Z8_Uscaled
     {
         ChNumFormat::Y8X8_Y8Z8_Uscaled,    // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_USCALED,                    // CB Numeric Format
-        IMG_DATA_FORMAT_BG_RG,             // Image Channel Format
-        IMG_NUM_FORMAT_USCALED,            // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_USCALED,            // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_USCALED,              // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_BG_RG,       // Image Channel Format
+        Chip::IMG_NUM_FORMAT_USCALED,      // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_USCALED,      // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::AYUV
     {
         ChNumFormat::AYUV,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::UYVY
     {
         ChNumFormat::UYVY,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::VYUY
     {
         ChNumFormat::VYUY,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YUY2
     {
         ChNumFormat::YUY2,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YVY2
     {
         ChNumFormat::YVY2,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::YV12
     {
         ChNumFormat::YV12,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV11
     {
         ChNumFormat::NV11,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV12
     {
         ChNumFormat::NV12,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::NV21
     {
         ChNumFormat::NV21,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P016
     {
         ChNumFormat::P016,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
     // ChNumFormat::P010
     {
         ChNumFormat::P010,                 // ChNumFormat
-        COLOR_INVALID,                     // CB Channel Format
-        NUMBER_FLOAT,                      // CB Numeric Format
-        IMG_DATA_FORMAT_INVALID,           // Image Channel Format
-        IMG_NUM_FORMAT_FLOAT,              // Image Numeric Format
-        BUF_DATA_FORMAT_INVALID,           // Buffer Image Format
-        BUF_NUM_FORMAT_FLOAT,              // Buffer Numeric Format
-        Z_INVALID,                         // ZFormat
-        STENCIL_INVALID,                   // StencilFormat
+        Chip::COLOR_INVALID,               // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_INVALID,     // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
     },
 };
 
 // Stores a MergedImgDataFmtInfo struct for each HW image format up to the last format known to the spreadsheet.
 constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
 {
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -20869,7 +20869,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8,
+    { Chip::IMG_DATA_FORMAT_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8_Unorm,
@@ -20923,7 +20923,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16,
+    { Chip::IMG_DATA_FORMAT_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16_Unorm,
@@ -20977,7 +20977,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8_8,
+    { Chip::IMG_DATA_FORMAT_8_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Unorm,
@@ -21031,7 +21031,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32,
+    { Chip::IMG_DATA_FORMAT_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -21085,7 +21085,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16_16,
+    { Chip::IMG_DATA_FORMAT_16_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16_Unorm,
@@ -21139,7 +21139,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_10_11_11,
+    { Chip::IMG_DATA_FORMAT_10_11_11,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -21193,7 +21193,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_11_11_10,
+    { Chip::IMG_DATA_FORMAT_11_11_10,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -21247,7 +21247,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -21301,7 +21301,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_2_10_10_10,
+    { Chip::IMG_DATA_FORMAT_2_10_10_10,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X10Y10Z10W2_Unorm,
@@ -21355,7 +21355,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_8_8_8_8,
+    { Chip::IMG_DATA_FORMAT_8_8_8_8,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8Z8W8_Unorm,
@@ -21409,7 +21409,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -21463,7 +21463,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_16_16_16_16,
+    { Chip::IMG_DATA_FORMAT_16_16_16_16,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16Z16W16_Unorm,
@@ -21517,7 +21517,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -21571,7 +21571,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_32_32_32_32,
+    { Chip::IMG_DATA_FORMAT_32_32_32_32,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -21625,7 +21625,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -21679,7 +21679,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_6_5,
+    { Chip::IMG_DATA_FORMAT_5_6_5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X5Y6Z5_Unorm,
@@ -21733,7 +21733,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_1_5_5_5,
+    { Chip::IMG_DATA_FORMAT_1_5_5_5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X5Y5Z5W1_Unorm,
@@ -21787,7 +21787,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_5_5_1,
+    { Chip::IMG_DATA_FORMAT_5_5_5_1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X1Y5Z5W5_Unorm,
@@ -21841,7 +21841,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_4_4_4_4,
+    { Chip::IMG_DATA_FORMAT_4_4_4_4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X4Y4Z4W4_Unorm,
@@ -21895,7 +21895,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -21949,7 +21949,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -22003,7 +22003,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -22057,7 +22057,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -22111,7 +22111,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_ETC2_RGB__VI,
+    { Chip::IMG_DATA_FORMAT_ETC2_RGB__VI,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Etc2X8Y8Z8_Unorm,
@@ -22165,7 +22165,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_ETC2_RGBA__VI,
+    { Chip::IMG_DATA_FORMAT_ETC2_RGBA__VI,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Etc2X8Y8Z8W8_Unorm,
@@ -22219,7 +22219,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_ETC2_R__VI,
+    { Chip::IMG_DATA_FORMAT_ETC2_R__VI,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Etc2X11_Unorm,
@@ -22273,7 +22273,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_ETC2_RG__VI,
+    { Chip::IMG_DATA_FORMAT_ETC2_RG__VI,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Etc2X11Y11_Unorm,
@@ -22327,7 +22327,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_ETC2_RGBA1__VI,
+    { Chip::IMG_DATA_FORMAT_ETC2_RGBA1__VI,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Etc2X8Y8Z8W1_Unorm,
@@ -22381,7 +22381,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -22435,7 +22435,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -22489,7 +22489,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -22543,7 +22543,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_GB_GR,
+    { Chip::IMG_DATA_FORMAT_GB_GR,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Z8Y8_Unorm,
@@ -22597,7 +22597,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BG_RG,
+    { Chip::IMG_DATA_FORMAT_BG_RG,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Y8X8_Y8Z8_Unorm,
@@ -22651,7 +22651,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_5_9_9_9,
+    { Chip::IMG_DATA_FORMAT_5_9_9_9,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -22705,7 +22705,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC1,
+    { Chip::IMG_DATA_FORMAT_BC1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc1_Unorm,
@@ -22759,7 +22759,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC2,
+    { Chip::IMG_DATA_FORMAT_BC2,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc2_Unorm,
@@ -22813,7 +22813,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC3,
+    { Chip::IMG_DATA_FORMAT_BC3,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc3_Unorm,
@@ -22867,7 +22867,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC4,
+    { Chip::IMG_DATA_FORMAT_BC4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc4_Unorm,
@@ -22921,7 +22921,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC5,
+    { Chip::IMG_DATA_FORMAT_BC5,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc5_Unorm,
@@ -22975,7 +22975,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC6,
+    { Chip::IMG_DATA_FORMAT_BC6,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc6_Ufloat,
@@ -23029,7 +23029,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_BC7,
+    { Chip::IMG_DATA_FORMAT_BC7,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Bc7_Unorm,
@@ -23083,7 +23083,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23137,7 +23137,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23191,7 +23191,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23245,7 +23245,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23299,7 +23299,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23353,7 +23353,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23407,7 +23407,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23461,7 +23461,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23515,7 +23515,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23569,7 +23569,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23623,7 +23623,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23677,7 +23677,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23731,7 +23731,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23785,7 +23785,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23839,7 +23839,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -23893,7 +23893,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_4_4,
+    { Chip::IMG_DATA_FORMAT_4_4,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X4Y4_Unorm,
@@ -23947,7 +23947,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_INVALID,
+    { Chip::IMG_DATA_FORMAT_INVALID,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -24001,7 +24001,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
           },
       },
     },
-    { IMG_DATA_FORMAT_1,
+    { Chip::IMG_DATA_FORMAT_1,
       {
           { // IMG_NUM_FORMAT_UNORM
                ChNumFormat::X1_Unorm,
@@ -24062,7 +24062,7 @@ constexpr uint32 Gfx8_1MergedImgDataFmtCount = sizeof(Gfx8_1MergedImgDataFmtTbl)
 // Stores a MergedBufDataFmtInfo struct for each HW buffer format up to the last format known to the spreadsheet.
 constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
 {
-    { BUF_DATA_FORMAT_INVALID,
+    { Chip::BUF_DATA_FORMAT_INVALID,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -24106,7 +24106,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8,
+    { Chip::BUF_DATA_FORMAT_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8_Unorm,
@@ -24150,7 +24150,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16,
+    { Chip::BUF_DATA_FORMAT_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16_Unorm,
@@ -24194,7 +24194,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8_8,
+    { Chip::BUF_DATA_FORMAT_8_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8_Unorm,
@@ -24238,7 +24238,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32,
+    { Chip::BUF_DATA_FORMAT_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -24282,7 +24282,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16_16,
+    { Chip::BUF_DATA_FORMAT_16_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16_Unorm,
@@ -24326,7 +24326,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_10_11_11,
+    { Chip::BUF_DATA_FORMAT_10_11_11,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -24370,7 +24370,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_11_11_10,
+    { Chip::BUF_DATA_FORMAT_11_11_10,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -24414,7 +24414,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_INVALID,
+    { Chip::BUF_DATA_FORMAT_INVALID,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -24458,7 +24458,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_2_10_10_10,
+    { Chip::BUF_DATA_FORMAT_2_10_10_10,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X10Y10Z10W2_Unorm,
@@ -24502,7 +24502,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_8_8_8_8,
+    { Chip::BUF_DATA_FORMAT_8_8_8_8,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X8Y8Z8W8_Unorm,
@@ -24546,7 +24546,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -24590,7 +24590,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_16_16_16_16,
+    { Chip::BUF_DATA_FORMAT_16_16_16_16,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::X16Y16Z16W16_Unorm,
@@ -24634,7 +24634,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,
@@ -24678,7 +24678,7 @@ constexpr MergedBufDataFmtInfo Gfx8_1MergedBufDataFmtTbl[] =
           },
       },
     },
-    { BUF_DATA_FORMAT_32_32_32_32,
+    { Chip::BUF_DATA_FORMAT_32_32_32_32,
       {
           { // BUF_NUM_FORMAT_UNORM
                ChNumFormat::Undefined,

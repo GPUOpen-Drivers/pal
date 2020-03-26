@@ -465,28 +465,42 @@ CmdStreamChunk* CmdBuffer::GetNextDataChunk(
 {
     CmdStreamChunk* pChunk = nullptr;
 
-    // First search the retained chunk list
-    if (pData->retainedChunks.IsEmpty() == false)
+    if (m_status == Result::Success)
     {
-        // The command allocator always allocates uniformly-sized chunks, so any retained chunk should be big enough.
-        // When the chunk was retained the reference count was not modified so no need to add a reference here.
-        pData->retainedChunks.PopBack(&pChunk);
+        // First search the retained chunk list
+        if (pData->retainedChunks.IsEmpty() == false)
+        {
+            // The command allocator always allocates uniformly-sized chunk, so any retained chunk should be big enough.
+            // When the chunk was retained the reference count was not modified so no need to add a reference here.
+            pData->retainedChunks.PopBack(&pChunk);
+        }
+
+        // If a retained chunk could not be found then allocate a new one from the command allocator
+        if (pChunk == nullptr)
+        {
+            // It's either the first time we're requesting space for this stream, or the "most recent" chunk for this
+            // stream doesn't have enough space to accomodate this request.  Either way, we need to obtain a new chunk.
+            // The allocator adds a reference for us automatically. Data chunks cannot be root (head) chunks.
+            m_status = m_pCmdAllocator->GetNewChunk(type, false, &pChunk);
+
+            // Something bad happen and the CmdBuffer will always be in error status ever after
+            PAL_ALERT(m_status != Result::Success);
+        }
     }
 
-    // If a retained chunk could not be found then allocate a new one from the command allocator
-    if (pChunk == nullptr)
+    // If we fail to get a new Chunk from GPU memory either because we ran out of GPU memory or DeviceLost, get a dummy
+    // chunk to allow the program to proceed until the error is propagated back to the client.
+    if (m_status != Result::Success)
     {
-        // It's either the first time we're requesting space for this stream, or the "most recent" chunk for this stream
-        // doesn't have enough space to accomodate this request.  Either way, we need to obtain a new chunk. The
-        // allocator adds a reference for us automatically. Data chunks cannot be root (head) chunks.
-        m_status = m_pCmdAllocator->GetNewChunk(type, false, &pChunk);
+        pChunk = m_pCmdAllocator->GetDummyChunk();
 
-        // If we fail to get a new Chunk from GPU memory either because we ran out of GPU memory or DeviceLost, get a
-        // dummy chunk to allow the program to proceed until the error is propagated back to the client.
-        if (m_status != Result::Success)
+        // Make sure there is only one reference of dummy chunk at back of chunk list
+        if (pData->chunkList.Back() == pChunk)
         {
-            pChunk = m_pCmdAllocator->GetDummyChunk();
+            pData->chunkList.PopBack(nullptr);
         }
+
+        pChunk->Reset(true);
     }
 
     // We have to have a chunk at this point

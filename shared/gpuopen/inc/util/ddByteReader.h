@@ -39,22 +39,72 @@ namespace DevDriver
     class ByteReader
     {
     public:
-        ByteReader(const void* pBegin, const void* pEnd)
-            : m_pCurrentByte((const uint8*)pBegin),
-              m_pEnd((const uint8*)pEnd)
+        ByteReader(const void* pData, size_t dataSize)
+            : m_pCur(pData),
+              m_pEnd(VoidPtrInc(pData, dataSize))
         {}
-
-        // Get the current byte position in the range.
-        const uint8* Get() const
-        {
-            return m_pCurrentByte;
-        }
 
         // Get the number of remaining bytes in the range.
         size_t Remaining() const
         {
-            DD_ASSERT(m_pEnd >= m_pCurrentByte);
-            return m_pEnd - m_pCurrentByte;
+            const uint8* pCur = reinterpret_cast<const uint8*>(m_pCur);
+            const uint8* pEnd = reinterpret_cast<const uint8*>(m_pEnd);
+
+            DD_ASSERT(pEnd >= pCur);
+            return (pEnd - pCur);
+        }
+
+        // Returns a pointer to a sized subset of the byte array based on the current position
+        // Fails if there are not enough bytes remaining, or if ppValue is NULL.
+        Result GetBytes(const void** ppData, size_t dataSize)
+        {
+            Result result = Result::InvalidParameter;
+
+            if ((ppData != nullptr) && (dataSize > 0))
+            {
+                if (dataSize <= Remaining())
+                {
+                    *ppData = m_pCur;
+                    m_pCur = VoidPtrInc(m_pCur, dataSize);
+
+                    result = Result::Success;
+                }
+                else
+                {
+                    result = Result::Error;
+                }
+            }
+
+            return result;
+        }
+
+        // Returns a type pointer at the current byte array position
+        // Fails if there are not enough bytes remaining, or if ppValue is NULL.
+        template <typename T>
+        Result Get(const T** ppValue)
+        {
+            static_assert(!Platform::IsPointer<T>::Value, "Don't read pointers from byte arrays.");
+
+            return GetBytes(reinterpret_cast<const void**>(ppValue), sizeof(T));
+        }
+
+        // Copies data from bytes to the buffer pointer provided.
+        // Fails if there are not enough bytes remaining, or if pValue is NULL.
+        Result ReadBytes(void* pDst, size_t numBytes)
+        {
+            Result result = Result::InvalidParameter;
+
+            if ((pDst != nullptr) && (numBytes > 0))
+            {
+                const void* pBytes = nullptr;
+                result = GetBytes(&pBytes, numBytes);
+                if (result == Result::Success)
+                {
+                    memcpy(pDst, pBytes, numBytes);
+                }
+            }
+
+            return result;
         }
 
         // Copies data from bytes to the value type pointer provided.
@@ -63,39 +113,45 @@ namespace DevDriver
         Result Read(T* pValue)
         {
             static_assert(!Platform::IsPointer<T>::Value, "Don't read pointers from byte arrays.");
-            size_t bytesToRead = sizeof(T);
-            Result result = Result::Error;
-            if (bytesToRead <= Remaining())
+
+            Result result = Result::InvalidParameter;
+
+            if (pValue != nullptr)
             {
-                if (pValue != nullptr)
-                {
-                    memcpy(pValue, m_pCurrentByte, bytesToRead);
-                    m_pCurrentByte += bytesToRead;
-                    result = Result::Success;
-                }
-                else
-                {
-                    result = Result::InvalidParameter;
-                }
+                result = ReadBytes(reinterpret_cast<void*>(pValue), sizeof(T));
             }
+
             return result;
         }
 
-        // Move the reading cursor forward nBytes, as if a struct of size nBytes was read with Read().
+        // Move the reading cursor forward numBytes, as if a struct of size numBytes was read with Read().
         // Fails if there are not enough bytes remaining. The current position remains unchanged on failure.
-        Result Skip(uint64 nBytes)
+        Result Skip(size_t numBytes)
         {
             Result result = Result::Error;
-            if (nBytes <= Remaining())
+            if (numBytes <= Remaining())
             {
-                m_pCurrentByte += nBytes;
+                m_pCur = VoidPtrInc(m_pCur, numBytes);
                 result = Result::Success;
             }
             return result;
         }
 
     private:
-        const uint8* m_pCurrentByte;
-        const uint8* m_pEnd;
+        const void* m_pCur;       // Current byte position
+                                  // This is incremented as data is read/get
+        const void* const m_pEnd; // End byte position
+                                  // This is set during the constructor and never changed. It's used to calculate the
+                                  // number of bytes remaining.
     };
+
+    // Get infers a size from the type and void* has no size.
+    // Use GetBytes() with an explicit size instead.
+    template <>
+    Result ByteReader::Get(const void** ppValue) = delete;
+
+    // Read infers a size from the type and void* has no size.
+    // Use ReadBytes() with an explicit size instead.
+    template <>
+    Result ByteReader::Read(void* pValue) = delete;
 }

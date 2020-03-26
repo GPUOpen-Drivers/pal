@@ -186,7 +186,7 @@ void DriverControlServer::UpdateSession(const SharedPointer<ISession>& pSession)
                     pSessionData->state = HandleQueryDriverStatusRequest(container, pSession->GetVersion());
                     break;
                 case DriverControlMessage::StepDriverRequest:
-                    pSessionData->state = HandleStepDriverRequest(container);
+                    pSessionData->state = HandleStepDriverRequest(container, pSession->GetVersion());
                     break;
                 case DriverControlMessage::QueryClientInfoRequest:
                     DD_ASSERT(pSession->GetVersion() >= DRIVERCONTROL_QUERYCLIENTINFO_VERSION);
@@ -225,7 +225,15 @@ void DriverControlServer::UpdateSession(const SharedPointer<ISession>& pSession)
             if ((IsHalted() && (m_initStepRequested == false)) ||
                 (IsDriverInitialized() && (m_stepCounter == 0)))
             {
-                pSessionData->payloadContainer.CreatePayload<StepDriverResponsePayload>(Result::Success);
+                if (pSession->GetVersion() >= DRIVERCONTROL_STEP_RETURN_STATUS_VERSION)
+                {
+                    pSessionData->payloadContainer.CreatePayload<StepDriverResponsePayloadV2>(Result::Success, m_driverStatus);
+                }
+                else
+                {
+                    pSessionData->payloadContainer.CreatePayload<StepDriverResponsePayload>(Result::Success);
+                }
+
                 pSessionData->state = SessionState::SendPayload;
             }
             UnlockData();
@@ -518,7 +526,8 @@ SessionState DriverControlServer::HandleQueryDriverStatusRequest(
 }
 
 SessionState DriverControlServer::HandleStepDriverRequest(
-    SizedPayloadContainer& container)
+    SizedPayloadContainer& container,
+    const Version          sessionVersion)
 {
     const auto& payload = container.GetPayload<StepDriverRequestPayload>();
 
@@ -546,7 +555,15 @@ SessionState DriverControlServer::HandleStepDriverRequest(
     }
     else
     {
-        container.CreatePayload<StepDriverResponsePayload>(Result::Error);
+        if (sessionVersion >= DRIVERCONTROL_STEP_RETURN_STATUS_VERSION)
+        {
+            container.CreatePayload<StepDriverResponsePayloadV2>(Result::Error, m_driverStatus);
+        }
+        else
+        {
+            container.CreatePayload<StepDriverResponsePayload>(Result::Error);
+        }
+
         retState = SessionState::SendPayload;
     }
     UnlockData();

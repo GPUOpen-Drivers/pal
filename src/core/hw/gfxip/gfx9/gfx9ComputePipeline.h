@@ -72,6 +72,11 @@ public:
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 580
+    virtual void SetStackSizeInBytes(
+        uint32 stackSizeInBytes) override;
+#endif
+
 protected:
     virtual Result HwlInit(
         const ComputePipelineCreateInfo& createInfo,
@@ -80,7 +85,7 @@ protected:
         Util::MsgPackReader*             pMetadataReader) override;
 
 private:
-    void UpdateRingSizes(const CodeObjectMetadata& metadata);
+    void UpdateRingSizes(uint32 scratchMemorySize);
 
     Device*const  m_pDevice;
 

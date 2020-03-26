@@ -69,11 +69,17 @@ public:
         const char*      pShaderExportName,
         ShaderLibStats*  pShaderStats) const override;
 
+    virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const override { return nullptr; }
+
+    virtual uint32 GetShaderLibFunctionCount() const override { return 0; }
+
     static void GetFunctionGpuVirtAddrs(
         const AbiProcessor&             abiProcessor,
         const PipelineUploader&         uploader,
         ShaderLibraryFunctionInfo*      pFuncInfoList,
         uint32                          funcCount);
+
+    uint32 GetMaxStackFrameSizeInBytes() const { return m_maxStackFrameSizeInBytes; }
 
 protected:
     // internal Constructor.
@@ -105,6 +111,8 @@ protected:
 
     BoundGpuMemory  m_gpuMem;
     gpusize         m_gpuMemSize;
+
+    uint32          m_maxStackFrameSizeInBytes;  // Maximum stack frame size of all functions in the library
 
 private:
     Result InitFromCodeObjectBinary(

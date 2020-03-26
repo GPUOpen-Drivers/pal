@@ -33,6 +33,7 @@ namespace Pal
 class  CmdStream;
 class  Device;
 struct InternalSubmitInfo;
+class  Queue;
 
 // =====================================================================================================================
 // A "QueueContext" is responsible for managing any Device or hardware-layer state which needs to potentially be updated
@@ -43,7 +44,7 @@ struct InternalSubmitInfo;
 class QueueContext
 {
 public:
-    QueueContext(Device* pDevice) : m_pDevice(pDevice) { }
+    QueueContext(Device* pDevice) : m_pDevice(pDevice), m_pParentQueue(nullptr) { }
 
     // Queue contexts should only be created in placed memory and must always be destroyed explicitly.
     void Destroy() { this->~QueueContext(); }
@@ -60,12 +61,15 @@ public:
     // Returns Success if the submission is required, and Unsupported otherwise.
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) { return Result::Unsupported; }
 
+    virtual void SetParentQueue(Queue* pQueue) { m_pParentQueue = pQueue; }
+
 protected:
     virtual ~QueueContext();
 
     Result CreateTimestampMem(bool needWaitForIdleMem);
 
     Device*const   m_pDevice;
+    Queue*         m_pParentQueue;
 
     // All QueueContext subclasses require at least one 32-bit timestamp in local GPU memory.
     BoundGpuMemory m_exclusiveExecTs; // This TS prevents independent submissions from running at the same time.

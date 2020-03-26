@@ -60,7 +60,6 @@ struct UniversalCmdBufferState
             uint32 ceInvalidateKcache    :  1;
             uint32 ceWaitOnDeCounterDiff :  1;
             uint32 deCounterDirty        :  1;
-            uint32 paScAaConfigUpdated   :  1;
             uint32 containsDrawIndirect  :  1;
             uint32 optimizeLinearGfxCpy  :  1;
             uint32 firstDrawExecuted     :  1;
@@ -69,7 +68,7 @@ struct UniversalCmdBufferState
                                                // that the CB_TARGET_MASK has been changed.
             uint32 reserved0             :  6;
             uint32 cbColorInfoDirtyRtv   :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
-            uint32 reserved1             :  8;
+            uint32 reserved1             :  9;
         };
         uint32 u32All;
     } flags;
@@ -712,7 +711,7 @@ private:
         uint32      xDim,
         uint32      yDim,
         uint32      zDim);
-    template <bool isNgg>
+    template <bool IsNgg>
     uint32 CalcGeCntl(
         bool                  usesLineStipple,
         regIA_MULTI_VGT_PARAM iaMultiVgtParam) const;
@@ -908,6 +907,31 @@ private:
     uint32      m_pipelineCtxRegHash;   // Hash of current pipeline's context registers.
     uint32      m_pipelineCfgRegHash;   // Hash of current pipeline's config registers.
     ShaderHash  m_pipelinePsHash;       // Hash of current pipeline's pixel shader program.
+
+    bool IsTessEnabled() const
+    {
+#if PAL_ENABLE_PRINTS_ASSERTS
+        PAL_ASSERT(m_pipelineFlagsValid == true);
+#endif
+        return (m_pipelineFlags.usesTess != 0);
+    }
+
+    bool IsGsEnabled() const
+    {
+#if PAL_ENABLE_PRINTS_ASSERTS
+        PAL_ASSERT(m_pipelineFlagsValid == true);
+#endif
+        return (m_pipelineFlags.usesGs != 0);
+    }
+
+    bool IsNggEnabled() const
+    {
+#if PAL_ENABLE_PRINTS_ASSERTS
+        PAL_ASSERT(m_pipelineFlagsValid == true);
+#endif
+        return (m_pipelineFlags.isNgg != 0);
+    }
+
     union
     {
         struct
@@ -920,6 +944,10 @@ private:
         };
         uint32 u32All;
     }  m_pipelineFlags;  // Flags describing the currently active pipeline stages.
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    bool m_pipelineFlagsValid; /// Debug flag for knowing when m_pipeLineFlags is valid (most of draw-time).
+#endif
 
     // Function pointers which validate all graphics user-data at Draw-time for the cases where the pipeline is
     // changing and cases where it is not.
@@ -994,10 +1022,12 @@ private:
     regCB_RMI_GL2_CACHE_CONTROL m_cbRmiGl2CacheControl; // Control CB cache policy and big page
 
     regPA_SC_BINNER_CNTL_0  m_paScBinnerCntl0;
-    uint32                  m_log2NumSamples;       // Last written value of PA_SC_AA_CONFIG.MSAA_NUM_SAMPLES.
     regDB_DFSM_CONTROL      m_dbDfsmControl;
     regDB_RENDER_OVERRIDE   m_dbRenderOverride;     // Last written value of the pipeline-owned part of
                                                     // DB_RENDER_OVERRIDE register.
+
+    regPA_SC_AA_CONFIG m_paScAaConfigNew;  // PA_SC_AA_CONFIG state that will be written on the next draw.
+    regPA_SC_AA_CONFIG m_paScAaConfigLast; // Last written value of PA_SC_AA_CONFIG
 
     BinningOverride  m_pbbStateOverride; // Sets PBB on/off as per dictated by the new bound pipeline.
     bool             m_enabledPbb;       // PBB is currently enabled or disabled.

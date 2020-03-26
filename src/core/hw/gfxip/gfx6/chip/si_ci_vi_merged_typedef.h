@@ -28,6 +28,12 @@
 
 #include "si_ci_vi_merged_registers.h"
 
+namespace Pal
+{
+namespace Gfx6
+{
+inline namespace Chip
+{
 typedef union ABM_TEST_DEBUG_DATA__SI__VI      regABM_TEST_DEBUG_DATA__SI__VI;
 typedef union ABM_TEST_DEBUG_INDEX__SI__VI     regABM_TEST_DEBUG_INDEX__SI__VI;
 typedef union ACP_CONFIG__CI                   regACP_CONFIG__CI;
@@ -10845,4 +10851,9 @@ typedef union XDMA_SLV_WB_RATE_CNTL__VI        regXDMA_SLV_WB_RATE_CNTL__VI;
 typedef union XDMA_SLV_WRITE_URGENT_CNTL__VI   regXDMA_SLV_WRITE_URGENT_CNTL__VI;
 typedef union XDMA_TEST_DEBUG_DATA__VI         regXDMA_TEST_DEBUG_DATA__VI;
 typedef union XDMA_TEST_DEBUG_INDEX__VI        regXDMA_TEST_DEBUG_INDEX__VI;
+
+} // inline namespace Chip
+} // namespace Gfx6
+} // namespace Pal
+
 #endif // SI_CI_VI_PI_MERGED_TYPEDEF_HEADER

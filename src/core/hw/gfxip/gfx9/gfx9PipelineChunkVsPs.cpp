@@ -95,6 +95,7 @@ PipelineChunkVsPs::PipelineChunkVsPs(
     memset(&m_regs, 0, sizeof(m_regs));
     memset(&m_stageInfoVs, 0, sizeof(m_stageInfoVs));
     memset(&m_stageInfoPs, 0, sizeof(m_stageInfoPs));
+    m_paScAaConfig.u32All = 0;
 
     m_stageInfoVs.stageId = Abi::HardwareStage::Vs;
     m_stageInfoPs.stageId = Abi::HardwareStage::Ps;
@@ -307,7 +308,7 @@ void PipelineChunkVsPs::LateInit(
     m_regs.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
     m_regs.context.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
     m_regs.context.paScShaderControl.u32All  = registers.At(mmPA_SC_SHADER_CONTROL);
-    m_regs.context.paScAaConfig.u32All       = registers.At(mmPA_SC_AA_CONFIG);
+    m_paScAaConfig.u32All                    = registers.At(mmPA_SC_AA_CONFIG);
 
     if (chipProps.gfx9.supportCustomWaveBreakSize && (settings.forceWaveBreakSize != Gfx10ForceWaveBreakSizeClient))
     {
@@ -576,10 +577,7 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
         }
     }
 
-    return pCmdStream->WriteContextRegRmw(mmPA_SC_AA_CONFIG,
-                                          PA_SC_AA_CONFIG__COVERAGE_TO_SHADER_SELECT_MASK,
-                                          m_regs.context.paScAaConfig.u32All,
-                                          pCmdSpace);
+    return pCmdSpace;
 }
 
 // Instantiate template versions for the linker.

@@ -35,6 +35,8 @@ namespace Pal
 namespace Oss2
 {
 
+using namespace Pal::Gfx6::Chip;
+
 #include "core/hw/ossip/oss2/sdma20_pkt_struct.h"
 
 // =====================================================================================================================

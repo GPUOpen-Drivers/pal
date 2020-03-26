@@ -157,9 +157,18 @@ Result SwapChain::Init(
 
     const size_t fenceSize = PresentFence::GetSize(m_createInfo.wsiPlatform);
 
+    bool initiallySignaled = false;
+
+    if ((m_createInfo.wsiPlatform == WsiPlatform::DirectDisplay) &&
+       ((m_createInfo.swapChainMode == SwapChainMode::Immediate) ||
+        (m_createInfo.swapChainMode == SwapChainMode::Fifo)))
+    {
+        initiallySignaled = true;
+    }
+
     for (uint32 idx = 0; (result == Result::Success) && (idx < m_createInfo.imageCount); ++idx)
     {
-        result         = PresentFence::Create(*m_pWindowSystem, false, pPlacementAddr, &m_pPresentIdle[idx]);
+        result         = PresentFence::Create(*m_pWindowSystem, initiallySignaled, pPlacementAddr, &m_pPresentIdle[idx]);
         pPlacementAddr = VoidPtrInc(pPlacementAddr, fenceSize);
     }
 

@@ -40,7 +40,9 @@
 //      2) Our Windows UM platform is setup correctly
 //      3) Our generic "is Um" macro is setup correctly
 // This is at worst redundant, but when this is wrong it can save us half an hour of debugging the build system
+#if (defined(_KERNEL_MODE) || !defined(DD_PLATFORM_WINDOWS_UM) )
 #error "This file must be compiled for user-mode."
+#endif
 
 #include <Psapi.h>
 
@@ -237,7 +239,14 @@ namespace DevDriver
 
             if (result == Result::Success)
             {
-                result = onExit.Wait(timeoutInMs);
+                // We only need to wait on our event here if the thread object is still unsignaled/running.
+                // If the thread is terminated externally, the thread object will be signaled by the OS but
+                // our event won't be. This check prevents us from incorrectly timing out in that situation.
+                const bool isThreadAlive = (WaitObject(hThread, 0) == Result::NotReady);
+                if (isThreadAlive)
+                {
+                    result = onExit.Wait(timeoutInMs);
+                }
             }
 
             if (result == Result::Success)

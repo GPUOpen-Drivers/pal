@@ -44,6 +44,11 @@
 
 #if defined(DD_PLATFORM_LINUX_UM)
     #include <sys/utsname.h>
+#elif defined(DD_PLATFORM_DARWIN_UM)
+    #include <os/log.h>
+
+    #include <sys/param.h>
+    #include <sys/sysctl.h>
 #endif
 
 namespace DevDriver
@@ -86,6 +91,19 @@ namespace DevDriver
             // Append a newline
             Platform::Snprintf(buffer, "%s\n", buffer);
 
+#if defined(DD_PLATFORM_DARWIN_UM)
+            static const os_log_t logObject = os_log_create("com.amd.gpuopen", "developer driver");
+            static constexpr os_log_type_t kLogLevelTable[static_cast<int>(LogLevel::Count)] =
+            {
+                OS_LOG_TYPE_DEBUG,
+                OS_LOG_TYPE_INFO,
+                OS_LOG_TYPE_DEFAULT,
+                OS_LOG_TYPE_ERROR,
+                OS_LOG_TYPE_FAULT,
+                OS_LOG_TYPE_DEFAULT
+            };
+            os_log_with_type(logObject, kLogLevelTable[static_cast<int>(lvl)], "%s", buffer);
+#endif
         }
 
         int32 AtomicIncrement(Atomic *variable)
@@ -167,6 +185,8 @@ namespace DevDriver
 
             if (IsJoinable())
             {
+                // TODO: Improve robustness in cases of external thread termination
+
                 // Wait for the thread to signal that it has exited.
                 result = onExit.Wait(timeoutInMs);
             }
@@ -358,6 +378,32 @@ namespace DevDriver
                 }
             }
             return result;
+        }
+#elif defined(DD_PLATFORM_DARWIN_UM)
+        Semaphore::Semaphore(uint32 initialCount, uint32 maxCount)
+        {
+            // macOS doesn't enforce a max. Beware.
+            DD_UNUSED(maxCount);
+            m_semaphore = dispatch_semaphore_create(initialCount);
+            DD_ASSERT(m_semaphore != NULL);
+        }
+
+        Semaphore::~Semaphore()
+        {
+        }
+
+        Result Semaphore::Signal()
+        {
+            dispatch_semaphore_signal(m_semaphore);
+            return Result::Success;
+        }
+
+        Result Semaphore::Wait(uint32 timeoutInMs)
+        {
+            const int64_t timeoutInNs = timeoutInMs * 1000000;
+            const dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, timeoutInNs);
+            const int retVal = dispatch_semaphore_wait(m_semaphore, waitTime);
+            return (retVal == 0) ? Result::Success : Result::NotReady;
         }
 #endif
 
@@ -571,6 +617,39 @@ namespace DevDriver
             return ret;
         }
 
+#if defined(DD_PLATFORM_DARWIN_UM)
+        template <size_t BufferSize>
+        Result DarwinSysCtlString(int key0, int key1, char (&buffer)[BufferSize])
+        {
+            Result result = Result::InvalidParameter;
+            size_t length = 0;
+            int    ret    = 0;
+
+            int keys[2] = {
+                key0,
+                key1,
+            };
+
+            ret = sysctl(keys, ArraySize(keys), nullptr, &length, nullptr, 0);
+            result = (ret < 0) ? Result::Error : Result::Success;
+            if (result == Result::Success)
+            {
+               if (length >= BufferSize)
+               {
+                   result = Result::InsufficientMemory;
+               }
+            }
+
+            if (result == Result::Success)
+            {
+                ret = sysctl(keys, ArraySize(keys), buffer, &length, nullptr, 0);
+                result = (ret < 0) ? Result::Error : Result::Success;
+            }
+
+            return result;
+        }
+#endif
+
         Result QueryOsInfo(OsInfo* pInfo)
         {
             Result result = Result::Success;
@@ -579,6 +658,12 @@ namespace DevDriver
             memset(pInfo, 0, sizeof(*pInfo));
 
 #if defined(DD_PLATFORM_LINUX_UM)
+            // Query OS name
+            {
+                // TODO: Query distro name, e.g. "Ubuntu 18.09"
+            }
+
+            // Query description
             {
                 utsname info = {};
                 uname(&info);
@@ -589,6 +674,45 @@ namespace DevDriver
                 Snprintf(pInfo->description, ArraySize(pInfo->description),
                          "%s %s %s     %s",
                          info.sysname, info.release, info.machine, info.version);
+            }
+
+            // Query memory
+            {
+                // TODO: Query available physical memory and swap space
+            }
+#elif defined(DD_PLATFORM_DARWIN_UM)
+            // Query OS name
+            {
+                // TODO: Query macOS revision name, e.g. "Mojave" or "Catalina"
+            }
+
+            // Query description
+            {
+                char model[128]   = {};
+                char version[128] = {};
+
+                if (result == Result::Success)
+                {
+                    // e.g. "MacPro4,1" or "iPhone8,1"
+                    result = DarwinSysCtlString(CTL_HW, HW_MODEL, model);
+                }
+
+                if (result == Result::Success)
+                {
+                    // e.g. "Darwin Kernel Version 18.7.0: Tue Aug 20 16:57:14 PDT 2019; root:xnu-4903.271.2~2/RELEASE_X86_64"
+                    result = DarwinSysCtlString(CTL_KERN, KERN_VERSION, version);
+                }
+
+                Snprintf(pInfo->description, ArraySize(pInfo->description),
+                         "%s - %s",
+                         model,
+                         version);
+            }
+
+            // Query memory
+            {
+                // TODO: Query available physical memory and swap space
+                // (This may be able to be folded into the Linux impl)
             }
 #else
             static_assert(false, "Building on an unknown platform: " DD_PLATFORM_STRING ". Add an implementation to QueryOsInfo().");

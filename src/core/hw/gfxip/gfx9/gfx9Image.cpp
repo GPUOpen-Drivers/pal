@@ -1006,7 +1006,7 @@ void Image::InitLayoutStateMasks()
                 // Verify that transitions to presentable state will invoke a DCC decompress on GFX10 for texture-
                 // fetchable images.
                 PAL_ASSERT(((pBaseSubResInfo->bitsPerTexel / 8) < 4) ||
-                           TestAnyFlagSet(m_layoutToState.color.compressed.usages, LayoutPresentFullscreen) == false);
+                           TestAnyFlagSet(compressedLayout.usages, LayoutPresentFullscreen) == false);
             }
         } // if supportMetaDataTexFetch
         else if (isMsaa && isComprFmaskShaderReadable)
@@ -3271,6 +3271,11 @@ uint32 Image::GetIterate256(
 
     // In cases where our VRAM bus width is not a power of two, we need to have iterate256 enabled at all times
     if (IsPowerOfTwo(m_device.MemoryProperties().vramBusBitWidth) == false)
+    {
+        iterate256 = 1;
+    }
+
+    if (settings.forceEnableIterate256)
     {
         iterate256 = 1;
     }

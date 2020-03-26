@@ -61,10 +61,10 @@ Result Semaphore::Wait(
 {
     constexpr uint32 Infinite = 0xFFFFFFFF;
 
-    int result = 0;
+    int32 ret = 0;
 
     // Retry the wait if EAGAIN happens when waiting.
-    int retry = 1;
+    int32 retry = 1;
 
     // Calculate the abs time before the loop.
     timespec timeout = { };
@@ -76,34 +76,47 @@ Result Semaphore::Wait(
         {
             case Infinite:
                 // Wait on the semaphore indefinitely.
-                result = sem_wait(&m_osSemaphore);
+                ret = sem_wait(&m_osSemaphore);
                 break;
 
             case 0:
                 // Decrement the semaphore if it can be done so immediately, but don't wait.
-                result = sem_trywait(&m_osSemaphore);
+                ret = sem_trywait(&m_osSemaphore);
                 break;
 
             default:
                 {
                     // Wait on the semaphore until a timeout occurs.
                     // the timeout is the absolute time thus don't need to be adjusted
-                    result = sem_timedwait(&m_osSemaphore, &timeout);
+                    ret = sem_timedwait(&m_osSemaphore, &timeout);
                 }
                 break;
         }
     // Sometime, the wait would be interrupted and the caller supposed to trigger the wait again.
     // The retry times has been limited to 1 for now.
-    }while (((result == -1) && (errno == EAGAIN)) && (retry --));
+    } while (((ret == -1) && (errno == EAGAIN)) && (retry--));
 
-    if (result == -1)
+    if (ret == -1)
     {
-        result = errno;
+        ret = errno;
     }
 
     // EAGAIN and ETIMEDOUT are nonfatal if we're not waiting indefinitely.
-    PAL_ASSERT((result == 0) || (result == EAGAIN) || (result == ETIMEDOUT));
-    return ((result == 0) ? Result::Success : Result::Timeout);
+    PAL_ASSERT((ret == 0) || (ret == EAGAIN) || (ret == ETIMEDOUT));
+
+    Result result = Result::Timeout;
+
+    // It's just a query when milliseconds is 0
+    if ((ret == EAGAIN) && (milliseconds == 0))
+    {
+        result = Result::NotReady;
+    }
+    else if (ret == 0)
+    {
+        result = Result::Success;
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

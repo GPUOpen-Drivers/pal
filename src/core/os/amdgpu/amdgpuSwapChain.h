@@ -55,9 +55,6 @@ public:
 
     virtual void WaitForImageIdle(uint32 imageIndex) override;
 
-    void SetFlipImageIdx(uint32 idx) { m_flipImageIdx = idx; }
-    uint32 GetFlipImageIdx() const { return m_flipImageIdx; }
-
 private:
     SwapChain(const SwapChainCreateInfo& createInfo, Device* pDevice);
     virtual ~SwapChain();
@@ -68,7 +65,6 @@ private:
 
     WindowSystem* m_pWindowSystem;
     PresentFence* m_pPresentIdle[MaxSwapChainLength]; // Signaled when each image is idle in the windowing system.
-    uint32        m_flipImageIdx;
 
     PAL_DISALLOW_DEFAULT_CTOR(SwapChain);
     PAL_DISALLOW_COPY_AND_ASSIGN(SwapChain);

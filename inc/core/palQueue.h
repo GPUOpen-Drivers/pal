@@ -357,6 +357,17 @@ struct PresentDirectInfo
     MgpuSlsInfo    mgpuSlsInfo;     ///< Optional, MGpu Sls Present Info. imageCount = 0 if not a Mgpu Sls present.
 };
 
+/// Media stream counter information.
+struct MscInfo
+{
+    uint64 targetMsc;                  ///< if the current MSC is less than <targetMsc>, the buffer swap
+                                       ///< will occur when the MSC value becomes equal to <targetMsc>
+    uint64 divisor;                    ///< Divisor
+                                       ///< the buffer swap will occur the next time the MSC value is
+                                       ///< incremented to a value such that MSC % <divisor> = <remainder>
+                                       ///< if the current MSC is greater than or equal to <targetMsc>
+    uint64 remainder;                  ///< Remainder
+};
 /// Specifies properties for the presentation of an image to the screen.  Input structure to IQueue::PresentSwapChain().
 struct PresentSwapChainInfo
 {
@@ -385,6 +396,9 @@ struct PresentSwapChainInfo
         };
         uint32 u32All;                          ///< Flags packed as 32-bit uint.
     } flags;                                    ///< PresentSwapChainInfo flags.
+#if PAL_AMDGPU_BUILD && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 582)
+    MscInfo mscInfo;                            ///< Media stream counter information
+#endif
 };
 
 /// Specifies a mapping from a range of pages in a virtual GPU memory object to a range of pages in a real GPU memory
@@ -479,7 +493,7 @@ public:
     {
         MultiSubmitInfo       newInfo               = { };
         PerSubQueueSubmitInfo perSubQueueSubmitInfo = { };
-        newInfo.pPerSubQueueInfo     			    = &perSubQueueSubmitInfo;
+        newInfo.pPerSubQueueInfo                    = &perSubQueueSubmitInfo;
         newInfo.perSubQueueInfoCount                = 1;
 
         if (info.cmdBufferCount > 0)

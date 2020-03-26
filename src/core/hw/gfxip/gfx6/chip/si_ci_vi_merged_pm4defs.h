@@ -36,6 +36,13 @@
 *
 ******************************************************************************/
 
+namespace Pal
+{
+namespace Gfx6
+{
+inline namespace Chip
+{
+
 // File version information
 #define SI_CI_VI_PM4DEFS_VERSION_MAJOR  3
 #define SI_CI_VI_PM4DEFS_VERSION_MINOR  0
@@ -3612,6 +3619,10 @@ typedef struct _PM4CMDREWIND
 
 #define PM4_CMD_REWIND_DWORDS                                           \
     (sizeof(PM4CMDREWIND) / sizeof(unsigned int))
+
+} // inline namespace Chip
+} // namespace Gfx6
+} // namespace Pal
 
 #endif // __SI_CI_VI_MERGED_PM4DEFS_HEADER
 

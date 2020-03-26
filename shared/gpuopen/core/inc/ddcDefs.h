@@ -37,16 +37,30 @@
 #include <stddef.h>
 
 // Macros for conditional language support.
+#ifdef _MSVC_LANG
+    #define DD_CPLUSPLUS _MSVC_LANG
+#else
     #define DD_CPLUSPLUS __cplusplus
+#endif
 // Denotes versions of the C++ standard from __cplusplus.
 // See here for details on what values you can expect:
 #define CPP98 (199711L)
 #define CPP11 (201103L)
 #define CPP14 (201402L)
 #define CPP17 (201703L)
+#define CPP20 (202002L)
 #define DD_CPLUSPLUS_SUPPORTS(x) (DD_CPLUSPLUS >= (x))
 
 static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdriver.");
+
+#if defined(_MSC_VER)
+    #define DD_ALIGNAS(x)__declspec(align(x))
+    #if _MSC_VER < 1900
+        #define DD_STATIC_CONST static const
+    #else
+        #define DD_STATIC_CONST static constexpr
+    #endif
+#endif
 
 #if !defined(DD_STATIC_CONST)
     #if defined(__cplusplus) && __cplusplus >= 201103L
@@ -79,7 +93,7 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
 #define DD_NETWORK_STRUCT(name, alignment) struct DD_ALIGNAS(alignment) name final
 
 // This is disabled by default because (1) it's horribly hacky and (2) doesn't work very well in some compilers.
-#if DEVDRIVER_ENABLE_VERBOSE_STATIC_ASSERTS
+#if DD_BUILD_ENABLE_VERBOSE_STATIC_ASSERTS
     #include <type_traits>
 
     // Conditionally expose a `value` member using SFINAE and `std::enable_if`.
@@ -156,6 +170,9 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
             // Not supported on older versions of GCC
             #define DD_FALLTHROUGH()
         #endif
+    #elif defined(_MSC_VER)
+        // Not supported on MSVC - who doesn't warn about this issue in the first place.
+        #define DD_FALLTHROUGH()
     #else
         // We don't know what compiler this is, so just no-op the macro.
         #define DD_FALLTHROUGH()
@@ -185,6 +202,16 @@ static_assert(DEVDRIVER_ARCHITECTURE_BITS == (8 * sizeof(void*)), // Assume 8-bi
 
 #define DD_BUILD_32 (DEVDRIVER_ARCHITECTURE_BITS == 32)
 #define DD_BUILD_64 (DEVDRIVER_ARCHITECTURE_BITS == 64)
+
+// Add a detailed function name macro
+// These vary across platforms, so we'll just pick the first one that's defined
+#if defined(__FUNCSIG__)
+    #define DD_FUNCTION_NAME __FUNCSIG__
+#elif defined(__PRETTY_FUNCTION__)
+    #define DD_FUNCTION_NAME __PRETTY_FUNCTION__
+#else
+    #define DD_FUNCTION_NAME __FUNCTION__
+#endif
 
 // Common Typedefs
 // These types are shared between all platforms,
@@ -230,6 +257,9 @@ enum struct Result : uint32
     FunctionNotFound = 13,
     InterfaceNotFound = 14,
     EntryExists = 15,
+    FileAccessError = 16,
+    FileIoError = 17,
+    LimitReached = 18,
 
     //// URI PROTOCOL  ////
     UriServiceRegistrationError = 1000,

@@ -35,9 +35,9 @@ QueueSemaphore::QueueSemaphore(
     Device* pDevice)
     :
     m_pDevice(pDevice),
-    m_maxWaitsPerSignal(pDevice->MaxQueueSemaphoreCount()),
+    m_maxWaitsPerSignal(pDevice->MaxQueueSemaphoreCount())
 #if PAL_AMDGPU_BUILD
-    m_hSemaphore(0),
+    ,m_hSemaphore(0),
     m_skipNextWait(false)
 #endif
 {

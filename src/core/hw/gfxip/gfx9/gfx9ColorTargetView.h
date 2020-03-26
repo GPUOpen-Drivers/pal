@@ -79,6 +79,10 @@ public:
 
     bool IsRotatedSwizzleOverwriteCombinerDisabled() const { return m_flags.disableRotateSwizzleOC != 0; }
 
+    bool HasDcc() const { return m_flags.hasDcc != 0; }
+
+    bool HasMultipleFragments() const { return m_flags.hasMultipleFragments != 0; }
+
     // Mask of CB_COLORn_INFO bits owned by the ColorTargetView classes.
     static const uint32 CbColorInfoMask = static_cast<uint32>(~(CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
                                                                 CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK));
@@ -143,8 +147,9 @@ protected:
                                                 // Only valid for buffer views or image views with viewVaLocked set.
             uint32 fmaskBigPage           :  1; // This view supports setting CB_RMI_GLC2_CACHE_CONTROL.FMASK_BIG_PAGE.
                                                 // Only valid if viewVaLocked is set.
+            uint32 hasMultipleFragments   :  1; // Is this view MSAA/EQAA?
             uint32 placeholder1           :  1;
-            uint32 reserved               : 21;
+            uint32 reserved               : 20;
         };
 
         uint32 u32All;
