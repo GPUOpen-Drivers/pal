@@ -779,6 +779,7 @@ public:
         HdrOutputMetadata* pHdrMetaData) const;
 
     Result SetHdrMetaData(
+        int32              drmMasterFd,
         uint32             connectorId,
         HdrOutputMetadata* pHdrMetaData) const;
 

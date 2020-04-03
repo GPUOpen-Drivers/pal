@@ -61,13 +61,15 @@ Screen::Screen(
 // =====================================================================================================================
 void Screen::Destroy()
 {
-    // Restore to SDR
+    // Restore to SDR, unless already in SDR mode.
+    if (m_userColorGamut.metadata.eotf == HDMI_EOTF_TRADITIONAL_GAMMA_SDR)
+        return;
 
     m_userColorGamut.metadataType          = HDMI_STATIC_METADATA_TYPE1;
     m_userColorGamut.metadata.eotf         = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
     m_userColorGamut.metadata.metadataType = HDMI_STATIC_METADATA_TYPE1;
 
-    static_cast<Device*>(m_pDevice)->SetHdrMetaData(m_connectorId, &m_userColorGamut);
+    static_cast<Device*>(m_pDevice)->SetHdrMetaData(m_drmMasterFd, m_connectorId, &m_userColorGamut);
 }
 
 // =====================================================================================================================
@@ -278,7 +280,7 @@ Result Screen::SetColorConfiguration(
     m_userColorGamut.metadata.eotf         = HDMI_EOTF_SMPTE_ST2084;
     m_userColorGamut.metadata.metadataType = HDMI_STATIC_METADATA_TYPE1;
 
-    result = static_cast<Device*>(m_pDevice)->SetHdrMetaData(m_connectorId, &m_userColorGamut);
+    result = static_cast<Device*>(m_pDevice)->SetHdrMetaData(m_drmMasterFd, m_connectorId, &m_userColorGamut);
 
     return result;
 }
@@ -311,6 +313,9 @@ Result Screen::ReleaseScreenAccess()
 
     if (m_drmMasterFd != InvalidFd)
     {
+        // Need to reset to SDR mode before we lose access to leased m_drmMasterFd.
+        Destroy();
+
         close(m_drmMasterFd);
 
         m_drmMasterFd = InvalidFd;
