@@ -5410,10 +5410,10 @@ static PAL_INLINE void GetColorCharacteristicsFromEdid(
     pHdrMetaData->metadata.chromaticityRedY        = BitsToDecimal((pEdid[0x1C] << 2) | ((pEdid[0x19] & 0x30) >> 4));
     pHdrMetaData->metadata.chromaticityGreenX      = BitsToDecimal((pEdid[0x1D] << 2) | ((pEdid[0x19] & 0x0C) >> 2));
     pHdrMetaData->metadata.chromaticityGreenY      = BitsToDecimal((pEdid[0x1E] << 2) | (pEdid[0x19] & 0x03));
-    pHdrMetaData->metadata.chromaticityBlueX       = BitsToDecimal((pEdid[0x1F] << 2) | ((pEdid[0x19] & 0xC0) >> 6));
-    pHdrMetaData->metadata.chromaticityBlueY       = BitsToDecimal((pEdid[0x20] << 2) | ((pEdid[0x19] & 0x03) >> 4));
-    pHdrMetaData->metadata.chromaticityWhitePointX = BitsToDecimal((pEdid[0x21] << 2) | ((pEdid[0x19] & 0xC0) >> 2));
-    pHdrMetaData->metadata.chromaticityWhitePointY = BitsToDecimal((pEdid[0x22] << 2) | (pEdid[0x19] & 0x0C));
+    pHdrMetaData->metadata.chromaticityBlueX       = BitsToDecimal((pEdid[0x1F] << 2) | ((pEdid[0x1A] & 0xC0) >> 6));
+    pHdrMetaData->metadata.chromaticityBlueY       = BitsToDecimal((pEdid[0x20] << 2) | ((pEdid[0x1A] & 0x30) >> 4));
+    pHdrMetaData->metadata.chromaticityWhitePointX = BitsToDecimal((pEdid[0x21] << 2) | ((pEdid[0x1A] & 0x0C) >> 2));
+    pHdrMetaData->metadata.chromaticityWhitePointY = BitsToDecimal((pEdid[0x22] << 2) | (pEdid[0x1A] & 0x03));
 
     return;
 }
@@ -5572,6 +5572,7 @@ Result Device::GetHdrMetaData(
             if (result == Result::Success)
             {
                 GetColorCharacteristicsFromEdid(reinterpret_cast<uint8*>(pBlob->data), pHdrMetaData);
+                connectorSupportHdr = true;
             }
 
             m_drmProcs.pfnDrmModeFreePropertyBlob(pBlob);
