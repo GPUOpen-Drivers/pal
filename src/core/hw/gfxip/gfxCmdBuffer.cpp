@@ -284,6 +284,8 @@ Result GfxCmdBuffer::BeginCommandStreams(
     if (doReset)
     {
         ReturnGeneratedCommandChunks(true);
+        ResetFastClearReferenceCounts();
+        m_releaseActivityMap.Reset();
     }
 
     Result result = CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
